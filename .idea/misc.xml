@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_6" default="false" project-jdk-name="Python 3.5.1 virtualenv at ~/virtualenvs/django" project-jdk-type="Python SDK" />
+  <component name="SbtLocalSettings">
+    <option name="modificationStamps">
+      <map>
+        <entry key="$PROJECT_DIR$/../iesl-pdf-to-text" value="1434054976000" />
+        <entry key="$PROJECT_DIR$/../iesl/rpp" value="1431357916000" />
+        <entry key="$PROJECT_DIR$/../paper-header" value="1433333343000" />
+        <entry key="$PROJECT_DIR$/../play_java_temp" value="1436818899000" />
+        <entry key="$PROJECT_DIR$/../rpp" value="1433333883000" />
+        <entry key="$PROJECT_DIR$/../xml-annotator" value="1433333707000" />
+      </map>
+    </option>
+    <option name="externalProjectsViewState">
+      <projects_view />
+    </option>
+  </component>
+</project>
