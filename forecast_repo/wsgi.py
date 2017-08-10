@@ -1,5 +1,5 @@
 """
-WSGI config for forecast_repo project.
+WSGI config for forecasts project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 

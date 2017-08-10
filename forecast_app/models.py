@@ -3,9 +3,10 @@ from django.db import models
 
 class DataFile(models.Model):
     """
-    A data file located somewhere - server, cloud, document store, etc.
+    A data file located somewhere - server, cloud, document store, etc. For now we presume the file is locatable as a
+    URL.
     """
-    # location = xx  # todo - server, etc. maybe: https://docs.djangoproject.com/en/1.11/ref/models/fields/#filefield
+    location = models.URLField()
 
     FILE_TYPES = (
         ('z', 'Zip File'),
