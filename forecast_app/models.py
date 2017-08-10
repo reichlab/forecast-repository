@@ -15,6 +15,10 @@ class DataFile(models.Model):
     file_type = models.CharField(max_length=1, choices=FILE_TYPES, blank=True, help_text='Data File Type')
 
 
+    def __repr__(self):
+        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.location)
+
+
 class Project(models.Model):
     """
     The main class representing a forecast challenge, including metadata, core data, targets, and model entries.
@@ -27,27 +31,18 @@ class Project(models.Model):
     url = models.URLField()
 
     # documents (e.g., CSV files) in one zip file. includes all data sets made available to everyone in the challenge,
-    # including supplemental data like google queries or weather. constraint: file_type = 'z'
+    # including supplemental data like google queries or weather.
+    # constraint: file_type = 'z'
     core_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
 
 
-class ForecastDate(models.Model):
-    """
-    Associates a project and a list of its forecast dates. Assumes dates from any project can be converted to actual
-    dates, e.g., from Dengue biweeks or CDC MMWR weeks (https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html).
-    
-    Project <-- 1:M -- ForecastsDate
-    """
-    project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True)
-
-    date = models.DateField(null=True, blank=True)
+    def __repr__(self):
+        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.name)
 
 
 class Target(models.Model):
     """
-    Represents a project's target - a description of the data in the each forecast's data file.
-    
-    Project <-- 1:M -- Target
+    Represents a project's target - a description of the desired data in the each forecast's data file.
     """
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True)
 
@@ -56,12 +51,34 @@ class Target(models.Model):
     description = models.CharField(max_length=2000)  # ~3 paragraphs
 
 
+    def __repr__(self):
+        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.name)
+
+
+class TimeZero(models.Model):
+    """
+    A date that a target is relative to. Additionally, contains an optional version_date the specifies the database
+    date at which models should work with for this mmwr_year_week_num date. Akin to rolling back (versioning) the database to that
+    date.
+     
+    Assumes dates from any project can be converted to actual dates, e.g., from Dengue biweeks or CDC MMWR weeks
+    (https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html).
+    """
+    project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True)
+
+    timezero_date = models.DateField(null=True, blank=True)
+
+    version_date = models.DateField(null=True, blank=True)  # nullable
+
+
+    def __repr__(self):
+        return '<{} ({}): {}, {}>'.format(self.__class__.__name__, self.pk, self.timezero_date, self.version_date)
+
+
 class ForecastModel(models.Model):
     """
     Represents a project's model entry by a competing team, including metadata, model-specific auxiliary data beyond
-    core data, and the actual forecasts.
-
-    Project <-- 1:M -- ForecastModel
+    core data, and a list of the actual forecasts.
     """
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True)
 
@@ -72,27 +89,28 @@ class ForecastModel(models.Model):
 
     url = models.URLField()
 
-    # (optional) model-specific documents in one zip file beyond Project.core_data that were used by the this model.
+    # optional model-specific documents in one zip file beyond Project.core_data that were used by the this model.
     # constraint: file_type = 'z'
-    core_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
+    auxiliary_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)  # nullable
+
+
+    def __repr__(self):
+        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.name)
 
 
 class Forecast(models.Model):
     """
-    Represents a model's forecasted data. There is one Forecast for each of my ForecastModel's Project's ForecastsDates.
-
-    ForecastModel <-- 1:M -- Forecast
+    Represents a model's forecasted data. There is one Forecast for each of my ForecastModel's Project's TimeZeros.
     """
-    # my model. constraint: there must be exactly one Forecast per Project.forecast_dates
     forecast_model = models.ForeignKey(ForecastModel, on_delete=models.SET_NULL, null=True)
 
-    # date the forecast was actually generated. TODO see my note re: date terminology:
-    # https://reichlab.slack.com/archives/C57HNDFN0/p1501595341689125?thread_ts=1501171869.540526&cid=C57HNDFN0
-    date_generated = models.DateField(null=True, blank=True)
-
-    # Project.forecast_date that this forecast applies to
-    forecast_date = models.ForeignKey(ForecastDate, on_delete=models.SET_NULL, null=True)
+    # Project.mmwr_year_week_num that this forecast applies to
+    time_zero = models.ForeignKey(TimeZero, on_delete=models.SET_NULL, null=True)
 
     # CSV data file in CDC standard format (points and binned distributions)
     # constraint: file_type = 'c'. must have rows matching Project.targets
     data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
+
+
+    def __repr__(self):
+        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.time_zero)
