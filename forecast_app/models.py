@@ -1,6 +1,10 @@
 from django.db import models
 
 
+def basic_str(obj):
+    return obj.__class__.__name__ + ': ' + obj.__repr__()
+
+
 class DataFile(models.Model):
     """
     A data file located somewhere - server, cloud, document store, etc. For now we presume the file is locatable as a
@@ -16,7 +20,11 @@ class DataFile(models.Model):
 
 
     def __repr__(self):
-        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.location)
+        return str((self.pk, self.file_type, self.location))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 class Project(models.Model):
@@ -37,7 +45,11 @@ class Project(models.Model):
 
 
     def __repr__(self):
-        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.name)
+        return str((self.pk, self.name))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 class Target(models.Model):
@@ -52,7 +64,11 @@ class Target(models.Model):
 
 
     def __repr__(self):
-        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.name)
+        return str((self.pk, self.name))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 class TimeZero(models.Model):
@@ -72,7 +88,11 @@ class TimeZero(models.Model):
 
 
     def __repr__(self):
-        return '<{} ({}): {}, {}>'.format(self.__class__.__name__, self.pk, self.timezero_date, self.version_date)
+        return str((self.pk, self.timezero_date, self.version_date))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 class ForecastModel(models.Model):
@@ -95,7 +115,11 @@ class ForecastModel(models.Model):
 
 
     def __repr__(self):
-        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.name)
+        return str((self.pk, self.name))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 class Forecast(models.Model):
@@ -113,4 +137,8 @@ class Forecast(models.Model):
 
 
     def __repr__(self):
-        return '<{} ({}): {}>'.format(self.__class__.__name__, self.pk, self.time_zero)
+        return str((self.pk, self.time_zero))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
