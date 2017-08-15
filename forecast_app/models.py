@@ -10,18 +10,17 @@ class DataFile(models.Model):
     A data file located somewhere - server, cloud, document store, etc. For now we presume the file is locatable as a
     URL.
     """
-    location = models.URLField()
+    location = models.URLField(help_text="The data file's location - server, cloud, document store, etc.")
 
     FILE_TYPES = (
+        ('d', 'Directory'),
         ('z', 'Zip File'),
         ('c', 'CDC Forecast File'),  # CSV data file in CDC standard format (points and binned distributions)
     )
-    file_type = models.CharField(max_length=1, choices=FILE_TYPES, blank=True, help_text='Data File Type')
-
+    file_type = models.CharField(max_length=1, choices=FILE_TYPES, blank=True, help_text="The data file's type")
 
     def __repr__(self):
         return str((self.pk, self.file_type, self.location))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -33,20 +32,19 @@ class Project(models.Model):
     """
     name = models.CharField(max_length=200)
 
-    # ~3 paragraphs. includes info about 'real-time-ness' of data, i.e., revised/unrevised
-    description = models.CharField(max_length=2000)
+    description = models.CharField(max_length=2000,
+                                   help_text="A few paragraphs describing the project. Includes info about "
+                                             "'real-time-ness' of data, i.e., revised/unrevised")
 
-    url = models.URLField()
+    url = models.URLField(help_text="The project's site")
 
     # documents (e.g., CSV files) in one zip file. includes all data sets made available to everyone in the challenge,
     # including supplemental data like google queries or weather.
     # constraint: file_type = 'z'
     core_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
 
-
     def __repr__(self):
         return str((self.pk, self.name))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -60,12 +58,10 @@ class Target(models.Model):
 
     name = models.CharField(max_length=200)
 
-    description = models.CharField(max_length=2000)  # ~3 paragraphs
-
+    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target")
 
     def __repr__(self):
         return str((self.pk, self.name))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -82,14 +78,13 @@ class TimeZero(models.Model):
     """
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True)
 
-    timezero_date = models.DateField(null=True, blank=True)
+    timezero_date = models.DateField(null=True, blank=True, help_text="A date that a target is relative to")
 
-    version_date = models.DateField(null=True, blank=True)  # nullable
-
+    version_date = models.DateField(null=True, blank=True, help_text="the database date at which models should work "
+                                                                     "with for the timezero_date")  # nullable
 
     def __repr__(self):
         return str((self.pk, self.timezero_date, self.version_date))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -105,18 +100,16 @@ class ForecastModel(models.Model):
     name = models.CharField(max_length=200)
 
     # should include information on reproducing the model’s results
-    description = models.CharField(max_length=2000)  # ~3 paragraphs
+    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model")
 
-    url = models.URLField()
+    url = models.URLField(help_text="The model's development URL")
 
     # optional model-specific documents in one zip file beyond Project.core_data that were used by the this model.
     # constraint: file_type = 'z'
     auxiliary_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)  # nullable
 
-
     def __repr__(self):
         return str((self.pk, self.name))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -135,10 +128,8 @@ class Forecast(models.Model):
     # constraint: file_type = 'c'. must have rows matching Project.targets
     data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
 
-
     def __repr__(self):
         return str((self.pk, self.time_zero))
-
 
     def __str__(self):  # todo
         return basic_str(self)

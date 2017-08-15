@@ -1,14 +1,13 @@
 import datetime
-
-import django
 import os
 
+import django
 
 # set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
 from forecast_app.models import DataFile, Project, Target, TimeZero, ForecastModel, Forecast
-
 
 #
 # print and delete (!) all user objects
@@ -138,15 +137,10 @@ MMWR_YEAR_WEEK_NUM_TO_CSV = {
 # create the CDC Flu challenge (2016-2017) project and targets
 #
 
-df = DataFile.objects.create(
-    location='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/data-raw',
-    file_type='z')  # todo s/b zip file
-
 p = Project.objects.create(
     name='CDC Flu challenge (2016-2017)',
     description='Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions based on ensembles.',
-    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    core_data=df)
+    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles')
 
 for target_name in ['Season onset', 'Season peak week', 'Season peak percentage', '1 wk ahead', '2 wk ahead',
                     '3 wk ahead', '4 wk ahead']:
@@ -163,11 +157,17 @@ for mmwr_year_week_num in MMWR_YEAR_WEEK_NUM_TO_CSV.keys():
 #
 # create the ForecastModel and its Forecasts
 #
+
+df = DataFile.objects.create(
+    location='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/data-raw',
+    file_type='d')
+
 fm = ForecastModel.objects.create(
     project=p,
     name='Evan\'s Ensemble Model',
     description='Kernel of Truth code and submissions for 2016-2017 influenza-like-illness prediction challenge',
-    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles')
+    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+    auxiliary_data=df)
 
 
 def time_zero_for_timezero_date_str(forecast_model, timezero_date_str):
