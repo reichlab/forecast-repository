@@ -106,7 +106,7 @@ class ForecastModel(models.Model):
 
     # optional model-specific documents in one zip file beyond Project.core_data that were used by the this model.
     # constraint: file_type = 'z'
-    auxiliary_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)  # nullable
+    auxiliary_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True, blank=True)  # nullable
 
     def __repr__(self):
         return str((self.pk, self.name))

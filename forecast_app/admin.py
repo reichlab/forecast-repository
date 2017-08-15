@@ -1,5 +1,7 @@
 from django.contrib import admin
 from django.contrib.admin.widgets import AdminTextareaWidget
+from django.urls import reverse
+from django.utils.html import format_html
 
 from forecast_app.models import DataFile, Project, TimeZero, Target, ForecastModel, Forecast
 
@@ -19,11 +21,21 @@ admin.site.register(Forecast)
 # Project admin
 #
 
-class ForecastModelInline(admin.TabularInline):
-    # todo list of links to edit pages - http://127.0.0.1:8000/admin/forecast_app/forecastmodel/7/change/
+class ForecastModelAdminLinkInline(admin.TabularInline):
     model = ForecastModel
-    fields = ('name', 'description', 'url')
+    fields = ('admin_link',)
+    readonly_fields = ('admin_link',)
+    can_delete = False
     extra = 0
+
+    def admin_link(self, instance):
+        url = reverse('admin:{}_{}_change'.format(instance._meta.app_label, instance._meta.model_name),
+                      args=(instance.id,))
+        return format_html('<a href="{}">{}</a>', url, str(instance))
+
+    # https://stackoverflow.com/questions/4143886/django-admin-disable-the-add-action-for-a-specific-model
+    def has_add_permission(self, request):
+        return False
 
 
 class TargetInline(admin.TabularInline):
@@ -38,7 +50,8 @@ class TimeZeroInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    inlines = [ForecastModelInline, TargetInline, TimeZeroInline]
+    # inlines = [ForecastModelInline, TargetInline, TimeZeroInline]
+    inlines = [ForecastModelAdminLinkInline, TargetInline, TimeZeroInline]
 
     def get_form(self, request, obj=None, **kwargs):
         # make the description widget larger

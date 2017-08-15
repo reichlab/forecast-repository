@@ -1,5 +1,4 @@
 # Forecast Repository
-
 This is a Django project to implement a repository of forecast challenges. See
 [Forecast repository notes](https://docs.google.com/document/d/1cKQY0tgSR8QkxvJUEuMR1xBCvzNYBnMhkNYgK3hCOsk) for
 a more detailed description.
@@ -19,7 +18,9 @@ Here are the use cases this prototype is to support:
     - creates Forecasts
 1. Anyone (anonymous):
     - browse objects
-    - run visualization app: "Another option would be to create a summary comparison report similar to what flusight does for a single season. A little table of mean absolute error and log score for each model-target comparison." - https://reichlab.slack.com/messages/C57HNDFN0/
+    - run visualization app: "Another option would be to create a summary comparison report similar to what flusight
+      does for a single season. A little table of mean absolute error and log score for each model-target comparison." 
+      - https://reichlab.slack.com/messages/C57HNDFN0/
 
 
 # TODO
@@ -31,9 +32,8 @@ Here are the use cases this prototype is to support:
 
 
 ## admin
-- Project: ForecastModels inline: should just be a list (inline column?) of links to related ForecastModels' admin edit
-  pages
-- xx
+- Project: ForecastModels inline: while ForecastModelAdminLinkInline does work, each instance's __str__() is still
+  displayed, which is redundant with the link text. maybe: https://stackoverflow.com/questions/5086537/how-to-omit-object-name-from-djangos-tabularinline-admin-view
 
 
 ## apps
@@ -42,11 +42,3 @@ Here are the use cases this prototype is to support:
     A little table of mean absolute error and log score for each model-target comparison. 
     via: https://reichlab.slack.com/messages/C57HNDFN0/ 
 
-
-
-# Questions
-
-## admin/ux
-- What's the object creation workflow? Project: host creates ForecastModel (name, ~description, ~url) and owner
-  continues edits?
-- xx
