@@ -28,6 +28,10 @@ class DataFile(models.Model):
         return basic_str(self)
 
 
+    def location_last_part(self):
+        return self.location.split('/')[-1]
+
+
 class Project(models.Model):
     """
     The main class representing a forecast challenge, including metadata, core data, targets, and model entries.

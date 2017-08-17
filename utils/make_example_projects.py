@@ -111,9 +111,26 @@ p = Project.objects.create(
                 "based on ensembles.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles')
 
-for target_name in ['Season onset', 'Season peak week', 'Season peak percentage', '1 wk ahead', '2 wk ahead',
-                    '3 wk ahead', '4 wk ahead']:
-    Target.objects.create(project=p, name=target_name, description="{} description TBD".format(target_name))
+WEEK_AHEAD_DESCR = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
+for target_name, descr in [
+    ('Season onset',
+     "The onset of the season is defined as the MMWR surveillance week "
+     "(http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) "
+     "reported through ILINet reaches or exceeds the baseline value for three consecutive weeks (updated 2016-2017 "
+     "ILINet baseline values for the US and each HHS region will be available at "
+     "http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should "
+     "be for the first week of that three week period."),
+    ('Season peak week',
+     "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the highest "
+     "for the 2016-2017 influenza season."),
+    ('Season peak percentage',
+     "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches during " \
+     "the 2016-2017 influenza season."),
+    ('1 wk ahead', WEEK_AHEAD_DESCR),
+    ('2 wk ahead', WEEK_AHEAD_DESCR),
+    ('3 wk ahead', WEEK_AHEAD_DESCR),
+    ('4 wk ahead', WEEK_AHEAD_DESCR)]:
+    Target.objects.create(project=p, name=target_name, description=descr)
 
 # create the project's TimeZeros. b/c this is a CDC project, timezero_dates are all MMWR Week ENDING Dates as listed in
 # MMWR_WEEK_TO_2016_17_TUPLE. xx. note that the project has no version_dates

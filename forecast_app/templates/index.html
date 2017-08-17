@@ -1,0 +1,46 @@
+<h1>Forecast Repository Home</h1>
+
+<p>Welcome to <em>Forecast Repository</em>, a Django website to prototype our ideas at
+    <a href="http://reichlab.io/">Nicholas Reich: Biostatistics and Infectious Disease Epidemiology</a> to create a
+    repository of model forecast results along with tools to compare, etc. The main ideas are outlined at
+    <a href="https://docs.google.com/document/d/1cKQY0tgSR8QkxvJUEuMR1xBCvzNYBnMhkNYgK3hCOsk">this document</a>.
+</p>
+
+
+<p>The repository has the following demo project(s):</p>
+{% for project in projects %}
+    <h2>{{ project.name }}</h2>
+    <p><em>{{ project.description }}</em> - <a href="{{ project.url }}">{{ project.url }}</a></p>
+
+    <h3>Targets</h3>
+    <ul>
+        {% for target in project.target_set.all %}
+            <li><strong>{{ target.name }}</strong>: <em>{{ target.description }}</em></li>
+        {% endfor %}
+    </ul>
+
+    <h3>TimeZeros</h3>
+    <ul>
+        {% for timezero in project.timezero_set.all %}
+            <li><strong>{{ timezero.timezero_date|date:"Y-m-d" }}</strong>
+                {% if timezero.version_date %} {{ timezero.version_date }} {% else %} (no version date) {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+
+    {% for forecast_model in project.forecastmodel_set.all %}
+        <h3>Forecast Model: &ldquo;{{ forecast_model.name }}&rdquo;
+            ({{ forloop.counter }}/{{ project.forecastmodel_set.all|length }})</h3>
+        <p><em>{{ forecast_model.description }}</em> - <a href="{{ forecast_model.url }}">{{ forecast_model.url }}</a>
+        </p>
+
+        <ul>
+            {% for forecast in forecast_model.forecast_set.all %}
+                <li>@<strong>{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</strong>:
+                    .../{{ forecast.data.location_last_part }}</li>
+            {% endfor %}
+        </ul>
+
+    {% endfor %}
+
+{% endfor %}
