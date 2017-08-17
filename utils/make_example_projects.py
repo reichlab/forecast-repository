@@ -1,7 +1,7 @@
 import datetime
-# set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 from pathlib import Path
 
+# set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 import django
 import os
 
@@ -16,11 +16,11 @@ from forecast_app.models import DataFile, Project, Target, TimeZero, ForecastMod
 # ---- print and delete (!) all user objects ----
 #
 
-print('* current database')
-for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
-    print('-', model_class)
-    for instance in model_class.objects.all():
-        print('  =', str(instance))
+# print('* current database')
+# for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
+#     print('-', model_class)
+#     for instance in model_class.objects.all():
+#         print('  =', str(instance))
 
 print('* deleting database...')
 for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
@@ -107,13 +107,13 @@ print('* creating project and models...')
 
 p = Project.objects.create(
     name='CDC Flu challenge (2016-2017)',
-    description='Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions '
-                'based on ensembles.',
+    description="Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions "
+                "based on ensembles.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles')
 
 for target_name in ['Season onset', 'Season peak week', 'Season peak percentage', '1 wk ahead', '2 wk ahead',
                     '3 wk ahead', '4 wk ahead']:
-    Target.objects.create(project=p, name=target_name, description='{} description TBD'.format(target_name))
+    Target.objects.create(project=p, name=target_name, description="{} description TBD".format(target_name))
 
 # create the project's TimeZeros. b/c this is a CDC project, timezero_dates are all MMWR Week ENDING Dates as listed in
 # MMWR_WEEK_TO_2016_17_TUPLE. xx. note that the project has no version_dates
@@ -125,6 +125,28 @@ for mmwr_week in list(range(43, 53)) + list(range(1, 19)):  # [43, ..., 52, 1, .
 #
 # ---- create the four Kernel of Truth (KoT) ForecastModels and their Forecasts ----
 #
+
+# Set kot_data_dir. We assume the KOT_DATA_DIR is set to the cloned location of
+# https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble e.g.,
+KOT_DATA_DIR = Path(os.getenv('KOT_DATA_DIR', '~/IdeaProjects/split_kot_models_from_submissions')).expanduser()
+
+
+def add_forecasts_to_model(forecast_model, kot_model_dir_name):
+    """
+    Adds Forecast objects to forecast_model based on kot_model_dir_name. Recall data file naming scheme:
+        'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
+    """
+    kot_model_dir = KOT_DATA_DIR / kot_model_dir_name
+    for csv_file in [csv_file for csv_file in kot_model_dir.glob('*.csv')]:  # 'EW1-KoTstable-2017-01-17.csv'
+        mmwr_week = csv_file.name.split('-')[0].split('EW')[1]  # re.split(r'^EW(\d*).*$', csv_file.name)[1]
+        timezero_date = mmwr_week_to_end_date_2016_2017(int(mmwr_week))
+        time_zero = fm.time_zero_for_timezero_date_str(timezero_date)
+        if not time_zero:
+            raise RuntimeError("no time_zero found for timezero_date={}. csv_file={}, mmwr_week={}".format(
+                timezero_date, csv_file, mmwr_week))
+
+        csv_df = DataFile.objects.create(location=csv_file, file_type='c')
+        Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, data=csv_df)
 
 
 #
@@ -138,44 +160,62 @@ df = DataFile.objects.create(
 fm = ForecastModel.objects.create(
     project=p,
     name='KoT ensemble',
-    description='Team Kernel of Truth is submitting predictions from an ensemble model.',
+    description="Team Kernel of Truth's ensemble model.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     auxiliary_data=df)
 
-# make the Forecasts. recall data file naming scheme: 'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
-# we assume the KOT_DATA_DIR is set to the cloned location of
-# https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble e.g.,
-#   $ export KOT_DATA_DIR=/Users/cornell/IdeaProjects/split_kot_models_from_submissions
-kot_data_dir = Path('/Users/cornell/IdeaProjects/split_kot_models_from_submissions')
-kot_model_dir_name = 'ensemble'
-kot_model_dir = kot_data_dir / kot_model_dir_name
-
-for csv_file in [csv_file for csv_file in kot_model_dir.glob('*.csv')]:  # 'EW1-KoTstable-2017-01-17.csv'
-    mmwr_week = csv_file.name.split('-')[0].split('EW')[1]  # re.split(r'^EW(\d*).*$', csv_file.name)[1]
-    timezero_date = mmwr_week_to_end_date_2016_2017(int(mmwr_week))
-    time_zero = fm.time_zero_for_timezero_date_str(timezero_date)
-    csv_df = DataFile.objects.create(location=csv_file, file_type='c')
-    Forecast.objects.create(forecast_model=fm, time_zero=time_zero, data=csv_df)
+add_forecasts_to_model(fm, 'ensemble')
 
 #
 # KoT Kernel Density Estimation (KDE)
 #
 
-# same as above, but:
-kot_model_dir_name = 'kde'
-fm=xx
+df = DataFile.objects.create(
+    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde',
+    file_type='d')
+
+fm = ForecastModel.objects.create(
+    project=p,
+    name='KoT KDE',
+    description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
+    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+    auxiliary_data=df)
+
+add_forecasts_to_model(fm, 'kde')
 
 #
 # KoT Kernel Conditional Density Estimation (KCDE)
 #
 
-xx  # todo
+df = DataFile.objects.create(
+    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
+    file_type='d')
+
+fm = ForecastModel.objects.create(
+    project=p,
+    name='KoT KCDE',
+    description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
+    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+    auxiliary_data=df)
+
+add_forecasts_to_model(fm, 'kcde')
 
 #
 # KoT SARIMA
 #
 
-xx  # todo
+df = DataFile.objects.create(
+    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima',
+    file_type='d')
+
+fm = ForecastModel.objects.create(
+    project=p,
+    name='KoT SARIMA',
+    description="Team Kernel of Truth's SARIMA model.",
+    url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+    auxiliary_data=df)
+
+add_forecasts_to_model(fm, 'sarima')
 
 #
 # ---- done ----
