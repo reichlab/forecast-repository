@@ -1,33 +1,39 @@
 import datetime
-import os
+# set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
+from pathlib import Path
 
 import django
+import os
 
-# set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
 from forecast_app.models import DataFile, Project, Target, TimeZero, ForecastModel, Forecast
 
+
 #
-# print and delete (!) all user objects
+# ---- print and delete (!) all user objects ----
 #
 
+print('* current database')
 for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
     print('-', model_class)
     for instance in model_class.objects.all():
         print('  =', str(instance))
 
+print('* deleting database...')
 for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
     model_class.objects.all().delete()
 
 #
-# MMWR utils
+# --- MMWR utils ----
 #
 
 # https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html
+# MMWR Week -> ENDING Dates for MMWR Weeks (Weeks start on Sunday and ends on Saturday with this date)
 MMWR_WEEK_TO_2016_17_TUPLE = {  # {week_number: (2016 date, 2017 date), ...}
-    1: ('1/16/2016', '1/14/2017'),
+    1: ('1/9/2016', '1/7/2017'),
     2: ('1/16/2016', '1/14/2017'),
     3: ('1/23/2016', '1/21/2017'),
     4: ('1/30/2016', '1/28/2017'),
@@ -83,11 +89,10 @@ MMWR_WEEK_TO_2016_17_TUPLE = {  # {week_number: (2016 date, 2017 date), ...}
 }
 
 
-def mmwr_year_week_num_to_date(mmwr_year_week_num):  # ex: '2016-43'
-    mmwr_year = mmwr_year_week_num.split('-')[0]
-    mmwr_week_number = mmwr_year_week_num.split('-')[1]
-    week_num_2016_17_tuple = MMWR_WEEK_TO_2016_17_TUPLE[int(mmwr_week_number)]
-    m_d_y = week_num_2016_17_tuple[0] if mmwr_year == '2016' else week_num_2016_17_tuple[1]
+def mmwr_week_to_end_date_2016_2017(mmwr_week):  # ex: 43
+    # assumes 40-52 = 2016, 2017 o/w
+    week_num_2016_17_tuple = MMWR_WEEK_TO_2016_17_TUPLE[mmwr_week]
+    m_d_y = week_num_2016_17_tuple[1 if mmwr_week < 40 else 0]  # column 0: 2016, 1: 2017
     month = int(m_d_y.split('/')[0])
     day = int(m_d_y.split('/')[1])
     year = int(m_d_y.split('/')[2])
@@ -95,102 +100,85 @@ def mmwr_year_week_num_to_date(mmwr_year_week_num):  # ex: '2016-43'
 
 
 #
-# CDC Flu challenge (2016-2017) CSV data file URLs
+# ---- create the CDC Flu challenge (2016-2017) project and targets ----
 #
 
-# CSV_FILE_URL = FLU_URL_PREFIX + MMWR_YEAR_WEEK_NUM (key) + CSV_FILE_NAME (value)
-
-FLU_URL_PREFIX = 'https://github.com/reichlab/2016-2017-flu-contest-ensembles/blob/master/inst/submissions/submissions-KoT-stable/'
-
-MMWR_YEAR_WEEK_NUM_TO_CSV = {
-    '2016-43': 'SUBMITTED-EW43-KoTstable-2016-11-07.csv',
-    '2016-44': 'EW44-KoTstable-2016-11-14.csv',
-    '2016-45': 'EW45-KoTstable-2016-11-21.csv',
-    '2016-46': 'EW46-KoTstable-2016-11-29.csv',
-    '2016-47': 'EW47-KoTstable-2016-12-05.csv',
-    '2016-48': 'EW48-KoTstable-2016-12-12.csv',
-    '2016-49': 'EW49-KoTstable-2016-12-19.csv',
-    '2016-50': 'EW50-KoTstable-2016-12-27.csv',
-    '2016-51': 'EW51-KoTstable-2017-01-03.csv',
-    '2016-52': 'EW52-KoTstable-2017-01-09.csv',
-    '2017-1': 'EW1-KoTstable-2017-01-17.csv',
-    '2017-2': 'EW2-KoTstable-2017-01-23.csv',
-    '2017-3': 'EW3-KoTstable-2017-01-27.csv',
-    '2017-4': 'EW4-KoTstable-2017-02-06.csv',
-    '2017-5': 'EW5-KoTstable-2017-02-13.csv',
-    '2017-6': 'EW6-KoTstable-2017-02-21.csv',
-    '2017-7': 'EW7-KoTstable-2017-02-24.csv',
-    '2017-8': 'EW8-KoTstable-2017-03-07.csv',
-    '2017-9': 'EW9-KoTstable-2017-03-11.csv',
-    '2017-10': 'EW10-KoTstable-2017-03-17.csv',
-    '2017-11': 'EW11-KoTstable-2017-03-27.csv',
-    '2017-12': 'EW12-KoTstable-2017-03-31.csv',
-    '2017-13': 'EW13-KoTstable-2017-04-07.csv',
-    '2017-14': 'EW14-KoTstable-2017-04-15.csv',
-    '2017-15': 'EW15-KoTstable-2017-04-24.csv',
-    '2017-16': 'EW16-KoTstable-2017-04-30.csv',
-    '2017-17': 'EW17-KoTstable-2017-05-09.csv',
-    '2017-18': 'EW18-KoTstable-2017-05-12.csv',
-}
-
-#
-# create the CDC Flu challenge (2016-2017) project and targets
-#
+print('* creating project and models...')
 
 p = Project.objects.create(
     name='CDC Flu challenge (2016-2017)',
-    description='Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions based on ensembles.',
+    description='Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions '
+                'based on ensembles.',
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles')
 
 for target_name in ['Season onset', 'Season peak week', 'Season peak percentage', '1 wk ahead', '2 wk ahead',
                     '3 wk ahead', '4 wk ahead']:
     Target.objects.create(project=p, name=target_name, description='{} description TBD'.format(target_name))
 
-p.target_set.all()
-
-# create the project's TimeZeros. note that the project has no version_dates
-for mmwr_year_week_num in MMWR_YEAR_WEEK_NUM_TO_CSV.keys():
+# create the project's TimeZeros. b/c this is a CDC project, timezero_dates are all MMWR Week ENDING Dates as listed in
+# MMWR_WEEK_TO_2016_17_TUPLE. xx. note that the project has no version_dates
+for mmwr_week in list(range(43, 53)) + list(range(1, 19)):  # [43, ..., 52, 1, ..., 18] for 2016-2017
     TimeZero.objects.create(project=p,
-                            timezero_date=str(mmwr_year_week_num_to_date(mmwr_year_week_num)),
+                            timezero_date=str(mmwr_week_to_end_date_2016_2017(mmwr_week)),
                             version_date=None)
 
 #
-# create the ForecastModel and its Forecasts
+# ---- create the four Kernel of Truth (KoT) ForecastModels and their Forecasts ----
+#
+
+
+#
+# KoT ensemble
 #
 
 df = DataFile.objects.create(
-    location='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/data-raw',
+    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble',
     file_type='d')
 
 fm = ForecastModel.objects.create(
     project=p,
-    name='Evan\'s Ensemble Model',
-    description='Kernel of Truth code and submissions for 2016-2017 influenza-like-illness prediction challenge',
+    name='KoT ensemble',
+    description='Team Kernel of Truth is submitting predictions from an ensemble model.',
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     auxiliary_data=df)
 
+# make the Forecasts. recall data file naming scheme: 'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
+# we assume the KOT_DATA_DIR is set to the cloned location of
+# https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble e.g.,
+#   $ export KOT_DATA_DIR=/Users/cornell/IdeaProjects/split_kot_models_from_submissions
+kot_data_dir = Path('/Users/cornell/IdeaProjects/split_kot_models_from_submissions')
+kot_model_dir_name = 'ensemble'
+kot_model_dir = kot_data_dir / kot_model_dir_name
 
-def time_zero_for_timezero_date_str(forecast_model, timezero_date_str):
-    """
-    :return: the first TimeZero in forecast_model's Project that has a timezero_date matching timezero_date
-    """
-    for time_zero in forecast_model.project.timezero_set.all():
-        if time_zero.timezero_date == timezero_date_str:
-            return time_zero
+for csv_file in [csv_file for csv_file in kot_model_dir.glob('*.csv')]:  # 'EW1-KoTstable-2017-01-17.csv'
+    mmwr_week = csv_file.name.split('-')[0].split('EW')[1]  # re.split(r'^EW(\d*).*$', csv_file.name)[1]
+    timezero_date = mmwr_week_to_end_date_2016_2017(int(mmwr_week))
+    time_zero = fm.time_zero_for_timezero_date_str(timezero_date)
+    csv_df = DataFile.objects.create(location=csv_file, file_type='c')
+    Forecast.objects.create(forecast_model=fm, time_zero=time_zero, data=csv_df)
 
-    return None
+#
+# KoT Kernel Density Estimation (KDE)
+#
 
+# same as above, but:
+kot_model_dir_name = 'kde'
+fm=xx
 
-for mmwr_year_week_num, csv_file_name in MMWR_YEAR_WEEK_NUM_TO_CSV.items():
-    csv_file_url = os.path.join(FLU_URL_PREFIX, mmwr_year_week_num, csv_file_name)
-    csv_df = DataFile.objects.create(location=csv_file_url, file_type='c')
-    timezero_date = mmwr_year_week_num_to_date(mmwr_year_week_num)
-    time_zero = time_zero_for_timezero_date_str(fm, timezero_date)
-    if not time_zero:
-        raise RuntimeError("TimeZero not found for timezero_date={}, mmwr_year_week_num={}".format(
-            timezero_date, mmwr_year_week_num))
+#
+# KoT Kernel Conditional Density Estimation (KCDE)
+#
 
-    Forecast.objects.create(
-        forecast_model=fm,
-        time_zero=time_zero,
-        data=csv_df)
+xx  # todo
+
+#
+# KoT SARIMA
+#
+
+xx  # todo
+
+#
+# ---- done ----
+#
+
+print('* done!')

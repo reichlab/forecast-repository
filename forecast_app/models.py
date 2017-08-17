@@ -19,8 +19,10 @@ class DataFile(models.Model):
     )
     file_type = models.CharField(max_length=1, choices=FILE_TYPES, blank=True, help_text="The data file's type")
 
+
     def __repr__(self):
         return str((self.pk, self.file_type, self.location))
+
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -43,8 +45,10 @@ class Project(models.Model):
     # constraint: file_type = 'z'
     core_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
 
+
     def __repr__(self):
         return str((self.pk, self.name))
+
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -60,8 +64,10 @@ class Target(models.Model):
 
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target")
 
+
     def __repr__(self):
         return str((self.pk, self.name))
+
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -70,21 +76,24 @@ class Target(models.Model):
 class TimeZero(models.Model):
     """
     A date that a target is relative to. Additionally, contains an optional version_date the specifies the database
-    date at which models should work with for this mmwr_year_week_num date. Akin to rolling back (versioning) the database to that
-    date.
+    date at which models should work with for this timezero_date date. Akin to rolling back (versioning) the database
+    to that date.
      
     Assumes dates from any project can be converted to actual dates, e.g., from Dengue biweeks or CDC MMWR weeks
-    (https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html).
+    ( https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html ).
     """
     project = models.ForeignKey(Project, on_delete=models.SET_NULL, null=True)
 
     timezero_date = models.DateField(null=True, blank=True, help_text="A date that a target is relative to")
 
-    version_date = models.DateField(null=True, blank=True, help_text="the database date at which models should work "
-                                                                     "with for the timezero_date")  # nullable
+    version_date = models.DateField(
+        null=True, blank=True,
+        help_text="the database date at which models should work with for the timezero_date")  # nullable
+
 
     def __repr__(self):
         return str((self.pk, self.timezero_date, self.version_date))
+
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -108,11 +117,24 @@ class ForecastModel(models.Model):
     # constraint: file_type = 'z'
     auxiliary_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True, blank=True)  # nullable
 
+
     def __repr__(self):
         return str((self.pk, self.name))
 
+
     def __str__(self):  # todo
         return basic_str(self)
+
+
+    def time_zero_for_timezero_date_str(self, timezero_date_str):
+        """
+        :return: the first TimeZero in forecast_model's Project that has a timezero_date matching timezero_date
+        """
+        for time_zero in self.project.timezero_set.all():
+            if time_zero.timezero_date == timezero_date_str:
+                return time_zero
+
+        return None
 
 
 class Forecast(models.Model):
@@ -128,8 +150,10 @@ class Forecast(models.Model):
     # constraint: file_type = 'c'. must have rows matching Project.targets
     data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
 
+
     def __repr__(self):
         return str((self.pk, self.time_zero))
+
 
     def __str__(self):  # todo
         return basic_str(self)
