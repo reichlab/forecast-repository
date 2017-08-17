@@ -23,6 +23,17 @@ Here are the use cases this prototype is to support:
       - https://reichlab.slack.com/messages/C57HNDFN0/
 
 
+# Requirements
+pip install django
+pip install click
+pip install requests
+
+
+# Utils
+The files under utils/ are project-specific ones, currently related to making the CDC flu challenge data amenable to
+analysis.
+
+
 # TODO
 
 ## code
