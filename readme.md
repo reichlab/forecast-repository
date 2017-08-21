@@ -41,6 +41,7 @@ analysis.
 - model constraints like null=True
 - change __str__()s to be prettier
 - change app name from forecast_app to something better?
+- Bootstrap: download locally-stored libs? bootstrap.min.css , jquery.min.js , nad bootstrap.min.js
 
 
 ## admin

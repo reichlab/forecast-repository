@@ -1,3 +1,22 @@
-<h1>Project Visualizations</h1>
+{% extends "base.html" %}
 
-<p>todo: Show the "Mean Log Score" table for {{ project }}'s ForecastModels: {{ project.forecastmodel_set.all }}</p>
+{% block content %}
+
+    <h1>Project Visualizations</h1>
+
+    <p><strong>Project</strong>: <a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></p>
+
+    <h2>Models</h2>
+
+    <p>
+    <ul>
+        {% for forecast_model in project.forecastmodel_set.all %}
+            <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
+        {% endfor %}
+    </ul>
+    </p>
+
+    <h2>Todo</h2>
+    <p>todo: Show the "Mean Log Score" table</p>
+
+{% endblock %}

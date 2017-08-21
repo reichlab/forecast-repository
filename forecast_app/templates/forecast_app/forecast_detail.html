@@ -1,37 +1,44 @@
-<h1>Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</h1>
+{% extends "base.html" %}
 
-<p><strong>Model:</strong> <a href="{{ forecast.forecast_model.project.get_absolute_url }}">
-    {{ forecast.forecast_model.name }}</a></p>
-<p><strong>TimeZero:</strong> {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
-<p><strong>Data:</strong> {{ forecast.data }}</p>
-<p><strong>Preview:</strong></p>
+{% block content %}
 
-<table>
-    <thead>
-    <tr>
-        <th>location</th>
-        <th>target</th>
-        <th>data_type</th>
-        <th>unit</th>
-        <th>bin_start_incl</th>
-        <th>bin_end_notincl</th>
-        <th>value</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for location, target, data_type, unit, bin_start_incl, bin_end_notincl, value in forecast.get_data_preview %}
+    <h1>Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</h1>
+
+    <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.project.get_absolute_url }}">
+        {{ forecast.forecast_model.name }}</a></p>
+    <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
+    <p><strong>Data</strong>: {{ forecast.data }}</p>
+
+    <h2>Preview</h2>
+
+    <table class="table table-striped">
+        <thead>
         <tr>
-            <td>{{ location }}</td>
-            <td>{{ target }}</td>
-            <td>{{ data_type }}</td>
-            <td>{{ unit }}</td>
-            <td>{{ bin_start_incl }}</td>
-            <td>{{ bin_end_notincl }}</td>
-            <td>{{ value }}</td>
+            <th>location</th>
+            <th>target</th>
+            <th>data_type</th>
+            <th>unit</th>
+            <th>bin_start_incl</th>
+            <th>bin_end_notincl</th>
+            <th>value</th>
         </tr>
-    {% endfor %}
-    <tr>
-        <td>...</td>
-    </tr>
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+        {% for location, target, data_type, unit, bin_start_incl, bin_end_notincl, value in forecast.get_data_preview %}
+            <tr>
+                <td>{{ location }}</td>
+                <td>{{ target }}</td>
+                <td>{{ data_type }}</td>
+                <td>{{ unit }}</td>
+                <td>{{ bin_start_incl }}</td>
+                <td>{{ bin_end_notincl }}</td>
+                <td>{{ value }}</td>
+            </tr>
+        {% endfor %}
+        <tr>
+            <td>...</td>
+        </tr>
+        </tbody>
+    </table>
+
+{% endblock %}

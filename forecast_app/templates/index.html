@@ -1,19 +1,26 @@
-<h1>Forecast Repository Home</h1>
+{% extends "base.html" %}
 
-<p>Welcome to <em>Forecast Repository</em>, a Django website to prototype our ideas at
-    <a href="http://reichlab.io/">Nicholas Reich's lab</a> to create a repository of model forecast results along with
-    tools to compare, etc. The main ideas are outlined in
-    <a href="https://docs.google.com/document/d/1cKQY0tgSR8QkxvJUEuMR1xBCvzNYBnMhkNYgK3hCOsk">this document</a>.
-</p>
-<p>The repository has the following project(s):</p>
+{% block content %}
 
-{% if projects %}
-    <ul>
-        {% for project in projects %}
-            <li><strong><a href="{{ project.get_absolute_url }}">{{ project.name }}</a>:</strong>
-                {{ project.description }}</li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p>There are no projects in the repository.</p>
-{% endif %}
+    <h1>Forecast Repository Home</h1>
+
+    <p>Welcome to <em>Forecast Repository</em>, a Django website to prototype our ideas at
+        <a href="http://reichlab.io/">Nicholas Reich's lab</a> to create a repository of model forecast results along
+        with
+        tools to compare, etc. The main ideas are outlined in
+        <a href="https://docs.google.com/document/d/1cKQY0tgSR8QkxvJUEuMR1xBCvzNYBnMhkNYgK3hCOsk">this document</a>.
+    </p>
+    <p>The repository has the following {{ projects|length }} project(s):</p>
+
+    {% if projects %}
+        <ul>
+            {% for project in projects %}
+                <li><strong><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></strong>:
+                    {{ project.description }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>There are no projects in the repository.</p>
+    {% endif %}
+
+{% endblock %}

@@ -1,21 +1,27 @@
-<h1>Model: {{ forecastmodel.name }}</h1>
+{% extends "base.html" %}
 
-<p><strong>Project:</strong> <a href="{{ forecastmodel.project.get_absolute_url }}">
-    {{ forecastmodel.project.name }}</a></p>
-<p><strong>Description:</strong> {{ forecastmodel.description }}</p>
-<p><strong>Home:</strong> <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a></p>
-<p><strong>Auxiliary data:</strong>
-    {% if forecastmodel.auxiliary_data %}
-        {{ forecastmodel.auxiliary_data }}  {# todo #}
-    {% else %}
-        <small>(no auxiliary data)</small>
-    {% endif %}
-</p>
+{% block content %}
+
+    <h1>Model: {{ forecastmodel.name }}</h1>
+
+    <p><strong>Project</strong>: <a href="{{ forecastmodel.project.get_absolute_url }}">
+        {{ forecastmodel.project.name }}</a></p>
+    <p><strong>Description</strong>: {{ forecastmodel.description }}</p>
+    <p><strong>Home</strong>: <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a></p>
+    <p><strong>Auxiliary data</strong>:
+        {% if forecastmodel.auxiliary_data %}
+            {{ forecastmodel.auxiliary_data }}  {# todo #}
+        {% else %}
+            <small>(no auxiliary data)</small>
+        {% endif %}
+    </p>
 
 
-<h2>Forecasts ({{ forecastmodel.forecast_set.all | length }})</h2>
-<ul>
-    {% for forecast in forecastmodel.forecast_set.all|dictsort:"time_zero.timezero_date" %}
-        <li><a href="{{ forecast.get_absolute_url }}">{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</a></li>
-    {% endfor %}
-</ul>
+    <h2>Forecasts ({{ forecastmodel.forecast_set.all | length }})</h2>
+    <ul>
+        {% for forecast in forecastmodel.forecast_set.all|dictsort:"time_zero.timezero_date" %}
+            <li><a href="{{ forecast.get_absolute_url }}">{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</a></li>
+        {% endfor %}
+    </ul>
+
+{% endblock %}
