@@ -154,6 +154,9 @@ def add_forecasts_to_model(forecast_model, kot_model_dir_name):
         'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
     """
     kot_model_dir = KOT_DATA_DIR / kot_model_dir_name
+    if not Path(kot_model_dir).exists():
+        raise RuntimeError("KOT_DATA_DIR does not exist: {}".format(KOT_DATA_DIR))
+
     for csv_file in [csv_file for csv_file in kot_model_dir.glob('*.csv')]:  # 'EW1-KoTstable-2017-01-17.csv'
         mmwr_week = csv_file.name.split('-')[0].split('EW')[1]  # re.split(r'^EW(\d*).*$', csv_file.name)[1]
         timezero_date = mmwr_week_to_end_date_2016_2017(int(mmwr_week))

@@ -1,0 +1,34 @@
+<h1>Project: {{ project.name }}</h1>
+
+<p><strong>Description:</strong> {{ project.description }}</p>
+<p><strong>Home:</strong> <a href="{{ project.url }}">{{ project.url }}</a></p>
+
+
+<h2>Models ({{ project.forecastmodel_set.all | length }})</h2>
+<ul>
+    {% for forecast_model in project.forecastmodel_set.all %}
+        <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
+    {% endfor %}
+</ul>
+
+
+<h2>Targets ({{ project.target_set.all | length }})</h2>
+<ul>
+    {% for target in project.target_set.all %}
+        <li><strong>{{ target.name }}</strong>: {{ target.description }}</li>
+    {% endfor %}
+</ul>
+
+
+<h2>TimeZeros ({{ project.timezero_set.all | length }})</h2>
+<ul>
+    {% for timezero in project.timezero_set.all %}
+        <li><strong>{{ timezero.timezero_date|date:"Y-m-d" }}</strong>
+            {% if timezero.version_date %}
+                {{ timezero.version_date }}
+            {% else %}
+                <small>(no version date)</small>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>

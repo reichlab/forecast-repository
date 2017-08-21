@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     url(r'^$', views.index, name='index'),
-    # url(r'^books/$', views.BookListView.as_view(), name='books'),
-    # url(r'^book/(?P<pk>\d+)$', views.BookDetailView.as_view(), name='book-detail'),
+    url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
+    url(r'^model/(?P<pk>\d+)$', views.ForecastModelDetailView.as_view(), name='forecastmodel-detail'),
+    url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
 ]

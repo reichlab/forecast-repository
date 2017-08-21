@@ -37,6 +37,7 @@ analysis.
 # TODO
 
 ## code
+- rename 'forecast_app'?
 - model constraints like null=True
 - change __str__()s to be prettier
 - change app name from forecast_app to something better?

@@ -1,15 +1,25 @@
 from django.shortcuts import render
+from django.views.generic import DetailView
 
-from forecast_app.models import Project
+from forecast_app.models import Project, ForecastModel, Forecast
 
 
 def index(request):
-    """
-    View function for home page of site.
-    """
     projects = Project.objects.all()
     return render(
         request,
         'index.html',
         context={'projects': projects},
     )
+
+
+class ProjectDetailView(DetailView):
+    model = Project
+
+
+class ForecastModelDetailView(DetailView):
+    model = ForecastModel
+
+
+class ForecastDetailView(DetailView):
+    model = Forecast

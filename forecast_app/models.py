@@ -1,4 +1,7 @@
+import csv
+
 from django.db import models
+from django.urls import reverse
 
 
 def basic_str(obj):
@@ -19,17 +22,11 @@ class DataFile(models.Model):
     )
     file_type = models.CharField(max_length=1, choices=FILE_TYPES, blank=True, help_text="The data file's type")
 
-
     def __repr__(self):
         return str((self.pk, self.file_type, self.location))
 
-
     def __str__(self):  # todo
         return basic_str(self)
-
-
-    def location_last_part(self):
-        return self.location.split('/')[-1]
 
 
 class Project(models.Model):
@@ -49,13 +46,14 @@ class Project(models.Model):
     # constraint: file_type = 'z'
     core_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
 
-
     def __repr__(self):
         return str((self.pk, self.name))
 
-
     def __str__(self):  # todo
         return basic_str(self)
+
+    def get_absolute_url(self):
+        return reverse('project-detail', args=[str(self.id)])
 
 
 class Target(models.Model):
@@ -68,10 +66,8 @@ class Target(models.Model):
 
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target")
 
-
     def __repr__(self):
         return str((self.pk, self.name))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -94,10 +90,8 @@ class TimeZero(models.Model):
         null=True, blank=True,
         help_text="the database date at which models should work with for the timezero_date")  # nullable
 
-
     def __repr__(self):
         return str((self.pk, self.timezero_date, self.version_date))
-
 
     def __str__(self):  # todo
         return basic_str(self)
@@ -121,14 +115,14 @@ class ForecastModel(models.Model):
     # constraint: file_type = 'z'
     auxiliary_data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True, blank=True)  # nullable
 
-
     def __repr__(self):
         return str((self.pk, self.name))
-
 
     def __str__(self):  # todo
         return basic_str(self)
 
+    def get_absolute_url(self):
+        return reverse('forecastmodel-detail', args=[str(self.id)])
 
     def time_zero_for_timezero_date_str(self, timezero_date_str):
         """
@@ -150,14 +144,36 @@ class Forecast(models.Model):
     # Project.mmwr_year_week_num that this forecast applies to
     time_zero = models.ForeignKey(TimeZero, on_delete=models.SET_NULL, null=True)
 
-    # CSV data file in CDC standard format (points and binned distributions)
+    # CSV data file in CDC standard format (points and binned distributions).
+    # recall CDC format: Location,Target,Type,Unit,Bin_start_incl,Bin_end_notincl,Value
     # constraint: file_type = 'c'. must have rows matching Project.targets
     data = models.ForeignKey(DataFile, on_delete=models.SET_NULL, null=True)
-
 
     def __repr__(self):
         return str((self.pk, self.time_zero, self.data))
 
-
     def __str__(self):  # todo
         return basic_str(self)
+
+    def get_absolute_url(self):
+        return reverse('forecast-detail', args=[str(self.id)])
+
+    def get_data_rows(self):
+        """
+        Main accessor of my data. Abstracts where data is located. For now, assumes is a file on the local file system.
+
+        :return: a list of my rows, including the header
+        """
+        rows = []
+        with open(self.data.location) as input_csv_file_fp:
+            input_csv_reader = csv.reader(input_csv_file_fp, dialect=csv.excel)
+            # for location, target, data_type, unit, bin_start_incl, bin_end_notincl, value in input_csv_reader:
+            #     rows.append([1, 2])  # todo
+            rows = list(input_csv_reader)
+        return rows
+
+    def get_data_preview(self):
+        """
+        :return: a preview of my data in the form of a table that's represented as a nested list of rows
+        """
+        return self.get_data_rows()[1:10]  # skip header
