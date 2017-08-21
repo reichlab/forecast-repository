@@ -2,7 +2,7 @@
 
 <p><strong>Description:</strong> {{ project.description }}</p>
 <p><strong>Home:</strong> <a href="{{ project.url }}">{{ project.url }}</a></p>
-
+<p><strong>Visualizations:</strong> <a href="{% url 'project-visualizations' project.pk %}">Overall</a></p>
 
 <h2>Models ({{ project.forecastmodel_set.all | length }})</h2>
 <ul>
