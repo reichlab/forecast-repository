@@ -6,6 +6,7 @@
 
     <p><strong>Description</strong>: {{ project.description }}</p>
     <p><strong>Home</strong>: <a href="{{ project.url }}">{{ project.url }}</a></p>
+    <p><strong>Core data</strong>: {{ project.core_data }}</p>
     <p><strong>Visualizations</strong>: <a href="{% url 'project-visualizations' project.pk %}">Here</a></p>
 
     <h2>Models ({{ project.forecastmodel_set.all | length }})</h2>

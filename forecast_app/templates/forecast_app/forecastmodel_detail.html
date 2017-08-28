@@ -7,7 +7,13 @@
     <p><strong>Project</strong>: <a href="{{ forecastmodel.project.get_absolute_url }}">
         {{ forecastmodel.project.name }}</a></p>
     <p><strong>Description</strong>: {{ forecastmodel.description }}</p>
-    <p><strong>Home</strong>: <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a></p>
+    <p><strong>Home</strong>:
+        {% if forecastmodel.url %}
+            <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a>
+        {% else %}
+            <small>(no URL)</small>
+        {% endif %}
+    </p>
     <p><strong>Auxiliary data</strong>:
         {% if forecastmodel.auxiliary_data %}
             {{ forecastmodel.auxiliary_data }}  {# todo #}
