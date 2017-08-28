@@ -11,14 +11,14 @@
         {% if forecastmodel.url %}
             <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a>
         {% else %}
-            <small>(no URL)</small>
+            <small>[no URL]</small>
         {% endif %}
     </p>
     <p><strong>Auxiliary data</strong>:
         {% if forecastmodel.auxiliary_data %}
             {{ forecastmodel.auxiliary_data }}  {# todo #}
         {% else %}
-            <small>(no auxiliary data)</small>
+            <small>[no auxiliary data]</small>
         {% endif %}
     </p>
 

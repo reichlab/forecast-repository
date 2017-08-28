@@ -189,18 +189,19 @@ TEN_BIWEEK_DESCR = "The number of reported cases in each of the following 10 biw
                    "time t then forecasts for times t+1, …, t+10 will be handed in. If time t falls within 10 " \
                    "biweeks of the end of the calendar year, still, the forecast should include 10 biweeks into the " \
                    "future."
-TEN_BIWEEK_TARGETS = [("The number of reported cases in biweek {}".format(biweek_num + 1), TEN_BIWEEK_DESCR) for
-                      biweek_num in range(10)]
-for target_name, descr in TEN_BIWEEK_TARGETS + [  # TODO use exact target names to match data files' 'Target' columns
-    ('The total number of reported cases for that calendar year',
-     "Unlike the biweekly incidence targets, this target is a single scalar value; the target does not change "
-     "throughout the year."),
-    ('Peak number of reported cases in a single biweek for that calendar year',
-     "Unlike the biweekly incidence targets, this target is a single scalar value; the target does not change "
-     "throughout the year."),
-    ('The biweek in which the peak incidence will occur',
-     "This is the only target whose set of units are not based on case incidence. The predictive distribution here "
-     "is a discrete distribution that can take values between 1 and 26."),
+# TODO use exact target names to match data files' 'Target' columns:
+TEN_BIWEEK_TARGETS = [('{} wk ahead'.format(biweek_num + 1), TEN_BIWEEK_DESCR) for biweek_num in range(10)]
+for target_name, descr in TEN_BIWEEK_TARGETS + [
+    ('Year Total',
+     "The total number of reported cases for that calendar year. Unlike the biweekly incidence targets, this target "
+     "is a single scalar value; the target does not change throughout the year."),
+    ('Peak Incidence per Biweek',
+     "Peak number of reported cases in a single biweek for that calendar year. Unlike the biweekly incidence targets, "
+     "this target is a single scalar value; the target does not change throughout the year."),
+    ('Biweek with Peak Incidence',
+     "The biweek in which the peak incidence will occur. This is the only target whose set of units are not based on "
+     "case incidence. The predictive distribution here is a discrete distribution that can take values between 1 and "
+     "26."),
 ]:
     Target.objects.create(project=p, name=target_name, description=descr)
 
