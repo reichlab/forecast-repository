@@ -6,10 +6,10 @@
 
     <p>Welcome to <em>Forecast Repository</em>, a Django website to prototype our ideas at
         <a href="http://reichlab.io/">Nicholas Reich's lab</a> to create a repository of model forecast results along
-        with
-        tools to compare, etc. The main ideas are outlined in
-        <a href="https://docs.google.com/document/d/1cKQY0tgSR8QkxvJUEuMR1xBCvzNYBnMhkNYgK3hCOsk">this document</a>.
+        with tools to compare, etc. The main ideas are outlined on the <a href="{% url 'about' %}">About</a> page.
     </p>
+
+    <h3>Projects</h3>
     <p>The repository has the following {{ projects|length }} project(s):</p>
 
     {% if projects %}
