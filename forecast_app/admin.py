@@ -32,10 +32,6 @@ class ForecastModelInline(admin.TabularInline):
                       args=(instance.id,))
         return format_html('<a href="{}">{}</a>', url, str(instance))
 
-    # https://stackoverflow.com/questions/4143886/django-admin-disable-the-add-action-for-a-specific-model
-    def has_add_permission(self, request):
-        return False
-
 
 class TargetInline(admin.TabularInline):
     model = Target

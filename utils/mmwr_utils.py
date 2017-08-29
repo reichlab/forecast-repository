@@ -1,12 +1,12 @@
 import csv
 import datetime
 
-# https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html
-# MMWR Week -> ENDING Dates for MMWR Weeks (Weeks start on Sunday and ends on Saturday with this date)
-
-# 16 columns. header: MMWR_Week	2006_end_date	2007_end_date	2008_end_date	2009_end_date	2010_end_date	2011_end_date	2012_end_date	2013_end_date	2014_end_date	2015_end_date	2016_end_date	2017_end_date	2018_end_date	2019_end_date	2020_end_date
 from pathlib import Path
 
+
+# https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html
+# MMWR Week -> ENDING Dates for MMWR Weeks (Weeks start on Sunday and ends on Saturday with this date)
+# 16 columns. header: MMWR_Week	2006_end_date	2007_end_date	2008_end_date	2009_end_date	2010_end_date	2011_end_date	2012_end_date	2013_end_date	2014_end_date	2015_end_date	2016_end_date	2017_end_date	2018_end_date	2019_end_date	2020_end_date
 MMWR_DATA_FILE = Path('~/IdeaProjects/forecast-repository/utils/mmwr-calendar-dates-2006-2020.csv').expanduser()
 
 
@@ -15,7 +15,7 @@ def make_mmwr_week_to_year_tuple():
     :return: a dict that maps MMWR week_number -> a 15-tuple with the columns above, excluding the first (MMWR_Week)
     """
     mmwr_week_to_year_tuple = {}
-    with open(MMWR_DATA_FILE) as input_csv_file_fp:
+    with open(str(MMWR_DATA_FILE)) as input_csv_file_fp:
         input_csv_reader = csv.reader(input_csv_file_fp, dialect=csv.excel_tab)
         next(input_csv_reader, None)  # skip header
         for row in input_csv_reader:

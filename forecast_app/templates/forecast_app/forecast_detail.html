@@ -4,7 +4,7 @@
 
     <h1>Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</h1>
 
-    <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.project.get_absolute_url }}">
+    <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.get_absolute_url }}">
         {{ forecast.forecast_model.name }}</a></p>
     <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
     <p><strong>Data</strong>: {{ forecast.data }}</p>

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+
+    <h1>About the Forecast Repository</h1>
+    <p>Welcome to <em>Forecast Repository</em>, a Django website to prototype our ideas at
+        <a href="http://reichlab.io/">Nicholas Reich's lab</a> to create a repository of model forecast results along
+        with
+        tools to compare, etc. The main ideas are outlined in
+        <a href="https://docs.google.com/document/d/1cKQY0tgSR8QkxvJUEuMR1xBCvzNYBnMhkNYgK3hCOsk">this document</a>.
+    </p>
+
+
+    <h2>Introduction</h2>
+
+    <p>Until now, predictions made by models in the lab have been stored in different formats and in different
+        locations. This makes it difficult to track, compare, and revisit forecasts. This document sketches a system
+        that supports storing and retrieving time series forecasts for prediction challenges of interest to us. The goal
+        is to be able to save and retrieve model information and forecast data for use in applications like
+        visualization, calculating loss/error, and comparing models.</p>
+
+    <h2>Assumptions/Limitations</h2>
+    <p>The scope of this first iteration is limited in these ways:</p>
+
+    <ul>
+        <li><u>Forecast data format</u>: All forecasts are in the CDC standard for their flu challenge as specified in
+            <a href="https://webcache.googleusercontent.com/search?q=cache:KQEkQw99egAJ:https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx+&cd=1&hl=en&ct=clnk&gl=us">flu_challenge_2016-17_update.docx</a>
+            and
+            <a href="https://github.com/reichlab/2016-2017-flu-contest-ensembles/blob/master/inst/submissions/Long_Flu_Submission_Template_update.csv">long_flu_submission_template_update.csv</a>:
+            a single directory for all forecasts from a particular model where each file’s contents is points and binned
+            distributions as in the example csv file above, and each file’s name follows the first link’s standard:
+            <ul>
+                <li>“EW43-JDU-2016-11-07.csv” where EW43 is the latest week of ILINet data used in the forecast, JDU is
+                    the
+                    name of the team making the submission (e.g. John Doe University), and 2016-11-07 is the date of
+                    submission.
+                </li>
+            </ul>
+        </li>
+        <li><u>Process-agnostic</u>: By storing only core datasets, we make no assumptions about ML processes behind a
+            model’s forecast, such as how it’s fit.
+        </li>
+        <li><u>Enforceability</u>: There is currently not a method in place to test whether the models were fit on the
+            right data subsets (this is something that the below ForecastFramework integration could help with).
+        </li>
+        <li><u>Unrevised vs. revised data</u>: A Project’s core dataset may or may not include data revisions, such as
+            those used to model or forecast reporting delays. Each project should give specific instructions on what
+            type of data (revised vs. unrevised) is used in the training and testing phases of the forecasting.
+        </li>
+        <li><u>Model instances</u>: The system stores only model metadata, rather than computable representations of
+            models (internals) that could be used to reconstruct and re-run them.
+        </li>
+        <li><u>Reports</u>: Some projects generate automated narrative reports from forecast data. This system does not
+            support storing reports with their models.
+        </li>
+        <li><u>Training/testing data</u>: The only information about what subsets of the core data were used for
+            different ML stages (e.g. training vs testing) will be stored in narrative format in the project
+            description.
+        </li>
+        <li><u>Application API</u>: For now we are more interested in applications that directly access the repository
+            database, rather that through a RESTful API.
+        </li>
+        <li><u>Usability</u>: For now the focus will be on ease of retrieval, with entering project information being
+            done manually.
+        </li>
+        <li><u>Auxiliary data</u>: Any data used by teams that’s not in the core_data provided by the organizers should
+            go into the model's auxilary data.
+        </li>
+        <li><u>Reproducibility</u>: Since this system stores data involved in forecasts and not source code, information
+            about how to re-run models is only captured in narrative form in the model's description, and is linked to
+            by the model's url field.
+        </li>
+        <li><u>Metrics</u>: This version does not capture metric information. If metrics change, then a new project
+            should be created.
+        </li>
+    </ul>
+
+
+{% endblock %}

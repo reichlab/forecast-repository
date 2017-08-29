@@ -5,15 +5,16 @@ from forecast_app.models import Project, ForecastModel, Forecast
 
 
 def index(request):
-    """
-    View function for home page of site.
-    """
     projects = Project.objects.all()
     return render(
         request,
         'index.html',
         context={'projects': projects},
     )
+
+
+def about(request):
+    return render(request, 'about.html')
 
 
 def project_visualizations(request, pk):
