@@ -167,8 +167,6 @@ class Forecast(models.Model):
         rows = []
         with open(self.data.location) as input_csv_file_fp:
             input_csv_reader = csv.reader(input_csv_file_fp, dialect=csv.excel)
-            # for location, target, data_type, unit, bin_start_incl, bin_end_notincl, value in input_csv_reader:
-            #     rows.append([1, 2])  # todo
             rows = list(input_csv_reader)
         return rows
 
