@@ -1,6 +1,7 @@
 import datetime
-
 import re
+
+from utils.CDCFile import CDCFile
 
 
 def filename_components(filename):
@@ -27,3 +28,42 @@ def filename_components(filename):
         return ()
 
     return int(re_split[0]), re_split[1], datetime.date(int(re_split[2]), int(re_split[3]), int(re_split[4]))
+
+
+def true_value_for_target(season_start_year, ew_week_number, location_name, target_name):
+    """
+    :param season_start_year:
+    :param ew_week_number:
+    :param location_name:
+    :param target_name:
+    :return: actual value for the passed args, looked up dynamically via xhttps://github.com/cmu-delphi/delphi-epidata
+    """
+    return None  # todo xx
+
+
+def mean_absolute_error_for_model_dir(model_csv_path, season_start_year, location_name, target_name,
+                                      true_value_for_target_fcn=true_value_for_target):
+    """
+    :return: mean absolute error (scalar) for the model's predictions in the passed path, for location and target
+    """
+    cdc_file_name_to_abs_error = {}
+    for cdc_file in cdc_files_for_dir(model_csv_path):
+        ew_week_number = filename_components(cdc_file.csv_path.name)[0]
+        predicted_value = cdc_file.get_location(location_name).get_target(target_name).point
+        true_value = true_value_for_target_fcn(season_start_year, ew_week_number, location_name, target_name)
+        abs_error = abs(predicted_value - true_value)
+        cdc_file_name_to_abs_error[cdc_file.csv_path.name] = abs_error
+    return sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)
+
+
+def cdc_files_for_dir(csv_dir_path):
+    """
+    :return: a list of CDCFiles for each csv file in csv_dir_path
+    """
+    cdc_files = []
+    for csv_file_p in csv_dir_path.iterdir():
+        if csv_file_p.suffix != '.csv':
+            continue
+
+        cdc_files.append(CDCFile(csv_file_p))
+    return cdc_files

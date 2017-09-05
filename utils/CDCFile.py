@@ -2,8 +2,6 @@ import csv
 from ast import literal_eval
 from itertools import groupby
 
-from utils.cdc_format_utils import filename_components
-
 
 #
 # Following functions provide access to contents of files in CDC format. Recall the columns:
@@ -28,6 +26,7 @@ class CDCFile:
         :return: parses my CDC data file and returns a list of Locations for the passed file. raises if invalid filename or
             contents
         """
+        from utils.cdc_format_utils import filename_components  # circular import hack
         if not filename_components(self.csv_path.name):
             raise RuntimeError("invalid filename: {}".format(self.csv_path.name))
 
@@ -49,13 +48,13 @@ class CDCFile:
                     location.targets.append(target)
         return locations
 
-    def get_location(self, name):
+    def get_location(self, location_name):
         """
-        :param name:
+        :param location_name:
         :return: the first Location in me with name. returns None if not found
         """
         for location in self.locations:
-            if location.name == name:
+            if location.name == location_name:
                 return location
         return None
 
@@ -72,13 +71,13 @@ class Location:
     def __repr__(self):
         return str((self.name, self.targets))
 
-    def get_target(self, name):
+    def get_target(self, target_name):
         """
-        :param name:
+        :param target_name:
         :return: the first Target in me with name. returns None if not found
         """
         for target in self.targets:
-            if target.name == name:
+            if target.name == target_name:
                 return target
         return None
 
