@@ -2,6 +2,7 @@ import csv
 import datetime
 
 import re
+from itertools import groupby
 
 
 #
@@ -37,36 +38,92 @@ def filename_components(filename):
 #
 # ---- content functions ----
 #
-# Recall that each data file essentially contains a hierarchy of data: Location > Target > Type. Thus we have accessors
-# for each level for a file:
-#   - file -> locations
-#   - file + location -> targets
-#   - file + location + target -> data (data_type, unit, bin_start_incl, bin_end_notincl, value)
+# Following functions provide access to contents of files in CDC format. Recall the columns:
+#
+#   Location,Target,Type,Unit,Bin_start_incl,Bin_end_notincl,Value
+#
+# Also recall that each data file essentially contains a hierarchy of data: Location > Target > Type. Overall usage:
+#
+#   get_locations(csv_path)  # entry point that parses a file into a list of Locations
+#
+# Then iterate over Location.targets.
+#
+# todo implemented using pandas?
 
-# todo following should be implemented OOP, and probably also using pandas. possible API:
-#   - get_locations(csv_path)  # list of Locations (parser/entry point)
-#   - Location.name
-#   - Location.targets   # list of Targets
-#   - Target.name
-#   - Target.data_type   # 'Point' or 'Bin'. todo other types?
-#   - Target.unit        # e.g., 'week' or 'percent'. todo other units?
-#   - Target.point       # a value. 'Point' data_type only. todo ever None?
-#   - Target.bin         # list of 3-tuple rows: (bin_start_incl, bin_end_notincl, value). NB: first two might be None.
-#                        # todo ever None? 'Bin' data_type only.
 
 def get_locations(csv_path):
     """
     :return: Top-level entry point for parsing a CDC data file, returns a list of Locations for the passed file. raises
-        if invalid filename or contents 
+        if invalid filename or contents
     """
     if not filename_components(csv_path.name):
         raise RuntimeError("invalid filename: {}".format(csv_path.name))
 
-    locations = []
+    locations = []  # return value. filled next
     with open(str(csv_path)) as csv_path_fp:
         csv_reader = csv.reader(csv_path_fp, delimiter=',')
         next(csv_reader)  # skip header
-        # todo xx groupby location, etc.
-        # for location, target, data_type, unit, bin_start_incl, bin_end_notincl, value in enumerate(csv_reader):
-        #     xx
+
+        # group by location, creating a Location, then group by Target
+        location_groupby = groupby(sorted(csv_reader), key=lambda _: _[0])
+        for location_name, location_group in location_groupby:
+            location = Location(location_name)
+            locations.append(location)
+            target_groupby = groupby(sorted(location_group, key=lambda _: _[1]), key=lambda _: _[1])
+            for target_name, target_group in target_groupby:
+                # [(Type,Unit,Bin_start_incl,Bin_end_notincl,Value), ...]:
+                target_data = [row[2:] for row in list(target_group)]
+                target = Target(target_name, target_data)
+                location.targets.append(target)
     return locations
+
+
+class Location:
+    """
+    Represents a location in a CDC file. Has a list of targets.
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.targets = []
+
+    def __repr__(self):
+        return str((self.name, self.targets))
+
+
+class Target:
+    """
+    Represents a particular Location's target. Fields:
+
+    - Target.name        # Target column value
+    - Target.data_type   # Type column. either 'Point' or 'Bin'. todo other types?
+    - Target.unit        # Unit column. either 'week' or 'percent'. todo other units?
+    - Target.point       # Value column for the 'Point' data_type only. todo ever None?
+    - Target.bins        # list of 3-tuples (rows) for the columns: (bin_start_incl, bin_end_notincl, value), sorted by
+                         #   bin_start_incl. NB: first two might be None. for the 'Bin' data_type only. todo ever None?
+    """
+
+    def __init__(self, name, target_data):
+        """
+        :param name:
+        :param target_data: the raw column data for this target: [(Type,Unit,Bin_start_incl,Bin_end_notincl,Value), ...]
+        """
+        self.name = name
+
+        # set my type and unit arbitrarily to first row's values
+        self.data_type = target_data[0][0]
+        self.unit = target_data[0][1]
+
+        # process target_data into either my point or my bins, based on data_type
+        self.bins = []
+        for data_type, unit, bin_start_incl, bin_end_notinclk, value in target_data:
+            if data_type == 'Point':
+                self.point = value
+            else:
+                self.bins.append((bin_start_incl, bin_end_notinclk, value))
+
+        # sort bins by bin_start_incl? todo correct?
+        self.bins.sort(key=lambda _: _[0])
+
+    def __repr__(self):
+        return str((self.name,))  # todo
