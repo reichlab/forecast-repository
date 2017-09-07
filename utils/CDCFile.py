@@ -14,7 +14,7 @@ from itertools import groupby
 
 class CDCFile:
     """
-    Represents a CDC format CSV file as documented xx <- todo where?
+    Represents a CDC format CSV file as documented in about.html .
     """
 
     def __init__(self, csv_path):

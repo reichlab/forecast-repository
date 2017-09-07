@@ -1,0 +1,60 @@
+;; -*- mode: Outline;-*-
+
+* actual: "wili"
+epiweeks=201652: 3.36496
+epiweeks=201701: 3.0963
+epiweeks=201702: 3.08492
+epiweeks=201703: 3.51496
+epiweeks=201704: 3.8035
+epiweeks=201705: 4.45059
+epiweeks=201706: 5.07947  <-
+
+
+* models
+ensemble
+  EW1-KoTstable-2017-01-17.csv
+    US National,1 wk ahead,Point,percent,NA,NA,3.00101461253164
+    US National,2 wk ahead,Point,percent,NA,NA,2.72809349594878
+    US National,3 wk ahead,Point,percent,NA,NA,2.5332588357381
+    US National,4 wk ahead,Point,percent,NA,NA,2.42985946508278
+  EW2-KoTstable-2017-01-23.csv
+    US National,1 wk ahead,Point,percent,NA,NA,3.10195298710819
+    US National,2 wk ahead,Point,percent,NA,NA,2.91921994766766
+    US National,3 wk ahead,Point,percent,NA,NA,2.62890032240603
+    US National,4 wk ahead,Point,percent,NA,NA,2.51167850869295  <-
+  EW51-KoTstable-2017-01-03.csv
+    US National,1 wk ahead,Point,percent,NA,NA,3.09726111422542
+    US National,2 wk ahead,Point,percent,NA,NA,3.16574167604131
+    US National,3 wk ahead,Point,percent,NA,NA,3.27725563891349
+    US National,4 wk ahead,Point,percent,NA,NA,3.26876032541822
+  EW52-KoTstable-2017-01-09.csv
+    US National,1 wk ahead,Point,percent,NA,NA,3.19530812711723
+    US National,2 wk ahead,Point,percent,NA,NA,3.1770797037445
+    US National,3 wk ahead,Point,percent,NA,NA,2.9971630233303
+    US National,4 wk ahead,Point,percent,NA,NA,2.71017892766803
+
+kde
+  EW1-KOTkde-2016-11-12.csv
+    US National,1 wk ahead,Point,percent,NA,NA,2.9
+    US National,2 wk ahead,Point,percent,NA,NA,3.1
+    US National,3 wk ahead,Point,percent,NA,NA,3.2
+    US National,4 wk ahead,Point,percent,NA,NA,3.3
+
+  EW2-KOTkde-2016-11-12.csv
+    US National,1 wk ahead,Point,percent,NA,NA,3.1
+    US National,2 wk ahead,Point,percent,NA,NA,3.2
+    US National,3 wk ahead,Point,percent,NA,NA,3.2
+    US National,4 wk ahead,Point,percent,NA,NA,3.3  <-
+
+  EW51-KOTkde-2016-11-12.csv
+    US National,1 wk ahead,Point,percent,NA,NA,2.6
+    US National,2 wk ahead,Point,percent,NA,NA,2.7
+    US National,3 wk ahead,Point,percent,NA,NA,2.9
+    US National,4 wk ahead,Point,percent,NA,NA,3.1
+
+  EW52-KOTkde-2016-11-12.csv
+    US National,1 wk ahead,Point,percent,NA,NA,2.7
+    US National,2 wk ahead,Point,percent,NA,NA,2.9
+    US National,3 wk ahead,Point,percent,NA,NA,3.1
+    US National,4 wk ahead,Point,percent,NA,NA,3.2
+
