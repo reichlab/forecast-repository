@@ -10,10 +10,24 @@ from utils.cdc_format_utils import mean_absolute_error_for_model_dir
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
-
+#
 # mock for cdc_format_utils.true_value_for_epi_week
-def test_true_value_for_epi_week_fcn(season_start_year, ew_week_number, location_name):
-    return 0  # todo look up once dynamically and then hardcode here xx
+#
+
+EPI_YR_WK_TO_ACTUAL_WILI = {
+    (2016, 51): 2.74084,
+    (2016, 52): 3.36496,
+    (2017, 1): 3.0963,
+    (2017, 2): 3.08492,
+    (2017, 3): 3.51496,
+    (2017, 4): 3.8035,
+    (2017, 5): 4.45059,
+    (2017, 6): 5.07947,
+}
+
+
+def mock_wili_for_epi_week_fcn(year, week, location_name):  # location_name is ignored
+    return EPI_YR_WK_TO_ACTUAL_WILI[(year, week)]
 
 
 class ModelErrorScoreTablesTestCase(TestCase):
@@ -35,24 +49,21 @@ class ModelErrorScoreTablesTestCase(TestCase):
         # | ensemble | 0.3  | 0.4  | 0.53 | 0.54 |
         # +----------+------+------+------+------+
 
-        # from model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
-        target_model_to_exp_mae = {('1 wk ahead', 'kde'): 0.440285,
-                                   ('2 wk ahead', 'kde'): 0.39992,
-                                   ('3 wk ahead', 'kde'): 0.6134925,
-                                   ('4 wk ahead', 'kde'): 0.98713,
-                                   ('1 wk ahead', 'ensemble'): 0.215904853,
-                                   ('2 wk ahead', 'ensemble'): 0.458186984,
-                                   ('3 wk ahead', 'ensemble'): 0.950515864,
-                                   ('4 wk ahead', 'ensemble'): 1.482010693}
-
-        # data_root = Path('~/IdeaProjects/split_kot_models_from_submissions/').expanduser()
-        data_root = Path('model_error').expanduser()
-        location_name = 'US National'
-        for (target_name, model_name), exp_mae in target_model_to_exp_mae.items():
-            model_csv_path = Path(data_root, model_name)
-            act_mae = mean_absolute_error_for_model_dir(model_csv_path, 2016, location_name, target_name,
-                                                        true_value_for_epi_week_fcn=test_true_value_for_epi_week_fcn)
-            self.assertEqual(exp_mae, act_mae)
+        # 'mini' season for testing. from:
+        #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
+        model_target_to_exp_mae = {('kde', '1 wk ahead'): 0.440285,
+                                   ('kde', '2 wk ahead'): 0.39992,
+                                   ('kde', '3 wk ahead'): 0.6134925,
+                                   ('kde', '4 wk ahead'): 0.98713,
+                                   ('ensemble', '1 wk ahead'): 0.215904853,
+                                   ('ensemble', '2 wk ahead'): 0.458186984,
+                                   ('ensemble', '3 wk ahead'): 0.950515864,
+                                   ('ensemble', '4 wk ahead'): 1.482010693}
+        data_root = Path('model_error')
+        for (model_name, target_name), exp_mae in model_target_to_exp_mae.items():
+            act_mae = mean_absolute_error_for_model_dir(Path(data_root, model_name), 2016, 'US National', target_name,
+                                                        wili_for_epi_week_fcn=mock_wili_for_epi_week_fcn)
+            self.assertAlmostEqual(exp_mae, act_mae)
 
     @unittest.skip  # todo
     def test_dir_constraints(self):

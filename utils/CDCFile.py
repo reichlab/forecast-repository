@@ -21,6 +21,12 @@ class CDCFile:
         self.csv_path = csv_path
         self.locations = self._get_locations()
 
+    # def __repr__(self):
+    #     return str((self.csv_path,))  # todo
+
+    def __str__(self):
+        return '<' + hex(id(self)) + ' ' + str(self.csv_path.name) + '>'
+
     def _get_locations(self):
         """
         :return: parses my CDC data file and returns a list of Locations for the passed file. raises if invalid filename or

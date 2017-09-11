@@ -15,7 +15,8 @@ def filename_components(filename):
     """
     :param filename: something like 'EW1-KoTstable-2017-01-17.csv'
     :return: either () (if filename invalid) or a 3-tuple (if valid) that indicates if filename matches the CDC
-    standard format as defined in [1]. The tuple format is: (ew_week_number, team_name, submission_datetime) . 
+    standard format as defined in [1]. The tuple format is: (ew_week_number, team_name, submission_datetime) . Note that
+    "ew_week_number" AKA the forecast's "time zero"
     
     [1] https://webcache.googleusercontent.com/search?q=cache:KQEkQw99egAJ:https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx+&cd=1&hl=en&ct=clnk&gl=us
         From that document: 
@@ -41,12 +42,12 @@ def filename_components(filename):
 # ---- functions to access the delphi API ----
 #
 
-def true_value_for_epi_week(season_start_year, ew_week_number, location_name):
+def delphi_wili_for_epi_week(year, week, location_name):
     """
     Looks up the 'wili' value for the past args, using the delphi REST API. Returns as a float.
 
-    :param season_start_year:
-    :param ew_week_number:
+    :param year:
+    :param week: EW week number between 1 and 52 inclusive
     :param location_name:
     :return: actual value for the passed args, looked up dynamically via xhttps://github.com/cmu-delphi/delphi-epidata
     """
@@ -57,8 +58,8 @@ def true_value_for_epi_week(season_start_year, ew_week_number, location_name):
     url = 'https://delphi.midas.cs.cmu.edu/epidata/api.php' \
           '?source=fluview' \
           '&regions={region}' \
-          '&epiweeks={epiweeks}{ew_week_number:02d}'. \
-        format(region=region, epiweeks=season_start_year, ew_week_number=ew_week_number)
+          '&epiweeks={epi_year}{ew_week_number:02d}'. \
+        format(region=region, epi_year=year, ew_week_number=week)
     response = requests.get(url)
     response.raise_for_status()  # does nothing if == requests.codes.ok
     delph_dict = json.loads(response.text)
@@ -70,16 +71,43 @@ def true_value_for_epi_week(season_start_year, ew_week_number, location_name):
 # ---- 'statistical' functions ----
 #
 
-def mean_absolute_error_for_model_dir(model_csv_path, season_start_year, location_name, target_name,
-                                      true_value_for_epi_week_fcn=true_value_for_epi_week):
+
+def increment_week(year, week, delta_weeks):
     """
+    Adds delta_weeks to timezero_week in timezero_year modulo 52, wrapping around to next year as needed. Returns a
+    2-tuple: (incremented_year, incremented_week)
+    """
+    if (delta_weeks < 1) or (delta_weeks > 52):
+        raise RuntimeError("delta_weeks wasn't between 1 and 52: {}".format(delta_weeks))
+
+    incremented_week = week + delta_weeks
+    if incremented_week > 52:
+        return year + 1, incremented_week - 52
+    else:
+        return year, incremented_week
+
+
+def mean_absolute_error_for_model_dir(model_csv_path, season_start_year, location_name, target_name,
+                                      wili_for_epi_week_fcn=delphi_wili_for_epi_week):
+    """
+    :param:model_csv_path: directory of a model's forecasts in CDC csv format
+    :param:season_start_year: year of the season, e.g., 2016 for the season 2016-2017
+    :param:location_name: as in the 'Location' column in csv files
+    :param:target_name: "" 'Target' ""
+    :param:true_value_for_epi_week_fcn: a function of three args (year, week, location_name) that returns the
+        true/actual wili value for an epi week
     :return: mean absolute error (scalar) for the model's predictions in the passed path, for location and target
     """
     cdc_file_name_to_abs_error = {}
     for cdc_file in cdc_files_for_dir(model_csv_path):
-        ew_week_number = filename_components(cdc_file.csv_path.name)[0]
+        # set timezero week and year, inferring the latter based on Nick's comment: see 'stable definition of the
+        # first "week of a season"' -> 40 is magic
+        timezero_week = filename_components(cdc_file.csv_path.name)[0]
+        timezero_year = season_start_year if timezero_week > 40 else season_start_year + 1
+        future_year, future_week = increment_week(timezero_year, timezero_week,
+                                                  week_increment_for_target_name(target_name))
+        true_value = wili_for_epi_week_fcn(future_year, future_week, location_name)
         predicted_value = cdc_file.get_location(location_name).get_target(target_name).point
-        true_value = true_value_for_epi_week_fcn(season_start_year, ew_week_number, location_name)
         abs_error = abs(predicted_value - true_value)
         cdc_file_name_to_abs_error[cdc_file.csv_path.name] = abs_error
     return sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)
@@ -98,19 +126,23 @@ def cdc_files_for_dir(csv_dir_path):
     return cdc_files
 
 
-REGION_TO_SYNONYMS = {
-    'nat': ['US National'],
-    'hhs1': ['HHS Region 1'],
-    'hhs2': ['HHS Region 2'],
-    'hhs3': ['HHS Region 3'],
-    'hhs4': ['HHS Region 4'],
-    'hhs5': ['HHS Region 5'],
-    'hhs6': ['HHS Region 6'],
-    'hhs7': ['HHS Region 7'],
-    'hhs8': ['HHS Region 8'],
-    'hhs9': ['HHS Region 9'],
-    'hhs10': ['HHS Region 10'],
-}
+#
+# ---- model-specific target and location name functions ----
+#
+# todo abstract these to elsewhere
+#
+
+def week_increment_for_target_name(target_name):
+    """
+    :return: returns an incremented week value based on the future specified by target_name
+    """
+    target_name_to_week_increment = {
+        '1 wk ahead': 1,
+        '2 wk ahead': 2,
+        '3 wk ahead': 3,
+        '4 wk ahead': 4,
+    }
+    return target_name_to_week_increment[target_name]
 
 
 def region_for_location_name(location_name):
@@ -119,11 +151,23 @@ def region_for_location_name(location_name):
     :return: maps synonyms to official Delphi 'region' API parameter. returns None if not found.
         see https://github.com/cmu-delphi/delphi-epidata/blob/758b6ad25cb98127038c430ebb57801a05f4cd56/labels/regions.txt
     """
-    # todo abstract this out to a model-specific configuration
-    if location_name in REGION_TO_SYNONYMS:
+    region_to_synonyms = {
+        'nat': ['US National'],
+        'hhs1': ['HHS Region 1'],
+        'hhs2': ['HHS Region 2'],
+        'hhs3': ['HHS Region 3'],
+        'hhs4': ['HHS Region 4'],
+        'hhs5': ['HHS Region 5'],
+        'hhs6': ['HHS Region 6'],
+        'hhs7': ['HHS Region 7'],
+        'hhs8': ['HHS Region 8'],
+        'hhs9': ['HHS Region 9'],
+        'hhs10': ['HHS Region 10'],
+    }
+    if location_name in region_to_synonyms:
         return location_name
 
-    for region, synonyms in REGION_TO_SYNONYMS.values():
+    for region, synonyms in region_to_synonyms.values():
         if location_name in synonyms:
             return region
 
