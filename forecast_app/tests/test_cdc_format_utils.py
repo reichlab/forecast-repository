@@ -78,3 +78,15 @@ class DBLoaderTestCase(TestCase):
         exp_loc_names = {'HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
                          'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National'}
         self.assertEqual(exp_loc_names, {loc.name for loc in cdc_file.locations})
+
+    def test_cdc_csv_file_dir_constraints(self):
+        # Constraints:
+        # - all files much match across dirs - recall one had an extra file
+        # - all files must have same locations and targets
+        # - todo others
+        self.fail()
+
+    def test_model_constraints(self):
+        # Constraints:
+        # - todo see noteson 8/10 p1 bottom half
+        self.fail()

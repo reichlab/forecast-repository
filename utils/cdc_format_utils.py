@@ -71,22 +71,6 @@ def delphi_wili_for_epi_week(year, week, location_name):
 # ---- 'statistical' functions ----
 #
 
-
-def increment_week(year, week, delta_weeks):
-    """
-    Adds delta_weeks to timezero_week in timezero_year modulo 52, wrapping around to next year as needed. Returns a
-    2-tuple: (incremented_year, incremented_week)
-    """
-    if (delta_weeks < 1) or (delta_weeks > 52):
-        raise RuntimeError("delta_weeks wasn't between 1 and 52: {}".format(delta_weeks))
-
-    incremented_week = week + delta_weeks
-    if incremented_week > 52:
-        return year + 1, incremented_week - 52
-    else:
-        return year, incremented_week
-
-
 def mean_absolute_error_for_model_dir(model_csv_path, season_start_year, location_name, target_name,
                                       wili_for_epi_week_fcn=delphi_wili_for_epi_week):
     """
@@ -100,10 +84,13 @@ def mean_absolute_error_for_model_dir(model_csv_path, season_start_year, locatio
     """
     cdc_file_name_to_abs_error = {}
     for cdc_file in cdc_files_for_dir(model_csv_path):
-        # set timezero week and year, inferring the latter based on Nick's comment: see 'stable definition of the
-        # first "week of a season"' -> 40 is magic
+        # set timezero week and year, inferring the latter based on @Evan's @Nick's reply:
+        # > We used week 30.  I don't think this is a standardized concept outside of our lab though."
+        # > We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with EW30-2016
+        # > and ends with EW29-2017.
+        # todo abstract this to elsewhere
         timezero_week = filename_components(cdc_file.csv_path.name)[0]
-        timezero_year = season_start_year if timezero_week > 40 else season_start_year + 1
+        timezero_year = season_start_year if timezero_week >= 30 else season_start_year + 1
         future_year, future_week = increment_week(timezero_year, timezero_week,
                                                   week_increment_for_target_name(target_name))
         true_value = wili_for_epi_week_fcn(future_year, future_week, location_name)
@@ -124,6 +111,21 @@ def cdc_files_for_dir(csv_dir_path):
 
         cdc_files.append(CDCFile(csv_file_p))
     return cdc_files
+
+
+def increment_week(year, week, delta_weeks):
+    """
+    Adds delta_weeks to timezero_week in timezero_year modulo 52, wrapping around to next year as needed. Returns a
+    2-tuple: (incremented_year, incremented_week)
+    """
+    if (delta_weeks < 1) or (delta_weeks > 52):
+        raise RuntimeError("delta_weeks wasn't between 1 and 52: {}".format(delta_weeks))
+
+    incremented_week = week + delta_weeks
+    if incremented_week > 52:
+        return year + 1, incremented_week - 52
+    else:
+        return year, incremented_week
 
 
 #

@@ -1,5 +1,4 @@
 import os
-import unittest
 from pathlib import Path
 
 import django
@@ -64,11 +63,3 @@ class ModelErrorScoreTablesTestCase(TestCase):
             act_mae = mean_absolute_error_for_model_dir(Path(data_root, model_name), 2016, 'US National', target_name,
                                                         wili_for_epi_week_fcn=mock_wili_for_epi_week_fcn)
             self.assertAlmostEqual(exp_mae, act_mae)
-
-    @unittest.skip  # todo
-    def test_dir_constraints(self):
-        # Constraints:
-        # - all files much match across dirs - recall one had an extra file
-        # - all files must have same locations and targets
-        # - todo others
-        self.fail()
