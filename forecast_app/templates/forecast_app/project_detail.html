@@ -29,8 +29,8 @@
     <ul>
         {% for timezero in project.timezero_set.all %}
             <li><strong>{{ timezero.timezero_date|date:"Y-m-d" }}</strong>
-                {% if timezero.version_date %}
-                    {{ timezero.version_date }}
+                {% if timezero.data_version_date %}
+                    {{ timezero.data_version_date }}
                 {% else %}
                     <small>[no version date]</small>
                 {% endif %}

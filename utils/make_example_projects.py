@@ -10,7 +10,8 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week
-from forecast_app.models import DataFile, Project, Target, TimeZero, ForecastModel, Forecast
+from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast, CDCData
+
 
 #
 # ---- print and delete (!) all user objects ----
@@ -23,7 +24,7 @@ from forecast_app.models import DataFile, Project, Target, TimeZero, ForecastMod
 #         print('  =', str(instance))
 
 print('* deleting database...')
-for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
+for model_class in [CDCData, Project, Target, TimeZero, ForecastModel, Forecast]:
     model_class.objects.all().delete()
 
 #
@@ -32,16 +33,12 @@ for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast
 
 print('* creating CDC Flu challenge project and models...')
 
-df = DataFile.objects.create(
-    location='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
-    file_type='d')
-
 p = Project.objects.create(
     name='CDC Flu challenge (2016-2017)',
     description="Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions "
                 "based on ensembles.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    core_data=df)
+    core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions')
 
 WEEK_AHEAD_DESCR = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
 for target_name, descr in (
@@ -65,11 +62,11 @@ for target_name, descr in (
     Target.objects.create(project=p, name=target_name, description=descr)
 
 # create the project's TimeZeros. b/c this is a CDC project, timezero_dates are all MMWR Week ENDING Dates as listed in
-# MMWR_WEEK_TO_YEAR_TUPLE. note that the project has no version_dates
+# MMWR_WEEK_TO_YEAR_TUPLE. note that the project has no data_version_dates
 for mmwr_week in list(range(43, 53)) + list(range(1, 19)):  # [43, ..., 52, 1, ..., 18] for 2016-2017
     TimeZero.objects.create(project=p,
                             timezero_date=str(end_date_2016_2017_for_mmwr_week(mmwr_week)),
-                            version_date=None)
+                            data_version_date=None)
 
 #
 # ---- create the four Kernel of Truth (KoT) ForecastModels and their Forecasts ----
@@ -105,16 +102,12 @@ def add_forecasts_to_model(forecast_model, kot_model_dir_name):
 # KoT ensemble
 #
 
-df = DataFile.objects.create(
-    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble',
-    file_type='d')
-
 fm = ForecastModel.objects.create(
     project=p,
     name='KoT ensemble',
     description="Team Kernel of Truth's ensemble model.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    auxiliary_data=df)
+    auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
 
 add_forecasts_to_model(fm, 'ensemble')
 
@@ -122,16 +115,12 @@ add_forecasts_to_model(fm, 'ensemble')
 # KoT Kernel Density Estimation (KDE)
 #
 
-df = DataFile.objects.create(
-    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde',
-    file_type='d')
-
 fm = ForecastModel.objects.create(
     project=p,
     name='KoT KDE',
     description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    auxiliary_data=df)
+    auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
 
 add_forecasts_to_model(fm, 'kde')
 
@@ -139,16 +128,12 @@ add_forecasts_to_model(fm, 'kde')
 # KoT Kernel Conditional Density Estimation (KCDE)
 #
 
-df = DataFile.objects.create(
-    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
-    file_type='d')
-
 fm = ForecastModel.objects.create(
     project=p,
     name='KoT KCDE',
     description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    auxiliary_data=df)
+    auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
 
 add_forecasts_to_model(fm, 'kcde')
 
@@ -156,16 +141,12 @@ add_forecasts_to_model(fm, 'kcde')
 # KoT SARIMA
 #
 
-df = DataFile.objects.create(
-    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima',
-    file_type='d')
-
 fm = ForecastModel.objects.create(
     project=p,
     name='KoT SARIMA',
     description="Team Kernel of Truth's SARIMA model.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    auxiliary_data=df)
+    auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
 
 add_forecasts_to_model(fm, 'sarima')
 
@@ -175,21 +156,17 @@ add_forecasts_to_model(fm, 'sarima')
 
 print('* creating Predict the District Challenge project and models...')
 
-df = DataFile.objects.create(
-    location='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
-    file_type='d')
-
 p = Project.objects.create(
     name='Predict the District Challenge',
     description="A Reich Lab challenge of predicting dengue fever in Thailand at the district level.",
     url='http://reichlab.io/guidelines.html',
-    core_data=df)
+    core_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
 
 TEN_BIWEEK_DESCR = "The number of reported cases in each of the following 10 biweeks. If data is observed through " \
                    "time t then forecasts for times t+1, …, t+10 will be handed in. If time t falls within 10 " \
                    "biweeks of the end of the calendar year, still, the forecast should include 10 biweeks into the " \
                    "future."
-# TODO use exact target names to match data files' 'Target' columns:
+# todo use exact target names to match data files' 'Target' columns:
 TEN_BIWEEK_TARGETS = [('{} wk ahead'.format(biweek_num + 1), TEN_BIWEEK_DESCR) for biweek_num in range(10)]
 for target_name, descr in TEN_BIWEEK_TARGETS + [
     ('Year Total',
@@ -218,7 +195,7 @@ for training_year in range(2008, 2013 + 1):
     for biweek in range(26):
         TimeZero.objects.create(project=p,
                                 timezero_date=str(start_date_for_biweek(biweek, training_year)),
-                                version_date=None)
+                                data_version_date=None)
 
 #
 # ---- create the ForecastModels and their Forecasts ----
