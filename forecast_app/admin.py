@@ -3,7 +3,11 @@ from django.contrib.admin.widgets import AdminTextareaWidget
 from django.urls import reverse
 from django.utils.html import format_html
 
-from forecast_app.models import Project, TimeZero, Target, ForecastModel, Forecast
+from forecast_app.models.forecast import Forecast
+from forecast_app.models.forecast_model import ForecastModel
+from forecast_app.models.project import Project
+from forecast_app.models.project import Target
+from forecast_app.models.project import TimeZero
 
 #
 # minimal registration of Models
