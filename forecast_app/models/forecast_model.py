@@ -122,7 +122,6 @@ class ForecastModel(models.Model):
             true_value = wili_for_epi_week_fcn(future_year, future_week, location)
             predicted_value = forecast.get_target_point_value(location, target)
             abs_error = abs(predicted_value - true_value)
-            # print('xx', forecast, ':', timezero_week, timezero_year, '.', future_week, future_year, '.', true_value, predicted_value, abs_error)
             cdc_file_name_to_abs_error[forecast.data_filename] = abs_error
 
         return sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)

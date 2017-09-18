@@ -69,16 +69,16 @@ class CDCDataTestCase(TestCase):
 
     def test_cdc_data_accessors(self):
         # test get_data_preview()
-        exp_preview = [('US National', 'Season onset', 'p', 'week', None, None, '50.0012056690978'),
-                       ('US National', 'Season onset', 'b', 'week', '40', '41', '1.95984004521967e-05'),
-                       ('US National', 'Season onset', 'b', 'week', '41', '42', '1.46988003391476e-05'),
-                       ('US National', 'Season onset', 'b', 'week', '42', '43', '6.98193016109509e-06'),
-                       ('US National', 'Season onset', 'b', 'week', '43', '44', '3.79719008761312e-06'),
-                       ('US National', 'Season onset', 'b', 'week', '44', '45', '4.28715009891804e-06'),
-                       ('US National', 'Season onset', 'b', 'week', '45', '46', '1.59237003674098e-05'),
-                       ('US National', 'Season onset', 'b', 'week', '46', '47', '3.0989970715036e-05'),
-                       ('US National', 'Season onset', 'b', 'week', '47', '48', '5.3895601243541e-05'),
-                       ('US National', 'Season onset', 'b', 'week', '48', '49', '7.49638817296525e-05')]
+        exp_preview = [('US National', 'Season onset', 'p', 'week', None, None, 50.0012056690978),
+                       ('US National', 'Season onset', 'b', 'week', 40, 41, 1.95984004521967e-05),
+                       ('US National', 'Season onset', 'b', 'week', 41, 42, 1.46988003391476e-05),
+                       ('US National', 'Season onset', 'b', 'week', 42, 43, 6.98193016109509e-06),
+                       ('US National', 'Season onset', 'b', 'week', 43, 44, 3.79719008761312e-06),
+                       ('US National', 'Season onset', 'b', 'week', 44, 45, 4.28715009891804e-06),
+                       ('US National', 'Season onset', 'b', 'week', 45, 46, 1.59237003674098e-05),
+                       ('US National', 'Season onset', 'b', 'week', 46, 47, 3.0989970715036e-05),
+                       ('US National', 'Season onset', 'b', 'week', 47, 48, 5.3895601243541e-05),
+                       ('US National', 'Season onset', 'b', 'week', 48, 49, 7.49638817296525e-05)]
         self.assertEqual(exp_preview, self.forecast.get_data_preview())
 
         # test locations

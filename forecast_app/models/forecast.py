@@ -35,7 +35,8 @@ class Forecast(models.Model):
         """
         # todo better way to get FK name? - {forecast_model_name}_id
         sql = """
-            SELECT *
+            SELECT id, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value,
+             {forecast_model_name}_id
             FROM {cdcdata_table_name}
             WHERE {forecast_model_name}_id = %s;
         """.format(cdcdata_table_name=CDCData._meta.db_table,
@@ -91,7 +92,8 @@ class Forecast(models.Model):
         """
         # todo better way to get FK name? - {forecast_model_name}_id
         sql = """
-            SELECT *
+            SELECT id, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value,
+             {forecast_model_name}_id
             FROM {cdcdata_table_name}
             WHERE {forecast_model_name}_id = %s AND row_type = %s AND location = %s and target = %s;
         """.format(cdcdata_table_name=CDCData._meta.db_table,
@@ -113,7 +115,7 @@ class Forecast(models.Model):
         :return: point value for a location and target 
         """
         point_row = self._get_point_row(location, target)
-        return parse_value(point_row[7])  # todo if [use numbers of correct type] above, change this to not cast
+        return point_row[7]
 
     def get_target_bins(self, location, target):
         """
@@ -129,8 +131,7 @@ class Forecast(models.Model):
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
             rows = cursor.fetchall()
-            return [(parse_value(bin_start_incl), parse_value(bin_end_notincl), parse_value(value))
-                    for bin_start_incl, bin_end_notincl, value in rows]
+            return [(bin_start_incl, bin_end_notincl, value) for bin_start_incl, bin_end_notincl, value in rows]
 
     def insert_data(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
         """
@@ -146,8 +147,8 @@ class Forecast(models.Model):
                 """.format(cdcdata_table_name=CDCData._meta.db_table,
                            column_names=column_names)
         # we use parse_value() to handle non-numeric cases like 'NA' and 'none'
-        cursor.execute(sql, [location, target, row_type, unit, parse_value(bin_start_incl),
-                             parse_value(bin_end_notincl), parse_value(value), self.pk])
+        cursor.execute(sql, [location, target, row_type, unit,
+                             parse_value(bin_start_incl), parse_value(bin_end_notincl), parse_value(value), self.pk])
 
 
 class CDCData(models.Model):
@@ -169,11 +170,9 @@ class CDCData(models.Model):
 
     unit = models.CharField(max_length=200)
 
-    # todo use numbers of correct type - see parse_value() -> change data_row().
-    # see "my issue is that I have to pick a field type for the latter three, which can be *either* int or float"
-    bin_start_incl = models.CharField(max_length=200, null=True)
-    bin_end_notincl = models.CharField(max_length=200, null=True)
-    value = models.CharField(max_length=200)
+    bin_start_incl = models.FloatField(null=True)
+    bin_end_notincl = models.FloatField(null=True)
+    value = models.FloatField()
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, *self.data_row()))
@@ -182,6 +181,5 @@ class CDCData(models.Model):
         return basic_str(self)
 
     def data_row(self):
-        # todo if [use numbers of correct type] above, change this to not cast
         return [self.location, self.target, self.row_type, self.unit,
-                parse_value(self.bin_start_incl), parse_value(self.bin_end_notincl), parse_value(self.value)]
+                self.bin_start_incl, self.bin_end_notincl, self.value]
