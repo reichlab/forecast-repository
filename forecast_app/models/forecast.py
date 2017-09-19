@@ -18,14 +18,18 @@ class Forecast(models.Model):
     data_filename = models.CharField(max_length=200,
                                      help_text="Original CSV file name of this forecast's data source")
 
+
     def __repr__(self):
         return str((self.pk, self.time_zero, self.data_filename))
+
 
     def __str__(self):  # todo
         return basic_str(self)
 
+
     def get_absolute_url(self):
         return reverse('forecast-detail', args=[str(self.id)])
+
 
     def get_data_rows(self):
         """
@@ -46,15 +50,21 @@ class Forecast(models.Model):
             rows = cursor.fetchall()
             return [row[1:-1] for row in rows]
 
+
+    def get_num_rows(self):
+        return len(self.get_data_rows())  # todo query only for count(*)
+
+
     def get_data_preview(self):
         """
         :return: a preview of my data in the form of a table that's represented as a nested list of rows
         """
-        return self.get_data_rows()[:10]
+        return self.get_data_rows()[:10]  # todo query LIMIT 10
+
 
     def get_locations(self):
         """
-        :return: a list of Location names corresponding to my CDCData
+        :return: a set of Location names corresponding to my CDCData
         """
         # todo better way to get FK name? - {forecast_model_name}_id
         sql = """
@@ -67,11 +77,12 @@ class Forecast(models.Model):
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk])
             rows = cursor.fetchall()
-            return [row[0] for row in rows]
+            return {row[0] for row in rows}
+
 
     def get_targets(self, location):
         """
-        :return: list of target names for a location
+        :return: a set of target names for a location
         """
         # todo better way to get FK name? - {forecast_model_name}_id
         sql = """
@@ -84,7 +95,8 @@ class Forecast(models.Model):
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk, location])
             rows = cursor.fetchall()
-            return [row[0] for row in rows]
+            return {row[0] for row in rows}
+
 
     def _get_point_row(self, location, target):
         """
@@ -103,6 +115,7 @@ class Forecast(models.Model):
             rows = cursor.fetchall()
             return rows[0]
 
+
     def get_target_unit(self, location, target):
         """
         :return: name of the unit column. arbitrarily uses the point row's unit
@@ -110,12 +123,14 @@ class Forecast(models.Model):
         point_row = self._get_point_row(location, target)
         return point_row[4]
 
+
     def get_target_point_value(self, location, target):
         """
         :return: point value for a location and target 
         """
         point_row = self._get_point_row(location, target)
         return point_row[7]
+
 
     def get_target_bins(self, location, target):
         """
@@ -132,6 +147,7 @@ class Forecast(models.Model):
             cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
             rows = cursor.fetchall()
             return [(bin_start_incl, bin_end_notincl, value) for bin_start_incl, bin_end_notincl, value in rows]
+
 
     def insert_data(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
         """
@@ -174,11 +190,14 @@ class CDCData(models.Model):
     bin_end_notincl = models.FloatField(null=True)
     value = models.FloatField()
 
+
     def __repr__(self):
         return str((self.pk, self.forecast.pk, *self.data_row()))
 
+
     def __str__(self):  # todo
         return basic_str(self)
+
 
     def data_row(self):
         return [self.location, self.target, self.row_type, self.unit,

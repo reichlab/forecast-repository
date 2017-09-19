@@ -10,8 +10,8 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week
-from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast, CDCData
-
+from forecast_app.models.forecast import CDCData
+from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
 
 #
 # ---- print and delete (!) all user objects ----
@@ -24,7 +24,7 @@ from forecast_app.models import Project, Target, TimeZero, ForecastModel, Foreca
 #         print('  =', str(instance))
 
 print('* deleting database...')
-for model_class in [CDCData, Project, Target, TimeZero, ForecastModel, Forecast]:
+for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, CDCData]:
     model_class.objects.all().delete()
 
 #
@@ -33,12 +33,35 @@ for model_class in [CDCData, Project, Target, TimeZero, ForecastModel, Forecast]
 
 print('* creating CDC Flu challenge project and models...')
 
+config_dict = {
+    'target_to_week_increment': {
+        '1 wk ahead': 1,
+        '2 wk ahead': 2,
+        '3 wk ahead': 3,
+        '4 wk ahead': 4,
+    },
+    'location_to_delphi_region': {
+        'US National': 'nat',
+        'HHS Region 1': 'hhs1',
+        'HHS Region 2': 'hhs2',
+        'HHS Region 3': 'hhs3',
+        'HHS Region 4': 'hhs4',
+        'HHS Region 5': 'hhs5',
+        'HHS Region 6': 'hhs6',
+        'HHS Region 7': 'hhs7',
+        'HHS Region 8': 'hhs8',
+        'HHS Region 9': 'hhs9',
+        'HHS Region 10': 'hhs10',
+    },
+}
+
 p = Project.objects.create(
     name='CDC Flu challenge (2016-2017)',
     description="Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions "
                 "based on ensembles.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-    core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions')
+    core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
+    config_dict=config_dict)
 
 WEEK_AHEAD_DESCR = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
 for target_name, descr in (
@@ -82,6 +105,7 @@ def add_forecasts_to_model(forecast_model, kot_model_dir_name):
     Adds Forecast objects to forecast_model based on kot_model_dir_name. Recall data file naming scheme:
         'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
     """
+    print('add_forecasts_to_model', forecast_model, kot_model_dir_name)
     kot_model_dir = KOT_DATA_DIR / kot_model_dir_name
     if not Path(kot_model_dir).exists():
         raise RuntimeError("KOT_DATA_DIR does not exist: {}".format(KOT_DATA_DIR))
@@ -94,8 +118,8 @@ def add_forecasts_to_model(forecast_model, kot_model_dir_name):
             raise RuntimeError("no time_zero found for timezero_date={}. csv_file={}, mmwr_week={}".format(
                 timezero_date, csv_file, mmwr_week))
 
-        csv_df = DataFile.objects.create(location=csv_file, file_type='c')
-        Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, data=csv_df)
+        print('  ', csv_file)
+        forecast_model.load_forecast(csv_file, time_zero)
 
 
 #
@@ -160,7 +184,8 @@ p = Project.objects.create(
     name='Predict the District Challenge',
     description="A Reich Lab challenge of predicting dengue fever in Thailand at the district level.",
     url='http://reichlab.io/guidelines.html',
-    core_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
+    core_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
+    config_dict=config_dict)  # same config_dict as above
 
 TEN_BIWEEK_DESCR = "The number of reported cases in each of the following 10 biweeks. If data is observed through " \
                    "time t then forecasts for times t+1, …, t+10 will be handed in. If time t falls within 10 " \

@@ -1,5 +1,9 @@
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from django.urls import reverse
+from jsonfield import JSONField
 
 from utils.utilities import basic_str
 
@@ -20,6 +24,15 @@ class Project(models.Model):
                                           "everyone in the challenge, including supplemental data like Google "
                                           "queries or weather")
 
+    # config_dict: specifies project-specific information with these keys:
+    #  - 'target_to_week_increment': a dict that maps week-related target names to ints, such as '1 wk ahead' -> 1.
+    #     also, this dict's keys are used by mean_abs_error_rows_for_project() to decide which targets to use
+    # - 'location_to_delphi_region': a dict that maps all my locations to Delphi region names - see
+    #     delphi_wili_for_epi_week()
+    config_dict = JSONField(help_text="JSON dict containing these two keys, each of which is a dict: "
+                                      "'target_to_week_increment' and 'location_to_delphi_region'. Please see "
+                                      "documentation for details.")
+
     def __repr__(self):
         return str((self.pk, self.name))
 
@@ -28,6 +41,34 @@ class Project(models.Model):
 
     def get_absolute_url(self):
         return reverse('project-detail', args=[str(self.id)])
+
+    def week_increment_for_target_name(self, target_name):
+        """
+        :return: returns an incremented week value based on the future specified by target_name
+        """
+        return self.config_dict['target_to_week_increment'][target_name]
+
+    def region_for_location_name(self, location_name):
+        """
+        :return: Delphi region name corresponding to location_name
+        """
+        return self.config_dict['location_to_delphi_region'][location_name]
+
+    def targets_for_mean_absolute_error(self):
+        """
+        :return: list of targets that can be used for ForecastModel.mean_absolute_error() calls, i.e., those that are
+        week-relative (?) ones
+        """
+        return list(self.config_dict['target_to_week_increment'].keys())
+
+
+@receiver(pre_save, sender=Project)
+def model_pre_save(sender, instance, **kwargs):
+    # validate config_dict field to check for keys: 'target_to_week_increment' and 'location_to_delphi_region'
+    if ('target_to_week_increment' not in instance.config_dict) or \
+            ('location_to_delphi_region' not in instance.config_dict):
+        raise ValidationError("config_dict did not contain both require keys: 'target_to_week_increment' and "
+                              "'location_to_delphi_region': {}".format(instance.config_dict))
 
 
 class Target(models.Model):

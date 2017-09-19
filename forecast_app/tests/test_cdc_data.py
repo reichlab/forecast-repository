@@ -10,6 +10,7 @@ from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from utils.utilities import filename_components
 
+
 EPI_YR_WK_TO_ACTUAL_WILI = {
     (2016, 51): 2.74084,
     (2016, 52): 3.36496,
@@ -22,7 +23,8 @@ EPI_YR_WK_TO_ACTUAL_WILI = {
 }
 
 
-def mock_wili_for_epi_week_fcn(year, week, location_name):  # location_name is ignored
+# static mock function for delphi_wili_for_epi_week(). location_name is ignored
+def mock_wili_for_epi_week_fcn(forecast_model, year, week, location_name):
     return EPI_YR_WK_TO_ACTUAL_WILI[(year, week)]
 
 
@@ -35,10 +37,12 @@ class CDCDataTestCase(TestCase):
     
     """
 
+
     @classmethod
     def setUpTestData(cls):
         cls.forecast_model = ForecastModel.objects.create()
         cls.forecast = cls.forecast_model.load_forecast(Path('EW1-KoTstable-2017-01-17.csv'), None)
+
 
     # todo move?
     def test_filename_components(self):
@@ -49,6 +53,7 @@ class CDCDataTestCase(TestCase):
                                      ('EW1-KoTstable--01-17.txt', ()))
         for filename, component in filename_component_tuples:
             self.assertEqual(component, filename_components(filename))
+
 
     def test_load_forecast(self):
         self.assertEqual(1, len(self.forecast_model.forecast_set.all()))
@@ -67,7 +72,11 @@ class CDCDataTestCase(TestCase):
         self.assertEqual(['HHS Region 10', '4 wk ahead', 'b', 'percent', 13, 100, 0.00307617873070836],
                          cdc_data_rows[8018].data_row())
 
+
     def test_cdc_data_accessors(self):
+        # test get_data_rows()
+        self.assertEqual(8019, len(self.forecast.get_data_rows()))
+
         # test get_data_preview()
         exp_preview = [('US National', 'Season onset', 'p', 'week', None, None, 50.0012056690978),
                        ('US National', 'Season onset', 'b', 'week', 40, 41, 1.95984004521967e-05),
@@ -109,6 +118,7 @@ class CDCDataTestCase(TestCase):
         for start_end_val_tuple in start_end_val_tuples:
             self.assertIn(start_end_val_tuple, act_bins)
 
+
     def test_mean_absolute_error(self):
         # load other three forecasts from 'ensemble' model. will delete them when done so that other tests don't fail.
         # setUpTestData() has already loaded 'EW1-KoTstable-2017-01-17.csv'
@@ -132,6 +142,7 @@ class CDCDataTestCase(TestCase):
         forecast3.delete()
         forecast4.delete()
 
+
     def test_forecast_delete(self):
         # add a second forecast, check its associated CDCData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
@@ -146,15 +157,18 @@ class CDCDataTestCase(TestCase):
         forecast2.delete()
         self.assertEqual(0, len(forecast2.cdcdata_set.all()))
 
-    def test_cdc_csv_file_dir_constraints(self):
-        # Constraints:
+
+    def test_project_constraints(self):
+        # - models must have same targets, etc.
+        # - time_zeros, etc.
         # - all files much match across dirs - recall one had an extra file
         # - all files must have same locations and targets
         # - todo others
         self.fail()  # todo
 
-    def test_mean_absolute_error_for_model_dir(self):
-        # use this dir: model_error/kde
-        # 'mini' season for testing. from:
-        #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
+
+    def test_forecast_constraints(self):
+        # - bins should add to 1.0
+        # - point prediction should be within max bin
+        # - todo others
         self.fail()  # todo

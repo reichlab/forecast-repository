@@ -23,7 +23,7 @@
     </p>
 
 
-    <h2>Forecasts ({{ forecastmodel.forecast_set.all | length }})</h2>
+    <h2>Forecasts ({{ forecastmodel.forecast_set.all|length }})</h2>
     <ul>
         {% for forecast in forecastmodel.forecast_set.all|dictsort:"time_zero.timezero_date" %}
             <li><a href="{{ forecast.get_absolute_url }}">{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</a></li>

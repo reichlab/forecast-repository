@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views.generic import DetailView
 
 from forecast_app.models import Project, ForecastModel, Forecast
+from utils.utilities import mean_abs_error_rows_for_project
 
 
 def index(request):
@@ -29,7 +30,8 @@ def project_visualizations(request, pk):
     return render(
         request,
         'project_visualizations.html',
-        context={'project': project},
+        context={'project': project,
+                 'mean_abs_error_rows': mean_abs_error_rows_for_project(project)},
     )
 
 

@@ -27,6 +27,7 @@ Here are the use cases this prototype is to support:
 pip install django
 pip install click
 pip install requests
+pip install jsonfield
 
 
 # Utils

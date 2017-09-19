@@ -16,7 +16,28 @@
     </ul>
     </p>
 
-    <h2>Todo</h2>
-    <p>todo: Show the "Mean Log Score" table</p>
+    <h2>Mean Absolute Error</h2>
+    <p>The "Mean Absolute Error" table for all models and the passed targets:</p>
 
+    {# show a table similar to flusight's #}
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            {% for header_name in mean_abs_error_rows.0 %}
+                <th>{{ header_name }}</th>
+            {% endfor %}
+        </tr>
+        </thead>
+        <tbody>
+        {% for row in mean_abs_error_rows|slice:"1:" %}
+            <tr>
+                <td>{{ row.0 }}</td>
+                <td>{{ row.1 }}</td>
+                <td>{{ row.2 }}</td>
+                <td>{{ row.3 }}</td>
+                <td>{{ row.4 }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
 {% endblock %}

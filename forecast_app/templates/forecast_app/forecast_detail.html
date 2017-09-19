@@ -9,7 +9,7 @@
     <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
     <p><strong>Data</strong>: {{ forecast.data }}</p>
 
-    <h2>Preview</h2>
+    <h2>Preview of {{ forecast.get_num_rows }} rows</h2>
 
     <table class="table table-striped">
         <thead>

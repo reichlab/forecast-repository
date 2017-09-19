@@ -10,7 +10,7 @@ from forecast_app.models import Project
 
 
 def print_project_info(project):
-    print('*', project)  # todo
+    print('*', project, project.name, project.description, project.url, '.', project.config_dict)
     print('** Targets')
     for target in project.target_set.all():
         print('  ', target)

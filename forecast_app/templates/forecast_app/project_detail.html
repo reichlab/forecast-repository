@@ -9,7 +9,7 @@
     <p><strong>Core data</strong>: {{ project.core_data }}</p>
     <p><strong>Visualizations</strong>: <a href="{% url 'project-visualizations' project.pk %}">Here</a></p>
 
-    <h2>Models ({{ project.forecastmodel_set.all | length }})</h2>
+    <h2>Models ({{ project.forecastmodel_set.all|length }})</h2>
     <ul>
         {% for forecast_model in project.forecastmodel_set.all %}
             <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
@@ -17,7 +17,7 @@
     </ul>
 
 
-    <h2>Targets ({{ project.target_set.all | length }})</h2>
+    <h2>Targets ({{ project.target_set.all|length }})</h2>
     <ul>
         {% for target in project.target_set.all %}
             <li><strong>{{ target.name }}</strong>: {{ target.description }}</li>
@@ -25,7 +25,7 @@
     </ul>
 
 
-    <h2>TimeZeros ({{ project.timezero_set.all | length }})</h2>
+    <h2>TimeZeros ({{ project.timezero_set.all|length }})</h2>
     <ul>
         {% for timezero in project.timezero_set.all %}
             <li><strong>{{ timezero.timezero_date|date:"Y-m-d" }}</strong>
