@@ -52,49 +52,56 @@ def filename_components(filename):
 # ---- functions to access the delphi API ----
 #
 
-# server memory cache that maps a 2-tuple (epi_year, epi_week) to to the retrieved 'wili' value
-DELPHI_EPIWEEKS_WILI_CACHE = {}
+# server memory cache that maps a 2-tuple (epi_year, epi_week) to the retrieved 'wili' value from Delphi. keys are
+# ints. managed by delphi_wili_for_epi_week()
+DELPHI_EPIYEAR_AND_EPIWEEK_TO_WILI = {}
 
-# todo xx make a Project method. must replace mock_wili_for_epi_week_fcn() with a patch
-def delphi_wili_for_epi_week(forecast_model, year, week, location_name):
+
+# todo xx make a Project method? must replace mock_wili_for_epi_week_fcn() with a patch
+def delphi_wili_for_epi_week(forecast_model, year, week, location):
     """
-    Looks up the 'wili' value for the past args, using the delphi REST API. Returns as a float. Caches the retrieved
-    value for speed-ups.
-
-    NB: caching means that the values in server memory won't be updated if they change on delphi.midas.cs.cmu.edu ,
-    i.e., they could be come stale and need flushing.
+    Looks up the fluview 'wili' value for the past args, using the delphi REST API. Returns as a float see:
+    https://github.com/cmu-delphi/delphi-epidata#fluview
 
     :param forecast_model: the ForecastModel instance making the call
-    :param year:
+    :param year: EW year
     :param week: EW week number between 1 and 52 inclusive
-    :param location_name:
-    :return: actual value for the passed args, looked up dynamically via xhttps://github.com/cmu-delphi/delphi-epidata
+    :param location: project location name. used to look up the delphi region via Project.region_for_location_name()
+    :return: true/actual wili value for the passed year and week, using the delphi REST API. Returns as a float see:
+        https://github.com/cmu-delphi/delphi-epidata#fluview . Caches the retrieved value for speed-ups. NB: caching
+        means that the values in server memory won't be updated if they change on delphi.midas.cs.cmu.edu , i.e., they
+        could become stale and need flushing.
     """
-    region = forecast_model.project.region_for_location_name(location_name)
+    region = forecast_model.project.region_for_location_name(location)
     if not region:
-        raise RuntimeError("location_name is not a valid Delphi location: {}".format(location_name))
+        raise RuntimeError("location_name is not a valid Delphi location: {}".format(location))
 
-    if (year, week) in DELPHI_EPIWEEKS_WILI_CACHE:
-        return DELPHI_EPIWEEKS_WILI_CACHE[(year, week)]
-
-    url = 'https://delphi.midas.cs.cmu.edu/epidata/api.php' \
-          '?source=fluview' \
-          '&regions={region}' \
-          '&epiweeks={epi_year}{ew_week_number:02d}'. \
-        format(region=region, epi_year=year, ew_week_number=week)
-    response = requests.get(url)
-    response.raise_for_status()  # does nothing if == requests.codes.ok
-    delphi_dict = json.loads(response.text)
-    wili_val = delphi_dict['epidata'][0]['wili']  # will raise KeyError if response json not structured as expected
-    DELPHI_EPIWEEKS_WILI_CACHE[(year, week)] = wili_val
-    return wili_val
+    if (year, week) in DELPHI_EPIYEAR_AND_EPIWEEK_TO_WILI:
+        return DELPHI_EPIYEAR_AND_EPIWEEK_TO_WILI[(year, week)]
+    else:  # cache entire year (requires only one lookup using a Delphi range)
+        print('caching year', year)  # todo logger.debug()
+        url = 'https://delphi.midas.cs.cmu.edu/epidata/api.php' \
+              '?source=fluview' \
+              '&regions={region}' \
+              '&epiweeks={epi_year}01-{epi_year}52'. \
+            format(region=region, epi_year=year)
+        response = requests.get(url)
+        response.raise_for_status()  # does nothing if == requests.codes.ok
+        delphi_dict = json.loads(response.text)
+        for epidata_dict in delphi_dict['epidata']:
+            epiweek_val = str(epidata_dict['epiweek'])
+            epi_year = int(epiweek_val[:4])
+            epi_week = int(epiweek_val[4:])
+            wili_val = epidata_dict['wili']
+            DELPHI_EPIYEAR_AND_EPIWEEK_TO_WILI[(epi_year, epi_week)] = wili_val
+    return DELPHI_EPIYEAR_AND_EPIWEEK_TO_WILI[(year, week)]
 
 
 #
 # ---- view-related functions ----
 #
 
-def mean_abs_error_rows_for_project(project):
+def mean_abs_error_rows_for_project(project, season_start_year, location):
     """
     Called by the project_visualizations() view function, returns a table in the form of a list of rows where each row
     corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model. The format:
@@ -116,28 +123,17 @@ def mean_abs_error_rows_for_project(project):
         | ensemble | 0.3  | 0.4  | 0.53 | 0.54 |
         +----------+------+------+------+------+
 
-        my app:
-        +--------------+------+------+------+------+
-        | Model        | 1 wk | 2 wk | 3 wk | 4 wk |
-        +--------------+------+------+------+------+
-        | KoT KCDE     | 0.29 | 0.45 | 0.61 | 0.69 |
-        | KoT KDE      | 0.58 | 0.59 | 0.59 | 0.59 |
-        | KoT SARIMA   | 0.23 | 0.35 | 0.49 | 0.56 |
-        | KoT ensemble | 0.36 | 0.49 | 0.61 | 0.61 |
-        +--------------+------+------+------+------+
-
     """
     # NB: assumes all of project's models have the same targets - something that should be validated by
     # ForecastModel.load_forecast() or similar
 
     # todo return indication of best model for each target -> bold in project_visualizations.html
-    mae_targets = project.targets_for_mean_absolute_error()
+    mae_targets = sorted(project.targets_for_mean_absolute_error())
     rows = [['Model', *mae_targets]]  # header
     for forecast_model in project.forecastmodel_set.all():
         row = [forecast_model.name]
         for target in mae_targets:
-            # TODO xx pull season_start_year and location from somewhere!
-            mean_absolute_error = forecast_model.mean_absolute_error(2016, 'US National', target,
+            mean_absolute_error = forecast_model.mean_absolute_error(season_start_year, location, target,
                                                                      wili_for_epi_week_fcn=delphi_wili_for_epi_week)
             row.append("{:0.2f}".format(mean_absolute_error))
         rows.append(row)

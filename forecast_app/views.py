@@ -30,8 +30,9 @@ def project_visualizations(request, pk):
     return render(
         request,
         'project_visualizations.html',
+        # todo xx pull season_start_year and location from somewhere:
         context={'project': project,
-                 'mean_abs_error_rows': mean_abs_error_rows_for_project(project)},
+                 'mean_abs_error_rows': mean_abs_error_rows_for_project(project, 2016, 'US National')},
     )
 
 
