@@ -133,8 +133,11 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
     for forecast_model in project.forecastmodel_set.all():
         row = [forecast_model.name]
         for target in mae_targets:
-            mean_absolute_error = forecast_model.mean_absolute_error(season_start_year, location, target,
-                                                                     wili_for_epi_week_fcn=delphi_wili_for_epi_week)
-            row.append("{:0.2f}".format(mean_absolute_error))
+            try:
+                mean_absolute_error = forecast_model.mean_absolute_error(season_start_year, location, target,
+                                                                         wili_for_epi_week_fcn=delphi_wili_for_epi_week)
+                row.append("{:0.2f}".format(mean_absolute_error))
+            except:
+                return []
         rows.append(row)
     return rows

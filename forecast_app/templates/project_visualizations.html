@@ -17,27 +17,32 @@
     </p>
 
     <h2>Mean Absolute Error</h2>
-    <p>The "Mean Absolute Error" table for all models and the passed targets:</p>
+    <p>Mean Absolute Error for all models and their week-related targets:</p>
 
-    {# show a table similar to flusight's #}
-    <table class="table table-striped">
-        <thead>
-        <tr>
-            {% for header_name in mean_abs_error_rows.0 %}
-                <th>{{ header_name }}</th>
-            {% endfor %}
-        </tr>
-        </thead>
-        <tbody>
-        {% for row in mean_abs_error_rows|slice:"1:" %}
+    {% if mean_abs_error_rows %}
+        {# show a table similar to flusight's #}
+        <table class="table table-striped">
+            <thead>
             <tr>
-                <td>{{ row.0 }}</td>
-                <td>{{ row.1 }}</td>
-                <td>{{ row.2 }}</td>
-                <td>{{ row.3 }}</td>
-                <td>{{ row.4 }}</td>
+                {% for header_name in mean_abs_error_rows.0 %}
+                    <th>{{ header_name }}</th>
+                {% endfor %}
             </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+            {% for row in mean_abs_error_rows|slice:"1:" %}
+                <tr>
+                    <td>{{ row.0 }}</td>
+                    <td>{{ row.1 }}</td>
+                    <td>{{ row.2 }}</td>
+                    <td>{{ row.3 }}</td>
+                    <td>{{ row.4 }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        [No data available]
+    {% endif %}
+
 {% endblock %}

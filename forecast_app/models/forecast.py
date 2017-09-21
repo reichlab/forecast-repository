@@ -98,38 +98,21 @@ class Forecast(models.Model):
             return {row[0] for row in rows}
 
 
-    def _get_point_row(self, location, target):
-        """
-        :return: the first row of mine whose row_type = CDCData.POINT_ROW_TYPE . includes CDCData PK and Forecast FK
-        """
-        # todo better way to get FK name? - {forecast_model_name}_id
-        sql = """
-            SELECT id, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value,
-             {forecast_model_name}_id
-            FROM {cdcdata_table_name}
-            WHERE {forecast_model_name}_id = %s AND row_type = %s AND location = %s and target = %s;
-        """.format(cdcdata_table_name=CDCData._meta.db_table,
-                   forecast_model_name=Forecast._meta.model_name)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk, CDCData.POINT_ROW_TYPE, location, target])
-            rows = cursor.fetchall()
-            return rows[0]
-
-
     def get_target_unit(self, location, target):
         """
         :return: name of the unit column. arbitrarily uses the point row's unit
         """
-        point_row = self._get_point_row(location, target)
-        return point_row[4]
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)
+        return cdc_data_results[0].unit
+
 
 
     def get_target_point_value(self, location, target):
         """
         :return: point value for a location and target 
         """
-        point_row = self._get_point_row(location, target)
-        return point_row[7]
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)
+        return cdc_data_results[0].value
 
 
     def get_target_bins(self, location, target):
@@ -175,16 +158,16 @@ class CDCData(models.Model):
     forecast = models.ForeignKey(Forecast, on_delete=models.CASCADE, null=True)
 
     # the standard CDC format columns from the source forecast.data_filename:
-    location = models.CharField(max_length=200)
-    target = models.CharField(max_length=200)
+    location = models.CharField(max_length=200, db_index=True)
+    target = models.CharField(max_length=200, db_index=True)
 
     POINT_ROW_TYPE = 'p'
     BIN_ROW_TYPE = 'b'
     ROW_TYPE_CHOICES = ((POINT_ROW_TYPE, 'Point'),
                         (BIN_ROW_TYPE, 'Bin'))
-    row_type = models.CharField(max_length=1, choices=ROW_TYPE_CHOICES)
+    row_type = models.CharField(max_length=1, choices=ROW_TYPE_CHOICES, db_index=True)
 
-    unit = models.CharField(max_length=200)
+    unit = models.CharField(max_length=200, db_index=True)
 
     bin_start_incl = models.FloatField(null=True)
     bin_end_notincl = models.FloatField(null=True)
