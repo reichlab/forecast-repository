@@ -3,13 +3,14 @@ from pathlib import Path
 
 from django.test import TestCase
 
+from forecast_app.models import Project
+from forecast_app.models.forecast import Forecast
+from forecast_app.models.forecast_model import ForecastModel
+from utils.utilities import filename_components, mean_absolute_error
+
 #
 # ---- mock for cdc_format_utils.true_value_for_epi_week ----
 #
-from forecast_app.models.forecast import Forecast
-from forecast_app.models.forecast_model import ForecastModel
-from utils.utilities import filename_components
-
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
     (2016, 51): 2.74084,
@@ -40,11 +41,32 @@ class CDCDataTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.forecast_model = ForecastModel.objects.create()
+        config_dict = {
+            'target_to_week_increment': {
+                '1 wk ahead': 1,
+                '2 wk ahead': 2,
+                '3 wk ahead': 3,
+                '4 wk ahead': 4,
+            },
+            'location_to_delphi_region': {
+                'US National': 'nat',
+                'HHS Region 1': 'hhs1',
+                'HHS Region 2': 'hhs2',
+                'HHS Region 3': 'hhs3',
+                'HHS Region 4': 'hhs4',
+                'HHS Region 5': 'hhs5',
+                'HHS Region 6': 'hhs6',
+                'HHS Region 7': 'hhs7',
+                'HHS Region 8': 'hhs8',
+                'HHS Region 9': 'hhs9',
+                'HHS Region 10': 'hhs10',
+            },
+        }
+        project = Project.objects.create(config_dict=config_dict)
+        cls.forecast_model = ForecastModel.objects.create(project=project)
         cls.forecast = cls.forecast_model.load_forecast(Path('EW1-KoTstable-2017-01-17.csv'), None)
 
 
-    # todo move?
     def test_filename_components(self):
         filename_component_tuples = (('EW1-KoTstable-2017-01-17.csv', (1, 'KoTstable', datetime.date(2017, 1, 17))),
                                      ('-KoTstable-2017-01-17.csv', ()),
@@ -133,8 +155,8 @@ class CDCDataTestCase(TestCase):
                              '3 wk ahead': 0.950515864,
                              '4 wk ahead': 1.482010693}
         for target, exp_mae in target_to_exp_mae.items():
-            act_mae = self.forecast_model.mean_absolute_error(2016, 'US National', target,
-                                                              wili_for_epi_week_fcn=mock_wili_for_epi_week_fcn)
+            act_mae = mean_absolute_error(self.forecast_model, 2016, 'US National', target,
+                                          wili_for_epi_week_fcn=mock_wili_for_epi_week_fcn)
             self.assertAlmostEqual(exp_mae, act_mae)
 
         # clean up

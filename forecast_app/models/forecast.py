@@ -158,20 +158,25 @@ class CDCData(models.Model):
     forecast = models.ForeignKey(Forecast, on_delete=models.CASCADE, null=True)
 
     # the standard CDC format columns from the source forecast.data_filename:
-    location = models.CharField(max_length=200, db_index=True)
-    target = models.CharField(max_length=200, db_index=True)
+    location = models.CharField(max_length=200)
+    target = models.CharField(max_length=200)
 
     POINT_ROW_TYPE = 'p'
     BIN_ROW_TYPE = 'b'
     ROW_TYPE_CHOICES = ((POINT_ROW_TYPE, 'Point'),
                         (BIN_ROW_TYPE, 'Bin'))
-    row_type = models.CharField(max_length=1, choices=ROW_TYPE_CHOICES, db_index=True)
+    row_type = models.CharField(max_length=1, choices=ROW_TYPE_CHOICES)
 
-    unit = models.CharField(max_length=200, db_index=True)
+    unit = models.CharField(max_length=200)
 
     bin_start_incl = models.FloatField(null=True)
     bin_end_notincl = models.FloatField(null=True)
     value = models.FloatField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['location', 'target', 'row_type', 'unit']),
+        ]
 
 
     def __repr__(self):
