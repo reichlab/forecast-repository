@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 from django.db import models, connection
 from django.urls import reverse
 
@@ -106,7 +108,6 @@ class Forecast(models.Model):
         return cdc_data_results[0].unit
 
 
-
     def get_target_point_value(self, location, target):
         """
         :return: point value for a location and target 
@@ -130,6 +131,25 @@ class Forecast(models.Model):
             cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
             rows = cursor.fetchall()
             return [(bin_start_incl, bin_end_notincl, value) for bin_start_incl, bin_end_notincl, value in rows]
+
+
+    def get_location_target_dict(self):
+        """
+        :return: all my data in hierarchical format as a dict of the form:
+
+            return val: {location1: target_dict_1, ...}
+                target_dict: {target1: {'point': point_val, 'bins': bin_list}}
+                    bin_list: [[bin_start_incl1, bin_end_notincl1, value1], ...]
+        """
+        location_target_dict = OrderedDict()
+        for location in sorted(self.get_locations()):
+            target_dict = OrderedDict()
+            for target in sorted(self.get_targets(location)):
+                point_value = self.get_target_point_value(location, target)
+                bins = self.get_target_bins(location, target)
+                target_dict[target] = {'point': point_value, 'bins': bins}
+            location_target_dict[location] = target_dict
+        return location_target_dict
 
 
     def insert_data(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
@@ -172,6 +192,7 @@ class CDCData(models.Model):
     bin_start_incl = models.FloatField(null=True)
     bin_end_notincl = models.FloatField(null=True)
     value = models.FloatField()
+
 
     class Meta:
         indexes = [

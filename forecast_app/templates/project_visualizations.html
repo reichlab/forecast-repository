@@ -6,8 +6,8 @@
 
     <p><strong>Project</strong>: <a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></p>
 
-    <h2>Models</h2>
 
+    <h2>Models</h2>
     <p>
     <ul>
         {% for forecast_model in project.forecastmodel_set.all %}
@@ -15,6 +15,7 @@
         {% endfor %}
     </ul>
     </p>
+
 
     <h2>Mean Absolute Error</h2>
     <p>Mean Absolute Error for all models and their week-related targets:</p>

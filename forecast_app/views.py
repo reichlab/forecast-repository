@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.generic import DetailView
 
@@ -46,3 +47,18 @@ class ForecastModelDetailView(DetailView):
 
 class ForecastDetailView(DetailView):
     model = Forecast
+
+
+def json_download(request, pk):
+    """
+    :param request:
+    :param pk: a Forecast pk
+    :return: JSON version of the passed Forecast's data
+    """
+    forecast = Forecast.objects.get(pk=pk)
+    location_target_dict = forecast.get_location_target_dict()
+    print('xx', request, pk, forecast, location_target_dict.keys())
+    response = JsonResponse(location_target_dict)
+    response['Content-Disposition'] = 'attachment; filename="{data_filename}.json"'.format(
+        data_filename=forecast.data_filename)
+    return response

@@ -64,7 +64,7 @@ class CDCDataTestCase(TestCase):
         }
         project = Project.objects.create(config_dict=config_dict)
         cls.forecast_model = ForecastModel.objects.create(project=project)
-        cls.forecast = cls.forecast_model.load_forecast(Path('EW1-KoTstable-2017-01-17.csv'), None)
+        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
 
 
     def test_filename_components(self):
@@ -143,7 +143,7 @@ class CDCDataTestCase(TestCase):
 
     def test_mean_absolute_error(self):
         # load other three forecasts from 'ensemble' model. will delete them when done so that other tests don't fail.
-        # setUpTestData() has already loaded 'EW1-KoTstable-2017-01-17.csv'
+        # setUpTestData() has already loaded 'model_error/EW1-KoTstable-2017-01-17.csv'
         forecast2 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW2-KoTstable-2017-01-23.csv'), None)
         forecast3 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW51-KoTstable-2017-01-03.csv'), None)
         forecast4 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), None)
@@ -178,6 +178,39 @@ class CDCDataTestCase(TestCase):
 
         forecast2.delete()
         self.assertEqual(0, len(forecast2.cdcdata_set.all()))
+
+
+    def test_get_location_target_dict(self):
+        act_dict = self.forecast.get_location_target_dict()
+
+        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
+        self.assertEqual(exp_locations, list(act_dict.keys()))
+
+        # spot-check one location's targets
+        exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
+                       'Season peak week']
+        self.assertEqual(exp_targets, list(act_dict['US National'].keys()))
+
+        # spot-check a target
+        self.assertEqual(50.0012056690978, act_dict['US National']['Season onset']['point'])
+
+        exp_bins = [
+            (40.0, 41.0, 1.95984004521967e-05), (41.0, 42.0, 1.46988003391476e-05), (42.0, 43.0, 6.98193016109509e-06),
+            (43.0, 44.0, 3.79719008761312e-06), (44.0, 45.0, 4.28715009891804e-06), (45.0, 46.0, 1.59237003674098e-05),
+            (46.0, 47.0, 3.0989970715036e-05), (47.0, 48.0, 5.3895601243541e-05), (48.0, 49.0, 7.49638817296525e-05),
+            (49.0, 50.0, 0.000110241002543607), (50.0, 51.0, 0.998941808865584), (51.0, 52.0, 0.000165973953829541),
+            (52.0, 53.0, 0.000147110493394302), (1.0, 2.0, 9.7624532252505e-05), (2.0, 3.0, 5.41405812491935e-05),
+            (3.0, 4.0, 3.8951820898741e-05), (4.0, 5.0, 4.99759211531016e-05), (5.0, 6.0, 4.09116609439607e-05),
+            (6.0, 7.0, 3.60120608309115e-05), (7.0, 8.0, 2.51104505793771e-05), (8.0, 9.0, 2.09457904832853e-05),
+            (9.0, 10.0, 1.99658704606754e-05), (10.0, 11.0, 1.6536150381541e-05), (11.0, 12.0, 6.00201013848525e-06),
+            (12.0, 13.0, 2.20482005087213e-06), (13.0, 14.0, 3.6747000847869e-07), (14.0, 15.0, 1.22490002826229e-07),
+            (15.0, 16.0, 1.22490002826229e-07), (16.0, 17.0, 1.22490002826229e-07), (17.0, 18.0, 1.22490002826229e-07),
+            (18.0, 19.0, 1.22490002826229e-07), (19.0, 20.0, 1.22490002826229e-07), (20.0, 21.0, 1.22490002826229e-07),
+            (None, None, 1.22490002826229e-07)]
+        act_bins = act_dict['US National']['Season onset']['bins']
+        self.assertEqual(34, len(act_bins))
+        self.assertEqual(exp_bins, act_bins)
 
 
     def test_project_constraints(self):

@@ -8,8 +8,8 @@
         {{ forecast.forecast_model.name }}</a></p>
     <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
 
-    <h2>Preview of {{ forecast.get_num_rows }} rows</h2>
 
+    <h2>Preview of {{ forecast.get_num_rows }} rows</h2>
     <table class="table table-striped">
         <thead>
         <tr>
@@ -39,5 +39,12 @@
         </tr>
         </tbody>
     </table>
+
+
+    <form class="form-inline" method="POST" action="{% url 'json-download' forecast.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Download as JSON file</button>
+    </form>
+
 
 {% endblock %}
