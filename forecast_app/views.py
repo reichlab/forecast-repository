@@ -50,6 +50,18 @@ class ProjectDetailView(DetailView):
 class ForecastModelDetailView(DetailView):
     model = ForecastModel
 
+    def get_context_data(self, **kwargs):
+        context = super(ForecastModelDetailView, self).get_context_data(**kwargs)
+        forecast_model = self.get_object()
+
+        # pass a dict that maps Project TimeZeros to corresponding Forecasts this ForecastModel, or None if not found
+        timezero_to_forecast = {}
+        for time_zero in forecast_model.project.timezero_set.all():
+            timezero_to_forecast[time_zero] = forecast_model.forecast_for_time_zero(time_zero)
+        context['timezero_to_forecast'] = timezero_to_forecast
+
+        return context
+
 
 class ForecastDetailView(DetailView):
     model = Forecast

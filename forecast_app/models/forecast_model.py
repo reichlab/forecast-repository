@@ -6,7 +6,7 @@ from django.urls import reverse
 
 import forecast_app.models.forecast  # we want Forecast, but import only the module to avoid circular imports
 from forecast_app.models.project import Project
-from utils.utilities import basic_str, filename_components, delphi_wili_for_epi_week
+from utils.utilities import basic_str
 
 
 class ForecastModel(models.Model):
@@ -27,14 +27,18 @@ class ForecastModel(models.Model):
                                      help_text="optional model-specific Zip file containing data files (e.g., CSV "
                                                "files) beyond Project.core_data that were used by the this model")
 
+
     def __repr__(self):
         return str((self.pk, self.name))
+
 
     def __str__(self):  # todo
         return basic_str(self)
 
+
     def get_absolute_url(self):
         return reverse('forecastmodel-detail', args=[str(self.id)])
+
 
     @transaction.atomic
     def load_forecast(self, csv_file_path, time_zero):  # faster alternative to ORM implementation using SQL
@@ -58,6 +62,7 @@ class ForecastModel(models.Model):
         # done
         return forecast
 
+
     def time_zero_for_timezero_date_str(self, timezero_date_str):
         """
         :return: the first TimeZero in forecast_model's Project that has a timezero_date matching timezero_date
@@ -65,5 +70,16 @@ class ForecastModel(models.Model):
         for time_zero in self.project.timezero_set.all():
             if time_zero.timezero_date == timezero_date_str:
                 return time_zero
+
+        return None
+
+
+    def forecast_for_time_zero(self, time_zero):
+        """
+        :return: the Forecast in me corresponding to time_zero. returns None o/w. NB: tests for object equality
+        """
+        for forecast in self.forecast_set.all():
+            if forecast.time_zero == time_zero:
+                return forecast
 
         return None

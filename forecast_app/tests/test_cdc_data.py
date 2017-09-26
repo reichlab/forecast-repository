@@ -3,10 +3,11 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project
+from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from utils.utilities import filename_components, mean_absolute_error
+
 
 #
 # ---- mock for cdc_format_utils.true_value_for_epi_week ----
@@ -211,6 +212,18 @@ class CDCDataTestCase(TestCase):
         act_bins = act_dict['US National']['Season onset']['bins']
         self.assertEqual(34, len(act_bins))
         self.assertEqual(exp_bins, act_bins)
+
+
+    def test_forecast_for_time_zero(self):
+        time_zero = TimeZero.objects.create(project=None,
+                                            timezero_date=datetime.date.today(),  # todo str()?
+                                            data_version_date=None)
+        self.assertEqual(None, self.forecast_model.forecast_for_time_zero(time_zero))
+
+        forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), time_zero)
+        self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
+
+        forecast2.delete()
 
 
     def test_project_constraints(self):

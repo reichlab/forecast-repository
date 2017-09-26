@@ -16,7 +16,7 @@
     </p>
     <p><strong>Auxiliary data</strong>:
         {% if forecastmodel.auxiliary_data %}
-            {{ forecastmodel.auxiliary_data }}  {# todo #}
+            <a href="{{ forecastmodel.auxiliary_data }}">{{ forecastmodel.auxiliary_data }}</a>  {# todo #}
         {% else %}
             <small>[no auxiliary data]</small>
         {% endif %}
@@ -25,9 +25,14 @@
 
     <h2>Forecasts ({{ forecastmodel.forecast_set.all|length }})</h2>
     <ul>
-        {% for forecast in forecastmodel.forecast_set.all|dictsort:"time_zero.timezero_date" %}
-            <li><a href="{{ forecast.get_absolute_url }}">{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</a></li>
+        {% for time_zero, forecast in timezero_to_forecast.items %}
+            {% if forecast %}
+                <li><a href="{{ forecast.get_absolute_url }}">{{ time_zero.timezero_date|date:"Y-m-d" }}</a></li>
+            {% else %}
+                <li>{{ time_zero.timezero_date|date:"Y-m-d" }} <small>[no data]</small></li>
+            {% endif %}
         {% endfor %}
     </ul>
+
 
 {% endblock %}
