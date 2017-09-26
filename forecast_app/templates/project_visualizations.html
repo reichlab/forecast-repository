@@ -18,7 +18,11 @@
 
 
     <h2>Mean Absolute Error</h2>
-    <p>Mean Absolute Error for all models and their week-related targets:</p>
+    <p>Mean Absolute Error for all models and their week-related targets.
+    <ul>
+        <li><code>season_start_year</code>: {{ season_start_year }}</li>
+        <li><code>location</code>: {{ location }}</li>
+    </ul>
 
     {% if mean_abs_error_rows %}
         {# show a table similar to flusight's #}

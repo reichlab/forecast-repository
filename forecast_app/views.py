@@ -27,13 +27,19 @@ def project_visualizations(request, pk):
     :param pk:
     :return:
     """
+    # todo xx pull season_start_year and location from somewhere, probably form elements on the page
+    season_start_year = 2016
+    location = 'US National'
+
     project = Project.objects.get(pk=pk)
+    mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)
     return render(
         request,
         'project_visualizations.html',
-        # todo xx pull season_start_year and location from somewhere:
         context={'project': project,
-                 'mean_abs_error_rows': mean_abs_error_rows_for_project(project, 2016, 'US National')},
+                 'season_start_year': season_start_year,
+                 'location': location,
+                 'mean_abs_error_rows': mean_abs_error_rows},
     )
 
 
@@ -57,7 +63,6 @@ def json_download(request, pk):
     """
     forecast = Forecast.objects.get(pk=pk)
     location_target_dict = forecast.get_location_target_dict()
-    print('xx', request, pk, forecast, location_target_dict.keys())
     response = JsonResponse(location_target_dict)
     response['Content-Disposition'] = 'attachment; filename="{data_filename}.json"'.format(
         data_filename=forecast.data_filename)
