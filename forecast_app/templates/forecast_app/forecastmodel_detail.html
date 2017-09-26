@@ -24,15 +24,34 @@
 
 
     <h2>Forecasts ({{ forecastmodel.forecast_set.all|length }})</h2>
-    <ul>
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>TimeZero</th>
+            <th>Data Filename</th>
+            <th>Action</th>
+        </tr>
+        </thead>
+        <tbody>
         {% for time_zero, forecast in timezero_to_forecast.items %}
-            {% if forecast %}
-                <li><a href="{{ forecast.get_absolute_url }}">{{ time_zero.timezero_date|date:"Y-m-d" }}</a></li>
-            {% else %}
-                <li>{{ time_zero.timezero_date|date:"Y-m-d" }} <small>[no data]</small></li>
-            {% endif %}
+            <tr>
+                <td>
+                    {{ time_zero.timezero_date|date:"Y-m-d" }}
+                </td>
+                <td>
+                    {% if forecast %}
+                        <a href="{{ forecast.get_absolute_url }}">{{ forecast.data_filename }}</a>
+                    {% else %}
+                        <small>[no data]</small>
+                    {% endif %}
+                </td>
+                <td>
+                    TBD
+                </td>
+            </tr>
         {% endfor %}
-    </ul>
+        </tbody>
+    </table>
 
 
 {% endblock %}
