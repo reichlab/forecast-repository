@@ -95,6 +95,11 @@ class CDCDataTestCase(TestCase):
         self.assertEqual(['HHS Region 10', '4 wk ahead', 'b', 'percent', 13, 100, 0.00307617873070836],
                          cdc_data_rows[8018].data_row())
 
+        # test a bad data file
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('model_error_calculations.txt'), None)
+        self.assertIn('Invalid header', str(context.exception))
+
 
     def test_cdc_data_accessors(self):
         # test get_data_rows()
@@ -224,19 +229,3 @@ class CDCDataTestCase(TestCase):
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
-
-
-    def test_project_constraints(self):
-        # - models must have same targets, etc.
-        # - time_zeros, etc.
-        # - all files much match across dirs - recall one had an extra file
-        # - all files must have same locations and targets
-        # - todo others
-        self.fail()  # todo
-
-
-    def test_forecast_constraints(self):
-        # - bins should add to 1.0
-        # - point prediction should be within max bin
-        # - todo others
-        self.fail()  # todo

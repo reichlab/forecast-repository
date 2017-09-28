@@ -45,7 +45,8 @@ class ForecastModel(models.Model):
         """
         :param csv_file_path: Path to a CDC CSV forecast file
         :param time_zero: the TimeZero this forecast applies to
-        :return: loads the data from the passed Path into my corresponding CDCData, and returns a new Forecast for it
+        :return: loads the data from the passed Path into my corresponding CDCData, and returns a new Forecast for it.
+            raises a RuntimeError if the data could not be loaded
         """
         forecast = forecast_app.models.forecast.Forecast.objects.create(
             forecast_model=self, time_zero=time_zero, data_filename=csv_file_path.name)
@@ -54,11 +55,28 @@ class ForecastModel(models.Model):
         with open(str(csv_file_path)) as csv_path_fp, \
                 connection.cursor() as cursor:
             csv_reader = csv.reader(csv_path_fp, delimiter=',')
-            next(csv_reader)  # skip header
+
+            # validate header. must be 7 columns (or 8 with the last one being '') matching
+            orig_header = next(csv_reader)
+            header = orig_header
+            if (len(header) == 8) and (header[7] == ''):
+                header = header[:7]
+            header = [i.replace('"', '') for i in header]
+            if header != ['Location', 'Target', 'Type', 'Unit', 'Bin_start_incl', 'Bin_end_notincl', 'Value']:
+                forecast.delete()
+                raise RuntimeError("Invalid header: {}".format(orig_header))
+
             for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
-                location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row[:7]
+                if (len(row) == 8) and (row[7] == ''):
+                    row = row[:7]
+                if len(row) != 7:
+                    forecast.delete()
+                    raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
+
+                location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
                 forecast.insert_data(cursor, location, target, row_type, unit,
                                      bin_start_incl, bin_end_notincl, value)
+
         # done
         return forecast
 
