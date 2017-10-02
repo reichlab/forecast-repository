@@ -95,9 +95,19 @@ class CDCDataTestCase(TestCase):
         self.assertEqual(['HHS Region 10', '4 wk ahead', 'b', 'percent', 13, 100, 0.00307617873070836],
                          cdc_data_rows[8018].data_row())
 
-        # test a bad data file
+        # test a bad data file name
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('model_error_calculations.txt'), None)
+        self.assertIn('Bad file name (not CDC format)', str(context.exception))
+
+        # test empty file
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-bad_file_no_header-2017-01-17.csv'), None)
+        self.assertIn('Empty file', str(context.exception))
+
+        # test a bad data file header
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-bad_file_header-2017-01-17.csv'), None)
         self.assertIn('Invalid header', str(context.exception))
 
 

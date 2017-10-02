@@ -6,7 +6,7 @@ from django.urls import reverse
 
 import forecast_app.models.forecast  # we want Forecast, but import only the module to avoid circular imports
 from forecast_app.models.project import Project
-from utils.utilities import basic_str
+from utils.utilities import basic_str, filename_components
 
 
 class ForecastModel(models.Model):
@@ -52,16 +52,23 @@ class ForecastModel(models.Model):
         """
         # NB: does not check if a Forecast already exists for time_zero and file_name
         file_name = file_name if file_name else csv_file_path.name
-        forecast = forecast_app.models.forecast.Forecast.objects.create(
-            forecast_model=self, time_zero=time_zero, data_filename=file_name)
+
+        if not filename_components(file_name):
+            raise RuntimeError("Bad file name (not CDC format): {}".format(file_name))
 
         # insert the data using direct SQL. for now simply use separate INSERTs per row
+        forecast = forecast_app.models.forecast.Forecast.objects.create(
+            forecast_model=self, time_zero=time_zero, data_filename=file_name)
         with open(str(csv_file_path)) as csv_path_fp, \
                 connection.cursor() as cursor:
             csv_reader = csv.reader(csv_path_fp, delimiter=',')
 
             # validate header. must be 7 columns (or 8 with the last one being '') matching
-            orig_header = next(csv_reader)
+            try:
+                orig_header = next(csv_reader)
+            except StopIteration:
+                raise RuntimeError("Empty file")
+
             header = orig_header
             if (len(header) == 8) and (header[7] == ''):
                 header = header[:7]
