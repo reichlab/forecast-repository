@@ -25,19 +25,15 @@ def about(request):
     return render(request, 'about.html')
 
 
-def project_visualizations(request, pk):
+def project_visualizations(request, project_pk):
     """
     View function to render various visualizations for a particular project.
-
-    :param request:
-    :param pk:
-    :return:
     """
     # todo xx pull season_start_year and location from somewhere, probably form elements on the page
     season_start_year = 2016
     location = 'US National'
 
-    project = get_object_or_404(Project, pk=pk)
+    project = get_object_or_404(Project, pk=project_pk)
     mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)
     return render(
         request,

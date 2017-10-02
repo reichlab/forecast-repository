@@ -70,7 +70,7 @@ def delphi_wili_for_epi_week(forecast_model, year, week, location):
         means that the values in server memory won't be updated if they change on delphi.midas.cs.cmu.edu , i.e., they
         could become stale and need flushing.
     """
-    region = forecast_model.project.region_for_location_name(location)
+    region = forecast_model.project.get_region_for_location_name(location)
     if not region:
         raise RuntimeError("location_name is not a valid Delphi location: {}".format(location))
 
@@ -135,7 +135,7 @@ def mean_absolute_error(forecast_model, season_start_year, location, target,
         timezero_week = filename_components(forecast.data_filename)[0]
         timezero_year = season_start_year if timezero_week >= 30 else season_start_year + 1
         future_year, future_week = increment_week(timezero_year, timezero_week,
-                                                  forecast_model.project.week_increment_for_target_name(target))
+                                                  forecast_model.project.get_week_increment_for_target_name(target))
         true_value = wili_for_epi_week_fcn(forecast_model, future_year, future_week, location)
         predicted_value = forecast.get_target_point_value(location, target)
         abs_error = abs(predicted_value - true_value)
@@ -175,7 +175,7 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
     # ForecastModel.load_forecast() or similar
 
     # todo return indication of best model for each target -> bold in project_visualizations.html
-    mae_targets = sorted(project.targets_for_mean_absolute_error())
+    mae_targets = sorted(project.get_targets_for_mean_absolute_error())
     rows = [['Model', *mae_targets]]  # header
     for forecast_model in project.forecastmodel_set.all():
         row = [forecast_model.name]

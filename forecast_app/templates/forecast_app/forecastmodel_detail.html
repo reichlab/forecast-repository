@@ -29,8 +29,7 @@
         <tr>
             <th>TimeZero</th>
             <th>Data Filename</th>
-            {# action: #}
-            <th></th>
+            <th>Action</th>
         </tr>
         </thead>
         <tbody>
@@ -53,7 +52,9 @@
                         <form class="form-inline" style="display: inline-block;" method="POST"
                               action="{% url 'delete-forecast' forecast.pk %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">Delete</button>
+                            <button type="submit" class="btn btn-danger">
+                                <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                            </button>
                         </form>
                     {% else %}
                         {# show a button for uploading a file #}
@@ -62,7 +63,9 @@
                               action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
                             {% csrf_token %}
                             <div class="form-group">
-                                <button class="form-control btn btn-primary" type="submit">Upload</button>
+                                <button class="form-control btn btn-success" type="submit">
+                                    <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                                </button>
                             </div>
                             <div class="form-group">
                                 <input type="file" name="data_file">
