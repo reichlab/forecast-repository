@@ -41,15 +41,19 @@ class ForecastModel(models.Model):
 
 
     @transaction.atomic
-    def load_forecast(self, csv_file_path, time_zero):  # faster alternative to ORM implementation using SQL
+    def load_forecast(self, csv_file_path, time_zero,
+                      file_name=None):  # faster alternative to ORM implementation using SQL
         """
         :param csv_file_path: Path to a CDC CSV forecast file
         :param time_zero: the TimeZero this forecast applies to
+        :param file_name: optional name to use for the file. if None (default), uses csv_file_path
         :return: loads the data from the passed Path into my corresponding CDCData, and returns a new Forecast for it.
             raises a RuntimeError if the data could not be loaded
         """
+        # NB: does not check if a Forecast already exists for time_zero and file_name
+        file_name = file_name if file_name else csv_file_path.name
         forecast = forecast_app.models.forecast.Forecast.objects.create(
-            forecast_model=self, time_zero=time_zero, data_filename=csv_file_path.name)
+            forecast_model=self, time_zero=time_zero, data_filename=file_name)
 
         # insert the data using direct SQL. for now simply use separate INSERTs per row
         with open(str(csv_file_path)) as csv_path_fp, \
@@ -94,7 +98,7 @@ class ForecastModel(models.Model):
 
     def forecast_for_time_zero(self, time_zero):
         """
-        :return: the Forecast in me corresponding to time_zero. returns None o/w. NB: tests for object equality
+        :return: the first Forecast in me corresponding to time_zero. returns None o/w. NB: tests for object equality
         """
         for forecast in self.forecast_set.all():
             if forecast.time_zero == time_zero:
