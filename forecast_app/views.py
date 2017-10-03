@@ -4,7 +4,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView
 
@@ -103,13 +103,13 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
     :return: redirect to the new forecast's detail page
     """
-    # todo xx 'return HttpResponse' calls below: redirect to error page, or flash message. add link to CDC format
-
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
     time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
-        return HttpResponse("No file selected to upload. Please go back and select one.")
+        return render(request, 'message.html',
+                      context={'title': "No file selected to upload.",
+                               'message': "Please go back and select one."})
 
     # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
     data_file = request.FILES['data_file']  # InMemoryUploadedFile
@@ -118,15 +118,20 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     # error if data already exists for same time_zero and data_file.name
     existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
     if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.data_filename == file_name):
-        return HttpResponse("A forecast already exists: time_zero={}, file_name='{}'. Please delete existing data "
-                            "and then upload. You may need to refresh the page to see the delete button.".format(
-            time_zero.timezero_date, file_name))
+        return render(request, 'message.html',
+                      context={'title': "A forecast already exists.",
+                               'message': "time_zero={}, file_name='{}'. Please delete existing data and then "
+                                          "upload again. You may need to refresh the page to see the delete "
+                                          "button.".format(time_zero.timezero_date, file_name)})
 
     data = data_file.read()
     path = default_storage.save('tmp/somename.mp3', ContentFile(data))
     tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
     try:
-        new_forecast = forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)
-        return redirect('forecast-detail', pk=new_forecast.pk)
+        forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)
+        return redirect('forecastmodel-detail', pk=forecast_model.pk)
     except RuntimeError as rte:
-        return HttpResponse("Sorry: Got an error trying to load the data: {}".format(rte))
+        return render(request, 'message.html',
+                      context={'title': "Got an error trying to load the data.",
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
+                                          "Please go back and select a valid file.".format(rte)})

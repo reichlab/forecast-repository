@@ -75,7 +75,7 @@ class ForecastModel(models.Model):
             header = [i.replace('"', '') for i in header]
             if header != ['Location', 'Target', 'Type', 'Unit', 'Bin_start_incl', 'Bin_end_notincl', 'Value']:
                 forecast.delete()
-                raise RuntimeError("Invalid header: {}".format(orig_header))
+                raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
             for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
                 if (len(row) == 8) and (row[7] == ''):

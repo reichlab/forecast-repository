@@ -6,12 +6,14 @@ import django
 
 from utils.predict_the_disctrict_utils import start_date_for_biweek
 
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week
 from forecast_app.models.forecast import CDCData
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
+
 
 #
 # ---- print and delete (!) all user objects ----
@@ -113,7 +115,7 @@ def add_forecasts_to_model(forecast_model, kot_model_dir_name):
     for csv_file in [csv_file for csv_file in kot_model_dir.glob('*.csv')]:  # 'EW1-KoTstable-2017-01-17.csv'
         mmwr_week = csv_file.name.split('-')[0].split('EW')[1]  # re.split(r'^EW(\d*).*$', csv_file.name)[1]
         timezero_date = end_date_2016_2017_for_mmwr_week(int(mmwr_week))
-        time_zero = fm.time_zero_for_timezero_date_str(timezero_date)
+        time_zero = forecast_model.time_zero_for_timezero_date_str(timezero_date)
         if not time_zero:
             raise RuntimeError("no time_zero found for timezero_date={}. csv_file={}, mmwr_week={}".format(
                 timezero_date, csv_file, mmwr_week))
@@ -126,53 +128,53 @@ def add_forecasts_to_model(forecast_model, kot_model_dir_name):
 # KoT ensemble
 #
 
-fm = ForecastModel.objects.create(
+forecast_model = ForecastModel.objects.create(
     project=p,
     name='KoT ensemble',
     description="Team Kernel of Truth's ensemble model.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
 
-add_forecasts_to_model(fm, 'ensemble')
+add_forecasts_to_model(forecast_model, 'ensemble')
 
 #
 # KoT Kernel Density Estimation (KDE)
 #
 
-fm = ForecastModel.objects.create(
+forecast_model = ForecastModel.objects.create(
     project=p,
     name='KoT KDE',
     description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
 
-add_forecasts_to_model(fm, 'kde')
+add_forecasts_to_model(forecast_model, 'kde')
 
 #
 # KoT Kernel Conditional Density Estimation (KCDE)
 #
 
-fm = ForecastModel.objects.create(
+forecast_model = ForecastModel.objects.create(
     project=p,
     name='KoT KCDE',
     description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
 
-add_forecasts_to_model(fm, 'kcde')
+add_forecasts_to_model(forecast_model, 'kcde')
 
 #
 # KoT SARIMA
 #
 
-fm = ForecastModel.objects.create(
+forecast_model = ForecastModel.objects.create(
     project=p,
     name='KoT SARIMA',
     description="Team Kernel of Truth's SARIMA model.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
 
-add_forecasts_to_model(fm, 'sarima')
+add_forecasts_to_model(forecast_model, 'sarima')
 
 #
 # ---- create the Predict the District Challenge project and targets ----
@@ -233,7 +235,8 @@ for model_name, team_name in [('spatial model/HHH4', 'Harley'),
                               ('Prophet', 'facebook, Kristina'),
                               ('SARIMA?, Google?', 'MS student'),
                               ('Hierarchical, state space', '?')]:
-    fm = ForecastModel.objects.create(project=p, name=model_name, description="Team {}'s model.".format(team_name))
+    forecast_model = ForecastModel.objects.create(project=p, name=model_name, description="Team {}'s model.".format(
+        team_name))
 
 #
 # ---- done ----
