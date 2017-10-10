@@ -40,8 +40,8 @@ class ForecastModel(models.Model):
     @transaction.atomic
     def load_forecast(self, csv_file_path, time_zero, file_name=None):
         """
-        Loads the data from the passed Path into my corresponding ForecastData. NB: This SQL-based implementation is a
-        faster alternative to an ORM-based one.
+        Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
+        Project's template.
 
         :param csv_file_path: Path to a CDC CSV forecast file
         :param time_zero: the TimeZero this forecast applies to
@@ -58,6 +58,7 @@ class ForecastModel(models.Model):
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
                                                                             data_filename=file_name)
         new_forecast.load_csv_data(csv_file_path)
+        self.project.validate_forecast_data(new_forecast)
         return new_forecast
 
 

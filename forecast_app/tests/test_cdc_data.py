@@ -69,14 +69,42 @@ class CDCDataTestCase(TestCase):
         cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
 
 
-    def test_project_template(self):
+    def test_project_template_exists(self):
         # test no template -> error
         with self.assertRaises(RuntimeError) as context:
             Project.objects.create(config_dict=self.config_dict)
         self.assertIn("unsaved instance is missing the required 'template' key", str(context.exception))
 
+
+    def test_project_template_data_accessors(self):
         self.assertEqual(8019, len(self.project.get_data_rows()))  # individual rows via SQL
-        self.assertEqual(8019, len(self.project.projecttemplatedata_set.all()))  # individual rows as CDCData instances
+        self.assertEqual(8019, len(self.project.cdcdata_set.all()))  # individual rows as CDCData instances
+
+        # test Project template accessors (via ModelWithCDCData) - the twin to test_forecast_data_accessors()
+        exp_locations = {'HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National'}
+        self.assertEqual(exp_locations, self.project.get_locations())
+
+        exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
+                       'Season peak week']
+        self.assertEqual(exp_targets, sorted(self.project.get_targets('US National')))
+
+        self.assertEqual('week', self.project.get_target_unit('US National', 'Season onset'))
+        self.assertEqual(51.0, self.project.get_target_point_value('US National', 'Season onset'))
+
+        self.assertEqual('percent', self.project.get_target_unit('US National', 'Season peak percentage'))
+        self.assertEqual(1.5, self.project.get_target_point_value('US National', 'Season peak percentage'))
+
+        act_bins = self.project.get_target_bins('US National', 'Season onset')
+        self.assertEqual(34, len(act_bins))
+
+        # spot-check bin boundaries
+        start_end_val_tuples = [(1.0, 2.0, 0.029411765),
+                                (20.0, 21.0, 0.029411765),
+                                (40.0, 41.0, 0.029411765),
+                                (52.0, 53.0, 0.029411765)]
+        for start_end_val_tuple in start_end_val_tuples:
+            self.assertIn(start_end_val_tuple, act_bins)
 
 
     def test_filename_components(self):
@@ -95,7 +123,7 @@ class CDCDataTestCase(TestCase):
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.data_filename)
 
-        cdc_data_rows = self.forecast.forecastdata_set.all()
+        cdc_data_rows = self.forecast.cdcdata_set.all()
         self.assertEqual(8019, len(cdc_data_rows))  # excluding header
 
         # spot-check a few rows
@@ -122,7 +150,34 @@ class CDCDataTestCase(TestCase):
         self.assertIn('Invalid header', str(context.exception))
 
 
-    def test_cdc_data_accessors(self):
+    def test_project_basic_validate_templates(self):
+        # a project should validate its template's basic structure to match the CDC format, beyond headers - see load_csv_data(). including: ['Bin did not sum to 1.0']
+        'EW1-locations-dont-match-2017-01-17.csv'
+        self.fail()  # todo xx
+
+
+    def test_validate_forecast_data(self):
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-locations-dont-match-2017-01-17.csv'), None)
+        self.assertIn('Locations did not match template', str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-targets-dont-match-2017-01-17.csv'), None)
+        self.assertIn('Targets did not match template', str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-wrong-number-of-bins-2017-01-17.csv'), None)
+        self.assertIn('Bins did not match template', str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-bin-doesnt-sum-to-one-2017-01-17.csv'), None)
+        self.assertIn('Bin did not sum to 1.0', str(context.exception))
+
+        # test points lie within the range of point values in the template
+        self.fail()  # todo xx
+
+
+    def test_forecast_data_accessors(self):  # (via ModelWithCDCData)
         # test get_data_rows()
         self.assertEqual(8019, len(self.forecast.get_data_rows()))
 
@@ -139,12 +194,10 @@ class CDCDataTestCase(TestCase):
                        ('US National', 'Season onset', 'b', 'week', 48, 49, 7.49638817296525e-05)]
         self.assertEqual(exp_preview, self.forecast.get_data_preview())
 
-        # test locations
         exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
         self.assertEqual(exp_locations, sorted(self.forecast.get_locations()))
 
-        # test targets
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
                        'Season peak week']
         self.assertEqual(exp_targets, sorted(self.forecast.get_targets('US National')))
@@ -196,15 +249,15 @@ class CDCDataTestCase(TestCase):
         # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
         self.assertEqual(1, len(self.forecast_model.forecast_set.all()))  # from setUpTestData()
-        self.assertEqual(8019, len(self.forecast.forecastdata_set.all()))  # ""
+        self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # ""
 
         forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), None)
         self.assertEqual(2, len(self.forecast_model.forecast_set.all()))  # includes new
-        self.assertEqual(8019, len(forecast2.forecastdata_set.all()))  # new
-        self.assertEqual(8019, len(self.forecast.forecastdata_set.all()))  # didn't change
+        self.assertEqual(8019, len(forecast2.cdcdata_set.all()))  # new
+        self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # didn't change
 
         forecast2.delete()
-        self.assertEqual(0, len(forecast2.forecastdata_set.all()))
+        self.assertEqual(0, len(forecast2.cdcdata_set.all()))
 
 
     def test_get_location_target_dict(self):

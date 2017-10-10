@@ -1,18 +1,17 @@
-import os
+import sys
 from pathlib import Path
 
 # set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 import django
-
-from utils.predict_the_disctrict_utils import start_date_for_biweek
+import os
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 django.setup()
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week
-from forecast_app.models.forecast import CDCData
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
+from forecast_app.models.data import ProjectTemplateData, ForecastData
 
 
 #
@@ -26,7 +25,7 @@ from forecast_app.models import Project, Target, TimeZero, ForecastModel, Foreca
 #         print('  =', str(instance))
 
 print('* deleting database...')
-for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, CDCData]:
+for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, ProjectTemplateData, ForecastData]:
     model_class.objects.all().delete()
 
 #

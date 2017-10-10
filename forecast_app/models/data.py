@@ -1,5 +1,6 @@
 import csv
 
+from collections import OrderedDict
 from django.db import models, connection
 
 from utils.utilities import basic_str, parse_value
@@ -58,6 +59,9 @@ class ModelWithCDCData(models.Model):
     def insert_data(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
         """
         Inserts the passed data into a row in my associated CDCData table.
+
+        NB: This SQL-based implementation is a faster alternative to an ORM-based one.
+
         """
         # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
         column_names = ', '.join(['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl',
@@ -80,16 +84,138 @@ class ModelWithCDCData(models.Model):
         """
         Returns all of my data as a a list of rows, excluding any PKs and FKs columns.
         """
-        # todo better way to get FK name? - {forecast_model_name}_id
+        # todo better way to get FK name? - {model_name}_id
         sql = """
                 SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
                 FROM {cdcdata_table_name}
-                WHERE {forecast_model_name}_id = %s;
+                WHERE {model_name}_id = %s;
             """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                       forecast_model_name=self.__class__._meta.model_name)
+                       model_name=self.__class__._meta.model_name)
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk])
             return cursor.fetchall()  # rows
+
+
+    def get_num_rows(self):
+        return len(self.get_data_rows())  # todo query only for count(*)
+
+
+    def get_data_preview(self):
+        """
+        :return: a preview of my data in the form of a table that's represented as a nested list of rows
+        """
+        return self.get_data_rows()[:10]  # todo query LIMIT 10
+
+
+    def get_locations(self):
+        """
+        :return: a set of Location names in my data
+        """
+        # todo better way to get FK name? - {model_name}_id
+        sql = """
+            SELECT location
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s
+            GROUP BY location;
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [self.pk])
+            rows = cursor.fetchall()
+            return {row[0] for row in rows}
+
+
+    def get_targets(self, location):
+        """
+        :return: a set of target names for a location
+        """
+        # todo better way to get FK name? - {model_name}_id
+        sql = """
+            SELECT target
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s AND location = %s
+            GROUP BY target;
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [self.pk, location])
+            rows = cursor.fetchall()
+            return {row[0] for row in rows}
+
+
+    def get_target_unit(self, location, target):
+        """
+        :return: name of the unit column. arbitrarily uses the point row's unit
+        """
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target,
+                                                   row_type=CDCData.POINT_ROW_TYPE)
+        return cdc_data_results[0].unit
+
+
+    def get_target_point_value(self, location, target):
+        """
+        :return: point value for a location and target
+        """
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target,
+                                                   row_type=CDCData.POINT_ROW_TYPE)
+        return cdc_data_results[0].value
+
+
+    def get_target_bins(self, location, target, include_values=True):
+        """
+        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. include_values controls whether values
+            are included - results in a 2-tuple: (bin_start_incl, bin_end_notincl), o/w a 3-tuple is returned:
+            (bin_start_incl, bin_end_notincl, value)
+        """
+        # todo better way to get FK name? - {model_name}_id
+        sql = """
+            SELECT bin_start_incl, bin_end_notincl {optional_value_column}
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s AND row_type = %s AND location = %s and target = %s;
+        """.format(optional_value_column=', value' if include_values else '',
+                   cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
+            rows = cursor.fetchall()
+            return [(bin_start_incl, bin_end_notincl, value) for bin_start_incl, bin_end_notincl, value in rows] \
+                if include_values \
+                else [(bin_start_incl, bin_end_notincl) for bin_start_incl, bin_end_notincl in rows]
+
+
+    def get_target_bin_sum(self, location, target):
+        """
+        :return: sum of bin values for the specified target 
+        """
+        # todo better way to get FK name? - {model_name}_id
+        sql = """
+            SELECT SUM(value)
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s AND row_type = %s AND location = %s AND target = %s;
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
+            return cursor.fetchone()[0]
+
+
+    def get_location_target_dict(self):
+        """
+        :return: all my data in hierarchical format as a dict of the form:
+
+            return val: {location1: target_dict_1, ...}
+                target_dict: {target1: {'point': point_val, 'bins': bin_list}}
+                    bin_list: [[bin_start_incl1, bin_end_notincl1, value1], ...]
+        """
+        location_target_dict = OrderedDict()
+        for location in sorted(self.get_locations()):
+            target_dict = OrderedDict()
+            for target in sorted(self.get_targets(location)):
+                point_value = self.get_target_point_value(location, target)
+                bins = self.get_target_bins(location, target)
+                target_dict[target] = {'point': point_value, 'bins': bins}
+            location_target_dict[location] = target_dict
+        return location_target_dict
 
 
 #
@@ -144,7 +270,8 @@ class ProjectTemplateData(CDCData):
     Represents data corresponding to a Project.
     """
 
-    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True)
+    project = models.ForeignKey('Project', on_delete=models.CASCADE, null=True,
+                                related_name='cdcdata_set')  # NB: related_name in all CDCData sublclasses must be the same
 
 
     def __repr__(self):
@@ -156,7 +283,8 @@ class ForecastData(CDCData):
     Represents data corresponding to a Forecast.
     """
 
-    forecast = models.ForeignKey('Forecast', on_delete=models.CASCADE, null=True)
+    forecast = models.ForeignKey('Forecast', on_delete=models.CASCADE, null=True,
+                                 related_name='cdcdata_set')  # NB: related_name in all CDCData sublclasses must be the same
 
 
     def __repr__(self):

@@ -1,3 +1,5 @@
+import math
+
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models.signals import pre_save, post_save
@@ -64,11 +66,11 @@ class Project(ModelWithCDCData):
         :param args: standard Model args
         :param kwargs: ""
         """
-        self.template = kwargs.pop('template', None)
+        self.template_path = kwargs.pop('template', None)
         super(Project, self).__init__(*args, **kwargs)
 
         # check for the required passed template and then save it so project_post_save() can do load_template_data()
-        if (not self.pk) and (not self.template):  # pk is None if not saved to the database
+        if (not self.pk) and (not self.template_path):  # pk is None if not saved to the database
             # we have a new/non-saved instance with no template arg
             raise RuntimeError("unsaved instance is missing the required 'template' key: {!r}".format(self))
 
@@ -117,6 +119,53 @@ class Project(ModelWithCDCData):
         week-relative (?) ones
         """
         return list(self.config_dict['target_to_week_increment'].keys())
+
+
+    def validate_forecast_data(self, forecast):
+        """
+        Validates forecast's data against my template. Raises if invalid. Tests:
+
+        - location names match
+        - for each location:
+          = target names match
+          = bin_start_incl and bin_end_notincl values match for all bins
+          = each bin sums to 1.0 (NB: uses math.isclose()'s default tolerances)
+          = points lie within the range of point values in the template
+        - todo others xx
+
+        :param forecast: a Forecast
+        """
+        template_locations = self.get_locations()
+        forecast_locations = forecast.get_locations()
+        if template_locations != forecast_locations:
+            raise RuntimeError("Locations did not match template. Forecast data_filename={}, template_locations={}, "
+                               "forecast_locations={}"
+                               .format(forecast.data_filename, template_locations, forecast_locations))
+
+        for template_location in template_locations:
+            template_targets = self.get_targets(template_location)
+            forecast_targets = forecast.get_targets(template_location)
+            if template_targets != forecast_targets:
+                raise RuntimeError("Targets did not match template. Forecast data_filename={}, template_location={},"
+                                   " template_targets={}, forecast_targets={}"
+                                   .format(forecast.data_filename, template_location, template_targets,
+                                           forecast_targets))
+            for template_target in template_targets:
+                template_bins = self.get_target_bins(template_location, template_target, include_values=False)
+                forecast_bins = forecast.get_target_bins(template_location, template_target, include_values=False)
+                if template_bins != forecast_bins:
+                    raise RuntimeError("Bins did not match template. Forecast data_filename={}, "
+                                       "template_location={}, template_target={}, # template_bins={}, "
+                                       "# forecast_bins={}"
+                                       .format(forecast.data_filename, template_location, template_target,
+                                               len(template_bins), len(forecast_bins)))
+
+                forecast_bin_sum = forecast.get_target_bin_sum(template_location, template_target)
+                if not math.isclose(forecast_bin_sum, 1.0):
+                    raise RuntimeError("Bin did not sum to 1.0. Forecast data_filename={}, "
+                                       "template_location={}, template_target={}, forecast_bin_sum={}"
+                                       .format(forecast.data_filename, template_location, template_target,
+                                               forecast_bin_sum))
 
 
 #
@@ -176,6 +225,7 @@ class TimeZero(models.Model):
 # ---- signal handlers ----
 #
 
+# todo xx @transaction.atomic !?
 @receiver(pre_save, sender=Project)
 def model_pre_save(instance, **kwargs):
     # validate config_dict field to check for keys: 'target_to_week_increment' and 'location_to_delphi_region'
@@ -185,7 +235,9 @@ def model_pre_save(instance, **kwargs):
                               "'location_to_delphi_region': {}".format(instance.config_dict))
 
 
+# todo xx @transaction.atomic !?
 @receiver(post_save, sender=Project)
 def project_post_save(instance, created, **kwargs):
     if created:  # o/w no pk
-        instance.load_template_data(instance.template)
+        instance.load_template_data(instance.template_path)
+        # todo see [a project should validate its template's basic structure to match the CDC format, beyond headers - see load_csv_data()]
