@@ -32,17 +32,17 @@ def mock_wili_for_epi_week_fcn(forecast_model, year, week, location_name):
 
 class CDCDataTestCase(TestCase):
     """
-    Tests loading, accessing, and deleting data from CDCData:
+    Tests loading, accessing, and deleting data from ForecastData:
     
     - ForecastModel.load_forecasts_from_model_dir(csv_file_dir) -> runs load_forecast() on all files in csv_file_dir
-    - Forecast.delete() -> deletes rows from the CDCData table for the Forecast
+    - Forecast.delete() -> deletes rows from the ForecastData table for the Forecast
     
     """
 
 
     @classmethod
     def setUpTestData(cls):
-        config_dict = {
+        cls.config_dict = {
             'target_to_week_increment': {
                 '1 wk ahead': 1,
                 '2 wk ahead': 2,
@@ -63,9 +63,20 @@ class CDCDataTestCase(TestCase):
                 'HHS Region 10': 'hhs10',
             },
         }
-        project = Project.objects.create(config_dict=config_dict)
-        cls.forecast_model = ForecastModel.objects.create(project=project)
+        cls.project = Project.objects.create(config_dict=cls.config_dict,
+                                             template=Path('2016-2017_submission_template.csv'))
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
+
+
+    def test_project_template(self):
+        # test no template -> error
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict)
+        self.assertIn("unsaved instance is missing the required 'template' key", str(context.exception))
+
+        self.assertEqual(8019, len(self.project.get_data_rows()))  # individual rows via SQL
+        self.assertEqual(8019, len(self.project.projecttemplatedata_set.all()))  # individual rows as CDCData instances
 
 
     def test_filename_components(self):
@@ -84,7 +95,7 @@ class CDCDataTestCase(TestCase):
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.data_filename)
 
-        cdc_data_rows = self.forecast.cdcdata_set.all()
+        cdc_data_rows = self.forecast.forecastdata_set.all()
         self.assertEqual(8019, len(cdc_data_rows))  # excluding header
 
         # spot-check a few rows
@@ -182,18 +193,18 @@ class CDCDataTestCase(TestCase):
 
 
     def test_forecast_delete(self):
-        # add a second forecast, check its associated CDCData rows were added, delete it, and test that the data was
+        # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
         self.assertEqual(1, len(self.forecast_model.forecast_set.all()))  # from setUpTestData()
-        self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # ""
+        self.assertEqual(8019, len(self.forecast.forecastdata_set.all()))  # ""
 
         forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), None)
         self.assertEqual(2, len(self.forecast_model.forecast_set.all()))  # includes new
-        self.assertEqual(8019, len(forecast2.cdcdata_set.all()))  # new
-        self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # didn't change
+        self.assertEqual(8019, len(forecast2.forecastdata_set.all()))  # new
+        self.assertEqual(8019, len(self.forecast.forecastdata_set.all()))  # didn't change
 
         forecast2.delete()
-        self.assertEqual(0, len(forecast2.cdcdata_set.all()))
+        self.assertEqual(0, len(forecast2.forecastdata_set.all()))
 
 
     def test_get_location_target_dict(self):

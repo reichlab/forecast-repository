@@ -13,7 +13,7 @@ from forecast_app.models.project import TimeZero
 # minimal registration of Models
 #
 
-# todo admin.site.register(CDCData) ?
+# todo admin.site.register(ForecastData) ?
 # admin.site.register(Project)
 admin.site.register(TimeZero)
 admin.site.register(Target)
