@@ -151,27 +151,39 @@ class CDCDataTestCase(TestCase):
 
 
     def test_project_basic_validate_templates(self):
-        # a project should validate its template's basic structure to match the CDC format, beyond headers - see load_csv_data(). including: ['Bin did not sum to 1.0']
-        'EW1-locations-dont-match-2017-01-17.csv'
+        # a project should validate its template's basic structure to match the CDC format (see: @receiver(post_save)):
+        # - header incorrect or has no lines - already checked by load_csv_data()
+        # - no locations
+        # - a location with no targets
+        # - a target without a point value
+        # - a target without a bin
+        # - a target whose point and bin don't all have the same unit
+        # - a target bin that did not sum to 1.0 - 'EW1-bin-doesnt-sum-to-one-2017-01-17.csv'
+        # - a target that's not in every location
         self.fail()  # todo xx
 
 
     def test_validate_forecast_data(self):
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('EW1-locations-dont-match-2017-01-17.csv'), None)
-        self.assertIn('Locations did not match template', str(context.exception))
+        self.assertIn("Locations did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('EW1-targets-dont-match-2017-01-17.csv'), None)
-        self.assertIn('Targets did not match template', str(context.exception))
+        self.assertIn("Targets did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('EW1-wrong-number-of-bins-2017-01-17.csv'), None)
-        self.assertIn('Bins did not match template', str(context.exception))
+        self.assertIn("Bins did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('EW1-bin-doesnt-sum-to-one-2017-01-17.csv'), None)
-        self.assertIn('Bin did not sum to 1.0', str(context.exception))
+        self.assertIn("Bin did not sum to 1.0", str(context.exception))
+
+        # target units match. also tests that all targets have a point value
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('EW1-units-dont-match-2017-01-17.csv'), None)
+        self.assertIn("Target unit not found or didn't match template", str(context.exception))
 
         # test points lie within the range of point values in the template
         self.fail()  # todo xx

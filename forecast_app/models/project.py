@@ -123,15 +123,7 @@ class Project(ModelWithCDCData):
 
     def validate_forecast_data(self, forecast):
         """
-        Validates forecast's data against my template. Raises if invalid. Tests:
-
-        - location names match
-        - for each location:
-          = target names match
-          = bin_start_incl and bin_end_notincl values match for all bins
-          = each bin sums to 1.0 (NB: uses math.isclose()'s default tolerances)
-          = points lie within the range of point values in the template
-        - todo others xx
+        Validates forecast's data against my template. Raises if invalid.
 
         :param forecast: a Forecast
         """
@@ -161,11 +153,21 @@ class Project(ModelWithCDCData):
                                                len(template_bins), len(forecast_bins)))
 
                 forecast_bin_sum = forecast.get_target_bin_sum(template_location, template_target)
-                if not math.isclose(forecast_bin_sum, 1.0):
+                if not math.isclose(1.0, forecast_bin_sum):
                     raise RuntimeError("Bin did not sum to 1.0. Forecast data_filename={}, "
                                        "template_location={}, template_target={}, forecast_bin_sum={}"
                                        .format(forecast.data_filename, template_location, template_target,
                                                forecast_bin_sum))
+
+                # test unit. recall that get_target_unit() arbitrarily uses the point row's unit. this means that the
+                # following test also handles when a point line is missing as well
+                template_unit = self.get_target_unit(template_location, template_target)
+                forecast_unit = forecast.get_target_unit(template_location, template_target)
+                if (not forecast_unit) or (template_unit != forecast_unit):
+                    raise RuntimeError("Target unit not found or didn't match template. Forecast data_filename={}, "
+                                       "template_location={}, template_target={}, template_unit={}, forecast_unit={}"
+                                       .format(forecast.data_filename, template_location, template_target,
+                                               template_unit, forecast_unit))
 
 
 #
@@ -234,10 +236,13 @@ def model_pre_save(instance, **kwargs):
         raise ValidationError("config_dict did not contain both require keys: 'target_to_week_increment' and "
                               "'location_to_delphi_region': {}".format(instance.config_dict))
 
+    # validate the template data
+    # todo xx see [a project should validate its template]. instance.load_template_data(instance.template_path)
+    pass
+
 
 # todo xx @transaction.atomic !?
 @receiver(post_save, sender=Project)
 def project_post_save(instance, created, **kwargs):
     if created:  # o/w no pk
         instance.load_template_data(instance.template_path)
-        # todo see [a project should validate its template's basic structure to match the CDC format, beyond headers - see load_csv_data()]

@@ -145,11 +145,11 @@ class ModelWithCDCData(models.Model):
 
     def get_target_unit(self, location, target):
         """
-        :return: name of the unit column. arbitrarily uses the point row's unit
+        :return: name of the unit column. arbitrarily uses the point row's unit. return None if not found
         """
         cdc_data_results = self.cdcdata_set.filter(location=location, target=target,
                                                    row_type=CDCData.POINT_ROW_TYPE)
-        return cdc_data_results[0].unit
+        return cdc_data_results[0].unit if len(cdc_data_results) != 0 else None
 
 
     def get_target_point_value(self, location, target):
