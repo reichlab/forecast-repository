@@ -1,0 +1,7 @@
+Location,Target,Type,Unit,Bin_start_incl,Bin_end_notincl,Value
+US National,Season onset,Point,week,NA,NA,51
+US National,Season onset,Bin,week,40,41,1.0
+US National,Season peak week,Point,week,NA,NA,51
+US National,Season peak week,Bin,week,40,41,1.0
+HHS Region 1,Season onset,Point,week,NA,NA,51
+HHS Region 1,Season onset,Bin,week,40,41,1.0

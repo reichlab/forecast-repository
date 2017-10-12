@@ -69,13 +69,6 @@ class CDCDataTestCase(TestCase):
         cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
 
 
-    def test_project_template_exists(self):
-        # test no template -> error
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict)
-        self.assertIn("unsaved instance is missing the required 'template' key", str(context.exception))
-
-
     def test_project_template_data_accessors(self):
         self.assertEqual(8019, len(self.project.get_data_rows()))  # individual rows via SQL
         self.assertEqual(8019, len(self.project.cdcdata_set.all()))  # individual rows as CDCData instances
@@ -121,7 +114,7 @@ class CDCDataTestCase(TestCase):
         self.assertEqual(1, len(self.forecast_model.forecast_set.all()))
 
         self.assertIsInstance(self.forecast, Forecast)
-        self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.data_filename)
+        self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.csv_filename)
 
         cdc_data_rows = self.forecast.cdcdata_set.all()
         self.assertEqual(8019, len(cdc_data_rows))  # excluding header
@@ -150,20 +143,66 @@ class CDCDataTestCase(TestCase):
         self.assertIn('Invalid header', str(context.exception))
 
 
-    def test_project_basic_validate_templates(self):
+    def test_project_config_dict_validation(self):
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=None, template = Path('2016-2017_submission_template.csv'))
+        self.assertIn("config_dict did not contain both required keys", str(context.exception))
+
+
+    def test_project_csv_filename(self):
+        self.assertEqual('2016-2017_submission_template.csv', self.project.csv_filename)
+
+        # with self.assertRaises(RuntimeError) as context:
+        #     Project.objects.create(config_dict=self.config_dict)
+        # self.assertIn("Unsaved instance is missing the required 'template' key", str(context.exception))
+
+
+    def test_project_template_validation(self):
         # a project should validate its template's basic structure to match the CDC format (see: @receiver(post_save)):
-        # - header incorrect or has no lines - already checked by load_csv_data()
-        # - no locations
-        # - a location with no targets
-        # - a target without a point value
-        # - a target without a bin
-        # - a target whose point and bin don't all have the same unit
-        # - a target bin that did not sum to 1.0 - 'EW1-bin-doesnt-sum-to-one-2017-01-17.csv'
-        # - a target that's not in every location
-        self.fail()  # todo xx
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict)
+        self.assertIn("Unsaved instance is missing the required 'template' key", str(context.exception))
+
+        # header incorrect or has no lines: already checked by load_csv_data()
+
+        # no locations
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict,
+                                   template=Path('EW1-no-locations-2017-01-17.csv'))
+        self.assertIn("Template has no locations", str(context.exception))
+
+        # a target without a point value
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict,
+                                   template=Path('EW1-target-no-point-2017-01-17.csv'))
+        self.assertIn("Target has no point value", str(context.exception))
+
+        # a target without a bin
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict,
+                                   template=Path('EW1-target-no-bins-2017-01-17.csv'))
+        self.assertIn("Target has no bins", str(context.exception))
+
+        # a target whose point and bin don't all have the same unit
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict,
+                                   template=Path('EW1-target-point-bin-dont-match-2017-01-17.csv'))
+        self.assertIn("Target point and bin have different unit", str(context.exception))
+
+        # a target that's not in every location
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict,
+                                   template=Path('EW1-target-missing-from-location-2017-01-17.csv'))
+        self.assertIn("Target(s) was not found in every location", str(context.exception))
+
+        # a target bin that did not sum to 1.0
+        with self.assertRaises(RuntimeError) as context:
+            Project.objects.create(config_dict=self.config_dict,
+                                   template=Path('EW1-bin-doesnt-sum-to-one-2017-01-17.csv'))
+        self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
 
-    def test_validate_forecast_data(self):
+    def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('EW1-locations-dont-match-2017-01-17.csv'), None)
         self.assertIn("Locations did not match template", str(context.exception))
@@ -185,8 +224,15 @@ class CDCDataTestCase(TestCase):
             self.forecast_model.load_forecast(Path('EW1-units-dont-match-2017-01-17.csv'), None)
         self.assertIn("Target unit not found or didn't match template", str(context.exception))
 
-        # test points lie within the range of point values in the template
-        self.fail()  # todo xx
+        # test points lie within the range of point values in the template. see @nick's comment
+        # ( https://github.com/reichlab/forecast-repository/issues/18#issuecomment-335654340 ) :
+        # The thought was that for each target we could look at all of the values in the point rows for that target and
+        # would end up with a vector of numbers. The minimum and maximum of those numbers would define the acceptable
+        # range for the point values in the files themselves. E.g., if the predictions for target K should never be
+        # negative, then whoever made the template file would explicitly place a zero in at least one of the target K
+        # point rows. And none of those rows would have negative values. Is this too "cute" of a way to set the max/min
+        # ranges for testing? Alternatively, we could hard-code them as part of the project.
+        self.fail()
 
 
     def test_forecast_data_accessors(self):  # (via ModelWithCDCData)

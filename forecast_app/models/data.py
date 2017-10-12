@@ -1,6 +1,6 @@
 import csv
-
 from collections import OrderedDict
+
 from django.db import models, connection
 
 from utils.utilities import basic_str, parse_value
@@ -18,6 +18,9 @@ class ModelWithCDCData(models.Model):
     # the CDCData subclass that is paired with this subclass. must be specified by my subclasses
     # todo validate: a subclass of CDCData
     cdc_data_class = None
+
+    csv_filename = models.CharField(max_length=200,
+                                    help_text="Original CSV file name of this forecast's data source")
 
 
     def load_csv_data(self, csv_template_file_path):
@@ -158,29 +161,32 @@ class ModelWithCDCData(models.Model):
         """
         cdc_data_results = self.cdcdata_set.filter(location=location, target=target,
                                                    row_type=CDCData.POINT_ROW_TYPE)
-        return cdc_data_results[0].value
+        return cdc_data_results[0].value if len(cdc_data_results) != 0 else None
 
 
-    def get_target_bins(self, location, target, include_values=True):
+    def get_target_bins(self, location, target, include_values=True, include_unit=False):
         """
-        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. include_values controls whether values
-            are included - results in a 2-tuple: (bin_start_incl, bin_end_notincl), o/w a 3-tuple is returned:
-            (bin_start_incl, bin_end_notincl, value)
+        :param: include_values
+        :param: include_unit
+        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. returns either a 2-tuple, 3-tuple, or
+            4-tuple depending on include_values and include_unit:
+            - (bin_start_incl, bin_end_notincl)
+            - (bin_start_incl, bin_end_notincl, value)
+            - (bin_start_incl, bin_end_notincl, unit)
+            - (bin_start_incl, bin_end_notincl, value, unit)
         """
         # todo better way to get FK name? - {model_name}_id
         sql = """
-            SELECT bin_start_incl, bin_end_notincl {optional_value_column}
+            SELECT bin_start_incl, bin_end_notincl {optional_value_column} {optional_unit_column}
             FROM {cdcdata_table_name}
             WHERE {model_name}_id = %s AND row_type = %s AND location = %s and target = %s;
         """.format(optional_value_column=', value' if include_values else '',
+                   optional_unit_column=', unit' if include_unit else '',
                    cdcdata_table_name=self.cdc_data_class._meta.db_table,
                    model_name=self.__class__._meta.model_name)
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
-            rows = cursor.fetchall()
-            return [(bin_start_incl, bin_end_notincl, value) for bin_start_incl, bin_end_notincl, value in rows] \
-                if include_values \
-                else [(bin_start_incl, bin_end_notincl) for bin_start_incl, bin_end_notincl in rows]
+            return cursor.fetchall()
 
 
     def get_target_bin_sum(self, location, target):
@@ -228,7 +234,7 @@ class CDCData(models.Model):
     code, such as by ForecastModel.load_forecast(). Django manages migration (CREATE TABLE) and cascading deletion.
     """
 
-    # the standard CDC format columns from the source forecast.data_filename:
+    # the standard CDC format columns from the source forecast.csv_filename:
     location = models.CharField(max_length=200)
     target = models.CharField(max_length=200)
 

@@ -20,12 +20,9 @@ class Forecast(ModelWithCDCData):
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE, null=True,
                                   help_text="TimeZero that this forecast is in relation to")
 
-    data_filename = models.CharField(max_length=200,
-                                     help_text="Original CSV file name of this forecast's data source")
-
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.data_filename))
+        return str((self.pk, self.time_zero, self.csv_filename))
 
 
     def __str__(self):  # todo

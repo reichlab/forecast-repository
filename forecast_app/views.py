@@ -79,8 +79,8 @@ def download_json_for_forecast(request, forecast_pk):
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     location_target_dict = forecast.get_location_target_dict()
     response = JsonResponse(location_target_dict)
-    response['Content-Disposition'] = 'attachment; filename="{data_filename}.json"'.format(
-        data_filename=forecast.data_filename)
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"'.format(
+        csv_filename=forecast.csv_filename)
     return response
 
 
@@ -117,7 +117,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
     # error if data already exists for same time_zero and data_file.name
     existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.data_filename == file_name):
+    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == file_name):
         return render(request, 'message.html',
                       context={'title': "A forecast already exists.",
                                'message': "time_zero={}, file_name='{}'. Please delete existing data and then "

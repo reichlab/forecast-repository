@@ -40,7 +40,7 @@
                 </td>
                 <td>
                     {% if forecast %}
-                        <a href="{{ forecast.get_absolute_url }}">{{ forecast.data_filename }}</a>
+                        <a href="{{ forecast.get_absolute_url }}">{{ forecast.csv_filename }}</a>
                     {% else %}
                         <small>[no data]</small>
                     {% endif %}
@@ -63,7 +63,7 @@
                                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                                             <span aria-hidden="true">&times;</span></button>
                                         <h4 class="modal-title" id="titleLabel">
-                                            Delete forecast &ldquo;{{ forecast.data_filename }}&rdquo;?
+                                            Delete forecast &ldquo;{{ forecast.csv_filename }}&rdquo;?
                                         </h4>
                                     </div>
                                     {# no <div class="modal-body"></div> #}

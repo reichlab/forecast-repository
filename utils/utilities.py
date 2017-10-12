@@ -132,14 +132,14 @@ def mean_absolute_error(forecast_model, season_start_year, location, target,
         # > We used week 30. I don't think this is a standardized concept outside of our lab though."
         # > We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with
         # > EW30-2016 and ends with EW29-2017.  <- todo abstract this standard/convention out
-        timezero_week = filename_components(forecast.data_filename)[0]
+        timezero_week = filename_components(forecast.csv_filename)[0]
         timezero_year = season_start_year if timezero_week >= 30 else season_start_year + 1
         future_year, future_week = increment_week(timezero_year, timezero_week,
                                                   forecast_model.project.get_week_increment_for_target_name(target))
         true_value = wili_for_epi_week_fcn(forecast_model, future_year, future_week, location)
         predicted_value = forecast.get_target_point_value(location, target)
         abs_error = abs(predicted_value - true_value)
-        cdc_file_name_to_abs_error[forecast.data_filename] = abs_error
+        cdc_file_name_to_abs_error[forecast.csv_filename] = abs_error
 
     return sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)
 

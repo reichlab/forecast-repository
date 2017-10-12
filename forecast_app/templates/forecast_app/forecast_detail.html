@@ -7,7 +7,7 @@
     <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.get_absolute_url }}">
         {{ forecast.forecast_model.name }}</a></p>
     <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
-    <p><strong>Data Filename</strong>: {{ forecast.data_filename }}</p>
+    <p><strong>Data Filename</strong>: {{ forecast.csv_filename }}</p>
 
 
     <h2>Preview of {{ forecast.get_num_rows }} rows</h2>

@@ -45,7 +45,8 @@ class ForecastModel(models.Model):
 
         :param csv_file_path: Path to a CDC CSV forecast file
         :param time_zero: the TimeZero this forecast applies to
-        :param file_name: optional name to use for the file. if None (default), uses csv_file_path
+        :param file_name: optional name to use for the file. if None (default), uses csv_file_path. helpful b/c uploaded
+            files have random csv_file_path file names, so original ones must be extracted and passed separately
         :return: returns a new Forecast for it.
             raises a RuntimeError if the data could not be loaded
         """
@@ -56,7 +57,7 @@ class ForecastModel(models.Model):
             raise RuntimeError("Bad file name (not CDC format): {}".format(file_name))
 
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
-                                                                            data_filename=file_name)
+                                                                            csv_filename=file_name)
         new_forecast.load_csv_data(csv_file_path)
         self.project.validate_forecast_data(new_forecast)
         return new_forecast
