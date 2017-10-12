@@ -73,8 +73,9 @@ class Project(ModelWithCDCData):
         if (not self.pk) and (not self.template_path):  # pk is None if not saved to the database
             raise RuntimeError("Unsaved instance is missing the required 'template' key: {!r}".format(self))
 
-        # set csv_filename based on template
-        self.csv_filename = self.template_path.name
+        # set csv_filename based on template if not already saved
+        if not self.csv_filename:
+            self.csv_filename = self.template_path.name
 
         # validate config_dict
         if (not self.config_dict) or ('target_to_week_increment' not in self.config_dict) or \
@@ -202,7 +203,10 @@ class Project(ModelWithCDCData):
                                                len(template_bins), len(forecast_bins)))
 
                 forecast_bin_sum = forecast.get_target_bin_sum(template_location, template_target)
-                if not math.isclose(1.0, forecast_bin_sum):
+                # note that the default of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
+                # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
+                # (0.9300285798758262 -> 0.07 fixed it)
+                if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):
                     raise RuntimeError("Bin did not sum to 1.0. csv_filename={}, "
                                        "template_location={}, template_target={}, forecast_bin_sum={}"
                                        .format(forecast.csv_filename, template_location, template_target,

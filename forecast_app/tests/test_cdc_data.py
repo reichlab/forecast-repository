@@ -225,7 +225,7 @@ class CDCDataTestCase(TestCase):
         self.assertIn("Target unit not found or didn't match template", str(context.exception))
 
         # test points lie within the range of point values in the template. see @nick's comment
-        # ( https://github.com/reichlab/forecast-repository/issues/18#issuecomment-335654340 ) :
+        # ( https://github.com/reichlab/forecast-repository/issues/18#issuecomment-335654340 ):
         # The thought was that for each target we could look at all of the values in the point rows for that target and
         # would end up with a vector of numbers. The minimum and maximum of those numbers would define the acceptable
         # range for the point values in the files themselves. E.g., if the predictions for target K should never be
@@ -233,6 +233,12 @@ class CDCDataTestCase(TestCase):
         # point rows. And none of those rows would have negative values. Is this too "cute" of a way to set the max/min
         # ranges for testing? Alternatively, we could hard-code them as part of the project.
         self.fail()
+
+        # see @josh's comment ( https://reichlab.slack.com/archives/C57HNDFN0/p1507744847000350 ):
+        # how important is the left handedness of the bins? by that i mean that bin_start_incl and bin_end_notincl
+        # versus bin_start_notincl and bin_end_incl
+        self.fail()
+
 
 
     def test_forecast_data_accessors(self):  # (via ModelWithCDCData)

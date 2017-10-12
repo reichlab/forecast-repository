@@ -1,9 +1,10 @@
-import sys
+import os
 from pathlib import Path
 
 # set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 import django
-import os
+
+from utils.predict_the_disctrict_utils import start_date_for_biweek
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
@@ -17,12 +18,6 @@ from forecast_app.models.data import ProjectTemplateData, ForecastData
 #
 # ---- print and delete (!) all user objects ----
 #
-
-# print('* current database')
-# for model_class in [DataFile, Project, Target, TimeZero, ForecastModel, Forecast]:
-#     print('-', model_class)
-#     for instance in model_class.objects.all():
-#         print('  =', str(instance))
 
 print('* deleting database...')
 for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, ProjectTemplateData, ForecastData]:
@@ -62,7 +57,8 @@ p = Project.objects.create(
                 "based on ensembles.",
     url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
     core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
-    config_dict=config_dict)
+    config_dict=config_dict,
+    template=Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
 WEEK_AHEAD_DESCR = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
 for target_name, descr in (
@@ -186,7 +182,8 @@ p = Project.objects.create(
     description="A Reich Lab challenge of predicting dengue fever in Thailand at the district level.",
     url='http://reichlab.io/guidelines.html',
     core_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
-    config_dict=config_dict)  # same config_dict as above
+    config_dict=config_dict,
+    template=Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
 TEN_BIWEEK_DESCR = "The number of reported cases in each of the following 10 biweeks. If data is observed through " \
                    "time t then forecasts for times t+1, …, t+10 will be handed in. If time t falls within 10 " \
