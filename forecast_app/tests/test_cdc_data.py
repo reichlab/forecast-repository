@@ -354,6 +354,10 @@ class CDCDataTestCase(TestCase):
             (None, None, 1.22490002826229e-07)]
         act_bins = act_dict['US National']['Season onset']['bins']
         self.assertEqual(34, len(act_bins))
+
+        # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
+        exp_bins = sorted(exp_bins, key=lambda x: (x[0] is None or x[1] is None, x))
+        act_bins = sorted(act_bins, key=lambda x: (x[0] is None or x[1] is None, x))
         self.assertEqual(exp_bins, act_bins)
 
 

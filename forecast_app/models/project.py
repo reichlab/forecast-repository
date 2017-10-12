@@ -195,6 +195,11 @@ class Project(ModelWithCDCData):
             for template_target in template_targets:
                 template_bins = self.get_target_bins(template_location, template_target, include_values=False)
                 forecast_bins = forecast.get_target_bins(template_location, template_target, include_values=False)
+
+                # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
+                template_bins = sorted(template_bins, key=lambda x: (x[0] is None or x[1] is None, x))
+                forecast_bins = sorted(forecast_bins, key=lambda x: (x[0] is None or x[1] is None, x))
+
                 if template_bins != forecast_bins:
                     raise RuntimeError("Bins did not match template. csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, "
