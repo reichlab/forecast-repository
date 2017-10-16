@@ -11,6 +11,7 @@ pip install django
 pip install click
 pip install requests
 pip install jsonfield
+pip install psycopg2
 
 
 # Utils
