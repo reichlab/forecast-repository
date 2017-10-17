@@ -23,6 +23,10 @@ class ModelWithCDCData(models.Model):
                                     help_text="Original CSV file name of this forecast's data source")
 
 
+    class Meta:
+        abstract = True
+
+
     def load_csv_data(self, csv_template_file_path):
         """
         Loads the CDC data in csv_template_file_path into my CDCData table.
