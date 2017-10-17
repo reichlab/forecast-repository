@@ -145,7 +145,7 @@ class CDCDataTestCase(TestCase):
 
     def test_project_config_dict_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=None, template = Path('2016-2017_submission_template.csv'))
+            Project.objects.create(config_dict=None, template=Path('2016-2017_submission_template.csv'))
         self.assertIn("config_dict did not contain both required keys", str(context.exception))
 
 
@@ -238,7 +238,6 @@ class CDCDataTestCase(TestCase):
         # how important is the left handedness of the bins? by that i mean that bin_start_incl and bin_end_notincl
         # versus bin_start_notincl and bin_end_incl
         self.fail()
-
 
 
     def test_forecast_data_accessors(self):  # (via ModelWithCDCData)
