@@ -25,6 +25,18 @@ cd /Users/cornell/IdeaProjects/forecast-repository/forecast_app/tests
 python3 ../../manage.py test
 ```
 
+# Django project layout
+
+This project's settings scheme follows the "split settings.py into separate files in their own 'settings' module"
+approach. Since we plan on deploying to Heroku, there is no production.py. Regardless, every app needs to set
+the `DJANGO_SETTINGS_MODULE` environment variable accordingly, e.g., one of the following:
+```bash
+$ export DJANGO_SETTINGS_MODULE="foo.settings.jenkins"
+$ ./manage.py migrate —settings=foo.settings.production
+$ heroku config:set DJANGO_SETTINGS_MODULE=settings.production
+gunicorn -w 4 -b 127.0.0.1:8001 —settings=foo.settings.dev
+```
+
 
 # TODO
 
@@ -33,7 +45,7 @@ python3 ../../manage.py test
 - model constraints like null=True
 - change __str__()s to be prettier
 - change app name from forecast_app to something better?
-- Bootstrap: download locally-stored libs? bootstrap.min.css , jquery.min.js , nad bootstrap.min.js
+- Bootstrap: download locally-stored libs? bootstrap.min.css , jquery.min.js , and bootstrap.min.js
 
 
 ## admin

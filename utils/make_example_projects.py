@@ -1,14 +1,13 @@
-import os
 from pathlib import Path
 
-# set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
 import click
 import django
+import os
 
 from utils.predict_the_disctrict_utils import start_date_for_biweek
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
+# set up django. must be done before loading models. NB: expects DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week

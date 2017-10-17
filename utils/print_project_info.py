@@ -1,12 +1,24 @@
-# set up django. must be done before loading models. requires: os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
+# set up django. must be done before loading models. NB: expects DJANGO_SETTINGS_MODULE to be set
+import click
 import django
-import os
 
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "forecast_repo.settings")
+# set up django. must be done before loading models. NB: expects DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from forecast_app.models import Project
+
+
+@click.command()
+def print_project_info_app():
+    projects = Project.objects.all()
+    if len(projects) != 0:
+        print('* Projects')
+        for project in projects:
+            print("  {}".format(project))
+            print_project_info(project)
+    else:
+        print("<No Projects>")
 
 
 def print_project_info(project):
@@ -26,5 +38,5 @@ def print_project_info(project):
             print('  ', forecast)
 
 
-for project in Project.objects.all():
-    print_project_info(project)
+if __name__ == '__main__':
+    print_project_info_app()
