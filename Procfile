@@ -1,1 +1,1 @@
-web: gunicorn app:app --log-file=-
+web: gunicorn forecast_repo.wsgi.py --log-file=-

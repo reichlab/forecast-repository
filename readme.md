@@ -6,12 +6,29 @@ for a more detailed description. The internal [reichlab Slack](https://reichlab.
 https://github.com/reichlab/forecast-repository .
 
 
-# Requirements - see requirements.txt:
-pip install django
-pip install click
-pip install requests
-pip install jsonfield
-pip install psycopg2
+# Requirements (see Pipfile)
+- [Python 3](http://install.python-guide.org)
+- [pipenv](https://docs.pipenv.org/)
+- for Heroku hosting:
+  - [Heroku Toolbelt](https://toolbelt.heroku.com/)
+  - [Postgres](https://devcenter.heroku.com/articles/heroku-postgresql#local-setup)
+
+
+To install required packages:
+```bash
+$ pipenv --three
+$ cd <readme.md's dir>/forecast-repository
+$ pipenv install
+```
+
+Pipfile was created via:
+```bash
+$ pipenv install django
+$ pipenv install click
+$ pipenv install requests
+$ pipenv install jsonfield
+$ pipenv install psycopg2
+```
 
 
 # Utils
@@ -21,8 +38,10 @@ amenable to analysis.
 
 # Running the tests
 ```bash
-cd /Users/cornell/IdeaProjects/forecast-repository/forecast_app/tests
-python3 ../../manage.py test
+$ cd <readme.md's dir>/forecast-repository
+$ pipenv shell
+$ cd forecast_app/tests
+$ python3 ../../manage.py test --verbosity 2 --settings=forecast_repo.settings.local_sqlite3
 ```
 
 # Django project layout
