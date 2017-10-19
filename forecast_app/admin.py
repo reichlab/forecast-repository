@@ -19,7 +19,7 @@ from forecast_app.models.project import TimeZero
 admin.site.register(TimeZero)
 admin.site.register(Target)
 # admin.site.register(ForecastModel)
-admin.site.register(Forecast)
+# admin.site.register(Forecast)
 
 
 #
@@ -84,3 +84,12 @@ class ForecastModelAdmin(admin.ModelAdmin):
         form = super(ForecastModelAdmin, self).get_form(request, obj, **kwargs)
         form.base_fields['description'].widget = AdminTextareaWidget()
         return form
+
+
+#
+# Forecast admin
+#
+
+@admin.register(Forecast)
+class ForecastAdmin(admin.ModelAdmin):
+    readonly_fields = ('csv_filename',)
