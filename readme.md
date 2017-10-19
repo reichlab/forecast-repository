@@ -28,6 +28,9 @@ $ pipenv install click
 $ pipenv install requests
 $ pipenv install jsonfield
 $ pipenv install psycopg2
+$ pipenv install dj-database-url
+$ pipenv install gunicorn
+$ pipenv install whitenoise
 ```
 
 
@@ -50,10 +53,10 @@ This project's settings scheme follows the "split settings.py into separate file
 approach. Since we plan on deploying to Heroku, there is no production.py. Regardless, every app needs to set
 the `DJANGO_SETTINGS_MODULE` environment variable accordingly, e.g., one of the following:
 ```bash
-$ export DJANGO_SETTINGS_MODULE="foo.settings.jenkins"
-$ ./manage.py migrate --settings=foo.settings.production
-$ heroku config:set DJANGO_SETTINGS_MODULE=settings.production
-gunicorn -w 4 -b 127.0.0.1:8001 --settings=foo.settings.dev
+$ export DJANGO_SETTINGS_MODULE="forecast_repo.settings.local_sqlite3"
+$ ./manage.py migrate --settings=forecast_repo.settings.local_sqlite3
+$ heroku config:set DJANGO_SETTINGS_MODULE=forecast_repo.settings.local_sqlite3
+gunicorn -w 4 -b 127.0.0.1:8001 --settings=forecast_repo.settings.local_sqlite3
 ```
 
 

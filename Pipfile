@@ -12,6 +12,9 @@ click = "*"
 requests = "*"
 jsonfield = "*"
 "psycopg2" = "*"
+dj-database-url = "*"
+gunicorn = "*"
+whitenoise = "*"
 
 
 [dev-packages]
