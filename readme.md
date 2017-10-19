@@ -32,9 +32,9 @@ approach. Since we plan on deploying to Heroku, there is no production.py. Regar
 the `DJANGO_SETTINGS_MODULE` environment variable accordingly, e.g., one of the following:
 ```bash
 $ export DJANGO_SETTINGS_MODULE="foo.settings.jenkins"
-$ ./manage.py migrate —settings=foo.settings.production
+$ ./manage.py migrate --settings=foo.settings.production
 $ heroku config:set DJANGO_SETTINGS_MODULE=settings.production
-gunicorn -w 4 -b 127.0.0.1:8001 —settings=foo.settings.dev
+gunicorn -w 4 -b 127.0.0.1:8001 --settings=foo.settings.dev
 ```
 
 

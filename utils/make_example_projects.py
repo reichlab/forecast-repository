@@ -22,25 +22,25 @@ def make_example_projects_app():
         model_class.objects.all().delete()
 
     config_dict = {
-        'target_to_week_increment': {
-            '1 wk ahead': 1,
-            '2 wk ahead': 2,
-            '3 wk ahead': 3,
-            '4 wk ahead': 4,
+        "target_to_week_increment": {
+            "1 wk ahead": 1,
+            "2 wk ahead": 2,
+            "3 wk ahead": 3,
+            "4 wk ahead": 4
         },
-        'location_to_delphi_region': {
-            'US National': 'nat',
-            'HHS Region 1': 'hhs1',
-            'HHS Region 2': 'hhs2',
-            'HHS Region 3': 'hhs3',
-            'HHS Region 4': 'hhs4',
-            'HHS Region 5': 'hhs5',
-            'HHS Region 6': 'hhs6',
-            'HHS Region 7': 'hhs7',
-            'HHS Region 8': 'hhs8',
-            'HHS Region 9': 'hhs9',
-            'HHS Region 10': 'hhs10',
-        },
+        "location_to_delphi_region": {
+            "US National": "nat",
+            "HHS Region 1": "hhs1",
+            "HHS Region 2": "hhs2",
+            "HHS Region 3": "hhs3",
+            "HHS Region 4": "hhs4",
+            "HHS Region 5": "hhs5",
+            "HHS Region 6": "hhs6",
+            "HHS Region 7": "hhs7",
+            "HHS Region 8": "hhs8",
+            "HHS Region 9": "hhs9",
+            "HHS Region 10": "hhs10"
+        }
     }
 
     click.echo("* creating CDC Flu challenge project and models...")
@@ -59,8 +59,8 @@ def create_cdc_flu_challenge_project(config_dict):
                     "based on ensembles.",
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
-        config_dict=config_dict,
-        template=Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        config_dict=config_dict)
+    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
     for target_name, descr in (
             ('Season onset',
@@ -144,8 +144,8 @@ def create_predict_the_district_challenge_project(config_dict):
         description="A Reich Lab challenge of predicting dengue fever in Thailand at the district level.",
         url='http://reichlab.io/guidelines.html',
         core_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
-        config_dict=config_dict,
-        template=Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        config_dict=config_dict)
+    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
     TEN_BIWEEK_DESCR = "The number of reported cases in each of the following 10 biweeks. If data is observed through " \
                        "time t then forecasts for times t+1, …, t+10 will be handed in. If time t falls within 10 " \
                        "biweeks of the end of the calendar year, still, the forecast should include 10 biweeks into the " \

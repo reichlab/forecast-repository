@@ -1,4 +1,5 @@
 import datetime
+import unittest
 from pathlib import Path
 
 from django.test import TestCase
@@ -6,108 +7,41 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from utils.utilities import filename_components, mean_absolute_error
 
 
-#
-# ---- mock for cdc_format_utils.true_value_for_epi_week ----
-#
-
-EPI_YR_WK_TO_ACTUAL_WILI = {
-    (2016, 51): 2.74084,
-    (2016, 52): 3.36496,
-    (2017, 1): 3.0963,
-    (2017, 2): 3.08492,
-    (2017, 3): 3.51496,
-    (2017, 4): 3.8035,
-    (2017, 5): 4.45059,
-    (2017, 6): 5.07947,
-}
-
-
-# static mock function for delphi_wili_for_epi_week(). location_name is ignored
-def mock_wili_for_epi_week_fcn(forecast_model, year, week, location_name):
-    return EPI_YR_WK_TO_ACTUAL_WILI[(year, week)]
-
-
-class CDCDataTestCase(TestCase):
+class ForecastTestCase(TestCase):
     """
-    Tests loading, accessing, and deleting data from ForecastData:
-    
-    - ForecastModel.load_forecasts_from_model_dir(csv_file_dir) -> runs load_forecast() on all files in csv_file_dir
-    - Forecast.delete() -> deletes rows from the ForecastData table for the Forecast
-    
     """
 
 
     @classmethod
     def setUpTestData(cls):
         cls.config_dict = {
-            'target_to_week_increment': {
-                '1 wk ahead': 1,
-                '2 wk ahead': 2,
-                '3 wk ahead': 3,
-                '4 wk ahead': 4,
+            "target_to_week_increment": {
+                "1 wk ahead": 1,
+                "2 wk ahead": 2,
+                "3 wk ahead": 3,
+                "4 wk ahead": 4
             },
-            'location_to_delphi_region': {
-                'US National': 'nat',
-                'HHS Region 1': 'hhs1',
-                'HHS Region 2': 'hhs2',
-                'HHS Region 3': 'hhs3',
-                'HHS Region 4': 'hhs4',
-                'HHS Region 5': 'hhs5',
-                'HHS Region 6': 'hhs6',
-                'HHS Region 7': 'hhs7',
-                'HHS Region 8': 'hhs8',
-                'HHS Region 9': 'hhs9',
-                'HHS Region 10': 'hhs10',
-            },
+            "location_to_delphi_region": {
+                "US National": "nat",
+                "HHS Region 1": "hhs1",
+                "HHS Region 2": "hhs2",
+                "HHS Region 3": "hhs3",
+                "HHS Region 4": "hhs4",
+                "HHS Region 5": "hhs5",
+                "HHS Region 6": "hhs6",
+                "HHS Region 7": "hhs7",
+                "HHS Region 8": "hhs8",
+                "HHS Region 9": "hhs9",
+                "HHS Region 10": "hhs10"
+            }
         }
-        cls.project = Project.objects.create(config_dict=cls.config_dict,
-                                             template=Path('2016-2017_submission_template.csv'))
+        cls.project = Project.objects.create(config_dict=cls.config_dict)
+        cls.project.load_template(Path('2016-2017_submission_template.csv'))
+
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
-
-
-    def test_project_template_data_accessors(self):
-        self.assertEqual(8019, len(self.project.get_data_rows()))  # individual rows via SQL
-        self.assertEqual(8019, len(self.project.cdcdata_set.all()))  # individual rows as CDCData instances
-
-        # test Project template accessors (via ModelWithCDCData) - the twin to test_forecast_data_accessors()
-        exp_locations = {'HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National'}
-        self.assertEqual(exp_locations, self.project.get_locations())
-
-        exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
-                       'Season peak week']
-        self.assertEqual(exp_targets, sorted(self.project.get_targets('US National')))
-
-        self.assertEqual('week', self.project.get_target_unit('US National', 'Season onset'))
-        self.assertEqual(51.0, self.project.get_target_point_value('US National', 'Season onset'))
-
-        self.assertEqual('percent', self.project.get_target_unit('US National', 'Season peak percentage'))
-        self.assertEqual(1.5, self.project.get_target_point_value('US National', 'Season peak percentage'))
-
-        act_bins = self.project.get_target_bins('US National', 'Season onset')
-        self.assertEqual(34, len(act_bins))
-
-        # spot-check bin boundaries
-        start_end_val_tuples = [(1.0, 2.0, 0.029411765),
-                                (20.0, 21.0, 0.029411765),
-                                (40.0, 41.0, 0.029411765),
-                                (52.0, 53.0, 0.029411765)]
-        for start_end_val_tuple in start_end_val_tuples:
-            self.assertIn(start_end_val_tuple, act_bins)
-
-
-    def test_filename_components(self):
-        filename_component_tuples = (('EW1-KoTstable-2017-01-17.csv', (1, 'KoTstable', datetime.date(2017, 1, 17))),
-                                     ('-KoTstable-2017-01-17.csv', ()),
-                                     ('EW1--2017-01-17.csv', ()),
-                                     ('EW1-KoTstable--01-17.csv', ()),
-                                     ('EW1-KoTstable--01-17.txt', ()))
-        for filename, component in filename_component_tuples:
-            self.assertEqual(component, filename_components(filename))
 
 
     def test_load_forecast(self):
@@ -143,65 +77,6 @@ class CDCDataTestCase(TestCase):
         self.assertIn('Invalid header', str(context.exception))
 
 
-    def test_project_config_dict_validation(self):
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=None, template=Path('2016-2017_submission_template.csv'))
-        self.assertIn("config_dict did not contain both required keys", str(context.exception))
-
-
-    def test_project_csv_filename(self):
-        self.assertEqual('2016-2017_submission_template.csv', self.project.csv_filename)
-
-        # with self.assertRaises(RuntimeError) as context:
-        #     Project.objects.create(config_dict=self.config_dict)
-        # self.assertIn("Unsaved instance is missing the required 'template' key", str(context.exception))
-
-
-    def test_project_template_validation(self):
-        # a project should validate its template's basic structure to match the CDC format (see: @receiver(post_save)):
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict)
-        self.assertIn("Unsaved instance is missing the required 'template' key", str(context.exception))
-
-        # header incorrect or has no lines: already checked by load_csv_data()
-
-        # no locations
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict,
-                                   template=Path('EW1-no-locations-2017-01-17.csv'))
-        self.assertIn("Template has no locations", str(context.exception))
-
-        # a target without a point value
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict,
-                                   template=Path('EW1-target-no-point-2017-01-17.csv'))
-        self.assertIn("Target has no point value", str(context.exception))
-
-        # a target without a bin
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict,
-                                   template=Path('EW1-target-no-bins-2017-01-17.csv'))
-        self.assertIn("Target has no bins", str(context.exception))
-
-        # a target whose point and bin don't all have the same unit
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict,
-                                   template=Path('EW1-target-point-bin-dont-match-2017-01-17.csv'))
-        self.assertIn("Target point and bin have different unit", str(context.exception))
-
-        # a target that's not in every location
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict,
-                                   template=Path('EW1-target-missing-from-location-2017-01-17.csv'))
-        self.assertIn("Target(s) was not found in every location", str(context.exception))
-
-        # a target bin that did not sum to 1.0
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=self.config_dict,
-                                   template=Path('EW1-bin-doesnt-sum-to-one-2017-01-17.csv'))
-        self.assertIn("Bin did not sum to 1.0", str(context.exception))
-
-
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('EW1-locations-dont-match-2017-01-17.csv'), None)
@@ -224,6 +99,9 @@ class CDCDataTestCase(TestCase):
             self.forecast_model.load_forecast(Path('EW1-units-dont-match-2017-01-17.csv'), None)
         self.assertIn("Target unit not found or didn't match template", str(context.exception))
 
+
+    @unittest.skip
+    def test_forecast_data_validation_additional(self):
         # test points lie within the range of point values in the template. see @nick's comment
         # ( https://github.com/reichlab/forecast-repository/issues/18#issuecomment-335654340 ):
         # The thought was that for each target we could look at all of the values in the point rows for that target and
@@ -232,12 +110,12 @@ class CDCDataTestCase(TestCase):
         # negative, then whoever made the template file would explicitly place a zero in at least one of the target K
         # point rows. And none of those rows would have negative values. Is this too "cute" of a way to set the max/min
         # ranges for testing? Alternatively, we could hard-code them as part of the project.
-        self.fail()
+        self.fail()  # todo
 
         # see @josh's comment ( https://reichlab.slack.com/archives/C57HNDFN0/p1507744847000350 ):
         # how important is the left handedness of the bins? by that i mean that bin_start_incl and bin_end_notincl
         # versus bin_start_notincl and bin_end_incl
-        self.fail()
+        self.fail()  # todo
 
 
     def test_forecast_data_accessors(self):  # (via ModelWithCDCData)
@@ -284,37 +162,13 @@ class CDCDataTestCase(TestCase):
             self.assertIn(start_end_val_tuple, act_bins)
 
 
-    def test_mean_absolute_error(self):
-        # load other three forecasts from 'ensemble' model. will delete them when done so that other tests don't fail.
-        # setUpTestData() has already loaded 'model_error/EW1-KoTstable-2017-01-17.csv'
-        forecast2 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW2-KoTstable-2017-01-23.csv'), None)
-        forecast3 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW51-KoTstable-2017-01-03.csv'), None)
-        forecast4 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), None)
-
-        # 'mini' season for testing. from:
-        #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
-        target_to_exp_mae = {'1 wk ahead': 0.215904853,
-                             '2 wk ahead': 0.458186984,
-                             '3 wk ahead': 0.950515864,
-                             '4 wk ahead': 1.482010693}
-        for target, exp_mae in target_to_exp_mae.items():
-            act_mae = mean_absolute_error(self.forecast_model, 2016, 'US National', target,
-                                          wili_for_epi_week_fcn=mock_wili_for_epi_week_fcn)
-            self.assertAlmostEqual(exp_mae, act_mae)
-
-        # clean up
-        forecast2.delete()
-        forecast3.delete()
-        forecast4.delete()
-
-
     def test_forecast_delete(self):
         # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
         self.assertEqual(1, len(self.forecast_model.forecast_set.all()))  # from setUpTestData()
         self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # ""
 
-        forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), None)
+        forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), None)  # no time_zero
         self.assertEqual(2, len(self.forecast_model.forecast_set.all()))  # includes new
         self.assertEqual(8019, len(forecast2.cdcdata_set.all()))  # new
         self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # didn't change

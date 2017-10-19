@@ -13,16 +13,15 @@ from forecast_app.models import Project
 def print_project_info_app():
     projects = Project.objects.all()
     if len(projects) != 0:
-        print('* Projects')
         for project in projects:
-            print("  {}".format(project))
             print_project_info(project)
     else:
         print("<No Projects>")
 
 
 def print_project_info(project):
-    print('*', project, project.name, project.description, project.url, '.', project.config_dict)
+    print('*', project, repr(project.name), repr(project.description), repr(project.url), '.',
+          repr(project.csv_filename), project.config_dict)
     print('** Targets')
     for target in project.target_set.all():
         print('  ', target)

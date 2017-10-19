@@ -9,6 +9,7 @@ from forecast_app.models.project import Project
 from forecast_app.models.project import Target
 from forecast_app.models.project import TimeZero
 
+
 #
 # minimal registration of Models
 #
@@ -31,6 +32,7 @@ class ForecastModelInline(admin.TabularInline):
     readonly_fields = ('admin_link',)
     extra = 0
 
+
     def admin_link(self, instance):
         url = reverse('admin:{}_{}_change'.format(instance._meta.app_label, instance._meta.model_name),
                       args=(instance.id,))
@@ -51,6 +53,8 @@ class TimeZeroInline(admin.TabularInline):
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     inlines = [ForecastModelInline, TargetInline, TimeZeroInline]
+    readonly_fields = ('csv_filename',)
+
 
     def get_form(self, request, obj=None, **kwargs):
         # make the description widget larger
@@ -73,6 +77,7 @@ class ForecastInline(admin.TabularInline):
 class ForecastModelAdmin(admin.ModelAdmin):
     inlines = [ForecastInline]
     fields = ('project', 'name', 'description', 'url', 'auxiliary_data')
+
 
     def get_form(self, request, obj=None, **kwargs):
         # make the description widget larger
