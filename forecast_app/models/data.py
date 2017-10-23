@@ -19,8 +19,7 @@ class ModelWithCDCData(models.Model):
     # todo validate: a subclass of CDCData
     cdc_data_class = None
 
-    csv_filename = models.CharField(max_length=200,
-                                    help_text="Original CSV file name of this forecast's data source")
+    csv_filename = models.CharField(max_length=200, help_text="<overridden by subclasses>")
 
 
     class Meta:

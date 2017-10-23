@@ -222,6 +222,10 @@ class Project(ModelWithCDCData):
                                .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
 
 
+# NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
+Project._meta.get_field('csv_filename').help_text = "CSV file name of this project's template file"
+
+
 #
 # ---- Target class ----
 #

@@ -1,9 +1,9 @@
-# set up django. must be done before loading models. NB: expects DJANGO_SETTINGS_MODULE to be set
+# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 import click
 import django
 
 
-# set up django. must be done before loading models. NB: expects DJANGO_SETTINGS_MODULE to be set
+# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from forecast_app.models import Project

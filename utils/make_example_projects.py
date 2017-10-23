@@ -7,12 +7,35 @@ import os
 from utils.predict_the_disctrict_utils import start_date_for_biweek
 
 
-# set up django. must be done before loading models. NB: expects DJANGO_SETTINGS_MODULE to be set
+# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
 from forecast_app.models.data import ProjectTemplateData, ForecastData
+
+
+CDC_CONFIG_DICT = {
+    "target_to_week_increment": {
+        "1 wk ahead": 1,
+        "2 wk ahead": 2,
+        "3 wk ahead": 3,
+        "4 wk ahead": 4
+    },
+    "location_to_delphi_region": {
+        "US National": "nat",
+        "HHS Region 1": "hhs1",
+        "HHS Region 2": "hhs2",
+        "HHS Region 3": "hhs3",
+        "HHS Region 4": "hhs4",
+        "HHS Region 5": "hhs5",
+        "HHS Region 6": "hhs6",
+        "HHS Region 7": "hhs7",
+        "HHS Region 8": "hhs8",
+        "HHS Region 9": "hhs9",
+        "HHS Region 10": "hhs10"
+    }
+}
 
 
 @click.command()
@@ -21,33 +44,11 @@ def make_example_projects_app():
     for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, ProjectTemplateData, ForecastData]:
         model_class.objects.all().delete()
 
-    config_dict = {
-        "target_to_week_increment": {
-            "1 wk ahead": 1,
-            "2 wk ahead": 2,
-            "3 wk ahead": 3,
-            "4 wk ahead": 4
-        },
-        "location_to_delphi_region": {
-            "US National": "nat",
-            "HHS Region 1": "hhs1",
-            "HHS Region 2": "hhs2",
-            "HHS Region 3": "hhs3",
-            "HHS Region 4": "hhs4",
-            "HHS Region 5": "hhs5",
-            "HHS Region 6": "hhs6",
-            "HHS Region 7": "hhs7",
-            "HHS Region 8": "hhs8",
-            "HHS Region 9": "hhs9",
-            "HHS Region 10": "hhs10"
-        }
-    }
-
     click.echo("* creating CDC Flu challenge project and models...")
-    create_cdc_flu_challenge_project(config_dict)
+    create_cdc_flu_challenge_project(CDC_CONFIG_DICT)
 
     click.echo('* creating Predict the District Challenge project and models...')
-    create_predict_the_district_challenge_project(config_dict)
+    create_predict_the_district_challenge_project(CDC_CONFIG_DICT)
 
     click.echo('* done!')
 

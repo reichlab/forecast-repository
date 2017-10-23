@@ -7,6 +7,7 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
+from forecast_app.tests.test_project import TEST_CONFIG_DICT
 
 
 class ForecastTestCase(TestCase):
@@ -16,28 +17,7 @@ class ForecastTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.config_dict = {
-            "target_to_week_increment": {
-                "1 wk ahead": 1,
-                "2 wk ahead": 2,
-                "3 wk ahead": 3,
-                "4 wk ahead": 4
-            },
-            "location_to_delphi_region": {
-                "US National": "nat",
-                "HHS Region 1": "hhs1",
-                "HHS Region 2": "hhs2",
-                "HHS Region 3": "hhs3",
-                "HHS Region 4": "hhs4",
-                "HHS Region 5": "hhs5",
-                "HHS Region 6": "hhs6",
-                "HHS Region 7": "hhs7",
-                "HHS Region 8": "hhs8",
-                "HHS Region 9": "hhs9",
-                "HHS Region 10": "hhs10"
-            }
-        }
-        cls.project = Project.objects.create(config_dict=cls.config_dict)
+        cls.project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         cls.project.load_template(Path('2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)

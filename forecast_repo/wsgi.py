@@ -10,6 +10,6 @@ https://docs.djangoproject.com/en/1.11/howto/deployment/wsgi/
 from django.core.wsgi import get_wsgi_application
 
 
-# NB: expects DJANGO_SETTINGS_MODULE to be set - see .env for `$ heroku local`, or $ heroku config
+# NB: requires DJANGO_SETTINGS_MODULE to be set - see .env for `$ heroku local`, or $ heroku config
 
 application = get_wsgi_application()
