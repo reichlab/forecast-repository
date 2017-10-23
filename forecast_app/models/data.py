@@ -257,7 +257,10 @@ class CDCData(models.Model):
     class Meta:
         abstract = True
         indexes = [
-            models.Index(fields=['location', 'target', 'row_type', 'unit']),
+            models.Index(fields=['location']),
+            models.Index(fields=['target']),
+            models.Index(fields=['row_type']),
+            models.Index(fields=['unit']),
         ]
 
 

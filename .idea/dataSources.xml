@@ -10,11 +10,14 @@
         <property name="enable_load_extension" value="true" />
       </driver-properties>
     </data-source>
-    <data-source source="LOCAL" name="PostgreSQL - postgres@localhost" uuid="22e194bd-654c-4325-93b0-be0752a3f6c4">
+    <data-source source="LOCAL" name="django@localhost" uuid="3ffed7e7-2e89-458d-956d-b8be1acbd3e5">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql://localhost:5432/django</jdbc-url>
+      <driver-properties>
+        <property name="ApplicationName" value="DataGrip" />
+      </driver-properties>
     </data-source>
   </component>
 </project>

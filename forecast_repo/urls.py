@@ -4,6 +4,7 @@ from django.contrib import admin
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
+    url(r'', include('forecast_app.urls')),
     url(r'^forecasts/', include('forecast_app.urls')),
 ]
 
