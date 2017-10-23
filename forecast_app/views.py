@@ -57,11 +57,11 @@ class ForecastModelDetailView(DetailView):
         context = super(ForecastModelDetailView, self).get_context_data(**kwargs)
         forecast_model = self.get_object()
 
-        # pass a dict that maps Project TimeZeros to corresponding Forecasts this ForecastModel, or None if not found
-        timezero_to_forecast = {}
-        for time_zero in forecast_model.project.timezero_set.all():
-            timezero_to_forecast[time_zero] = forecast_model.forecast_for_time_zero(time_zero)
-        context['timezero_to_forecast'] = timezero_to_forecast
+        # pass a list of 2-tuples of time_zero/forecast pairs for this ForecastModel: (TimeZero, Forecast)
+        timezero_forecast_pairs = []
+        for time_zero in forecast_model.project.timezero_set.all().order_by('timezero_date'):
+            timezero_forecast_pairs.append((time_zero, forecast_model.forecast_for_time_zero(time_zero)))
+        context['timezero_forecast_pairs'] = timezero_forecast_pairs
 
         return context
 

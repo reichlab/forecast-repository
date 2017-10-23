@@ -33,7 +33,7 @@
         </tr>
         </thead>
         <tbody>
-        {% for time_zero, forecast in timezero_to_forecast.items %}
+        {% for time_zero, forecast in timezero_forecast_pairs %}
             <tr>
                 <td>
                     {{ time_zero.timezero_date|date:"Y-m-d" }}
