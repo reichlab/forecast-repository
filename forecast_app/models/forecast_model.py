@@ -11,7 +11,7 @@ class ForecastModel(models.Model):
     Represents a project's model entry by a competing team, including metadata, model-specific auxiliary data beyond
     core data, and a list of the actual forecasts.
     """
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, null=True)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200)
 
@@ -20,7 +20,7 @@ class ForecastModel(models.Model):
 
     url = models.URLField(help_text="The model's development URL")
 
-    auxiliary_data = models.URLField(null=True,
+    auxiliary_data = models.URLField(null=True, blank=True,
                                      help_text="optional model-specific Zip file containing data files (e.g., CSV "
                                                "files) beyond Project.core_data that were used by the this model")
 

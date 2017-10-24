@@ -249,8 +249,8 @@ class CDCData(models.Model):
 
     unit = models.CharField(max_length=200)
 
-    bin_start_incl = models.FloatField(null=True)
-    bin_end_notincl = models.FloatField(null=True)
+    bin_start_incl = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
+    bin_end_notincl = models.FloatField(null=True)  # ""
     value = models.FloatField()
 
 

@@ -14,10 +14,10 @@ class Forecast(ModelWithCDCData):
 
     cdc_data_class = ForecastData  # the CDCData class I'm paired with. used by ModelWithCDCData
 
-    forecast_model = models.ForeignKey(ForecastModel, on_delete=models.CASCADE, null=True)
+    forecast_model = models.ForeignKey(ForecastModel, on_delete=models.CASCADE)
 
     # NB: these TimeZeros must be the exact objects as the ones in my ForecastModel's Project, b/c there is no __eq__()
-    time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE, null=True,
+    time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE,
                                   help_text="TimeZero that this forecast is in relation to")
 
 
