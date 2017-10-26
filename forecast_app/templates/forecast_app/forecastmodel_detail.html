@@ -29,7 +29,9 @@
         <tr>
             <th>TimeZero</th>
             <th>Data Filename</th>
-            <th>Action</th>
+            {% if user.is_authenticated %}
+                <th>Action</th>
+            {% endif %}
         </tr>
         </thead>
         <tbody>
@@ -45,59 +47,61 @@
                         <small>[no data]</small>
                     {% endif %}
                 </td>
-                <td>
-                    {% if forecast %}
-                        {# show a button inside a modal dialog for deleting a forecast #}
+                {% if user.is_authenticated %}
+                    <td>
+                        {% if forecast %}
+                            {# show a button inside a modal dialog for deleting a forecast #}
 
-                        {# delete button - just shows the modal #}
-                        <button type="submit" class="btn btn-danger" data-toggle="modal" data-target="#confirmModal">
-                            <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
-                        </button>
+                            {# delete button - just shows the modal #}
+                            <button type="submit" class="btn btn-danger" data-toggle="modal"
+                                    data-target="#confirmModal">
+                                <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                            </button>
 
-                        {# the modal itself - hidden until above button shows it #}
-                        <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog"
-                             aria-labelledby="titleLabel">
-                            <div class="modal-dialog" role="document">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                            <span aria-hidden="true">&times;</span></button>
-                                        <h4 class="modal-title" id="titleLabel">
-                                            Delete forecast &ldquo;{{ forecast.csv_filename }}&rdquo;?
-                                        </h4>
-                                    </div>
-                                    {# no <div class="modal-body"></div> #}
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-default" data-dismiss="modal">
-                                            Cancel
-                                        </button>
-                                        {# the actual form to delete #}
-                                        <form class="form-inline" style="display: inline-block;" method="POST"
-                                              action="{% url 'delete-forecast' forecast.pk %}">
-                                            {% csrf_token %}
-                                            <button type="submit" class="btn btn-danger">Delete</button>
-                                        </form>
+                            {# the modal itself - hidden until above button shows it #}
+                            <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog"
+                                 aria-labelledby="titleLabel">
+                                <div class="modal-dialog" role="document">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                <span aria-hidden="true">&times;</span></button>
+                                            <h4 class="modal-title" id="titleLabel">
+                                                Delete forecast &ldquo;{{ forecast.csv_filename }}&rdquo;?
+                                            </h4>
+                                        </div>
+                                        {# no <div class="modal-body"></div> #}
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-default" data-dismiss="modal">
+                                                Cancel
+                                            </button>
+                                            {# the actual form to delete #}
+                                            <form class="form-inline" style="display: inline-block;" method="POST"
+                                                  action="{% url 'delete-forecast' forecast.pk %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-danger">Delete</button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    {% else %}
-                        {# show a button for uploading a file #}
-                        {# todo use a proper Django form?, e.g., https://docs.djangoproject.com/en/1.11/topics/http/file-uploads/ #}
-                        <form class="form-inline" method="POST" enctype="multipart/form-data"
-                              action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
-                            {% csrf_token %}
-                            <div class="form-group">
-                                <button class="form-control btn btn-success" type="submit">
-                                    <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
-                                </button>
-                            </div>
-                            <div class="form-group">
-                                <input type="file" name="data_file">
-                            </div>
-                        </form>
-                    {% endif %}
-                </td>
+                        {% else %}
+                            {# show a button for uploading a file #}
+                            {# todo use a proper Django form?, e.g., https://docs.djangoproject.com/en/1.11/topics/http/file-uploads/ #}
+                            <form class="form-inline" method="POST" enctype="multipart/form-data"
+                                  action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <button class="form-control btn btn-success" type="submit">
+                                        <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                                    </button>
+                                </div>
+                                <div class="form-group">
+                                    <input type="file" name="data_file">
+                                </div>
+                            </form>
+                        {% endif %}
+                    </td>{% endif %}
             </tr>
         {% endfor %}
         </tbody>
