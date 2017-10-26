@@ -14,14 +14,16 @@ from forecast_app.models.project import TimeZero
 # minimal registration of Models
 #
 
-# todo admin.site.register(ForecastData) ?
-# admin.site.register(Project)
 admin.site.register(TimeZero)
 admin.site.register(Target)
 
 
-# admin.site.register(ForecastModel)
-# admin.site.register(Forecast)
+#
+# Overall site settings
+#
+
+admin.site.site_header = 'Forecast Repository Admin'
+admin.site.site_title = 'Forecast Repository'
 
 
 #
