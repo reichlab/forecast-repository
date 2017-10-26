@@ -3,7 +3,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project
+from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
 from utils.utilities import filename_components, mean_absolute_error
@@ -37,7 +37,9 @@ class UtilitiesTestCase(TestCase):
         cls.project.load_template(Path('2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date="2017-01-01")
+        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+                                                        cls.time_zero)
 
 
     def test_filename_components(self):
@@ -53,9 +55,12 @@ class UtilitiesTestCase(TestCase):
     def test_mean_absolute_error(self):
         # load other three forecasts from 'ensemble' model. will delete them when done so that other tests don't fail.
         # setUpTestData() has already loaded 'model_error/EW1-KoTstable-2017-01-17.csv'
-        forecast2 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW2-KoTstable-2017-01-23.csv'), None)
-        forecast3 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW51-KoTstable-2017-01-03.csv'), None)
-        forecast4 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), None)
+        forecast2 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW2-KoTstable-2017-01-23.csv'),
+                                                      self.time_zero)
+        forecast3 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW51-KoTstable-2017-01-03.csv'),
+                                                      self.time_zero)
+        forecast4 = self.forecast_model.load_forecast(Path('model_error/ensemble/EW52-KoTstable-2017-01-09.csv'),
+                                                      self.time_zero)
 
         # 'mini' season for testing. from:
         #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:

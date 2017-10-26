@@ -2,7 +2,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project
+from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 
 
@@ -28,6 +28,7 @@ TEST_CONFIG_DICT = {
     }
 }
 
+
 class ProjectTestCase(TestCase):
     """
     """
@@ -39,7 +40,9 @@ class ProjectTestCase(TestCase):
         cls.project.load_template(Path('2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), None)
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date="2017-01-01")
+        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+                                                        cls.time_zero)
 
 
     def test_load_template(self):
@@ -55,7 +58,7 @@ class ProjectTestCase(TestCase):
         # verify load_forecast() fails
         new_forecast_model = ForecastModel.objects.create(project=new_project)
         with self.assertRaises(RuntimeError) as context:
-            new_forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), None)  # no time_zero
+            new_forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
         self.assertIn("Cannot validate forecast data", str(context.exception))
 
 
