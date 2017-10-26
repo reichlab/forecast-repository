@@ -3,7 +3,6 @@ from django.contrib.admin.widgets import AdminTextareaWidget
 from django.urls import reverse
 from django.utils.html import format_html
 
-from forecast_app.models.data import ProjectTemplateData, ForecastData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.project import Project
@@ -40,7 +39,10 @@ class ForecastModelInline(admin.TabularInline):
     def admin_link(self, instance):
         url = reverse('admin:{}_{}_change'.format(instance._meta.app_label, instance._meta.model_name),
                       args=(instance.id,))
-        return format_html('<a href="{}">{}</a>', url, str(instance))
+        return format_html('<a href="{}">Link</a>', url)
+
+
+    admin_link.short_description = 'admin'
 
 
 class TargetInline(admin.TabularInline):
@@ -63,9 +65,26 @@ class ProjectAdmin(admin.ModelAdmin):
 
     inlines = [ForecastModelInline, TargetInline, TimeZeroInline]
 
-    readonly_fields = ('csv_filename',)
+    readonly_fields = ('csv_filename_and_form',)
 
     list_display = ('name', 'truncated_description', 'num_models', 'num_forecasts', 'num_rows')
+
+    fields = ('name', 'description', 'url', 'core_data', 'config_dict', 'csv_filename_and_form')
+
+
+    def csv_filename_and_form(self, project):
+        # todo use a proper Django form
+
+        # return format_html('{} <button>Delete</button>', project.csv_filename) if project.csv_filename \
+        #     else format_html('<small>[no template]</small> <button>Upload</button>')
+
+        return format_html(
+            format_html('{} <form><button>Preview</button> <button>Delete</button></form>', project.csv_filename)
+            if project.csv_filename else
+            format_html('<small>[no template]</small> <form><input type="file"> <button>Upload</button></form></form>'))
+
+
+    csv_filename_and_form.short_description = 'csv template'
 
 
     def truncated_description(self, project):
@@ -99,7 +118,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
     def get_form(self, request, project=None, **kwargs):
         # make the description widget larger
-        form = super(ProjectAdmin, self).get_form(request, project, **kwargs)
+        form = super().get_form(request, project, **kwargs)
         form.base_fields['description'].widget = AdminTextareaWidget()
         return form
 
@@ -122,7 +141,7 @@ class ForecastModelAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, **kwargs):
         # make the description widget larger
-        form = super(ForecastModelAdmin, self).get_form(request, obj, **kwargs)
+        form = super().get_form(request, obj, **kwargs)
         form.base_fields['description'].widget = AdminTextareaWidget()
         return form
 

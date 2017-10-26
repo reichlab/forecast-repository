@@ -20,9 +20,9 @@
             {% for project in projects %}
                 <li><strong><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></strong>:
                     {{ project.description }}
-                    <em>({{ project.get_summary_counts.0 }} models,
-                        {{ project.get_summary_counts.1 }} forecasts,
-                        {{ project.get_summary_counts.2|intcomma }} rows.)
+                    <em>(<strong>{{ project.get_summary_counts.0 }}</strong> models,
+                        <strong>{{ project.get_summary_counts.1 }}</strong> forecasts,
+                        <strong>{{ project.get_summary_counts.2|intcomma }}</strong> rows.)
                     </em>
                 </li>
             {% endfor %}

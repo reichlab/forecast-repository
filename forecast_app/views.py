@@ -54,7 +54,7 @@ class ForecastModelDetailView(DetailView):
 
 
     def get_context_data(self, **kwargs):
-        context = super(ForecastModelDetailView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         forecast_model = self.get_object()
 
         # pass a list of 2-tuples of time_zero/forecast pairs for this ForecastModel: (TimeZero, Forecast)

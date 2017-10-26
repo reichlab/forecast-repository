@@ -61,7 +61,7 @@ class Project(ModelWithCDCData):
                 or ('location_to_delphi_region' not in self.config_dict):
             raise RuntimeError("config_dict did not contain both required keys: 'target_to_week_increment' and "
                                "'location_to_delphi_region': {}".format(self.config_dict))
-        super(Project, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
     def get_absolute_url(self):
