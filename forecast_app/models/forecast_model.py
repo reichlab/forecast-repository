@@ -20,9 +20,10 @@ class ForecastModel(models.Model):
 
     url = models.URLField(help_text="The model's development URL")
 
-    auxiliary_data = models.URLField(null=True, blank=True,
-                                     help_text="optional model-specific Zip file containing data files (e.g., CSV "
-                                               "files) beyond Project.core_data that were used by the this model")
+    auxiliary_data = models.URLField(
+        null=True, blank=True,
+        help_text="Optional model-specific directory or Zip file containing data files (e.g., CSV files) beyond "
+                  "Project.core_data that were used by this model.")
 
 
     def __repr__(self):

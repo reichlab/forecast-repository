@@ -33,6 +33,7 @@ class ForecastModelInline(admin.TabularInline):
     model = ForecastModel
     fields = ('name', 'description', 'admin_link')
     readonly_fields = ('admin_link',)
+    classes = ('collapse',)
     extra = 0
 
 
@@ -44,12 +45,14 @@ class ForecastModelInline(admin.TabularInline):
 
 class TargetInline(admin.TabularInline):
     model = Target
+    classes = ('collapse',)
     extra = 1
 
 
 class TimeZeroInline(admin.TabularInline):
     model = TimeZero
     ordering = ('timezero_date',)
+    classes = ('collapse',)
     extra = 0
 
 

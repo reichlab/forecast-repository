@@ -30,9 +30,9 @@ class Project(ModelWithCDCData):
 
     url = models.URLField(help_text="The project's site")
 
-    core_data = models.URLField(help_text="Zip file containing data files (e.g., CSV files) made made available to "
-                                          "everyone in the challenge, including supplemental data like Google "
-                                          "queries or weather")
+    core_data = models.URLField(
+        help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "\
+                  "the challenge, including supplemental data like Google queries or weather.")
 
     # config_dict: specifies project-specific information with these keys:
     #  - 'target_to_week_increment': a dict that maps week-related target names to ints, such as '1 wk ahead' -> 1 .
@@ -236,7 +236,7 @@ class Project(ModelWithCDCData):
 
 
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
-Project._meta.get_field('csv_filename').help_text = "CSV file name of this project's template file"
+Project._meta.get_field('csv_filename').help_text = "CSV file name of this project's template file."
 
 
 #
