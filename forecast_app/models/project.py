@@ -5,7 +5,7 @@ from django.db import models, transaction
 from django.urls import reverse
 from jsonfield import JSONField
 
-from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData
+from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData
 from utils.utilities import basic_str
 
 
@@ -68,11 +68,17 @@ class Project(ModelWithCDCData):
         return reverse('project-detail', args=[str(self.id)])
 
 
-    def get_week_increment_for_target_name(self, target_name):
+    def get_summary_counts(self):
         """
-        :return: returns an incremented week value based on the future specified by target_name
+        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
         """
-        return self.config_dict['target_to_week_increment'][target_name]
+        from .forecast import Forecast  # avoid circular imports
+        from .forecast_model import ForecastModel  # ""
+
+
+        return ForecastModel.objects.filter(project=self).count(), \
+               Forecast.objects.filter(forecast_model__project=self).count(), \
+               ForecastData.objects.filter(forecast__forecast_model__project=self).count()
 
 
     def get_region_for_location_name(self, location_name):
@@ -89,6 +95,13 @@ class Project(ModelWithCDCData):
         week-relative (?) ones
         """
         return list(self.config_dict['target_to_week_increment'].keys())
+
+
+    def get_week_increment_for_target_name(self, target_name):
+        """
+        :return: returns an incremented week value based on the future specified by target_name
+        """
+        return self.config_dict['target_to_week_increment'][target_name]
 
 
     @transaction.atomic

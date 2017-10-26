@@ -31,6 +31,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # add-ons
+    'django.contrib.humanize',
+
     # this application
     'forecast_app.apps.ForecastAppConfig',
 ]

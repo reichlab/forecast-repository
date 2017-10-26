@@ -3,6 +3,7 @@ from django.contrib.admin.widgets import AdminTextareaWidget
 from django.urls import reverse
 from django.utils.html import format_html
 
+from forecast_app.models.data import ProjectTemplateData, ForecastData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.project import Project
@@ -18,6 +19,8 @@ from forecast_app.models.project import TimeZero
 # admin.site.register(Project)
 admin.site.register(TimeZero)
 admin.site.register(Target)
+
+
 # admin.site.register(ForecastModel)
 # admin.site.register(Forecast)
 
@@ -52,13 +55,48 @@ class TimeZeroInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
+    """
+    """
+
     inlines = [ForecastModelInline, TargetInline, TimeZeroInline]
+
     readonly_fields = ('csv_filename',)
 
+    list_display = ('name', 'truncated_description', 'num_models', 'num_forecasts', 'num_rows')
 
-    def get_form(self, request, obj=None, **kwargs):
+
+    def truncated_description(self, project):
+        max_descr_len = 60
+        return project.description[:max_descr_len] + ('...' if len(project.description) > max_descr_len else '')
+
+
+    truncated_description.short_description = 'description'
+
+
+    def num_models(self, project):
+        return project.get_summary_counts()[0]
+
+
+    num_models.short_description = 'models'
+
+
+    def num_forecasts(self, project):
+        return project.get_summary_counts()[1]
+
+
+    num_forecasts.short_description = 'forecasts'
+
+
+    def num_rows(self, project):
+        return "{:,}".format(project.get_summary_counts()[2])
+
+
+    num_rows.short_description = 'rows'
+
+
+    def get_form(self, request, project=None, **kwargs):
         # make the description widget larger
-        form = super(ProjectAdmin, self).get_form(request, obj, **kwargs)
+        form = super(ProjectAdmin, self).get_form(request, project, **kwargs)
         form.base_fields['description'].widget = AdminTextareaWidget()
         return form
 
