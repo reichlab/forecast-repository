@@ -16,7 +16,7 @@
 
 <body>
 
-<nav class="navbar navbar-inverse navbar-fixed-top">
+<nav class="navbar navbar-default navbar-fixed-top">
     <div class="container">
         <div class="navbar-header">
             <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar"
@@ -28,22 +28,69 @@
             </button>
             <a class="navbar-brand" href="{% url 'index' %}">Forecast Repository</a>
         </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
         <div id="navbar" class="collapse navbar-collapse">
+
+            <!-- Left-justified items, currently none, beyond the brand above. -->
             <ul class="nav navbar-nav">
-                <li><a href="{% url 'about' %}">About</a></li>
             </ul>
-            <ul class="nav navbar-nav pull-right">
-                <li>
-                    {% if user.is_authenticated %}
-                        <a href="{% url 'admin:index' %}"><em>{{ user }}</em> (click to admin)</a>
-                    {% else %}
-                        <a href="{% url 'admin:login' %}"><em>Guest</em> (click to log in)</a>
-                    {% endif %}
+
+            <!-- Right-justified items. Regarding classes, the ones from the docs ( "nav navbar-nav navbar-right" ) work,
+                 but result in their being hard-justified on the right with no padding. I was able to add padding using
+                "nav navbar-nav pull-right" to add padding on the right, but the items are also on the right in the
+                collapsed hamburger. Also, dropdowns were off the screen to the right. So for now we live with the former.
+            -->
+            <ul class="nav navbar-nav navbar-right">
+
+                <!-- user dropdown -->
+                {% if user.is_authenticated %}
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                           aria-expanded="false">
+                            <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li class="dropdown-header">Account</li>
+                            <li class="disabled"><a href="#">Signed in as <strong>{{ user }}</strong></a></li>
+                            <li><a href="{% url 'admin:index' %}">Admin site</a></li>
+                            <li role="separator" class="divider"></li>
+                            <li><a href="{% url 'admin:logout' %}">Sign out</a></li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <!-- todo https://www.google.com/search?q=bootstrap+navbar+two+links+together -->
+                    <li><a href="{% url 'admin:login' %}">Sign in</a></li>
+                    <li class="disabled"><a href="#">or</a></li>
+                    <li class="disabled"><a href="#">Sign up</a></li>  {# {% url 'sign-up' %} #}
+                {% endif %}
+
+                <!-- help dropdown -->
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                       aria-expanded="false">
+                        <span class="glyphicon glyphicon-question-sign" aria-hidden="true"></span>
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li class="dropdown-header">Help</li>
+                        <li><a href="{% url 'about' %}">About</a></li>
+                        {% comment %}
+                    <li><a href="#">Getting Started</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#">Plans</a></li>
+                    <li role="separator" class="divider"></li>
+                    <li><a href="#">Privacy</a></li>
+                    {% endcomment %}
+                    </ul>
                 </li>
             </ul>
+
         </div>
     </div>
 </nav>
+
 
 <div class="container">
     <div class="row">

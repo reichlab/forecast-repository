@@ -10,12 +10,9 @@ from forecast_app.models.project import Target
 from forecast_app.models.project import TimeZero
 
 
-#
-# minimal registration of Models
-#
-
-admin.site.register(TimeZero)
-admin.site.register(Target)
+# administered via owning Project inlines:
+#   admin.site.register(TimeZero)
+#   admin.site.register(Target)
 
 
 #
@@ -35,7 +32,7 @@ class ForecastModelInline(admin.TabularInline):
     fields = ('name', 'description', 'admin_link')
     readonly_fields = ('admin_link',)
     classes = ('collapse',)
-    extra = 0
+    extra = 1
 
 
     def admin_link(self, instance):
@@ -57,7 +54,7 @@ class TimeZeroInline(admin.TabularInline):
     model = TimeZero
     ordering = ('timezero_date',)
     classes = ('collapse',)
-    extra = 0
+    extra = 1
 
 
 @admin.register(Project)

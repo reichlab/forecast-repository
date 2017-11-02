@@ -6,10 +6,11 @@
 
     <h1>Forecast Repository Home</h1>
 
-    <p>Welcome to <em>Forecast Repository</em>, a Django website to prototype our ideas at
-        <a href="http://reichlab.io/">Nicholas Reich's lab</a> to create a repository of model forecast results along
-        with tools to compare, etc. The main ideas are outlined on the <a href="{% url 'about' %}">About</a> page.
-        You can administer the site <a href="{% url 'admin:index' %}">here</a>.
+    <p>
+        <img width="50%" src="http://reichlab.io/images/blog/flusight-wide.png" class="pull-right">
+        Welcome to the <a href="http://reichlab.io/">Reichlab</a> <em>Forecast Repository</em>, a web application to
+        prototype our ideas for a repository of model forecast results along with tools to compare, etc. The main
+        ideas are outlined on the <a href="{% url 'about' %}">About</a> page.
     </p>
 
     <h3>Projects</h3>
@@ -20,10 +21,10 @@
             {% for project in projects %}
                 <li><strong><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></strong>:
                     {{ project.description }}
-                    <em>(<strong>{{ project.get_summary_counts.0 }}</strong> models,
-                        <strong>{{ project.get_summary_counts.1 }}</strong> forecasts,
-                        <strong>{{ project.get_summary_counts.2|intcomma }}</strong> rows.)
-                    </em>
+                    <span class="text-muted">({{ project.get_summary_counts.0 }} models,
+                         {{ project.get_summary_counts.1 }} forecasts,
+                         {{ project.get_summary_counts.2|intcomma }} rows)
+                    </span>
                 </li>
             {% endfor %}
         </ul>
