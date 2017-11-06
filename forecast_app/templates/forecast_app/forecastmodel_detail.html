@@ -11,14 +11,14 @@
         {% if forecastmodel.url %}
             <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a>
         {% else %}
-            <small>[no URL]</small>
+            <small class="text-muted">(no URL)</small>
         {% endif %}
     </p>
     <p><strong>Auxiliary data</strong>:
         {% if forecastmodel.auxiliary_data %}
             <a href="{{ forecastmodel.auxiliary_data }}">{{ forecastmodel.auxiliary_data }}</a>  {# todo #}
         {% else %}
-            <small>[no auxiliary data]</small>
+            <small class="text-muted">(no auxiliary data)</small>
         {% endif %}
     </p>
 
@@ -44,7 +44,7 @@
                     {% if forecast %}
                         <a href="{{ forecast.get_absolute_url }}">{{ forecast.csv_filename }}</a>
                     {% else %}
-                        <small>[no data]</small>
+                        <small class="text-muted">(no data)</small>
                     {% endif %}
                 </td>
                 {% if user.is_authenticated %}

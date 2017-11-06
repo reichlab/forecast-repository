@@ -56,15 +56,10 @@ fabric.properties
 .idea/shelf/
 .idea/sqldialects.xml
 db.sqlite3
-forecast_app/.DS_Store
 forecast_app/__pycache__/
 forecast_app/migrations/__pycache__/
 forecast_app/models/__pycache__/
-forecast_app/tests/.DS_Store
 forecast_app/tests/__pycache__/
-forecast_app/tests/model_error/.DS_Store
-forecast_app/tests/model_error/ensemble/.DS_Store
-forecast_app/tests/model_error/kde/.DS_Store
 forecast_repo/__pycache__/
 forecast_repo/settings/__pycache__/
 tmp/

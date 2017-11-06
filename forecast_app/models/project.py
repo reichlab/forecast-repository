@@ -1,6 +1,7 @@
 import itertools
 import math
 
+from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.urls import reverse
 from jsonfield import JSONField
@@ -19,6 +20,8 @@ class Project(ModelWithCDCData):
     NB: The inheritied 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
     was loaded - see is_template_loaded().
     """
+
+    owner = models.ForeignKey(User, blank=True, null=True, help_text="The project's owner.")
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 

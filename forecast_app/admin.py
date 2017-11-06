@@ -66,21 +66,21 @@ class ProjectAdmin(admin.ModelAdmin):
 
     readonly_fields = ('csv_filename_and_form',)
 
-    list_display = ('name', 'truncated_description', 'num_models', 'num_forecasts', 'num_rows')
+    list_display = ('name', 'owner', 'truncated_description', 'num_models', 'num_forecasts', 'num_rows')
 
-    fields = ('name', 'description', 'url', 'core_data', 'config_dict', 'csv_filename_and_form')
+    fields = ('owner', 'name', 'description', 'url', 'core_data', 'config_dict', 'csv_filename_and_form')
 
 
     def csv_filename_and_form(self, project):
         # todo use a proper Django form
 
         # return format_html('{} <button>Delete</button>', project.csv_filename) if project.csv_filename \
-        #     else format_html('<small>[no template]</small> <button>Upload</button>')
+        #     else format_html('<small class="text-muted">[no template]</small> <button>Upload</button>')
 
         return format_html(
             format_html('{} <form><button>Preview</button> <button>Delete</button></form>', project.csv_filename)
             if project.csv_filename else
-            format_html('<small>[no template]</small> <form><input type="file"> <button>Upload</button></form></form>'))
+            format_html('<small class="text-muted">[no template]</small> <form><input type="file"> <button>Upload</button></form></form>'))
 
 
     csv_filename_and_form.short_description = 'csv template'

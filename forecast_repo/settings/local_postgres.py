@@ -6,7 +6,7 @@ DEBUG = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'django',
+        'NAME': 'forecast_repo',
         'USER': 'cornell',
         'PASSWORD': '',
         'HOST': '127.0.0.1',
