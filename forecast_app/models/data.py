@@ -1,5 +1,5 @@
 import csv
-from collections import OrderedDict
+from itertools import groupby
 
 from django.db import models, connection
 
@@ -210,19 +210,51 @@ class ModelWithCDCData(models.Model):
 
     def get_location_target_dict(self):
         """
+        Returns all of my data as a dict. Suitable for serializing to JSON. Also useful as an in-memory cache, as an
+        alternative to more granular SQL queries - see get_locations() and get_target_*() methods above, which end up
+        having a lot of overhead when processing bins.
+
         :return: all my data in hierarchical format as a dict of the form:
 
-            return val: {location1: target_dict_1, ...}
-                target_dict: {target1: {'point': point_val, 'bins': bin_list}}
-                    bin_list: [[bin_start_incl1, bin_end_notincl1, value1], ...]
+            {location1: target_dict_1, location2: target_dict_2, ...}
+
+            where each target_dict is of the form:
+
+            {target1: {'unit': unit1, 'point': point_val1, 'bins': bin_list1},
+             target2: {'unit': unit2, 'point': point_val2, 'bins': bin_list2},
+             ...
+            }
+
+            where each bin_list is like:
+
+            [[bin_start_incl1, bin_end_notincl1, value1],  # values only if include_values
+             [bin_start_incl2, bin_end_notincl2, value2],  # ""
+             ...
+            ]
+
+        NB: For performance, instead of using data accessors like self.get_locations() and self.get_target_bins(), we
+        load all rows into memory and then iterate over them there.
         """
-        location_target_dict = OrderedDict()
-        for location in sorted(self.get_locations()):
-            target_dict = OrderedDict()
-            for target in sorted(self.get_targets(location)):
-                point_value = self.get_target_point_value(location, target)
-                bins = self.get_target_bins(location, target)
-                target_dict[target] = {'point': point_value, 'bins': bins}
+
+        sql = """
+            SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s
+            ORDER BY location, target, row_type DESC;
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [self.pk])
+            rows = cursor.fetchall()
+
+        location_target_dict = {}
+        for location, location_grouper in groupby(rows, key=lambda _: _[0]):
+            target_dict = {}
+            for target, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
+                point_row = next(target_grouper)  # the first row is always the 'p' point value, thanks to ORDER BY
+                target_dict[target] = {'unit': point_row[3],
+                                       'point': point_row[-1],
+                                       'bins': [bin_list[-3:] for bin_list in target_grouper]}
             location_target_dict[location] = target_dict
         return location_target_dict
 

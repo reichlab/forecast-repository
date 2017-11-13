@@ -70,7 +70,18 @@ gunicorn -w 4 -b 127.0.0.1:8001 --settings=forecast_repo.settings.local_sqlite3
 - Bootstrap: download locally-stored libs? bootstrap.min.css , jquery.min.js , and bootstrap.min.js
 
 
-## admin
-- Project: ForecastModels inline: while ForecastModelAdminLinkInline does work, each instance's __str__() is still
-  displayed, which is redundant with the link text. maybe: https://stackoverflow.com/questions/5086537/how-to-omit-object-name-from-djangos-tabularinline-admin-view
-
+## admin changes to make:
+- Admin home: /admin/ :
+  - shows Project list: /admin/forecast_app/project/ :
+- Project list:
+  - show only current user's projects, unless superuser
+- Project detail:
+  - Add/Edit Project: Project.owner forced to current user, unless superuser
+  - template field: if template loaded: shows template *.csv name & Delete button. o/w shows '-' & Add button -> form:
+- Project > Upload Template form: File input field, Upload and Cancel buttons -> Project.load_template()
+- ForecastModel detail:
+  - Forecast inline fields: TimeZero, Forecast, Action. latter two: if data loaded: shows template *.csv name (as a link
+    to Forecast detail) & Delete button. o/w shows '-' & Add button -> form:
+- ForecastModel > Upload Forecast form: File input field, Upload and Cancel buttons -> ForecastModel.load_forecast()
+- Forecast detail:
+  - all fields read-only. additionally: some kinds of visualizations or report?

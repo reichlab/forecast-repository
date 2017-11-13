@@ -15,7 +15,7 @@ class ForecastModel(models.Model):
 
     name = models.CharField(max_length=200)
 
-    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. should include "
+    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. Should include "
                                                               "information on reproducing the model’s results")
 
     url = models.URLField(help_text="The model's development URL")
@@ -23,7 +23,7 @@ class ForecastModel(models.Model):
     auxiliary_data = models.URLField(
         null=True, blank=True,
         help_text="Optional model-specific directory or Zip file containing data files (e.g., CSV files) beyond "
-                  "Project.core_data that were used by this model.")
+                  "Project.core_data that were used by this model")
 
 
     def __repr__(self):

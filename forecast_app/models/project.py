@@ -21,7 +21,7 @@ class Project(ModelWithCDCData):
     was loaded - see is_template_loaded().
     """
 
-    owner = models.ForeignKey(User, blank=True, null=True, help_text="The project's owner.")
+    owner = models.ForeignKey(User, blank=True, null=True, help_text="The project's owner")
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 
@@ -34,8 +34,8 @@ class Project(ModelWithCDCData):
     url = models.URLField(help_text="The project's site")
 
     core_data = models.URLField(
-        help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "\
-                  "the challenge, including supplemental data like Google queries or weather.")
+        help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in " \
+                  "the challenge, including supplemental data like Google queries or weather")
 
     # config_dict: specifies project-specific information with these keys:
     #  - 'target_to_week_increment': a dict that maps week-related target names to ints, such as '1 wk ahead' -> 1 .
@@ -44,7 +44,7 @@ class Project(ModelWithCDCData):
     #     delphi_wili_for_epi_week()
     config_dict = JSONField(help_text="JSON dict containing these two keys, each of which is a dict: "
                                       "'target_to_week_increment' and 'location_to_delphi_region'. Please see "
-                                      "documentation for details.")
+                                      "documentation for details")
 
 
     def __repr__(self):
@@ -133,16 +133,23 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
                                "forecast={}".format(forecast.csv_filename, self, forecast))
 
-        template_locations = self.get_locations()
-        forecast_locations = forecast.get_locations()
+        # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
+        # lookup b/c get_target_bins() was slow
+        template_location_dicts = self.get_location_target_dict()
+        forecast_location_dicts = forecast.get_location_target_dict()
+
+        template_locations = list(template_location_dicts.keys())
+        forecast_locations = list(forecast_location_dicts.keys())
         if template_locations != forecast_locations:
             raise RuntimeError("Locations did not match template. csv_filename={}, template_locations={}, "
                                "forecast_locations={}"
                                .format(forecast.csv_filename, template_locations, forecast_locations))
 
         for template_location in template_locations:
-            template_targets = self.get_targets(template_location)
-            forecast_targets = forecast.get_targets(template_location)
+            template_target_dicts = template_location_dicts[template_location]
+            forecast_target_dicts = forecast_location_dicts[template_location]
+            template_targets = list(template_target_dicts.keys())
+            forecast_targets = list(forecast_target_dicts.keys())
             if template_targets != forecast_targets:
                 raise RuntimeError("Targets did not match template. csv_filename={}, template_location={},"
                                    " template_targets={}, forecast_targets={}"
@@ -150,24 +157,26 @@ class Project(ModelWithCDCData):
                                            forecast_targets))
 
             for template_target in template_targets:
-                template_bins = self.get_target_bins(template_location, template_target, include_values=False)
-                forecast_bins = forecast.get_target_bins(template_location, template_target, include_values=False)
+                template_bins = template_target_dicts[template_target]['bins']
+                forecast_bins = forecast_target_dicts[template_target]['bins']
 
                 # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
-                template_bins = sorted(template_bins, key=lambda x: (x[0] is None or x[1] is None, x))
-                forecast_bins = sorted(forecast_bins, key=lambda x: (x[0] is None or x[1] is None, x))
+                template_bins_sorted = sorted([b[:2] for b in template_bins],
+                                              key=lambda x: (x[0] is None or x[1] is None, x))
+                forecast_bins_sorted = sorted([b[:2] for b in forecast_bins],
+                                              key=lambda x: (x[0] is None or x[1] is None, x))
 
-                if template_bins != forecast_bins:
+                if template_bins_sorted != forecast_bins_sorted:
                     raise RuntimeError("Bins did not match template. csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, "
                                        "# forecast_bins={}"
                                        .format(forecast.csv_filename, template_location, template_target,
                                                len(template_bins), len(forecast_bins)))
 
-                forecast_bin_sum = forecast.get_target_bin_sum(template_location, template_target)
-                # note that the default of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
+                # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
                 # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
                 # (0.9300285798758262 -> 0.07 fixed it)
+                forecast_bin_sum = sum([b[-1] for b in forecast_bins])
                 if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):
                     raise RuntimeError("Bin did not sum to 1.0. csv_filename={}, "
                                        "template_location={}, template_target={}, forecast_bin_sum={}"
@@ -176,8 +185,8 @@ class Project(ModelWithCDCData):
 
                 # test unit. recall that get_target_unit() arbitrarily uses the point row's unit. this means that the
                 # following test also handles when a point line is missing as well
-                template_unit = self.get_target_unit(template_location, template_target)
-                forecast_unit = forecast.get_target_unit(template_location, template_target)
+                template_unit = template_target_dicts[template_target]['unit']
+                forecast_unit = forecast_target_dicts[template_target]['unit']
                 if (not forecast_unit) or (template_unit != forecast_unit):
                     raise RuntimeError("Target unit not found or didn't match template. csv_filename={}, "
                                        "template_location={}, template_target={}, template_unit={}, forecast_unit={}"
@@ -185,6 +194,7 @@ class Project(ModelWithCDCData):
                                                template_unit, forecast_unit))
 
 
+    # todo xx optimize like done in validate_forecast_data():
     def validate_template_data(self):
         """
         Validates my template's structure. Raises RuntimeError if any tests fail. Note that basic structure is tested in
@@ -284,7 +294,7 @@ class TimeZero(models.Model):
 
     data_version_date = models.DateField(
         null=True, blank=True,
-        help_text="the database date at which models should work with for the timezero_date")  # nullable
+        help_text="The optional database date at which models should work with for the timezero_date")  # nullable
 
 
     def __repr__(self):
