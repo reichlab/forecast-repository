@@ -1,4 +1,5 @@
 import datetime
+import timeit
 from pathlib import Path
 
 import click
@@ -47,7 +48,9 @@ def temp_app():
 
     template_path = Path('forecast_app/tests/2016-2017_submission_template.csv')
     click.echo("loading template into project={}, template_path={}".format(project, template_path))
+    start_time = timeit.default_timer()
     project.load_template(template_path)
+    click.echo("  loaded template: {}. {}".format(project.csv_filename, timeit.default_timer() - start_time))
 
     click.echo("creating ForecastModel")
     forecast_model = ForecastModel.objects.create(project=project,
@@ -57,9 +60,9 @@ def temp_app():
 
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
     click.echo("loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model, csv_file_path))
-
+    start_time = timeit.default_timer()
     forecast = forecast_model.load_forecast(csv_file_path, tz_today)
-    click.echo("loaded forecast={}".format(forecast))
+    click.echo("  loaded forecast={}. {}".format(forecast, timeit.default_timer() - start_time))
 
     click.echo("done!")
 

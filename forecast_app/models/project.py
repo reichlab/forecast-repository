@@ -194,46 +194,39 @@ class Project(ModelWithCDCData):
                                                template_unit, forecast_unit))
 
 
-    # todo xx optimize like done in validate_forecast_data():
     def validate_template_data(self):
         """
         Validates my template's structure. Raises RuntimeError if any tests fail. Note that basic structure is tested in
         load_csv_data(). Also note that validate_forecast_data() does not test the following because it compares against
         a validated template, thus 'inheriting' these validations due to equality testing.
         """
-        template_locations = self.get_locations()
+        # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
+        # lookup b/c get_target_bins() was slow
+        template_location_dicts = self.get_location_target_dict()
+        template_locations = list(template_location_dicts.keys())
         if not template_locations:
             raise RuntimeError("Template has no locations. csv_filename={}".format(self.csv_filename))
 
         location_template_pairs = set()  # 2-tuples used for testing targets existing in every location
         found_targets = set()  # also used for ""
         for template_location in template_locations:
-            template_targets = self.get_targets(template_location)
+            template_target_dicts = template_location_dicts[template_location]
+            template_targets = list(template_target_dicts.keys())
             for template_target in template_targets:
                 location_template_pairs.add((template_location, template_target))
                 found_targets.add(template_target)
-                if not self.get_target_point_value(template_location, template_target):
+                if not template_target_dicts[template_target]['point']:
                     raise RuntimeError("Target has no point value. csv_filename={}, template_location={}, "
                                        "template_target={}"
                                        .format(self.csv_filename, template_location, template_target))
 
-                template_bins = self.get_target_bins(template_location, template_target,
-                                                     include_values=False, include_unit=True)
+                template_bins = template_target_dicts[template_target]['bins']
                 if not template_bins:
                     raise RuntimeError("Target has no bins. csv_filename={}, template_location={}, "
                                        "template_target={}"
                                        .format(self.csv_filename, template_location, template_target))
 
-                template_unit = self.get_target_unit(template_location, template_target)
-                for template_bin in template_bins:
-                    bin_unit = template_bin[2]
-                    if template_unit != bin_unit:
-                        raise RuntimeError("Target point and bin have different unit. csv_filename={}, "
-                                           "template_location={}, template_target={}, template_unit={}, bin_unit={}"
-                                           .format(self.csv_filename, template_location, template_target, template_unit,
-                                                   bin_unit))
-
-                template_bin_sum = self.get_target_bin_sum(template_location, template_target)
+                template_bin_sum = sum([b[-1] for b in template_bins])
                 # note that the default of 1e-09 failed for 2016-2017_submission_template.csv
                 if not math.isclose(1.0, template_bin_sum, rel_tol=1e-07):
                     raise RuntimeError("Bin did not sum to 1.0. csv_filename={}, template_location={}, "

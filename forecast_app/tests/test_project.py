@@ -82,11 +82,6 @@ class ProjectTestCase(TestCase):
             new_project.load_template(Path('EW1-target-no-bins-2017-01-17.csv'))
         self.assertIn("Target has no bins", str(context.exception))
 
-        # a target whose point and bin don't all have the same unit
-        with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('EW1-target-point-bin-dont-match-2017-01-17.csv'))
-        self.assertIn("Target point and bin have different unit", str(context.exception))
-
         # a target that's not in every location
         with self.assertRaises(RuntimeError) as context:
             new_project.load_template(Path('EW1-target-missing-from-location-2017-01-17.csv'))
