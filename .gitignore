@@ -45,10 +45,14 @@ atlassian-ide-plugin.xml
 # Cursive Clojure plugin
 .idea/replstate.xml
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
 # Crashlytics plugin (for Android Studio and IntelliJ)
 com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
+
 fabric.properties
 .DS_Store
 .idea/codeStyleSettings.xml
@@ -56,12 +60,4 @@ fabric.properties
 .idea/shelf/
 .idea/sqldialects.xml
 db.sqlite3
-forecast_app/__pycache__/
-forecast_app/migrations/__pycache__/
-forecast_app/models/__pycache__/
-forecast_app/tests/__pycache__/
-forecast_repo/__pycache__/
-forecast_repo/settings/__pycache__/
 tmp/
-utils/__pycache__/
-utils/temp.py

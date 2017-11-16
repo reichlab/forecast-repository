@@ -1,10 +1,8 @@
+import os
 from pathlib import Path
 
 import click
 import django
-import os
-
-from utils.predict_the_disctrict_utils import start_date_for_biweek
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
@@ -46,9 +44,6 @@ def make_example_projects_app():
 
     click.echo("* creating CDC Flu challenge project and models...")
     create_cdc_flu_challenge_project(CDC_CONFIG_DICT)
-
-    click.echo('* creating Predict the District Challenge project and models...')
-    create_predict_the_district_challenge_project(CDC_CONFIG_DICT)
 
     click.echo('* done!')
 
@@ -137,63 +132,6 @@ def create_cdc_flu_challenge_project(config_dict):
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
     add_kot_forecasts_to_model(forecast_model, 'sarima')
-
-
-def create_predict_the_district_challenge_project(config_dict):
-    project = Project.objects.create(
-        name='Predict the District Challenge',
-        description="A Reich Lab challenge of predicting dengue fever in Thailand at the district level.",
-        url='http://reichlab.io/guidelines.html',
-        core_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde',
-        config_dict=config_dict)
-    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-    TEN_BIWEEK_DESCR = "The number of reported cases in each of the following 10 biweeks. If data is observed through " \
-                       "time t then forecasts for times t+1, …, t+10 will be handed in. If time t falls within 10 " \
-                       "biweeks of the end of the calendar year, still, the forecast should include 10 biweeks into the " \
-                       "future."
-    # todo use exact target names to match data files' 'Target' columns:
-    TEN_BIWEEK_TARGETS = [('{} wk ahead'.format(biweek_num + 1), TEN_BIWEEK_DESCR) for biweek_num in range(10)]
-    for target_name, descr in TEN_BIWEEK_TARGETS + [
-        ('Year Total',
-         "The total number of reported cases for that calendar year. Unlike the biweekly incidence targets, this target "
-         "is a single scalar value; the target does not change throughout the year."),
-        ('Peak Incidence per Biweek',
-         "Peak number of reported cases in a single biweek for that calendar year. Unlike the biweekly incidence targets, "
-         "this target is a single scalar value; the target does not change throughout the year."),
-        ('Biweek with Peak Incidence',
-         "The biweek in which the peak incidence will occur. This is the only target whose set of units are not based on "
-         "case incidence. The predictive distribution here is a discrete distribution that can take values between 1 and "
-         "26."),
-    ]:
-        Target.objects.create(project=project, name=target_name, description=descr)
-
-    #
-    # create the project's TimeZeros. recall from http://reichlab.io/guidelines.html :
-    # - forecasts for each target must be submitted for each biweek in 2008 through 2013 (6 years)
-    # - 6 training set years * 26 biweeks/year = 156 separate files
-    # - file naming convention: "BW13-2016-TeamKCDE.csv"
-    #   = uses biweek 13 surveillance data from 2016 (BW13-2016 is the latest biweek and year of data used in the forecast)
-    #   = TeamKCDE is the abbreviated name of the team making the submission
-    #
-    for training_year in range(2008, 2013 + 1):
-        for biweek in range(26):
-            TimeZero.objects.create(project=project,
-                                    timezero_date=str(start_date_for_biweek(biweek, training_year)),
-                                    data_version_date=None)
-
-    #
-    # ---- create the ForecastModels and their Forecasts ----
-    #
-    for model_name, team_name in [('spatial model/HHH4', 'Harley'),
-                                  ('KCDE variant?', 'Casey'),
-                                  ('annual GAM?', 'Steve'),
-                                  ('TSIR w/serotype?', 'Xi'),
-                                  ('Prophet', 'facebook, Kristina'),
-                                  ('SARIMA?, Google?', 'MS student'),
-                                  ('Hierarchical, state space', '?')]:
-        forecast_model = ForecastModel.objects.create(project=project, name=model_name,
-                                                      description="Team {}'s model.".format(
-                                                          team_name))
 
 
 def add_kot_forecasts_to_model(forecast_model, kot_model_dir_name):

@@ -16,7 +16,7 @@
     <h3>Projects</h3>
 
     {% if projects %}
-        <p>The repository has the following {{ projects|length }} project(s):</p>
+        <p>The repository has the following {{ projects|length }} project{{ projects|length|pluralize }}:</p>
         <ul>
             {% for project in projects %}
                 <li><strong><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></strong>:
