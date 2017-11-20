@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
@@ -13,11 +14,11 @@ from utils.utilities import mean_abs_error_rows_for_project
 
 
 def index(request):
-    projects = Project.objects.all()
     return render(
         request,
         'index.html',
-        context={'projects': projects},
+        context={'users': User.objects.all(),
+                 'projects': Project.objects.all()},
     )
 
 
@@ -47,6 +48,13 @@ def project_visualizations(request, project_pk):
 
 class ProjectDetailView(DetailView):
     model = Project
+
+
+class UserDetailView(DetailView):
+    model = User
+
+    # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
+    context_object_name = 'detail_user'
 
 
 class ForecastModelDetailView(DetailView):

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}User: {{ detail_user.username }}{% endblock %}
+
+{% block content %}
+
+    <p class="lead">User: {{ detail_user.username }}</p>
+
+    <p><strong>Full name</strong>:
+        {% if not detail_user.first_name and not detail_user.last_name %}
+            <small class="text-muted">(No name)</small>
+            {% else %}{{ detail_user.first_name }} {{ detail_user.last_name }}
+        {% endif %}
+    </p>
+    <p><strong>Type</strong>:
+        {% if detail_user.is_active %}Active{% else %}Not Active{% endif %},
+        {% if detail_user.is_staff %}Staff{% else %}Not Staff{% endif %},
+        {% if detail_user.is_superuser %}Superuser{% else %}Not Superuser{% endif %},
+        {% if detail_user.is_project_owner %}todo xx Project Owner{% else %}todo xx Not Project Owner{% endif %}
+    </p>
+
+
+    <h2>Projects</h2>
+    todo xx
+
+
+    <h2>Models</h2>
+    todo xx
+
+{% endblock %}

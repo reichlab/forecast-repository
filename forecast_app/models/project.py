@@ -3,6 +3,7 @@ import math
 
 from django.contrib.auth.models import User
 from django.db import models, transaction
+from django.db.models import ManyToManyField
 from django.urls import reverse
 from jsonfield import JSONField
 
@@ -14,14 +15,25 @@ from utils.utilities import basic_str
 # ---- Project class ----
 #
 
+PROJECT_OWNER_GROUP_NAME = 'project_owner'
+
+
 class Project(ModelWithCDCData):
     """
     The main class representing a forecast challenge, including metadata, core data, targets, and model entries.
-    NB: The inheritied 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
+    NB: The inherited 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
     was loaded - see is_template_loaded().
     """
 
-    owner = models.ForeignKey(User, blank=True, null=True, help_text="The project's owner")
+    # w/out related_name we get: forecast_app.Project.model_owners:
+    #   (fields.E304) Reverse accessor for 'Project.model_owners' clashes with reverse accessor for 'Project.owner'.
+    owner = models.ForeignKey(User,
+                              related_name='project_owner',
+                              blank=True, null=True,
+                              help_text="The project's owner")
+
+    model_owners = ManyToManyField(User, help_text="Users who are allowed to create, edit, and delete ForecastModels "
+                                                   "in this project")
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 

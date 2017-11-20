@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.urls import reverse
 
@@ -11,6 +12,8 @@ class ForecastModel(models.Model):
     Represents a project's model entry by a competing team, including metadata, model-specific auxiliary data beyond
     core data, and a list of the actual forecasts.
     """
+    owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner")
+
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200)

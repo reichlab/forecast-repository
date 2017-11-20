@@ -2,6 +2,8 @@
 
 {% load humanize %}
 
+{% block title %}Welcome!{% endblock %}
+
 {% block content %}
 
     <h1>Forecast Repository Home</h1>
@@ -13,21 +15,49 @@
         ideas are outlined on the <a href="{% url 'about' %}">About</a> page.
     </p>
 
-    <h3>Projects</h3>
+
+    <h2>Users</h2>
+
+    {% if users %}
+        <p>The repository has {{ users|length }} user{{ users|length|pluralize }}:</p>
+        <p>todo xx project/model counts for each</p>
+        <ul>
+            {% for user in users %}
+                <li><a href="{% url 'user-detail' user.pk %}">{{ user.username }}</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>There are no users in the repository.</p>
+    {% endif %}
+
+
+    <h2>Projects</h2>
 
     {% if projects %}
         <p>The repository has {{ projects|length }} project{{ projects|length|pluralize }}:</p>
-        <ul>
-            {% for project in projects %}
-                <li><strong><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></strong>:
-                    {{ project.description }}
-                    <span class="text-muted">({{ project.get_summary_counts.0 }} models,
-                         {{ project.get_summary_counts.1 }} forecasts,
-                         {{ project.get_summary_counts.2|intcomma }} rows)
-                    </span>
-                </li>
+        <table class="table table-striped table-bordered">
+            <tr>
+                <th>Project</th>
+                <th>Owner</th>
+                <th>Description</th>
+                <th>Objects</th>
+            </tr>
+            {% for project in projects|dictsort:"name" %}
+                <tr>
+                    <td>
+                        <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
+                    </td>
+                    <td><a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a></td>
+                    <td>{{ project.description }}</td>
+                    <td class="text-muted">{{ project.get_summary_counts.0 }} models,
+                        {{ project.get_summary_counts.1 }} forecasts,
+                        {{ project.get_summary_counts.2|intcomma }} rows
+                    </td>
+                </tr>
             {% endfor %}
-        </ul>
+        </table>
+
+
     {% else %}
         <p>There are no projects in the repository.</p>
     {% endif %}

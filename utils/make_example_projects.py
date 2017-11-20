@@ -7,6 +7,8 @@ import django
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
+from django.contrib.auth.models import Group, User
+from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME
 
 from utils.mmwr_utils import end_date_2016_2017_for_mmwr_week
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
@@ -42,13 +44,26 @@ def make_example_projects_app():
     for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, ProjectTemplateData, ForecastData]:
         model_class.objects.all().delete()
 
-    click.echo("* creating CDC Flu challenge project and models...")
-    create_cdc_flu_challenge_project(CDC_CONFIG_DICT)
+    click.echo("* creating group and PO and MO users: {}".format(PROJECT_OWNER_GROUP_NAME))
+    po_group, _ = Group.objects.get_or_create(name=PROJECT_OWNER_GROUP_NAME)
+    po_user, po_created = User.objects.get_or_create(username='project_owner1')
+    mo_user, _ = User.objects.get_or_create(username='model_owner1')
+    if po_created:
+        po_user.groups.add(po_group)
+
+    click.echo("* creating CDC Flu challenge project...")
+    project = make_cdc_flu_challenge_project(CDC_CONFIG_DICT)
+    project.owner = po_user
+    project.model_owners.add(mo_user)
+    project.save()
+
+    click.echo("* creating CDC Flu challenge models...")
+    make_cdc_flu_challenge_models(project, mo_user)
 
     click.echo('* done!')
 
 
-def create_cdc_flu_challenge_project(config_dict):
+def make_cdc_flu_challenge_project(config_dict):
     project = Project.objects.create(
         name='CDC Flu challenge (2016-2017)',
         description="Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions "
@@ -85,14 +100,17 @@ def create_cdc_flu_challenge_project(config_dict):
                                 timezero_date=str(end_date_2016_2017_for_mmwr_week(mmwr_week)),
                                 data_version_date=None)
 
-    #
-    # ---- create the four Kernel of Truth (KoT) ForecastModels and their Forecasts ----
-    #
+    # done
+    return project
 
-    #
+
+def make_cdc_flu_challenge_models(project, model_owner):
+    """
+    creates the four Kernel of Truth (KoT) ForecastModels and their Forecasts
+    """
     # KoT ensemble
-    #
     forecast_model = ForecastModel.objects.create(
+        owner=model_owner,
         project=project,
         name='KoT ensemble',
         description="Team Kernel of Truth's ensemble model.",
@@ -100,10 +118,9 @@ def create_cdc_flu_challenge_project(config_dict):
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
     add_kot_forecasts_to_model(forecast_model, 'ensemble')
 
-    #
     # KoT Kernel Density Estimation (KDE)
-    #
     forecast_model = ForecastModel.objects.create(
+        owner=model_owner,
         project=project,
         name='KoT KDE',
         description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
@@ -111,10 +128,9 @@ def create_cdc_flu_challenge_project(config_dict):
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
     add_kot_forecasts_to_model(forecast_model, 'kde')
 
-    #
     # KoT Kernel Conditional Density Estimation (KCDE)
-    #
     forecast_model = ForecastModel.objects.create(
+        owner=model_owner,
         project=project,
         name='KoT KCDE',
         description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
@@ -122,16 +138,18 @@ def create_cdc_flu_challenge_project(config_dict):
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
     add_kot_forecasts_to_model(forecast_model, 'kcde')
 
-    #
     # KoT SARIMA
-    #
     forecast_model = ForecastModel.objects.create(
+        owner=model_owner,
         project=project,
         name='KoT SARIMA',
         description="Team Kernel of Truth's SARIMA model.",
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
     add_kot_forecasts_to_model(forecast_model, 'sarima')
+
+    # done
+    return project
 
 
 def add_kot_forecasts_to_model(forecast_model, kot_model_dir_name):
