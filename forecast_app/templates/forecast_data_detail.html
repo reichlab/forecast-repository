@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Forecast: {{ forecast.name }}{% endblock %}
+{% block title %}Forecast data for &ldquo;{{ forecast.csv_filename }}&rdquo;{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
+    <p class="lead">Forecast data for &ldquo;{{ forecast.csv_filename }}&rdquo;</p>
 
-    <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.get_absolute_url }}">
-        {{ forecast.forecast_model.name }}</a></p>
-    <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
     <p><strong>Data Filename</strong>: {{ forecast.csv_filename }}</p>
+    <p><strong>Forecast</strong>: <a href="{% url 'forecast-detail' forecast.pk %}">Details</a></p>
+    <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
 
     {% include 'csv_data_snippet.html' with model_with_cdc_data=forecast %}
 

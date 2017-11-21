@@ -26,6 +26,17 @@ def about(request):
     return render(request, 'about.html')
 
 
+def template_detail(request, project_pk):
+    """
+    View function to render a preview of a Project's template.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    return render(
+        request,
+        'template_data_detail.html',
+        context={'project': project})
+
+
 def project_visualizations(request, project_pk):
     """
     View function to render various visualizations for a particular project.
@@ -42,8 +53,7 @@ def project_visualizations(request, project_pk):
         context={'project': project,
                  'season_start_year': season_start_year,
                  'location': location,
-                 'mean_abs_error_rows': mean_abs_error_rows},
-    )
+                 'mean_abs_error_rows': mean_abs_error_rows})
 
 
 class ProjectDetailView(DetailView):
@@ -55,6 +65,30 @@ class UserDetailView(DetailView):
 
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
+
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # pass a list of Projects. we have two cases: 1) projects owned by this user, and 2) projects where this user is
+        # in model_owners. thus this list is of 2-tuples: (Project, user_role), where user_role is "Project Owner" or
+        # "Model Owner"
+        user = self.get_object()
+        projects_and_roles = []
+        owned_models = []
+        for project in Project.objects.all():
+            if project.owner == user:
+                projects_and_roles.append((project, 'Project Owner'))
+            elif user in project.model_owners.all():
+                projects_and_roles.append((project, 'Model Owner'))
+            for model in project.forecastmodel_set.all():
+                if user == model.owner:
+                    owned_models.append(model)
+        context['projects_and_roles'] = sorted(projects_and_roles,
+                                               key=lambda project_and_role: project_and_role[0].name)
+        context['owned_models'] = owned_models
+
+        return context
 
 
 class ForecastModelDetailView(DetailView):
@@ -78,17 +112,17 @@ class ForecastDetailView(DetailView):
     model = Forecast
 
 
-def download_json_for_forecast(request, forecast_pk):
+def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk):
     """
-    Returns a response containing a JSON file for a Forecast's data.
+    Returns a response containing a JSON file for a ModelWithCDCData's (Project or Forecast) data.
 
-    :return: JSON version of the passed Forecast's data
+    :return: response for the JSON version of the passed ModelWithCDCData's data
     """
-    forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    location_target_dict = forecast.get_location_target_dict()
+    model_with_cdc_data = get_object_or_404(Forecast, pk=model_with_cdc_data_pk)
+    location_target_dict = model_with_cdc_data.get_location_target_dict()
     response = JsonResponse(location_target_dict)
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"'.format(
-        csv_filename=forecast.csv_filename)
+        csv_filename=model_with_cdc_data.csv_filename)
     return response
 
 

@@ -2,7 +2,7 @@
 
 {% block content %}
 
-    <h1>Model: {{ forecastmodel.name }}</h1>
+    <p class="lead">Model: {{ forecastmodel.name }}</p>
 
     <p><strong>Project</strong>: <a href="{{ forecastmodel.project.get_absolute_url }}">
         {{ forecastmodel.project.name }}</a></p>
@@ -11,14 +11,14 @@
         {% if forecastmodel.url %}
             <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a>
         {% else %}
-            <small class="text-muted">(no URL)</small>
+            <small class="text-muted">(No URL)</small>
         {% endif %}
     </p>
     <p><strong>Auxiliary data</strong>:
         {% if forecastmodel.auxiliary_data %}
             <a href="{{ forecastmodel.auxiliary_data }}">{{ forecastmodel.auxiliary_data }}</a>  {# todo #}
         {% else %}
-            <small class="text-muted">(no auxiliary data)</small>
+            <small class="text-muted">(No auxiliary data)</small>
         {% endif %}
     </p>
 
@@ -44,7 +44,7 @@
                     {% if forecast %}
                         <a href="{{ forecast.get_absolute_url }}">{{ forecast.csv_filename }}</a>
                     {% else %}
-                        <small class="text-muted">(no data)</small>
+                        <small class="text-muted">(No data)</small>
                     {% endif %}
                 </td>
                 {% if user.is_authenticated %}

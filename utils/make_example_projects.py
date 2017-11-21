@@ -44,12 +44,17 @@ def make_example_projects_app():
     for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, ProjectTemplateData, ForecastData]:
         model_class.objects.all().delete()
 
-    click.echo("* creating group and PO and MO users: {}".format(PROJECT_OWNER_GROUP_NAME))
-    po_group, _ = Group.objects.get_or_create(name=PROJECT_OWNER_GROUP_NAME)
-    po_user, po_created = User.objects.get_or_create(username='project_owner1')
-    mo_user, _ = User.objects.get_or_create(username='model_owner1')
-    if po_created:
-        po_user.groups.add(po_group)
+    click.echo("* (re)creating group and PO and MO users: {}".format(PROJECT_OWNER_GROUP_NAME))
+    Group.objects.filter(name=PROJECT_OWNER_GROUP_NAME).delete()
+    po_group = Group.objects.create(name=PROJECT_OWNER_GROUP_NAME)
+
+    User.objects.filter(username='project_owner1').delete()
+    po_user = User.objects.create(username='project_owner1', password='po1-asdf')
+
+    User.objects.filter(username='model_owner1').delete()
+    mo_user = User.objects.create(username='model_owner1', password='mo1-asdf')
+
+    po_user.groups.add(po_group)
 
     click.echo("* creating CDC Flu challenge project...")
     project = make_cdc_flu_challenge_project(CDC_CONFIG_DICT)

@@ -1,18 +1,37 @@
 {% extends "base.html" %}
 
+{% block title %}Project: {{ project.name }}{% endblock %}
+
 {% block content %}
 
-    <h1>Project: {{ project.name }}</h1>
+    <p class="lead">Project: {{ project.name }}</p>
 
+    <p><strong>Owner</strong>:
+        {% if project.owner %}
+            <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
+        {% else %}
+            <small class="text-muted">(No owner)</small>
+        {% endif %}
+    </p>
     <p><strong>Description</strong>: {{ project.description }}</p>
     <p><strong>Home</strong>: <a href="{{ project.url }}">{{ project.url }}</a></p>
     <p><strong>Core data</strong>: <a href="{{ project.core_data }}">{{ project.core_data }}</a></p>
+    <p><strong>Template data</strong>:
+        {% if project.csv_filename %}
+            <a href="{% url 'template-data-detail' project.pk %}">{{ project.csv_filename }}</a>
+        {% else %}
+            <small class="text-muted">(No template)</small>
+        {% endif %}
+    </p>
     <p><strong>Visualizations</strong>: <a href="{% url 'project-visualizations' project.pk %}">Here</a></p>
-    <p><strong>Template</strong>: todo xx</p>
 
 
     <h2>Model Owners</h2>
-    todo xx
+    <ul>
+        {% for model_owner in project.model_owners.all %}
+            <li><a href="{% url 'user-detail' model_owner.pk %}">{{ model_owner.username }}</a></li>
+        {% endfor %}
+    </ul>
 
     <h2>Models ({{ project.forecastmodel_set.all|length }})</h2>
     <ul>
@@ -37,7 +56,7 @@
                 {% if timezero.data_version_date %}
                     {{ timezero.data_version_date }}
                 {% else %}
-                    <small class="text-muted">(no data version date)</small>
+                    <small class="text-muted">(No data version date)</small>
                 {% endif %}
             </li>
         {% endfor %}
