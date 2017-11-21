@@ -10,7 +10,7 @@
     <p><strong>Data Filename</strong>: {{ project.csv_filename }}</p>
 
     {% include 'csv_data_snippet.html' with model_with_cdc_data=project %}
-    {% url 'download-template-json' project.pk %}
+
     <form class="form-inline" method="POST" action="{% url 'download-template-json' project.pk %}">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary">Download as JSON file</button>
