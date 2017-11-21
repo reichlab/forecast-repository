@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Project template data for &ldquo;{{ project.csv_filename }}&rdquo;{% endblock %}
+{% block title %}Project template for {{ project.name }}{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Project template data for &ldquo;{{ project.csv_filename }}&rdquo;</p>
+    <p class="lead">Project template for {{ project.name }}</p>
 
     <p><strong>Project</strong>: <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></p>
     <p><strong>Data Filename</strong>: {{ project.csv_filename }}</p>
 
     {% include 'csv_data_snippet.html' with model_with_cdc_data=project %}
-
+    {% url 'download-template-json' project.pk %}
     <form class="form-inline" method="POST" action="{% url 'download-template-json' project.pk %}">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary">Download as JSON file</button>

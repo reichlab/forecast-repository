@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Forecast: {{ forecast.name }}{% endblock %}
+{% block title %}Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}{% endblock %}
 
 {% block content %}
 

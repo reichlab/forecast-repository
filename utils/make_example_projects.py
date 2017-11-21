@@ -1,4 +1,5 @@
 import os
+import tempfile
 from pathlib import Path
 
 import click
@@ -39,7 +40,20 @@ CDC_CONFIG_DICT = {
 
 
 @click.command()
-def make_example_projects_app():
+@click.option('--kot_data_dir', type=click.Path())
+def make_example_projects_app(kot_data_dir):
+    """
+    Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
+    CDC Flu challenge project.
+
+    @:param: kot_data_dir is an optional location of files cloned from
+        https://github.com/matthewcornell/split_kot_models_from_submissions . if not passed, the program will clone a
+        copy to /tmp , like:
+
+        $ cd /tmp
+        $ git clone https://github.com/matthewcornell/split_kot_models_from_submissions.git
+
+    """
     click.echo("* deleting database...")
     for model_class in [Project, Target, TimeZero, ForecastModel, Forecast, ProjectTemplateData, ForecastData]:
         model_class.objects.all().delete()
@@ -62,8 +76,18 @@ def make_example_projects_app():
     project.model_owners.add(mo_user)
     project.save()
 
-    click.echo("* creating CDC Flu challenge models...")
-    make_cdc_flu_challenge_models(project, mo_user)
+    # download to kot_data_dir if necessary
+    if kot_data_dir and os.path.exists(kot_data_dir):
+        make_cdc_flu_challenge_models(project, mo_user, Path(kot_data_dir))
+    elif kot_data_dir:
+        raise RuntimeError("Passed kot_data_dir doesn't exist: {}".format(kot_data_dir))
+    else:
+        with tempfile.TemporaryDirectory() as tmp_clone_parent_dir:
+            click.echo("* no kot_data_dir. cloning split_kot_models_from_submissions into {}"
+                       .format(tmp_clone_parent_dir))
+            os.system('git clone https://github.com/matthewcornell/split_kot_models_from_submissions.git {}'
+                      .format(tmp_clone_parent_dir))
+            make_cdc_flu_challenge_models(project, mo_user, Path(tmp_clone_parent_dir))
 
     click.echo('* done!')
 
@@ -76,7 +100,7 @@ def make_cdc_flu_challenge_project(config_dict):
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
         config_dict=config_dict)
-    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
     for target_name, descr in (
             ('Season onset',
@@ -109,10 +133,12 @@ def make_cdc_flu_challenge_project(config_dict):
     return project
 
 
-def make_cdc_flu_challenge_models(project, model_owner):
+def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
     """
     creates the four Kernel of Truth (KoT) ForecastModels and their Forecasts
     """
+    click.echo("* creating CDC Flu challenge models. model_owner={}, kot_data_dir={}".format(model_owner, kot_data_dir))
+
     # KoT ensemble
     forecast_model = ForecastModel.objects.create(
         owner=model_owner,
@@ -121,7 +147,7 @@ def make_cdc_flu_challenge_models(project, model_owner):
         description="Team Kernel of Truth's ensemble model.",
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
-    add_kot_forecasts_to_model(forecast_model, 'ensemble')
+    add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'ensemble')
 
     # KoT Kernel Density Estimation (KDE)
     forecast_model = ForecastModel.objects.create(
@@ -131,7 +157,7 @@ def make_cdc_flu_challenge_models(project, model_owner):
         description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
-    add_kot_forecasts_to_model(forecast_model, 'kde')
+    add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'kde')
 
     # KoT Kernel Conditional Density Estimation (KCDE)
     forecast_model = ForecastModel.objects.create(
@@ -141,7 +167,7 @@ def make_cdc_flu_challenge_models(project, model_owner):
         description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
-    add_kot_forecasts_to_model(forecast_model, 'kcde')
+    add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'kcde')
 
     # KoT SARIMA
     forecast_model = ForecastModel.objects.create(
@@ -151,26 +177,25 @@ def make_cdc_flu_challenge_models(project, model_owner):
         description="Team Kernel of Truth's SARIMA model.",
         url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
-    add_kot_forecasts_to_model(forecast_model, 'sarima')
+    add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'sarima')
 
     # done
     return project
 
 
-def add_kot_forecasts_to_model(forecast_model, kot_model_dir_name):
+def add_kot_forecasts_to_model(forecast_model, kot_data_dir, kot_model_dir_name):
     """
-    Adds Forecast objects to forecast_model based on kot_model_dir_name. Recall data file naming scheme:
-        'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
+    Adds Forecast objects to forecast_model based on kot_model_dir_name under kot_data_dir. Recall data file naming
+    scheme: 'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
     """
-    click.echo('add_forecasts_to_model. forecast_model={}, kot_model_dir_name={}'
-               .format(forecast_model, kot_model_dir_name))
+    click.echo('add_forecasts_to_model. forecast_model={}, kot_model_dir_name={}, kot_data_dir={}'
+               .format(forecast_model, kot_model_dir_name, kot_data_dir))
 
     # Set KOT_DATA_DIR. We assume the KOT_DATA_DIR is set to the cloned location of
     # https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble e.g.,
-    KOT_DATA_DIR = Path(os.getenv('KOT_DATA_DIR', '~/IdeaProjects/split_kot_models_from_submissions')).expanduser()
-    kot_model_dir = KOT_DATA_DIR / kot_model_dir_name
+    kot_model_dir = kot_data_dir / kot_model_dir_name
     if not Path(kot_model_dir).exists():
-        raise RuntimeError("KOT_DATA_DIR does not exist: {}".format(KOT_DATA_DIR))
+        raise RuntimeError("KOT_DATA_DIR does not exist: {}".format(kot_data_dir))
 
     for csv_file in [csv_file for csv_file in kot_model_dir.glob('*.csv')]:  # 'EW1-KoTstable-2017-01-17.csv'
         mmwr_week = csv_file.name.split('-')[0].split('EW')[1]  # re.split(r'^EW(\d*).*$', csv_file.name)[1]

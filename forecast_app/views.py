@@ -112,13 +112,22 @@ class ForecastDetailView(DetailView):
     model = Forecast
 
 
-def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk):
+def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
     """
     Returns a response containing a JSON file for a ModelWithCDCData's (Project or Forecast) data.
 
+    :param model_with_cdc_data_pk: pk of either a Project or Forecast - disambiguated by kwargs['type']
+    :param kwargs: has a single 'type' key that's either 'project' or 'forecast', which determines what
+        model_with_cdc_data_pk refers to
     :return: response for the JSON version of the passed ModelWithCDCData's data
     """
-    model_with_cdc_data = get_object_or_404(Forecast, pk=model_with_cdc_data_pk)
+    if kwargs['type'] == 'project':
+        model_with_cdc_data_class = Project
+    elif kwargs['type'] == 'forecast':
+        model_with_cdc_data_class = Forecast
+    else:
+        raise RuntimeError("invalid kwargs: {}".format(kwargs))
+    model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
     location_target_dict = model_with_cdc_data.get_location_target_dict()
     response = JsonResponse(location_target_dict)
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"'.format(
