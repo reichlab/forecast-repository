@@ -63,10 +63,10 @@ def make_example_projects_app(kot_data_dir):
     po_group = Group.objects.create(name=PROJECT_OWNER_GROUP_NAME)
 
     User.objects.filter(username='project_owner1').delete()
-    po_user = User.objects.create(username='project_owner1', password='po1-asdf')
+    po_user = User.objects.create_user(username='project_owner1', password='po1-asdf')
 
     User.objects.filter(username='model_owner1').delete()
-    mo_user = User.objects.create(username='model_owner1', password='mo1-asdf')
+    mo_user = User.objects.create_user(username='model_owner1', password='mo1-asdf')
 
     po_user.groups.add(po_group)
 
