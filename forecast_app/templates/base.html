@@ -60,14 +60,13 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li class="disabled"><a href="#">Signed in as <strong>{{ user }}</strong></a></li>
-                            <li><a href="{% url 'admin:index' %}">Admin site</a></li>
+                            {% if user.is_superuser %}<li><a href="{% url 'admin:index' %}">Admin site</a></li>{% endif %}
                             <li role="separator" class="divider"></li>
-                            <li><a href="{% url 'admin:logout' %}">Sign out</a></li>
+                            <li><a href="{% url 'logout' %}">Sign out</a></li>
                         </ul>
                     </li>
                 {% else %}
-                    <!-- todo https://www.google.com/search?q=bootstrap+navbar+two+links+together -->
-                    <li><a href="{% url 'admin:login' %}">Sign in</a></li>
+                    <li><a href="{% url 'login' %}">Sign in</a></li>
                 {% endif %}
 
                 <!-- help dropdown -->

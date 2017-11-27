@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+
+    <p class="lead">User login</p>
+
+    {# via https://djangosnippets.org/snippets/10455/ #}
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors|join:"<br \>" }}</div>
+    {% endif %}
+
+    {% if next %}
+        {% if user.is_authenticated %}
+            <p>Your account doesn't have access to this page. To proceed, please log in with an account that has
+                access.</p>
+        {% else %}
+            <p>Please log in to see this page.</p>
+        {% endif %}
+    {% endif %}
+
+    <form class="form-horizontal" method="POST" action="{% url 'login' %}">
+        {% csrf_token %}
+        {% include 'form_snippet.html' %}
+        <button type="submit" class="save btn btn-success">Log in</button>
+        <input type="hidden" name="next" value="{{ next }}"/>
+        <a href="{% url 'password_reset' %}">Lost password?</a>
+    </form>
+
+{% endblock %}

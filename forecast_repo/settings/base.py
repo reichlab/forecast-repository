@@ -24,6 +24,11 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '8%n4ehf+f-!evlnfbq(3lohe#0gob8@a*0*t*az1msd2^ri9uo'
 
 INSTALLED_APPS = [
+    # this application
+    'forecast_app.apps.ForecastAppConfig',
+
+    # django.contrib.admin (and friends) is listed after the main application b/c o/w it overrides the
+    # registration/logged_out.html template used by this application
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -33,9 +38,6 @@ INSTALLED_APPS = [
 
     # add-ons
     'django.contrib.humanize',
-
-    # this application
-    'forecast_app.apps.ForecastAppConfig',
 ]
 
 MIDDLEWARE = [
@@ -121,3 +123,11 @@ LOGGING = {
         },
     }
 }
+
+
+#
+# https://docs.djangoproject.com/en/1.11/ref/settings/#std:setting-LOGIN_REDIRECT_URL
+#
+
+# Redirect to home URL after login (Default redirects to /accounts/profile/)
+LOGIN_REDIRECT_URL = '/'
