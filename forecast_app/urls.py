@@ -17,7 +17,7 @@ urlpatterns = [
         {'type': 'project'},
         name='download-template-json'),
 
-    url(r'^model/(?P<pk>\d+)$', views.ForecastModelDetailView.as_view(), name='forecastmodel-detail'),
+    url(r'^model/(?P<pk>\d+)$', views.ForecastModelDetailView.as_view(), name='model-detail'),
 
     url(r'^user/(?P<pk>\d+)$', views.UserDetailView.as_view(), name='user-detail'),
 
@@ -36,5 +36,10 @@ urlpatterns = [
     url(r'^project/create/(?P<user_pk>\d+)', views.create_project, name='create-project'),
     url(r'^project/(?P<project_pk>\d+)/edit/$', views.edit_project, name='edit-project'),
     url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project, name='delete-project'),
+
+    # ForecastModel
+    url(r'^project/(?P<project_pk>\d+)/models/create/$', views.create_model, name='create-model'),
+    url(r'^model/(?P<model_pk>\d+)/edit/$', views.edit_model, name='edit-model'),
+    url(r'^model/(?P<model_pk>\d+)/delete/$', views.delete_model, name='delete-model'),
 
 ]

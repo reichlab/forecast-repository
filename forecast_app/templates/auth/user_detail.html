@@ -21,10 +21,13 @@
     </p>
 
 
+    {% load auth_extras %}
+
     <h2>Projects
-        {% if detail_user == user %}
+        {% if detail_user == user and user|has_group:PROJECT_OWNER_GROUP_NAME %}
             &nbsp;<a href="{% url 'create-project' detail_user.pk %}" class="btn btn-success" role="button">New</a>
-        {% endif %}</h2>
+        {% endif %}
+    </h2>
 
     {% if projects_and_roles %}
         <p class="help-block">Projects involving {{ detail_user }}:</p>

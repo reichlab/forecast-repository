@@ -4,7 +4,23 @@
 
 {% block content %}
 
-    <p class="lead">Model: {{ forecastmodel.name }}</p>
+    <p class="lead">Model: {{ forecastmodel.name }}
+        {% if user == forecastmodel.owner %}
+            {# Edit ForecastModel: a simple link to an edit form #}
+            &nbsp;
+            <a href="{% url 'edit-model' forecastmodel.pk %}" class="btn btn-success btn-sm" role="button">
+                <span class="glyphicon glyphicon-pencil"></span>
+            </a>
+
+            {# Delete ForecasModel: a button that shows a hidden confirm modal when clicked #}
+            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#confirmModal">
+                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+            </button>
+
+            {# the modal itself - hidden until above button shows it #}
+            {% include 'delete_modal_snippet.html' with delete_object=forecastmodel delete_url='delete-model' %}
+        {% endif %}
+    </p>
 
     <p><strong>Owner</strong>:
         {% if forecastmodel.owner %}
@@ -67,6 +83,7 @@
                                 <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
                             </button>
 
+                            {# todo xx use delete_modal_snippet.html #}
                             {# the modal itself - hidden until above button shows it #}
                             <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog"
                                  aria-labelledby="titleLabel">

@@ -11,8 +11,10 @@ from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView
 
-from forecast_app.forms import ProjectForm
+from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
+from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME
+from forecast_app.templatetags.auth_extras import has_group
 from utils.make_example_projects import CDC_CONFIG_DICT
 from utils.utilities import mean_abs_error_rows_for_project
 
@@ -71,13 +73,14 @@ def project_visualizations(request, project_pk):
 def create_project(request, user_pk):
     """
     Shows a form to add a new Project for the passed User. Authorization: The logged-in user must be the same as the
-    user to create the new Project for.
+    passed detail user, AND the logged-in user must be in the group PROJECT_OWNER_GROUP_NAME.
     """
     authenticated_user = request.user
     new_project_user = get_object_or_404(User, pk=user_pk)
-    if authenticated_user != new_project_user:
-        raise PermissionDenied("logged-in user was not the same as the new Project's user. authenticated_user={}, "
-                               "new_project_user={}".format(authenticated_user, new_project_user))
+    if (authenticated_user != new_project_user) or (not has_group(authenticated_user, PROJECT_OWNER_GROUP_NAME)):
+        raise PermissionDenied("logged-in user was not the same as the new Project's user, or was not in the Project "
+                               "Owner group. authenticated_user={}, new_project_user={}"
+                               .format(authenticated_user, new_project_user))
 
     if request.method == 'POST':
         project_form = ProjectForm(request.POST)
@@ -99,8 +102,8 @@ def create_project(request, user_pk):
 
 def edit_project(request, project_pk):
     """
-    Shows a form to edit a Project's basic information: name and description. Authorization: The logged-in user must be
-    the same as the Project's owner.
+    Shows a form to edit a Project's basic information. Authorization: The logged-in user must be the same as the
+    Project's owner.
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
@@ -121,8 +124,7 @@ def edit_project(request, project_pk):
     return render(request, 'show_form.html',
                   context={'title': 'Edit Project',
                            'button_name': 'Save',
-                           'form': project_form,
-                           'include_form_media': False})
+                           'form': project_form})
 
 
 def delete_project(request, project_pk):
@@ -137,6 +139,78 @@ def delete_project(request, project_pk):
                                .format(user, project.owner))
 
     project.delete()
+    # todo xx flash a temporary 'success' message
+    return redirect('user-detail', pk=user.pk)
+
+
+def create_model(request, project_pk):
+    """
+    Shows a form to add a new ForecastModel for the passed User. Authorization: The logged-in user must be in the
+    Project's model_owners.
+    """
+    user = request.user
+    project = get_object_or_404(Project, pk=project_pk)
+    if user not in project.model_owners.all():
+        raise PermissionDenied("logged-in user was not in the Project's model_owners. user={}, "
+                               "Project.model_owners={}".format(user, project.model_owners))
+
+    if request.method == 'POST':
+        forecast_model_form = ForecastModelForm(request.POST)
+        if forecast_model_form.is_valid():
+            new_model = forecast_model_form.save(commit=False)
+            new_model.owner = user  # force the owner to the current user
+            new_model.project = project
+            new_model.save()
+            # todo xx flash a temporary 'success' message
+            return redirect('model-detail', pk=new_model.pk)
+
+    else:  # GET
+        forecast_model_form = ForecastModelForm()
+
+    return render(request, 'show_form.html',
+                  context={'title': 'New Model',
+                           'button_name': 'Create',
+                           'form': forecast_model_form})
+
+
+def edit_model(request, model_pk):
+    """
+    Shows a form to edit a ForecastModel. Authorization: The logged-in user must be the model's owner.
+    """
+    user = request.user
+    forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
+    if user != forecast_model.owner:
+        raise PermissionDenied("logged-in user was not the model's owner. user={}, forecast_model={}"
+                               .format(user, forecast_model))
+
+    if request.method == 'POST':
+        forecast_model_form = ForecastModelForm(request.POST, instance=forecast_model)
+        if forecast_model_form.is_valid():
+            forecast_model_form.save()
+
+            # todo xx flash a temporary 'success' message
+            return redirect('model-detail', pk=forecast_model.pk)
+
+    else:  # GET
+        forecast_model_form = ForecastModelForm(instance=forecast_model)
+
+    return render(request, 'show_form.html',
+                  context={'title': 'Edit Project',
+                           'button_name': 'Save',
+                           'form': forecast_model_form})
+
+
+def delete_model(request, model_pk):
+    """
+    Does the actual deletion of the ForecastModel. Authorization: The logged-in user must be the model's owner.
+    """
+    user = request.user
+    forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
+    if user != forecast_model.owner:
+        raise PermissionDenied("logged-in user was not the model's owner. user={}, forecast_model={}"
+                               .format(user, forecast_model))
+
+    forecast_model.delete()
     # todo xx flash a temporary 'success' message
     return redirect('user-detail', pk=user.pk)
 
@@ -176,6 +250,7 @@ class UserDetailView(DetailView):
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
+        context['PROJECT_OWNER_GROUP_NAME'] = PROJECT_OWNER_GROUP_NAME
 
         return context
 
@@ -237,7 +312,7 @@ def delete_forecast(request, forecast_pk):
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     forecast.delete()
-    return redirect('forecastmodel-detail', pk=forecast.forecast_model.pk)
+    return redirect('model-detail', pk=forecast.forecast_model.pk)
 
 
 # todo authorization
@@ -273,7 +348,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
     try:
         forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)
-        return redirect('forecastmodel-detail', pk=forecast_model.pk)
+        return redirect('model-detail', pk=forecast_model.pk)
     except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to load the data.",

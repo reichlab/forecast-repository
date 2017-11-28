@@ -38,7 +38,7 @@ class ForecastModel(models.Model):
 
 
     def get_absolute_url(self):
-        return reverse('forecastmodel-detail', args=[str(self.id)])
+        return reverse('model-detail', args=[str(self.id)])
 
 
     @transaction.atomic
