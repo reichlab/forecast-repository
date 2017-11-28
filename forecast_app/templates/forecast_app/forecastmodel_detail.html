@@ -13,7 +13,8 @@
             </a>
 
             {# Delete ForecasModel: a button that shows a hidden confirm modal when clicked #}
-            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#confirmModal">
+            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
+                    data-target="#confirmModal_{{ forecastmodel.html_id }}">
                 <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
             </button>
 
@@ -54,7 +55,7 @@
         <tr>
             <th>TimeZero</th>
             <th>Data Filename</th>
-            {% if user.is_authenticated %}
+            {% if user == forecastmodel.owner %}
                 <th>Action</th>
             {% endif %}
         </tr>
@@ -72,45 +73,19 @@
                         <small class="text-muted">(No data)</small>
                     {% endif %}
                 </td>
-                {% if user.is_authenticated %}
+                {% if user == forecastmodel.owner %}
                     <td>
                         {% if forecast %}
                             {# show a button inside a modal dialog for deleting a forecast #}
 
-                            {# delete button - just shows the modal #}
-                            <button type="submit" class="btn btn-danger" data-toggle="modal"
-                                    data-target="#confirmModal">
-                                <span class="glyphicon glyphicon-remove" aria-hidden="true"></span>
+                            {# Delete Forecast: a button that shows a hidden confirm modal when clicked #}
+                            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
+                                    data-target="#confirmModal_{{ forecast.html_id }}">
+                                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
                             </button>
 
-                            {# todo xx use delete_modal_snippet.html #}
                             {# the modal itself - hidden until above button shows it #}
-                            <div class="modal fade" id="confirmModal" tabindex="-1" role="dialog"
-                                 aria-labelledby="titleLabel">
-                                <div class="modal-dialog" role="document">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                <span aria-hidden="true">&times;</span></button>
-                                            <h4 class="modal-title" id="titleLabel">
-                                                Delete forecast &ldquo;{{ forecast.csv_filename }}&rdquo;?
-                                            </h4>
-                                        </div>
-                                        {# no <div class="modal-body"></div> #}
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-default" data-dismiss="modal">
-                                                Cancel
-                                            </button>
-                                            {# the actual form to delete #}
-                                            <form class="form-inline" style="display: inline-block;" method="POST"
-                                                  action="{% url 'delete-forecast' forecast.pk %}">
-                                                {% csrf_token %}
-                                                <button type="submit" class="btn btn-danger">Delete</button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            {% include 'delete_modal_snippet.html' with delete_object=forecast delete_url='delete-forecast' %}
                         {% else %}
                             {# show a button for uploading a file #}
                             {# todo use a proper Django form?, e.g., https://docs.djangoproject.com/en/1.11/topics/http/file-uploads/ #}

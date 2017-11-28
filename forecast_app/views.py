@@ -88,6 +88,7 @@ def create_project(request, user_pk):
             new_project = project_form.save(commit=False)
             new_project.owner = new_project_user  # force the owner to the current user
             new_project.save()
+            project_form.save_m2m()
             # todo xx flash a temporary 'success' message
             return redirect('project-detail', pk=new_project.pk)
 
@@ -129,7 +130,7 @@ def edit_project(request, project_pk):
 
 def delete_project(request, project_pk):
     """
-    Does the actual deletion of the passed Project. Assumes that confirmation has already been given by the caller.
+    Does the actual deletion of a Project. Assumes that confirmation has already been given by the caller.
     Authorization: The logged-in user must be the same as the Project's owner.
     """
     user = request.user
@@ -202,7 +203,8 @@ def edit_model(request, model_pk):
 
 def delete_model(request, model_pk):
     """
-    Does the actual deletion of the ForecastModel. Authorization: The logged-in user must be the model's owner.
+    Does the actual deletion of the ForecastModel. Assumes that confirmation has already been given by the caller.
+    Authorization: The logged-in user must be the model's owner.
     """
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
@@ -303,16 +305,22 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 # ---- Forecast upload/delete views ----
 #
 
-# todo authorization
 def delete_forecast(request, forecast_pk):
     """
-    Deletes the passed Forecast.
+    Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
+    Authorization: The logged-in user must be the Forecast's model's owner.
 
     :return: redirect to the forecast's forecast_model detail page
     """
+    user = request.user
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    if user != forecast.forecast_model.owner:
+        raise PermissionDenied("logged-in user was not the Forecast's model's owner. user={}, forecast_model={}"
+                               .format(user, forecast.forecast_model))
+
+    forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
     forecast.delete()
-    return redirect('model-detail', pk=forecast.forecast_model.pk)
+    return redirect('model-detail', pk=forecast_model_pk)
 
 
 # todo authorization

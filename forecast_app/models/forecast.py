@@ -33,5 +33,28 @@ class Forecast(ModelWithCDCData):
         return reverse('forecast-detail', args=[str(self.id)])
 
 
+    def get_class(self):
+        """
+        :return: view utility that simply returns a my class as a string. used by delete_modal_snippet.html
+        """
+        return self.__class__.__name__
+
+
+    def html_id(self):
+        """
+        :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
+        """
+        return self.__class__.__name__ + '_' + str(self.id)
+
+
+    @property
+    def name(self):
+        """
+        We define the name property so that delete_modal_snippet.html can show something identifiable when asking to
+        confirm deleting a Forecast. All other deletable models have 'name' fields (Project and ForecastModel).
+        """
+        return self.csv_filename
+
+
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
 Forecast._meta.get_field('csv_filename').help_text = "CSV file name of this forecast's data source."

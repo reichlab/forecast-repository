@@ -41,6 +41,20 @@ class ForecastModel(models.Model):
         return reverse('model-detail', args=[str(self.id)])
 
 
+    def get_class(self):
+        """
+        :return: view utility that simply returns a my class as a string. used by delete_modal_snippet.html
+        """
+        return self.__class__.__name__
+
+
+    def html_id(self):
+        """
+        :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
+        """
+        return self.__class__.__name__ + '_' + str(self.id)
+
+
     @transaction.atomic
     def load_forecast(self, csv_file_path, time_zero, file_name=None):
         """

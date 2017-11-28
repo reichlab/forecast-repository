@@ -83,6 +83,20 @@ class Project(ModelWithCDCData):
         return reverse('project-detail', args=[str(self.id)])
 
 
+    def get_class(self):
+        """
+        :return: view utility that simply returns a my class as a string. used by delete_modal_snippet.html
+        """
+        return self.__class__.__name__
+
+
+    def html_id(self):
+        """
+        :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
+        """
+        return self.__class__.__name__ + '_' + str(self.id)
+
+
     def get_summary_counts(self):
         """
         :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
