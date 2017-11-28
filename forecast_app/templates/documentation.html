@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation{% endblock %}
+
+{% block content %}
+
+    <h1>Documentation</h1>
+    <p>Here is some preliminary documentation. More TBD</p>
+
+
+    <h2 id="config_dict">Project.config_dict</h2>
+    <p>When creating a new Project, you must specify a <code>config_dict</code>. It is a
+        <a href="https://www.json.org/">JSON</a> object that specifies project-specific information using these keys:
+    </p>
+    <ol>
+        <li><code>target_to_week_increment</code>: an object that maps week-related target names to ints, such as
+            '1 wk ahead' &rarr; 1 . Also, this objects's keys are used by the Mean Absolute Error method to decide which
+            targets to use.
+        </li>
+        <li><code>location_to_delphi_region</code>: an object that maps all my locations to Delphi region names, as
+            documented <a href="https://github.com/cmu-delphi/delphi-epidata#fluview">here</a>.
+        </li>
+    </ol>
+
+{% endblock %}

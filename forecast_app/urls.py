@@ -6,6 +6,7 @@ from . import views
 urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^about$', views.about, name='about'),
+    url(r'^docs', views.documentation, name='docs'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),
 
@@ -27,5 +28,13 @@ urlpatterns = [
     url(r'^forecast/(?P<forecast_pk>\d+)/delete$', views.delete_forecast, name='delete-forecast'),
     url(r'^forecast/(?P<forecast_model_pk>\d+)/upload/(?P<timezero_pk>\d+)$', views.upload_forecast,
         name='upload-forecast'),
+
+
+    # ---- CRUD-related form URLs ----
+
+    # Project
+    url(r'^project/create/(?P<user_pk>\d+)', views.create_project, name='create-project'),
+    url(r'^project/(?P<project_pk>\d+)/edit/$', views.edit_project, name='edit-project'),
+    url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project, name='delete-project'),
 
 ]

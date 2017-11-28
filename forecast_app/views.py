@@ -1,15 +1,19 @@
+import json
 import os
 from pathlib import Path
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView
 
+from forecast_app.forms import ProjectForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
+from utils.make_example_projects import CDC_CONFIG_DICT
 from utils.utilities import mean_abs_error_rows_for_project
 
 
@@ -24,6 +28,10 @@ def index(request):
 
 def about(request):
     return render(request, 'about.html')
+
+
+def documentation(request):
+    return render(request, 'documentation.html')
 
 
 def template_detail(request, project_pk):
@@ -55,6 +63,87 @@ def project_visualizations(request, project_pk):
                  'location': location,
                  'mean_abs_error_rows': mean_abs_error_rows})
 
+
+#
+# ---- CRUD-related form functions ----
+#
+
+def create_project(request, user_pk):
+    """
+    Shows a form to add a new Project for the passed User. Authorization: The logged-in user must be the same as the
+    user to create the new Project for.
+    """
+    authenticated_user = request.user
+    new_project_user = get_object_or_404(User, pk=user_pk)
+    if authenticated_user != new_project_user:
+        raise PermissionDenied("logged-in user was not the same as the new Project's user. authenticated_user={}, "
+                               "new_project_user={}".format(authenticated_user, new_project_user))
+
+    if request.method == 'POST':
+        project_form = ProjectForm(request.POST)
+        if project_form.is_valid():
+            new_project = project_form.save(commit=False)
+            new_project.owner = new_project_user  # force the owner to the current user
+            new_project.save()
+            # todo xx flash a temporary 'success' message
+            return redirect('project-detail', pk=new_project.pk)
+
+    else:  # GET
+        project_form = ProjectForm(initial={'config_dict': json.dumps(CDC_CONFIG_DICT, sort_keys=True, indent=4)})
+
+    return render(request, 'show_form.html',
+                  context={'title': 'New Project',
+                           'button_name': 'Create',
+                           'form': project_form})
+
+
+def edit_project(request, project_pk):
+    """
+    Shows a form to edit a Project's basic information: name and description. Authorization: The logged-in user must be
+    the same as the Project's owner.
+    """
+    user = request.user
+    project = get_object_or_404(Project, pk=project_pk)
+    if user != project.owner:
+        raise PermissionDenied("logged-in user was not the Project's owner. user={}, owner={}"
+                               .format(user, project.owner))
+
+    if request.method == 'POST':
+        project_form = ProjectForm(request.POST, instance=project)
+        if project_form.is_valid():
+            project_form.save()
+            # todo xx flash a temporary 'success' message
+            return redirect('project-detail', pk=project.pk)
+
+    else:  # GET
+        project_form = ProjectForm(instance=project)
+
+    return render(request, 'show_form.html',
+                  context={'title': 'Edit Project',
+                           'button_name': 'Save',
+                           'form': project_form,
+                           'include_form_media': False})
+
+
+def delete_project(request, project_pk):
+    """
+    Does the actual deletion of the passed Project. Assumes that confirmation has already been given by the caller.
+    Authorization: The logged-in user must be the same as the Project's owner.
+    """
+    user = request.user
+    project = get_object_or_404(Project, pk=project_pk)
+    if user != project.owner:
+        raise PermissionDenied("logged-in user was not the Project's owner. user={}, owner={}"
+                               .format(user, project.owner))
+
+    project.delete()
+    # todo xx flash a temporary 'success' message
+    return redirect('user-detail', pk=user.pk)
+
+
+#
+# ---- Detail views ----
+#
 
 class ProjectDetailView(DetailView):
     model = Project
@@ -134,6 +223,10 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
         csv_filename=model_with_cdc_data.csv_filename)
     return response
 
+
+#
+# ---- Forecast upload/delete views ----
+#
 
 # todo authorization
 def delete_forecast(request, forecast_pk):

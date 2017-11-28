@@ -30,10 +30,10 @@ class Project(ModelWithCDCData):
     owner = models.ForeignKey(User,
                               related_name='project_owner',
                               blank=True, null=True,
-                              help_text="The project's owner")
+                              help_text="The project's owner.")
 
     model_owners = ManyToManyField(User, help_text="Users who are allowed to create, edit, and delete ForecastModels "
-                                                   "in this project")
+                                                   "in this project.")
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 
@@ -41,22 +41,22 @@ class Project(ModelWithCDCData):
 
     description = models.CharField(max_length=2000,
                                    help_text="A few paragraphs describing the project. Includes info about "
-                                             "'real-time-ness' of data, i.e., revised/unrevised")
+                                             "'real-time-ness' of data, i.e., revised/unrevised.")
 
-    url = models.URLField(help_text="The project's site")
+    url = models.URLField(help_text="The project's site.")
 
     core_data = models.URLField(
-        help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in " \
-                  "the challenge, including supplemental data like Google queries or weather")
+        help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
+                  "the challenge, including supplemental data like Google queries or weather.")
 
-    # config_dict: specifies project-specific information with these keys:
+    # config_dict: specifies project-specific information using these keys:
     #  - 'target_to_week_increment': a dict that maps week-related target names to ints, such as '1 wk ahead' -> 1 .
     #     also, this dict's keys are used by mean_abs_error_rows_for_project() to decide which targets to use
     # - 'location_to_delphi_region': a dict that maps all my locations to Delphi region names - see
     #     delphi_wili_for_epi_week()
     config_dict = JSONField(help_text="JSON dict containing these two keys, each of which is a dict: "
                                       "'target_to_week_increment' and 'location_to_delphi_region'. Please see "
-                                      "documentation for details")
+                                      "documentation for details.")
 
 
     def __repr__(self):
@@ -269,7 +269,7 @@ class Target(models.Model):
 
     name = models.CharField(max_length=200)
 
-    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target")
+    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target.")
 
 
     def __repr__(self):
@@ -295,11 +295,11 @@ class TimeZero(models.Model):
     """
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
-    timezero_date = models.DateField(help_text="A date that a target is relative to")
+    timezero_date = models.DateField(help_text="A date that a target is relative to.")
 
     data_version_date = models.DateField(
         null=True, blank=True,
-        help_text="The optional database date at which models should work with for the timezero_date")  # nullable
+        help_text="The optional database date at which models should work with for the timezero_date.")  # nullable
 
 
     def __repr__(self):

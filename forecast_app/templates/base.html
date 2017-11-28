@@ -78,6 +78,7 @@
                     </a>
                     <ul class="dropdown-menu">
                         <li><a href="{% url 'about' %}">About</a></li>
+                        <li><a href="{% url 'docs' %}" target="_blank">Documentation</a></li>
                     </ul>
                 </li>
             </ul>
@@ -88,6 +89,9 @@
 
 
 <div class="container">
+    <!-- hack to put vertical spacing above row, per https://stackoverflow.com/questions/12273588/add-vertical-blank-space-using-twitter-bootstrap -->
+    <ol style="visibility:hidden;"></ol>
+
     <div class="row">
         {% block content %}
         {% endblock %}

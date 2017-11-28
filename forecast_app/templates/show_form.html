@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+    <h1>{{ title }}</h1>
+
+    {% if form.errors%}
+        <p class="text-danger">Please correct these errors:</p>
+        {{ form.errors }}
+    {% endif %}
+
+    <form class="form-horizontal" method="POST">
+        {% csrf_token %}
+        {% include 'form_snippet.html' %}
+        <button type="button" onclick="history.back()" class="btn btn-default">Cancel</button>
+        <button type="submit" class="save btn btn-success">{{ button_name }}</button>
+    </form>
+
+    {# todo xx this is a hack to add extra space at the bottom. o/w the buttons were too close to the bottom and were sometimes cut off by browser info area: #}
+    <hr>
+
+{% endblock %}

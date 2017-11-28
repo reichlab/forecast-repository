@@ -12,21 +12,21 @@ class ForecastModel(models.Model):
     Represents a project's model entry by a competing team, including metadata, model-specific auxiliary data beyond
     core data, and a list of the actual forecasts.
     """
-    owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner")
+    owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.")
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200)
 
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. Should include "
-                                                              "information on reproducing the model’s results")
+                                                              "information on reproducing the model’s results.")
 
-    url = models.URLField(help_text="The model's development URL")
+    url = models.URLField(help_text="The model's development URL.")
 
     auxiliary_data = models.URLField(
         null=True, blank=True,
         help_text="Optional model-specific directory or Zip file containing data files (e.g., CSV files) beyond "
-                  "Project.core_data that were used by this model")
+                  "Project.core_data that were used by this model.")
 
 
     def __repr__(self):

@@ -18,7 +18,7 @@ class Forecast(ModelWithCDCData):
 
     # NB: these TimeZeros must be the exact objects as the ones in my ForecastModel's Project, b/c there is no __eq__()
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE,
-                                  help_text="TimeZero that this forecast is in relation to")
+                                  help_text="TimeZero that this forecast is in relation to.")
 
 
     def __repr__(self):
