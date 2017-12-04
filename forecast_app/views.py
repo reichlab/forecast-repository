@@ -15,7 +15,6 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME
 from forecast_app.templatetags.auth_extras import has_group
-from utils.make_example_projects import CDC_CONFIG_DICT
 from utils.utilities import mean_abs_error_rows_for_project
 
 
@@ -93,6 +92,7 @@ def create_project(request, user_pk):
             return redirect('project-detail', pk=new_project.pk)
 
     else:  # GET
+        from utils.make_example_projects import CDC_CONFIG_DICT  # avoid circular imports
         project_form = ProjectForm(initial={'config_dict': json.dumps(CDC_CONFIG_DICT, sort_keys=True, indent=4)})
 
     return render(request, 'show_form.html',
