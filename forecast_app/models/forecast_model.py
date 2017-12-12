@@ -14,7 +14,7 @@ class ForecastModel(models.Model):
     """
     owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.")
 
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200)
 
@@ -85,7 +85,7 @@ class ForecastModel(models.Model):
         """
         :return: the first TimeZero in forecast_model's Project that has a timezero_date matching timezero_date
         """
-        for time_zero in self.project.timezero_set.all():
+        for time_zero in self.project.timezeros.all():
             if time_zero.timezero_date == timezero_date_str:
                 return time_zero
 
@@ -96,7 +96,7 @@ class ForecastModel(models.Model):
         """
         :return: the first Forecast in me corresponding to time_zero. returns None o/w. NB: tests for object equality
         """
-        for forecast in self.forecast_set.all():
+        for forecast in self.forecasts.all():
             if forecast.time_zero == time_zero:
                 return forecast
 

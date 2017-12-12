@@ -23,17 +23,17 @@ def print_project_info(project):
     print('*', project, repr(project.name), repr(project.description), repr(project.home_url), '.',
           repr(project.csv_filename), project.config_dict)
     print('** Targets')
-    for target in project.target_set.all():
+    for target in project.targets.all():
         print('  ', target)
 
     print('** TimeZeros')
-    for timezero in project.timezero_set.all():
+    for timezero in project.timezeros.all():
         print('  ', timezero)
 
-    print('** ForecastModels', project.forecastmodel_set.all())
-    for forecast_model in project.forecastmodel_set.all():
+    print('** ForecastModels', project.models.all())
+    for forecast_model in project.models.all():
         print('**', forecast_model)
-        for forecast in forecast_model.forecast_set.order_by('time_zero'):
+        for forecast in forecast_model.forecasts.order_by('time_zero'):
             print('  ', forecast)
 
 

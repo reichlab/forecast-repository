@@ -122,7 +122,7 @@ def mean_absolute_error(forecast_model, season_start_year, location, target,
         true/actual wili value for an epi week
     :return: mean absolute error (scalar) for my predictions for a location and target
     """
-    forecasts = forecast_model.forecast_set.all()
+    forecasts = forecast_model.forecasts.all()
     if not forecasts:
         raise RuntimeError("could not calculate absolute errors: no data: {}".format(forecast_model))
 
@@ -177,7 +177,7 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
     # todo return indication of best model for each target -> bold in project_visualizations.html
     mae_targets = sorted(project.get_targets_for_mean_absolute_error())
     rows = [['Model', *mae_targets]]  # header
-    for forecast_model in project.forecastmodel_set.all():
+    for forecast_model in project.models.all():
         row = [forecast_model.name]
         for target in mae_targets:
             try:

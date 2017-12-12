@@ -283,7 +283,7 @@ def timezero_forecast_pairs_for_forecast_model(forecast_model):
     :return: a list of 2-tuples of time_zero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
     """
     timezero_forecast_pairs = []
-    for time_zero in forecast_model.project.timezero_set.all().order_by('timezero_date'):
+    for time_zero in forecast_model.project.timezeros.all().order_by('timezero_date'):
         timezero_forecast_pairs.append((time_zero, forecast_model.forecast_for_time_zero(time_zero)))
     return timezero_forecast_pairs
 

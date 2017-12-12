@@ -279,7 +279,7 @@ class Target(models.Model):
     """
     Represents a project's target - a description of the desired data in the each forecast's data file.
     """
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
 
     name = models.CharField(max_length=200)
 
@@ -307,7 +307,7 @@ class TimeZero(models.Model):
     Assumes dates from any project can be converted to actual dates, e.g., from Dengue biweeks or CDC MMWR weeks
     ( https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html ).
     """
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, related_name='timezeros', on_delete=models.CASCADE)
 
     timezero_date = models.DateField(help_text="A date that a target is relative to.")
 

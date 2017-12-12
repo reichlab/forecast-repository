@@ -25,17 +25,16 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     template_csv_file_name = serializers.SerializerMethodField()
     template_data = serializers.SerializerMethodField()
 
-    # todo xx use related_name on models to replace target_set with targets. ditto for other relations
-    forecastmodel_set = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
-    target_set = TargetSerializer(many=True, read_only=True)  # nested, no urls
-    timezero_set = TimeZeroSerializer(many=True, read_only=True)  # nested, no urls
+    models = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
+    targets = TargetSerializer(many=True, read_only=True)  # nested, no urls
+    timezeros = TimeZeroSerializer(many=True, read_only=True)  # nested, no urls
 
 
     class Meta:
         model = Project
         fields = ('id', 'url', 'owner', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                  'template_csv_file_name', 'template_data', 'model_owners', 'forecastmodel_set', 'target_set',
-                  'timezero_set')
+                  'template_csv_file_name', 'template_data', 'model_owners', 'models', 'targets',
+                  'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'model_owners': {'view_name': 'api-user-detail'},

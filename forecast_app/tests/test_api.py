@@ -54,7 +54,7 @@ class ApiTestCase(TestCase):
         # a rest_framework.response.Response:
         response = self.client.get(reverse('api-root'), format="json")
         self.assertEqual(status.HTTP_200_OK, response.status_code)
-        self.assertEqual(['projects', 'users'], list(response.data.keys()))
+        self.assertEqual(['users', 'projects'], list(response.data.keys()))
 
         # 'api-project-list'
         # a rest_framework.utils.serializer_helpers.ReturnList:
@@ -68,8 +68,8 @@ class ApiTestCase(TestCase):
         self.assertEqual(status.HTTP_200_OK, response.status_code)
 
         exp_keys = ['id', 'url', 'owner', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                    'template_csv_file_name', 'template_data', 'model_owners', 'forecastmodel_set', 'target_set',
-                    'timezero_set']
+                    'template_csv_file_name', 'template_data', 'model_owners', 'models', 'targets',
+                    'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-template-data'

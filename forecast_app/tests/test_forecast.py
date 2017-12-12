@@ -27,7 +27,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_load_forecast(self):
-        self.assertEqual(1, len(self.forecast_model.forecast_set.all()))
+        self.assertEqual(1, len(self.forecast_model.forecasts.all()))
 
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.csv_filename)
@@ -147,11 +147,11 @@ class ForecastTestCase(TestCase):
     def test_forecast_delete(self):
         # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
-        self.assertEqual(1, len(self.forecast_model.forecast_set.all()))  # from setUpTestData()
+        self.assertEqual(1, len(self.forecast_model.forecasts.all()))  # from setUpTestData()
         self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # ""
 
         forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
-        self.assertEqual(2, len(self.forecast_model.forecast_set.all()))  # includes new
+        self.assertEqual(2, len(self.forecast_model.forecasts.all()))  # includes new
         self.assertEqual(8019, len(forecast2.cdcdata_set.all()))  # new
         self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # didn't change
 

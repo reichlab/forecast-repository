@@ -12,7 +12,7 @@
     <h2>Models</h2>
     <p>
     <ul>
-        {% for forecast_model in project.forecastmodel_set.all %}
+        {% for forecast_model in project.models.all %}
             <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
         {% endfor %}
     </ul>
