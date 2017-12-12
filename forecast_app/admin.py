@@ -68,7 +68,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
     list_display = ('name', 'owner', 'truncated_description', 'num_models', 'num_forecasts', 'num_rows')
 
-    fields = ('owner', 'name', 'description', 'url', 'core_data', 'config_dict', 'csv_filename_and_form')
+    fields = ('owner', 'name', 'description', 'home_url', 'core_data', 'config_dict', 'csv_filename_and_form')
 
 
     def csv_filename_and_form(self, project):
@@ -135,7 +135,7 @@ class ForecastInline(admin.TabularInline):
 @admin.register(ForecastModel)
 class ForecastModelAdmin(admin.ModelAdmin):
     inlines = [ForecastInline]
-    fields = ('project', 'name', 'description', 'url', 'auxiliary_data')
+    fields = ('project', 'name', 'description', 'home_url', 'aux_data_url')
 
 
     def get_form(self, request, obj=None, **kwargs):

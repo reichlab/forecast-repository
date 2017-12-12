@@ -20,7 +20,7 @@ def print_project_info_app():
 
 
 def print_project_info(project):
-    print('*', project, repr(project.name), repr(project.description), repr(project.url), '.',
+    print('*', project, repr(project.name), repr(project.description), repr(project.home_url), '.',
           repr(project.csv_filename), project.config_dict)
     print('** Targets')
     for target in project.target_set.all():

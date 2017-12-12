@@ -24,6 +24,10 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '8%n4ehf+f-!evlnfbq(3lohe#0gob8@a*0*t*az1msd2^ri9uo'
 
 INSTALLED_APPS = [
+
+    # the REST API
+    'rest_framework',
+
     # this application
     'forecast_app.apps.ForecastAppConfig',
 
@@ -39,6 +43,11 @@ INSTALLED_APPS = [
     # add-ons
     'django.contrib.humanize',
 ]
+
+REST_FRAMEWORK = {
+    # 'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    'PAGE_SIZE': 10
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -123,7 +132,6 @@ LOGGING = {
         },
     }
 }
-
 
 #
 # https://docs.djangoproject.com/en/1.11/ref/settings/#std:setting-LOGIN_REDIRECT_URL

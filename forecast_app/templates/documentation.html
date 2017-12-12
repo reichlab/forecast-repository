@@ -5,14 +5,15 @@
 {% block content %}
 
     <h1>Documentation</h1>
-    <p>Here is some preliminary documentation. More TBD</p>
+    <p>Here is some preliminary technical documentation. More TBD.</p>
 
 
     <h2 id="config_dict">Project.config_dict</h2>
+
     <p>When creating a new Project, you must specify a <code>config_dict</code>. It is a
         <a href="https://www.json.org/">JSON</a> object that specifies project-specific information using these keys:
     </p>
-    <ol>
+    <ul>
         <li><code>target_to_week_increment</code>: an object that maps week-related target names to ints, such as
             '1 wk ahead' &rarr; 1 . Also, this objects's keys are used by the Mean Absolute Error method to decide which
             targets to use.
@@ -20,6 +21,25 @@
         <li><code>location_to_delphi_region</code>: an object that maps all my locations to Delphi region names, as
             documented <a href="https://github.com/cmu-delphi/delphi-epidata#fluview">here</a>.
         </li>
-    </ol>
+    </ul>
+
+
+    <h2 id="rest_api">REST API</h2>
+
+    <p>We provide the following REST endpoints. All results are <a href="https://www.json.org/">JSON</a>. The API is
+        browsable from <a href="{% url 'api-root' %}">the root URI</a>, a great starting point for developers. Details
+        TBD.</p>
+
+    <ul>
+        <li><code>api/</code></li>
+        <li><code>api/projects/</code></li>
+        <li><code>api/project/1/</code></li>
+        <li><code>api/projects/1/template_data/</code></li>
+        <li><code>api/users/</code></li>
+        <li><code>api/user/1/</code></li>
+        <li><code>api/model/1/</code></li>
+        <li><code>api/forecast/1/</code></li>
+        <li><code>api/forecast/1/data/</code></li>
+    </ul>
 
 {% endblock %}

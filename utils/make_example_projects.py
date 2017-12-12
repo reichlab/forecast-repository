@@ -97,7 +97,7 @@ def make_cdc_flu_challenge_project(config_dict):
         name='CDC Flu challenge (2016-2017)',
         description="Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions "
                     "based on ensembles.",
-        url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+        home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
         config_dict=config_dict)
     project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
@@ -145,8 +145,8 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         project=project,
         name='KoT ensemble',
         description="Team Kernel of Truth's ensemble model.",
-        url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-        auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
+        home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+        aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
     add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'ensemble')
 
     # KoT Kernel Density Estimation (KDE)
@@ -155,8 +155,8 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         project=project,
         name='KoT KDE',
         description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
-        url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-        auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
+        home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+        aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
     add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'kde')
 
     # KoT Kernel Conditional Density Estimation (KCDE)
@@ -165,8 +165,8 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         project=project,
         name='KoT KCDE',
         description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
-        url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-        auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
+        home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+        aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
     add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'kcde')
 
     # KoT SARIMA
@@ -175,8 +175,8 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         project=project,
         name='KoT SARIMA',
         description="Team Kernel of Truth's SARIMA model.",
-        url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
-        auxiliary_data='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
+        home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+        aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
     add_kot_forecasts_to_model(forecast_model, kot_data_dir, 'sarima')
 
     # done

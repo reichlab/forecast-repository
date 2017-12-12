@@ -43,7 +43,7 @@ class Project(ModelWithCDCData):
                                    help_text="A few paragraphs describing the project. Includes info about "
                                              "'real-time-ness' of data, i.e., revised/unrevised.")
 
-    url = models.URLField(help_text="The project's site.")
+    home_url = models.URLField(help_text="The project's home site.")
 
     core_data = models.URLField(
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "

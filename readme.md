@@ -31,6 +31,7 @@ $ pipenv install psycopg2
 $ pipenv install dj-database-url
 $ pipenv install gunicorn
 $ pipenv install whitenoise
+$ pipenv install djangorestframework
 ```
 
 

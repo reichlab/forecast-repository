@@ -8,11 +8,11 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
 
-        fields = ('name', 'description', 'url', 'core_data', 'config_dict', 'model_owners')
+        fields = ('name', 'description', "home_url", 'core_data', 'config_dict', 'model_owners')
 
 
 class ForecastModelForm(forms.ModelForm):
     class Meta:
         model = ForecastModel
 
-        fields = ('name', 'description', 'url', 'auxiliary_data')
+        fields = ('name', 'description', "home_url", "aux_data_url")

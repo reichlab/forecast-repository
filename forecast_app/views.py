@@ -93,6 +93,8 @@ def create_project(request, user_pk):
 
     else:  # GET
         from utils.make_example_projects import CDC_CONFIG_DICT  # avoid circular imports
+
+
         project_form = ProjectForm(initial={'config_dict': json.dumps(CDC_CONFIG_DICT, sort_keys=True, indent=4)})
 
     return render(request, 'show_form.html',
@@ -225,6 +227,33 @@ class ProjectDetailView(DetailView):
     model = Project
 
 
+def forecast_models_owned_by_user(user):
+    """
+    :param user: a User
+    :return: searches all ForecastModels and returns those where the owner is user
+    """
+    owned_models = []
+    for forecast_model in ForecastModel.objects.all():
+        if forecast_model.owner == user:
+            owned_models.append(forecast_model)
+    return owned_models
+
+
+def projects_and_roles_for_user(user):
+    """
+    :param user: a User
+    :return: searches all projects and returns a list of 2-tuples of projects and roles that user is involved in,
+        each of the form: (project, role), where role is either 'Project Owner' or 'Model Owner'
+    """
+    projects_and_roles = []
+    for project in Project.objects.all():
+        if project.owner == user:
+            projects_and_roles.append((project, 'Project Owner'))
+        elif user in project.model_owners.all():
+            projects_and_roles.append((project, 'Model Owner'))
+    return projects_and_roles
+
+
 class UserDetailView(DetailView):
     model = User
 
@@ -239,16 +268,8 @@ class UserDetailView(DetailView):
         # in model_owners. thus this list is of 2-tuples: (Project, user_role), where user_role is "Project Owner" or
         # "Model Owner"
         user = self.get_object()
-        projects_and_roles = []
-        owned_models = []
-        for project in Project.objects.all():
-            if project.owner == user:
-                projects_and_roles.append((project, 'Project Owner'))
-            elif user in project.model_owners.all():
-                projects_and_roles.append((project, 'Model Owner'))
-            for model in project.forecastmodel_set.all():
-                if user == model.owner:
-                    owned_models.append(model)
+        projects_and_roles = projects_and_roles_for_user(user)
+        owned_models = forecast_models_owned_by_user(user)
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
@@ -257,19 +278,25 @@ class UserDetailView(DetailView):
         return context
 
 
+def timezero_forecast_pairs_for_forecast_model(forecast_model):
+    """
+    :return: a list of 2-tuples of time_zero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
+    """
+    timezero_forecast_pairs = []
+    for time_zero in forecast_model.project.timezero_set.all().order_by('timezero_date'):
+        timezero_forecast_pairs.append((time_zero, forecast_model.forecast_for_time_zero(time_zero)))
+    return timezero_forecast_pairs
+
+
 class ForecastModelDetailView(DetailView):
     model = ForecastModel
 
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        forecast_model = self.get_object()
 
-        # pass a list of 2-tuples of time_zero/forecast pairs for this ForecastModel: (TimeZero, Forecast)
-        timezero_forecast_pairs = []
-        for time_zero in forecast_model.project.timezero_set.all().order_by('timezero_date'):
-            timezero_forecast_pairs.append((time_zero, forecast_model.forecast_for_time_zero(time_zero)))
-        context['timezero_forecast_pairs'] = timezero_forecast_pairs
+        forecast_model = self.get_object()
+        context['timezero_forecast_pairs'] = timezero_forecast_pairs_for_forecast_model(forecast_model)
 
         return context
 

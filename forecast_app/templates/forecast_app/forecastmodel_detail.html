@@ -34,8 +34,8 @@
         {{ forecastmodel.project.name }}</a></p>
     <p><strong>Description</strong>: {{ forecastmodel.description }}</p>
     <p><strong>Home</strong>:
-        {% if forecastmodel.url %}
-            <a href="{{ forecastmodel.url }}">{{ forecastmodel.url }}</a>
+        {% if forecastmodel.home_url %}
+            <a href="{{ forecastmodel.home_url }}">{{ forecastmodel.home_url }}</a>
         {% else %}
             <small class="text-muted">(No URL)</small>
         {% endif %}

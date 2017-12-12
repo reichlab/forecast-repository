@@ -35,7 +35,7 @@ def temp_app():
     click.echo("creating Project")
     project = Project.objects.create(name='Test Project',
                                      description="a Project for testing",
-                                     url='http://example.com',
+                                     home_url='http://example.com',
                                      core_data='http://example.com',
                                      config_dict=CDC_CONFIG_DICT)
     target = Target.objects.create(project=project, name="Test target", description="a Target for testing")
@@ -56,7 +56,7 @@ def temp_app():
     forecast_model = ForecastModel.objects.create(project=project,
                                                   name='Test ForecastModel',
                                                   description="a ForecastModel for testing",
-                                                  url='http://example.com')
+                                                  home_url='http://example.com')
 
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
     click.echo("loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model, csv_file_path))

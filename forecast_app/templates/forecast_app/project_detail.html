@@ -31,7 +31,7 @@
         {% endif %}
     </p>
     <p><strong>Description</strong>: {{ project.description }}</p>
-    <p><strong>Home</strong>: <a href="{{ project.url }}">{{ project.url }}</a></p>
+    <p><strong>Home</strong>: <a href="{{ project.home_url }}">{{ project.home_url }}</a></p>
     <p><strong>Core data</strong>: <a href="{{ project.core_data }}">{{ project.core_data }}</a></p>
     <p><strong>Template data</strong>:
         {% if project.csv_filename %}
