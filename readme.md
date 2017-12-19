@@ -36,8 +36,7 @@ $ pipenv install djangorestframework
 
 
 # Utils
-The files under utils/ are currently project-specific ones, currently related to making the CDC flu challenge data
-amenable to analysis.
+The files under utils/ are currently project-specific ones. They should probably be moved.
 
 
 # Running the tests
@@ -49,7 +48,6 @@ $ python3 ../../manage.py test --verbosity 2 --settings=forecast_repo.settings.l
 ```
 
 # Django project layout
-
 This project's settings scheme follows the "split settings.py into separate files in their own 'settings' module"
 approach. Since we plan on deploying to Heroku, there is no production.py. Regardless, every app needs to set
 the `DJANGO_SETTINGS_MODULE` environment variable accordingly, e.g., one of the following:
@@ -61,28 +59,41 @@ gunicorn -w 4 -b 127.0.0.1:8001 --settings=forecast_repo.settings.local_sqlite3
 ```
 
 
-# TODO
-
-## code
-- rename 'forecast_app'?
-- model constraints like null=True
-- change __str__()s to be prettier
-- change app name from forecast_app to something better?
-- Bootstrap: download locally-stored libs? bootstrap.min.css , jquery.min.js , and bootstrap.min.js
+# Heroku deployment
+The site is currently hosted by Heroku at https://reichlab-forecast-repository.herokuapp.com/ . Follow these steps to
+update it:
 
 
-## admin changes to make:
-- Admin home: /admin/ :
-  - shows Project list: /admin/forecast_app/project/ :
-- Project list:
-  - show only current user's projects, unless superuser
-- Project detail:
-  - Add/Edit Project: Project.owner forced to current user, unless superuser
-  - template field: if template loaded: shows template *.csv name & Delete button. o/w shows '-' & Add button -> form:
-- Project > Upload Template form: File input field, Upload and Cancel buttons -> Project.load_template()
-- ForecastModel detail:
-  - Forecast inline fields: TimeZero, Forecast, Action. latter two: if data loaded: shows template *.csv name (as a link
-    to Forecast detail) & Delete button. o/w shows '-' & Add button -> form:
-- ForecastModel > Upload Forecast form: File input field, Upload and Cancel buttons -> ForecastModel.load_forecast()
-- Forecast detail:
-  - all fields read-only. additionally: some kinds of visualizations or report?
+## login
+```bash
+$ cd ~/IdeaProjects/forecast-repository
+$ pipenv shell
+$ heroku login
+```
+
+
+## optional: dump local db then copy to remote
+```bash
+$ PGPASSWORD=mypassword
+$ pg_dump -Fc --no-acl --no-owner -h localhost -U cornell forecast_repo > /tmp/mc-1219-forecast_repo.dump
+```
+
+- upload to somewhere publicly accessible, e.g., Amazon S3
+
+```bash
+$ heroku pg:backups:restore 'https://s3.us-east-2.amazonaws.com/yourbucket/yourdatabase.dump' DATABASE_URL
+$ heroku run python manage.py createsuperuser --settings=forecast_repo.settings.heroku_production
+```
+
+
+## push code
+```bash
+$ git push heroku master
+```
+
+
+## start web dyno
+```bash
+$ heroku ps:scale web=1
+$ heroku open
+```
