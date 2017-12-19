@@ -79,14 +79,16 @@ class ViewsTestCase(TestCase):
         cls.tz_today = TimeZero.objects.create(project=cls.public_project, timezero_date=str(datetime.date.today()),
                                                data_version_date=None)
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
-                                                        description='', home_url='http://example.com')
+                                                        description='', home_url='http://example.com',
+                                                        owner=cls.mo_user)
         cls.public_forecast = cls.public_model.load_forecast(csv_file_path, cls.tz_today)
 
         # private_model
         cls.tz_today = TimeZero.objects.create(project=cls.private_project, timezero_date=str(datetime.date.today()),
                                                data_version_date=None)
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
-                                                         description='', home_url='http://example.com')
+                                                         description='', home_url='http://example.com',
+                                                         owner=cls.mo_user)
         cls.private_forecast = cls.private_model.load_forecast(csv_file_path, cls.tz_today)
 
         # user/response pairs for testing authorization
@@ -105,11 +107,11 @@ class ViewsTestCase(TestCase):
         cls.ONLY_PO = [(None, status.HTTP_403_FORBIDDEN),
                        (cls.po_user, status.HTTP_200_OK),
                        (cls.mo_user, status.HTTP_403_FORBIDDEN),
-                       (cls.superuser, status.HTTP_403_FORBIDDEN)]
+                       (cls.superuser, status.HTTP_200_OK)]
         cls.ONLY_PO_302 = [(None, status.HTTP_403_FORBIDDEN),
                            (cls.po_user, status.HTTP_302_FOUND),
                            (cls.mo_user, status.HTTP_403_FORBIDDEN),
-                           (cls.superuser, status.HTTP_403_FORBIDDEN)]
+                           (cls.superuser, status.HTTP_302_FOUND)]
 
 
     @patch('forecast_app.models.forecast.Forecast.delete')  # 'delete-forecast'

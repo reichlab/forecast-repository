@@ -97,6 +97,10 @@ class Project(ModelWithCDCData):
 
 
     def is_user_allowed_to_view(self, user, is_public_ok=True):
+        """
+        :return: True if user is allowed to view my pages based on my is_public, owner, and model_owners.
+            returns False o/w
+        """
         return user.is_superuser or (is_public_ok and self.is_public) or (user == self.owner) \
                or (user in self.model_owners.all())
 

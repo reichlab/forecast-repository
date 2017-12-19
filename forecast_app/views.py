@@ -5,7 +5,6 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse, HttpResponseForbidden
@@ -78,15 +77,17 @@ def project_visualizations(request, project_pk):
 
 def create_project(request, user_pk):
     """
-    Shows a form to add a new Project for the passed User. Authorization: The logged-in user must be the same as the
-    passed detail user, AND the logged-in user must be in the group PROJECT_OWNER_GROUP_NAME.
+    Shows a form to add a new Project for the passed User. Authorization: The logged-in user must be a superuser, or the
+    same as the passed OBO user AND the must be in the group PROJECT_OWNER_GROUP_NAME.
+
+    :param: user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
     authenticated_user = request.user
     new_project_user = get_object_or_404(User, pk=user_pk)
-    if (authenticated_user != new_project_user) or (not has_group(authenticated_user, PROJECT_OWNER_GROUP_NAME)):
-        raise PermissionDenied("logged-in user was not the same as the new Project's user, or was not in the Project "
-                               "Owner group. authenticated_user={}, new_project_user={}"
-                               .format(authenticated_user, new_project_user))
+    is_allowed_to_create = authenticated_user.is_superuser or ((authenticated_user == new_project_user) and
+                                                               has_group(authenticated_user, PROJECT_OWNER_GROUP_NAME))
+    if not is_allowed_to_create:
+        return HttpResponseForbidden()
 
     if request.method == 'POST':
         project_form = ProjectForm(request.POST)
@@ -112,14 +113,13 @@ def create_project(request, user_pk):
 
 def edit_project(request, project_pk):
     """
-    Shows a form to edit a Project's basic information. Authorization: The logged-in user must be the same as the
+    Shows a form to edit a Project's basic information. Authorization: The logged-in user must be a superuser or the
     Project's owner.
     """
-    user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    if user != project.owner:
-        raise PermissionDenied("logged-in user was not the Project's owner. user={}, owner={}"
-                               .format(user, project.owner))
+    is_allowed_to_edit = request.user.is_superuser or (request.user == project.owner)
+    if not is_allowed_to_edit:
+        return HttpResponseForbidden()
 
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=project)
@@ -140,13 +140,13 @@ def edit_project(request, project_pk):
 def delete_project(request, project_pk):
     """
     Does the actual deletion of a Project. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be the same as the Project's owner.
+    Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    if user != project.owner:
-        raise PermissionDenied("logged-in user was not the Project's owner. user={}, owner={}"
-                               .format(user, project.owner))
+    is_allowed_to_delete = request.user.is_superuser or (request.user == project.owner)
+    if not is_allowed_to_delete:
+        return HttpResponseForbidden()
 
     project.delete()
     # todo xx flash a temporary 'success' message
@@ -155,12 +155,14 @@ def delete_project(request, project_pk):
 
 def create_model(request, project_pk):
     """
-    Shows a form to add a new ForecastModel for the passed User. Authorization: The logged-in user must be in the
-    Project's model_owners.
+    Shows a form to add a new ForecastModel for the passed User. Authorization: The logged-in user must be a superuser,
+    or the Project's owner, or one if its model_owners.
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(user, is_public_ok=False):
+    is_allowed_to_create = request.user.is_superuser or (request.user == project.owner) or \
+                           (request.user in project.model_owners.all())
+    if not is_allowed_to_create:
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -184,11 +186,13 @@ def create_model(request, project_pk):
 
 def edit_model(request, model_pk):
     """
-    Shows a form to edit a ForecastModel. Authorization: The logged-in user must be the model's owner.
+    Shows a form to edit a ForecastModel. Authorization: The logged-in user must be a superuser, or the Project's owner,
+    or the model's owner.
     """
-    user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    if not forecast_model.project.is_user_allowed_to_view(user, is_public_ok=False):
+    is_allowed_to_edit = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+                         (request.user == forecast_model.owner)
+    if not is_allowed_to_edit:
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -211,11 +215,13 @@ def edit_model(request, model_pk):
 def delete_model(request, model_pk):
     """
     Does the actual deletion of the ForecastModel. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be the model's owner.
+    Authorization: The logged-in user must be a superuser, or the Project's owner, or the model's owner.
     """
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    if not forecast_model.project.is_user_allowed_to_view(user, is_public_ok=False):
+    is_allowed_to_delete = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+                           (request.user == forecast_model.owner)
+    if not is_allowed_to_delete:
         return HttpResponseForbidden()
 
     forecast_model.delete()
@@ -367,12 +373,14 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 def delete_forecast(request, forecast_pk):
     """
     Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be the Forecast's model's owner or the its Project's owner.
+    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
 
     :return: redirect to the forecast's forecast_model detail page
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    if not forecast.forecast_model.project.is_user_allowed_to_view(request.user, is_public_ok=False):
+    is_allowed_to_delete = request.user.is_superuser or (request.user == forecast.forecast_model.project.owner) or \
+                           (request.user == forecast.forecast_model.owner)
+    if not is_allowed_to_delete:
         return HttpResponseForbidden()
 
     forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
@@ -383,13 +391,16 @@ def delete_forecast(request, forecast_pk):
 # todo authorization
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
-    Uploads the passed data into a new Forecast.
+    Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
+    owner, or the model's owner.
 
     :return: redirect to the new forecast's detail page
     """
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
     time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-    if not forecast_model.project.is_user_allowed_to_view(request.user, is_public_ok=False):
+    is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+                           (request.user == forecast_model.owner)
+    if not is_allowed_to_upload:
         return HttpResponseForbidden()
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
