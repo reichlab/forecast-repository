@@ -5,7 +5,7 @@
 {% block content %}
 
     <p class="lead">Model: {{ forecastmodel.name }}
-        {% if user == forecastmodel.owner %}
+        {% if ok_user_edit_model %}
             {# Edit ForecastModel: a simple link to an edit form #}
             &nbsp;
             <a href="{% url 'edit-model' forecastmodel.pk %}" class="btn btn-success btn-sm" role="button">
@@ -74,7 +74,7 @@
                             <small class="text-muted">(No data)</small>
                         {% endif %}
                     </td>
-                    {% if user == forecastmodel.owner %}
+                    {% if ok_user_edit_model %}
                         <td>
                             {% if forecast %}
                                 {# show a button inside a modal dialog for deleting a forecast #}

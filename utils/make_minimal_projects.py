@@ -62,7 +62,8 @@ def make_minimal_projects_app():
     forecast_model = ForecastModel.objects.create(project=public_project,
                                                   name='Test ForecastModel',
                                                   description="a ForecastModel for testing",
-                                                  home_url='http://example.com')
+                                                  home_url='http://example.com',
+                                                  owner=mo_user)
 
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model, csv_file_path))

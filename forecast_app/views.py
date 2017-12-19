@@ -84,9 +84,7 @@ def create_project(request, user_pk):
     """
     authenticated_user = request.user
     new_project_user = get_object_or_404(User, pk=user_pk)
-    is_allowed_to_create = authenticated_user.is_superuser or ((authenticated_user == new_project_user) and
-                                                               has_group(authenticated_user, PROJECT_OWNER_GROUP_NAME))
-    if not is_allowed_to_create:
+    if not ok_user_create_project(new_project_user, authenticated_user):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -117,8 +115,7 @@ def edit_project(request, project_pk):
     Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    is_allowed_to_edit = request.user.is_superuser or (request.user == project.owner)
-    if not is_allowed_to_edit:
+    if not ok_user_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -144,8 +141,7 @@ def delete_project(request, project_pk):
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    is_allowed_to_delete = request.user.is_superuser or (request.user == project.owner)
-    if not is_allowed_to_delete:
+    if not ok_user_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     project.delete()
@@ -160,9 +156,7 @@ def create_model(request, project_pk):
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    is_allowed_to_create = request.user.is_superuser or (request.user == project.owner) or \
-                           (request.user in project.model_owners.all())
-    if not is_allowed_to_create:
+    if not ok_user_create_model(request.user, project):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -190,9 +184,7 @@ def edit_model(request, model_pk):
     or the model's owner.
     """
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    is_allowed_to_edit = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-                         (request.user == forecast_model.owner)
-    if not is_allowed_to_edit:
+    if not ok_user_edit_model(request.user, forecast_model):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -219,9 +211,7 @@ def delete_model(request, model_pk):
     """
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    is_allowed_to_delete = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-                           (request.user == forecast_model.owner)
-    if not is_allowed_to_delete:
+    if not ok_user_edit_model(request.user, forecast_model):
         return HttpResponseForbidden()
 
     forecast_model.delete()
@@ -245,6 +235,14 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return project.is_user_allowed_to_view(self.request.user)
+
+
+    def get_context_data(self, **kwargs):
+        project = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context['ok_user_edit_project'] = ok_user_edit_project(self.request.user, project)
+        context['ok_user_create_model'] = ok_user_create_model(self.request.user, project)
+        return context
 
 
 def forecast_models_owned_by_user(user):
@@ -294,6 +292,7 @@ class UserDetailView(DetailView):
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
         context['PROJECT_OWNER_GROUP_NAME'] = PROJECT_OWNER_GROUP_NAME
+        context['ok_user_create_project'] = ok_user_create_project(user, self.request.user)
 
         return context
 
@@ -323,6 +322,7 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 
         forecast_model = self.get_object()
         context['timezero_forecast_pairs'] = timezero_forecast_pairs_for_forecast_model(forecast_model)
+        context['ok_user_edit_model'] = ok_user_edit_model(self.request.user, forecast_model)
 
         return context
 
@@ -388,7 +388,6 @@ def delete_forecast(request, forecast_pk):
     return redirect('model-detail', pk=forecast_model_pk)
 
 
-# todo authorization
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
@@ -432,3 +431,26 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                       context={'title': "Got an error trying to load the data.",
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
                                           "Please go back and select a valid file.".format(rte)})
+
+
+#
+# ---- authorization utilities ----
+
+
+def ok_user_create_project(new_project_user, authenticated_user):
+    return authenticated_user.is_superuser or ((authenticated_user == new_project_user) and
+                                               has_group(authenticated_user, PROJECT_OWNER_GROUP_NAME))
+
+
+def ok_user_edit_project(user, project):
+    # applies to delete too
+    return user.is_superuser or (user == project.owner)
+
+
+def ok_user_create_model(user, project):
+    return user.is_superuser or (user == project.owner) or (user in project.model_owners.all())
+
+
+def ok_user_edit_model(user, forecast_model):
+    # applies to delete too
+    return user.is_superuser or (user == forecast_model.project.owner) or (user == forecast_model.owner)

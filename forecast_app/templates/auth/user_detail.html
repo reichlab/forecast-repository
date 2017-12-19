@@ -24,7 +24,7 @@
     {% load auth_extras %}
 
     <h2>Projects
-        {% if detail_user == user and user|has_group:PROJECT_OWNER_GROUP_NAME %}
+        {% if ok_user_create_project %}
             &nbsp;<a href="{% url 'create-project' detail_user.pk %}" class="btn btn-success" role="button">New</a>
         {% endif %}
     </h2>

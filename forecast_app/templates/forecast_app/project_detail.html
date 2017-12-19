@@ -5,7 +5,7 @@
 {% block content %}
 
     <p class="lead">Project: {{ project.name }}
-        {% if user == project.owner %}
+        {% if ok_user_edit_project %}
             {# Edit Project: a simple link to an edit form #}
             &nbsp;
             <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
@@ -57,7 +57,7 @@
 
 
     <h2>Models ({{ project.models.all|length }})
-        {% if user in project.model_owners.all %}
+        {% if ok_user_create_model %}
             &nbsp;<a href="{% url 'create-model' project.pk %}" class="btn btn-success" role="button">New</a>
         {% endif %}
     </h2>

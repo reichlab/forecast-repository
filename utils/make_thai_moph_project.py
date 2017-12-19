@@ -54,7 +54,7 @@ def make_thai_moph_project(project_name, template_path, data_dir):
     project = Project.objects.create(
         name=project_name,
         is_public=False,
-        description="Reichlab Dengue forecast for the 2017 season",
+        description="Impetus Project dengue forecasts for the 2017 season in Thailand",
         home_url='https://epimodeling.springloops.io/project/156725',
         core_data='https://github.com/reichlab/dengue-data')
 
