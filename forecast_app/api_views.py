@@ -1,5 +1,6 @@
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.generics import get_object_or_404
@@ -22,13 +23,17 @@ def api_root(request, format=None):
 class ProjectList(generics.ListAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    # permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
 
 
-class ProjectDetail(generics.RetrieveAPIView):
+class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    # permission_classes = (permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly,)
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        project = self.get_object()
+        return project.is_user_allowed_to_view(self.request.user)
 
 
 @api_view(['GET'])
@@ -38,6 +43,8 @@ def template_data(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     location_target_dict = project.get_location_target_dict()
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
 
     # note: I tried to use a rest_framework.response.Response, which is supposed to support pretty printing on the
     # client side via something like:
@@ -55,6 +62,9 @@ def forecast_data(request, forecast_pk):
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     location_target_dict = forecast.get_location_target_dict()
+    if not forecast.forecast_model.project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
     return JsonResponse(location_target_dict)
 
 
@@ -68,11 +78,23 @@ class UserDetail(generics.RetrieveAPIView):
     serializer_class = UserSerializer
 
 
-class ForecastModelDetail(generics.RetrieveAPIView):
+class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = ForecastModel.objects.all()
     serializer_class = ForecastModelSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
 
-class ForecastDetail(generics.RetrieveAPIView):
+    def test_func(self):  # return True if the current user can access the view
+        forecast_model = self.get_object()
+        return forecast_model.project.is_user_allowed_to_view(self.request.user)
+
+
+class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        forecast = self.get_object()
+        return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)

@@ -2,6 +2,7 @@ import itertools
 import math
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import ManyToManyField
 from django.urls import reverse
@@ -32,6 +33,11 @@ class Project(ModelWithCDCData):
                               blank=True, null=True,
                               help_text="The project's owner.")
 
+    is_public = models.BooleanField(default=True,
+                                    help_text="False if the project is private and can only be accessed by the "
+                                              "project's owner or any of its model_owners. True means it's publicly "
+                                              "accessible.")
+
     model_owners = ManyToManyField(User, help_text="Users who are allowed to create, edit, and delete ForecastModels "
                                                    "in this project.")
 
@@ -54,7 +60,8 @@ class Project(ModelWithCDCData):
     #     also, this dict's keys are used by mean_abs_error_rows_for_project() to decide which targets to use
     # - 'location_to_delphi_region': a dict that maps all my locations to Delphi region names - see
     #     delphi_wili_for_epi_week()
-    config_dict = JSONField(help_text="JSON dict containing these two keys, each of which is a dict: "
+    config_dict = JSONField(null=True, blank=True,
+                            help_text="JSON dict containing these two keys, each of which is a dict: "
                                       "'target_to_week_increment' and 'location_to_delphi_region'. Please see "
                                       "documentation for details.")
 
@@ -69,14 +76,29 @@ class Project(ModelWithCDCData):
 
     def save(self, *args, **kwargs):
         """
-        Validates my config_dict.
+        Validates my config_dict if provided, and my TimeZero.timezero_dates for uniqueness.
         """
-        if (not self.config_dict) \
-                or ('target_to_week_increment' not in self.config_dict) \
-                or ('location_to_delphi_region' not in self.config_dict):
-            raise RuntimeError("config_dict did not contain both required keys: 'target_to_week_increment' and "
-                               "'location_to_delphi_region': {}".format(self.config_dict))
+        if self.config_dict:
+            if ('target_to_week_increment' not in self.config_dict) or \
+                    ('location_to_delphi_region' not in self.config_dict):
+                raise ValidationError("config_dict did not contain both required keys: 'target_to_week_increment' and "
+                                      "'location_to_delphi_region': {}".format(self.config_dict))
+
+        # validate my TimeZero.timezero_dates
+        found_timezero_dates = []
+        for timezero in self.timezeros.all():
+            if timezero.timezero_date not in found_timezero_dates:
+                found_timezero_dates.append(timezero.timezero_date)
+            else:
+                raise ValidationError("found duplicate TimeZero.timezero_date: {}".format(timezero.timezero_date))
+
+        # done
         super().save(*args, **kwargs)
+
+
+    def is_user_allowed_to_view(self, user, is_public_ok=True):
+        return user.is_superuser or (is_public_ok and self.is_public) or (user == self.owner) \
+               or (user in self.model_owners.all())
 
 
     def get_absolute_url(self):
@@ -113,24 +135,25 @@ class Project(ModelWithCDCData):
     def get_region_for_location_name(self, location_name):
         """
         :return: Delphi region name corresponding to location_name. see here for valid ones:
-            https://github.com/cmu-delphi/delphi-epidata/blob/master/labels/regions.txt
+            https://github.com/cmu-delphi/delphi-epidata/blob/master/labels/regions.txt. returns None if no config_dict.
         """
-        return self.config_dict['location_to_delphi_region'][location_name]
+        return self.config_dict and self.config_dict['location_to_delphi_region'][location_name]
 
 
     def get_targets_for_mean_absolute_error(self):
         """
         :return: list of targets that can be used for ForecastModel.mean_absolute_error() calls, i.e., those that are
-        week-relative (?) ones
+        week-relative (?) ones. returns None if no config_dict.
         """
-        return list(self.config_dict['target_to_week_increment'].keys())
+        return self.config_dict and list(self.config_dict['target_to_week_increment'].keys())
 
 
     def get_week_increment_for_target_name(self, target_name):
         """
-        :return: returns an incremented week value based on the future specified by target_name
+        :return: returns an incremented week value based on the future specified by target_name. returns None if no
+        config_dict.
         """
-        return self.config_dict['target_to_week_increment'][target_name]
+        return self.config_dict and self.config_dict['target_to_week_increment'][target_name]
 
 
     @transaction.atomic
@@ -141,9 +164,9 @@ class Project(ModelWithCDCData):
 
         :param template_path: Path to a CDC CSV forecast file
         """
+        self.csv_filename = template_path.name
         self.load_csv_data(template_path)
         self.validate_template_data()
-        self.csv_filename = template_path.name
         self.save()
 
 
@@ -195,7 +218,7 @@ class Project(ModelWithCDCData):
                 if template_bins_sorted != forecast_bins_sorted:
                     raise RuntimeError("Bins did not match template. csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, "
-                                       "# forecast_bins={}"
+                                       "\# forecast_bins={}"
                                        .format(forecast.csv_filename, template_location, template_target,
                                                len(template_bins), len(forecast_bins)))
 
@@ -241,23 +264,20 @@ class Project(ModelWithCDCData):
             for template_target in template_targets:
                 location_template_pairs.add((template_location, template_target))
                 found_targets.add(template_target)
-                if not template_target_dicts[template_target]['point']:
-                    raise RuntimeError("Target has no point value. csv_filename={}, template_location={}, "
-                                       "template_target={}"
-                                       .format(self.csv_filename, template_location, template_target))
+
+                # note that we do not have to test for a missing point value:
+                # 'template_target_dicts[template_target]['point']' b/c get_location_target_dict() verifies a point
+                # row exists, which is all we care about in templates.
+
+                # also note that we do not validate that template_bins sum to ~1.0 b/c specifying actual values in
+                # templates is not required, partly b/c there is no standard for what values to use. however, do note
+                # that validate_forecast_data() does check bin sums
 
                 template_bins = template_target_dicts[template_target]['bins']
                 if not template_bins:
                     raise RuntimeError("Target has no bins. csv_filename={}, template_location={}, "
                                        "template_target={}"
                                        .format(self.csv_filename, template_location, template_target))
-
-                template_bin_sum = sum([b[-1] for b in template_bins])
-                # note that the default of 1e-09 failed for 2016-2017_submission_template.csv
-                if not math.isclose(1.0, template_bin_sum, rel_tol=1e-07):
-                    raise RuntimeError("Bin did not sum to 1.0. csv_filename={}, template_location={}, "
-                                       "template_target={}, template_bin_sum={}"
-                                       .format(self.csv_filename, template_location, template_target, template_bin_sum))
 
         # test that every target exists in every location
         expected_location_template_pairs = set(itertools.product(template_locations, found_targets))

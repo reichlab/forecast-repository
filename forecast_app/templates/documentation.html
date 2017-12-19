@@ -10,8 +10,9 @@
 
     <h2 id="config_dict">Project.config_dict</h2>
 
-    <p>When creating a new Project, you must specify a <code>config_dict</code>. It is a
-        <a href="https://www.json.org/">JSON</a> object that specifies project-specific information using these keys:
+    <p>When creating a new Project, you may choose to pass a <code>config_dict</code>. It is a
+        <a href="https://www.json.org/">JSON</a> object that specifies project-specific information used to calculate
+        statistics, currently Mean Absolute Error. There are two keys, both required:
     </p>
     <ul>
         <li><code>target_to_week_increment</code>: an object that maps week-related target names to ints, such as

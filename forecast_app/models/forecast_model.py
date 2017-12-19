@@ -70,10 +70,6 @@ class ForecastModel(models.Model):
         """
         # NB: does not check if a Forecast already exists for time_zero and file_name
         file_name = file_name if file_name else csv_file_path.name
-
-        if not filename_components(file_name):
-            raise RuntimeError("Bad file name (not CDC format): {}".format(file_name))
-
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
                                                                             csv_filename=file_name)
         new_forecast.load_csv_data(csv_file_path)
@@ -81,7 +77,7 @@ class ForecastModel(models.Model):
         return new_forecast
 
 
-    def time_zero_for_timezero_date_str(self, timezero_date_str):
+    def time_zero_for_timezero_date(self, timezero_date_str):
         """
         :return: the first TimeZero in forecast_model's Project that has a timezero_date matching timezero_date
         """

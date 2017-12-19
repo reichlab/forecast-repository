@@ -47,6 +47,7 @@ def filename_components(filename):
 
     return int(re_split[0]), re_split[1], datetime.date(int(re_split[2]), int(re_split[3]), int(re_split[4]))
 
+
 #
 # ---- functions to access the delphi API ----
 #
@@ -120,22 +121,26 @@ def mean_absolute_error(forecast_model, season_start_year, location, target,
     :param:season_start_year: year of the season, e.g., 2016 for the season 2016-2017
     :param:true_value_for_epi_week_fcn: a function of three args (year, week, location_name) that returns the
         true/actual wili value for an epi week
-    :return: mean absolute error (scalar) for my predictions for a location and target
+    :return: mean absolute error (scalar) for my predictions for a location and target. returns None if can't be
+        calculated
     """
     forecasts = forecast_model.forecasts.all()
     if not forecasts:
         raise RuntimeError("could not calculate absolute errors: no data: {}".format(forecast_model))
 
+    week_increment = forecast_model.project.get_week_increment_for_target_name(target)
+    if not week_increment:
+        return None
+
     cdc_file_name_to_abs_error = {}
     for forecast in forecasts:
-        # set timezero week and year, inferring the latter based on @Evan's and @Nick's replies:
+        # set timezero week and year, inferring the latter based on Evan's and Nick's replies:
         # > We used week 30. I don't think this is a standardized concept outside of our lab though."
         # > We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with
         # > EW30-2016 and ends with EW29-2017.  <- todo abstract this standard/convention out
         timezero_week = filename_components(forecast.csv_filename)[0]
         timezero_year = season_start_year if timezero_week >= 30 else season_start_year + 1
-        future_year, future_week = increment_week(timezero_year, timezero_week,
-                                                  forecast_model.project.get_week_increment_for_target_name(target))
+        future_year, future_week = increment_week(timezero_year, timezero_week, week_increment)
         true_value = wili_for_epi_week_fcn(forecast_model, future_year, future_week, location)
         predicted_value = forecast.get_target_point_value(location, target)
         abs_error = abs(predicted_value - true_value)
@@ -183,6 +188,9 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
             try:
                 mae_val = mean_absolute_error(forecast_model, season_start_year, location, target,
                                               wili_for_epi_week_fcn=delphi_wili_for_epi_week)
+                if not mae_val:
+                    return []
+
                 row.append("{:0.2f}".format(mae_val))
             except:
                 return []

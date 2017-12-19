@@ -32,7 +32,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'owner', 'name', 'description', 'home_url', 'core_data', 'config_dict',
+        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
                   'template_csv_file_name', 'template_data', 'model_owners', 'models', 'targets',
                   'timezeros')
         extra_kwargs = {

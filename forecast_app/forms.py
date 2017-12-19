@@ -8,7 +8,7 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
 
-        fields = ('name', 'description', "home_url", 'core_data', 'config_dict', 'model_owners')
+        fields = ('name', 'is_public', 'description', "home_url", 'core_data', 'config_dict', 'model_owners')
 
 
 class ForecastModelForm(forms.ModelForm):

@@ -47,8 +47,8 @@ class ModelWithCDCData(models.Model):
             header = orig_header
             if (len(header) == 8) and (header[7] == ''):
                 header = header[:7]
-            header = [i.replace('"', '') for i in header]
-            if header != ['Location', 'Target', 'Type', 'Unit', 'Bin_start_incl', 'Bin_end_notincl', 'Value']:
+            header = [h.lower() for h in [i.replace('"', '') for i in header]]
+            if header != ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']:
                 raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
             for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
@@ -58,30 +58,35 @@ class ModelWithCDCData(models.Model):
                     raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
 
                 location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
-                self.insert_data(cursor, location, target, row_type, unit,
-                                 bin_start_incl, bin_end_notincl, value)
+                self.insert_data(cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value)
 
 
     def insert_data(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
         """
-        Inserts the passed data into a row in my associated CDCData table.
+        Inserts the passed data into a row in my associated CDCData table. Validates only row_type, which must be
+        'point' or 'bin' (case is ignored).
 
         NB: This SQL-based implementation is a faster alternative to an ORM-based one.
 
         """
+        row_type = row_type.lower()
+        if row_type not in ['point', 'bin']:
+            raise RuntimeError("row_type was neither 'point' nor 'bin': ".format(row_type))
+
+        row_type = CDCData.POINT_ROW_TYPE if row_type == 'point' else CDCData.BIN_ROW_TYPE
+
         # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
         column_names = ', '.join(['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl',
                                   'value', self.__class__._meta.model_name + '_id'])
-        row_type = CDCData.POINT_ROW_TYPE if row_type == 'Point' else CDCData.BIN_ROW_TYPE
         sql = """
-                    INSERT INTO {cdcdata_table_name} ({column_names})
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-                """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
-        # we use parse_value() to handle non-numeric cases like 'NA' and 'none'
+            INSERT INTO {cdcdata_table_name} ({column_names})
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
 
         if not self.pk:
             raise Exception("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
+        # we use parse_value() to handle non-numeric cases like 'NA' and 'none'
         cursor.execute(sql, [location, target, row_type, unit,
                              parse_value(bin_start_incl), parse_value(bin_end_notincl), parse_value(value), self.pk])
 
@@ -92,11 +97,11 @@ class ModelWithCDCData(models.Model):
         """
         # todo better way to get FK name? - {model_name}_id
         sql = """
-                SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
-                FROM {cdcdata_table_name}
-                WHERE {model_name}_id = %s;
-            """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                       model_name=self.__class__._meta.model_name)
+            SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s;
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk])
             return cursor.fetchall()  # rows
@@ -251,7 +256,12 @@ class ModelWithCDCData(models.Model):
         for location, location_grouper in groupby(rows, key=lambda _: _[0]):
             target_dict = {}
             for target, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
-                point_row = next(target_grouper)  # the first row is always the 'p' point value, thanks to ORDER BY
+                # NB: this assumes that the first row is always the 'p' point value, thanks to ORDER BY, which is not
+                # true when, for example, a target has no point row. and since this method is called by
+                # Project.validate_template_data(), we need to check it here
+                point_row = next(target_grouper)
+                if point_row[2] != CDCData.POINT_ROW_TYPE:
+                    raise RuntimeError("First row was not the point row: {}".format(point_row))
                 target_dict[target] = {'unit': point_row[3],
                                        'point': point_row[-1],
                                        'bins': [bin_list[-3:] for bin_list in target_grouper]}
@@ -283,7 +293,7 @@ class CDCData(models.Model):
 
     bin_start_incl = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
     bin_end_notincl = models.FloatField(null=True)  # ""
-    value = models.FloatField()
+    value = models.FloatField(null=True)
 
 
     class Meta:

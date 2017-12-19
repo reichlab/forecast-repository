@@ -36,6 +36,7 @@
             <tr>
                 <th>Project</th>
                 <th>Role</th>
+                <th>Public?</th>
                 <th>Description</th>
                 <th>Objects</th>
             </tr>
@@ -44,6 +45,7 @@
                     <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
                     <td>{{ user_role }}{% if detail_user == user %}<span class="text-muted"> (you)</span>{% endif %}
                     </td>
+                    <td>{{ project.is_public|yesno }}</td>
                     <td>{{ project.description }}</td>
                     <td class="text-muted">{{ project.get_summary_counts.0 }} models,
                         {{ project.get_summary_counts.1 }} forecasts,

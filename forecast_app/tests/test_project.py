@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
@@ -37,12 +38,12 @@ class ProjectTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
-        cls.project.load_template(Path('2016-2017_submission_template.csv'))
+        cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date="2017-01-01")
-        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                                        cls.time_zero)
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
+        cls.forecast = cls.forecast_model.load_forecast(
+            Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
     def test_load_template(self):
@@ -58,7 +59,7 @@ class ProjectTestCase(TestCase):
         # verify load_forecast() fails
         new_forecast_model = ForecastModel.objects.create(project=new_project)
         with self.assertRaises(RuntimeError) as context:
-            new_forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
+            new_forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
         self.assertIn("Cannot validate forecast data", str(context.exception))
 
 
@@ -69,28 +70,37 @@ class ProjectTestCase(TestCase):
 
         # no locations
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('EW1-no-locations-2017-01-17.csv'))
+            new_project.load_template(Path('forecast_app/tests/EW1-no-locations-2017-01-17.csv'))
         self.assertIn("Template has no locations", str(context.exception))
 
         # a target without a point value
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('EW1-target-no-point-2017-01-17.csv'))
-        self.assertIn("Target has no point value", str(context.exception))
+            new_project.load_template(Path('forecast_app/tests/EW1-target-no-point-2017-01-17.csv'))
+        self.assertIn("First row was not the point row", str(context.exception))
+
+        # expose a bug in ModelWithCDCData.insert_data() that depended on the 'type' column's case (tested for
+        # 'Point') - should *not* raise "Target has no point value" b/c it *does* have a point row:
+        #     TH01,1_biweek_ahead,point,cases,NA,NA,NA
+        new_project.load_template(Path('forecast_app/tests/thai-template-lowercase-type.csv'))
 
         # a target without a bin
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('EW1-target-no-bins-2017-01-17.csv'))
+            new_project.load_template(Path('forecast_app/tests/EW1-target-no-bins-2017-01-17.csv'))
         self.assertIn("Target has no bins", str(context.exception))
 
         # a target that's not in every location
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('EW1-target-missing-from-location-2017-01-17.csv'))
+            new_project.load_template(Path('forecast_app/tests/EW1-target-missing-from-location-2017-01-17.csv'))
         self.assertIn("Target(s) was not found in every location", str(context.exception))
 
-        # a target bin that did not sum to 1.0
+        # bad row type - neither 'point' nor 'bin'
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('EW1-bin-doesnt-sum-to-one-2017-01-17.csv'))
-        self.assertIn("Bin did not sum to 1.0", str(context.exception))
+            new_project.load_template(Path('forecast_app/tests/thai-template-bad-row-type-point.csv'))
+        self.assertIn("row_type was neither 'point' nor 'bin'", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            new_project.load_template(Path('forecast_app/tests/thai-template-bad-row-type-bin.csv'))
+        self.assertIn("row_type was neither 'point' nor 'bin'", str(context.exception))
 
 
     def test_project_template_data_accessors(self):
@@ -125,6 +135,26 @@ class ProjectTestCase(TestCase):
 
 
     def test_project_config_dict_validation(self):
-        with self.assertRaises(RuntimeError) as context:
-            Project.objects.create(config_dict=None)
+        config_dict = {
+            "target_to_week_increment": {},
+        }
+        with self.assertRaises(ValidationError) as context:
+            Project.objects.create(config_dict=config_dict)  # missing "location_to_delphi_region"
         self.assertIn("config_dict did not contain both required keys", str(context.exception))
+
+        config_dict = {
+            "location_to_delphi_region": {}
+        }
+        with self.assertRaises(ValidationError) as context:
+            Project.objects.create(config_dict=config_dict)  # missing "target_to_week_increment"
+        self.assertIn("config_dict did not contain both required keys", str(context.exception))
+
+
+    def test_timezeros_unique(self):
+        project = Project.objects.create()
+        with self.assertRaises(ValidationError) as context:
+            timezeros = [TimeZero.objects.create(project=project, timezero_date='2017-01-01'),
+                         TimeZero.objects.create(project=project, timezero_date='2017-01-01')]
+            project.timezeros.add(*timezeros)
+            project.save()
+        self.assertIn("found duplicate TimeZero.timezero_date", str(context.exception))

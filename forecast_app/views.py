@@ -3,11 +3,12 @@ import os
 from pathlib import Path
 
 from django.conf import settings
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView
 
@@ -40,6 +41,9 @@ def template_detail(request, project_pk):
     View function to render a preview of a Project's template.
     """
     project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
     return render(
         request,
         'template_data_detail.html',
@@ -55,6 +59,9 @@ def project_visualizations(request, project_pk):
     location = 'US National'
 
     project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
     mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)
     return render(
         request,
@@ -92,7 +99,7 @@ def create_project(request, user_pk):
             return redirect('project-detail', pk=new_project.pk)
 
     else:  # GET
-        from utils.make_example_projects import CDC_CONFIG_DICT  # avoid circular imports
+        from utils.make_cdc_flu_challenge_project import CDC_CONFIG_DICT  # avoid circular imports
 
 
         project_form = ProjectForm(initial={'config_dict': json.dumps(CDC_CONFIG_DICT, sort_keys=True, indent=4)})
@@ -153,9 +160,8 @@ def create_model(request, project_pk):
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    if user not in project.model_owners.all():
-        raise PermissionDenied("logged-in user was not in the Project's model_owners. user={}, "
-                               "Project.model_owners={}".format(user, project.model_owners))
+    if not project.is_user_allowed_to_view(user, is_public_ok=False):
+        return HttpResponseForbidden()
 
     if request.method == 'POST':
         forecast_model_form = ForecastModelForm(request.POST)
@@ -182,9 +188,8 @@ def edit_model(request, model_pk):
     """
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    if user != forecast_model.owner:
-        raise PermissionDenied("logged-in user was not the model's owner. user={}, forecast_model={}"
-                               .format(user, forecast_model))
+    if not forecast_model.project.is_user_allowed_to_view(user, is_public_ok=False):
+        return HttpResponseForbidden()
 
     if request.method == 'POST':
         forecast_model_form = ForecastModelForm(request.POST, instance=forecast_model)
@@ -210,9 +215,8 @@ def delete_model(request, model_pk):
     """
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    if user != forecast_model.owner:
-        raise PermissionDenied("logged-in user was not the model's owner. user={}, forecast_model={}"
-                               .format(user, forecast_model))
+    if not forecast_model.project.is_user_allowed_to_view(user, is_public_ok=False):
+        return HttpResponseForbidden()
 
     forecast_model.delete()
     # todo xx flash a temporary 'success' message
@@ -223,8 +227,18 @@ def delete_model(request, model_pk):
 # ---- Detail views ----
 #
 
-class ProjectDetailView(DetailView):
+
+class ProjectDetailView(UserPassesTestMixin, DetailView):
+    """
+    Authorization: private projects can only be accessed by the project's owner or any of its model_owners
+    """
     model = Project
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        project = self.get_object()
+        return project.is_user_allowed_to_view(self.request.user)
 
 
 def forecast_models_owned_by_user(user):
@@ -288,8 +302,14 @@ def timezero_forecast_pairs_for_forecast_model(forecast_model):
     return timezero_forecast_pairs
 
 
-class ForecastModelDetailView(DetailView):
+class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        forecast_model = self.get_object()
+        return forecast_model.project.is_user_allowed_to_view(self.request.user)
 
 
     def get_context_data(self, **kwargs):
@@ -301,8 +321,14 @@ class ForecastModelDetailView(DetailView):
         return context
 
 
-class ForecastDetailView(DetailView):
+class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        forecast = self.get_object()
+        return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)
 
 
 def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
@@ -320,7 +346,13 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
         model_with_cdc_data_class = Forecast
     else:
         raise RuntimeError("invalid kwargs: {}".format(kwargs))
+
     model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
+    project = model_with_cdc_data if model_with_cdc_data_class == Project \
+        else model_with_cdc_data.forecast_model.project
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
     location_target_dict = model_with_cdc_data.get_location_target_dict()
     response = JsonResponse(location_target_dict)
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"'.format(
@@ -335,15 +367,13 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 def delete_forecast(request, forecast_pk):
     """
     Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be the Forecast's model's owner.
+    Authorization: The logged-in user must be the Forecast's model's owner or the its Project's owner.
 
     :return: redirect to the forecast's forecast_model detail page
     """
-    user = request.user
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    if user != forecast.forecast_model.owner:
-        raise PermissionDenied("logged-in user was not the Forecast's model's owner. user={}, forecast_model={}"
-                               .format(user, forecast.forecast_model))
+    if not forecast.forecast_model.project.is_user_allowed_to_view(request.user, is_public_ok=False):
+        return HttpResponseForbidden()
 
     forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
     forecast.delete()
@@ -359,6 +389,8 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
     time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
+    if not forecast_model.project.is_user_allowed_to_view(request.user, is_public_ok=False):
+        return HttpResponseForbidden()
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
         return render(request, 'message.html',

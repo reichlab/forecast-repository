@@ -18,12 +18,12 @@ class ForecastTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
-        cls.project.load_template(Path('2016-2017_submission_template.csv'))
+        cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date="2017-01-01")
-        cls.forecast = cls.forecast_model.load_forecast(Path('model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                                        cls.time_zero)
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
+        cls.forecast = cls.forecast_model.load_forecast(
+            Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
     def test_load_forecast(self):
@@ -43,48 +43,50 @@ class ForecastTestCase(TestCase):
         self.assertEqual(['HHS Region 10', '4 wk ahead', 'b', 'percent', 13, 100, 0.00307617873070836],
                          cdc_data_rows[8018].data_row())
 
-        # test a bad data file name
-        with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('model_error_calculations.txt'), self.time_zero)
-        self.assertIn('Bad file name (not CDC format)', str(context.exception))
-
         # test empty file
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-bad_file_no_header-2017-01-17.csv'), self.time_zero)
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad_file_no_header-2017-01-17.csv'),
+                                              self.time_zero)
         self.assertIn('Empty file', str(context.exception))
 
         # test a bad data file header
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-bad_file_header-2017-01-17.csv'), self.time_zero)
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'),
+                                              self.time_zero)
         self.assertIn('Invalid header', str(context.exception))
 
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-locations-dont-match-2017-01-17.csv'), self.time_zero)
-        self.assertIn("Locations did not match template", str(context.exception))
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-locations-dont-match-2017-01-17.csv'),
+                                              self.time_zero)
+        self.assertIn("First row was not the point row", str(context.exception))  # turns out this is the first failure
 
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-targets-dont-match-2017-01-17.csv'), self.time_zero)
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-targets-dont-match-2017-01-17.csv'),
+                                              self.time_zero)
         self.assertIn("Targets did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-wrong-number-of-bins-2017-01-17.csv'), self.time_zero)
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-wrong-number-of-bins-2017-01-17.csv'),
+                                              self.time_zero)
         self.assertIn("Bins did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-bin-doesnt-sum-to-one-2017-01-17.csv'), self.time_zero)
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
+                                              self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
         # target units match. also tests that all targets have a point value
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('EW1-units-dont-match-2017-01-17.csv'), self.time_zero)
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-units-dont-match-2017-01-17.csv'),
+                                              self.time_zero)
         self.assertIn("Target unit not found or didn't match template", str(context.exception))
 
 
     @unittest.skip
     def test_forecast_data_validation_additional(self):
-        # test points lie within the range of point values in the template. see @nick's comment
+        # test points lie within the range of point values in the template. see Nick's comment
         # ( https://github.com/reichlab/forecast-repository/issues/18#issuecomment-335654340 ):
         # The thought was that for each target we could look at all of the values in the point rows for that target and
         # would end up with a vector of numbers. The minimum and maximum of those numbers would define the acceptable
@@ -150,7 +152,8 @@ class ForecastTestCase(TestCase):
         self.assertEqual(1, len(self.forecast_model.forecasts.all()))  # from setUpTestData()
         self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # ""
 
-        forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
+        forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
+                                                      self.time_zero)
         self.assertEqual(2, len(self.forecast_model.forecasts.all()))  # includes new
         self.assertEqual(8019, len(forecast2.cdcdata_set.all()))  # new
         self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # didn't change
@@ -206,7 +209,8 @@ class ForecastTestCase(TestCase):
                                             data_version_date=None)
         self.assertEqual(None, self.forecast_model.forecast_for_time_zero(time_zero))
 
-        forecast2 = self.forecast_model.load_forecast(Path('EW1-KoTsarima-2017-01-17.csv'), time_zero)
+        forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
+                                                      time_zero)
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()

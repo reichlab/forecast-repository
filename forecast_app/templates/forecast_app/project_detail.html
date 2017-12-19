@@ -30,6 +30,7 @@
             <small class="text-muted">(No owner)</small>
         {% endif %}
     </p>
+    <p><strong>Public?</strong> {{ project.is_public|yesno }}</p>
     <p><strong>Description</strong>: {{ project.description }}</p>
     <p><strong>Home</strong>: <a href="{{ project.home_url }}">{{ project.home_url }}</a></p>
     <p><strong>Core data</strong>: <a href="{{ project.core_data }}">{{ project.core_data }}</a></p>
@@ -85,14 +86,14 @@
     {% endif %}
 
 
-    <h2>TimeZeros ({{ project.timezeros.all|length }})</h2>
+    <h2>TimeZeros & Data Version Dates ({{ project.timezeros.all|length }})</h2>
 
     {% if project.timezeros.all %}
         <ul>
             {% for timezero in project.timezeros.all %}
                 <li><strong>{{ timezero.timezero_date|date:"Y-m-d" }}</strong>
                     {% if timezero.data_version_date %}
-                        {{ timezero.data_version_date }}
+                        &nbsp; @{{ timezero.data_version_date|date:"Y-m-d" }}
                     {% else %}
                         <small class="text-muted">(No data version date)</small>
                     {% endif %}

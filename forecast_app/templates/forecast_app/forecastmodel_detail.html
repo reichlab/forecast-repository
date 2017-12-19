@@ -50,63 +50,66 @@
 
 
     <h2>Forecasts ({{ forecastmodel.forecasts.all|length }})</h2>
-    <table class="table table-striped">
-        <thead>
-        <tr>
-            <th>TimeZero</th>
-            <th>Data Filename</th>
-            {% if user == forecastmodel.owner %}
-                <th>Action</th>
-            {% endif %}
-        </tr>
-        </thead>
-        <tbody>
-        {% for time_zero, forecast in timezero_forecast_pairs %}
+    {% if timezero_forecast_pairs %}
+        <table class="table table-striped">
+            <thead>
             <tr>
-                <td>
-                    {{ time_zero.timezero_date|date:"Y-m-d" }}
-                </td>
-                <td>
-                    {% if forecast %}
-                        <a href="{{ forecast.get_absolute_url }}">{{ forecast.csv_filename }}</a>
-                    {% else %}
-                        <small class="text-muted">(No data)</small>
-                    {% endif %}
-                </td>
+                <th>TimeZero</th>
+                <th>Data Filename</th>
                 {% if user == forecastmodel.owner %}
+                    <th>Action</th>
+                {% endif %}
+            </tr>
+            </thead>
+            <tbody>
+            {% for time_zero, forecast in timezero_forecast_pairs %}
+                <tr>
+                    <td>
+                        {{ time_zero.timezero_date|date:"Y-m-d" }}
+                    </td>
                     <td>
                         {% if forecast %}
-                            {# show a button inside a modal dialog for deleting a forecast #}
-
-                            {# Delete Forecast: a button that shows a hidden confirm modal when clicked #}
-                            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
-                                    data-target="#confirmModal_{{ forecast.html_id }}">
-                                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
-                            </button>
-
-                            {# the modal itself - hidden until above button shows it #}
-                            {% include 'delete_modal_snippet.html' with delete_object=forecast delete_url='delete-forecast' %}
+                            <a href="{{ forecast.get_absolute_url }}">{{ forecast.csv_filename }}</a>
                         {% else %}
-                            {# show a button for uploading a file #}
-                            {# todo use a proper Django form?, e.g., https://docs.djangoproject.com/en/1.11/topics/http/file-uploads/ #}
-                            <form class="form-inline" method="POST" enctype="multipart/form-data"
-                                  action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
-                                {% csrf_token %}
-                                <div class="form-group">
-                                    <button class="form-control btn btn-success" type="submit">
-                                        <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
-                                    </button>
-                                </div>
-                                <div class="form-group">
-                                    <input type="file" name="data_file">
-                                </div>
-                            </form>
+                            <small class="text-muted">(No data)</small>
                         {% endif %}
-                    </td>{% endif %}
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+                    </td>
+                    {% if user == forecastmodel.owner %}
+                        <td>
+                            {% if forecast %}
+                                {# show a button inside a modal dialog for deleting a forecast #}
 
+                                {# Delete Forecast: a button that shows a hidden confirm modal when clicked #}
+                                <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
+                                        data-target="#confirmModal_{{ forecast.html_id }}">
+                                    <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                                </button>
+
+                                {# the modal itself - hidden until above button shows it #}
+                                {% include 'delete_modal_snippet.html' with delete_object=forecast delete_url='delete-forecast' %}
+                            {% else %}
+                                {# show a button for uploading a file #}
+                                {# todo use a proper Django form?, e.g., https://docs.djangoproject.com/en/1.11/topics/http/file-uploads/ #}
+                                <form class="form-inline" method="POST" enctype="multipart/form-data"
+                                      action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
+                                    {% csrf_token %}
+                                    <div class="form-group">
+                                        <button class="form-control btn btn-success" type="submit">
+                                            <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                    <div class="form-group">
+                                        <input type="file" name="data_file">
+                                    </div>
+                                </form>
+                            {% endif %}
+                        </td>{% endif %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <small class="text-muted">(No forecasts)</small>
+    {% endif %}
 
 {% endblock %}
