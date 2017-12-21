@@ -41,9 +41,6 @@ def make_thai_moph_project_app():
     project.model_owners.add(mo_user)
     project.save()
 
-    # click.echo("* replacing template targets with numbers")
-    # replace_template_targets_with_numbers(project)
-
     click.echo("* creating model. data_dir={}".format(data_dir))
     make_model(project, mo_user, data_dir)
 
@@ -99,28 +96,6 @@ def date_pair_from_csv_file(csv_file):  # a Path
     first_date = datetime.date(int(first_date_str[:4]), int(first_date_str[4:6]), int(first_date_str[6:]))
     second_date = datetime.date(int(second_date_str[:4]), int(second_date_str[4:6]), int(second_date_str[6:]))
     return first_date, second_date
-
-
-def replace_template_targets_with_numbers(project):
-    # change projects' template's target column to match the forecast targets:
-    # - template_targets=['1 bwk ahead', '2 bwk ahead', '3 bwk ahead', '4 bwk ahead', '5 bwk ahead']
-    # - forecast_targets=['1', '2', '3', '4', '5']
-
-    # UPDATE forecast_app_projecttemplatedata
-    # SET target = 1
-    # WHERE project_id = 77 AND target = '1 bwk ahead';
-
-    # todo better way to get FK name?
-    sql = """
-              UPDATE {cdcdata_table_name}
-              SET target = %s
-              WHERE project_id = %s AND target = %s;
-          """.format(cdcdata_table_name=project.cdc_data_class._meta.db_table)
-
-    with connection.cursor() as cursor:
-        for old_target, new_target in [('1 bwk ahead', 1), ('2 bwk ahead', 2), ('3 bwk ahead', 3), ('4 bwk ahead', 4),
-                                       ('5 bwk ahead', 5)]:
-            cursor.execute(sql, [new_target, project.pk, old_target])
 
 
 def make_model(project, model_owner, data_dir):

@@ -29,18 +29,42 @@
 
     <p>We provide the following REST endpoints. All results are <a href="https://www.json.org/">JSON</a>. The API is
         browsable from <a href="{% url 'api-root' %}">the root URI</a>, a great starting point for developers. Details
-        TBD.</p>
+        TBD. Note that all projects and users are listed, but private projects, their models, and their forecasts, can
+        only be viewed by authorized users (project owners and model owners).
+    </p>
 
     <ul>
-        <li><code>api/</code></li>
-        <li><code>api/projects/</code></li>
-        <li><code>api/project/1/</code></li>
-        <li><code>api/projects/1/template_data/</code></li>
-        <li><code>api/users/</code></li>
-        <li><code>api/user/1/</code></li>
-        <li><code>api/model/1/</code></li>
-        <li><code>api/forecast/1/</code></li>
-        <li><code>api/forecast/1/data/</code></li>
+        <li><code>api/</code> (browsable API root)</li>
+        <li><code>api/projects/</code> (list of all projects)</li>
+        <li><code>api/project/1/</code> (project detail)</li>
+        <li><code>api/projects/1/template_data/</code> (the project template, formatted as JSON - see below)</li>
+        <li><code>api/users/</code> (list of all users)</li>
+        <li><code>api/user/1/</code> (user detail)</li>
+        <li><code>api/model/1/</code> (model detail)</li>
+        <li><code>api/forecast/1/</code> (forecast detail)</li>
+        <li><code>api/forecast/1/data/</code> (forecast data as JSON - see below)</li>
     </ul>
+
+
+    <h2 id="rest_api">JSON data format</h2>
+
+    <p>Currently all data is formatted as JSON structured like this:</p>
+    <pre>
+{location1: target_dict_1, location2: target_dict_2, ...}
+
+where each target_dict is of the form:
+
+{target1: {'unit': unit1, 'point': point_val1, 'bins': bin_list1},
+ target2: {'unit': unit2, 'point': point_val2, 'bins': bin_list2},
+ ...
+}
+
+and where each bin_list is like:
+
+[[bin_start_incl1, bin_end_notincl1, value1],
+ [bin_start_incl2, bin_end_notincl2, value2],
+ ...
+]
+    </pre>
 
 {% endblock %}

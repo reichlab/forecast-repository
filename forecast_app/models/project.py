@@ -135,6 +135,14 @@ class Project(ModelWithCDCData):
                ForecastData.objects.filter(forecast__forecast_model__project=self).count()
 
 
+    def forecasts_for_timezero(self, timezero):
+        """
+        :param timezero: a TimeZero
+        :return: a list of Forecasts for timezero for each of my models
+        """
+        return [forecast_model.forecast_for_time_zero(timezero) for forecast_model in self.models.all()]
+
+
     def get_region_for_location_name(self, location_name):
         """
         :return: Delphi region name corresponding to location_name. see here for valid ones:
