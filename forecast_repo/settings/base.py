@@ -64,7 +64,11 @@ ROOT_URLCONF = 'forecast_repo.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+
+        # 'DIRS': [],
+        # per https://stackoverflow.com/questions/25991081/cant-modify-django-rest-framework-base-html-file :
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

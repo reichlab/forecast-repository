@@ -64,26 +64,20 @@ class ProjectAdmin(admin.ModelAdmin):
 
     inlines = [ForecastModelInline, TargetInline, TimeZeroInline]
 
-    readonly_fields = ('csv_filename_and_form',)
+    readonly_fields = ('csv_filename',)
 
-    list_display = ('name', 'owner', 'truncated_description', 'num_models', 'num_forecasts', 'num_rows')
+    list_display = ('name', 'owner', 'is_public', 'truncated_description', 'num_model_owners', 'num_models',
+                    'num_forecasts', 'num_rows')
 
-    fields = ('owner', 'name', 'description', 'home_url', 'core_data', 'config_dict', 'csv_filename_and_form')
-
-
-    def csv_filename_and_form(self, project):
-        # todo use a proper Django form
-
-        # return format_html('{} <button>Delete</button>', project.csv_filename) if project.csv_filename \
-        #     else format_html('<small class="text-muted">[no template]</small> <button>Upload</button>')
-
-        return format_html(
-            format_html('{} <form><button>Preview</button> <button>Delete</button></form>', project.csv_filename)
-            if project.csv_filename else
-            format_html('<small class="text-muted">[no template]</small> <form><input type="file"> <button>Upload</button></form></form>'))
+    fields = ('owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict', 'model_owners',
+              'csv_filename')
 
 
-    csv_filename_and_form.short_description = 'csv template'
+    def csv_filename(self, project):
+        return project.csv_filename
+
+
+    csv_filename.short_description = 'csv template'
 
 
     def truncated_description(self, project):
@@ -92,6 +86,13 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
     truncated_description.short_description = 'description'
+
+
+    def num_model_owners(self, project):
+        return len(project.model_owners.all())
+
+
+    num_model_owners.short_description = 'model owners'
 
 
     def num_models(self, project):

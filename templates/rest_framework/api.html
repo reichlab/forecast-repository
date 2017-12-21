@@ -1,0 +1,12 @@
+{% extends "rest_framework/base.html" %}
+{% load i18n %}
+
+{% block bootstrap_theme %}
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+{% endblock %}
+
+{% block title %}{% if name %}{{ name }} – {% endif %}Forecast Repository API{% endblock %}
+
+{% block navbar %}
+    {% include 'navbar_snippet.html' %}
+{% endblock %}
