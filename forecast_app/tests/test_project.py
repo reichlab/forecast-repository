@@ -52,14 +52,15 @@ class ProjectTestCase(TestCase):
         self.assertEqual('2016-2017_submission_template.csv', self.project.csv_filename)
 
         # create a project, don't load a template, verify csv_filename and is_template_loaded()
-        new_project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
-        self.assertFalse(new_project.is_template_loaded())
-        self.assertFalse(new_project.csv_filename)
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
+        self.assertFalse(project2.is_template_loaded())
+        self.assertFalse(project2.csv_filename)
 
         # verify load_forecast() fails
-        new_forecast_model = ForecastModel.objects.create(project=new_project)
+        new_forecast_model = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
-            new_forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
+            new_forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), time_zero2)
         self.assertIn("Cannot validate forecast data", str(context.exception))
 
 

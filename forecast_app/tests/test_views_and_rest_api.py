@@ -199,7 +199,7 @@ class ViewsTestCase(TestCase):
                 self.assertEqual(exp_status_code, response.status_code)
 
 
-    def test_temp(self):
+    def test_edit_delete_upload_create_links(self):
         url_to_exp_content = {
             # model detail page for public model
             reverse('model-detail', args=[str(self.public_model.pk)]): {
@@ -215,7 +215,7 @@ class ViewsTestCase(TestCase):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],
-                reverse('upload-forecast', args=[str(self.public_forecast.pk), str(self.public_tz2.pk)]):
+                reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz2.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],
@@ -235,7 +235,7 @@ class ViewsTestCase(TestCase):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],
-                reverse('upload-forecast', args=[str(self.private_forecast.pk), str(self.private_tz2.pk)]):
+                reverse('upload-forecast', args=[str(self.private_model.pk), str(self.private_tz2.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],

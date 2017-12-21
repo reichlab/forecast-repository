@@ -59,7 +59,7 @@ class ForecastModel(models.Model):
     def load_forecast(self, csv_file_path, time_zero, file_name=None):
         """
         Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
-        Project's template.
+        Project's template. NB: does not check if a Forecast already exists for time_zero and file_name.
 
         :param csv_file_path: Path to a CDC CSV forecast file
         :param time_zero: the TimeZero this forecast applies to
@@ -68,7 +68,11 @@ class ForecastModel(models.Model):
         :return: returns a new Forecast for it.
             raises a RuntimeError if the data could not be loaded
         """
-        # NB: does not check if a Forecast already exists for time_zero and file_name
+        # validate time_zero
+        if time_zero not in self.project.timezeros.all():
+            raise RuntimeError("time_zero was not in project. time_zero={}, project.timezeros={}"
+                               .format(time_zero, self.project.timezeros.all()))
+
         file_name = file_name if file_name else csv_file_path.name
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
                                                                             csv_filename=file_name)

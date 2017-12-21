@@ -10,23 +10,21 @@
 
 
     <h2>Models</h2>
-    <p>
     <ul>
         {% for forecast_model in project.models.all %}
             <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
         {% endfor %}
     </ul>
-    </p>
 
 
     <h2>Mean Absolute Error</h2>
     <p>Mean Absolute Error for all models and their week-related targets.
-    <ul>
-        <li><code>season_start_year</code>: {{ season_start_year }}</li>
-        <li><code>location</code>: {{ location }}</li>
-    </ul>
-
     {% if mean_abs_error_rows %}
+        <ul>
+            <li><code>season_start_year</code>: {{ season_start_year }}</li>
+            <li><code>location</code>: {{ location }}</li>
+        </ul>
+
         {# show a table similar to flusight's #}
         <table class="table table-striped">
             <thead>
@@ -49,7 +47,7 @@
             </tbody>
         </table>
     {% else %}
-        <span class="text-muted">(No data available)</span>
+        <p class="text-muted">(No data available)</p>
     {% endif %}
 
 {% endblock %}

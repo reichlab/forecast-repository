@@ -175,12 +175,17 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
         | ensemble | 0.3  | 0.4  | 0.53 | 0.54 |
         +----------+------+------+------+------+
 
+    Returns [] if the project does not have a config_dict.
     """
-    # NB: assumes all of project's models have the same targets - something that should be validated by
-    # ForecastModel.load_forecast() or similar
+    # NB: assumes all of project's models have the same targets - something is validated by
+    # ForecastModel.load_forecast()
 
     # todo return indication of best model for each target -> bold in project_visualizations.html
-    mae_targets = sorted(project.get_targets_for_mean_absolute_error())
+    targets = project.get_targets_for_mean_absolute_error()
+    if not targets:
+        return []
+
+    mae_targets = sorted(targets)
     rows = [['Model', *mae_targets]]  # header
     for forecast_model in project.models.all():
         row = [forecast_model.name]

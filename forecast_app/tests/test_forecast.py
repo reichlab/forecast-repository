@@ -55,6 +55,16 @@ class ForecastTestCase(TestCase):
                                               self.time_zero)
         self.assertIn('Invalid header', str(context.exception))
 
+        # test load_forecast() with timezero not in the project
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)  # no TimeZeros
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        with self.assertRaises(RuntimeError) as context:
+            forecast_model2.load_forecast(  # TimeZero doesn't matter b/c project has none
+                Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), self.time_zero)
+        self.assertIn("time_zero was not in project", str(context.exception))
+
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
