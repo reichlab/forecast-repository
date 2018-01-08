@@ -6,7 +6,7 @@
 
 {% block content %}
 
-    <h1>Forecast Repository Home</h1>
+    <h1>Forecast Repository Home <a href="{% url 'api-root' %}" class="btn btn-info btn-xs" role="button">API</a></h1>
 
     <p>
         <img width="50%" src="http://reichlab.io/images/blog/flusight-wide.png" class="pull-right">
@@ -30,7 +30,7 @@
     {% endif %}
 
 
-    <h2>Projects</h2>
+    <h2>Projects <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a></h2>
 
     {% if projects %}
         <p>The repository has {{ projects|length }} project{{ projects|length|pluralize }}:</p>

@@ -20,7 +20,8 @@ from forecast_app.models import Project, ForecastModel
 def make_thai_moph_project_app():
     """
     Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
-    CDC Flu challenge project.
+    Impetus project. Note: The input files to this program are the output from a spamd export script located the
+    dengue-data repo ( https://github.com/reichlab/dengue-data/blob/master/misc/cdc-csv-export.R )
     """
     click.echo("* started creating Thai MOPH project")
 

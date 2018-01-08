@@ -5,6 +5,7 @@
 {% block content %}
 
     <p class="lead">Model: {{ forecastmodel.name }}
+        <a href="{% url 'api-model-detail' forecastmodel.pk %}" class="btn btn-info btn-xs" role="button">API</a>
         {% if ok_user_edit_model %}
             {# Edit ForecastModel: a simple link to an edit form #}
             &nbsp;

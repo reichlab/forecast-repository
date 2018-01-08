@@ -4,7 +4,9 @@
 
 {% block content %}
 
-    <p class="lead">Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
+    <p class="lead">Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}
+        <a href="{% url 'api-forecast-detail' forecast.pk %}" class="btn btn-info btn-xs" role="button">API</a>
+    </p>
 
     <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.get_absolute_url }}">
         {{ forecast.forecast_model.name }}</a></p>
