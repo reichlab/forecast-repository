@@ -9,6 +9,7 @@ urlpatterns = [
     url(r'^docs', views.documentation, name='docs'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),
+    url(r'^users/', views.UserListView.as_view(), name='user-list'),
 
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),

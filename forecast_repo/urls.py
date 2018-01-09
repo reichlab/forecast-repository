@@ -19,7 +19,6 @@ urlpatterns = [
     url(r'^api/projects/$', api_views.ProjectList.as_view(), name='api-project-list'),
     url(r'^api/project/(?P<pk>\d+)/$', api_views.ProjectDetail.as_view(), name='api-project-detail'),
     url(r'^api/project/(?P<project_pk>\d+)/template_data/$', api_views.template_data, name='api-template-data'),
-    url(r'^api/users/$', api_views.UserList.as_view(), name='api-user-list'),
     url(r'^api/user/(?P<pk>\d+)/$', api_views.UserDetail.as_view(), name='api-user-detail'),
     url(r'^api/model/(?P<pk>\d+)/$', api_views.ForecastModelDetail.as_view(), name='api-model-detail'),
     url(r'^api/forecast/(?P<pk>\d+)/$', api_views.ForecastDetail.as_view(), name='api-forecast-detail'),

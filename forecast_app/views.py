@@ -9,7 +9,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import DetailView
+from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
@@ -217,6 +217,14 @@ def delete_model(request, model_pk):
     forecast_model.delete()
     # todo xx flash a temporary 'success' message
     return redirect('user-detail', pk=user.pk)
+
+
+#
+# ---- List views ----
+#
+
+class UserListView(ListView):
+    model = User
 
 
 #

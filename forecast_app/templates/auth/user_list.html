@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+
+    <h1>Users</h1>
+    {% if user_list %}
+        <p class="help-block">The repository has {{ user_list|length }} user{{ users|length|pluralize }}:</p>
+        <ul>
+            {% for user in user_list %}
+                <li><a href="{% url 'user-detail' user.pk %}">{{ user.username }}</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="help-block">There are no users in the repository.</p>
+    {% endif %}
+
+{% endblock %}

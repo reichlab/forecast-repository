@@ -14,7 +14,6 @@ from forecast_app.serializers import ProjectSerializer, UserSerializer, Forecast
 @api_view(['GET'])
 def api_root(request, format=None):
     return Response({
-        'users': reverse('api-user-list', request=request, format=format),
         'projects': reverse('api-project-list', request=request, format=format),
     })
 
