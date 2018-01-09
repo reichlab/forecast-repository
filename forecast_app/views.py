@@ -370,10 +370,12 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
         return HttpResponseForbidden()
 
     from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
-    serializer_class = ProjectSerializer if is_project else ForecastSerializer
-    serializer = serializer_class(model_with_cdc_data, context={'request': request})
-    response = JsonResponse({'metadata': (serializer.data),
-                             'data': (project.get_location_target_dict())})
+    detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
+    detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
+    detail_data = detail_serializer.data
+    cdc_data = model_with_cdc_data.get_location_target_dict()
+    response = JsonResponse({'metadata': detail_data,
+                             'data': cdc_data})
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
         .format(csv_filename=model_with_cdc_data.csv_filename)
     return response

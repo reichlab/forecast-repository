@@ -198,12 +198,12 @@ class ForecastTestCase(TestCase):
 
         exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(sorted(exp_locations), sorted(act_dict.keys()))
+        self.assertEqual(exp_locations, list(act_dict.keys()))  # tests order
 
         # spot-check one location's targets
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
                        'Season peak week']
-        self.assertEqual(sorted(exp_targets), sorted(act_dict['US National'].keys()))
+        self.assertEqual(exp_targets, list(act_dict['US National'].keys()))  # tests order
 
         # spot-check a target
         self.assertEqual(50.0012056690978, act_dict['US National']['Season onset']['point'])
@@ -223,11 +223,7 @@ class ForecastTestCase(TestCase):
             (None, None, 1.22490002826229e-07)]
         act_bins = act_dict['US National']['Season onset']['bins']
         self.assertEqual(34, len(act_bins))
-
-        # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
-        exp_bins = sorted(exp_bins, key=lambda x: (x[0] is None or x[1] is None, x))
-        act_bins = sorted(act_bins, key=lambda x: (x[0] is None or x[1] is None, x))
-        self.assertEqual(exp_bins, act_bins)
+        self.assertEqual(exp_bins, act_bins)  # tests order
 
         # spot-check a few units
         self.assertEqual('week', act_dict['US National']['Season onset']['unit'])

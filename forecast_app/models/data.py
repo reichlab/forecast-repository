@@ -58,10 +58,10 @@ class ModelWithCDCData(models.Model):
                     raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
 
                 location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
-                self.insert_data(cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value)
+                self.insert_row(cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value)
 
 
-    def insert_data(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
+    def insert_row(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
         """
         Inserts the passed data into a row in my associated CDCData table. Validates only row_type, which must be
         'point' or 'bin' (case is ignored).
@@ -240,12 +240,13 @@ class ModelWithCDCData(models.Model):
         NB: For performance, instead of using data accessors like self.get_locations() and self.get_target_bins(), we
         load all rows into memory and then iterate over them there.
         """
-
+        # re: ORDER BY: location and target make output alphabetical. row_type DESC allows us to pull it out.
+        # id ASC ensures bins are ordered same as original csv file
         sql = """
             SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
             FROM {cdcdata_table_name}
             WHERE {model_name}_id = %s
-            ORDER BY location, target, row_type DESC;
+            ORDER BY location, target, row_type DESC, id ASC;
         """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
                    model_name=self.__class__._meta.model_name)
         with connection.cursor() as cursor:
