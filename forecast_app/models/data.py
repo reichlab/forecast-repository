@@ -262,6 +262,7 @@ class ModelWithCDCData(models.Model):
                 point_row = next(target_grouper)
                 if point_row[2] != CDCData.POINT_ROW_TYPE:
                     raise RuntimeError("First row was not the point row: {}".format(point_row))
+
                 target_dict[target] = {'unit': point_row[3],
                                        'point': point_row[-1],
                                        'bins': [bin_list[-3:] for bin_list in target_grouper]}

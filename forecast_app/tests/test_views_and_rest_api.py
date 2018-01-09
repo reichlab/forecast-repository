@@ -285,7 +285,6 @@ class ViewsTestCase(TestCase):
             reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-template-data', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,  # 5
-            reverse('api-user-list'): self.OK_ALL,
             reverse('api-user-detail', args=[self.po_user.pk]): self.OK_ALL,
             reverse('api-user-detail', args=[self.mo_user.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
@@ -315,7 +314,7 @@ class ViewsTestCase(TestCase):
         # 'api-root'
         # a rest_framework.response.Response:
         response = self.client.get(reverse('api-root'), format='json')
-        self.assertEqual(['users', 'projects'], list(response.data.keys()))
+        self.assertEqual(['projects'], list(response.data.keys()))
 
         # 'api-project-list'
         # a rest_framework.utils.serializer_helpers.ReturnList:
@@ -337,11 +336,6 @@ class ViewsTestCase(TestCase):
         exp_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5',
                     'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
         self.assertEqual(exp_keys, list(data.keys()))
-
-        # 'api-user-list'
-        # a rest_framework.response.Response:
-        response = self.client.get(reverse('api-user-list'), format='json')
-        self.assertEqual(3, len(response.data))
 
         # 'api-user-detail'
         # a rest_framework.response.Response:

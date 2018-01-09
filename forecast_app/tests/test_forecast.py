@@ -1,4 +1,5 @@
 import datetime
+import json
 import unittest
 from pathlib import Path
 
@@ -172,6 +173,26 @@ class ForecastTestCase(TestCase):
         self.assertEqual(0, len(forecast2.cdcdata_set.all()))
 
 
+    def test_small_forecast(self):
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        time_zero = TimeZero.objects.create(project=project2,
+                                            timezero_date=datetime.date.today(),
+                                            data_version_date=None)
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                                  time_zero)
+        # act_dict has tuples for bins, but loaded json has lists, so we do in-place conversion of tuples to lists
+        act_dict = forecast2.get_location_target_dict()
+        for location_name, location_dict in act_dict.items():
+            for target_name, target_dict in location_dict.items():
+                target_dict['bins'] = [list(bin_list) for bin_list in target_dict['bins']]
+
+        with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-json.json', 'r') as fp:
+            exp_dict = json.load(fp)
+            self.assertEqual(exp_dict, act_dict)
+
+
     def test_get_location_target_dict(self):
         act_dict = self.forecast.get_location_target_dict()
 
@@ -215,7 +236,7 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_for_time_zero(self):
         time_zero = TimeZero.objects.create(project=self.project,
-                                            timezero_date=datetime.date.today(),  # todo str()?
+                                            timezero_date=datetime.date.today(),
                                             data_version_date=None)
         self.assertEqual(None, self.forecast_model.forecast_for_time_zero(time_zero))
 
