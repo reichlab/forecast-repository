@@ -329,13 +329,26 @@ class ViewsTestCase(TestCase):
                     'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
+
         # 'api-template-data'
         # a django.http.response.JsonResponse:
         response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]), format='json')
-        data = json.loads(response.content)
-        exp_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5',
-                    'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(exp_keys, list(data.keys()))
+        response_dict = json.loads(response.content)
+
+        # check top-level keys
+        exp_keys = ['metadata', 'data']
+        self.assertEqual(exp_keys, list(response_dict.keys()))
+
+        # check metadata
+        proj_detail_resp = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
+        proj_detail_dict = json.loads(proj_detail_resp.content)
+        self.assertEqual(proj_detail_dict, response_dict['metadata'])
+
+        # check data keys
+        exp_data_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
+        self.assertEqual(exp_data_keys, list(response_dict['data'].keys()))
+
 
         # 'api-user-detail'
         # a rest_framework.response.Response:
@@ -355,10 +368,23 @@ class ViewsTestCase(TestCase):
         exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
+
         # 'api-forecast-data'
         # a django.http.response.JsonResponse:
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]), format='json')
-        data = json.loads(response.content)
-        exp_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5',
-                    'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(exp_keys, list(data.keys()))
+        response_dict = json.loads(response.content)
+
+        # check top-level keys
+        exp_keys = ['metadata', 'data']
+        self.assertEqual(exp_keys, list(response_dict.keys()))
+
+        # check metadata
+        forecast_detail_resp = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]),
+                                               format='json')
+        forecast_detail_dict = json.loads(forecast_detail_resp.content)
+        self.assertEqual(forecast_detail_dict, response_dict['metadata'])
+
+        # check data keys
+        exp_data_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
+        self.assertEqual(exp_data_keys, list(response_dict['data'].keys()))

@@ -356,7 +356,8 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
         model_with_cdc_data_pk refers to
     :return: response for the JSON version of the passed ModelWithCDCData's data
     """
-    if kwargs['type'] == 'project':
+    is_project = kwargs['type'] == 'project'
+    if is_project:
         model_with_cdc_data_class = Project
     elif kwargs['type'] == 'forecast':
         model_with_cdc_data_class = Forecast
@@ -364,15 +365,17 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
         raise RuntimeError("invalid kwargs: {}".format(kwargs))
 
     model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
-    project = model_with_cdc_data if model_with_cdc_data_class == Project \
-        else model_with_cdc_data.forecast_model.project
+    project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    location_target_dict = model_with_cdc_data.get_location_target_dict()
-    response = JsonResponse(location_target_dict)
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"'.format(
-        csv_filename=model_with_cdc_data.csv_filename)
+    from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
+    serializer_class = ProjectSerializer if is_project else ForecastSerializer
+    serializer = serializer_class(model_with_cdc_data, context={'request': request})
+    response = JsonResponse({'metadata': (serializer.data),
+                             'data': (project.get_location_target_dict())})
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
+        .format(csv_filename=model_with_cdc_data.csv_filename)
     return response
 
 

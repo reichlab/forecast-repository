@@ -49,22 +49,24 @@
     <h2 id="rest_api">JSON data format</h2>
 
     <p>Currently all data is formatted as JSON structured like this:</p>
-    <pre>
-{location1: target_dict_1, location2: target_dict_2, ...}
+<pre>{'metadata': project_or_forecast_details_object, 'data': data_object}</pre>
 
-where each target_dict is of the form:
+    <p><code>project_or_forecast_details_object</code> is an object that's the same as either the Project or Forecast
+        detail object. <code>data_object</code> is structured like this:</p>
+<pre>{location1: target_dict_1, location2: target_dict_2, ...}</pre>
 
+    <p>Each <code>target_dict</code> is of the form:</p>
+<pre>
 {target1: {'unit': unit1, 'point': point_val1, 'bins': bin_list1},
  target2: {'unit': unit2, 'point': point_val2, 'bins': bin_list2},
  ...
-}
+}</pre>
 
-and where each bin_list is like:
-
+    <p>and each <code>bin_list</code> is like:</p>
+<pre>
 [[bin_start_incl1, bin_end_notincl1, value1],
  [bin_start_incl2, bin_end_notincl2, value2],
  ...
-]
-    </pre>
+]</pre>
 
 {% endblock %}
