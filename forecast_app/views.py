@@ -199,7 +199,7 @@ def edit_model(request, model_pk):
         forecast_model_form = ForecastModelForm(instance=forecast_model)
 
     return render(request, 'show_form.html',
-                  context={'title': 'Edit Project',
+                  context={'title': 'Edit Model',
                            'button_name': 'Save',
                            'form': forecast_model_form})
 
