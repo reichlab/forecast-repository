@@ -38,10 +38,11 @@ class Project(ModelWithCDCData):
                                               "can only be accessed by the project's owner or any of its model_owners. "
                                               "True means it is publicly accessible.")
 
-    model_owners = ManyToManyField(User, help_text="Users who are allowed to create, edit, and delete ForecastModels "
-                                                   "in this project. Or: non-editing users who simply need access "
-                                                   "to a private project. Use control/command click to add/remove from "
-                                                   "the list. ")
+    model_owners = ManyToManyField(User, blank=True,  # blank=True allows omitting in forms
+                                   help_text="Users who are allowed to create, edit, and delete ForecastModels "
+                                             "in this project. Or: non-editing users who simply need access "
+                                             "to a private project. Use control/command click to add/remove from "
+                                             "the list. ")
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 

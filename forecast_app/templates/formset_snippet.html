@@ -1,0 +1,24 @@
+{{ formset.management_form }}
+<table class="table table-bordered">
+    {% for form in formset %}
+        {% for hidden_field in form.hidden_fields %} {{ hidden_field }} {% endfor %}
+        {% if forloop.first %}
+            <thead>
+            <tr>
+                {% for field in form.visible_fields %}
+                    <th>{{ field.label|capfirst }}</th>
+                {% endfor %}
+            </tr>
+            </thead>
+        {% endif %}
+        <tr>
+            {% for field in form.visible_fields %}
+                <td>{{ field }}
+                    {% if field.errors %}
+                        <span class="text-danger">{{ field.errors }}</span>
+                    {% endif %}
+                </td>
+            {% endfor %}
+        </tr>
+    {% endfor %}
+</table>

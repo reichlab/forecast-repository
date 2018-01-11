@@ -1,4 +1,3 @@
-import json
 import os
 from pathlib import Path
 
@@ -7,13 +6,14 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.forms import inlineformset_factory
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
-from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME
+from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME, Target
 from forecast_app.templatetags.auth_extras import has_group
 from utils.utilities import mean_abs_error_rows_for_project
 
@@ -87,26 +87,44 @@ def create_project(request, user_pk):
     if not ok_user_create_project(new_project_user, authenticated_user):
         return HttpResponseForbidden()
 
+    # set up Target and TimeZero formsets using a new (unsaved) Project
+    from utils.make_cdc_flu_challenge_project import CDC_CONFIG_DICT  # avoid circular imports
+
+
+    new_project = Project(owner=new_project_user,
+                          config_dict=CDC_CONFIG_DICT)
+    TargetInlineFormSet = inlineformset_factory(Project, Target, fields=('name', 'description'), extra=3)
+    target_formset = TargetInlineFormSet(instance=new_project)
+
+    TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero, fields=('timezero_date', 'data_version_date'),
+                                                  extra=3)
+    timezero_formset = TimeZeroInlineFormSet(instance=new_project)
+
     if request.method == 'POST':
-        project_form = ProjectForm(request.POST)
-        if project_form.is_valid():
+        project_form = ProjectForm(request.POST, instance=new_project)
+        target_formset = TargetInlineFormSet(request.POST, instance=new_project)
+        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project)
+        if project_form.is_valid() and target_formset.is_valid() and timezero_formset.is_valid():
             new_project = project_form.save(commit=False)
             new_project.owner = new_project_user  # force the owner to the current user
             new_project.save()
             project_form.save_m2m()
+
+            target_formset.save()
+            timezero_formset.save()
+
             # todo xx flash a temporary 'success' message
             return redirect('project-detail', pk=new_project.pk)
 
     else:  # GET
-        from utils.make_cdc_flu_challenge_project import CDC_CONFIG_DICT  # avoid circular imports
-
-
-        project_form = ProjectForm(initial={'config_dict': json.dumps(CDC_CONFIG_DICT, sort_keys=True, indent=4)})
+        project_form = ProjectForm(instance=new_project)
 
     return render(request, 'show_form.html',
                   context={'title': 'New Project',
                            'button_name': 'Create',
-                           'form': project_form})
+                           'form': project_form,
+                           'target_formset': target_formset,
+                           'timezero_formset': timezero_formset})
 
 
 def edit_project(request, project_pk):
@@ -118,10 +136,22 @@ def edit_project(request, project_pk):
     if not ok_user_edit_project(request.user, project):
         return HttpResponseForbidden()
 
+    TargetInlineFormSet = inlineformset_factory(Project, Target, fields=('name', 'description'), extra=3)
+    target_formset = TargetInlineFormSet(instance=project)
+
+    TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero, fields=('timezero_date', 'data_version_date'),
+                                                  extra=3)
+    timezero_formset = TimeZeroInlineFormSet(instance=project)
+
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=project)
-        if project_form.is_valid():
+        target_formset = TargetInlineFormSet(request.POST, instance=project)
+        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=project)
+        if project_form.is_valid() and target_formset.is_valid() and timezero_formset.is_valid():
             project_form.save()
+            target_formset.save()
+            timezero_formset.save()
+
             # todo xx flash a temporary 'success' message
             return redirect('project-detail', pk=project.pk)
 
@@ -131,7 +161,9 @@ def edit_project(request, project_pk):
     return render(request, 'show_form.html',
                   context={'title': 'Edit Project',
                            'button_name': 'Save',
-                           'form': project_form})
+                           'form': project_form,
+                           'target_formset': target_formset,
+                           'timezero_formset': timezero_formset})
 
 
 def delete_project(request, project_pk):
@@ -250,8 +282,9 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['ok_user_edit_project'] = ok_user_edit_project(self.request.user, project)
         context['ok_user_create_model'] = ok_user_create_model(self.request.user, project)
-        timezeros_to_num_forecasts = {timezero: sum(map(lambda x: 1 if x else 0, project.forecasts_for_timezero(timezero)))
-                                      for timezero in project.timezeros.all()}
+        timezeros_to_num_forecasts = {
+            timezero: sum(map(lambda x: 1 if x else 0, project.forecasts_for_timezero(timezero)))
+            for timezero in project.timezeros.all()}
         context['timezeros_to_num_forecasts'] = timezeros_to_num_forecasts
         return context
 

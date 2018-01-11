@@ -6,14 +6,41 @@
 
     <h1>{{ title }}</h1>
 
-    {% if form.errors%}
-        <p class="text-danger">Please correct these errors:</p>
-        {{ form.errors }}
+    {# todo xx move to a new {% block style %} section in base.html #}
+    <style>
+        {# via https://stackoverflow.com/questions/25626789/make-input-fields-look-like-table-cells-in-bootstrap-3 #}
+        input {
+            display: block;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            width: 100%;
+        }
+
+        td {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+    {% if form.errors or target_formset.errors or timezero_formset.errors %}
+        <p class="text-danger">There were errors. Please correct them below.</p>
     {% endif %}
 
     <form class="form-horizontal" method="POST">
         {% csrf_token %}
         {% include 'form_snippet.html' %}
+
+        {% if target_formset %}
+            <h2>Targets</h2>
+            {% include 'formset_snippet.html' with formset=target_formset %}
+        {% endif %}
+
+        {% if timezero_formset %}
+            <h2>TimeZeros</h2>
+            {% include 'formset_snippet.html' with formset=timezero_formset %}
+        {% endif %}
+
         <button type="button" onclick="history.back()" class="btn btn-default">Cancel</button>
         <button type="submit" class="save btn btn-success">{{ button_name }}</button>
     </form>
