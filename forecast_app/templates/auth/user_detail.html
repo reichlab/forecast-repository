@@ -7,6 +7,7 @@
 {% block content %}
 
     <p class="lead">User: {{ detail_user.username }}
+        {% if detail_user == user %}<span class="text-muted small"> (you)</span>{% endif %}
         <a href="{% url 'api-user-detail' detail_user.pk %}" class="btn btn-info btn-xs" role="button">API</a>
     </p>
 

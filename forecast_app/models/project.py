@@ -34,20 +34,22 @@ class Project(ModelWithCDCData):
                               help_text="The project's owner.")
 
     is_public = models.BooleanField(default=True,
-                                    help_text="False if the project is private and can only be accessed by the "
-                                              "project's owner or any of its model_owners. True means it's publicly "
-                                              "accessible.")
+                                    help_text="Controls project visibility. False means the project is private and "
+                                              "can only be accessed by the project's owner or any of its model_owners. "
+                                              "True means it is publicly accessible.")
 
     model_owners = ManyToManyField(User, help_text="Users who are allowed to create, edit, and delete ForecastModels "
-                                                   "in this project.")
+                                                   "in this project. Or: non-editing users who simply need access "
+                                                   "to a private project. Use control/command click to add/remove from "
+                                                   "the list. ")
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 
     name = models.CharField(max_length=200)
 
     description = models.CharField(max_length=2000,
-                                   help_text="A few paragraphs describing the project. Includes info about "
-                                             "'real-time-ness' of data, i.e., revised/unrevised.")
+                                   help_text="A few paragraphs describing the project. Please see documentation for"
+                                             "what should be included here - 'real-time-ness', time_zeros, etc.")
 
     home_url = models.URLField(help_text="The project's home site.")
 
