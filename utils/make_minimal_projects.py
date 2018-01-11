@@ -16,8 +16,23 @@ from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users
 @click.command()
 def make_minimal_projects_app():
     """
-    App to populate the Heroku database with minimal data for simple browsing - one Project, one ForecastModel, and
-    one Forecast. NB: requires DJANGO_SETTINGS_MODULE to be set.
+    App to populate the Heroku database with fairly minimal data for simple browsing - one Project, two ForecastModels,
+    one with one Forecast and the other with no Forecasts. NB: requires DJANGO_SETTINGS_MODULE to be set. Final
+    projects:
+
+    public_project (2016-2017_submission_template.csv)
+        targets: target1
+        time_zeros: time_zero1, time_zero2
+        models:
+            forecast_model1
+                time_zero1: forecast1 (EW1-KoTsarima-2017-01-17.csv)
+                time_zero2: not set
+            forecast_model2
+                time_zero1: not set
+                time_zero2: not set
+
+    private_project
+
 
     cd ~/IdeaProjects/forecast-repository/
     export PYTHONPATH=.
@@ -48,9 +63,12 @@ def make_minimal_projects_app():
     private_project.save()
 
     Target.objects.create(project=public_project, name="Test target", description="a Target for testing")
-    tz_today = TimeZero.objects.create(project=public_project,
-                                       timezero_date=str(datetime.date.today()),
-                                       data_version_date=None)
+    time_zero1 = TimeZero.objects.create(project=public_project,
+                                         timezero_date=str(datetime.date.today() - datetime.timedelta(days=1)),
+                                         data_version_date=None)
+    time_zero2 = TimeZero.objects.create(project=public_project,
+                                         timezero_date=str(datetime.date.today()),
+                                         data_version_date=None)
 
     template_path = Path('forecast_app/tests/2016-2017_submission_template.csv')
     click.echo("* loading template into public_project={}, template_path={}".format(public_project, template_path))
@@ -59,17 +77,22 @@ def make_minimal_projects_app():
     click.echo("  loaded template: {}. {}".format(public_project.csv_filename, timeit.default_timer() - start_time))
 
     click.echo("creating ForecastModel")
-    forecast_model = ForecastModel.objects.create(project=public_project,
-                                                  name='Test ForecastModel',
-                                                  description="a ForecastModel for testing",
-                                                  home_url='http://example.com',
-                                                  owner=mo_user)
-
+    forecast_model1 = ForecastModel.objects.create(project=public_project,
+                                                   name='Test ForecastModel1',
+                                                   description="a ForecastModel for testing",
+                                                   home_url='http://example.com',
+                                                   owner=mo_user)
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
-    click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model, csv_file_path))
+    click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
-    forecast = forecast_model.load_forecast(csv_file_path, tz_today)
-    click.echo("  loaded forecast={}. {}".format(forecast, timeit.default_timer() - start_time))
+    forecast1 = forecast_model1.load_forecast(csv_file_path, time_zero1)
+    click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
+
+    ForecastModel.objects.create(project=public_project,
+                                 name='Test ForecastModel2',
+                                 description="a second ForecastModel for testing",
+                                 home_url='http://example.com',
+                                 owner=mo_user)
 
     click.echo("* done!")
 

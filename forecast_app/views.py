@@ -250,8 +250,9 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['ok_user_edit_project'] = ok_user_edit_project(self.request.user, project)
         context['ok_user_create_model'] = ok_user_create_model(self.request.user, project)
-        context['timezeros_to_num_forecasts'] = {timezero: len(project.forecasts_for_timezero(timezero))
-                                                 for timezero in project.timezeros.all()}
+        timezeros_to_num_forecasts = {timezero: sum(map(lambda x: 1 if x else 0, project.forecasts_for_timezero(timezero)))
+                                      for timezero in project.timezeros.all()}
+        context['timezeros_to_num_forecasts'] = timezeros_to_num_forecasts
         return context
 
 
