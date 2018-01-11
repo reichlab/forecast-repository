@@ -1,0 +1,11 @@
+<p>Because the forecasting field does not have standard terminology, we have settled on the following two concepts
+    for this application.</p>
+<ol>
+    <li><code>time_zero</code>: the date from which a forecast originates and to which targets are relative (i.e. a
+        "2-week-ahead forecast" is two weeks ahead of the time-zero). Every forecast has a time-zero.
+    </li>
+    <li><code>data_version_date</code>: an optional additional piece of metadata for a forecast. If it exists, it is
+        associated with a time-zero. It refers to the latest date at which any data source used for the forecasts
+        should be considered.
+    </li>
+</ol>

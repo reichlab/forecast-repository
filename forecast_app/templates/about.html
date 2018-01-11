@@ -24,17 +24,7 @@
 
     <h2>Terminology</h2>
 
-    <p>Because the forecasting field does not have standard terminology, we have settled on the following two concepts
-        for this application.</p>
-    <ol>
-        <li>a "time-zero" is the date from which a forecast originates and to which targets are relative (i.e. a
-            "2-week-ahead forecast" is two weeks ahead of the time-zero). Every forecast has a time-zero.
-        </li>
-        <li>a "data version date" is an optional additional piece of metadata for a forecast. If it exists, it is
-            associated with a time-zero. It refers to the latest date at which any data source used for the forecasts
-            should be considered.
-        </li>
-    </ol>
+    {% include 'terminology_snippet.html' %}
 
 
     <h2>Assumptions/Limitations</h2>
@@ -42,21 +32,6 @@
     <p>The scope of this first iteration is limited in these ways:</p>
 
     <ul>
-        <li><u>Forecast data format</u>: All forecasts are in the CDC standard for their flu challenge as specified in
-            <a href="https://webcache.googleusercontent.com/search?q=cache:KQEkQw99egAJ:https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx+&cd=1&hl=en&ct=clnk&gl=us">flu_challenge_2016-17_update.docx</a>
-            and in
-            <a href="https://github.com/cdcepi/FluSight-forecasts/blob/master/2016-2017_submission_template.csv">this
-                csv template file</a>:
-            a single directory for all forecasts from a particular model where each file’s contents is points and binned
-            distributions as in the example csv file above.
-        </li>
-        <li><u>Forecast data file name</u>: We currently make no assumptions about file name format, which means
-            importing forecasts is project-specific for now. For example, CDC forecasts encode
-            <a href="http://www.cmmcp.org/epiweek.htm">epidemiological week</a>, team name, and submission date, e.g.,
-            &ldquo;EW43-JDU-2016-11-07.csv&rdquo;. Whereas the Reichlab Dengue forecasts directly encode our
-            "time_zero/data_version_data" terminology (see the <a href="{% url 'docs' %}">documentation page</a> for
-            details) e.g.,&ldquo;20170525-r6object-20170523.cdc.csv&rdquo;.
-        </li>
         <li><u>Process-agnostic</u>: By storing only core datasets, we make no assumptions about ML processes behind a
             model’s forecast, such as how it’s fit.
         </li>
@@ -76,15 +51,6 @@
         <li><u>Training/testing data</u>: The only information about what subsets of the core data were used for
             different ML stages (e.g. training vs testing) will be stored in narrative format in the project
             description.
-        </li>
-        <li><u>Application API</u>: For now we are more interested in applications that directly access the repository
-            database, rather that through a RESTful API.
-        </li>
-        <li><u>Usability</u>: For now the focus will be on ease of retrieval, with entering project information being
-            done manually.
-        </li>
-        <li><u>Auxiliary data</u>: Any data used by teams that’s not in the core_data provided by the organizers should
-            go into the model's auxilary data.
         </li>
         <li><u>Reproducibility</u>: Since this system stores data involved in forecasts and not source code, information
             about how to re-run models is only captured in narrative form in the model's description, and is linked to

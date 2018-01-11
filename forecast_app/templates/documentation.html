@@ -5,11 +5,80 @@
 {% block content %}
 
     <h1>Documentation</h1>
-    <p>Here is some preliminary technical documentation. More TBD.</p>
+    <p>Here is some preliminary documentation. More TBD.</p>
 
 
-    <h2 id="config_dict">Project.config_dict</h2>
+    <h2>Terminology</h2>
+    {% include 'terminology_snippet.html' %}
 
+
+    <h2>For Project and Owners Model Owners</h2>
+
+    <p>A <code>project</code> is the main object for representing a forecasting challenge. It has an <code>owner</code>
+        (a registered user in the system), and zero or more <code>model owners</code> (also users). A project owner can
+        do anything to the project, including what model owners can do, but model owners are limited to creating,
+        editing, and deleting Models, and uploading and deleting forecasts. Projects have a <code>template</code>, which
+        is a data file (see the format below) that is used to validate forecasts, including locations, targets, number
+        of bins, etc. Templates themselves are validated as well.
+    </p>
+
+    <p>A project can be either <code>public</code> or <code>private</code>, which controls project visibility, including
+        accessing data. This applies to list and detail pages, along with API endpoints. Public projects are available
+        to anybody, users and anonymous visitors included. Private projects can only be viewed by project owners and
+        model owners. This means that in order to grant a user access to a private account, the project owner must add
+        her to the project's model owners list, even if that user will not be managing any models.
+    </p>
+
+    <p>
+        Projects have a <code>name</code> that is approximately the length of short sentence, and a
+        <code>description</code> that should cover the following topics:
+    </p>
+    <ul>
+        <li>Information about the 'real-time-ness' of data, i.e., revised/unrevised.</li>
+        <li>Details about how models interpret time_zeros and data_version_dates.</li>
+        <li>Data file naming scheme.</li>
+    </ul>
+
+    <p>
+        Additionally, projects have a <code>home url</code>, and a <code>core data url</code> that links to a directory
+        or zip file of all data made available for forecasting.
+    </p>
+
+
+    <p>A <code>model</code> ("ForecastModel" in the code) is the represention of code that generates forecasts. Like a
+        project, it has an <code>owner</code>, <code>home URL</code>, and<code>description</code>, which should include
+        information on reproducing the model’s results. A second URL, <code>auxiliary data</code>, is optional and
+        points
+        to any data used by teams that’s not in the core_data provided by the project owner.
+    </p>
+
+    <p>
+        A <code>forecast</code> is a single prediction for a particular time_zero. It has data that matches the project
+        template (see above) along with the original CSV data file name that was uploaded.
+    </p>
+
+
+    <h3>Forecast data file formats</h3>
+    <p>All forecasts are in the CDC standard for their flu challenge as specified in
+        <a href="https://webcache.googleusercontent.com/search?q=cache:KQEkQw99egAJ:https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx+&cd=1&hl=en&ct=clnk&gl=us">flu_challenge_2016-17_update.docx</a>
+        and in
+        <a href="https://github.com/cdcepi/FluSight-forecasts/blob/master/2016-2017_submission_template.csv">this
+            csv template file</a>:
+        a single directory for all forecasts from a particular model where each file’s contents is points and binned
+        distributions as in the example csv file above.</p>
+
+
+    <h3>Forecast data file names</h3>
+    <p>We currently make no assumptions about file name format, which means that importing forecasts is
+        project-specific for now. For example, CDC forecasts encode
+        <a href="http://www.cmmcp.org/epiweek.htm">epidemiological week</a>, team name, and submission date, e.g.,
+        &ldquo;EW43-JDU-2016-11-07.csv&rdquo;. Whereas the Reichlab Dengue forecasts encode time_zero and
+        data_version_data terminology e.g.,&ldquo;20170525-r6object-20170523.cdc.csv&rdquo; (where the first date is the
+        data_version_date and the second is the time_zero.
+    </p>
+
+
+    <h3 id="config_dict">Project.config_dict</h3>
     <p>When creating a new Project, you may choose to pass a <code>config_dict</code>. It is a
         <a href="https://www.json.org/">JSON</a> object that specifies project-specific information used to calculate
         statistics, currently Mean Absolute Error. There are two keys, both required:
@@ -25,8 +94,9 @@
     </ul>
 
 
-    <h2 id="rest_api">REST API</h2>
+    <h2>For Technical Users</h2>
 
+    <h3 id="rest_api">REST API</h3>
     <p>We provide the following REST endpoints. All results are <a href="https://www.json.org/">JSON</a>. The API is
         browsable from <a href="{% url 'api-root' %}">the root URI</a>, a great starting point for developers. Details
         TBD. Note that all projects and users are listed, but private projects, their models, and their forecasts, can
@@ -34,36 +104,36 @@
     </p>
 
     <ul>
-        <li><code>api/</code> (browsable API root)</li>
+        <li><code>api/</code> (<a href="{% url 'api-root' %}">browsable API root</a>)</li>
         <li><code>api/projects/</code> (list of all projects)</li>
-        <li><code>api/project/1/</code> (project detail)</li>
-        <li><code>api/projects/1/template_data/</code> (the project template, formatted as JSON - see below)</li>
-        <li><code>api/users/</code> (list of all users)</li>
-        <li><code>api/user/1/</code> (user detail)</li>
-        <li><code>api/model/1/</code> (model detail)</li>
-        <li><code>api/forecast/1/</code> (forecast detail)</li>
-        <li><code>api/forecast/1/data/</code> (forecast data as JSON - see below)</li>
+        <li><code>api/project/[project_id]/</code> (project detail)</li>
+        <li>
+            <code>api/projects/[project_id]/template_data/</code> (the project template, formatted as JSON - see above)
+        </li>
+        <li><code>api/user/[project_id]/</code> (user detail)</li>
+        <li><code>api/model/[project_id]/</code> (model detail)</li>
+        <li><code>api/forecast/[project_id]/</code> (forecast detail)</li>
+        <li><code>api/forecast/[project_id]/data/</code> (forecast data as JSON - see above)</li>
     </ul>
 
 
-    <h2 id="rest_api">JSON data format</h2>
+    <h3 id="rest_api">JSON data format</h3>
+    <p>Currently all data is downloaded as JSON that is structured like this:</p>
+    <pre>{'metadata': project_or_forecast_details_object, 'data': data_object}</pre>
 
-    <p>Currently all data is formatted as JSON structured like this:</p>
-<pre>{'metadata': project_or_forecast_details_object, 'data': data_object}</pre>
-
-    <p><code>project_or_forecast_details_object</code> is an object that's the same as either the Project or Forecast
-        detail object. <code>data_object</code> is structured like this:</p>
-<pre>{location1: target_dict_1, location2: target_dict_2, ...}</pre>
+    <p>Where <code>project_or_forecast_details_object</code> is an object that's the same as either the Project or
+        Forecast detail object. <code>data_object</code> is structured like this:</p>
+    <pre>{location1: target_dict_1, location2: target_dict_2, ...}</pre>
 
     <p>Each <code>target_dict</code> is of the form:</p>
-<pre>
+    <pre>
 {target1: {'unit': unit1, 'point': point_val1, 'bins': bin_list1},
  target2: {'unit': unit2, 'point': point_val2, 'bins': bin_list2},
  ...
 }</pre>
 
     <p>and each <code>bin_list</code> is like:</p>
-<pre>
+    <pre>
 [[bin_start_incl1, bin_end_notincl1, value1],
  [bin_start_incl2, bin_end_notincl2, value2],
  ...
