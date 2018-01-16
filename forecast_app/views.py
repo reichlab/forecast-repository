@@ -470,7 +470,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "button.".format(time_zero.timezero_date, file_name)})
 
     data = data_file.read()
-    path = default_storage.save('tmp/somename.mp3', ContentFile(data))
+    path = default_storage.save('tmp/somename.mp3', ContentFile(data))  # todo xx use with TemporaryFile :-)
     tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
     try:
         forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)

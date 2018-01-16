@@ -35,8 +35,6 @@ class ModelWithCDCData(models.Model):
         :param csv_template_file_path:
         :return: None
         """
-        start_time = timeit.default_timer()
-
         if not self.pk:
             raise Exception("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
@@ -87,20 +85,27 @@ class ModelWithCDCData(models.Model):
                 # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
                 rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, self.pk])
 
-            # insert them!
+            # insert them, if any
+            if not rows:
+                return
+
             # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
             column_names = ', '.join(['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl',
                                       'value', self.__class__._meta.model_name + '_id'])
-            sql = """
-                INSERT INTO {cdcdata_table_name} ({column_names})
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-            """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
-            if connection.vendor == 'postgresql':  # https://stackoverflow.com/questions/18846174/django-detect-database-backend
-                psycopg2.extras.execute_batch(cursor, sql, rows)
+            if connection.vendor == 'postgresql':
+                # https://stackoverflow.com/questions/8134602/psycopg2-insert-multiple-rows-with-one-query
+                sql_insert_part = """
+                    INSERT INTO {cdcdata_table_name} ({column_names})
+                    VALUES 
+                """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
+                args_str = ','.join(cursor.mogrify('(%s, %s, %s, %s, %s, %s, %s, %s)', x).decode('utf-8') for x in rows)
+                cursor.execute(sql_insert_part + args_str + ';')
             else:  # 'sqlite', etc.
+                sql = """
+                    INSERT INTO {cdcdata_table_name} ({column_names})
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+                """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
                 cursor.executemany(sql, rows)
-
-        print("load_csv_data: {}. {}".format(csv_template_file_path, timeit.default_timer() - start_time))
 
 
     def get_data_rows(self):
