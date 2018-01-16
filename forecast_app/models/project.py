@@ -1,5 +1,6 @@
 import itertools
 import math
+import timeit
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -192,6 +193,7 @@ class Project(ModelWithCDCData):
         """
         Validates forecast's data against my template. Raises if invalid.
         """
+        start_time = timeit.default_timer()
         if not self.is_template_loaded():
             raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
                                "forecast={}".format(forecast.csv_filename, self, forecast))
@@ -255,6 +257,7 @@ class Project(ModelWithCDCData):
                                        "template_location={}, template_target={}, template_unit={}, forecast_unit={}"
                                        .format(forecast.csv_filename, template_location, template_target,
                                                template_unit, forecast_unit))
+        print("validate_forecast_data: {}. {}".format(forecast, timeit.default_timer() - start_time))
 
 
     def validate_template_data(self):
@@ -263,6 +266,7 @@ class Project(ModelWithCDCData):
         load_csv_data(). Also note that validate_forecast_data() does not test the following because it compares against
         a validated template, thus 'inheriting' these validations due to equality testing.
         """
+        start_time = timeit.default_timer()
         # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
         # lookup b/c get_target_bins() was slow
         template_location_dicts = self.get_location_target_dict()
@@ -299,6 +303,7 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Target(s) was not found in every location. csv_filename={}, "
                                "missing location, target: {}"
                                .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
+        print("validate_template_data: {}. {}".format(self, timeit.default_timer() - start_time))
 
 
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django

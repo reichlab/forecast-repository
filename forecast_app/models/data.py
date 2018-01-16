@@ -1,6 +1,8 @@
 import csv
+import timeit
 from itertools import groupby
 
+import psycopg2
 from django.db import models, connection
 
 from utils.utilities import basic_str, parse_value
@@ -33,7 +35,14 @@ class ModelWithCDCData(models.Model):
         :param csv_template_file_path:
         :return: None
         """
-        # insert the data using direct SQL. for now simply use separate INSERTs per row
+        start_time = timeit.default_timer()
+
+        if not self.pk:
+            raise Exception("Instance is not saved the the database, so can't insert data: {!r}".format(self))
+
+        # insert the data using direct SQL. we use psycopg2.extras.execute_batch() if we're connected to a Postgres
+        # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
+        # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
         with open(str(csv_template_file_path)) as csv_path_fp, \
                 connection.cursor() as cursor:
             csv_reader = csv.reader(csv_path_fp, delimiter=',')
@@ -51,44 +60,47 @@ class ModelWithCDCData(models.Model):
             if header != ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']:
                 raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
+            # insert the rows. first we load them all into memory (!) (processing and validating them as we go) and
+            # then insert them in one shot
+            rows = []
             for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
                 if (len(row) == 8) and (row[7] == ''):
                     row = row[:7]
+
                 if len(row) != 7:
                     raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
 
                 location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
-                self.insert_row(cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value)
 
+                # translate row_type into our standard type
+                row_type = row_type.lower()
+                if row_type not in ['point', 'bin']:
+                    raise RuntimeError("row_type was neither 'point' nor 'bin': ".format(row_type))
 
-    def insert_row(self, cursor, location, target, row_type, unit, bin_start_incl, bin_end_notincl, value):
-        """
-        Inserts the passed data into a row in my associated CDCData table. Validates only row_type, which must be
-        'point' or 'bin' (case is ignored).
+                row_type = CDCData.POINT_ROW_TYPE if row_type == 'point' else CDCData.BIN_ROW_TYPE
 
-        NB: This SQL-based implementation is a faster alternative to an ORM-based one.
+                # use parse_value() to handle non-numeric cases like 'NA' and 'none'
+                bin_start_incl = parse_value(bin_start_incl)
+                bin_end_notincl = parse_value(bin_end_notincl)
+                value = parse_value(value)
 
-        """
-        row_type = row_type.lower()
-        if row_type not in ['point', 'bin']:
-            raise RuntimeError("row_type was neither 'point' nor 'bin': ".format(row_type))
+                # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
+                rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, self.pk])
 
-        row_type = CDCData.POINT_ROW_TYPE if row_type == 'point' else CDCData.BIN_ROW_TYPE
+            # insert them!
+            # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
+            column_names = ', '.join(['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl',
+                                      'value', self.__class__._meta.model_name + '_id'])
+            sql = """
+                INSERT INTO {cdcdata_table_name} ({column_names})
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
+            if connection.vendor == 'postgresql':  # https://stackoverflow.com/questions/18846174/django-detect-database-backend
+                psycopg2.extras.execute_batch(cursor, sql, rows)
+            else:  # 'sqlite', etc.
+                cursor.executemany(sql, rows)
 
-        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        column_names = ', '.join(['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl',
-                                  'value', self.__class__._meta.model_name + '_id'])
-        sql = """
-            INSERT INTO {cdcdata_table_name} ({column_names})
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
-
-        if not self.pk:
-            raise Exception("Instance is not saved the the database, so can't insert data: {!r}".format(self))
-
-        # we use parse_value() to handle non-numeric cases like 'NA' and 'none'
-        cursor.execute(sql, [location, target, row_type, unit,
-                             parse_value(bin_start_incl), parse_value(bin_end_notincl), parse_value(value), self.pk])
+        print("load_csv_data: {}. {}".format(csv_template_file_path, timeit.default_timer() - start_time))
 
 
     def get_data_rows(self):

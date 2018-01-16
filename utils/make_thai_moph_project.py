@@ -3,10 +3,11 @@ from pathlib import Path
 
 import click
 import django
-# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-from django.db import connection
 
 from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users
+
+
+# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
@@ -21,7 +22,15 @@ def make_thai_moph_project_app():
     """
     Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
     Impetus project. Note: The input files to this program are the output from a spamd export script located the
-    dengue-data repo ( https://github.com/reichlab/dengue-data/blob/master/misc/cdc-csv-export.R )
+    dengue-data repo ( https://github.com/reichlab/dengue-data/blob/master/misc/cdc-csv-export.R ) and are committed to
+    https://epimodeling.springloops.io/project/156725/svn/source/browse/-/trunk%2Farchives%2Fdengue-reports%2Fdata-summaries
+    They currently must be processed (currently by hand) via these rough steps:
+
+        1. download template
+        2. correct template header from 'bin_end_not_incl' to 'bin_end_notincl'
+        3. delete files where first date (data_version_date) was before 0525
+        4. for files with duplicate second dates (timzeros), keep the one with the most recent first date (data_version_date)
+
     """
     click.echo("* started creating Thai MOPH project")
 
