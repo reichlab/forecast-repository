@@ -8,10 +8,29 @@
         <a href="{% url 'api-forecast-detail' forecast.pk %}" class="btn btn-info btn-xs" role="button">API</a>
     </p>
 
-    <p><strong>Model</strong>: <a href="{{ forecast.forecast_model.get_absolute_url }}">
-        {{ forecast.forecast_model.name }}</a></p>
-    <p><strong>TimeZero</strong>: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</p>
-    <p><strong>Data Filename</strong>: {{ forecast.csv_filename }}</p>
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Model:</th>
+                    <td>
+                        <a href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.name }}</a>
+                    </td>
+                </tr>
+                <tr>
+                    <th>TimeZero:</th>
+                    <td>{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</td>
+                </tr>
+                <tr>
+                    <th>Data Filename:</th>
+                    <td>{{ forecast.csv_filename }}</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 
     {% include 'csv_data_snippet.html' with model_with_cdc_data=forecast %}
 

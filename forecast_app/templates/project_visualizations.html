@@ -4,9 +4,21 @@
 
 {% block content %}
 
-    <h1>Project Visualizations</h1>
+    <p class="lead">Project visualizations for &ldquo;{{ project.name }}&rdquo;</p>
 
-    <p><strong>Project</strong>: <a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Project:</th>
+                    <td><a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 
     <h2>Models</h2>

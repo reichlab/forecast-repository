@@ -15,18 +15,34 @@
             </button>
 
             {# the modal itself - hidden until above button shows it #}
-            {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-template' delete_question='Delete Template?' %}
+            {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-template' delete_question='Delete template?' %}
         {% endif %}
     </p>
 
-    <p><strong>Project</strong>: <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></p>
-    <p><strong>Data Filename</strong>:
-        {% if project.is_template_loaded %}
-            {{ project.csv_filename }}
-        {% else %}
-            <small class="text-muted">(No template)</small>
-        {% endif %}
-    </p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Project:</th>
+                    <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
+                </tr>
+                <tr>
+                    <th>Data Filename:</th>
+                    <td>
+                        {% if project.is_template_loaded %}
+                            {{ project.csv_filename }}
+                        {% else %}
+                            <small class="text-muted">(No template)</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 
     {% if project.is_template_loaded %}
         {% include 'csv_data_snippet.html' with model_with_cdc_data=project %}

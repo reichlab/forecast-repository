@@ -24,30 +24,53 @@
         {% endif %}
     </p>
 
-    <p><strong>Owner</strong>:
-        {% if forecastmodel.owner %}
-            <a href="{% url 'user-detail' forecastmodel.owner.pk %}">{{ forecastmodel.owner.username }}</a>
-        {% else %}
-            <small class="text-muted">(No owner)</small>
-        {% endif %}
-    </p>
-    <p><strong>Project</strong>: <a href="{{ forecastmodel.project.get_absolute_url }}">
-        {{ forecastmodel.project.name }}</a></p>
-    <p><strong>Description</strong>: {{ forecastmodel.description }}</p>
-    <p><strong>Home</strong>:
-        {% if forecastmodel.home_url %}
-            <a href="{{ forecastmodel.home_url }}">{{ forecastmodel.home_url }}</a>
-        {% else %}
-            <small class="text-muted">(No URL)</small>
-        {% endif %}
-    </p>
-    <p><strong>Auxiliary data</strong>:
-        {% if forecastmodel.auxiliary_data %}
-            <a href="{{ forecastmodel.auxiliary_data }}">{{ forecastmodel.auxiliary_data }}</a>  {# todo #}
-        {% else %}
-            <small class="text-muted">(No auxiliary data)</small>
-        {% endif %}
-    </p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Owner:</th>
+                    <td>
+                        {% if forecastmodel.owner %}
+                            <a href="{% url 'user-detail' forecastmodel.owner.pk %}">{{ forecastmodel.owner.username }}</a>
+                        {% else %}
+                            <small class="text-muted">(No owner)</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Project:</th>
+                    <td><a href="{{ forecastmodel.project.get_absolute_url }}">{{ forecastmodel.project.name }}</a></td>
+                </tr>
+                <tr>
+                    <th>Description:</th>
+                    <td>{{ forecastmodel.description }}</td>
+                </tr>
+                <tr>
+                    <th>Home:</th>
+                    <td>
+                        {% if forecastmodel.home_url %}
+                            <a href="{{ forecastmodel.home_url }}">{{ forecastmodel.home_url }}</a>
+                        {% else %}
+                            <small class="text-muted">(No URL)</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Auxiliary data:</th>
+                    <td>
+                        {% if forecastmodel.auxiliary_data %}
+                            <a href="{{ forecastmodel.auxiliary_data }}">{{ forecastmodel.auxiliary_data }}</a>  {# todo #}
+                        {% else %}
+                            <small class="text-muted">(No auxiliary data)</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 
     <h2>Forecasts ({{ forecastmodel.forecasts.all|length }})</h2>

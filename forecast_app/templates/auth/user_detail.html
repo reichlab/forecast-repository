@@ -11,17 +11,36 @@
         <a href="{% url 'api-user-detail' detail_user.pk %}" class="btn btn-info btn-xs" role="button">API</a>
     </p>
 
-    <p><strong>Full name</strong>:
-        {% if not detail_user.first_name and not detail_user.last_name %}
-            <small class="text-muted">(No name)</small>
-            {% else %}{{ detail_user.first_name }} {{ detail_user.last_name }}
-        {% endif %}
-    </p>
-    <p><strong>Type</strong>:
-        {% if detail_user.is_active %}Active{% else %}Not Active{% endif %},
-        {% if detail_user.is_staff %}Staff{% else %}Not Staff{% endif %},
-        {% if detail_user.is_superuser %}Superuser{% else %}Not Superuser{% endif %}
-    </p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Username:</th>
+                    <td>{{ detail_user.username }}</td>
+                </tr>
+                <tr>
+                    <th>Full name:</th>
+                    <td>
+                        {% if not detail_user.first_name and not detail_user.last_name %}
+                            <small class="text-muted">(Not specified)</small>
+                            {% else %}{{ detail_user.first_name }} {{ detail_user.last_name }}
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Type:</th>
+                    <td>
+                        {% if detail_user.is_active %}Active{% else %}Not Active{% endif %},
+                        {% if detail_user.is_staff %}Staff{% else %}Not Staff{% endif %},
+                        {% if detail_user.is_superuser %}Superuser{% else %}Not Superuser{% endif %}
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 
     {% load auth_extras %}
