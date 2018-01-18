@@ -36,12 +36,29 @@
     <p><strong>Home</strong>: <a href="{{ project.home_url }}">{{ project.home_url }}</a></p>
     <p><strong>Core data</strong>: <a href="{{ project.core_data }}">{{ project.core_data }}</a></p>
     <p><strong>Template data</strong>:
-        {% if project.csv_filename %}
+        {% if project.is_template_loaded %}
+            {# show a link to the template detail #}
             <a href="{% url 'template-data-detail' project.pk %}">{{ project.csv_filename }}</a>
         {% else %}
+            {# show that there's no template, optionally with upload button #}
             <small class="text-muted">(No template)</small>
+            {% if ok_user_edit_project %}
+                {# show a button for uploading a file #}
+
+                <form class="form-inline" method="POST" enctype="multipart/form-data"
+                      action="{% url 'upload-template' project.pk %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <button class="form-control btn btn-success" type="submit">
+                            <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <input type="file" name="data_file">
+                    </div>
+                </form>
+            {% endif %}
         {% endif %}
-    </p>
     <p><strong>Visualizations</strong>: <a href="{% url 'project-visualizations' project.pk %}">Here</a></p>
 
 

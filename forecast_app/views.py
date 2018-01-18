@@ -46,7 +46,8 @@ def template_detail(request, project_pk):
     return render(
         request,
         'template_data_detail.html',
-        context={'project': project})
+        context={'project': project,
+                 'ok_user_edit_project': ok_user_edit_project(request.user, project)})
 
 
 def project_visualizations(request, project_pk):
@@ -416,6 +417,63 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 
 
 #
+# ---- Project template upload/delete views ----
+#
+
+def delete_template(request, project_pk):
+    """
+    Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
+    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
+
+    :return: redirect to the forecast's forecast_model detail page
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not ok_user_edit_project(request.user, project):
+        return HttpResponseForbidden()
+
+    project.delete_template()
+    return redirect('project-detail', pk=project_pk)
+
+
+def upload_template(request, project_pk):
+    """
+    Uploads the passed data into a the project's template. Authorization: The logged-in user must be a superuser or the
+    Project's owner.
+
+    :return: redirect to the new forecast's detail page
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not ok_user_edit_project(request.user, project):
+        return HttpResponseForbidden()
+
+    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
+        return render(request, 'message.html',
+                      context={'title': "No file selected to upload.",
+                               'message': "Please go back and select one."})
+
+    # error if there is already a template
+    if project.is_template_loaded():
+        return render(request, 'message.html',
+                      context={'title': "Template already exists.",
+                               'message': "The project already has a template. Please delete it and then upload again."})
+
+    # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
+    data_file = request.FILES['data_file']  # InMemoryUploadedFile
+    file_name = data_file.name
+    data = data_file.read()
+    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
+    tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
+    try:
+        project.load_template(Path(tmp_data_file), file_name)
+        return redirect('template-data-detail', project_pk=project_pk)
+    except RuntimeError as rte:
+        return render(request, 'message.html',
+                      context={'title': "Got an error trying to load the data.",
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
+                                          "Please go back and select a valid file.".format(rte)})
+
+
+#
 # ---- Forecast upload/delete views ----
 #
 
@@ -470,7 +528,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "button.".format(time_zero.timezero_date, file_name)})
 
     data = data_file.read()
-    path = default_storage.save('tmp/somename.mp3', ContentFile(data))  # todo xx use with TemporaryFile :-)
+    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
     tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
     try:
         forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)

@@ -14,62 +14,7 @@ from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users
 
 class ViewsTestCase(TestCase):
     """
-    Tests view and API authorization. Details:
-
-    ---- view tests ----
-
-    Legend:
-    - a: anyone can access
-
-    Otherwise, the url's associated Project.is_public determines access. if public: anyone can access. o/w, only
-    Project.owner or a Project.model_owners can access. How the viewed object is associated with the Project:
-
-    - p: project = Project
-    - m: project = ForecastModel.project
-    - f: project = Forecast.forecast_model.project
-
-    URLs:
-    - a   '^$'      'index'
-    - a   '^about$  'about'
-    - a   '^docs'   'docs'
-    -
-    - p   '^project/(?P<pk>\d+)$'                          'project-detail'
-    - p   '^project/(?P<project_pk>\d+)/visualizations$    'project-visualizations'
-    - p   '^project/(?P<project_pk>\d+)/template$'         'template-data-detail'
-    - p   '^project/(?P<model_with_cdc_data_pk>\d+)/json'  'download-template-json'
-    -
-    - m   '^model/(?P<pk>\d+)$'    'model-detail'
-    -
-    - a   '^user/(?P<pk>\d+)$'     'user-detail'
-    -
-    - f   '^forecast/(?P<pk>\d+)$'                                             'forecast-detail'
-    - f   '^forecast/(?P<model_with_cdc_data_pk>\d+)/json'                     'download-forecast-json'
-    - f   '^forecast/(?P<forecast_pk>\d+)/delete$'                             'delete-forecast'
-    - f   '^forecast/(?P<forecast_model_pk>\d+)/upload/(?P<timezero_pk>\d+)$'  'upload-forecast'
-    -
-    - p   '^project/create/(?P<user_pk>\d+)'       'create-project'
-    - p   '^project/(?P<project_pk>\d+)/edit/$'    'edit-project'
-    - p   '^project/(?P<project_pk>\d+)/delete/$'  'delete-project'
-    -
-    - p   '^project/(?P<project_pk>\d+)/models/create/$'  'create-model'
-    - m   '^model/(?P<model_pk>\d+)/edit/$'               'edit-model'
-    - m   '^model/(?P<model_pk>\d+)/delete/$'             'delete-model'
-
-
-    ---- API tests ----
-
-    Tests the REST API. Endpoints:
-
-    - api/                           # 'api-root'
-    - api/projects/                  # 'api-project-list'
-    - api/project/1/                 # 'api-project-detail'
-    - api/projects/1/template_data/  # 'api-template-data'
-    - api/users/                     # 'api-user-list'
-    - api/user/1/                    # 'api-user-detail'
-    - api/model/1/                   # 'api-model-detail'
-    - api/forecast/1/                # 'api-forecast-detail'
-    - api/forecast/1/data/           # 'api-forecast-data'
-
+    Tests view and API authorization.
     """
 
 
@@ -104,6 +49,12 @@ class ViewsTestCase(TestCase):
                                                   data_version_date=None)
         cls.private_tz2 = TimeZero.objects.create(project=cls.private_project, timezero_date=str('2017-12-04'),
                                                   data_version_date=None)
+
+        # public project with no template
+        cls.public_project2 = Project.objects.create(name='public project 2', is_public=True,
+                                                     owner=cls.po_user, config_dict=TEST_CONFIG_DICT)
+        cls.public_project2.model_owners.add(cls.mo_user)
+        cls.public_project2.save()
 
         # public_model
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
@@ -156,33 +107,38 @@ class ViewsTestCase(TestCase):
             reverse('docs'): self.OK_ALL,
             reverse('project-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,  # 5
+            reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('template-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('template-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('download-template-json', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('download-template-json', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,  # 10
+            reverse('download-template-json', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('delete-template', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
+            reverse('delete-template', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
+            reverse('upload-template', args=[str(self.public_project.pk)]): self.ONLY_PO,
+            reverse('upload-template', args=[str(self.private_project.pk)]): self.ONLY_PO,
             reverse('model-detail', args=[str(self.public_model.pk)]): self.OK_ALL,
             reverse('model-detail', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
             reverse('user-detail', args=[str(self.po_user.pk)]): self.OK_ALL,
             reverse('forecast-detail', args=[str(self.public_forecast.pk)]): self.OK_ALL,
-            reverse('forecast-detail', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,  # 15
+            reverse('forecast-detail', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
             reverse('download-forecast-json', args=[str(self.public_forecast.pk)]): self.OK_ALL,
             reverse('download-forecast-json', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
             reverse('delete-forecast', args=[str(self.public_forecast.pk)]): self.ONLY_PO_MO_302,
             reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
-            # 20:
             reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
             reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
             reverse('create-project', args=[str(self.po_user.pk)]): self.ONLY_PO,
             reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
             reverse('edit-project', args=[str(self.private_project.pk)]): self.ONLY_PO,
-            reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,  # 25
+            reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
+            reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
+            reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
             reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
             reverse('create-model', args=[str(self.public_project.pk)]): self.ONLY_PO_MO,
             reverse('create-model', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('edit-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO,
-            reverse('edit-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,  # 30
+            reverse('edit-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
             reverse('delete-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO_302,
             reverse('delete-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO_302,
         }
@@ -247,7 +203,7 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, False),
                      (self.superuser, True)],
             },
-            # project detail
+            # project detail - public_project
             reverse('project-detail', args=[str(self.public_project.pk)]): {
                 reverse('edit-project', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
@@ -261,7 +217,21 @@ class ViewsTestCase(TestCase):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],
-            }
+            },
+            # project detail - public_project2 (no template)
+            reverse('project-detail', args=[str(self.public_project2.pk)]): {
+                reverse('upload-template', args=[str(self.public_project2.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True)],
+            },
+            # template data detail - public_project
+            reverse('template-data-detail', args=[str(self.public_project.pk)]): {
+                reverse('delete-template', args=[str(self.public_project.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True)],
+            },
         }
         for url, url_to_user_access_pairs in url_to_exp_content.items():
             for exp_url, user_access_pairs in url_to_user_access_pairs.items():
@@ -319,7 +289,7 @@ class ViewsTestCase(TestCase):
         # 'api-project-list'
         # a rest_framework.utils.serializer_helpers.ReturnList:
         response = self.client.get(reverse('api-project-list'), format='json')
-        self.assertEqual(2, len(response.data))
+        self.assertEqual(3, len(response.data))
 
         # 'api-project-detail'
         # a rest_framework.utils.serializer_helpers.ReturnDict:
@@ -328,7 +298,6 @@ class ViewsTestCase(TestCase):
                     'template_csv_file_name', 'template_data', 'model_owners', 'models', 'targets',
                     'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
-
 
         # 'api-template-data'
         # a django.http.response.JsonResponse:
@@ -349,7 +318,6 @@ class ViewsTestCase(TestCase):
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
         self.assertEqual(exp_data_keys, list(response_dict['data'].keys()))
 
-
         # 'api-user-detail'
         # a rest_framework.response.Response:
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
@@ -367,7 +335,6 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
         exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
         self.assertEqual(exp_keys, list(response.data.keys()))
-
 
         # 'api-forecast-data'
         # a django.http.response.JsonResponse:

@@ -4,16 +4,40 @@
 
 {% block content %}
 
-    <p class="lead">Project template for {{ project.name }}</p>
+    <p class="lead">Project template for &ldquo;{{ project.name }}&rdquo;
+        {% if ok_user_edit_project and project.is_template_loaded %}
+            {# show a button inside a modal dialog for deleting the template #}
+
+            {# Delete Template: a button that shows a hidden confirm modal when clicked #}
+            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
+                    data-target="#confirmModal_{{ project.html_id }}">
+                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+            </button>
+
+            {# the modal itself - hidden until above button shows it #}
+            {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-template' delete_question='Delete Template?' %}
+        {% endif %}
+    </p>
 
     <p><strong>Project</strong>: <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></p>
-    <p><strong>Data Filename</strong>: {{ project.csv_filename }}</p>
+    <p><strong>Data Filename</strong>:
+        {% if project.is_template_loaded %}
+            {{ project.csv_filename }}
+        {% else %}
+            <small class="text-muted">(No template)</small>
+        {% endif %}
+    </p>
 
-    {% include 'csv_data_snippet.html' with model_with_cdc_data=project %}
+    {% if project.is_template_loaded %}
+        {% include 'csv_data_snippet.html' with model_with_cdc_data=project %}
 
-    <form class="form-inline" method="POST" action="{% url 'download-template-json' project.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-primary">Download as JSON file</button>
-    </form>
+        <form class="form-inline" method="POST" action="{% url 'download-template-json' project.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Download as JSON file</button>
+        </form>
+    {% else %}
+        <h2>Preview of {{ project.get_num_rows }} rows</h2>
+        <small class="text-muted">(No data)</small>
+    {% endif %}
 
 {% endblock %}

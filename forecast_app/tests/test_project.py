@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
+from forecast_app.models.data import ProjectTemplateData
 from forecast_app.models.forecast_model import ForecastModel
 
 
@@ -56,12 +57,23 @@ class ProjectTestCase(TestCase):
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
         self.assertFalse(project2.is_template_loaded())
         self.assertFalse(project2.csv_filename)
+        self.assertEqual(0, project2.cdcdata_set.count())
 
         # verify load_forecast() fails
         new_forecast_model = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
             new_forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), time_zero2)
         self.assertIn("Cannot validate forecast data", str(context.exception))
+
+
+    def test_delete_template(self):
+        # create a project, don't load a template, verify csv_filename and is_template_loaded()
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        project2.delete_template()
+        self.assertFalse(project2.is_template_loaded())
+        self.assertFalse(project2.csv_filename)
+        self.assertEqual(0, project2.cdcdata_set.count())
 
 
     def test_project_template_validation(self):
@@ -106,7 +118,7 @@ class ProjectTestCase(TestCase):
 
     def test_project_template_data_accessors(self):
         self.assertEqual(8019, len(self.project.get_data_rows()))  # individual rows via SQL
-        self.assertEqual(8019, len(self.project.cdcdata_set.all()))  # individual rows as CDCData instances
+        self.assertEqual(8019, self.project.cdcdata_set.count())  # individual rows as CDCData instances
 
         # test Project template accessors (via ModelWithCDCData) - the twin to test_forecast_data_accessors()
         exp_locations = {'HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',

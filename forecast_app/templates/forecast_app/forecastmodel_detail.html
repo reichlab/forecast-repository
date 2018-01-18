@@ -57,7 +57,7 @@
             <tr>
                 <th>TimeZero</th>
                 <th>Data Filename</th>
-                {% if user == forecastmodel.owner %}
+                {% if ok_user_edit_model %}
                     <th>Action</th>
                 {% endif %}
             </tr>
@@ -90,7 +90,6 @@
                                 {% include 'delete_modal_snippet.html' with delete_object=forecast delete_url='delete-forecast' %}
                             {% else %}
                                 {# show a button for uploading a file #}
-                                {# todo use a proper Django form?, e.g., https://docs.djangoproject.com/en/1.11/topics/http/file-uploads/ #}
                                 <form class="form-inline" method="POST" enctype="multipart/form-data"
                                       action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
                                     {% csrf_token %}
@@ -104,7 +103,8 @@
                                     </div>
                                 </form>
                             {% endif %}
-                        </td>{% endif %}
+                        </td>
+                    {% endif %}
                 </tr>
             {% endfor %}
             </tbody>

@@ -14,6 +14,8 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/template$', views.template_detail, name='template-data-detail'),
+    url(r'^project/(?P<project_pk>\d+)/template/delete$', views.delete_template, name='delete-template'),
+    url(r'^project/(?P<project_pk>\d+)/template/upload/$', views.upload_template, name='upload-template'),
     url(r'^project/(?P<model_with_cdc_data_pk>\d+)/json', views.download_json_for_model_with_cdc_data,
         {'type': 'project'}, name='download-template-json'),
 

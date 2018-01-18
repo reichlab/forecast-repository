@@ -172,21 +172,33 @@ class Project(ModelWithCDCData):
 
 
     @transaction.atomic
-    def load_template(self, template_path):
+    def load_template(self, template_path, file_name=None):
         """
         Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
         Project's template.
 
         :param template_path: Path to a CDC CSV forecast file
+        :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
+            files have random template_path file names, so original ones must be extracted and passed separately
         """
-        self.csv_filename = template_path.name
+        file_name = file_name if file_name else template_path.name
+        self.csv_filename = file_name
         self.load_csv_data(template_path)
         self.validate_template_data()
         self.save()
 
 
+    def delete_template(self):
+        """
+        Clears my csv_filename and deletes my template data.
+        """
+        self.csv_filename = ''
+        self.save()
+        ProjectTemplateData.objects.filter(project=self).delete()
+
+
     def is_template_loaded(self):
-        return self.csv_filename
+        return self.csv_filename != ''
 
 
     def validate_forecast_data(self, forecast):

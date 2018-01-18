@@ -1,11 +1,16 @@
-<div class="modal fade" id="confirmModal_{{ delete_object.html_id }}" tabindex="-1" role="dialog" aria-labelledby="titleLabel">
+<div class="modal fade" id="confirmModal_{{ delete_object.html_id }}" tabindex="-1" role="dialog"
+     aria-labelledby="titleLabel">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span></button>
                 <h4 class="modal-title" id="titleLabel">
-                    Delete {{ delete_object.get_class }} &ldquo;{{ delete_object.name }}&rdquo;?
+                    {% if delete_question %}
+                        {{ delete_question }}
+                    {% else %}
+                        Delete {{ delete_object.get_class }} &ldquo;{{ delete_object.name }}&rdquo;?
+                    {% endif %}
                 </h4>
             </div>
             {# no <div class="modal-body"></div> #}
