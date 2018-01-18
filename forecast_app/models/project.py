@@ -240,7 +240,7 @@ class Project(ModelWithCDCData):
                 # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
                 # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
                 # (0.9300285798758262 -> 0.07 fixed it)
-                forecast_bin_sum = sum([b[-1] for b in forecast_bins])
+                forecast_bin_sum = sum([b[-1] if b[-1] is not None else 0 for b in forecast_bins])
                 if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):
                     raise RuntimeError("Bin did not sum to 1.0. csv_filename={}, "
                                        "template_location={}, template_target={}, forecast_bin_sum={}"

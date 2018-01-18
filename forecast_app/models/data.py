@@ -1,8 +1,7 @@
 import csv
-import timeit
+import io
 from itertools import groupby
 
-import psycopg2
 from django.db import models, connection
 
 from utils.utilities import basic_str, parse_value
@@ -38,7 +37,7 @@ class ModelWithCDCData(models.Model):
         if not self.pk:
             raise Exception("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
-        # insert the data using direct SQL. we use psycopg2.extras.execute_batch() if we're connected to a Postgres
+        # insert the data using direct SQL. we use psycopg2 extensions to the DB API if we're connected to a Postgres
         # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
         # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
         with open(str(csv_template_file_path)) as csv_path_fp, \
@@ -90,21 +89,28 @@ class ModelWithCDCData(models.Model):
                 return
 
             # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-            column_names = ', '.join(['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl',
-                                      'value', self.__class__._meta.model_name + '_id'])
+            table_name = self.cdc_data_class._meta.db_table
+            model_name = self.__class__._meta.model_name
+            columns = ['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value',
+                       model_name + '_id']
             if connection.vendor == 'postgresql':
-                # https://stackoverflow.com/questions/8134602/psycopg2-insert-multiple-rows-with-one-query
-                sql_insert_part = """
-                    INSERT INTO {cdcdata_table_name} ({column_names})
-                    VALUES 
-                """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
-                args_str = ','.join(cursor.mogrify('(%s, %s, %s, %s, %s, %s, %s, %s)', x).decode('utf-8') for x in rows)
-                cursor.execute(sql_insert_part + args_str + ';')
+                NULL_VALUE = 'NULL'
+                string_io = io.StringIO()
+                csv_writer = csv.writer(string_io, delimiter=',')
+                for location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, self_pk in rows:
+                    # note that we translate None -> NULL_VALUE for the three nullable columns
+                    csv_writer.writerow([location, target, row_type, unit,
+                                         bin_start_incl if bin_start_incl is not None else NULL_VALUE,
+                                         bin_end_notincl if bin_end_notincl is not None else NULL_VALUE,
+                                         value if value is not None else NULL_VALUE,
+                                         self_pk])
+                string_io.seek(0)
+                cursor.copy_from(string_io, table_name, columns=columns, sep=',', null=NULL_VALUE)
             else:  # 'sqlite', etc.
                 sql = """
                     INSERT INTO {cdcdata_table_name} ({column_names})
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
-                """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table, column_names=column_names)
+                """.format(cdcdata_table_name=table_name, column_names=(', '.join(columns)))
                 cursor.executemany(sql, rows)
 
 
