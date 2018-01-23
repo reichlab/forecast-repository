@@ -61,8 +61,19 @@ def make_thai_moph_project(project_name, template_path, data_dir):
     project = Project.objects.create(
         name=project_name,
         is_public=False,
-        description="Impetus Project dengue forecasts for the 2017 season in Thailand",
-        home_url='https://epimodeling.springloops.io/project/156725',
+        description="Impetus Project forecasts for real-time dengue hemorrhagic fever (DHF) in Thailand. Beginning in "
+                    "May 2017, this project contains forecasts for biweekly DHF incidence at the province level in "
+                    "Thailand. Specifically, each timezero date is associated with a biweek in which data were "
+                    "delivered from the Thai Ministry of Public Health to servers in the US. We use standard biweek "
+                    "definitions described in the supplemental materials of Reich et al. (2016). Each timezero also "
+                    "has a data-version-date that represents the day the forecast model was run. This can be the same "
+                    "as the timezero, but cannot be earlier.\n\nFiles follow the naming conventions of "
+                    "`[timezero]-[modelname]-[data-version-date].cdc.csv`, where dates are in YYYYMMDD format. For "
+                    "example, `20170917-gam-lag1-tops3-20170919.cdc.csv`.\n\nFor each timezero, a forecast contains "
+                    "predictive distributions for case counts at [-1, 0, 1, 2, 3] biweek ahead, relative to the "
+                    "timezero. Predictive distributions must be defined according to this binned-interval structure:"
+                    "{[0,1), [1, 10), [10, 20), [20, 30), ..., [1990, 2000), [2000, Inf)}.",
+        home_url='http://www.iddynamics.jhsph.edu/projects/impetus',
         core_data='https://github.com/reichlab/dengue-data')
 
     click.echo("  loading template")
@@ -70,8 +81,18 @@ def make_thai_moph_project(project_name, template_path, data_dir):
 
     # create Targets
     click.echo("  creating targets")
-    for target_name in ["1 biweek ahead", '2 biweek ahead', '3 biweek ahead', '4 biweek ahead', '5 biweek ahead']:
-        Target.objects.create(project=project, name=target_name, description=target_name)
+    for target_name, description in {
+        '-1 biweek ahead': 'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead '
+                           'forecast)',
+        '0 biweek ahead': 'forecasted case counts for the timezero biweek (zero-step-ahead forecast)',
+        '1 biweek ahead': 'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead '
+                          'forecast)',
+        '2 biweek ahead': 'forecasted case counts for 2 biweeks subsequent to the timezero biweek (2-step ahead '
+                          'forecast)',
+        '3 biweek ahead': 'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead '
+                          'forecast)',
+    }.items():
+        Target.objects.create(project=project, name=target_name, description=description)
 
     # create TimeZeros from file names in data_dir. format (e.g., '20170506-r6object-20170504.cdc.csv'):
     #
