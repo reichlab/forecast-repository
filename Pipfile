@@ -17,6 +17,7 @@ gunicorn = "*"
 whitenoise = "*"
 djangorestframework = "*"
 httpie = "*"
+pillow = "*"
 
 
 [dev-packages]

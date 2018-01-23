@@ -9,6 +9,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
+from utils.utilities import rescale
 
 
 class ForecastTestCase(TestCase):
@@ -241,3 +242,50 @@ class ForecastTestCase(TestCase):
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
+
+
+    def test_sparkline_data(self):
+        with self.assertRaises(ValueError) as context:
+            rescale([])
+        self.assertIn('invalid argument', str(context.exception))
+
+        with self.assertRaises(ValueError) as context:
+            rescale([1])
+        self.assertIn('invalid argument', str(context.exception))
+
+        with self.assertRaises(ValueError) as context:
+            rescale([1, 1])
+        self.assertIn('invalid argument', str(context.exception))
+
+        self.assertEqual([0.0, 25.0, 50.0, 75.0, 100.0], rescale([1, 2, 3, 4, 5]))
+        self.assertEqual([0.0, 50.0, 100.0], rescale([-1, 0, 1]))
+
+        # values for EW1-KoTstable-2017-01-17.csv, 'US National', 'Season peak week'
+        values_from_db = [0.0000388312283001796, 0.0000432690829630572, 0.0000427143511301975, 0.0000482616694587946,
+                          0.0000366123009687408, 0.0000316197144730033, 0.0000249629324786868, 0.0000499258649573737,
+                          0.0000848739704275352, 0.000148113399373542, 0.000217454878481005, 0.000290124748585627,
+                          0.183889955515593, 0.000328955976885807, 0.0813603183066327, 0.113514362560564,
+                          0.0918622520724573, 0.0636838880421198, 0.0985233865781112, 0.104099128806362,
+                          0.0403122043568698, 0.0641961804893339, 0.0951013531890285, 0.025085879433318,
+                          0.0182445605042546, 0.0103074209280581, 0.00205822405270794, 0.0018802440369379,
+                          0.00102908781284421, 0.000848733083646314, 0.00133599391065648, 0.000699739274163662,
+                          0.000581366927856728]
+        rescaled_values_from_db = rescale(values_from_db)
+        rescaled_vals_from_xl = [0.00754265160901892, 0.00995630012390493, 0.00965459405954418, 0.01267165470315170,
+                                 0.00633582735157593, 0.00362047277232906, 0.00000000000000000, 0.01357677289623400,
+                                 0.03258425495096150, 0.06697874628808760, 0.10469200433318200, 0.14421549876444100,
+                                 100.00000000000000000, 0.16533492326969400, 44.23645536405590000, 61.72431088358680000,
+                                 49.94821898924800000, 34.62264578770470000, 53.57105899379260000, 56.60357875185930000,
+                                 21.91131702582250000, 34.90127003260140000, 51.70989263416820000, 13.63006418392060000,
+                                 9.90922595748613000, 5.59239573075953000, 1.10584461547792000, 1.00904532091423000,
+                                 0.54612075211197100, 0.44802990476572100, 0.71304001907005500, 0.36699555048792100,
+                                 0.30261551563521500]
+        rescaled_vals_from_forecast = self.forecast.rescaled_bin_for_loc_and_target('US National', 'Season peak week')
+
+        # double check that manually-computed rescale from Excel matches Python. use assertAlmostEquals() b/c
+        # self.assertEqual(rescaled_values_from_db, rescaled_vals_from_xl) fails (different precision b/w Excel and
+        # Python):
+        for v1, v2 in zip(rescaled_values_from_db, rescaled_vals_from_xl):
+            self.assertAlmostEquals(v1, v2)
+
+        self.assertEqual(rescaled_values_from_db, rescaled_vals_from_forecast)

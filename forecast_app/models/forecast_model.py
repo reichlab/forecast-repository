@@ -39,7 +39,7 @@ class ForecastModel(models.Model):
 
 
     def get_absolute_url(self):
-        return reverse('model-detail', args=[str(self.id)])
+        return reverse('model-detail', args=[str(self.pk)])
 
 
     def get_class(self):
@@ -53,7 +53,7 @@ class ForecastModel(models.Model):
         """
         :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
         """
-        return self.__class__.__name__ + '_' + str(self.id)
+        return self.__class__.__name__ + '_' + str(self.pk)
 
 
     @transaction.atomic

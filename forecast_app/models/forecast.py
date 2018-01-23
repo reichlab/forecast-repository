@@ -4,7 +4,7 @@ from django.urls import reverse
 from forecast_app.models.data import ForecastData, ModelWithCDCData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.project import TimeZero
-from utils.utilities import basic_str
+from utils.utilities import basic_str, rescale
 
 
 class Forecast(ModelWithCDCData):
@@ -30,7 +30,7 @@ class Forecast(ModelWithCDCData):
 
 
     def get_absolute_url(self):
-        return reverse('forecast-detail', args=[str(self.id)])
+        return reverse('forecast-detail', args=[str(self.pk)])
 
 
     def get_class(self):
@@ -44,7 +44,7 @@ class Forecast(ModelWithCDCData):
         """
         :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
         """
-        return self.__class__.__name__ + '_' + str(self.id)
+        return self.__class__.__name__ + '_' + str(self.pk)
 
 
     @property
@@ -54,6 +54,16 @@ class Forecast(ModelWithCDCData):
         confirm deleting a Forecast. All other deletable models have 'name' fields (Project and ForecastModel).
         """
         return self.csv_filename
+
+
+    def rescaled_bin_for_loc_and_target(self, location, target):
+        """
+        Used for sparkline calculations.
+
+        :return: list of scaled (0-100) values for the passed location and target
+        """
+        values = [_[2] for _ in self.get_target_bins(location, target)]  # bin_start_incl, bin_end_notincl, value
+        return rescale(values)
 
 
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django

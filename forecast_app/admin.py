@@ -37,7 +37,7 @@ class ForecastModelInline(admin.TabularInline):
 
     def admin_link(self, instance):
         url = reverse('admin:{}_{}_change'.format(instance._meta.app_label, instance._meta.model_name),
-                      args=(instance.id,))
+                      args=(instance.pk,))
         return format_html('<a href="{}">Link</a>', url)
 
 

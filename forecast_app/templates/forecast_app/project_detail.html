@@ -40,12 +40,18 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Public?</th>
-                    <td>{{ project.is_public|yesno }}</td>
+                    <th>Visibility</th>
+                    <td>
+                        {% if project.is_public %}
+                            <span style="color:green">Public</span>
+                        {% else %}
+                            <span style="color:red">Private</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <th>Description:</th>
-                    <td>{{ project.description }}</td>
+                    <td>{{ project.description|linebreaksbr }}</td>
                 </tr>
                 <tr>
                     <th>Home:</th>
@@ -56,7 +62,7 @@
                     <td><a href="{{ project.core_data }}">{{ project.core_data }}</a></td>
                 </tr>
                 <tr>
-                    <th>Template data:</th>
+                    <th>Data Template:</th>
                     <td>
                         {% if project.is_template_loaded %}
                             {# show a link to the template detail #}

@@ -12,7 +12,7 @@ https://github.com/reichlab/forecast-repository .
 - for Heroku hosting:
   - [Heroku Toolbelt](https://toolbelt.heroku.com/)
   - [Postgres](https://devcenter.heroku.com/articles/heroku-postgresql#local-setup)
-
+- [Pillow](https://github.com/python-pillow/Pillow)
 
 To install required packages:
 ```bash
@@ -32,6 +32,7 @@ $ pipenv install dj-database-url
 $ pipenv install gunicorn
 $ pipenv install whitenoise
 $ pipenv install djangorestframework
+$ pipenv install Pillow
 ```
 
 

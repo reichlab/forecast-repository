@@ -26,9 +26,8 @@ urlpatterns = [
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
     url(r'^forecast/(?P<model_with_cdc_data_pk>\d+)/json', views.download_json_for_model_with_cdc_data,
         {'type': 'forecast'}, name='download-forecast-json'),
-    url(r'^forecast/(?P<forecast_pk>\d+)/delete$', views.delete_forecast, name='delete-forecast'),
-    url(r'^forecast/(?P<forecast_model_pk>\d+)/upload/(?P<timezero_pk>\d+)$', views.upload_forecast,
-        name='upload-forecast'),
+    url(r'^forecast/(?P<forecast_pk>\d+)/sparkline', views.forecast_sparkline_bin_for_loc_and_target,
+        name='forecast-sparkline'),
 
 
     # ---- CRUD-related form URLs ----
@@ -42,5 +41,10 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/models/create/$', views.create_model, name='create-model'),
     url(r'^model/(?P<model_pk>\d+)/edit/$', views.edit_model, name='edit-model'),
     url(r'^model/(?P<model_pk>\d+)/delete/$', views.delete_model, name='delete-model'),
+
+    # Forecast
+    url(r'^forecast/(?P<forecast_pk>\d+)/delete$', views.delete_forecast, name='delete-forecast'),
+    url(r'^forecast/(?P<forecast_model_pk>\d+)/upload/(?P<timezero_pk>\d+)$', views.upload_forecast,
+        name='upload-forecast'),
 
 ]

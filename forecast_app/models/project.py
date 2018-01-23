@@ -1,6 +1,5 @@
 import itertools
 import math
-import timeit
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -109,7 +108,7 @@ class Project(ModelWithCDCData):
 
 
     def get_absolute_url(self):
-        return reverse('project-detail', args=[str(self.id)])
+        return reverse('project-detail', args=[str(self.pk)])
 
 
     def get_class(self):
@@ -123,7 +122,7 @@ class Project(ModelWithCDCData):
         """
         :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
         """
-        return self.__class__.__name__ + '_' + str(self.id)
+        return self.__class__.__name__ + '_' + str(self.pk)
 
 
     def get_summary_counts(self):
@@ -161,6 +160,21 @@ class Project(ModelWithCDCData):
         week-relative (?) ones. returns None if no config_dict.
         """
         return self.config_dict and list(self.config_dict['target_to_week_increment'].keys())
+
+
+    def get_distribution_preview(self):
+        """
+        :return: returns an arbitrary Forecast bin for this project as a 3-tuple: (Forecast, location, target). returns
+            None if I have no targets, locations, models, or forecasts
+        """
+        first_model = self.models.first()
+        first_forecast = first_model.forecasts.first() if first_model else None
+        locations = self.get_locations()
+        first_location = next(iter(sorted(locations))) if locations else None  # sort to make deterministic
+        targets = self.get_targets(first_location)
+        first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
+        return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
+            else None
 
 
     def get_week_increment_for_target_name(self, target_name):

@@ -74,6 +74,10 @@ class ViewsTestCase(TestCase):
                       (cls.po_user, status.HTTP_200_OK),
                       (cls.mo_user, status.HTTP_200_OK),
                       (cls.superuser, status.HTTP_200_OK)]
+        cls.BAD_REQ_400_ALL = [(None, status.HTTP_400_BAD_REQUEST),
+                               (cls.po_user, status.HTTP_400_BAD_REQUEST),
+                               (cls.mo_user, status.HTTP_400_BAD_REQUEST),
+                               (cls.superuser, status.HTTP_400_BAD_REQUEST)]
         cls.ONLY_PO_MO = [(None, status.HTTP_403_FORBIDDEN),
                           (cls.po_user, status.HTTP_200_OK),
                           (cls.mo_user, status.HTTP_200_OK),
@@ -82,6 +86,10 @@ class ViewsTestCase(TestCase):
                               (cls.po_user, status.HTTP_302_FOUND),
                               (cls.mo_user, status.HTTP_302_FOUND),
                               (cls.superuser, status.HTTP_302_FOUND)]
+        cls.ONLY_PO_MO_400 = [(None, status.HTTP_403_FORBIDDEN),
+                              (cls.po_user, status.HTTP_400_BAD_REQUEST),
+                              (cls.mo_user, status.HTTP_400_BAD_REQUEST),
+                              (cls.superuser, status.HTTP_400_BAD_REQUEST)]
         cls.ONLY_PO = [(None, status.HTTP_403_FORBIDDEN),
                        (cls.po_user, status.HTTP_200_OK),
                        (cls.mo_user, status.HTTP_403_FORBIDDEN),
@@ -141,7 +149,12 @@ class ViewsTestCase(TestCase):
             reverse('edit-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
             reverse('delete-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO_302,
             reverse('delete-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO_302,
+            reverse('forecast-sparkline', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
+            reverse('forecast-sparkline', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
         }
+        # NB: re: 'forecast-sparkline' URIs: 1) BAD_REQ_400 is expected b/c we don't pass the correct query params.
+        # however, 400 does indicate that the code passed the authorization portion. 2) the 'data' arg is only for the
+        # two 'forecast-sparkline' cases, but it doesn't hurt to pass it for all cases, so we do b/c it's simpler :-)
         for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
             for user, exp_status_code in user_exp_status_code_list:
                 self.client.logout()  # AnonymousUser
@@ -150,8 +163,7 @@ class ViewsTestCase(TestCase):
                         else self.mo_user_password if user == self.mo_user \
                         else self.superuser_password
                     self.client.login(username=user.username, password=password)
-
-                response = self.client.get(url)
+                response = self.client.get(url, data={'location': None, 'target': None})
                 self.assertEqual(exp_status_code, response.status_code)
 
 

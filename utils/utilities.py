@@ -201,3 +201,20 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
                 return []
         rows.append(row)
     return rows
+
+
+#
+# ---- general numeric functions ----
+#
+
+# from https://stats.stackexchange.com/questions/25894/changing-the-scale-of-a-variable-to-0-100/95174
+def rescale(values, new_min=0, new_max=100):
+    try:
+        output = []
+        old_min, old_max = min(values), max(values)
+        for v in values:
+            new_v = (new_max - new_min) / (old_max - old_min) * (v - old_min) + new_min
+            output.append(new_v)
+        return output
+    except Exception as ex:
+        raise ValueError("invalid argument. values={}, exception='{}'".format(values, ex))

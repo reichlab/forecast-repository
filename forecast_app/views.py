@@ -1,14 +1,16 @@
 import os
 from pathlib import Path
 
+from PIL import Image, ImageDraw
 from django.conf import settings
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.forms import inlineformset_factory
-from django.http import JsonResponse, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
@@ -19,11 +21,37 @@ from utils.utilities import mean_abs_error_rows_for_project
 
 
 def index(request):
+    # set project_sparkline_tuples
+    project_sparkline_tuples = []
+    for project in sorted(Project.objects.all(), key=lambda p: p.name):
+        sparkline_url = None  # this default covers cases where no authorization or no data
+        img_title = None  # ""
+        if project.is_user_allowed_to_view(request.user):
+            distribution_preview = project.get_distribution_preview()
+            if distribution_preview:
+                first_forecast, first_location, first_target = distribution_preview
+                sparkline_url = "{reverse_url}?location={location}&target={target}".format(
+                    reverse_url=reverse('forecast-sparkline', args=[str(first_forecast.pk)]),
+                    location=first_location,
+                    target=first_target)  # manually build query parameters
+                # note: I tried urllib.parse.quote(sparkline_url), but it didn't work with the 'forecast-sparkline' url
+                # (location and target were coming through as None). so we leave it for now
+                img_title = "Model '{model_name}' > Forecast tz={tz_date}{maybe_dvdate} > Location '{location}' > " \
+                            "Target '{target}'".format(
+                    model_name=first_forecast.forecast_model.name,
+                    tz_date=str(first_forecast.time_zero.timezero_date),
+                    maybe_dvdate=', dvd=' + str(first_forecast.time_zero.data_version_date)
+                    if first_forecast.time_zero.data_version_date else '',
+                    location=first_location,
+                    target=first_target)
+        project_sparkline_tuples.append((project, sparkline_url, img_title))
+
+    # done
     return render(
         request,
         'index.html',
         context={'users': User.objects.all(),
-                 'projects': Project.objects.all()},
+                 'project_sparkline_tuples': project_sparkline_tuples},
     )
 
 
@@ -382,6 +410,10 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)
 
 
+#
+# ---- download-related functions ----
+#
+
 def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
     """
     Returns a response containing a JSON file for a ModelWithCDCData's (Project or Forecast) data.
@@ -405,6 +437,8 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
         return HttpResponseForbidden()
 
     from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
+
+
     detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
     detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
     detail_data = detail_serializer.data
@@ -414,6 +448,59 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
         .format(csv_filename=model_with_cdc_data.csv_filename)
     return response
+
+
+def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
+    """
+    :param request: A GET that must contain two query parameters: 'location': a valid location in forecast_pk's data,
+        and 'target', a valid target ""
+    :param forecast_pk
+    :return: a small image that is a sparkline for the passed bin
+    """
+    forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    project = forecast.forecast_model.project
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
+    # validate query parameters
+    location = request.GET['location'] if 'location' in request.GET else None
+    target = request.GET['target'] if 'target' in request.GET else None
+    if (not location) or (not target):
+        return HttpResponseBadRequest("one or both of the two required query parameters was not passed. location={}, "
+                                      "target={}".format(location, target))
+
+    # validate location and target
+    locations = project.get_locations()
+    targets = project.get_targets(location)
+    if (location not in locations) or (target not in targets):
+        return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
+                                      "target={}, targets={}".format(project, location, locations, target, targets))
+
+    rescaled_vals_from_forecast = forecast.rescaled_bin_for_loc_and_target(location, target)
+
+    # limit the length so the image is not too wide - 30 is magic. NB: first items may not be characteristic at all:
+    image = plot_sparkline(rescaled_vals_from_forecast[:30])
+
+    response = HttpResponse(content_type='image/png')
+    image.save(response, 'png')
+    return response
+
+
+def plot_sparkline(normalized_values):
+    """
+    from: https://bitworking.org/news/2005/04/Sparklines_in_data_URIs_in_Python
+
+    :param normalized_values: a list of numbers scaled to between 0 and 100
+    :return a sparkline .png image for the passed data. Values greater than 95 are displayed in red, otherwise they are
+        displayed in green
+    """
+    image = Image.new("RGB", (len(normalized_values) * 2, 15), 'white')
+    draw = ImageDraw.Draw(image)
+    for (r, i) in zip(normalized_values, range(0, len(normalized_values) * 2, 2)):
+        color = (r > 50) and "red" or "gray"
+        draw.line((i, image.size[1] - r / 10 - 4, i, (image.size[1] - r / 10)), fill=color)
+    del draw
+    return image
 
 
 #
