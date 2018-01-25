@@ -26,6 +26,7 @@
 
 
     <div class="row">
+        {# left column: info table #}
         <div class="col-md-8">
             <table class="table table-bordered">
                 <tbody>
@@ -96,6 +97,15 @@
                 </tr>
                 </tbody>
             </table>
+        </div>
+
+
+        {# right column: info icon #}
+        <div class="col-md-4">
+            {% if project.logo_url %}
+{#                <img src="{{ project.logo_url }}">#}
+                <a href="{{ project.home_url }}"><img src="{{ project.logo_url }}"></a>
+            {% endif %}
         </div>
     </div>
 

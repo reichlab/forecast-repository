@@ -74,6 +74,7 @@ def make_thai_moph_project(project_name, template_path, data_dir):
                     "timezero. Predictive distributions must be defined according to this binned-interval structure:"
                     "{[0,1), [1, 10), [10, 20), [20, 30), ..., [1990, 2000), [2000, Inf)}.",
         home_url='http://www.iddynamics.jhsph.edu/projects/impetus',
+        logo_url='http://www.iddynamics.jhsph.edu/sites/default/files/styles/project-logo/public/content/project/logos/ImpetusLogo.png',
         core_data='https://github.com/reichlab/dengue-data')
 
     click.echo("  loading template")

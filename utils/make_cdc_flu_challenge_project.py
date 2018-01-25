@@ -132,6 +132,7 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
         description="Code, results, submissions, and method description for the 2016-2017 CDC flu contest submissions "
                     "based on ensembles.",
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
+        logo_url='http://reichlab.io/assets/images/logo/nav-logo.png',
         core_data='https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions',
         config_dict=config_dict)
 

@@ -54,6 +54,8 @@ class Project(ModelWithCDCData):
 
     home_url = models.URLField(help_text="The project's home site.")
 
+    logo_url = models.URLField(blank=True, null=True, help_text="The project's optional logo image.")
+
     core_data = models.URLField(
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
                   "the challenge, including supplemental data like Google queries or weather.")
