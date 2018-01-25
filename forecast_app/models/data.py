@@ -3,6 +3,7 @@ import io
 from itertools import groupby
 
 from django.db import models, connection
+from django.db.models import Count
 
 from utils.utilities import basic_str, parse_value
 
@@ -118,71 +119,46 @@ class ModelWithCDCData(models.Model):
         """
         Returns all of my data as a a list of rows, excluding any PKs and FKs columns.
         """
-        # todo better way to get FK name? - {model_name}_id
-        sql = """
-            SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s;
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk])
-            return cursor.fetchall()  # rows
+        return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
+                 cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)
+                for cdc_data in (self.cdcdata_set.all())]
 
 
     def get_num_rows(self):
-        return len(self.get_data_rows())  # todo query only for count(*)
+        return self.cdcdata_set.count()
 
 
     def get_data_preview(self):
         """
         :return: a preview of my data in the form of a table that's represented as a nested list of rows
         """
-        return self.get_data_rows()[:10]  # todo query LIMIT 10
+        return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
+                 cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)
+                for cdc_data in (self.cdcdata_set.all()[:10])]
 
 
     def get_locations(self):
         """
         :return: a set of Location names in my data
         """
-        # todo better way to get FK name? - {model_name}_id
-        sql = """
-            SELECT location
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s
-            GROUP BY location;
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk])
-            rows = cursor.fetchall()
-            return {row[0] for row in rows}
+        # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
+        return {_['location'] for _ in self.cdcdata_set.values('location').annotate(Count('location'))}
 
 
     def get_targets(self, location):
         """
         :return: a set of target names for a location
         """
-        # todo better way to get FK name? - {model_name}_id
-        sql = """
-            SELECT target
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s AND location = %s
-            GROUP BY target;
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk, location])
-            rows = cursor.fetchall()
-            return {row[0] for row in rows}
+        # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
+        return {_['target'] for _ in
+                self.cdcdata_set.filter(location=location).values('target').annotate(Count('target'))}
 
 
     def get_target_unit(self, location, target):
         """
         :return: name of the unit column. arbitrarily uses the point row's unit. return None if not found
         """
-        cdc_data_results = self.cdcdata_set.filter(location=location, target=target,
-                                                   row_type=CDCData.POINT_ROW_TYPE)
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)
         return cdc_data_results[0].unit if len(cdc_data_results) != 0 else None
 
 
@@ -190,8 +166,7 @@ class ModelWithCDCData(models.Model):
         """
         :return: point value for a location and target
         """
-        cdc_data_results = self.cdcdata_set.filter(location=location, target=target,
-                                                   row_type=CDCData.POINT_ROW_TYPE)
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)
         return cdc_data_results[0].value if len(cdc_data_results) != 0 else None
 
 
@@ -199,41 +174,11 @@ class ModelWithCDCData(models.Model):
         """
         :param: include_values
         :param: include_unit
-        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. returns either a 2-tuple, 3-tuple, or
-            4-tuple depending on include_values and include_unit:
-            - (bin_start_incl, bin_end_notincl)
-            - (bin_start_incl, bin_end_notincl, value)
-            - (bin_start_incl, bin_end_notincl, unit)
-            - (bin_start_incl, bin_end_notincl, value, unit)
+        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. returns a 3-tuple:
+            (bin_start_incl, bin_end_notincl, value)
         """
-        # todo better way to get FK name? - {model_name}_id
-        sql = """
-            SELECT bin_start_incl, bin_end_notincl {optional_value_column} {optional_unit_column}
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s AND row_type = %s AND location = %s and target = %s;
-        """.format(optional_value_column=', value' if include_values else '',
-                   optional_unit_column=', unit' if include_unit else '',
-                   cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
-            return cursor.fetchall()
-
-
-    def get_target_bin_sum(self, location, target):
-        """
-        :return: sum of bin values for the specified target 
-        """
-        # todo better way to get FK name? - {model_name}_id
-        sql = """
-            SELECT SUM(value)
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s AND row_type = %s AND location = %s AND target = %s;
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk, CDCData.BIN_ROW_TYPE, location, target])
-            return cursor.fetchone()[0]
+        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.BIN_ROW_TYPE)
+        return [(cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value) for cdc_data in cdc_data_results]
 
 
     def get_location_target_dict(self):
