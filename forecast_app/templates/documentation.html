@@ -66,12 +66,27 @@
 
 
     <h3>Forecast data file names</h3>
-    <p>We currently make no assumptions about file name format, which means that importing forecasts is
-        project-specific for now. For example, CDC forecasts encode
+    <p>Data files must be named according to this standard:
+        <code>&lt;time_zero&gt;-&lt;model_name&gt[-&lt;data_version_date&gt].cdc.csv</code>, where:
+    <ul>
+        <li>Components are separated by a dash ("&dash;")</li>
+        <li>Two components are required: <code>time_zero</code> and <code>model_name</code>.
+            <code>data_version_date</code> and its preceding dash are optional. Thus there are two valid forms:
+            <code>&lt;time_zero&gt;-&lt;model_name&gt.cdc.csv</code> and
+            <code>&lt;time_zero&gt;-&lt;model_name&gt-&lt;data_version_date&gt.cdc.csv</code>.
+        </li>
+        <li>The two dates (<code>time_zero</code> and <code>data_version_date</code>) are in <code>YYYYMMDD</code>
+            format.
+        </li>
+        <li><code>model_name</code> is limited to alphanumeric characters plus underscore. An example might be
+            &ldquo;20170917-gam_lag1_tops3-20170919.cdc.csv&rdquo;.
+        </li>
+    </ul>
+    <p>Since each project being imported could have its own file naming scheme, it is the responsibility of the project
+        owner to translate file names to match the above standard. For example, CDC forecasts encode
         <a href="http://www.cmmcp.org/epiweek.htm">epidemiological week</a>, team name, and submission date, e.g.,
-        &ldquo;EW43-JDU-2016-11-07.csv&rdquo;. Whereas the Reichlab Dengue forecasts encode time_zero and
-        data_version_data terminology e.g.,&ldquo;20170525-r6object-20170523.cdc.csv&rdquo; (where the first date is the
-        data_version_date and the second is the time_zero.
+        &ldquo;EW43-JDU-2016-11-07.csv&rdquo;, and so they have to use the end date from the MMWR week to get the
+        corresponding<code>time_zero</code>.
     </p>
 
 

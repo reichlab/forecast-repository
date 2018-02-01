@@ -18,6 +18,7 @@ whitenoise = "*"
 djangorestframework = "*"
 httpie = "*"
 pillow = "*"
+pymmwr = "*"
 
 
 [dev-packages]

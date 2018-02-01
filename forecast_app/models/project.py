@@ -64,7 +64,7 @@ class Project(ModelWithCDCData):
     #  - 'target_to_week_increment': a dict that maps week-related target names to ints, such as '1 wk ahead' -> 1 .
     #     also, this dict's keys are used by mean_abs_error_rows_for_project() to decide which targets to use
     # - 'location_to_delphi_region': a dict that maps all my locations to Delphi region names - see
-    #     delphi_wili_for_epi_week()
+    #     delphi_wili_for_mmwr_year_week()
     config_dict = JSONField(null=True, blank=True,
                             help_text="JSON dict containing these two keys, each of which is a dict: "
                                       "'target_to_week_increment' and 'location_to_delphi_region'. Please see "
@@ -328,6 +328,17 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Target(s) was not found in every location. csv_filename={}, "
                                "missing location, target: {}"
                                .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
+
+
+    def time_zero_for_timezero_date(self, timezero_date_str):
+        """
+        :return: the first TimeZero in me that has a timezero_date matching timezero_date_str
+        """
+        for time_zero in self.timezeros.all():
+            if time_zero.timezero_date == timezero_date_str:
+                return time_zero
+
+        return None
 
 
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django

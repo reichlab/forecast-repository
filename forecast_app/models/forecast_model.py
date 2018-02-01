@@ -1,10 +1,11 @@
+import click
 from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.urls import reverse
 
 import forecast_app.models.forecast  # we want Forecast, but import only the module to avoid circular imports
 from forecast_app.models.project import Project
-from utils.utilities import basic_str, filename_components
+from utils.utilities import basic_str, cdc_csv_components_from_data_dir
 
 
 class ForecastModel(models.Model):
@@ -82,15 +83,27 @@ class ForecastModel(models.Model):
         return new_forecast
 
 
-    def time_zero_for_timezero_date(self, timezero_date_str):
+    def load_forecasts_from_dir(self, data_dir, callback_fcn=None):
         """
-        :return: the first TimeZero in forecast_model's Project that has a timezero_date matching timezero_date
-        """
-        for time_zero in self.project.timezeros.all():
-            if time_zero.timezero_date == timezero_date_str:
-                return time_zero
+        Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
+        Returns a list of them.
 
-        return None
+        :param data_dir: Path of the directory that contains cdc csv files
+        :param callback_fcn: a function of one arg (cdc_csv_file) that's called before each forecast is loaded
+        :return list of loaded Forecasts
+        """
+        forecasts = []
+        for cdc_csv_file, time_zero, model_name, data_version_date in cdc_csv_components_from_data_dir(data_dir):
+            time_zero = self.project.time_zero_for_timezero_date(time_zero)
+            if not time_zero:
+                raise RuntimeError("no time_zero found. cdc_csv_file={}, time_zero={}".format(cdc_csv_file, time_zero))
+
+            if callback_fcn:
+                callback_fcn(cdc_csv_file)
+            forecasts.append(self.load_forecast(cdc_csv_file, time_zero))
+        if not forecasts:
+            click.echo("Warning: no forecast files found in directory: {}".format(data_dir))
+        return forecasts
 
 
     def forecast_for_time_zero(self, time_zero):

@@ -8,7 +8,6 @@ import shutil
 @click.argument('submissions_kot_stable_dir', type=click.Path(file_okay=False, exists=True))
 @click.argument('output_dir', type=click.Path(file_okay=False, exists=True))
 def split_kot_models_app(submissions_kot_stable_dir, output_dir):
-    # Click wrapper
     click.echo("split_kot_models_app: submissions_kot_stable_dir={}, output_dir={}"
                .format(submissions_kot_stable_dir, output_dir))
     split_kot_models(submissions_kot_stable_dir, output_dir)

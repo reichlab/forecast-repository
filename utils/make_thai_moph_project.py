@@ -1,16 +1,15 @@
-import datetime
 from pathlib import Path
 
 import click
 import django
 
 from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users
+from utils.utilities import cdc_csv_components_from_data_dir
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 
 
-# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from forecast_app.models.project import Target, TimeZero
@@ -69,7 +68,7 @@ def make_thai_moph_project(project_name, template_path, data_dir):
                     "has a data-version-date that represents the day the forecast model was run. This can be the same "
                     "as the timezero, but cannot be earlier.\n\nFiles follow the naming conventions of "
                     "`[timezero]-[modelname]-[data-version-date].cdc.csv`, where dates are in YYYYMMDD format. For "
-                    "example, `20170917-gam-lag1-tops3-20170919.cdc.csv`.\n\nFor each timezero, a forecast contains "
+                    "example, `20170917-gam_lag1_tops3-20170919.cdc.csv`.\n\nFor each timezero, a forecast contains "
                     "predictive distributions for case counts at [-1, 0, 1, 2, 3] biweek ahead, relative to the "
                     "timezero. Predictive distributions must be defined according to this binned-interval structure:"
                     "{[0,1), [1, 10), [10, 20), [20, 30), ..., [1990, 2000), [2000, Inf)}.",
@@ -83,56 +82,32 @@ def make_thai_moph_project(project_name, template_path, data_dir):
     # create Targets
     click.echo("  creating targets")
     for target_name, description in {
-        '-1 biweek ahead': 'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead '
+        '-1_biweek_ahead': 'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead '
                            'forecast)',
-        '0 biweek ahead': 'forecasted case counts for the timezero biweek (zero-step-ahead forecast)',
-        '1 biweek ahead': 'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead '
+        '0_biweek_ahead': 'forecasted case counts for the timezero biweek (zero-step-ahead forecast)',
+        '1_biweek_ahead': 'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead '
                           'forecast)',
-        '2 biweek ahead': 'forecasted case counts for 2 biweeks subsequent to the timezero biweek (2-step ahead '
+        '2_biweek_ahead': 'forecasted case counts for 2 biweeks subsequent to the timezero biweek (2-step ahead '
                           'forecast)',
-        '3 biweek ahead': 'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead '
+        '3_biweek_ahead': 'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead '
                           'forecast)',
     }.items():
         Target.objects.create(project=project, name=target_name, description=description)
 
-    # create TimeZeros from file names in data_dir. format (e.g., '20170506-r6object-20170504.cdc.csv'):
-    #
-    #   "[data_version_date]-r6object-[timezero].cdc.csv"
-    #
+    # create TimeZeros from file names in data_dir. format (e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'):
     click.echo("  creating timezeros")
-    for csv_file, first_date, second_date in csv_file_date_pairs_from_data_dir(data_dir):
-        TimeZero.objects.create(project=project, timezero_date=str(second_date), data_version_date=str(first_date))
+    for _, time_zero, model_name, data_version_date in cdc_csv_components_from_data_dir(data_dir):
+        TimeZero.objects.create(project=project,
+                                timezero_date=str(time_zero),
+                                data_version_date=str(data_version_date) if data_version_date else None)
 
     # done
     return project
 
 
-def csv_file_date_pairs_from_data_dir(data_dir):
-    """
-    :return a list of 3-tuples for each *.cdc.csv file in data_dir of the form (csv_file, first_date, second_date)
-    """
-    file_name_date_pairs = []
-    for csv_file in data_dir.glob('*.cdc.csv'):  # '20170506-r6object-20170504.cdc.csv'
-        first_date, second_date = date_pair_from_csv_file(csv_file)
-        file_name_date_pairs.append((csv_file, first_date, second_date))
-    return file_name_date_pairs
-
-
-def date_pair_from_csv_file(csv_file):  # a Path
-    """
-    :param csv_file: a *.cdc.csv file, e.g., '20170506-r6object-20170504.cdc.csv'
-    :return: a 2-tuple of datetime.dates in csv_file: (first_date, second_date)
-    """
-    prefix = csv_file.name.split('.cdc.csv')[0]
-    first_date_str, second_date_str = prefix.split('-r6object-')  # format: 'YYYYMMDD'
-    first_date = datetime.date(int(first_date_str[:4]), int(first_date_str[4:6]), int(first_date_str[6:]))
-    second_date = datetime.date(int(second_date_str[:4]), int(second_date_str[4:6]), int(second_date_str[6:]))
-    return first_date, second_date
-
-
 def make_model(project, model_owner, data_dir):
     """
-    Creates the gam-lag1-tops3 ForecastModel and its Forecast.
+    Creates the gam_lag1_tops3 ForecastModel and its Forecast.
     """
     description = "A spatio-temporal forecasting model for province-level dengue hemorrhagic fever incidence in " \
                   "Thailand. The model is fit using the generalized additive model framework, with the number of " \
@@ -141,29 +116,15 @@ def make_model(project, model_owner, data_dir):
     forecast_model = ForecastModel.objects.create(
         owner=model_owner,
         project=project,
-        name='gam-lag1-tops3',
+        name='gam_lag1_tops3',
         description=description,
         home_url='http://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004761',
         aux_data_url=None)
-    add_forecasts_to_model(forecast_model, data_dir)
+    forecast_model.load_forecasts_from_dir(data_dir,
+                                           callback_fcn=lambda cdc_csv_file: click.echo("  {}".format(cdc_csv_file)))
 
     # done
     return project
-
-
-def add_forecasts_to_model(forecast_model, data_dir):
-    """
-    Adds Forecast objects to forecast_model based on data_dir under data_dir. Recall data file naming
-    scheme: 'EW<mmwr_week>-<team_name>-<sub_date_yyy_mm_dd>.csv'
-    """
-    for csv_file, first_date, second_date in csv_file_date_pairs_from_data_dir(data_dir):
-        # format from above: "[data_version_date]-r6object-[timezero].cdc.csv"
-        time_zero = forecast_model.time_zero_for_timezero_date(second_date)
-        if not time_zero:
-            raise RuntimeError("no time_zero found. csv_file={}, first_date={}".format(csv_file, second_date))
-
-        click.echo('  adding forecast: csv_file={}, time_zero={}'.format(csv_file.name, time_zero))
-        forecast_model.load_forecast(csv_file, time_zero)
 
 
 if __name__ == '__main__':

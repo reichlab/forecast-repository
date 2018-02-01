@@ -13,6 +13,7 @@ https://github.com/reichlab/forecast-repository .
   - [Heroku Toolbelt](https://toolbelt.heroku.com/)
   - [Postgres](https://devcenter.heroku.com/articles/heroku-postgresql#local-setup)
 - [Pillow](https://github.com/python-pillow/Pillow)
+- [pymmwr](https://github.com/reichlab/pymmwr)
 
 To install required packages:
 ```bash
@@ -33,6 +34,7 @@ $ pipenv install gunicorn
 $ pipenv install whitenoise
 $ pipenv install djangorestframework
 $ pipenv install Pillow
+$ pipenv install pymmwr
 ```
 
 

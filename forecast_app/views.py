@@ -17,7 +17,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME, Target
 from forecast_app.templatetags.auth_extras import has_group
-from utils.utilities import mean_abs_error_rows_for_project
+from utils.mean_absolute_error import mean_abs_error_rows_for_project
 
 
 def index(request):

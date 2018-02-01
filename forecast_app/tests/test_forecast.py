@@ -68,6 +68,21 @@ class ForecastTestCase(TestCase):
         self.assertIn("time_zero was not in project", str(context.exception))
 
 
+    def test_load_forecasts_from_dir(self):
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        TimeZero.objects.create(project=project2,
+                                timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
+                                data_version_date=None)
+        TimeZero.objects.create(project=project2,
+                                timezero_date=datetime.date(2016, 10, 30),  # 20161030-KoTstable-20161114.cdc.csv
+                                data_version_date=None)
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecasts = forecast_model2.load_forecasts_from_dir(Path('forecast_app/tests/load_forecasts'))
+        self.assertEqual(2, len(forecasts))
+        self.assertEqual(2, len(forecast_model2.forecasts.all()))
+
+
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-locations-dont-match-2017-01-17.csv'),
@@ -174,7 +189,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(0, len(forecast2.cdcdata_set.all()))
 
 
-    def test_small_forecast(self):
+    def test_get_location_target_dict_small_forecast(self):
         project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
