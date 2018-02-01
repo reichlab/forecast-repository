@@ -1,4 +1,3 @@
-# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 import itertools
 from pathlib import Path
 
@@ -7,6 +6,7 @@ import django
 import pymmwr
 
 
+# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from django.contrib.auth.models import Group, User

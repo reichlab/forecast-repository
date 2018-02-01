@@ -17,7 +17,8 @@ from forecast_app.models import Project, ForecastModel
 
 
 @click.command()
-def make_thai_moph_project_app():
+@click.argument('data_dir', type=click.Path(file_okay=False, exists=True))
+def make_thai_moph_project_app(data_dir):
     """
     Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
     Impetus project. Note: The input files to this program are the output from a spamd export script located the
@@ -34,8 +35,6 @@ def make_thai_moph_project_app():
     click.echo("* started creating Thai MOPH project")
 
     project_name = 'Impetus Province Forecasts'
-    data_dir = Path('/Users/cornell/IdeaProjects/moph-forecast-files')
-
     found_project = Project.objects.filter(name=project_name).first()
     if found_project:
         click.echo("* deleting previous project")
@@ -44,6 +43,7 @@ def make_thai_moph_project_app():
     po_user, po_user_password, mo_user, po_user_password = get_or_create_super_po_mo_users(create_super=False)
 
     click.echo("* creating project")
+    data_dir = Path(data_dir)
     template_path = data_dir / 'thai-moph-forecasting-template.csv'
     project = make_thai_moph_project(project_name, template_path, data_dir)
     project.owner = po_user
