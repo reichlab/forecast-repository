@@ -17,6 +17,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME, Target
 from forecast_app.templatetags.auth_extras import has_group
+from utils.cdc import CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_abs_error_rows_for_project
 
 
@@ -117,7 +118,6 @@ def create_project(request, user_pk):
         return HttpResponseForbidden()
 
     # set up Target and TimeZero formsets using a new (unsaved) Project
-    from utils.make_cdc_flu_challenge_project import CDC_CONFIG_DICT  # avoid circular imports
 
 
     new_project = Project(owner=new_project_user,

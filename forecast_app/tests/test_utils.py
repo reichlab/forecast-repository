@@ -7,9 +7,9 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
-from utils.cdc import epi_week_filename_components
-from utils.mean_absolute_error import mean_absolute_error, is_date_in_season
-from utils.utilities import get_components_from_cdc_csv_filename
+from utils.cdc import epi_week_filename_components, ensemble_epi_week_filename_components
+from utils.mean_absolute_error import mean_absolute_error
+from utils.utilities import cdc_csv_filename_components, is_date_in_season
 
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
@@ -63,13 +63,24 @@ class UtilitiesTestCase(TestCase):
 
 
     def test_epi_week_filename_components(self):
-        filename_component_tuples = (('EW1-KoTstable-2017-01-17.csv', (1, 'KoTstable', datetime.date(2017, 1, 17))),
-                                     ('-KoTstable-2017-01-17.csv', None),
-                                     ('EW1--2017-01-17.csv', None),
-                                     ('EW1-KoTstable--01-17.csv', None),
-                                     ('EW1-KoTstable--01-17.txt', None))
-        for filename, component in filename_component_tuples:
-            self.assertEqual(component, epi_week_filename_components(filename))
+        filename_components_tuples = (('EW1-KoTstable-2017-01-17.csv', (1, 'KoTstable', datetime.date(2017, 1, 17))),
+                                      ('-KoTstable-2017-01-17.csv', None),
+                                      ('EW1--2017-01-17.csv', None),
+                                      ('EW1-KoTstable-2017-01-17.txt', None))
+        for filename, components in filename_components_tuples:
+            self.assertEqual(components, epi_week_filename_components(filename))
+
+
+    def test_ensemble_epi_week_filename_components(self):
+        filename_components_tuples = (('EW01-2011-CU_EAKFC_SEIRS.csv', (1, 2011, 'CU_EAKFC_SEIRS')),
+                                      ('EW01-2011-CUBMA.csv', (1, 2011, 'CUBMA')),
+                                      ('-2011-CUBMA.csv', None),
+                                      ('EW01--2011-CUBMA.csv', None),
+                                      ('EW01-CUBMA.csv', None),
+                                      ('EW01-2011.csv', None),
+                                      ('EW01-2011-CUBMA.txt', None))
+        for filename, components in filename_components_tuples:
+            self.assertEqual(components, ensemble_epi_week_filename_components(filename))
 
 
     def test_name_components_from_cdc_csv_filename(self):
@@ -93,7 +104,7 @@ class UtilitiesTestCase(TestCase):
             '20170419-gam/lag1*tops3-20170516.cdc.csv': None,
         }
         for cdc_csv_filename, exp_components in filename_to_exp_component_tuples.items():
-            self.assertEqual(exp_components, get_components_from_cdc_csv_filename(cdc_csv_filename))
+            self.assertEqual(exp_components, cdc_csv_filename_components(cdc_csv_filename))
 
 
     def test_is_forecast_in_season(self):

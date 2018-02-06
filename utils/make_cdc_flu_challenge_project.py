@@ -7,47 +7,31 @@ import pymmwr
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+
+
 django.setup()
 
+from utils.cdc import CDC_CONFIG_DICT
 from django.contrib.auth.models import Group, User
 from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel
 
 
-CDC_CONFIG_DICT = {
-    "target_to_week_increment": {
-        "1 wk ahead": 1,
-        "2 wk ahead": 2,
-        "3 wk ahead": 3,
-        "4 wk ahead": 4
-    },
-    "location_to_delphi_region": {
-        "US National": "nat",
-        "HHS Region 1": "hhs1",
-        "HHS Region 2": "hhs2",
-        "HHS Region 3": "hhs3",
-        "HHS Region 4": "hhs4",
-        "HHS Region 5": "hhs5",
-        "HHS Region 6": "hhs6",
-        "HHS Region 7": "hhs7",
-        "HHS Region 8": "hhs8",
-        "HHS Region 9": "hhs9",
-        "HHS Region 10": "hhs10"
-    }
-}
-
-
 @click.command()
 @click.argument('kot_data_dir', type=click.Path(file_okay=False, exists=True))
 def make_cdc_flu_challenge_project_app(kot_data_dir):
     """
-    Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
-    CDC Flu challenge project. The data directory should be a cloned version of the following repo, which has then been
+    Deletes and creates a Project, along with one group, and two classes of users. Then loads models from the CDC Flu
+    challenge project.
+
+    :param: kot_data_dir: data directory should be a cloned version of the following repo, which has then been
     normalized via normalize_cdc_flu_challenge_filenames_app.py :
     https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble
 
-    @:param: kot_data_dir is a directory cloned from https://github.com/matthewcornell/split_kot_models_from_submissions
+    :param: kot_data_dir: a directory cloned from
+        https://github.com/matthewcornell/split_kot_models_from_submissions , which has then been normalized via
+        normalize_cdc_flu_challenge_filenames_app.py .
     """
     project_name = 'CDC Flu challenge (2016-2017)'
     found_project = Project.objects.filter(name=project_name).first()
@@ -55,7 +39,7 @@ def make_cdc_flu_challenge_project_app(kot_data_dir):
         click.echo("* deleting previous project")
         found_project.delete()
 
-    po_user, po_user_password, mo_user, po_user_password = get_or_create_super_po_mo_users(create_super=False)
+    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
 
     click.echo("* creating CDC Flu challenge project...")
     project = make_cdc_flu_challenge_project(project_name, CDC_CONFIG_DICT)
@@ -73,7 +57,8 @@ def get_or_create_super_po_mo_users(create_super):
     A utility that creates (as necessary) a group named PROJECT_OWNER_GROUP_NAME and three users - 'project_owner1' (a
     member of that group), 'model_owner1' (not a member), and a superuser
 
-    :param create_super: boolean that controls whether a superuser is created. used only for testing b/c password is shown
+    :param create_super: boolean that controls whether a superuser is created. used only for testing b/c password is
+        shown
     :return: a 4-tuple (if not create_super) or 6-tuple (if create_super) of Users and passwords:
         (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password)
     """
@@ -123,7 +108,25 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
     click.echo("  loading template")
     project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
 
-    # create Targets
+    create_targets(project)
+
+    # create TimeZeros
+    yr_wk_2016 = list(zip(itertools.repeat(2016), range(43, 53)))
+    yr_wk_2017 = list(zip(itertools.repeat(2017), range(1, 19)))
+    for mmwr_year, mmwr_week in yr_wk_2016 + yr_wk_2017:
+        TimeZero.objects.create(project=project,
+                                timezero_date=str(pymmwr.mmwr_week_to_date(mmwr_year, mmwr_week)),
+                                data_version_date=None)
+
+    # done
+    return project
+
+
+def create_targets(project):
+    """
+    Creates CDC standard TimeZeros for project. Returns a list of them.
+    """
+    targets = []
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
     for target_name, description in (
             ('Season onset',
@@ -143,18 +146,8 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
             ('2 wk ahead', week_ahead_descr),
             ('3 wk ahead', week_ahead_descr),
             ('4 wk ahead', week_ahead_descr)):
-        Target.objects.create(project=project, name=target_name, description=description)
-
-    # create TimeZeros
-    yr_wk_2016 = list(zip(itertools.repeat(2016), range(43, 53)))
-    yr_wk_2017 = list(zip(itertools.repeat(2017), range(1, 19)))
-    for mmwr_year, mmwr_week in yr_wk_2016 + yr_wk_2017:
-        TimeZero.objects.create(project=project,
-                                timezero_date=str(pymmwr.mmwr_week_to_date(mmwr_year, mmwr_week)),
-                                data_version_date=None)
-
-    # done
-    return project
+        targets.append(Target.objects.create(project=project, name=target_name, description=description))
+    return targets
 
 
 def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
@@ -173,7 +166,7 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
     forecast_model.load_forecasts_from_dir(kot_data_dir / 'ensemble',
-                                           callback_fcn=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
 
     # KoT Kernel Density Estimation (KDE)
     click.echo("  kde")
@@ -185,7 +178,7 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
     forecast_model.load_forecasts_from_dir(kot_data_dir / 'kde',
-                                           callback_fcn=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
 
     # KoT Kernel Conditional Density Estimation (KCDE)
     click.echo("  kcde")
@@ -197,7 +190,7 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
     forecast_model.load_forecasts_from_dir(kot_data_dir / 'kcde',
-                                           callback_fcn=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
 
     # KoT SARIMA
     click.echo("  sarima")
@@ -209,7 +202,7 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
     forecast_model.load_forecasts_from_dir(kot_data_dir / 'sarima',
-                                           callback_fcn=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
 
     # done
     return project

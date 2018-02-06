@@ -1,25 +1,7 @@
 import pymmwr
 
 from utils.delphi import delphi_wili_for_mmwr_year_week
-
-
-# This number is the internal reichlab standard: "We used week 30. I don't think this is a standardized concept outside
-# of our lab though. We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with
-# EW30-2016 and ends with EW29-2017."
-SEASON_START_EW_NUMBER = 30
-
-
-def is_date_in_season(date, season_start_year):
-    """
-    :param date: a Date object
-    :param season_year: an int. ex: 2016 represents the "2016/2017 season"
-    :return: True if date is in  season_start_year
-    """
-    ywd_mmwr_dict = pymmwr.date_to_mmwr_week(date)
-    mmwr_year = ywd_mmwr_dict['year']
-    mmwr_week = ywd_mmwr_dict['week']
-    return ((mmwr_week >= SEASON_START_EW_NUMBER) and (mmwr_year == season_start_year)) or \
-           ((mmwr_week < SEASON_START_EW_NUMBER) and (mmwr_year == (season_start_year + 1)))
+from utils.utilities import is_date_in_season
 
 
 def mean_absolute_error(forecast_model, season_start_year, location, target, wili_for_epi_week_fcn):

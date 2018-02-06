@@ -19,6 +19,7 @@ djangorestframework = "*"
 httpie = "*"
 pillow = "*"
 pymmwr = "*"
+pyyaml = "*"
 
 
 [dev-packages]

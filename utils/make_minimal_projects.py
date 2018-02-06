@@ -49,7 +49,7 @@ def make_minimal_projects_app():
             click.echo("* deleting previous project: {}".format(found_project))
             found_project.delete()
 
-    po_user, po_user_password, mo_user, po_user_password = get_or_create_super_po_mo_users(create_super=False)
+    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
 
     click.echo("* creating Projects")
     public_project = Project.objects.create(name=project_names[0], is_public=True)

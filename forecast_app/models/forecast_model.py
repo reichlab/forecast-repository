@@ -83,24 +83,32 @@ class ForecastModel(models.Model):
         return new_forecast
 
 
-    def load_forecasts_from_dir(self, data_dir, callback_fcn=None):
+    def load_forecasts_from_dir(self, data_dir, success_callback=None, fail_callback=None):
         """
         Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
-        Returns a list of them.
+        Returns a list of them. Skips files that cause load_forecast() to raise a RuntimeError.
 
         :param data_dir: Path of the directory that contains cdc csv files
-        :param callback_fcn: a function of one arg (cdc_csv_file) that's called before each forecast is loaded
+        :param success_callback: a function of one arg (cdc_csv_file) that's called after a Forecast has loaded
+        :param fail_callback: a function of two args (cdc_csv_file, exception) that's called after a Forecast has
+            failed to load
         :return list of loaded Forecasts
         """
         forecasts = []
-        for cdc_csv_file, time_zero, model_name, data_version_date in cdc_csv_components_from_data_dir(data_dir):
+        for cdc_csv_file, time_zero, _, _ in cdc_csv_components_from_data_dir(data_dir):
             time_zero = self.project.time_zero_for_timezero_date(time_zero)
             if not time_zero:
-                raise RuntimeError("no time_zero found. cdc_csv_file={}, time_zero={}".format(cdc_csv_file, time_zero))
+                raise RuntimeError("no time_zero found. cdc_csv_file={}, time_zero={}\nProject time_zeros={}"
+                                   .format(cdc_csv_file, time_zero, self.project.timezeros.all()))
 
-            if callback_fcn:
-                callback_fcn(cdc_csv_file)
-            forecasts.append(self.load_forecast(cdc_csv_file, time_zero))
+            if success_callback:
+                success_callback(cdc_csv_file)
+            try:
+                forecast = self.load_forecast(cdc_csv_file, time_zero)
+                forecasts.append(forecast)
+            except RuntimeError as rte:
+                if fail_callback:
+                    fail_callback(cdc_csv_file, rte)
         if not forecasts:
             click.echo("Warning: no forecast files found in directory: {}".format(data_dir))
         return forecasts

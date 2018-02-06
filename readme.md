@@ -35,6 +35,7 @@ $ pipenv install whitenoise
 $ pipenv install djangorestframework
 $ pipenv install Pillow
 $ pipenv install pymmwr
+$ pipenv install pyyaml
 ```
 
 

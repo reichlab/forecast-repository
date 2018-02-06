@@ -260,8 +260,7 @@ class Project(ModelWithCDCData):
 
                 if template_bins_sorted != forecast_bins_sorted:
                     raise RuntimeError("Bins did not match template. csv_filename={}, "
-                                       "template_location={}, template_target={}, # template_bins={}, "
-                                       "\# forecast_bins={}"
+                                       "template_location={}, template_target={}, # template_bins={}, forecast_bins={}"
                                        .format(forecast.csv_filename, template_location, template_target,
                                                len(template_bins), len(forecast_bins)))
 

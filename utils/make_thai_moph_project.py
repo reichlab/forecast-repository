@@ -40,7 +40,7 @@ def make_thai_moph_project_app(data_dir):
         click.echo("* deleting previous project")
         found_project.delete()
 
-    po_user, po_user_password, mo_user, po_user_password = get_or_create_super_po_mo_users(create_super=False)
+    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
 
     click.echo("* creating project")
     data_dir = Path(data_dir)
@@ -96,7 +96,7 @@ def make_thai_moph_project(project_name, template_path, data_dir):
 
     # create TimeZeros from file names in data_dir. format (e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'):
     click.echo("  creating timezeros")
-    for _, time_zero, model_name, data_version_date in cdc_csv_components_from_data_dir(data_dir):
+    for _, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(data_dir):
         TimeZero.objects.create(project=project,
                                 timezero_date=str(time_zero),
                                 data_version_date=str(data_version_date) if data_version_date else None)
@@ -121,7 +121,7 @@ def make_model(project, model_owner, data_dir):
         home_url='http://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004761',
         aux_data_url=None)
     forecast_model.load_forecasts_from_dir(data_dir,
-                                           callback_fcn=lambda cdc_csv_file: click.echo("  {}".format(cdc_csv_file)))
+                                           success_callback=lambda cdc_csv_file: click.echo("  {}".format(cdc_csv_file)))
 
     # done
     return project

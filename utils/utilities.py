@@ -2,6 +2,12 @@ import datetime
 import re
 from ast import literal_eval
 
+import pymmwr
+
+
+#
+# __str__()-related functions
+#
 
 def basic_str(obj):
     """
@@ -9,6 +15,10 @@ def basic_str(obj):
     """
     return obj.__class__.__name__ + ': ' + obj.__repr__()
 
+
+#
+# numberic functions
+#
 
 def parse_value(value):
     """
@@ -32,6 +42,29 @@ def rescale(values, new_min=0, new_max=100):
         return output
     except Exception as ex:
         raise ValueError("invalid argument. values={}, exception='{}'".format(values, ex))
+
+
+#
+# Reichlab season-related functions
+#
+
+# This number is the internal reichlab standard: "We used week 30. I don't think this is a standardized concept outside
+# of our lab though. We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with
+# EW30-2016 and ends with EW29-2017."
+SEASON_START_EW_NUMBER = 30
+
+
+def is_date_in_season(date, season_start_year):
+    """
+    :param date: a Date object
+    :param season_year: an int. ex: 2016 represents the "2016/2017 season"
+    :return: True if date is in  season_start_year
+    """
+    ywd_mmwr_dict = pymmwr.date_to_mmwr_week(date)
+    mmwr_year = ywd_mmwr_dict['year']
+    mmwr_week = ywd_mmwr_dict['week']
+    return ((mmwr_week >= SEASON_START_EW_NUMBER) and (mmwr_year == season_start_year)) or \
+           ((mmwr_week < SEASON_START_EW_NUMBER) and (mmwr_year == (season_start_year + 1)))
 
 
 #
@@ -70,12 +103,12 @@ def cdc_csv_components_from_data_dir(cdc_csv_dir):
     """
     cdc_csv_components = []
     for cdc_csv_file in cdc_csv_dir.glob('*.' + CDC_CSV_FILENAME_EXTENSION):
-        time_zero, model_name, data_version_date = get_components_from_cdc_csv_filename(cdc_csv_file.name)
+        time_zero, model_name, data_version_date = cdc_csv_filename_components(cdc_csv_file.name)
         cdc_csv_components.append((cdc_csv_file, time_zero, model_name, data_version_date))
     return cdc_csv_components
 
 
-def get_components_from_cdc_csv_filename(cdc_csv_filename):
+def cdc_csv_filename_components(cdc_csv_filename):
     """
     :param cdc_csv_filename: a *.cdc.csv file name, e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'
     :return: a 3-tuple of components from cdc_csv_file: (time_zero, model_name, data_version_date), where dates are
