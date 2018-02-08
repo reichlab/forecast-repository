@@ -72,18 +72,18 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         # create TimeZeros. we use an arbitrary model's *.cdc.csv files to get them (all models should have same ones,
         # which is checked during forecast validation later)
         time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
-        click.echo("  created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
+        click.echo("  created {} TimeZeros".format(len(time_zeros)))
 
         click.echo("* Creating models")
         models = make_cdc_flusight_ensemble_models(project, component_models_dir, po_user)
-        click.echo("  created {} models: {}".format(len(models), models))
+        click.echo("  created {} model(s): {}".format(len(models), models))
     elif not project:  # not make_project, but couldn't find existing
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
     if load_data:
         click.echo("* Loading forecasts")
         model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, component_models_dir)
-        click.echo("  loaded forecasts: done: {}".format(model_name_to_forecasts))
+        click.echo("  loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     click.echo("* Done! time: {}".format(timeit.default_timer() - start_time))
 
@@ -170,10 +170,10 @@ def load_cdc_flusight_ensemble_forecasts(project, component_models_dir):
 
         forecasts = forecast_model.load_forecasts_from_dir(
             model_dir,
-            success_callback=lambda cdc_csv_file: click.echo("  {}".format(cdc_csv_file.name)),
-            fail_callback=lambda cdc_csv_file, exception: click.echo("x {} - {}".format(cdc_csv_file.name, exception)),
+            success_callback=lambda cdc_csv_file: click.echo("v\t{}\t".format(cdc_csv_file.name)),
+            fail_callback=lambda cdc_csv_file, exception: click.echo("x\t{}\t{}".format(cdc_csv_file.name, exception)),
         )
-        model_name_to_forecasts[model_name].append(forecasts)
+        model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts
 

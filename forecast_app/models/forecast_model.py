@@ -101,16 +101,16 @@ class ForecastModel(models.Model):
                 raise RuntimeError("no time_zero found. cdc_csv_file={}, time_zero={}\nProject time_zeros={}"
                                    .format(cdc_csv_file, time_zero, self.project.timezeros.all()))
 
-            if success_callback:
-                success_callback(cdc_csv_file)
             try:
                 forecast = self.load_forecast(cdc_csv_file, time_zero)
                 forecasts.append(forecast)
+                if success_callback:
+                    success_callback(cdc_csv_file)
             except RuntimeError as rte:
                 if fail_callback:
                     fail_callback(cdc_csv_file, rte)
         if not forecasts:
-            click.echo("Warning: no forecast files found in directory: {}".format(data_dir))
+            click.echo("Warning: no valid forecast files found in directory: {}".format(data_dir))
         return forecasts
 
 

@@ -62,7 +62,7 @@ def normalize_cdc_flusight_ensemble_filenames_app(cdc_data_parent_dir):
                         model_name=team_name,
                         data_version_date=data_version_date_monday.strftime('%Y%m%d'))
             out_file = model_dir / new_filename
-            click.echo("  {}\t-> {}".format(csv_file.name, out_file.name))
+            click.echo("\t{}\t{}".format(csv_file.name, out_file.name))
             shutil.copy(str(csv_file), str(out_file))
 
     click.echo("* Done")

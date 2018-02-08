@@ -258,7 +258,7 @@ class Project(ModelWithCDCData):
                 forecast_bins_sorted = sorted([b[:2] for b in forecast_bins],
                                               key=lambda x: (x[0] is None or x[1] is None, x))
 
-                if template_bins_sorted != forecast_bins_sorted:
+                if template_bins_sorted != forecast_bins_sorted:  # compare bin_start_incl and bin_end_notincl
                     raise RuntimeError("Bins did not match template. csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, forecast_bins={}"
                                        .format(forecast.csv_filename, template_location, template_target,
