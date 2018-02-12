@@ -94,7 +94,7 @@ def make_minimal_projects_app():
                                  home_url='http://example.com',
                                  owner=mo_user)
 
-    click.echo("* done!")
+    click.echo("* Done")
 
 
 if __name__ == '__main__':

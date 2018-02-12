@@ -217,17 +217,24 @@ class Project(ModelWithCDCData):
         return self.csv_filename != ''
 
 
-    def validate_forecast_data(self, forecast):
+    def validate_forecast_data(self, forecast, validation_template=None):
         """
         Validates forecast's data against my template. Raises if invalid.
+
+        :param validation_template: optional validation template (a Path) to override mine. useful in cases
+            (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
         """
         if not self.is_template_loaded():
             raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
                                "forecast={}".format(forecast.csv_filename, self, forecast))
 
         # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
-        # lookup b/c get_target_bins() was slow
-        template_location_dicts = self.get_location_target_dict()
+        # lookup b/c get_target_bins() was slow. this has the added benefit of enabling us to easily override my
+        # template if validation_template is passed
+        if validation_template:
+            template_location_dicts = self.get_location_target_dict_for_cdc_csv_file(validation_template)
+        else:
+            template_location_dicts = self.get_location_target_dict()
         forecast_location_dicts = forecast.get_location_target_dict()
 
         template_locations = list(template_location_dicts.keys())
@@ -259,10 +266,11 @@ class Project(ModelWithCDCData):
                                               key=lambda x: (x[0] is None or x[1] is None, x))
 
                 if template_bins_sorted != forecast_bins_sorted:  # compare bin_start_incl and bin_end_notincl
-                    raise RuntimeError("Bins did not match template. csv_filename={}, "
+                    raise RuntimeError("Bins did not match template. template={}, csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, forecast_bins={}"
-                                       .format(forecast.csv_filename, template_location, template_target,
-                                               len(template_bins), len(forecast_bins)))
+                                       .format(validation_template if validation_template else self.csv_filename,
+                                               forecast.csv_filename, template_location,
+                                               template_target, len(template_bins), len(forecast_bins)))
 
                 # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
                 # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv

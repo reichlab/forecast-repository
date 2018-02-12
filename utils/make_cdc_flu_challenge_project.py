@@ -49,7 +49,7 @@ def make_cdc_flu_challenge_project_app(kot_data_dir):
 
     # make the models, first downloading kot_data_dir if necessary
     make_cdc_flu_challenge_models(project, mo_user, Path(kot_data_dir))
-    click.echo('* done!')
+    click.echo('* Done')
 
 
 def get_or_create_super_po_mo_users(create_super):

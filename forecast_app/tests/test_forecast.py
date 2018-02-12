@@ -6,6 +6,7 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
+from forecast_app.models.data import ModelWithCDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
@@ -207,6 +208,20 @@ class ForecastTestCase(TestCase):
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-json.json', 'r') as fp:
             exp_dict = json.load(fp)
             self.assertEqual(exp_dict, act_dict)
+
+
+    def test_get_location_target_dict_for_template_file(self):
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        time_zero = TimeZero.objects.create(project=project2,
+                                            timezero_date=datetime.date.today(),
+                                            data_version_date=None)
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        template = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
+        forecast2 = forecast_model2.load_forecast(template, time_zero)
+        exp_dict = forecast2.get_location_target_dict()  # tested elsewhere
+        act_dict = ModelWithCDCData.get_location_target_dict_for_cdc_csv_file(template)
+        self.assertEqual(exp_dict, act_dict)
 
 
     def test_get_location_target_dict(self):

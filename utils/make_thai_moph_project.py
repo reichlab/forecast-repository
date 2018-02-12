@@ -53,7 +53,7 @@ def make_thai_moph_project_app(data_dir):
     click.echo("* creating model. data_dir={}".format(data_dir))
     make_model(project, mo_user, data_dir)
 
-    click.echo('* done!')
+    click.echo('* Done')
 
 
 def make_thai_moph_project(project_name, template_path, data_dir):

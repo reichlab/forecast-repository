@@ -28,11 +28,11 @@ class ModelWithCDCData(models.Model):
         abstract = True
 
 
-    def load_csv_data(self, csv_template_file_path):
+    def load_csv_data(self, cdc_csv_file):
         """
-        Loads the CDC data in csv_template_file_path into my CDCData table.
+        Loads the CDC data in cdc_csv_file (a Path) into my CDCData table.
 
-        :param csv_template_file_path:
+        :param cdc_csv_file:
         :return: None
         """
         if not self.pk:
@@ -41,49 +41,9 @@ class ModelWithCDCData(models.Model):
         # insert the data using direct SQL. we use psycopg2 extensions to the DB API if we're connected to a Postgres
         # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
         # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
-        with open(str(csv_template_file_path)) as csv_path_fp, \
+        with open(str(cdc_csv_file)) as cdc_csv_file_fp, \
                 connection.cursor() as cursor:
-            csv_reader = csv.reader(csv_path_fp, delimiter=',')
-
-            # validate header. must be 7 columns (or 8 with the last one being '') matching
-            try:
-                orig_header = next(csv_reader)
-            except StopIteration:
-                raise RuntimeError("Empty file")
-
-            header = orig_header
-            if (len(header) == 8) and (header[7] == ''):
-                header = header[:7]
-            header = [h.lower() for h in [i.replace('"', '') for i in header]]
-            if header != ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']:
-                raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
-
-            # insert the rows. first we load them all into memory (!) (processing and validating them as we go) and
-            # then insert them in one shot
-            rows = []
-            for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
-                if (len(row) == 8) and (row[7] == ''):
-                    row = row[:7]
-
-                if len(row) != 7:
-                    raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
-
-                location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
-
-                # translate row_type into our standard type
-                row_type = row_type.lower()
-                if row_type not in ['point', 'bin']:
-                    raise RuntimeError("row_type was neither 'point' nor 'bin': ".format(row_type))
-
-                row_type = CDCData.POINT_ROW_TYPE if row_type == 'point' else CDCData.BIN_ROW_TYPE
-
-                # use parse_value() to handle non-numeric cases like 'NA' and 'none'
-                bin_start_incl = parse_value(bin_start_incl)
-                bin_end_notincl = parse_value(bin_end_notincl)
-                value = parse_value(value)
-
-                # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
-                rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, self.pk])
+            rows = ModelWithCDCData.read_cdc_csv_file_rows(cdc_csv_file_fp, self.pk)  # add self.pk to end of each row
 
             # insert them, if any
             if not rows:
@@ -113,6 +73,64 @@ class ModelWithCDCData(models.Model):
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
                 """.format(cdcdata_table_name=table_name, column_names=(', '.join(columns)))
                 cursor.executemany(sql, rows)
+
+
+    @staticmethod
+    def read_cdc_csv_file_rows(cdc_csv_file_fp, model_with_cdcdata_pk):
+        """
+        Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list.
+
+        :param cdc_csv_file_fp: the *.cdc.csv data file to load - either a data file or a template one
+        :param model_with_cdcdata_pk: an int PK to be included at the end of every row (will result in eight rows), or
+            None (7 rows)
+        :return: list of rows
+        """
+        csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
+
+        # validate header. must be 7 columns (or 8 with the last one being '') matching
+        try:
+            orig_header = next(csv_reader)
+        except StopIteration:
+            raise RuntimeError("Empty file")
+
+        header = orig_header
+        if (len(header) == 8) and (header[7] == ''):
+            header = header[:7]
+        header = [h.lower() for h in [i.replace('"', '') for i in header]]
+        if header != ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']:
+            raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
+
+        # insert the rows. first we load them all into memory (processing and validating them as we go) and then
+        # insert them in one shot
+        rows = []
+        for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
+            if (len(row) == 8) and (row[7] == ''):
+                row = row[:7]
+
+            if len(row) != 7:
+                raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
+
+            location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
+
+            # translate row_type into our standard type
+            row_type = row_type.lower()
+            if row_type not in ['point', 'bin']:
+                raise RuntimeError("row_type was neither 'point' nor 'bin': ".format(row_type))
+
+            row_type = CDCData.POINT_ROW_TYPE if row_type == 'point' else CDCData.BIN_ROW_TYPE
+
+            # use parse_value() to handle non-numeric cases like 'NA' and 'none'
+            bin_start_incl = parse_value(bin_start_incl)
+            bin_end_notincl = parse_value(bin_end_notincl)
+            value = parse_value(value)
+
+            # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
+            if model_with_cdcdata_pk:
+                rows.append((location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, model_with_cdcdata_pk))
+            else:
+                rows.append((location, target, row_type, unit, bin_start_incl, bin_end_notincl, value))
+
+        return rows
 
 
     def get_data_rows(self):
@@ -181,6 +199,28 @@ class ModelWithCDCData(models.Model):
         return [(cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value) for cdc_data in cdc_data_results]
 
 
+    @staticmethod
+    def get_location_target_dict_for_cdc_csv_file(cdc_csv_file):
+        """
+        Returns same as get_location_target_dict(), but is passed a template file (Path) to load from instead of using
+        my table's data.
+        """
+        with open(str(cdc_csv_file)) as cdc_csv_file_fp:
+            rows = ModelWithCDCData.read_cdc_csv_file_rows(cdc_csv_file_fp, None)  # no self.pk at end of each row
+
+
+            # sort so groupby() will work
+            def key(row):
+                location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
+                # row_type: 'p' or 'b', but we want reverse order: 'p' before 'b'
+                return location, target, 0 if row_type == 'p' else 1
+
+
+            rows.sort(key=key)
+
+            return ModelWithCDCData._get_location_target_dict_for_rows(rows)
+
+
     def get_location_target_dict(self):
         """
         Returns all of my data as a dict. Suitable for serializing to JSON. Also useful as an in-memory cache, as an
@@ -216,11 +256,15 @@ class ModelWithCDCData(models.Model):
             WHERE {model_name}_id = %s
             ORDER BY location, target, row_type DESC, id ASC;
         """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)
+                   model_name=self.__class__._meta.model_name)  # NB: sorted so groupby() will work
         with connection.cursor() as cursor:
             cursor.execute(sql, [self.pk])
             rows = cursor.fetchall()
+            return ModelWithCDCData._get_location_target_dict_for_rows(rows)
 
+
+    @staticmethod
+    def _get_location_target_dict_for_rows(rows):
         location_target_dict = {}
         for location, location_grouper in groupby(rows, key=lambda _: _[0]):
             target_dict = {}

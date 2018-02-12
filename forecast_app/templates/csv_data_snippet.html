@@ -4,7 +4,7 @@
     <tr>
         <th>location</th>
         <th>target</th>
-        <th>data_type</th>
+        <th>row_type</th>
         <th>unit</th>
         <th>bin_start_incl</th>
         <th>bin_end_notincl</th>
@@ -12,11 +12,11 @@
     </tr>
     </thead>
     <tbody>
-    {% for location, target, data_type, unit, bin_start_incl, bin_end_notincl, value in model_with_cdc_data.get_data_preview %}
+    {% for location, target, row_type, unit, bin_start_incl, bin_end_notincl, value in model_with_cdc_data.get_data_preview %}
         <tr>
             <td>{{ location }}</td>
             <td>{{ target }}</td>
-            <td>{{ data_type }}</td>
+            <td>{{ row_type }}</td>
             <td>{{ unit }}</td>
             <td>{{ bin_start_incl }}</td>
             <td>{{ bin_end_notincl }}</td>

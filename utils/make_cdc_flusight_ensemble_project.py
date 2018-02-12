@@ -4,6 +4,7 @@ from pathlib import Path
 
 import click
 import django
+import pymmwr
 import yaml
 from django.template import Template, Context
 
@@ -43,6 +44,8 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
 
     project_name = 'CDC FluSight ensemble (2017-2018)'
     project = Project.objects.filter(name=project_name).first()  # None if doesn't exist
+    template_52 = Path('forecast_app/tests/2016-2017_submission_template.csv')  # todo xx move into repo
+    template_53 = Path('forecast_app/tests/2016-2017_submission_template-plus-bin-53.csv')  # ""
     if make_project:
         if project:
             click.echo("* Deleting existing project: {}".format(project))
@@ -63,8 +66,18 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         project.save()
         click.echo("* Created project: {}".format(project))
 
+        # load the template. NB: this project is different from others in that there are two templates that apply, based
+        # on the season/year: some have 53 days, which means the template being validated against for that year must
+        # have a bin for week 53. we handle this using two templates:
+        #
+        # - 2016-2017_submission_template.csv: last bin is 52,53
+        # - 2016-2017_submission_template-plus-bin-53.csv: "" 53,54
+        #
+        # because projects can only have one template, we arbitrarily choose the former. HOWEVER, this means future
+        # forecast validation will fail if it's for a year with 53 days. for reference, we use
+        # pymmwr.mmwr_weeks_in_year() determine the number of weeks in a year
         click.echo("  loading template")
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
+        project.load_template(template_52)
 
         targets = create_targets(project)
         click.echo("  created {} Targets: {}".format(len(targets), targets))
@@ -72,7 +85,7 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         # create TimeZeros. we use an arbitrary model's *.cdc.csv files to get them (all models should have same ones,
         # which is checked during forecast validation later)
         time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
-        click.echo("  created {} TimeZeros".format(len(time_zeros)))
+        click.echo("  created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
 
         click.echo("* Creating models")
         models = make_cdc_flusight_ensemble_models(project, component_models_dir, po_user)
@@ -82,10 +95,11 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
 
     if load_data:
         click.echo("* Loading forecasts")
-        model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, component_models_dir)
+        model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, component_models_dir,
+                                                                       template_52, template_53)
         click.echo("  loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
-    click.echo("* Done! time: {}".format(timeit.default_timer() - start_time))
+    click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 
 def first_subdirectory(directory):
@@ -151,10 +165,11 @@ def metadata_dict_for_file(metadata_file):
     return metadata_dict
 
 
-def load_cdc_flusight_ensemble_forecasts(project, component_models_dir):
+def load_cdc_flusight_ensemble_forecasts(project, component_models_dir, template_52, template_53):
     """
     Loads forecast data for all models corresponding to directories under component_models_dir. Assumes model names
-    in each directory's metadata.txt matches those in project, as done by make_cdc_flusight_ensemble_models().
+    in each directory's metadata.txt matches those in project, as done by make_cdc_flusight_ensemble_models(). see above
+    note re: the two templates.
     """
     model_name_to_forecasts = defaultdict(list)
     for model_dir in component_models_dir.iterdir():
@@ -168,8 +183,14 @@ def load_cdc_flusight_ensemble_forecasts(project, component_models_dir):
         if not forecast_model:
             raise RuntimeError("Couldn't find model named '{}' in project {}".format(model_name, project))
 
+
+        def time_zero_to_template(time_zero):
+            return {52: template_52, 53: template_53}[pymmwr.mmwr_weeks_in_year(time_zero.timezero_date.year)]
+
+
         forecasts = forecast_model.load_forecasts_from_dir(
             model_dir,
+            time_zero_to_template=time_zero_to_template,
             success_callback=lambda cdc_csv_file: click.echo("v\t{}\t".format(cdc_csv_file.name)),
             fail_callback=lambda cdc_csv_file, exception: click.echo("x\t{}\t{}".format(cdc_csv_file.name, exception)),
         )
