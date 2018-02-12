@@ -67,6 +67,26 @@ def is_date_in_season(date, season_start_year):
            ((mmwr_week < SEASON_START_EW_NUMBER) and (mmwr_year == (season_start_year + 1)))
 
 
+def season_start_year_for_date(date):
+    """
+    example seasons:
+    - 2015/2016: EW30-2015 through EW29-2016
+    - 2016/2017: EW30-2016 through EW29-2017
+    - 2017/2018: EW30-2017 through EW29-2018
+
+    rule:
+    - EW01 through EW29: the previous year
+    - EW30 through EW52/EW53: the current year
+
+    :param date:
+    :return: the season start year that date is in, based on SEASON_START_EW_NUMBER
+    """
+    ywd_mmwr_dict = pymmwr.date_to_mmwr_week(date)
+    mmwr_year = ywd_mmwr_dict['year']
+    mmwr_week = ywd_mmwr_dict['week']
+    return mmwr_year - 1 if mmwr_week < SEASON_START_EW_NUMBER else mmwr_year
+
+
 #
 # *.cdc.csv file functions
 #

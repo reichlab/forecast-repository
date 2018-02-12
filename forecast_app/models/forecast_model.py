@@ -5,7 +5,7 @@ from django.urls import reverse
 
 import forecast_app.models.forecast  # we want Forecast, but import only the module to avoid circular imports
 from forecast_app.models.project import Project
-from utils.utilities import basic_str, cdc_csv_components_from_data_dir, cdc_csv_filename_components
+from utils.utilities import basic_str, cdc_csv_components_from_data_dir
 
 
 class ForecastModel(models.Model):
@@ -85,7 +85,7 @@ class ForecastModel(models.Model):
         return new_forecast
 
 
-    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, success_callback=None, fail_callback=None):
+    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, callback=None):
         """
         Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
         Returns a list of them. Skips files that cause load_forecast() to raise a RuntimeError.
@@ -93,13 +93,20 @@ class ForecastModel(models.Model):
         :param data_dir: Path of the directory that contains cdc csv files
         :param time_zero_to_template: a function of one arg (the file's time_zero) that's called to get the
             validation_template (a Path) to validate each forecast in data_dir against
-        :param success_callback: a function of one arg (cdc_csv_file) that's called after a Forecast has loaded
-        :param fail_callback: a function of two args (cdc_csv_file, exception) that's called after a Forecast has
-            failed to load
+        :param is_load_file: a boolean function of one arg (cdc_csv_file) that returns True if that file should be
+            loaded. cdc_csv_file is a Path
+        :param callback: a function of three args (cdc_csv_file, reason, exception) that's called after a particular
+            Forecast has either loaded, failed, or was skipped because of is_load_file. cdc_csv_file is a Path. reason
+            is either 'ok', 'fail', or 'skip'. exception is an exception if 'xx', or None o/w
         :return list of loaded Forecasts
         """
         forecasts = []
         for cdc_csv_file, time_zero, _, _ in cdc_csv_components_from_data_dir(data_dir):
+            if is_load_file and not is_load_file(cdc_csv_file):
+                if callback:
+                    callback(cdc_csv_file, 'skip', None)
+                continue
+
             time_zero = self.project.time_zero_for_timezero_date(time_zero)
             if not time_zero:
                 raise RuntimeError("no time_zero found. cdc_csv_file={}, time_zero={}\nProject time_zeros={}"
@@ -113,11 +120,11 @@ class ForecastModel(models.Model):
                     validation_template = None
                 forecast = self.load_forecast(cdc_csv_file, time_zero, validation_template=validation_template)
                 forecasts.append(forecast)
-                if success_callback:
-                    success_callback(cdc_csv_file)
+                if callback:
+                    callback(cdc_csv_file, 'ok', None)
             except RuntimeError as rte:
-                if fail_callback:
-                    fail_callback(cdc_csv_file, rte)
+                if callback:
+                    callback(cdc_csv_file, 'fail', rte)
         if not forecasts:
             click.echo("Warning: no valid forecast files found in directory: {}".format(data_dir))
         return forecasts

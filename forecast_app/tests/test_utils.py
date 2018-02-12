@@ -9,7 +9,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
 from utils.cdc import epi_week_filename_components, ensemble_epi_week_filename_components
 from utils.mean_absolute_error import mean_absolute_error
-from utils.utilities import cdc_csv_filename_components, is_date_in_season
+from utils.utilities import cdc_csv_filename_components, is_date_in_season, season_start_year_for_date
 
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
@@ -119,6 +119,19 @@ class UtilitiesTestCase(TestCase):
         ]
         for date, season_start_year, exp_is_in in date_season_exp_is_in:
             self.assertEquals(exp_is_in, is_date_in_season(date, season_start_year))
+
+
+    def test_season_start_year_for_date(self):
+        date_exp_season_start_year = [
+            (pymmwr.mmwr_week_to_date(2016, 29), 2015),
+            (pymmwr.mmwr_week_to_date(2016, 30), 2016),
+            (pymmwr.mmwr_week_to_date(2016, 52), 2016),
+            (pymmwr.mmwr_week_to_date(2017, 1), 2016),
+            (pymmwr.mmwr_week_to_date(2017, 29), 2016),
+            (pymmwr.mmwr_week_to_date(2017, 30), 2017),
+        ]
+        for date, exp_season_start_year in date_exp_season_start_year:
+            self.assertEqual(exp_season_start_year, season_start_year_for_date(date))
 
 
     def test_mean_absolute_error(self):

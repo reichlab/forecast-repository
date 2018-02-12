@@ -12,7 +12,7 @@ from django.template import Template, Context
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.utilities import cdc_csv_components_from_data_dir
+from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components, season_start_year_for_date
 from forecast_app.models import Project, ForecastModel, TimeZero
 from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users, create_targets
 from utils.cdc import CDC_CONFIG_DICT
@@ -185,15 +185,33 @@ def load_cdc_flusight_ensemble_forecasts(project, component_models_dir, template
 
 
         def time_zero_to_template(time_zero):
-            return {52: template_52, 53: template_53}[pymmwr.mmwr_weeks_in_year(time_zero.timezero_date.year)]
+            season_start_year = season_start_year_for_date(time_zero.timezero_date)
+            return {52: template_52, 53: template_53}[pymmwr.mmwr_weeks_in_year(season_start_year)]
+
+
+        def is_load_file(cdc_csv_file):
+            # only accept EW43 through EW18 per: "Following CDC guidelines from 2017/2018 season, using scores from
+            # files from each season labeled EW43 through EW18 (i.e. files outside that range will not be considered)"
+            time_zero, _, _ = cdc_csv_filename_components(cdc_csv_file.name)
+            ywd_mmwr_dict = pymmwr.date_to_mmwr_week(time_zero)
+            mmwr_week = ywd_mmwr_dict['week']
+            return (mmwr_week <= 18) or (mmwr_week >= 43)
+
+
+        def callback(cdc_csv_file, reason, exception):
+            if reason == 'ok':
+                click.echo("o\t{}\t".format(cdc_csv_file.name)),
+            elif reason == 'skip':
+                click.echo("s\t{}\t".format(cdc_csv_file.name)),
+            else:  # 'fail'
+                click.echo("f\t{}\t{}".format(cdc_csv_file.name, exception)),
 
 
         forecasts = forecast_model.load_forecasts_from_dir(
             model_dir,
             time_zero_to_template=time_zero_to_template,
-            success_callback=lambda cdc_csv_file: click.echo("v\t{}\t".format(cdc_csv_file.name)),
-            fail_callback=lambda cdc_csv_file, exception: click.echo("x\t{}\t{}".format(cdc_csv_file.name, exception)),
-        )
+            is_load_file=is_load_file,
+            callback=callback)
         model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts
