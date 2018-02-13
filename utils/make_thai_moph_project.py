@@ -120,8 +120,7 @@ def make_model(project, model_owner, data_dir):
         description=description,
         home_url='http://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004761',
         aux_data_url=None)
-    forecast_model.load_forecasts_from_dir(data_dir,
-                                           success_callback=lambda cdc_csv_file: click.echo("  {}".format(cdc_csv_file)))
+    forecast_model.load_forecasts_from_dir(data_dir)
 
     # done
     return project

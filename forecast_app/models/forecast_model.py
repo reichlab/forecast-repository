@@ -87,8 +87,7 @@ class ForecastModel(models.Model):
         return new_forecast
 
 
-    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, callback=None,
-                                forecast_bin_map=None):
+    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, forecast_bin_map=None):
         """
         Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
         Returns a list of them. Skips files that cause load_forecast() to raise a RuntimeError.
@@ -98,17 +97,13 @@ class ForecastModel(models.Model):
             validation_template (a Path) to validate each forecast in data_dir against
         :param is_load_file: a boolean function of one arg (cdc_csv_file) that returns True if that file should be
             loaded. cdc_csv_file is a Path
-        :param callback: a function of three args (cdc_csv_file, reason, exception) that's called after a particular
-            Forecast has either loaded, failed, or was skipped because of is_load_file. cdc_csv_file is a Path. reason
-            is either 'ok', 'fail', or 'skip'. exception is an exception if 'xx', or None o/w
         :param forecast_bin_map: as in Project.validate_forecast_data()
         :return list of loaded Forecasts
         """
         forecasts = []
         for cdc_csv_file, time_zero, _, _ in cdc_csv_components_from_data_dir(data_dir):
             if is_load_file and not is_load_file(cdc_csv_file):
-                if callback:
-                    callback(cdc_csv_file, 'skip', None)
+                click.echo("s\t{}\t".format(cdc_csv_file.name))
                 continue
 
             time_zero = self.project.time_zero_for_timezero_date(time_zero)
@@ -126,11 +121,9 @@ class ForecastModel(models.Model):
                                               validation_template=validation_template,
                                               forecast_bin_map=forecast_bin_map)
                 forecasts.append(forecast)
-                if callback:
-                    callback(cdc_csv_file, 'ok', None)
+                click.echo("o\t{}\t".format(cdc_csv_file.name))
             except RuntimeError as rte:
-                if callback:
-                    callback(cdc_csv_file, 'fail', rte)
+                click.echo("f\t{}\t{}".format(cdc_csv_file.name, rte))
         if not forecasts:
             click.echo("Warning: no valid forecast files found in directory: {}".format(data_dir))
         return forecasts
