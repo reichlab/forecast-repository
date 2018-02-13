@@ -188,10 +188,8 @@ class ModelWithCDCData(models.Model):
         return cdc_data_results[0].value if len(cdc_data_results) != 0 else None
 
 
-    def get_target_bins(self, location, target, include_values=True, include_unit=False):
+    def get_target_bins(self, location, target):
         """
-        :param: include_values
-        :param: include_unit
         :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. returns a 3-tuple:
             (bin_start_incl, bin_end_notincl, value)
         """
@@ -240,8 +238,8 @@ class ModelWithCDCData(models.Model):
 
             where each bin_list is like:
 
-            [[bin_start_incl1, bin_end_notincl1, value1],  # values only if include_values
-             [bin_start_incl2, bin_end_notincl2, value2],  # ""
+            [[bin_start_incl1, bin_end_notincl1, value1],
+             [bin_start_incl2, bin_end_notincl2, value2],
              ...
             ]
 

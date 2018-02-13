@@ -199,6 +199,7 @@ def load_cdc_flusight_ensemble_forecasts(project, component_models_dir, template
 
 
         def callback(cdc_csv_file, reason, exception):
+            # print status of loading attempt
             if reason == 'ok':
                 click.echo("o\t{}\t".format(cdc_csv_file.name)),
             elif reason == 'skip':
@@ -207,11 +208,21 @@ def load_cdc_flusight_ensemble_forecasts(project, component_models_dir, template
                 click.echo("f\t{}\t{}".format(cdc_csv_file.name, exception)),
 
 
+        def forecast_bin_map(forecast_bin):
+            # handle the cases of 52,1 and 53,1 -> changing them to 52,53 and 53,54 respectively
+            # (52.0, 1.0, 0.0881763527054108)
+            bin_start_incl, bin_end_notincl, value = forecast_bin
+            if ((bin_start_incl == 52) or (bin_start_incl == 53)) and (bin_end_notincl == 1):
+                bin_end_notincl = bin_start_incl + 1
+            return bin_start_incl, bin_end_notincl, value
+
+
         forecasts = forecast_model.load_forecasts_from_dir(
             model_dir,
             time_zero_to_template=time_zero_to_template,
             is_load_file=is_load_file,
-            callback=callback)
+            callback=callback,
+            forecast_bin_map=forecast_bin_map)
         model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts

@@ -217,12 +217,15 @@ class Project(ModelWithCDCData):
         return self.csv_filename != ''
 
 
-    def validate_forecast_data(self, forecast, validation_template=None):
+    def validate_forecast_data(self, forecast, validation_template=None, forecast_bin_map=None):
         """
         Validates forecast's data against my template. Raises if invalid.
 
+        :param forecast: a Forecast
         :param validation_template: optional validation template (a Path) to override mine. useful in cases
             (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
+        :param forecast_bin_map: a function of one arg (forecast_bin) that returns a modified version of the bin to use
+            in the validation against the template. forecast_bin is a 3-tuple: bin_start_incl, bin_end_notincl, value
         """
         if not self.is_template_loaded():
             raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
@@ -237,6 +240,7 @@ class Project(ModelWithCDCData):
             template_location_dicts = self.get_location_target_dict()
         forecast_location_dicts = forecast.get_location_target_dict()
 
+        template_name = validation_template.name if validation_template else self.csv_filename
         template_locations = list(template_location_dicts.keys())
         forecast_locations = list(forecast_location_dicts.keys())
         if template_locations != forecast_locations:
@@ -258,6 +262,8 @@ class Project(ModelWithCDCData):
             for template_target in template_targets:
                 template_bins = template_target_dicts[template_target]['bins']
                 forecast_bins = forecast_target_dicts[template_target]['bins']
+                if forecast_bin_map:
+                    forecast_bins = list(map(forecast_bin_map, forecast_bins))
 
                 # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
                 template_bins_sorted = sorted([b[:2] for b in template_bins],
@@ -268,7 +274,7 @@ class Project(ModelWithCDCData):
                 if template_bins_sorted != forecast_bins_sorted:  # compare bin_start_incl and bin_end_notincl
                     raise RuntimeError("Bins did not match template. template={}, csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, forecast_bins={}"
-                                       .format(validation_template if validation_template else self.csv_filename,
+                                       .format(template_name,
                                                forecast.csv_filename, template_location,
                                                template_target, len(template_bins), len(forecast_bins)))
 
@@ -277,9 +283,9 @@ class Project(ModelWithCDCData):
                 # (0.9300285798758262 -> 0.07 fixed it)
                 forecast_bin_sum = sum([b[-1] if b[-1] is not None else 0 for b in forecast_bins])
                 if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):
-                    raise RuntimeError("Bin did not sum to 1.0. csv_filename={}, "
+                    raise RuntimeError("Bin did not sum to 1.0. template={}, csv_filename={}, "
                                        "template_location={}, template_target={}, forecast_bin_sum={}"
-                                       .format(forecast.csv_filename, template_location, template_target,
+                                       .format(template_name, forecast.csv_filename, template_location, template_target,
                                                forecast_bin_sum))
 
                 # test unit. recall that get_target_unit() arbitrarily uses the point row's unit. this means that the
@@ -287,9 +293,9 @@ class Project(ModelWithCDCData):
                 template_unit = template_target_dicts[template_target]['unit']
                 forecast_unit = forecast_target_dicts[template_target]['unit']
                 if (not forecast_unit) or (template_unit != forecast_unit):
-                    raise RuntimeError("Target unit not found or didn't match template. csv_filename={}, "
+                    raise RuntimeError("Target unit not found or didn't match template. template={}, csv_filename={}, "
                                        "template_location={}, template_target={}, template_unit={}, forecast_unit={}"
-                                       .format(forecast.csv_filename, template_location, template_target,
+                                       .format(template_name, forecast.csv_filename, template_location, template_target,
                                                template_unit, forecast_unit))
 
 
