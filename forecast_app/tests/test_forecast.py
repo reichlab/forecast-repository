@@ -6,7 +6,7 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
-from forecast_app.models.data import ModelWithCDCData
+from forecast_app.models.data import ModelWithCDCData, CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
@@ -39,11 +39,12 @@ class ForecastTestCase(TestCase):
         self.assertEqual(8019, len(cdc_data_rows))  # excluding header
 
         # spot-check a few rows
-        self.assertEqual(['US National', 'Season onset', 'p', 'week', None, None, 50.0012056690978],
+        self.assertEqual(['US National', 'Season onset', CDCData.POINT_ROW_TYPE, 'week', None, None, 50.0012056690978],
                          cdc_data_rows[0].data_row())  # note 'NA' -> None
-        self.assertEqual(['US National', 'Season onset', 'b', 'week', None, None, 1.22490002826229e-07],
-                         cdc_data_rows[34].data_row())  # note 'none' -> None
-        self.assertEqual(['HHS Region 10', '4 wk ahead', 'b', 'percent', 13, 100, 0.00307617873070836],
+        self.assertEqual(
+            ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', None, None, 1.22490002826229e-07],
+            cdc_data_rows[34].data_row())  # note 'none' -> None
+        self.assertEqual(['HHS Region 10', '4 wk ahead', CDCData.BIN_ROW_TYPE, 'percent', 13, 100, 0.00307617873070836],
                          cdc_data_rows[8018].data_row())
 
         # test empty file
@@ -135,16 +136,16 @@ class ForecastTestCase(TestCase):
         self.assertEqual(8019, len(self.forecast.get_data_rows()))
 
         # test get_data_preview()
-        exp_preview = [('US National', 'Season onset', 'p', 'week', None, None, 50.0012056690978),
-                       ('US National', 'Season onset', 'b', 'week', 40, 41, 1.95984004521967e-05),
-                       ('US National', 'Season onset', 'b', 'week', 41, 42, 1.46988003391476e-05),
-                       ('US National', 'Season onset', 'b', 'week', 42, 43, 6.98193016109509e-06),
-                       ('US National', 'Season onset', 'b', 'week', 43, 44, 3.79719008761312e-06),
-                       ('US National', 'Season onset', 'b', 'week', 44, 45, 4.28715009891804e-06),
-                       ('US National', 'Season onset', 'b', 'week', 45, 46, 1.59237003674098e-05),
-                       ('US National', 'Season onset', 'b', 'week', 46, 47, 3.0989970715036e-05),
-                       ('US National', 'Season onset', 'b', 'week', 47, 48, 5.3895601243541e-05),
-                       ('US National', 'Season onset', 'b', 'week', 48, 49, 7.49638817296525e-05)]
+        exp_preview = [('US National', 'Season onset', CDCData.POINT_ROW_TYPE, 'week', None, None, 50.0012056690978),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 40, 41, 1.95984004521967e-05),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 41, 42, 1.46988003391476e-05),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 42, 43, 6.98193016109509e-06),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 43, 44, 3.79719008761312e-06),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 44, 45, 4.28715009891804e-06),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 45, 46, 1.59237003674098e-05),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 46, 47, 3.0989970715036e-05),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 47, 48, 5.3895601243541e-05),
+                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05)]
         self.assertEqual(exp_preview, self.forecast.get_data_preview())
 
         exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',

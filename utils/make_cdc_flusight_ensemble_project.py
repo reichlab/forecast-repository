@@ -116,7 +116,7 @@ def get_model_dirs_to_load(component_models_dir):
         next(csv_reader)  # skip header
         for model_id, model_dir, complete in csv_reader:
             model_dirs_to_load.append(component_models_dir / model_dir)
-    return model_dirs_to_load
+    return sorted(model_dirs_to_load, key=lambda model_dir: model_dir.name)
 
 
 def first_subdirectory(directory):
@@ -188,12 +188,12 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
     those in project, as done by make_cdc_flusight_ensemble_models(). see above note re: the two templates.
     """
     model_name_to_forecasts = defaultdict(list)
-    for model_dir in model_dirs_to_load:
+    for idx, model_dir in enumerate(model_dirs_to_load):
         if not model_dir.is_dir():
             click.echo("Warning: model_dir was not a directory: {}".format(model_dir))
             continue
 
-        click.echo("** {}".format(model_dir))
+        click.echo("** {}/{}: {}".format(idx, len(model_dirs_to_load), model_dir))
         metadata_dict = metadata_dict_for_file(model_dir / 'metadata.txt')
         model_name = metadata_dict['model_name']
         forecast_model = project.models.filter(name=model_name).first()

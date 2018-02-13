@@ -112,12 +112,11 @@ class ModelWithCDCData(models.Model):
 
             location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
 
-            # translate row_type into our standard type
+            # validate row_type
             row_type = row_type.lower()
-            if row_type not in ['point', 'bin']:
-                raise RuntimeError("row_type was neither 'point' nor 'bin': ".format(row_type))
-
-            row_type = CDCData.POINT_ROW_TYPE if row_type == 'point' else CDCData.BIN_ROW_TYPE
+            if (row_type != CDCData.POINT_ROW_TYPE) and (row_type != CDCData.BIN_ROW_TYPE):
+                raise RuntimeError("row_type was neither '{}' nor '{}': "
+                                   .format(CDCData.POINT_ROW_TYPE, CDCData.BIN_ROW_TYPE))
 
             # use parse_value() to handle non-numeric cases like 'NA' and 'none'
             bin_start_incl = parse_value(bin_start_incl)
@@ -126,7 +125,8 @@ class ModelWithCDCData(models.Model):
 
             # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
             if model_with_cdcdata_pk:
-                rows.append((location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, model_with_cdcdata_pk))
+                rows.append(
+                    (location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, model_with_cdcdata_pk))
             else:
                 rows.append((location, target, row_type, unit, bin_start_incl, bin_end_notincl, value))
 
@@ -210,8 +210,9 @@ class ModelWithCDCData(models.Model):
             # sort so groupby() will work
             def key(row):
                 location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
-                # row_type: 'p' or 'b', but we want reverse order: 'p' before 'b'
-                return location, target, 0 if row_type == 'p' else 1
+                # row_type: we want this order: CDCData.POINT_ROW_TYPE before CDCData.BIN_ROW_TYPE - this is for
+                # _get_location_target_dict_for_rows()
+                return location, target, 0 if row_type == CDCData.POINT_ROW_TYPE else 1
 
 
             rows.sort(key=key)
@@ -267,9 +268,9 @@ class ModelWithCDCData(models.Model):
         for location, location_grouper in groupby(rows, key=lambda _: _[0]):
             target_dict = {}
             for target, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
-                # NB: this assumes that the first row is always the 'p' point value, thanks to ORDER BY, which is not
-                # true when, for example, a target has no point row. and since this method is called by
-                # Project.validate_template_data(), we need to check it here
+                # NB: this assumes that the first row is always the CDCData.POINT_ROW_TYPE point value, thanks to
+                # ORDER BY, which is not true when, for example, a target has no point row. and since this method is
+                # called by Project.validate_template_data(), we need to check it here
                 point_row = next(target_grouper)
                 if point_row[2] != CDCData.POINT_ROW_TYPE:
                     raise RuntimeError("First row was not the point row: {}".format(point_row))
@@ -295,11 +296,11 @@ class CDCData(models.Model):
     location = models.CharField(max_length=200)
     target = models.CharField(max_length=200)
 
-    POINT_ROW_TYPE = 'p'
-    BIN_ROW_TYPE = 'b'
+    POINT_ROW_TYPE = 'point'
+    BIN_ROW_TYPE = 'bin'
     ROW_TYPE_CHOICES = ((POINT_ROW_TYPE, 'Point'),
                         (BIN_ROW_TYPE, 'Bin'))
-    row_type = models.CharField(max_length=1, choices=ROW_TYPE_CHOICES)
+    row_type = models.CharField(max_length=5, choices=ROW_TYPE_CHOICES)
 
     unit = models.CharField(max_length=200)
 

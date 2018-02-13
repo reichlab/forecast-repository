@@ -157,7 +157,7 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
     click.echo("* creating CDC Flu challenge models. model_owner={}, kot_data_dir={}".format(model_owner, kot_data_dir))
 
     # KoT ensemble
-    click.echo("  ensemble")
+    click.echo("** ensemble")
     forecast_model = ForecastModel.objects.create(
         owner=model_owner,
         project=project,
@@ -165,11 +165,10 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         description="Team Kernel of Truth's ensemble model.",
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble')
-    forecast_model.load_forecasts_from_dir(kot_data_dir / 'ensemble',
-                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+    forecast_model.load_forecasts_from_dir(kot_data_dir / 'ensemble')
 
     # KoT Kernel Density Estimation (KDE)
-    click.echo("  kde")
+    click.echo("** kde")
     forecast_model = ForecastModel.objects.create(
         owner=model_owner,
         project=project,
@@ -177,11 +176,10 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         description="Team Kernel of Truth's 'fixed' model using Kernel Density Estimation.",
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kde')
-    forecast_model.load_forecasts_from_dir(kot_data_dir / 'kde',
-                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+    forecast_model.load_forecasts_from_dir(kot_data_dir / 'kde')
 
     # KoT Kernel Conditional Density Estimation (KCDE)
-    click.echo("  kcde")
+    click.echo("** kcde")
     forecast_model = ForecastModel.objects.create(
         owner=model_owner,
         project=project,
@@ -189,11 +187,10 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         description="Team Kernel of Truth's model combining Kernel Conditional Density Estimation (KCDE) and copulas.",
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/kcde')
-    forecast_model.load_forecasts_from_dir(kot_data_dir / 'kcde',
-                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+    forecast_model.load_forecasts_from_dir(kot_data_dir / 'kcde')
 
     # KoT SARIMA
-    click.echo("  sarima")
+    click.echo("** sarima")
     forecast_model = ForecastModel.objects.create(
         owner=model_owner,
         project=project,
@@ -201,8 +198,7 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
         description="Team Kernel of Truth's SARIMA model.",
         home_url='https://github.com/reichlab/2016-2017-flu-contest-ensembles',
         aux_data_url='https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/sarima')
-    forecast_model.load_forecasts_from_dir(kot_data_dir / 'sarima',
-                                           success_callback=lambda cdc_csv_file: click.echo("    {}".format(cdc_csv_file)))
+    forecast_model.load_forecasts_from_dir(kot_data_dir / 'sarima')
 
     # done
     return project
