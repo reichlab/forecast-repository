@@ -1,3 +1,4 @@
+import csv
 import timeit
 from collections import defaultdict
 from pathlib import Path
@@ -39,8 +40,11 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
     """
     start_time = timeit.default_timer()
     component_models_dir = Path(component_models_dir)
+    model_dirs_to_load = get_model_dirs_to_load(component_models_dir)
     click.echo("* make_cdc_flusight_ensemble_project_app(): component_models_dir={}, make_project={}, load_data={}"
-               .format(component_models_dir, make_project, load_data))
+               "\n\t{} model_dirs_to_load={}"
+               .format(component_models_dir, make_project, load_data, len(model_dirs_to_load),
+                       [d.name for d in model_dirs_to_load]))
 
     project_name = 'CDC FluSight ensemble (2017-2018)'
     project = Project.objects.filter(name=project_name).first()  # None if doesn't exist
@@ -88,18 +92,31 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         click.echo("  created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
 
         click.echo("* Creating models")
-        models = make_cdc_flusight_ensemble_models(project, component_models_dir, po_user)
+        models = make_cdc_flusight_ensemble_models(project, model_dirs_to_load, po_user)
         click.echo("  created {} model(s): {}".format(len(models), models))
     elif not project:  # not make_project, but couldn't find existing
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
     if load_data:
         click.echo("* Loading forecasts")
-        model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, component_models_dir,
+        model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load,
                                                                        template_52, template_53)
         click.echo("  loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
+
+
+def get_model_dirs_to_load(component_models_dir):
+    """
+    :return: list of Paths under component_models_dir that are listed in model-id-map.csv
+    """
+    model_dirs_to_load = []
+    with open(str(component_models_dir / 'model-id-map.csv')) as model_id_map_csv_fp:
+        csv_reader = csv.reader(model_id_map_csv_fp, delimiter=',')
+        next(csv_reader)  # skip header
+        for model_id, model_dir, complete in csv_reader:
+            model_dirs_to_load.append(component_models_dir / model_dir)
+    return model_dirs_to_load
 
 
 def first_subdirectory(directory):
@@ -122,14 +139,14 @@ def create_timezeros(project, model_dir):
     return time_zeros
 
 
-def make_cdc_flusight_ensemble_models(project, component_models_dir, model_owner):
+def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
     """
-    Creates ForecastModels for project based on the directories under component_models_dir, with model_owner as the
-    owner for all of them.
+    Loads forecast data for models in model_dirs_to_load, with model_owner as the owner for all of them.
     """
     models = []
-    for model_dir in component_models_dir.iterdir():
+    for model_dir in model_dirs_to_load:
         if not model_dir.is_dir():
+            click.echo("Warning: model_dir was not a directory: {}".format(model_dir))
             continue
 
         # get model name and description from metadata.txt
@@ -165,15 +182,15 @@ def metadata_dict_for_file(metadata_file):
     return metadata_dict
 
 
-def load_cdc_flusight_ensemble_forecasts(project, component_models_dir, template_52, template_53):
+def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_52, template_53):
     """
-    Loads forecast data for all models corresponding to directories under component_models_dir. Assumes model names
-    in each directory's metadata.txt matches those in project, as done by make_cdc_flusight_ensemble_models(). see above
-    note re: the two templates.
+    Loads forecast data for models in model_dirs_to_load. Assumes model names in each directory's metadata.txt matches
+    those in project, as done by make_cdc_flusight_ensemble_models(). see above note re: the two templates.
     """
     model_name_to_forecasts = defaultdict(list)
-    for model_dir in component_models_dir.iterdir():
+    for model_dir in model_dirs_to_load:
         if not model_dir.is_dir():
+            click.echo("Warning: model_dir was not a directory: {}".format(model_dir))
             continue
 
         click.echo("** {}".format(model_dir))
