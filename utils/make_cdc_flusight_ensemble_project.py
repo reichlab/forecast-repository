@@ -103,6 +103,7 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
                                                                        template_52, template_53)
         click.echo("  loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
+    # done
     click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 

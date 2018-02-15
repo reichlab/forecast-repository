@@ -1,3 +1,4 @@
+import timeit
 from pathlib import Path
 
 import click
@@ -32,6 +33,7 @@ def make_thai_moph_project_app(data_dir):
         4. for files with duplicate second dates (timzeros), keep the one with the most recent first date (data_version_date)
 
     """
+    start_time = timeit.default_timer()
     click.echo("* started creating Thai MOPH project")
 
     project_name = 'Impetus Province Forecasts'
@@ -53,7 +55,8 @@ def make_thai_moph_project_app(data_dir):
     click.echo("* creating model. data_dir={}".format(data_dir))
     make_model(project, mo_user, data_dir)
 
-    click.echo('* Done')
+    # done
+    click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 
 def make_thai_moph_project(project_name, template_path, data_dir):

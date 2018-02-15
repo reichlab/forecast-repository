@@ -37,7 +37,7 @@ def make_minimal_projects_app():
     cd ~/IdeaProjects/forecast-repository/
     export PYTHONPATH=.
     pipenv shell
-    python3 utils/temp_app.py
+    python3 utils/fix_owners_app.py
 
     """
     click.echo("* started creating temp projects")

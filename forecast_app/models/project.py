@@ -27,6 +27,7 @@ class Project(ModelWithCDCData):
     #   (fields.E304) Reverse accessor for 'Project.model_owners' clashes with reverse accessor for 'Project.owner'.
     owner = models.ForeignKey(User,
                               related_name='project_owner',
+                              on_delete=models.SET_NULL,
                               blank=True, null=True,
                               help_text="The project's owner.")
 

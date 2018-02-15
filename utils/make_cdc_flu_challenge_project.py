@@ -1,4 +1,5 @@
 import itertools
+import timeit
 from pathlib import Path
 
 import click
@@ -32,6 +33,7 @@ def make_cdc_flu_challenge_project_app(kot_data_dir):
         https://github.com/matthewcornell/split_kot_models_from_submissions , which has then been normalized via
         normalize_cdc_flu_challenge_filenames_app.py .
     """
+    start_time = timeit.default_timer()
     project_name = 'CDC Flu challenge (2016-2017)'
     found_project = Project.objects.filter(name=project_name).first()
     if found_project:
@@ -48,7 +50,9 @@ def make_cdc_flu_challenge_project_app(kot_data_dir):
 
     # make the models, first downloading kot_data_dir if necessary
     make_cdc_flu_challenge_models(project, mo_user, Path(kot_data_dir))
-    click.echo('* Done')
+
+    # done
+    click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 
 def get_or_create_super_po_mo_users(create_super):
