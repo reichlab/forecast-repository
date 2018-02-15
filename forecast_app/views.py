@@ -51,7 +51,9 @@ def index(request):
         request,
         'index.html',
         context={'users': User.objects.all(),
-                 'project_sparkline_tuples': project_sparkline_tuples},
+                 'project_sparkline_tuples': project_sparkline_tuples,
+                 'ok_user_create_project': ok_user_create_project(request.user),
+                 }
     )
 
 
@@ -356,8 +358,6 @@ class UserDetailView(DetailView):
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
-        context['ok_user_create_project'] = ok_user_create_project(self.request.user)
-
         return context
 
 
@@ -383,11 +383,9 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         forecast_model = self.get_object()
         context['timezero_forecast_pairs'] = timezero_forecast_pairs_for_forecast_model(forecast_model)
         context['ok_user_edit_model'] = ok_user_edit_model(self.request.user, forecast_model)
-
         return context
 
 

@@ -15,7 +15,12 @@
     </p>
 
 
-    <h2>Projects <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a></h2>
+    <h2>Projects
+        <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
+        {% if ok_user_create_project %}
+            &nbsp;<a href="{% url 'create-project' %}" class="btn btn-success" role="button">New</a>
+        {% endif %}
+    </h2>
 
     {% if project_sparkline_tuples %}
         <p class="help-block">The repository has {{ project_sparkline_tuples|length }}
@@ -42,7 +47,7 @@
                     </td>
                     <td>
                         {% if project.is_public %}
-                             <span style="color:green">Public</span>
+                            <span style="color:green">Public</span>
                         {% else %}
                             <span style="color:red">Private</span>
                         {% endif %}

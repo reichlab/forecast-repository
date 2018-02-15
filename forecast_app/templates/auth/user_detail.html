@@ -46,11 +46,8 @@
 
     {% load auth_extras %}
 
-    <h2>Projects
-        {% if ok_user_create_project %}
-            &nbsp;<a href="{% url 'create-project' %}" class="btn btn-success" role="button">New</a>
-        {% endif %}
-    </h2>
+
+    <h2>Projects</h2>
 
     {% if projects_and_roles %}
         <p class="help-block">Projects involving {{ detail_user }}:</p>

@@ -209,7 +209,7 @@ class ViewsTestCase(TestCase):
                      (self.superuser, True)],
             },
             # user detail
-            reverse('user-detail', args=[str(self.po_user.pk)]): {
+            reverse('index', args=[]): {
                 reverse('create-project', args=[]):
                     [(self.po_user, True),
                      (self.mo_user, True),
@@ -248,7 +248,7 @@ class ViewsTestCase(TestCase):
         for url, url_to_user_access_pairs in url_to_exp_content.items():
             for exp_url, user_access_pairs in url_to_user_access_pairs.items():
                 for user, is_accessible in user_access_pairs:
-                    self.client.logout()  # AnonymousUser
+                    self.client.logout()  # AnonymousUser should not see any edit/delete/upload/create buttons
                     response = self.client.get(url)
                     self.assertNotIn(exp_url, str(response.content))
 
