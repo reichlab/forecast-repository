@@ -30,11 +30,12 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Type:</th>
+                    <th>Email:</th>
                     <td>
-                        {% if detail_user.is_active %}Active{% else %}Not Active{% endif %},
-                        {% if detail_user.is_staff %}Staff{% else %}Not Staff{% endif %},
-                        {% if detail_user.is_superuser %}Superuser{% else %}Not Superuser{% endif %}
+                        {% if not detail_user.email %}
+                            <small class="text-muted">(Not specified)</small>
+                            {% else %}{{ detail_user.email }}
+                        {% endif %}
                     </td>
                 </tr>
                 </tbody>
@@ -47,7 +48,7 @@
 
     <h2>Projects
         {% if ok_user_create_project %}
-            &nbsp;<a href="{% url 'create-project' detail_user.pk %}" class="btn btn-success" role="button">New</a>
+            &nbsp;<a href="{% url 'create-project' %}" class="btn btn-success" role="button">New</a>
         {% endif %}
     </h2>
 

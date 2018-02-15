@@ -15,8 +15,7 @@ from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
-from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME, Target
-from forecast_app.templatetags.auth_extras import has_group
+from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_abs_error_rows_for_project
 
@@ -105,37 +104,30 @@ def project_visualizations(request, project_pk):
 # ---- CRUD-related form functions ----
 #
 
-def create_project(request, user_pk):
+def create_project(request):
     """
-    Shows a form to add a new Project for the passed User. Authorization: The logged-in user must be a superuser, or the
-    same as the passed OBO user AND the must be in the group PROJECT_OWNER_GROUP_NAME.
+    Shows a form to add a new Project with the owner being request.user. Authorization: The logged-in user must be a
+    superuser, or must be in the group PROJECT_OWNER_GROUP_NAME.
 
     :param: user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
-    authenticated_user = request.user
-    new_project_user = get_object_or_404(User, pk=user_pk)
-    if not ok_user_create_project(new_project_user, authenticated_user):
+    if not ok_user_create_project(request.user):
         return HttpResponseForbidden()
 
     # set up Target and TimeZero formsets using a new (unsaved) Project
-
-
-    new_project = Project(owner=new_project_user,
-                          config_dict=CDC_CONFIG_DICT)
+    new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
     TargetInlineFormSet = inlineformset_factory(Project, Target, fields=('name', 'description'), extra=3)
     target_formset = TargetInlineFormSet(instance=new_project)
-
     TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero, fields=('timezero_date', 'data_version_date'),
                                                   extra=3)
     timezero_formset = TimeZeroInlineFormSet(instance=new_project)
-
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=new_project)
         target_formset = TargetInlineFormSet(request.POST, instance=new_project)
         timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project)
         if project_form.is_valid() and target_formset.is_valid() and timezero_formset.is_valid():
             new_project = project_form.save(commit=False)
-            new_project.owner = new_project_user  # force the owner to the current user
+            new_project.owner = request.user  # force the owner to the current user
             new_project.save()
             project_form.save_m2m()
 
@@ -364,8 +356,7 @@ class UserDetailView(DetailView):
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
-        context['PROJECT_OWNER_GROUP_NAME'] = PROJECT_OWNER_GROUP_NAME
-        context['ok_user_create_project'] = ok_user_create_project(user, self.request.user)
+        context['ok_user_create_project'] = ok_user_create_project(self.request.user)
 
         return context
 
@@ -631,9 +622,11 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 # ---- authorization utilities ----
 
 
-def ok_user_create_project(new_project_user, authenticated_user):
-    return authenticated_user.is_superuser or ((authenticated_user == new_project_user) and
-                                               has_group(authenticated_user, PROJECT_OWNER_GROUP_NAME))
+def ok_user_create_project(user):
+    """
+    :return: True if user (a User instance) is allowed to create Projects.
+    """
+    return user.is_authenticated  # any logged-in user can create. recall AnonymousUser.is_authenticated returns False
 
 
 def ok_user_edit_project(user, project):

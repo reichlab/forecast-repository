@@ -12,8 +12,7 @@ import pymmwr
 django.setup()
 
 from utils.cdc import CDC_CONFIG_DICT
-from django.contrib.auth.models import Group, User
-from forecast_app.models.project import PROJECT_OWNER_GROUP_NAME
+from django.contrib.auth.models import User
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel
 
@@ -54,26 +53,20 @@ def make_cdc_flu_challenge_project_app(kot_data_dir):
 
 def get_or_create_super_po_mo_users(create_super):
     """
-    A utility that creates (as necessary) a group named PROJECT_OWNER_GROUP_NAME and three users - 'project_owner1' (a
-    member of that group), 'model_owner1' (not a member), and a superuser
+    A utility that creates (as necessary) three users - 'project_owner1', 'model_owner1', and a superuser. Should
+    probably only be used for testing.
 
     :param create_super: boolean that controls whether a superuser is created. used only for testing b/c password is
         shown
     :return: a 4-tuple (if not create_super) or 6-tuple (if create_super) of Users and passwords:
         (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password)
     """
-    po_group = Group.objects.filter(name=PROJECT_OWNER_GROUP_NAME).first()
-    if not po_group:
-        click.echo("* creating PO group: {}".format(PROJECT_OWNER_GROUP_NAME))
-        po_group = Group.objects.create(name=PROJECT_OWNER_GROUP_NAME)
-
     po_username = 'project_owner1'
     po_user_password = 'po1-asdf'
     po_user = User.objects.filter(username=po_username).first()
     if not po_user:
         click.echo("* creating PO user")
         po_user = User.objects.create_user(username=po_username, password=po_user_password)
-        po_user.groups.add(po_group)
 
     mo_username = 'model_owner1'
     mo_user_password = 'mo1-asdf'

@@ -14,12 +14,13 @@
 
     <h2>For Project and Owners Model Owners</h2>
 
-    <p>A <code>project</code> is the main object for representing a forecasting challenge. It has an <code>owner</code>
+    <p>A <code>project</code> is the main element for representing a forecasting challenge. It has an <code>owner</code>
         (a registered user in the system), and zero or more <code>model owners</code> (also users). A project owner can
         do anything to the project, including what model owners can do, but model owners are limited to creating,
-        editing, and deleting Models, and uploading and deleting forecasts. Projects have a <code>template</code>, which
-        is a data file (see the format below) that is used to validate forecasts, including locations, targets, number
-        of bins, etc. Templates themselves are validated as well.
+        editing, and deleting Models, and uploading and deleting forecasts. (To become a model owner you must contact
+        the project owner.) Projects have a <code>template</code>, which is a data file (see the format below) that is
+        used to validate forecasts, including locations, targets, number of bins, etc. Templates themselves are
+        validated as well.
     </p>
 
     <p>A project can be either <code>public</code> or <code>private</code>, which controls project visibility, including

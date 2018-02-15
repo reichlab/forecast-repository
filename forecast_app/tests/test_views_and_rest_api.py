@@ -136,7 +136,7 @@ class ViewsTestCase(TestCase):
             reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
             reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
             reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
-            reverse('create-project', args=[str(self.po_user.pk)]): self.ONLY_PO,
+            reverse('create-project', args=[]): self.ONLY_PO_MO,
             reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
             reverse('edit-project', args=[str(self.private_project.pk)]): self.ONLY_PO,
             reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
@@ -210,9 +210,9 @@ class ViewsTestCase(TestCase):
             },
             # user detail
             reverse('user-detail', args=[str(self.po_user.pk)]): {
-                reverse('create-project', args=[str(self.po_user.pk)]):
+                reverse('create-project', args=[]):
                     [(self.po_user, True),
-                     (self.mo_user, False),
+                     (self.mo_user, True),
                      (self.superuser, True)],
             },
             # project detail - public_project
@@ -248,6 +248,10 @@ class ViewsTestCase(TestCase):
         for url, url_to_user_access_pairs in url_to_exp_content.items():
             for exp_url, user_access_pairs in url_to_user_access_pairs.items():
                 for user, is_accessible in user_access_pairs:
+                    self.client.logout()  # AnonymousUser
+                    response = self.client.get(url)
+                    self.assertNotIn(exp_url, str(response.content))
+
                     password = self.po_user_password if user == self.po_user \
                         else self.mo_user_password if user == self.mo_user \
                         else self.superuser_password

@@ -33,7 +33,7 @@ urlpatterns = [
     # ---- CRUD-related form URLs ----
 
     # Project
-    url(r'^project/create/(?P<user_pk>\d+)', views.create_project, name='create-project'),
+    url(r'^project/create/$', views.create_project, name='create-project'),
     url(r'^project/(?P<project_pk>\d+)/edit/$', views.edit_project, name='edit-project'),
     url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project, name='delete-project'),
 

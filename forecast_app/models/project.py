@@ -16,9 +16,6 @@ from utils.utilities import basic_str
 # ---- Project class ----
 #
 
-PROJECT_OWNER_GROUP_NAME = 'project_owner'
-
-
 class Project(ModelWithCDCData):
     """
     The main class representing a forecast challenge, including metadata, core data, targets, and model entries.
