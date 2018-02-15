@@ -13,7 +13,7 @@ class ForecastModel(models.Model):
     Represents a project's model entry by a competing team, including metadata, model-specific auxiliary data beyond
     core data, and a list of the actual forecasts.
     """
-    owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.")
+    owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.", on_delete=models.SET_NULL)
 
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
 

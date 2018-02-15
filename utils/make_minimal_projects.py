@@ -70,7 +70,8 @@ def make_minimal_projects_app():
                                          timezero_date=str(datetime.date.today()),
                                          data_version_date=None)
 
-    template_path = Path('forecast_app/tests/2016-2017_submission_template.csv')
+    # template_path = Path('forecast_app/tests/2016-2017_submission_template.csv')
+    template_path = Path('forecast_app/tests/2016-2017_submission_template-small.csv')
     click.echo("* loading template into public_project={}, template_path={}".format(public_project, template_path))
     start_time = timeit.default_timer()
     public_project.load_template(template_path)
@@ -82,7 +83,8 @@ def make_minimal_projects_app():
                                                    description="a ForecastModel for testing",
                                                    home_url='http://example.com',
                                                    owner=mo_user)
-    csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
+    # csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
+    csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
     forecast1 = forecast_model1.load_forecast(csv_file_path, time_zero1)
