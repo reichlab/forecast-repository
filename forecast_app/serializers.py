@@ -98,6 +98,7 @@ class ForecastModelSerializer(serializers.ModelSerializer):
     def get_forecasts(self, forecast_model):
         request = self.context['request']
         return [{'timezero': timezero.timezero_date,
+                 'data_version_date': timezero.data_version_date,
                  'forecast': reverse('api-forecast-detail', args=[forecast.pk], request=request) if forecast else None}
                 for timezero, forecast in timezero_forecast_pairs_for_forecast_model(forecast_model)]
 
