@@ -21,39 +21,12 @@ from utils.mean_absolute_error import mean_abs_error_rows_for_project
 
 
 def index(request):
-    # set project_sparkline_tuples
-    project_sparkline_tuples = []
-    for project in sorted(Project.objects.all(), key=lambda p: p.name):
-        sparkline_url = None  # this default covers cases where no authorization or no data
-        img_title = None  # ""
-        if project.is_user_allowed_to_view(request.user):
-            distribution_preview = project.get_distribution_preview()
-            if distribution_preview:
-                first_forecast, first_location, first_target = distribution_preview
-                sparkline_url = "{reverse_url}?location={location}&target={target}".format(
-                    reverse_url=reverse('forecast-sparkline', args=[str(first_forecast.pk)]),
-                    location=first_location,
-                    target=first_target)  # manually build query parameters
-                # note: I tried urllib.parse.quote(sparkline_url), but it didn't work with the 'forecast-sparkline' url
-                # (location and target were coming through as None). so we leave it for now
-                img_title = "Model '{model_name}' > Forecast tz={tz_date}{maybe_dvdate} > Location '{location}' > " \
-                            "Target '{target}'".format(
-                    model_name=first_forecast.forecast_model.name,
-                    tz_date=str(first_forecast.time_zero.timezero_date),
-                    maybe_dvdate=', dvd=' + str(first_forecast.time_zero.data_version_date)
-                    if first_forecast.time_zero.data_version_date else '',
-                    location=first_location,
-                    target=first_target)
-        project_sparkline_tuples.append((project, sparkline_url, img_title))
-
-    # done
     return render(
         request,
         'index.html',
         context={'users': User.objects.all(),
-                 'project_sparkline_tuples': project_sparkline_tuples,
-                 'ok_user_create_project': ok_user_create_project(request.user),
-                 }
+                 'projects': sorted(Project.objects.all(), key=lambda p: p.name),
+                 'ok_user_create_project': ok_user_create_project(request.user)}
     )
 
 
