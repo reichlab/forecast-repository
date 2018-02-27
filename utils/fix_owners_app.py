@@ -42,15 +42,14 @@ def fix_owners_app():
     for project_name, owner_name, model_owners in [
         ('CDC Flu challenge (2016-2017)', 'nick', ('cornell',)),
         ('Impetus Province Forecasts', 'nick', ('nectec', 'cornell',)),
-        ('CDC FluSight ensemble (2017-2018)', 'nick', ('cornell',)),
-    ]:
+        ('CDC FluSight ensemble (2017-2018)', 'nick', ('cornell',))]:
         click.echo("* project: '{}', '{}', {}".format(project_name, owner_name, model_owners))
         project = Project.objects.filter(name=project_name).first()
         if not project:
             click.echo("  x couldn't find project: '{}'".format(project_name))
             continue
 
-        click.echo("** changing project owner: {}".format(owner_name))
+        click.echo("** setting project owner: {}".format(owner_name))
         project_owner = User.objects.filter(username=owner_name).first()
         if not project_owner:
             click.echo("  x couldn't find project owner '{}'".format(project_owner))
@@ -61,7 +60,7 @@ def fix_owners_app():
         project.save()
         click.echo("  - changed project owner: {}: {} -> {}".format(project, old_project_owner, project.owner))
 
-        click.echo("** changing model owners. from: {} to: {}".format(project.model_owners, model_owners))
+        click.echo("** adding project model owners. from: {} to: {}".format(project.model_owners, model_owners))
         for model_owner_name in model_owners:
             model_owner = User.objects.filter(username=model_owner_name).first()
             if not model_owner:
@@ -69,8 +68,16 @@ def fix_owners_app():
                 continue
 
             project.model_owners.add(model_owner)
-        project.save()
         click.echo("  - added model owners: {} -> {}".format(project, project.model_owners.all()))
+
+        click.echo("** setting individual model owners. from: {} to: {}".format(project.model_owners, model_owners))
+        for forecast_model in project.models.all():
+            old_model_owner = forecast_model.owner
+            forecast_model.owner = project_owner
+            forecast_model.save()
+            click.echo("  - set model owner: {}: {} -> {}".format(forecast_model, old_model_owner, forecast_model.owner))
+
+        project.save()
 
     # done
     click.echo("fix_owners_app(): done")

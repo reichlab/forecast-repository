@@ -41,6 +41,20 @@
                     </td>
                 </tr>
                 <tr>
+                    <th>Model Owners:</th>
+                    <td>
+                        {% if project.model_owners.all %}
+                            {% for model_owner in project.model_owners.all %}
+                                {# this line's formatting keeps the comma(s) tight: #}
+                                <a href="{% url 'user-detail' model_owner.pk %}">
+                                    {{ model_owner.username }}</a>{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <small class="text-muted">(No model owners)</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
                     <th>Visibility</th>
                     <td>
                         {% if project.is_public %}
@@ -107,19 +121,6 @@
             {% endif %}
         </div>
     </div>
-
-
-    <h2>Model Owners</h2>
-
-    {% if project.model_owners.all %}
-        <ul>
-            {% for model_owner in project.model_owners.all %}
-                <li><a href="{% url 'user-detail' model_owner.pk %}">{{ model_owner.username }}</a></li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <small class="text-muted">(No model owners)</small>
-    {% endif %}
 
 
     <h2>Models ({{ project.models.all|length }})
