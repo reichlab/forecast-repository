@@ -52,7 +52,8 @@ def template_data(request, project_pk):
     # via https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
     metadata_dict = ProjectSerializer(project, context={'request': request}).data
     location_target_dict = project.get_location_target_dict()
-    return JsonResponse({'metadata': metadata_dict, 'data': location_target_dict})
+    return JsonResponse({'metadata': metadata_dict,
+                         'data': location_target_dict})
 
 
 @api_view(['GET'])
@@ -64,9 +65,10 @@ def forecast_data(request, forecast_pk):
     if not forecast.forecast_model.project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    location_target_dict = forecast.get_location_target_dict()
     metadata_dict = ForecastSerializer(forecast, context={'request': request}).data
-    return JsonResponse({'metadata': metadata_dict, 'data': location_target_dict})
+    location_target_dict = forecast.get_location_target_dict()
+    return JsonResponse({'metadata': metadata_dict,
+                         'data': location_target_dict})
 
 
 class UserList(generics.ListCreateAPIView):

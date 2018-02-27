@@ -127,15 +127,14 @@ class Project(ModelWithCDCData):
 
     def get_summary_counts(self):
         """
-        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
+        :return: a 2-tuple summarizing total counts in me: (num_models, num_forecasts)
         """
         from .forecast import Forecast  # avoid circular imports
         from .forecast_model import ForecastModel  # ""
 
 
         return ForecastModel.objects.filter(project=self).count(), \
-               Forecast.objects.filter(forecast_model__project=self).count(), \
-               ForecastData.objects.filter(forecast__forecast_model__project=self).count()
+               Forecast.objects.filter(forecast_model__project=self).count()
 
 
     def forecasts_for_timezero(self, timezero):
@@ -345,11 +344,7 @@ class Project(ModelWithCDCData):
         """
         :return: the first TimeZero in me that has a timezero_date matching timezero_date_str
         """
-        for time_zero in self.timezeros.all():
-            if time_zero.timezero_date == timezero_date_str:
-                return time_zero
-
-        return None
+        return self.timezeros.filter(timezero_date=timezero_date_str).first()
 
 
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django

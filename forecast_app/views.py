@@ -7,10 +7,10 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db import connection
 from django.forms import inlineformset_factory
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
-from django.urls import reverse
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
@@ -278,11 +278,34 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['ok_user_edit_project'] = ok_user_edit_project(self.request.user, project)
         context['ok_user_create_model'] = ok_user_create_model(self.request.user, project)
-        timezeros_to_num_forecasts = {
-            timezero: sum(map(lambda x: 1 if x else 0, project.forecasts_for_timezero(timezero)))
-            for timezero in project.timezeros.all()}
-        context['timezeros_to_num_forecasts'] = timezeros_to_num_forecasts
+        context['timezeros_to_num_forecasts'] = self.timezeros_to_num_forecasts(project)
         return context
+
+
+    @staticmethod
+    def timezeros_to_num_forecasts(project):
+        """
+        :return: a dict that maps project's TimeZeros to # Forecasts for each. note that we use direct SQL instead of
+            the ORM b/c the implicit ORM joins were very very slow
+        """
+        tz_to_num_forecasts = {}
+        sql = """
+            SELECT tz.id, count(f.id)
+            FROM {timezero_table_name} tz
+              LEFT JOIN {forecast_table_name} f ON tz.id = f.time_zero_id
+            WHERE tz.project_id = %s
+            GROUP BY tz.id
+            ORDER BY tz.timezero_date;
+        """.format(timezero_table_name=TimeZero._meta.db_table,
+                   forecast_table_name=Forecast._meta.db_table)
+        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [project.pk])
+            rows = cursor.fetchall()
+            for timezero_id, num_forecasts in rows:
+                timezero = TimeZero.objects.get(id=timezero_id)
+                tz_to_num_forecasts[timezero] = num_forecasts
+        return tz_to_num_forecasts
 
 
 def forecast_models_owned_by_user(user):
@@ -290,11 +313,7 @@ def forecast_models_owned_by_user(user):
     :param user: a User
     :return: searches all ForecastModels and returns those where the owner is user
     """
-    owned_models = []
-    for forecast_model in ForecastModel.objects.all():
-        if forecast_model.owner == user:
-            owned_models.append(forecast_model)
-    return owned_models
+    return ForecastModel.objects.filter(owner=user)
 
 
 def projects_and_roles_for_user(user):
@@ -338,10 +357,8 @@ def timezero_forecast_pairs_for_forecast_model(forecast_model):
     """
     :return: a list of 2-tuples of time_zero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
     """
-    timezero_forecast_pairs = []
-    for time_zero in forecast_model.project.timezeros.all().order_by('timezero_date'):
-        timezero_forecast_pairs.append((time_zero, forecast_model.forecast_for_time_zero(time_zero)))
-    return timezero_forecast_pairs
+    return [(time_zero, forecast_model.forecast_for_time_zero(time_zero))
+            for time_zero in forecast_model.project.timezeros.all().order_by('timezero_date')]
 
 
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
@@ -403,10 +420,10 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 
     detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
     detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
-    detail_data = detail_serializer.data
-    cdc_data = model_with_cdc_data.get_location_target_dict()
-    response = JsonResponse({'metadata': detail_data,
-                             'data': cdc_data})
+    metadata_dict = detail_serializer.data
+    location_target_dict = model_with_cdc_data.get_location_target_dict()
+    response = JsonResponse({'metadata': metadata_dict,
+                             'data': location_target_dict})
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
         .format(csv_filename=model_with_cdc_data.csv_filename)
     return response

@@ -13,35 +13,36 @@ from forecast_app.models import Project
 @click.command()
 @click.option('--print_details', is_flag=True, default=False)
 def print_project_info_app(print_details):
-    projects = Project.objects.all()
+    projects = sorted(Project.objects.all(), key=lambda p: p.name)
     click.echo("Users: {}".format(User.objects.all()))
 
     if len(projects) != 0:
-        print("Found {} projects: {}".format(len(projects), projects))
+        click.echo("Found {} projects: {}".format(len(projects), projects))
         for project in projects:
             print_project_info(project, print_details)
     else:
-        print("<No Projects>")
+        click.echo("<No Projects>")
 
 
 def print_project_info(project, print_details):
-    print('*', project, repr(project.name), repr(project.csv_filename), project.owner, project.model_owners.all())
+    click.echo("{} {!r} {} {}. {}".format(project, project.csv_filename, project.owner, project.model_owners.all(),
+                                          project.get_summary_counts()))
     if not print_details:
         return
 
-    print('** Targets')
+    click.echo('** Targets')
     for target in project.targets.all():
-        print('  ', target)
+        click.echo('  ', target)
 
-    print('** TimeZeros')
+    click.echo('** TimeZeros')
     for timezero in project.timezeros.all():
-        print('  ', timezero)
+        click.echo('  ', timezero)
 
-    print('** ForecastModels', project.models.all())
+    click.echo('** ForecastModels', project.models.all())
     for forecast_model in project.models.all():
-        print('***', forecast_model)
+        click.echo('***', forecast_model)
         for forecast in forecast_model.forecasts.order_by('time_zero'):
-            print('  ', forecast)
+            click.echo('  ', forecast)
 
 
 if __name__ == '__main__':

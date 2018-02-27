@@ -67,7 +67,7 @@ class ProjectAdmin(admin.ModelAdmin):
     readonly_fields = ('csv_filename',)
 
     list_display = ('name', 'owner', 'is_public', 'truncated_description', 'num_model_owners', 'num_models',
-                    'num_forecasts', 'num_rows')
+                    'num_forecasts')
 
     fields = ('owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict', 'model_owners',
               'csv_filename')
@@ -107,13 +107,6 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
     num_forecasts.short_description = 'forecasts'
-
-
-    def num_rows(self, project):
-        return "{:,}".format(project.get_summary_counts()[2])
-
-
-    num_rows.short_description = 'rows'
 
 
     def get_form(self, request, project=None, **kwargs):

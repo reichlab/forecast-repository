@@ -133,8 +133,4 @@ class ForecastModel(models.Model):
         """
         :return: the first Forecast in me corresponding to time_zero. returns None o/w. NB: tests for object equality
         """
-        for forecast in self.forecasts.all():
-            if forecast.time_zero == time_zero:
-                return forecast
-
-        return None
+        return self.forecasts.filter(time_zero=time_zero).first()
