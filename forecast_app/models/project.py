@@ -232,10 +232,10 @@ class Project(ModelWithCDCData):
         # lookup b/c get_target_bins() was slow. this has the added benefit of enabling us to easily override my
         # template if validation_template is passed
         if validation_template:
-            template_location_dicts = self.get_location_target_dict_for_cdc_csv_file(validation_template)
+            template_location_dicts = self.get_location_dicts_internal_format_for_cdc_csv_file(validation_template)
         else:
-            template_location_dicts = self.get_location_target_dict()
-        forecast_location_dicts = forecast.get_location_target_dict()
+            template_location_dicts = self.get_location_dicts_internal_format()
+        forecast_location_dicts = forecast.get_location_dicts_internal_format()
 
         template_name = validation_template.name if validation_template else self.csv_filename
         template_locations = list(template_location_dicts.keys())
@@ -304,7 +304,7 @@ class Project(ModelWithCDCData):
         """
         # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
         # lookup b/c get_target_bins() was slow
-        template_location_dicts = self.get_location_target_dict()
+        template_location_dicts = self.get_location_dicts_internal_format()
         template_locations = list(template_location_dicts.keys())
         if not template_locations:
             raise RuntimeError("Template has no locations. csv_filename={}".format(self.csv_filename))
@@ -319,7 +319,7 @@ class Project(ModelWithCDCData):
                 found_targets.add(template_target)
 
                 # note that we do not have to test for a missing point value:
-                # 'template_target_dicts[template_target]['point']' b/c get_location_target_dict() verifies a point
+                # 'template_target_dicts[template_target]['point']' b/c get_location_dicts_internal_format() verifies a point
                 # row exists, which is all we care about in templates.
 
                 # also note that we do not validate that template_bins sum to ~1.0 b/c specifying actual values in

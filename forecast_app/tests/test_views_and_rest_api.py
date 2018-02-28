@@ -321,7 +321,7 @@ class ViewsTestCase(TestCase):
         response_dict = json.loads(response.content)
 
         # check top-level keys
-        exp_keys = ['metadata', 'data']
+        exp_keys = ['metadata', 'locations']
         self.assertEqual(exp_keys, list(response_dict.keys()))
 
         # check metadata
@@ -330,9 +330,10 @@ class ViewsTestCase(TestCase):
         self.assertEqual(proj_detail_dict, response_dict['metadata'])
 
         # check data keys
-        exp_data_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(exp_data_keys, list(response_dict['data'].keys()))
+        exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
+                              'US National']
+        self.assertEqual(exp_location_names, [location['name'] for location in response_dict['locations']])
 
         # 'api-user-detail'
         # a rest_framework.response.Response:
@@ -358,7 +359,7 @@ class ViewsTestCase(TestCase):
         response_dict = json.loads(response.content)
 
         # check top-level keys
-        exp_keys = ['metadata', 'data']
+        exp_keys = ['metadata', 'locations']
         self.assertEqual(exp_keys, list(response_dict.keys()))
 
         # check metadata
@@ -368,6 +369,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(forecast_detail_dict, response_dict['metadata'])
 
         # check data keys
-        exp_data_keys = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(exp_data_keys, list(response_dict['data'].keys()))
+        exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
+                              'US National']
+        self.assertEqual(exp_location_names, [location['name'] for location in response_dict['locations']])

@@ -191,7 +191,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(0, len(forecast2.cdcdata_set.all()))
 
 
-    def test_get_location_target_dict_small_forecast(self):
+    def test_get_location_dicts_download_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
@@ -200,45 +200,53 @@ class ForecastTestCase(TestCase):
         forecast_model2 = ForecastModel.objects.create(project=project2)
         forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
                                                   time_zero)
-        # act_dict has tuples for bins, but loaded json has lists, so we do in-place conversion of tuples to lists
-        act_dict = forecast2.get_location_target_dict()
-        for location_name, location_dict in act_dict.items():
-            for target_name, target_dict in location_dict.items():
+
+        # act_list has tuples for bins, but loaded json has lists, so we do in-place conversion of tuples to lists
+        act_list = forecast2.get_location_dicts_download_format()
+        for location_dict in act_list:
+            for target_dict in location_dict['targets']:
                 target_dict['bins'] = [list(bin_list) for bin_list in target_dict['bins']]
 
-        with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-json.json', 'r') as fp:
-            exp_dict = json.load(fp)
-            self.assertEqual(exp_dict, act_dict)
+        with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-download.json', 'r') as fp:
+            exp_list = json.load(fp)['locations']  # ignore the file's 'metadata'
+            self.assertEqual(exp_list, act_list)
 
 
-    def test_get_location_target_dict_for_template_file(self):
+    def test_get_location_dicts_internal_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        template = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
-        forecast2 = forecast_model2.load_forecast(template, time_zero)
-        exp_dict = forecast2.get_location_target_dict()  # tested elsewhere
-        act_dict = ModelWithCDCData.get_location_target_dict_for_cdc_csv_file(template)
-        self.assertEqual(exp_dict, act_dict)
+        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                                  time_zero)
+        # act_location_dicts has tuples for bins, but loaded json has lists, so we do in-place conversion of tuples to lists
+        act_location_dicts = forecast2.get_location_dicts_internal_format()
+        for location_name, location_dict in act_location_dicts.items():
+            for target_name, target_dict in location_dict.items():
+                target_dict['bins'] = [list(bin_list) for bin_list in target_dict['bins']]
+
+        with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-location-dicts-internal.json', 'r') as fp:
+            exp_location_dicts = json.load(fp)
+            self.assertEqual(exp_location_dicts, act_location_dicts)
 
 
-    def test_get_location_target_dict(self):
-        act_dict = self.forecast.get_location_target_dict()
+    def test_get_location_dicts_internal_format(self):
+        act_location_dicts = self.forecast.get_location_dicts_internal_format()
 
-        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(exp_locations, list(act_dict.keys()))  # tests order
+        exp_location_dicts = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
+                              'US National']
+        self.assertEqual(exp_location_dicts, list(act_location_dicts.keys()))  # tests order
 
         # spot-check one location's targets
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
                        'Season peak week']
-        self.assertEqual(exp_targets, list(act_dict['US National'].keys()))  # tests order
+        self.assertEqual(exp_targets, list(act_location_dicts['US National'].keys()))  # tests order
 
         # spot-check a target
-        self.assertEqual(50.0012056690978, act_dict['US National']['Season onset']['point'])
+        self.assertEqual(50.0012056690978, act_location_dicts['US National']['Season onset']['point'])
 
         exp_bins = [
             (40.0, 41.0, 1.95984004521967e-05), (41.0, 42.0, 1.46988003391476e-05), (42.0, 43.0, 6.98193016109509e-06),
@@ -253,13 +261,27 @@ class ForecastTestCase(TestCase):
             (15.0, 16.0, 1.22490002826229e-07), (16.0, 17.0, 1.22490002826229e-07), (17.0, 18.0, 1.22490002826229e-07),
             (18.0, 19.0, 1.22490002826229e-07), (19.0, 20.0, 1.22490002826229e-07), (20.0, 21.0, 1.22490002826229e-07),
             (None, None, 1.22490002826229e-07)]
-        act_bins = act_dict['US National']['Season onset']['bins']
+        act_bins = act_location_dicts['US National']['Season onset']['bins']
         self.assertEqual(34, len(act_bins))
         self.assertEqual(exp_bins, act_bins)  # tests order
 
         # spot-check a few units
-        self.assertEqual('week', act_dict['US National']['Season onset']['unit'])
-        self.assertEqual('percent', act_dict['HHS Region 1']['1 wk ahead']['unit'])
+        self.assertEqual('week', act_location_dicts['US National']['Season onset']['unit'])
+        self.assertEqual('percent', act_location_dicts['HHS Region 1']['1 wk ahead']['unit'])
+
+
+    def test_get_location_dicts_internal_format_for_cdc_csv_file(self):
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        time_zero = TimeZero.objects.create(project=project2,
+                                            timezero_date=datetime.date.today(),
+                                            data_version_date=None)
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        template = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
+        forecast2 = forecast_model2.load_forecast(template, time_zero)
+        exp_location_dicts = forecast2.get_location_dicts_internal_format()  # tested elsewhere
+        act_location_dicts = ModelWithCDCData.get_location_dicts_internal_format_for_cdc_csv_file(template)
+        self.assertEqual(exp_location_dicts, act_location_dicts)
 
 
     def test_forecast_for_time_zero(self):

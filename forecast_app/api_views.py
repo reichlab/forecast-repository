@@ -48,12 +48,12 @@ def template_data(request, project_pk):
     # client side via something like:
     #   curl -H 'Accept: application/json; indent=4' http://127.0.0.p1:8000/api/project/1/template_data/
     # but when I tried this, returned a delimited string instead of JSON:
-    #   return Response(JSONRenderer().render(location_target_dict))
+    #   return Response(JSONRenderer().render(location_dicts))
     # via https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
     metadata_dict = ProjectSerializer(project, context={'request': request}).data
-    location_target_dict = project.get_location_target_dict()
+    location_dicts = project.get_location_dicts_download_format()
     return JsonResponse({'metadata': metadata_dict,
-                         'data': location_target_dict})
+                         'locations': location_dicts})
 
 
 @api_view(['GET'])
@@ -66,9 +66,9 @@ def forecast_data(request, forecast_pk):
         return HttpResponseForbidden()
 
     metadata_dict = ForecastSerializer(forecast, context={'request': request}).data
-    location_target_dict = forecast.get_location_target_dict()
+    location_dicts = forecast.get_location_dicts_download_format()
     return JsonResponse({'metadata': metadata_dict,
-                         'data': location_target_dict})
+                         'locations': location_dicts})
 
 
 class UserList(generics.ListCreateAPIView):

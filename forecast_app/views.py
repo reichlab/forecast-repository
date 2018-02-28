@@ -421,9 +421,9 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
     detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
     metadata_dict = detail_serializer.data
-    location_target_dict = model_with_cdc_data.get_location_target_dict()
+    locations = model_with_cdc_data.get_location_dicts_download_format()
     response = JsonResponse({'metadata': metadata_dict,
-                             'data': location_target_dict})
+                             'locations': locations})
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
         .format(csv_filename=model_with_cdc_data.csv_filename)
     return response

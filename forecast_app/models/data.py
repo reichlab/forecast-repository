@@ -197,10 +197,75 @@ class ModelWithCDCData(models.Model):
         return [(cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value) for cdc_data in cdc_data_results]
 
 
-    @staticmethod
-    def get_location_target_dict_for_cdc_csv_file(cdc_csv_file):
+    #
+    # ---- data download-related functions ----
+    #
+
+    def get_data_rows_for_location_dicts(self):
         """
-        Returns same as get_location_target_dict(), but is passed a template file (Path) to load from instead of using
+        :return: all my rows for use by get_location_dicts_*(). differs from get_data_rows(), which 1) uses the ORM
+            instead of SQL, and 2) does not ORDER BY.
+        """
+        # query notes:
+        # - ORDER BY: location and target make output alphabetical. it also ensures groupby() will work
+        # - row_type DESC ensures CDCData.POINT_ROW_TYPE comes before CDCData.BIN_ROW_TYPE - a requirement of below
+        # - id ASC ensures bins are ordered same as original csv file
+        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
+        sql = """
+            SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
+            FROM {cdcdata_table_name}
+            WHERE {model_name}_id = %s
+            ORDER BY location, target, row_type DESC, id ASC;
+        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
+                   model_name=self.__class__._meta.model_name)  # NB: sorted so groupby() will work
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [self.pk])
+            return cursor.fetchall()
+
+
+    def get_location_dicts_download_format(self):
+        """
+        :return: a list of dicts containing my data, suitable for JSON export of my data. each dict in the list is of
+            the form:
+
+        location_dict = {'name': location_name, 'targets': [target_dict1, target_dict2, ...]}
+
+        where:
+
+        target_dict1 = {'name': target_name, 'unit': target_unit, 'point': target_point, 'bins': target_bin_list}
+        target_bin_list = [[bin_start_incl1, bin_end_notincl1, value1],
+                           [bin_start_incl2, bin_end_notincl2, value2],
+                           ...
+                           ]
+
+        This method differs from get_location_dicts_internal_format*() methods in that this one is user-facing for downloads,
+        whereas the latter is used as a compact internal representation that saves having to query the database many
+        times.
+        """
+        rows = self.get_data_rows_for_location_dicts()
+        locations = []
+        for location, location_grouper in groupby(rows, key=lambda _: _[0]):
+            targets = []
+            for target, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
+                # NB: this assumes that the first row is always the CDCData.POINT_ROW_TYPE point value, thanks to
+                # ORDER BY, which is not true when, for example, a target has no point row. and since this method is
+                # called by Project.validate_template_data(), we need to check it here
+                point_row = next(target_grouper)
+                if point_row[2] != CDCData.POINT_ROW_TYPE:
+                    raise RuntimeError("First row was not the point row: {}".format(point_row))
+
+                targets.append({'name': target,
+                                'unit': point_row[3],
+                                'point': point_row[-1],
+                                'bins': [bin_list[-3:] for bin_list in target_grouper]})
+            locations.append({'name': location, 'targets': targets})
+        return locations
+
+
+    @staticmethod
+    def get_location_dicts_internal_format_for_cdc_csv_file(cdc_csv_file):
+        """
+        Returns same as get_location_dicts_internal_format(), but is passed a template file (Path) to load from instead of using
         my table's data.
         """
         with open(str(cdc_csv_file)) as cdc_csv_file_fp:
@@ -211,22 +276,22 @@ class ModelWithCDCData(models.Model):
             def key(row):
                 location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
                 # row_type: we want this order: CDCData.POINT_ROW_TYPE before CDCData.BIN_ROW_TYPE - this is for
-                # _get_location_target_dict_for_rows()
+                # _get_location_dicts_internal_format_for_rows()
                 return location, target, 0 if row_type == CDCData.POINT_ROW_TYPE else 1
 
 
             rows.sort(key=key)
 
-            return ModelWithCDCData._get_location_target_dict_for_rows(rows)
+            return ModelWithCDCData._get_location_dicts_internal_format_for_rows(rows)
 
 
-    def get_location_target_dict(self):
+    def get_location_dicts_internal_format(self):
         """
-        Returns all of my data as a dict. Suitable for serializing to JSON. Also useful as an in-memory cache, as an
-        alternative to more granular SQL queries - see get_locations() and get_target_*() methods above, which end up
-        having a lot of overhead when processing bins.
+        Returns all of my data as a dict. used as a compact internal representation (a temporary in-memory cache) that
+        saves having to query the database many times. This is an alternative to more granular SQL queries - see
+        get_locations() and get_target_*() methods above, which end up having a lot of overhead when processing bins.
 
-        :return: all my data in hierarchical format as a dict of the form:
+        :return: my data in hierarchical format as a dict of the form:
 
             {location1: target_dict_1, location2: target_dict_2, ...}
 
@@ -247,23 +312,12 @@ class ModelWithCDCData(models.Model):
         NB: For performance, instead of using data accessors like self.get_locations() and self.get_target_bins(), we
         load all rows into memory and then iterate over them there.
         """
-        # re: ORDER BY: location and target make output alphabetical. row_type DESC allows us to pull it out.
-        # id ASC ensures bins are ordered same as original csv file
-        sql = """
-            SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s
-            ORDER BY location, target, row_type DESC, id ASC;
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)  # NB: sorted so groupby() will work
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk])
-            rows = cursor.fetchall()
-            return ModelWithCDCData._get_location_target_dict_for_rows(rows)
+        rows = self.get_data_rows_for_location_dicts()
+        return ModelWithCDCData._get_location_dicts_internal_format_for_rows(rows)
 
 
     @staticmethod
-    def _get_location_target_dict_for_rows(rows):
+    def _get_location_dicts_internal_format_for_rows(rows):
         location_target_dict = {}
         for location, location_grouper in groupby(rows, key=lambda _: _[0]):
             target_dict = {}
