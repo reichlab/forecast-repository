@@ -269,13 +269,15 @@ class ViewsTestCase(TestCase):
             reverse('api-project-list'): self.OK_ALL,
             reverse('api-project-detail', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-template-detail', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-template-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-template-data', args=[self.public_project.pk]): self.OK_ALL,
-            reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,  # 5
+            reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-user-detail', args=[self.po_user.pk]): self.OK_ALL,
             reverse('api-user-detail', args=[self.mo_user.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,  # 10
+            reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,
             reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-data', args=[self.public_forecast.pk]): self.OK_ALL,
             reverse('api-forecast-data', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
@@ -313,6 +315,12 @@ class ViewsTestCase(TestCase):
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
                     'template_csv_file_name', 'template_data', 'model_owners', 'models', 'targets',
                     'timezeros']
+        self.assertEqual(exp_keys, list(response.data.keys()))
+
+        # 'api-template-detail'
+        # a rest_framework.response.Response:
+        response = self.client.get(reverse('api-template-detail', args=[self.public_project.pk]), format='json')
+        exp_keys = ['id', 'url', 'project', 'csv_filename', 'template_data']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-template-data'

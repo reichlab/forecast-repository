@@ -5,6 +5,8 @@
 {% block content %}
 
     <p class="lead">Project template for &ldquo;{{ project.name }}&rdquo;
+        <a href="{% url 'api-template-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
+
         {% if ok_user_edit_project and project.is_template_loaded %}
             {# show a button inside a modal dialog for deleting the template #}
 

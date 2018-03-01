@@ -8,7 +8,8 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
 from forecast_app.models import Project, ForecastModel, Forecast
-from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer
+from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
+    TemplateSerializer
 
 
 @api_view(['GET'])
@@ -27,6 +28,17 @@ class ProjectList(generics.ListAPIView):
 class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        project = self.get_object()
+        return project.is_user_allowed_to_view(self.request.user)
+
+
+class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = Project.objects.all()
+    serializer_class = TemplateSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
 
