@@ -313,8 +313,7 @@ class ViewsTestCase(TestCase):
         # a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                    'template_csv_file_name', 'template_data', 'model_owners', 'models', 'targets',
-                    'timezeros']
+                    'template', 'model_owners', 'models', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-template-detail'
