@@ -4,7 +4,9 @@
 
 {% block content %}
 
-    <p class="lead">Project: {{ project.name }}
+    <p class="lead">
+        {% include 'visibility_snippet.html' with project=project size="fa-sm" %}
+        Project: {{ project.name }}
         <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
         {% if ok_user_edit_project %}
             {# Edit Project: a simple link to an edit form #}

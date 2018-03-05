@@ -1,0 +1,5 @@
+{% if project.is_public %}
+    <i title="public" class="fas fa-lock-open {{ size }}"></i>
+{% else %}
+    <i title="private" class="fas fa-lock {{ size }}"></i>
+{% endif %}

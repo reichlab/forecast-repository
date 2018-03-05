@@ -38,7 +38,6 @@
                 <th>Project</th>
                 <th></th>  <!-- Logo -->
                 <th>Owner</th>
-                <th>Visibility</th>
                 <th>Description</th>
                 <th>Objects</th>
             </tr>
@@ -63,16 +62,11 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if project.is_public %}
-                            <span style="color:green">Public</span>
-                        {% else %}
-                            <span style="color:red">Private</span>
-                        {% endif %}
-                    </td>
-                    <td>
                         {{ project.description|linebreaksbr }}
                     </td>
                     <td class="text-muted">
+                        {% include 'visibility_snippet.html' with project=project %}
+                        <br>
                         {{ project.get_summary_counts.0|intcomma }} model{{ project.get_summary_counts.0|pluralize }},
                         {{ project.get_summary_counts.1|intcomma }} forecast{{ project.get_summary_counts.1|pluralize }}
                     </td>
