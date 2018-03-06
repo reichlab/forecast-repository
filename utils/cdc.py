@@ -26,7 +26,7 @@ CDC_CONFIG_DICT = {
 }
 
 
-def epi_week_filename_components(filename):
+def epi_week_filename_components_2016_2017_flu_contest(filename):
     """
     :param filename: something like 'EW1-KoTstable-2017-01-17.csv'
     :return: either None (if filename invalid) or a 3-tuple (if valid) that indicates if filename matches the CDC
@@ -53,9 +53,9 @@ def epi_week_filename_components(filename):
     return int(re_split[0]), re_split[1], datetime.date(int(re_split[2]), int(re_split[3]), int(re_split[4]))
 
 
-def ensemble_epi_week_filename_components(filename):
+def epi_week_filename_components_ensemble(filename):
     """
-    Similar to epi_week_filename_components(), but instead parses the format used by the
+    Similar to epi_week_filename_components_2016_2017_flu_contest(), but instead parses the format used by the
     https://github.com/FluSightNetwork/cdc-flusight-ensemble project. From README.md:
 
         Each forecast file must represent a single submission file, as would be submitted to the CDC challenge. Every

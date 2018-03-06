@@ -10,7 +10,7 @@ import django
 django.setup()
 
 from forecast_app.models import Project, TimeZero, ForecastModel, Target
-from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users
+from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users
 
 
 @click.command()

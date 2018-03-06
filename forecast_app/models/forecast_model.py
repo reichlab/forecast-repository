@@ -106,10 +106,11 @@ class ForecastModel(models.Model):
                 click.echo("s\t{}\t".format(cdc_csv_file.name))
                 continue
 
+            orig_time_zero = time_zero
             time_zero = self.project.time_zero_for_timezero_date(time_zero)
             if not time_zero:
-                raise RuntimeError("no time_zero found. cdc_csv_file={}, time_zero={}\nProject time_zeros={}"
-                                   .format(cdc_csv_file, time_zero, self.project.timezeros.all()))
+                click.echo("x (no time_zero found: {})\t{}\t".format(orig_time_zero, cdc_csv_file.name))
+                continue
 
             try:
                 if time_zero_to_template:

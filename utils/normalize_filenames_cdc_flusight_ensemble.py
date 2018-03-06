@@ -11,7 +11,7 @@ import pymmwr
 
 django.setup()
 
-from utils.cdc import ensemble_epi_week_filename_components
+from utils.cdc import epi_week_filename_components_ensemble
 from utils.utilities import cdc_csv_filename_components
 
 
@@ -19,7 +19,7 @@ from utils.utilities import cdc_csv_filename_components
 @click.argument('cdc_data_parent_dir', type=click.Path(file_okay=False, exists=True))
 def normalize_cdc_flusight_ensemble_filenames_app(cdc_data_parent_dir):
     """
-    Similar to normalize_cdc_flu_challenge_filenames_app.py, but instead uses ensemble_epi_week_filename_components()
+    Similar to normalize_filenames_2016_2017_flu_contest.py, but instead uses epi_week_filename_components_ensemble()
     to extract the components. todo xx merge!
 
     To get a time_zero and data_version_date from an ensemble data file (e.g., 'EW01-2011-CU_EAKFC_SEIRS.csv'):
@@ -45,9 +45,10 @@ def normalize_cdc_flusight_ensemble_filenames_app(cdc_data_parent_dir):
             if cdc_csv_filename_components(csv_file.name):  # skip *.cdc.csv files
                 continue
 
-            filename_components = ensemble_epi_week_filename_components(csv_file.name)
+            filename_components = epi_week_filename_components_ensemble(csv_file.name)
             if not filename_components:
-                raise RuntimeError("CSV file name did not match expected. csv_file={}".format(csv_file))
+                click.echo("Warning: skipping CSV file with invalid name. csv_file={}".format(csv_file))
+                continue
 
             # set time_zero and data_version_date
             ew_week_number, ew_year, team_name = filename_components  # ex: 1, 2011, 'CU_EAKFC_SEIRS'

@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 import django
 
-from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users
+from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users
 from utils.utilities import cdc_csv_components_from_data_dir
 
 

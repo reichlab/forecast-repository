@@ -41,6 +41,7 @@ def fix_owners_app():
     # change project and model owners
     for project_name, owner_name, model_owners in [
         ('CDC Flu challenge (2016-2017)', 'nick', ('cornell',)),
+        ('2017-2018 CDC Flu contest', 'nick', ('cornell',)),
         ('Impetus Province Forecasts', 'nick', ('nectec', 'cornell',)),
         ('CDC FluSight ensemble (2017-2018)', 'nick', ('cornell',))]:
         click.echo("* project: '{}', '{}', {}".format(project_name, owner_name, model_owners))

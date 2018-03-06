@@ -10,7 +10,7 @@ import pymmwr
 
 django.setup()
 
-from utils.cdc import epi_week_filename_components
+from utils.cdc import epi_week_filename_components_2016_2017_flu_contest
 from utils.utilities import cdc_csv_filename_components, SEASON_START_EW_NUMBER
 
 
@@ -19,7 +19,7 @@ from utils.utilities import cdc_csv_filename_components, SEASON_START_EW_NUMBER
 def normalize_cdc_flu_challenge_filenames_app(cdc_data_parent_dir):
     """
     Accepts an input directory that contains subdirectories of files using the CDC file name convention as documented in
-    epi_week_filename_components(), i.e.,
+    epi_week_filename_components_2016_2017_flu_contest(), i.e.,
 
         'EW1-KoTstable-2017-01-17.csv'  # ew_week_number, team_name, submission_datetime
 
@@ -49,7 +49,7 @@ def normalize_cdc_flu_challenge_filenames_app(cdc_data_parent_dir):
             if cdc_csv_filename_components(csv_file.name):  # skip *.cdc.csv files
                 continue
 
-            filename_components = epi_week_filename_components(csv_file.name)
+            filename_components = epi_week_filename_components_2016_2017_flu_contest(csv_file.name)
             if not filename_components:
                 raise RuntimeError("CSV file name did not match expected. csv_file={}".format(csv_file))
 

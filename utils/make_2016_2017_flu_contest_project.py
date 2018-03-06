@@ -20,18 +20,18 @@ from forecast_app.models import Project, Target, TimeZero, ForecastModel
 
 @click.command()
 @click.argument('kot_data_dir', type=click.Path(file_okay=False, exists=True))
-def make_cdc_flu_challenge_project_app(kot_data_dir):
+def make_2016_2017_flu_contest_project_app(kot_data_dir):
     """
     Deletes and creates a Project, along with one group, and two classes of users. Then loads models from the CDC Flu
     challenge project.
 
     :param: kot_data_dir: data directory should be a cloned version of the following repo, which has then been
-    normalized via normalize_cdc_flu_challenge_filenames_app.py :
+    normalized via normalize_filenames_2016_2017_flu_contest.py :
     https://github.com/matthewcornell/split_kot_models_from_submissions/tree/master/ensemble
 
     :param: kot_data_dir: a directory cloned from
         https://github.com/matthewcornell/split_kot_models_from_submissions , which has then been normalized via
-        normalize_cdc_flu_challenge_filenames_app.py .
+        normalize_filenames_2016_2017_flu_contest.py .
     """
     start_time = timeit.default_timer()
     project_name = 'CDC Flu challenge (2016-2017)'
@@ -202,4 +202,4 @@ def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
 
 
 if __name__ == '__main__':
-    make_cdc_flu_challenge_project_app()
+    make_2016_2017_flu_contest_project_app()

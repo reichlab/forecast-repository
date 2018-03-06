@@ -15,7 +15,7 @@ django.setup()
 
 from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components, season_start_year_for_date
 from forecast_app.models import Project, ForecastModel, TimeZero
-from utils.make_cdc_flu_challenge_project import get_or_create_super_po_mo_users, create_targets
+from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_targets
 from utils.cdc import CDC_CONFIG_DICT
 
 
@@ -36,17 +36,27 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
 
     :param: component_models_dir: a directory cloned from
         https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models , which
-        has then been normalized via normalize_cdc_flusight_ensemble_filenames_app.py .
+        has then been normalized via normalize_filenames_cdc_flusight_ensemble.py .
     """
+    project_name = 'CDC FluSight ensemble (2017-2018)'
+    project_description = "Guidelines and forecasts for a collaborative U.S. influenza forecasting project. " \
+                          "http://flusightnetwork.io/"
+    home_url='https://github.com/FluSightNetwork/cdc-flusight-ensemble'
+    core_data='https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
+    _make_cdc_flusight_project(component_models_dir, make_project, load_data,
+                               project_name, project_description, home_url, None, core_data)
+
+
+def _make_cdc_flusight_project(component_models_dir, make_project, load_data,
+                               project_name, project_description, home_url, logo_url, core_data):
     start_time = timeit.default_timer()
     component_models_dir = Path(component_models_dir)
     model_dirs_to_load = get_model_dirs_to_load(component_models_dir)
-    click.echo("* make_cdc_flusight_ensemble_project_app(): component_models_dir={}, make_project={}, load_data={}"
-               "\n\t{} model_dirs_to_load={}"
-               .format(component_models_dir, make_project, load_data, len(model_dirs_to_load),
+    click.echo("* _make_cdc_flusight_project(): component_models_dir={}, make_project={}, load_data={}, project_name={}"
+               "\n\t({}) model_dirs_to_load={}"
+               .format(component_models_dir, make_project, load_data, project_name, len(model_dirs_to_load),
                        [d.name for d in model_dirs_to_load]))
 
-    project_name = 'CDC FluSight ensemble (2017-2018)'
     project = Project.objects.filter(name=project_name).first()  # None if doesn't exist
     template_52 = Path('forecast_app/tests/2016-2017_submission_template.csv')  # todo xx move into repo
     template_53 = Path('forecast_app/tests/2016-2017_submission_template-plus-bin-53.csv')  # ""
@@ -61,10 +71,10 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
             owner=po_user,
             is_public=True,
             name=project_name,
-            description="Guidelines and forecasts for a collaborative U.S. influenza forecasting project. "
-                        "http://flusightnetwork.io/",
-            home_url='https://github.com/FluSightNetwork/cdc-flusight-ensemble',
-            core_data='https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models',
+            description=project_description,
+            home_url=home_url,
+            logo_url=logo_url,
+            core_data=core_data,
             config_dict=CDC_CONFIG_DICT)
         project.model_owners.add(mo_user)
         project.save()
@@ -80,20 +90,21 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         # because projects can only have one template, we arbitrarily choose the former. HOWEVER, this means future
         # forecast validation will fail if it's for a year with 53 days. for reference, we use
         # pymmwr.mmwr_weeks_in_year() determine the number of weeks in a year
-        click.echo("  loading template")
+        click.echo("- loading template")
         project.load_template(template_52)
 
         targets = create_targets(project)
-        click.echo("  created {} Targets: {}".format(len(targets), targets))
+        click.echo("- created {} Targets: {}".format(len(targets), targets))
 
         # create TimeZeros. we use an arbitrary model's *.cdc.csv files to get them (all models should have same ones,
         # which is checked during forecast validation later)
+        click.echo("* Creating TimeZeros")
         time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
-        click.echo("  created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
+        click.echo("- created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
 
         click.echo("* Creating models")
         models = make_cdc_flusight_ensemble_models(project, model_dirs_to_load, po_user)
-        click.echo("  created {} model(s): {}".format(len(models), models))
+        click.echo("- created {} model(s): {}".format(len(models), models))
     elif not project:  # not make_project, but couldn't find existing
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
@@ -101,10 +112,11 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         click.echo("* Loading forecasts")
         model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load,
                                                                        template_52, template_53)
-        click.echo("  loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
+        click.echo("- Loading forecasts: loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     # done
     click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
+    return project if make_project else None
 
 
 def get_model_dirs_to_load(component_models_dir):
@@ -128,12 +140,25 @@ def first_subdirectory(directory):
     return None
 
 
+def is_cdc_file_ew43_through_ew18(cdc_csv_file):
+    # only accept EW43 through EW18 per: "Following CDC guidelines from 2017/2018 season, using scores from
+    # files from each season labeled EW43 through EW18 (i.e. files outside that range will not be considered)"
+    time_zero, _, _ = cdc_csv_filename_components(cdc_csv_file.name)
+    ywd_mmwr_dict = pymmwr.date_to_mmwr_week(time_zero)
+    mmwr_week = ywd_mmwr_dict['week']
+    return (mmwr_week <= 18) or (mmwr_week >= 43)
+
+
 def create_timezeros(project, model_dir):
     """
     Create TimeZeros for project based on model_dir. Returns a list of them.
     """
     time_zeros = []
-    for _, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
+    for cdc_csv_file, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
+        if not is_cdc_file_ew43_through_ew18(cdc_csv_file):
+            click.echo("s\t{}\t".format(cdc_csv_file.name))  # code for 'skip' - from load_forecasts_from_dir()
+            continue
+
         time_zeros.append(TimeZero.objects.create(project=project,
                                                   timezero_date=time_zero,
                                                   data_version_date=data_version_date))
@@ -207,15 +232,6 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
             return {52: template_52, 53: template_53}[pymmwr.mmwr_weeks_in_year(season_start_year)]
 
 
-        def is_load_file(cdc_csv_file):
-            # only accept EW43 through EW18 per: "Following CDC guidelines from 2017/2018 season, using scores from
-            # files from each season labeled EW43 through EW18 (i.e. files outside that range will not be considered)"
-            time_zero, _, _ = cdc_csv_filename_components(cdc_csv_file.name)
-            ywd_mmwr_dict = pymmwr.date_to_mmwr_week(time_zero)
-            mmwr_week = ywd_mmwr_dict['week']
-            return (mmwr_week <= 18) or (mmwr_week >= 43)
-
-
         def forecast_bin_map(forecast_bin):
             # handle the cases of 52,1 and 53,1 -> changing them to 52,53 and 53,54 respectively
             # (52.0, 1.0, 0.0881763527054108)
@@ -228,7 +244,7 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
         forecasts = forecast_model.load_forecasts_from_dir(
             model_dir,
             time_zero_to_template=time_zero_to_template,
-            is_load_file=is_load_file,
+            is_load_file=is_cdc_file_ew43_through_ew18,
             forecast_bin_map=forecast_bin_map)
         model_name_to_forecasts[model_name].extend(forecasts)
 

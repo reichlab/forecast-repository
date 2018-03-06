@@ -7,7 +7,7 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
-from utils.cdc import epi_week_filename_components, ensemble_epi_week_filename_components
+from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
 from utils.mean_absolute_error import mean_absolute_error
 from utils.utilities import cdc_csv_filename_components, is_date_in_season, season_start_year_for_date
 
@@ -62,16 +62,16 @@ class UtilitiesTestCase(TestCase):
             Path('forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), time_zero)
 
 
-    def test_epi_week_filename_components(self):
+    def test_epi_week_filename_components_2016_2017_flu_contest(self):
         filename_components_tuples = (('EW1-KoTstable-2017-01-17.csv', (1, 'KoTstable', datetime.date(2017, 1, 17))),
                                       ('-KoTstable-2017-01-17.csv', None),
                                       ('EW1--2017-01-17.csv', None),
                                       ('EW1-KoTstable-2017-01-17.txt', None))
         for filename, components in filename_components_tuples:
-            self.assertEqual(components, epi_week_filename_components(filename))
+            self.assertEqual(components, epi_week_filename_components_2016_2017_flu_contest(filename))
 
 
-    def test_ensemble_epi_week_filename_components(self):
+    def test_epi_week_filename_components_ensemble(self):
         filename_components_tuples = (('EW01-2011-CU_EAKFC_SEIRS.csv', (1, 2011, 'CU_EAKFC_SEIRS')),
                                       ('EW01-2011-CUBMA.csv', (1, 2011, 'CUBMA')),
                                       ('-2011-CUBMA.csv', None),
@@ -80,7 +80,7 @@ class UtilitiesTestCase(TestCase):
                                       ('EW01-2011.csv', None),
                                       ('EW01-2011-CUBMA.txt', None))
         for filename, components in filename_components_tuples:
-            self.assertEqual(components, ensemble_epi_week_filename_components(filename))
+            self.assertEqual(components, epi_week_filename_components_ensemble(filename))
 
 
     def test_name_components_from_cdc_csv_filename(self):
