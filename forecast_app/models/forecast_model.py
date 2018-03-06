@@ -90,7 +90,7 @@ class ForecastModel(models.Model):
     def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, forecast_bin_map=None):
         """
         Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
-        Returns a list of them. Skips files that cause load_forecast() to raise a RuntimeError.
+        Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.
 
         :param data_dir: Path of the directory that contains cdc csv files
         :param time_zero_to_template: a function of one arg (the file's time_zero) that's called to get the
@@ -103,13 +103,17 @@ class ForecastModel(models.Model):
         forecasts = []
         for cdc_csv_file, time_zero, _, _ in cdc_csv_components_from_data_dir(data_dir):
             if is_load_file and not is_load_file(cdc_csv_file):
-                click.echo("s\t{}\t".format(cdc_csv_file.name))
+                click.echo("s (!is_load_file)\t{}\t".format(cdc_csv_file.name))
                 continue
 
-            orig_time_zero = time_zero
             time_zero = self.project.time_zero_for_timezero_date(time_zero)
             if not time_zero:
-                click.echo("x (no time_zero found: {})\t{}\t".format(orig_time_zero, cdc_csv_file.name))
+                click.echo("x (no TimeZero found)\t{}\t".format(cdc_csv_file.name))
+                continue
+
+            found_forecast_for_time_zero = self.forecast_for_time_zero(time_zero)
+            if found_forecast_for_time_zero:
+                click.echo("s (found forecast)\t{}\t".format(cdc_csv_file.name))
                 continue
 
             try:

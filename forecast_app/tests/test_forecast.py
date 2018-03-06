@@ -1,5 +1,7 @@
 import datetime
 import json
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -79,10 +81,27 @@ class ForecastTestCase(TestCase):
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 30),  # 20161030-KoTstable-20161114.cdc.csv
                                 data_version_date=None)
+        TimeZero.objects.create(project=project2,
+                                timezero_date=datetime.date(2016, 11, 6),  # 20161106-KoTstable-20161121.cdc.csv
+                                data_version_date=None)
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecasts = forecast_model2.load_forecasts_from_dir(Path('forecast_app/tests/load_forecasts'))
-        self.assertEqual(2, len(forecasts))
-        self.assertEqual(2, len(forecast_model2.forecasts.all()))
+
+        # copy the two files from 'forecast_app/tests/load_forecasts' to a temp dir, run the loader, and then copy a
+        # third file over to test that it skips already-loaded ones
+        with tempfile.TemporaryDirectory() as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            test_file_dir = Path('forecast_app/tests/load_forecasts')
+            shutil.copy(str(test_file_dir / '20161023-KoTstable-20161109.cdc.csv'), str(temp_dir))
+            shutil.copy(str(test_file_dir / '20161030-KoTstable-20161114.cdc.csv'), str(temp_dir))
+
+            forecasts = forecast_model2.load_forecasts_from_dir(temp_dir)
+            self.assertEqual(2, len(forecasts))
+            self.assertEqual(2, len(forecast_model2.forecasts.all()))
+
+            # copy third file and test only new loaded
+            shutil.copy(str(test_file_dir / 'third-file/20161106-KoTstable-20161121.cdc.csv'), str(temp_dir))
+            forecasts = forecast_model2.load_forecasts_from_dir(temp_dir)
+            self.assertEqual(1, len(forecasts))
 
 
     def test_forecast_data_validation(self):

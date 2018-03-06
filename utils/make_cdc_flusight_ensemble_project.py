@@ -57,6 +57,7 @@ def _make_cdc_flusight_project(component_models_dir, make_project, load_data,
                .format(component_models_dir, make_project, load_data, project_name, len(model_dirs_to_load),
                        [d.name for d in model_dirs_to_load]))
 
+    # create the project if necessary
     project = Project.objects.filter(name=project_name).first()  # None if doesn't exist
     template_52 = Path('forecast_app/tests/2016-2017_submission_template.csv')  # todo xx move into repo
     template_53 = Path('forecast_app/tests/2016-2017_submission_template-plus-bin-53.csv')  # ""
@@ -96,18 +97,20 @@ def _make_cdc_flusight_project(component_models_dir, make_project, load_data,
         targets = create_targets(project)
         click.echo("- created {} Targets: {}".format(len(targets), targets))
 
-        # create TimeZeros. we use an arbitrary model's *.cdc.csv files to get them (all models should have same ones,
-        # which is checked during forecast validation later)
-        click.echo("* Creating TimeZeros")
-        time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
-        click.echo("- created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
-
         click.echo("* Creating models")
         models = make_cdc_flusight_ensemble_models(project, model_dirs_to_load, po_user)
         click.echo("- created {} model(s): {}".format(len(models), models))
     elif not project:  # not make_project, but couldn't find existing
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
+    # create TimeZeros. we use an arbitrary model's *.cdc.csv files to get them (all models should have same ones,
+    # which is checked during forecast validation later). NB: we skip existing TimeZeros in case we are loading new
+    # forecasts
+    click.echo("* Creating TimeZeros")
+    time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
+    click.echo("- created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
+
+    # load data if necessary
     if load_data:
         click.echo("* Loading forecasts")
         model_name_to_forecasts = load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load,
@@ -156,7 +159,13 @@ def create_timezeros(project, model_dir):
     time_zeros = []
     for cdc_csv_file, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
         if not is_cdc_file_ew43_through_ew18(cdc_csv_file):
-            click.echo("s\t{}\t".format(cdc_csv_file.name))  # code for 'skip' - from load_forecasts_from_dir()
+            click.echo("s (not in range)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+            continue
+
+        # NB: we skip existing TimeZeros in case we are loading new forecasts
+        found_time_zero = project.time_zero_for_timezero_date(time_zero)
+        if found_time_zero:
+            click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
             continue
 
         time_zeros.append(TimeZero.objects.create(project=project,
