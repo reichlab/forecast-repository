@@ -36,6 +36,7 @@ $ pipenv install djangorestframework
 $ pipenv install Pillow
 $ pipenv install pymmwr
 $ pipenv install pyyaml
+$ pipenv install djangorestframework-csv
 ```
 
 

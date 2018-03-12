@@ -426,7 +426,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 
     return csv_response_for_model_with_cdc_data(model_with_cdc_data, is_attachment=True) \
         if request.POST['format'] == 'csv' \
-        else json_response_for_model_with_cdc_data(request, model_with_cdc_data, is_attachment=True)
+        else json_response_for_model_with_cdc_data(request, model_with_cdc_data)
 
 
 def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):

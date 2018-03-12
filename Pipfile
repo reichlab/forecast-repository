@@ -20,6 +20,7 @@ httpie = "*"
 pillow = "*"
 pymmwr = "*"
 pyyaml = "*"
+djangorestframework-csv = "*"
 
 
 [dev-packages]

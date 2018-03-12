@@ -4,10 +4,12 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from rest_framework import generics
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, renderer_classes
 from rest_framework.generics import get_object_or_404
+from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
@@ -50,6 +52,7 @@ class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
 
 @api_view(['GET'])
+@renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
 def template_data(request, project_pk):
     """
     :return: the Project's template data as JSON. note that the actual data is wrapped by metadata
@@ -58,10 +61,18 @@ def template_data(request, project_pk):
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    return json_response_for_model_with_cdc_data(request, project)
+    # dispatch based on requested format. I tried a number of things to get DRF to pass a 'format' param, but didn't
+    # succeed. What worked was to install the https://github.com/mjumbewu/django-rest-framework-csv custom CSV renderer
+    # per http://www.django-rest-framework.org/api-guide/renderers/#csv , and then decorate these two view-based
+    # functions
+    if ('format' in request.query_params) and (request.query_params['format'] == 'csv'):
+        return csv_response_for_model_with_cdc_data(project)
+    else:
+        return json_response_for_model_with_cdc_data(request, project)
 
 
 @api_view(['GET'])
+@renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
 def forecast_data(request, forecast_pk):
     """
     :return: the Project's template data as JSON. note that the actual data is wrapped by metadata
@@ -73,7 +84,7 @@ def forecast_data(request, forecast_pk):
     return json_response_for_model_with_cdc_data(request, forecast)
 
 
-def json_response_for_model_with_cdc_data(request, model_with_cdc_data, is_attachment=False):
+def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
     """
     :param is_attachment: controls whether the response's 'Content-Disposition' is set so that the response is an
         attachment
@@ -94,21 +105,19 @@ def json_response_for_model_with_cdc_data(request, model_with_cdc_data, is_attac
     location_dicts = model_with_cdc_data.get_location_dicts_download_format()
     response = JsonResponse({'metadata': metadata_dict,
                              'locations': location_dicts})  # defaults to 'content_type' 'application/json'
-    if is_attachment:
-        response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
-            .format(csv_filename=model_with_cdc_data.csv_filename)
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
+        .format(csv_filename=model_with_cdc_data.csv_filename)
     return response
 
 
-def csv_response_for_model_with_cdc_data(model_with_cdc_data, is_attachment=False):
+def csv_response_for_model_with_cdc_data(model_with_cdc_data):
     """
     Similar to json_response_for_model_with_cdc_data(), but returns a response with model_with_cdc_data's data formatted
     as CSV.
     """
     response = HttpResponse(content_type='text/csv')
-    if is_attachment:
-        response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
-            .format(csv_filename=model_with_cdc_data.csv_filename)
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
+        .format(csv_filename=model_with_cdc_data.csv_filename)
 
     writer = csv.writer(response)
     for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):
