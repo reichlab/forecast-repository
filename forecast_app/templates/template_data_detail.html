@@ -49,9 +49,20 @@
     {% if project.is_template_loaded %}
         {% include 'csv_data_snippet.html' with model_with_cdc_data=project %}
 
-        <form class="form-inline" method="POST" action="{% url 'download-template-json' project.pk %}">
+        {# show the file download form with a button dropdown for the download formats #}
+        <form id="download_form" class="form-inline" method="POST" action="{% url 'download-template' project.pk %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Download as JSON file</button>
+            <input id="download_format" type="text" name="format" value="csv" hidden>
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false">Download <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a onclick="$('#download_format').val('csv'); $('#download_form').submit()">CSV</a></li>
+                    <li><a onclick="$('#download_format').val('json'); $('#download_form').submit()">JSON</a></li>
+                </ul>
+            </div>
         </form>
     {% else %}
         <h2>Preview of {{ project.get_num_rows }} rows</h2>

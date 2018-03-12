@@ -119,8 +119,8 @@ class ViewsTestCase(TestCase):
             reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('template-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('template-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('download-template-json', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('download-template-json', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('download-template', args=[str(self.public_project.pk)]): self.BAD_REQ_400_ALL,
+            reverse('download-template', args=[str(self.private_project.pk)]): self.ONLY_PO_MO_400,
             reverse('delete-template', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
             reverse('delete-template', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
             reverse('upload-template', args=[str(self.public_project.pk)]): self.ONLY_PO,
@@ -130,8 +130,8 @@ class ViewsTestCase(TestCase):
             reverse('user-detail', args=[str(self.po_user.pk)]): self.OK_ALL,
             reverse('forecast-detail', args=[str(self.public_forecast.pk)]): self.OK_ALL,
             reverse('forecast-detail', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
-            reverse('download-forecast-json', args=[str(self.public_forecast.pk)]): self.OK_ALL,
-            reverse('download-forecast-json', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
+            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
+            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
             reverse('delete-forecast', args=[str(self.public_forecast.pk)]): self.ONLY_PO_MO_302,
             reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
             reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
@@ -155,6 +155,8 @@ class ViewsTestCase(TestCase):
         # NB: re: 'forecast-sparkline' URIs: 1) BAD_REQ_400 is expected b/c we don't pass the correct query params.
         # however, 400 does indicate that the code passed the authorization portion. 2) the 'data' arg is only for the
         # two 'forecast-sparkline' cases, but it doesn't hurt to pass it for all cases, so we do b/c it's simpler :-)
+        # Similarly, 'download-template' and 'download-forecast' also return BAD_REQ_400 b/c they expect a POST
+        # with a 'format' parameter.
         for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
             for user, exp_status_code in user_exp_status_code_list:
                 self.client.logout()  # AnonymousUser

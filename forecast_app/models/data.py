@@ -133,13 +133,17 @@ class ModelWithCDCData(models.Model):
         return rows
 
 
-    def get_data_rows(self):
+    def get_data_rows(self, is_order_by_pk=None):
         """
         Returns all of my data as a a list of rows, excluding any PKs and FKs columns.
+
+        :param is_order_by_pk: flag that controls whether the result is ordered by pk or not. default is no ordering
+            (which is faster than ordering)
         """
+        query_set = self.cdcdata_set.all().order_by('id') if is_order_by_pk else self.cdcdata_set.all()
         return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
                  cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)
-                for cdc_data in (self.cdcdata_set.all())]
+                for cdc_data in query_set]
 
 
     def get_num_rows(self):

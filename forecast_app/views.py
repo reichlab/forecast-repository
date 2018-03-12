@@ -1,3 +1,4 @@
+import csv
 import os
 from pathlib import Path
 
@@ -393,14 +394,15 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 # ---- download-related functions ----
 #
 
-def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
+def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
     """
-    Returns a response containing a JSON file for a ModelWithCDCData's (Project or Forecast) data.
+    Returns a response containing a CSV or JSON file for a ModelWithCDCData's (Project or Forecast) data.
 
+    :param request: must be a POST with a 'format' key that's either 'csv' or 'json' - see the calling forms
     :param model_with_cdc_data_pk: pk of either a Project or Forecast - disambiguated by kwargs['type']
     :param kwargs: has a single 'type' key that's either 'project' or 'forecast', which determines what
         model_with_cdc_data_pk refers to
-    :return: response for the JSON version of the passed ModelWithCDCData's data
+    :return: response for the CSV or JSON format of the passed ModelWithCDCData's data
     """
     is_project = kwargs['type'] == 'project'
     if is_project:
@@ -415,17 +417,33 @@ def download_json_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
+    # validate download format
+    if ('format' not in request.POST) or (request.POST['format'] not in ['csv', 'json']):
+        return HttpResponseBadRequest()
+
+    # set the HttpResponse based on download type
+    if request.POST['format'] == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
+            .format(csv_filename=model_with_cdc_data.csv_filename)
+
+        writer = csv.writer(response)
+        for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):
+            writer.writerow(row)
+
+    else:  # json
+        from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
 
 
-    detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
-    detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
-    metadata_dict = detail_serializer.data
-    locations = model_with_cdc_data.get_location_dicts_download_format()
-    response = JsonResponse({'metadata': metadata_dict,
-                             'locations': locations})
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
-        .format(csv_filename=model_with_cdc_data.csv_filename)
+        detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
+        detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
+        metadata_dict = detail_serializer.data
+        locations = model_with_cdc_data.get_location_dicts_download_format()
+        response = JsonResponse({'metadata': metadata_dict,
+                                 'locations': locations})  # defaults to 'content_type' 'application/json'
+        response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
+            .format(csv_filename=model_with_cdc_data.csv_filename)
+
     return response
 
 
