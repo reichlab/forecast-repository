@@ -424,8 +424,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     from forecast_app.api_views import csv_response_for_model_with_cdc_data, json_response_for_model_with_cdc_data
 
 
-    return csv_response_for_model_with_cdc_data(model_with_cdc_data, is_attachment=True) \
-        if request.POST['format'] == 'csv' \
+    return csv_response_for_model_with_cdc_data(model_with_cdc_data) if request.POST['format'] == 'csv' \
         else json_response_for_model_with_cdc_data(request, model_with_cdc_data)
 
 

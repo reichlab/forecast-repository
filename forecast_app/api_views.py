@@ -86,8 +86,6 @@ def forecast_data(request, forecast_pk):
 
 def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
     """
-    :param is_attachment: controls whether the response's 'Content-Disposition' is set so that the response is an
-        attachment
     :return: a JsonResponse for model_with_cdc_data
     """
     # note: I tried to use a rest_framework.response.Response, which is supposed to support pretty printing on the
