@@ -1,4 +1,3 @@
-import csv
 import os
 from pathlib import Path
 
@@ -10,7 +9,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import connection
 from django.forms import inlineformset_factory
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
@@ -421,30 +420,13 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     if ('format' not in request.POST) or (request.POST['format'] not in ['csv', 'json']):
         return HttpResponseBadRequest()
 
-    # set the HttpResponse based on download type
-    if request.POST['format'] == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
-            .format(csv_filename=model_with_cdc_data.csv_filename)
-
-        writer = csv.writer(response)
-        for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):
-            writer.writerow(row)
-
-    else:  # json
-        from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
+    # set the HttpResponse based on download type. avoid circular imports:
+    from forecast_app.api_views import csv_response_for_model_with_cdc_data, json_response_for_model_with_cdc_data
 
 
-        detail_serializer_class = ProjectSerializer if is_project else ForecastSerializer
-        detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
-        metadata_dict = detail_serializer.data
-        locations = model_with_cdc_data.get_location_dicts_download_format()
-        response = JsonResponse({'metadata': metadata_dict,
-                                 'locations': locations})  # defaults to 'content_type' 'application/json'
-        response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
-            .format(csv_filename=model_with_cdc_data.csv_filename)
-
-    return response
+    return csv_response_for_model_with_cdc_data(model_with_cdc_data, is_attachment=True) \
+        if request.POST['format'] == 'csv' \
+        else json_response_for_model_with_cdc_data(request, model_with_cdc_data, is_attachment=True)
 
 
 def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
