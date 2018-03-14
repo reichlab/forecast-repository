@@ -382,3 +382,41 @@ class ViewsTestCase(TestCase):
                               'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
                               'US National']
         self.assertEqual(exp_location_names, [location['name'] for location in response_dict['locations']])
+
+
+    def test_data_download_formats(self):
+        """
+        Test template_data() and forecast_data().
+        """
+        # template data as CSV. a django.http.response.HttpResponse:
+        response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]),
+                                   data={'format': 'csv'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "text/csv")
+        self.assertEqual(len(response.content.decode("utf-8").split('\r\n')), 8020)
+        # self.assertEqual(len(response.content), 478511)
+
+        # template data as JSON. a django.http.response.JsonResponse:
+        response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]),
+                                   data={'format': 'json'})
+        response_dict = json.loads(response.content)  # will fail if not JSON. following are little sanity-checks
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "application/json")
+        self.assertEqual(list(response_dict), ['metadata', 'locations'])
+        self.assertEqual(len(response_dict['locations']), 11)
+
+        # forecast data as CSV. a django.http.response.HttpResponse:
+        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
+                                   data={'format': 'csv'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "text/csv")
+        self.assertEqual(len(response.content), 450895)
+
+        # forecast data as JSON. a django.http.response.JsonResponse:
+        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
+                                   data={'format': 'json'})
+        response_dict = json.loads(response.content)  # will fail if not JSON
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "application/json")
+        self.assertEqual(list(response_dict), ['metadata', 'locations'])
+        self.assertEqual(len(response_dict['locations']), 11)
