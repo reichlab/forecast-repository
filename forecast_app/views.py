@@ -579,7 +579,6 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                       context={'title': "No file selected to upload.",
                                'message': "Please go back and select one."})
 
-    # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
     data_file = request.FILES['data_file']  # InMemoryUploadedFile
     file_name = data_file.name
 
@@ -593,7 +592,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "button.".format(time_zero.timezero_date, file_name)})
 
     data = data_file.read()
-    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
+    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile!!
     tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
     try:
         forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)

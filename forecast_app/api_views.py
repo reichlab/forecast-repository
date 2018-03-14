@@ -81,7 +81,11 @@ def forecast_data(request, forecast_pk):
     if not forecast.forecast_model.project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    return json_response_for_model_with_cdc_data(request, forecast)
+    # dispatch based on requested format. see note in template_data() re: getting this via a 'format' param
+    if ('format' in request.query_params) and (request.query_params['format'] == 'csv'):
+        return csv_response_for_model_with_cdc_data(forecast)
+    else:
+        return json_response_for_model_with_cdc_data(request, forecast)
 
 
 def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
