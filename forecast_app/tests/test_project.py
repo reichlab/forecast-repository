@@ -4,7 +4,6 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
-from forecast_app.models.data import ProjectTemplateData
 from forecast_app.models.forecast_model import ForecastModel
 
 
@@ -171,3 +170,12 @@ class ProjectTestCase(TestCase):
             project.timezeros.add(*timezeros)
             project.save()
         self.assertIn("found duplicate TimeZero.timezero_date", str(context.exception))
+
+
+    def test_get_num_rows(self):
+        time_zero2 = TimeZero.objects.create(project=self.project, timezero_date='2017-01-02')
+        self.forecast_model.load_forecast(Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+                                          time_zero2)
+        self.assertEqual(self.project.get_num_rows(), 8019)  # template
+        self.assertEqual(self.project.get_num_forecast_rows(), 8019 * 2)
+        self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts

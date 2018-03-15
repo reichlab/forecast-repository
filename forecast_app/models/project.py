@@ -127,14 +127,36 @@ class Project(ModelWithCDCData):
 
     def get_summary_counts(self):
         """
-        :return: a 2-tuple summarizing total counts in me: (num_models, num_forecasts)
+        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
         """
         from .forecast import Forecast  # avoid circular imports
         from .forecast_model import ForecastModel  # ""
 
 
         return ForecastModel.objects.filter(project=self).count(), \
-               Forecast.objects.filter(forecast_model__project=self).count()
+               Forecast.objects.filter(forecast_model__project=self).count(), \
+               self.get_num_forecast_rows_estimated()
+
+
+    def get_num_forecast_rows(self):
+        """
+        :return: the total number of data rows across all my models' forecasts
+        """
+        return ForecastData.objects.filter(forecast__forecast_model__project=self).count()
+
+
+    def get_num_forecast_rows_estimated(self):
+        """
+        :return: like get_num_forecast_rows(), but returns an estimate that is much faster to calculate. the estimate
+            is based on getting the number of rows for an arbitrary Forecast and then multiplying by the number of
+            forecasts times the number of models in me. it will be exact for projects whose models all have the same
+            number of rows
+        """
+        first_model = self.models.first()
+        first_forecast = first_model.forecasts.first() if first_model else None
+        first_forecast_num_rows = first_forecast.get_num_rows() if first_forecast else None
+        return (self.models.count() * first_model.forecasts.count() * first_forecast_num_rows) \
+            if first_forecast_num_rows else 0
 
 
     def forecasts_for_timezero(self, timezero):

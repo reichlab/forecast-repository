@@ -147,6 +147,10 @@ class ModelWithCDCData(models.Model):
 
 
     def get_num_rows(self):
+        """
+        :return: the total of number of data rows in me, i.e., the number of Project template rows, or the number of
+            Forecast rows
+        """
         return self.cdcdata_set.count()
 
 
