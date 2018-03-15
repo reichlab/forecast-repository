@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users
+from utils.utilities import CDC_CSV_HEADER
 
 
 class ViewsTestCase(TestCase):
@@ -393,8 +394,10 @@ class ViewsTestCase(TestCase):
                                    data={'format': 'csv'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(len(response.content.decode("utf-8").split('\r\n')), 8020)
-        # self.assertEqual(len(response.content), 478511)
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="2016-2017_submission_template.csv"')
+        split_content = response.content.decode("utf-8").split('\r\n')
+        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
+        self.assertEqual(len(split_content), 8021)
 
         # template data as JSON. a django.http.response.JsonResponse:
         response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]),
@@ -402,6 +405,8 @@ class ViewsTestCase(TestCase):
         response_dict = json.loads(response.content)  # will fail if not JSON. following are little sanity-checks
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
+        self.assertEqual(response['Content-Disposition'],
+                         'attachment; filename="2016-2017_submission_template.csv.json"')
         self.assertEqual(list(response_dict), ['metadata', 'locations'])
         self.assertEqual(len(response_dict['locations']), 11)
 
@@ -410,7 +415,10 @@ class ViewsTestCase(TestCase):
                                    data={'format': 'csv'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(len(response.content), 450895)
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv"')
+        split_content = response.content.decode("utf-8").split('\r\n')
+        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
+        self.assertEqual(len(split_content), 8021)
 
         # forecast data as JSON. a django.http.response.JsonResponse:
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
@@ -418,5 +426,6 @@ class ViewsTestCase(TestCase):
         response_dict = json.loads(response.content)  # will fail if not JSON
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
         self.assertEqual(list(response_dict), ['metadata', 'locations'])
         self.assertEqual(len(response_dict['locations']), 11)

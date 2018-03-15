@@ -14,6 +14,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from forecast_app.models import Project, ForecastModel, Forecast
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TemplateSerializer
+from utils.utilities import CDC_CSV_HEADER
 
 
 @api_view(['GET'])
@@ -121,9 +122,15 @@ def csv_response_for_model_with_cdc_data(model_with_cdc_data):
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
         .format(csv_filename=model_with_cdc_data.csv_filename)
 
+
+    def transform_row(row):
+        return row  # todo xx replace '', etc.
+
+
     writer = csv.writer(response)
+    writer.writerow(CDC_CSV_HEADER)
     for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):
-        writer.writerow(row)
+        writer.writerow(transform_row(row))
 
     return response
 

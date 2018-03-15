@@ -98,6 +98,8 @@ def season_start_year_for_date(date):
 # - '20170504-gam_lag1_tops3.cdc.csv'
 #
 
+CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
+
 CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
 
 CDC_CSV_FILENAME_RE_PAT = re.compile(r"""

@@ -5,7 +5,7 @@ from itertools import groupby
 from django.db import models, connection
 from django.db.models import Count
 
-from utils.utilities import basic_str, parse_value
+from utils.utilities import basic_str, parse_value, CDC_CSV_HEADER
 
 
 #
@@ -97,7 +97,7 @@ class ModelWithCDCData(models.Model):
         if (len(header) == 8) and (header[7] == ''):
             header = header[:7]
         header = [h.lower() for h in [i.replace('"', '') for i in header]]
-        if header != ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']:
+        if header != CDC_CSV_HEADER:
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # insert the rows. first we load them all into memory (processing and validating them as we go) and then
