@@ -17,7 +17,7 @@ def basic_str(obj):
 
 
 #
-# numberic functions
+# numeric functions
 #
 
 def parse_value(value):
