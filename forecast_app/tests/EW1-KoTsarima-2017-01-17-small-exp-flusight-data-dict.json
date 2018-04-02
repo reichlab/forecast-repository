@@ -1,0 +1,41 @@
+{
+  "timePoints": [
+    {
+      "week": 43,
+      "year": 2016
+    },
+    {
+      "week": 44,
+      "year": 2016
+    }
+  ],
+  "models": [
+    {
+      "id": "({{forecast_model_id}})",
+      "meta": {
+        "name": "",
+        "description": "",
+        "url": ""
+      },
+      "predictions": [
+        {
+          "series": [
+            {
+              "point": 3.2
+            },
+            {
+              "point": 3.3
+            },
+            {
+              "point": 3.3
+            },
+            {
+              "point": 3.2
+            }
+          ]
+        },
+        null
+      ]
+    }
+  ]
+}

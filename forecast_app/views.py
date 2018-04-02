@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
-from utils.mean_absolute_error import mean_abs_error_rows_for_project
+from utils.flusight import data_dict_for_models
 
 
 def index(request):
@@ -65,14 +66,17 @@ def project_visualizations(request, project_pk):
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)
+    # mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)  # slow!
+    mean_abs_error_rows = []  # todo xx
+    flusight_timechart_data = data_dict_for_models(project.models.all(), location)  # None if no targets in project
     return render(
         request,
         'project_visualizations.html',
         context={'project': project,
                  'season_start_year': season_start_year,
                  'location': location,
-                 'mean_abs_error_rows': mean_abs_error_rows})
+                 'mean_abs_error_rows': mean_abs_error_rows,
+                 'timechart_data': json.dumps(flusight_timechart_data)})
 
 
 #

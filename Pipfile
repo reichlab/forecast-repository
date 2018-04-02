@@ -18,7 +18,7 @@ whitenoise = "*"
 djangorestframework = "*"
 httpie = "*"
 pillow = "*"
-pymmwr = "*"
+pymmwr = "==0.1.0"
 pyyaml = "*"
 djangorestframework-csv = "*"
 

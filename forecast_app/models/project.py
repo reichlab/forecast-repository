@@ -183,6 +183,14 @@ class Project(ModelWithCDCData):
         return self.config_dict and list(self.config_dict['target_to_week_increment'].keys())
 
 
+    def get_week_increment_for_target_name(self, target_name):
+        """
+        :return: returns an incremented week value based on the future specified by target_name. returns None if no
+        config_dict.
+        """
+        return self.config_dict and self.config_dict['target_to_week_increment'][target_name]
+
+
     def get_distribution_preview(self):
         """
         :return: returns an arbitrary Forecast bin for this project as a 3-tuple: (Forecast, location, target). returns
@@ -196,14 +204,6 @@ class Project(ModelWithCDCData):
         first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
         return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
             else None
-
-
-    def get_week_increment_for_target_name(self, target_name):
-        """
-        :return: returns an incremented week value based on the future specified by target_name. returns None if no
-        config_dict.
-        """
-        return self.config_dict and self.config_dict['target_to_week_increment'][target_name]
 
 
     @transaction.atomic

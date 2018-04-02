@@ -22,15 +22,70 @@
 
 
     <h2>Models</h2>
+    {% if project.models.all %}
+        <ul>
+            {% for forecast_model in project.models.all|dictsort:"name" %}
+                <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <small class="text-muted">(No models)</small>
+    {% endif %}
+
+
+    <h2>Time chart</h2>
+    <p>(<em>Alpha feature</em>) Time chart for all models in the project, and their week-related targets.</p>
     <ul>
-        {% for forecast_model in project.models.all %}
-            <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
-        {% endfor %}
+{#        <li><code>season_start_year</code>: {{ season_start_year }}</li>  <!-- todo xx --> #}
+        <li><code>location</code>: {{ location }}</li>
     </ul>
+
+    {% load static %}
+
+    {# http://reichlab.io/d3-foresight/ dependencies #}
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+    <script src="{% static 'd3-foresight-assets/d3-foresight.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'd3-foresight-assets/fontello/fontello.css' %}"/>
+
+    {% comment %}
+    <div class="row">
+        <div id="timechart" class="col-md-12">
+        </div>
+    </div>
+    {% endcomment %}
+    <div id="timechart"></div>
+
+    {% if timechart_data != 'null' %}
+
+        <script type="text/javascript">
+            $(function () {
+
+                var config = {
+                    pointType: 'mmwr-week', // Default is regular-week. todo xx
+                    axes: {
+                        y: {
+                            title: 'Weighted ILI (%)' // todo xx
+                        }
+                    }
+                };
+                var data = {{timechart_data|safe}};
+                var timeChart = new d3Foresight.TimeChart('#timechart', config);
+                timeChart.plot(data);
+                timeChart.update(1);  // todo xx
+
+            })
+        </script>
+    {% else %}
+        <small class="text-muted">(No data available)</small>
+    {% endif %}
 
 
     <h2>Mean Absolute Error</h2>
-    <p>Mean Absolute Error for all models and their week-related targets.
+    <p>Mean Absolute Error for all models and their week-related targets.</p>
+    <p>TBD</p>
+
+    {% comment %}
     {% if mean_abs_error_rows %}
         <ul>
             <li><code>season_start_year</code>: {{ season_start_year }}</li>
@@ -61,5 +116,6 @@
     {% else %}
         <p class="text-muted">(No data available)</p>
     {% endif %}
+    {% endcomment %}
 
 {% endblock %}

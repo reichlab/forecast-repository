@@ -78,11 +78,11 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
     if not targets:
         return []
 
-    mae_targets = sorted(targets)
-    rows = [['Model', *mae_targets]]  # header
+    targets = sorted(targets)
+    rows = [['Model', *targets]]  # header
     for forecast_model in project.models.all():
         row = [forecast_model.name]
-        for target in mae_targets:
+        for target in targets:
             mae_val = mean_absolute_error(forecast_model, season_start_year, location, target,
                                           delphi_wili_for_mmwr_year_week)
             if not mae_val:
