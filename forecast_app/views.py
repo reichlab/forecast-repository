@@ -58,13 +58,14 @@ def project_visualizations(request, project_pk):
     """
     View function to render various visualizations for a particular project.
     """
-    # todo xx pull season_start_year and location from somewhere, probably form elements on the page
-    season_start_year = 2016
-    location = 'US National'
-
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
+
+    # todo xx pull season_start_year and location from somewhere, probably form elements on the page
+    # season_start_year = 2016
+    # location = 'US National'
+    location = sorted(list(project.get_locations()))[0]
 
     # mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)  # slow!
     mean_abs_error_rows = []  # todo xx
@@ -73,9 +74,9 @@ def project_visualizations(request, project_pk):
         request,
         'project_visualizations.html',
         context={'project': project,
-                 'season_start_year': season_start_year,
+                 # 'season_start_year': season_start_year,
                  'location': location,
-                 'mean_abs_error_rows': mean_abs_error_rows,
+                 # 'mean_abs_error_rows': mean_abs_error_rows,
                  'timechart_data': json.dumps(flusight_timechart_data)})
 
 

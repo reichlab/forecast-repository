@@ -10,7 +10,7 @@ CDC_CONFIG_DICT = {
         "3 wk ahead": 3,
         "4 wk ahead": 4
     },
-    "location_to_delphi_region": {
+    "location_to_delphi_region": {  # todo this will go away after [Generalize truth values to a table #60]
         "US National": "nat",
         "HHS Region 1": "hhs1",
         "HHS Region 2": "hhs2",

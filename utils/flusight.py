@@ -91,13 +91,12 @@ def _flusight_model_dict_for_model(forecast_model, location, targets):
         'meta': {
             'name': forecast_model.name,
             'description': forecast_model.description,
-            'url': forecast_model.home_url
-        },
+            'url': forecast_model.home_url},
         'predictions': prediction_dicts
     }
 
 
-def _prediction_dicts_for_model(forecast_model, timezero_date, targets):
+def _prediction_dicts_for_model(forecast_model, location, targets):
     """
     :return: a list of series dicts, one per project TimeZero, each containing a list of point predictions, one per
         each passed 'n step ahead' target
@@ -106,7 +105,7 @@ def _prediction_dicts_for_model(forecast_model, timezero_date, targets):
     # existing forecasts. basically a LEFT OUTER JOIN
     timezeros_to_target_points = {time_zero.timezero_date: None
                                   for time_zero in forecast_model.project.timezeros.all()}
-    point_value_rows = _point_values_for_model(forecast_model, timezero_date, targets)
+    point_value_rows = _point_values_for_model(forecast_model, location, targets)
     for timezero_date, point_value_grouper in groupby(point_value_rows, key=lambda _: _[0]):
         point_values = [_[1] for _ in list(point_value_grouper)]  # tz.timezero_date, fd.value
         timezeros_to_target_points[timezero_date] = point_values  # replace None

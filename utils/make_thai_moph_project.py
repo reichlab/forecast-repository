@@ -17,6 +17,18 @@ from forecast_app.models.project import Target, TimeZero
 from forecast_app.models import Project, ForecastModel
 
 
+CONFIG_DICT = {
+    "target_to_week_increment": {
+        "-1_biweek_ahead": 1,
+        "0_biweek_ahead": 2,
+        "1_biweek_ahead": 3,
+        "2_biweek_ahead": 4,
+        "3_biweek_ahead": 5
+    },
+    "location_to_delphi_region": {}  # todo this will go away after [Generalize truth values to a table #60]
+}
+
+
 @click.command()
 @click.argument('data_dir', type=click.Path(file_okay=False, exists=True))
 def make_thai_moph_project_app(data_dir):
@@ -77,7 +89,8 @@ def make_thai_moph_project(project_name, template_path, data_dir):
                     "{[0,1), [1, 10), [10, 20), [20, 30), ..., [1990, 2000), [2000, Inf)}.",
         home_url='http://www.iddynamics.jhsph.edu/projects/impetus',
         logo_url='http://www.iddynamics.jhsph.edu/sites/default/files/styles/project-logo/public/content/project/logos/ImpetusLogo.png',
-        core_data='https://github.com/reichlab/dengue-data')
+        core_data='https://github.com/reichlab/dengue-data',
+        config_dict=CONFIG_DICT)
 
     click.echo("  loading template")
     project.load_template(template_path)
