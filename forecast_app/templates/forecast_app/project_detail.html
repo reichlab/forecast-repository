@@ -111,6 +111,10 @@
                     <th>Visualizations:</th>
                     <td><a href="{% url 'project-visualizations' project.pk %}">Here</a></td>
                 </tr>
+                <tr>
+                    <th>Configuration:</th>
+                    <td><pre>{{ config_dict_pretty }}</pre></td>
+                </tr>
                 </tbody>
             </table>
         </div>

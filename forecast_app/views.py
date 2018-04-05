@@ -280,10 +280,15 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
+
+        config_dict_pretty = json.dumps(project.config_dict, indent=1)
+        config_dict_pretty.replace('\n', '<br>')
+
         context = super().get_context_data(**kwargs)
         context['ok_user_edit_project'] = ok_user_edit_project(self.request.user, project)
         context['ok_user_create_model'] = ok_user_create_model(self.request.user, project)
         context['timezeros_to_num_forecasts'] = self.timezeros_to_num_forecasts(project)
+        context['config_dict_pretty'] = config_dict_pretty
         return context
 
 
