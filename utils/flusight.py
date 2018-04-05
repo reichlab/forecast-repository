@@ -67,10 +67,10 @@ def data_dict_for_models(forecast_models, location):
         return None
 
     targets = sorted(targets)
+    model_dicts = [_flusight_model_dict_for_model(forecast_model, location, targets) for forecast_model in
+                   forecast_models]
     return {'timePoints': (_time_points_for_project(projects[0])),
-            'models': [_flusight_model_dict_for_model(forecast_model, location, targets)
-                       for forecast_model in forecast_models]
-            }
+            'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
 
 
 def _time_points_for_project(project):
