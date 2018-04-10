@@ -87,6 +87,17 @@ def season_start_year_for_date(date):
     return mmwr_year - 1 if mmwr_week < SEASON_START_EW_NUMBER else mmwr_year
 
 
+def start_end_dates_for_season_start_year(season_start_year):
+    """
+    Returns the start and end dates for the season starting season_start_year, based on SEASON_START_EW_NUMBER.
+
+    :return: a 2-tuple of the form: (start_date_inclusive, end_date_exclusive). NB: the interval returned is half-open:
+        [start_date_inclusive, end_date_exclusive)
+    """
+    return pymmwr.mmwr_week_to_date(season_start_year, SEASON_START_EW_NUMBER), \
+           pymmwr.mmwr_week_to_date(season_start_year + 1, SEASON_START_EW_NUMBER)
+
+
 #
 # *.cdc.csv file functions
 #

@@ -6,7 +6,6 @@
 
     <p class="lead">Project visualizations for &ldquo;{{ project.name }}&rdquo;</p>
 
-
     <div class="row">
         <div class="col-md-8">
             <table class="table table-bordered">
@@ -22,6 +21,7 @@
 
 
     <h2>Models</h2>
+
     {% if project.models.all %}
         <ul>
             {% for forecast_model in project.models.all|dictsort:"name" %}
@@ -33,12 +33,49 @@
     {% endif %}
 
 
+    <h2>Location and Season</h2>
+
+    <!--
+    Show two forms to edit location and season_start_year. The former is handled by JavaScript since that data is in-
+    memory (the view passes all locations for a particular season_start_year). The latter submits a GET to get new
+    location data for the (presumed) new season_start_year.
+    -->
+    <div class="row">
+        <div class="col-md-4">
+            <form class="form-inline" action="#">
+                <div class="form-group">
+                    <label for="location_select">Location:</label>
+                    <select id="location_select" class="form-control" name="location_select_name">
+                        {% for location in locations %}
+                            <option>{{ location }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <form class="form-inline" method="GET" action="{% url 'project-visualizations' project.pk %}">
+                <div class="form-group">
+                    <label for="season_select">Season start year:</label>
+                    <select id="season_select" class="form-control" name="season_start_year">
+                        {% for season_start_year_option in season_start_years %}
+                            <option
+                                    {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}
+                            >
+                                {{ season_start_year_option }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
     <h2>Time chart</h2>
-    <p>(<em>Alpha feature</em>) Time chart for all models in the project, and their week-related targets.</p>
-    <ul>
-{#        <li><code>season_start_year</code>: {{ season_start_year }}</li>  <!-- todo xx --> #}
-        <li><code>location</code>: {{ location }}</li>
-    </ul>
+
+    <p><em>(Beta feature)</em> Time chart for all models in the project, and their week-related targets.</p>
 
     {% load static %}
 
@@ -50,7 +87,7 @@
 
     <div id="timechart"></div>
 
-    {% if timechart_data != 'null' %}
+    {% if location_to_flusight_data_dict != 'null' %}
 
         <script type="text/javascript">
             $(function () {
@@ -58,15 +95,31 @@
                 var config = {
                     pointType: 'mmwr-week', // Default is regular-week. todo xx
                     axes: {
+                        x: {
+                            title: 'Epi week'
+                        },
                         y: {
-                            title: 'Weighted ILI (%)' // todo xx
+                            title: 'Weighted ILI (%)',
+                            domain: [{{ timechart_y_domain.0 }}, {{ timechart_y_domain.1 }}]
                         }
                     }
                 };
-                var data = {{timechart_data|safe}};
                 var timeChart = new d3Foresight.TimeChart('#timechart', config);
-                timeChart.plot(data);
-                timeChart.update(1);  // todo xx
+                updateChartForLocation();
+
+
+                function updateChartForLocation() {
+                    var location = $('#location_select').find(":selected").text();
+                    var locationToData = {{location_to_flusight_data_dict|safe}};
+                    var data = locationToData[location];
+                    timeChart.plot(data);
+                    timeChart.update(1);  // todo xx
+                }
+
+
+                $("#location_select").change(function () {
+                    updateChartForLocation();
+                });
 
             })
         </script>
@@ -76,16 +129,12 @@
 
 
     <h2>Mean Absolute Error</h2>
+
     <p>Mean Absolute Error for all models and their week-related targets.</p>
     <p>TBD</p>
 
     {% comment %}
     {% if mean_abs_error_rows %}
-        <ul>
-            <li><code>season_start_year</code>: {{ season_start_year }}</li>
-            <li><code>location</code>: {{ location }}</li>
-        </ul>
-
         {# show a table similar to flusight's #}
         <table class="table table-striped">
             <thead>

@@ -1,5 +1,7 @@
+import datetime
 from pathlib import Path
 
+import pymmwr
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -179,3 +181,13 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_rows(), 8019)  # template
         self.assertEqual(self.project.get_num_forecast_rows(), 8019 * 2)
         self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts
+
+
+    def test_get_season_start_years(self):
+        project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 29)))  # 2015
+        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 30)))  # 2016
+        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 29)))  # 2016
+        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 30)))  # 2017
+        self.assertEqual([2015, 2016, 2017], project.season_start_years())

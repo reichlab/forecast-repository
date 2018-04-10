@@ -18,7 +18,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
-from utils.flusight import data_dict_for_models
+from utils.flusight import flusight_data_dicts_for_models
 
 
 def index(request):
@@ -62,22 +62,33 @@ def project_visualizations(request, project_pk):
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    # todo xx pull season_start_year and location from somewhere, probably form elements on the page
-    # season_start_year = 2016
-    # location = 'US National'
-    location = sorted(list(project.get_locations()))[0]
+    # get season_start_year from query parameters. else use default
+    season_start_years = project.season_start_years()
+    season_start_year = None
+    if 'season_start_year' in request.GET:
+        try:
+            season_start_year = int(request.GET['season_start_year'])
+        except ValueError:
+            season_start_year = None
+    if not season_start_year:
+        season_start_year = season_start_years[-1] if season_start_years else None
 
     # mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)  # slow!
-    mean_abs_error_rows = []  # todo xx
-    flusight_timechart_data = data_dict_for_models(project.models.all(), location)  # None if no targets in project
+    mean_abs_error_rows = []  # todo xx set mean_abs_error_rows to actual, once fast enough
+
+    # None if no targets in project:
+    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year)
     return render(
         request,
         'project_visualizations.html',
         context={'project': project,
-                 # 'season_start_year': season_start_year,
-                 'location': location,
                  # 'mean_abs_error_rows': mean_abs_error_rows,
-                 'timechart_data': json.dumps(flusight_timechart_data)})
+                 'locations': sorted(list(project.get_locations())),
+                 'season_start_year': season_start_year,
+                 'season_start_years': season_start_years,
+                 'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
+                 'timechart_y_domain': (0, 13)  # todo xx set timechart_y_domain, maybe via config_dict
+                 })
 
 
 #
@@ -313,7 +324,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
             cursor.execute(sql, [project.pk])
             rows = cursor.fetchall()
             for timezero_id, num_forecasts in rows:
-                timezero = TimeZero.objects.get(id=timezero_id)
+                timezero = TimeZero.objects.get(pk=timezero_id)
                 tz_to_num_forecasts[timezero] = num_forecasts
         return tz_to_num_forecasts
 
@@ -365,10 +376,10 @@ class UserDetailView(DetailView):
 
 def timezero_forecast_pairs_for_forecast_model(forecast_model):
     """
-    :return: a list of 2-tuples of time_zero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
+    :return: a list of 2-tuples of timezero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
     """
-    return [(time_zero, forecast_model.forecast_for_time_zero(time_zero))
-            for time_zero in forecast_model.project.timezeros.all().order_by('timezero_date')]
+    return [(timezero, forecast_model.forecast_for_time_zero(timezero))
+            for timezero in forecast_model.project.timezeros.all().order_by('timezero_date')]
 
 
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):

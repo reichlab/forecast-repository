@@ -1,0 +1,453 @@
+{
+  "US National": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 3.2
+              },
+              {
+                "point": 3.3
+              },
+              {
+                "point": 3.3
+              },
+              {
+                "point": 3.2
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 1": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.8
+              },
+              {
+                "point": 2.4
+              },
+              {
+                "point": 2.4
+              },
+              {
+                "point": 2.5
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 2": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 6.1
+              },
+              {
+                "point": 6
+              },
+              {
+                "point": 5.9
+              },
+              {
+                "point": 5.9
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 3": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2.8
+              },
+              {
+                "point": 3.1
+              },
+              {
+                "point": 3
+              },
+              {
+                "point": 2.6
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 4": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2.5
+              },
+              {
+                "point": 2.8
+              },
+              {
+                "point": 2.7
+              },
+              {
+                "point": 2.8
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 5": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2
+              },
+              {
+                "point": 2
+              },
+              {
+                "point": 1.9
+              },
+              {
+                "point": 2.1
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 6": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 4.6
+              },
+              {
+                "point": 4.4
+              },
+              {
+                "point": 4.5
+              },
+              {
+                "point": 4.4
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 7": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2.3
+              },
+              {
+                "point": 2.5
+              },
+              {
+                "point": 2.5
+              },
+              {
+                "point": 2.1
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 8": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.7
+              },
+              {
+                "point": 1.6
+              },
+              {
+                "point": 1.6
+              },
+              {
+                "point": 1.7
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 9": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 3.2
+              },
+              {
+                "point": 3.6
+              },
+              {
+                "point": 3.7
+              },
+              {
+                "point": 3.8
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 10": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 3.35
+              },
+              {
+                "point": 3.1
+              },
+              {
+                "point": 2.6
+              },
+              {
+                "point": 2.3
+              }
+            ]
+          },
+          null
+        ]
+      }
+    ]
+  }
+}

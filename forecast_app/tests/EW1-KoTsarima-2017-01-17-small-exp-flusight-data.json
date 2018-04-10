@@ -1,0 +1,981 @@
+{
+  "US National": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.30017860564934
+              },
+              {
+                "point": 1.40042830976304
+              },
+              {
+                "point": 1.5016975272185
+              },
+              {
+                "point": 1.50294394685125
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 1.40028231636318
+              },
+              {
+                "point": 1.50198943608448
+              },
+              {
+                "point": 1.50810701427955
+              },
+              {
+                "point": 1.60210003927567
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.60078068584345
+              },
+              {
+                "point": 1.70384077365281
+              },
+              {
+                "point": 1.70500468843076
+              },
+              {
+                "point": 1.80357842233244
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 10": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 0.599808056838621
+              },
+              {
+                "point": 0.603930246577096
+              },
+              {
+                "point": 0.601675778467125
+              },
+              {
+                "point": 0.602039501464658
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 0.602547917673793
+              },
+              {
+                "point": 0.603718679383703
+              },
+              {
+                "point": 0.602551133322387
+              },
+              {
+                "point": 0.602328591400592
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 0.701655418485813
+              },
+              {
+                "point": 0.703187439471746
+              },
+              {
+                "point": 0.702368109419287
+              },
+              {
+                "point": 0.702120063695587
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 8": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 0.898854261265069
+              },
+              {
+                "point": 0.898827565970386
+              },
+              {
+                "point": 0.871056962445703
+              },
+              {
+                "point": 0.900309090038579
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 0.600572869367465
+              },
+              {
+                "point": 0.603301077139659
+              },
+              {
+                "point": 0.68279869417528
+              },
+              {
+                "point": 0.702166414066532
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 0.8
+              },
+              {
+                "point": 0.802519454453249
+              },
+              {
+                "point": 0.882584432609933
+              },
+              {
+                "point": 1.09806863802065
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 1": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 0.70001247803342
+              },
+              {
+                "point": 0.799802488968438
+              },
+              {
+                "point": 0.798632744107501
+              },
+              {
+                "point": 0.800063158564771
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 0.89953443849595
+              },
+              {
+                "point": 0.899174281909191
+              },
+              {
+                "point": 0.9
+              },
+              {
+                "point": 0.99935982170297
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.19876682134481
+              },
+              {
+                "point": 1.29924149664936
+              },
+              {
+                "point": 1.29578603465053
+              },
+              {
+                "point": 1.39884596053548
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 5": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.00066854895492
+              },
+              {
+                "point": 1.00579161343901
+              },
+              {
+                "point": 1.11265170455899
+              },
+              {
+                "point": 1.28172406129441
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 1.10017452261038
+              },
+              {
+                "point": 1.10361920192929
+              },
+              {
+                "point": 1.12057544327843
+              },
+              {
+                "point": 1.40607313474206
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.30042153578265
+              },
+              {
+                "point": 1.3118506766595
+              },
+              {
+                "point": 1.31952328457381
+              },
+              {
+                "point": 1.80654864840042
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 2": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2.19850705016334
+              },
+              {
+                "point": 2.28505096711751
+              },
+              {
+                "point": 2.12809746667896
+              },
+              {
+                "point": 2.15373878944441
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 2.29789887628023
+              },
+              {
+                "point": 2.29729596091687
+              },
+              {
+                "point": 2.21123583160226
+              },
+              {
+                "point": 2.20821570188024
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 2.40044601579495
+              },
+              {
+                "point": 2.40035104047228
+              },
+              {
+                "point": 2.26342882930733
+              },
+              {
+                "point": 2.5589483268522
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 6": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2.09929749363963
+              },
+              {
+                "point": 2.00000748754088
+              },
+              {
+                "point": 2.00132408593275
+              },
+              {
+                "point": 2.10488200256206
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 2.0001562875513
+              },
+              {
+                "point": 2.00170652765714
+              },
+              {
+                "point": 2.00372802031087
+              },
+              {
+                "point": 2.00864484085091
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 2.30132765656558
+              },
+              {
+                "point": 2.20285656194049
+              },
+              {
+                "point": 2.30353639014686
+              },
+              {
+                "point": 2.31411432652755
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 9": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.10176093115685
+              },
+              {
+                "point": 1.20184134248213
+              },
+              {
+                "point": 1.45475816585276
+              },
+              {
+                "point": 1.56216020927407
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 1.20155589726493
+              },
+              {
+                "point": 1.20311240069003
+              },
+              {
+                "point": 1.70586271607063
+              },
+              {
+                "point": 1.66742159414688
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.40165841421089
+              },
+              {
+                "point": 1.40594309966255
+              },
+              {
+                "point": 1.730574169693
+              },
+              {
+                "point": 1.83399685941124
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 4": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.39918334295694
+              },
+              {
+                "point": 1.49998062403615
+              },
+              {
+                "point": 1.50027999141224
+              },
+              {
+                "point": 1.60392198810068
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 1.50039607010429
+              },
+              {
+                "point": 1.50282168790211
+              },
+              {
+                "point": 1.60332949847563
+              },
+              {
+                "point": 1.80315298915752
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.70059410515643
+              },
+              {
+                "point": 1.70564337580421
+              },
+              {
+                "point": 1.70217300041505
+              },
+              {
+                "point": 2.00064787783857
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 3": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 1.30100948050667
+              },
+              {
+                "point": 1.4
+              },
+              {
+                "point": 1.40230641555094
+              },
+              {
+                "point": 1.40306136984214
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 1.20301742551502
+              },
+              {
+                "point": 1.30190100079292
+              },
+              {
+                "point": 1.30577752444889
+              },
+              {
+                "point": 1.30467734908442
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.40164917371454
+              },
+              {
+                "point": 1.40371911307575
+              },
+              {
+                "point": 1.40532652521924
+              },
+              {
+                "point": 1.40634136864283
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "HHS Region 7": {
+    "timePoints": [
+      {
+        "week": 43,
+        "year": 2016
+      },
+      {
+        "week": 44,
+        "year": 2016
+      },
+      {
+        "week": 45,
+        "year": 2016
+      }
+    ],
+    "models": [
+      {
+        "id": "forecast_m({{forecast_model1_id}})",
+        "meta": {
+          "name": "forecast_model1",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 0.800279146498793
+              },
+              {
+                "point": 0.800168680013523
+              },
+              {
+                "point": 0.80039262536605
+              },
+              {
+                "point": 0.901089259738007
+              }
+            ]
+          },
+          {
+            "series": [
+              {
+                "point": 1.00055829299759
+              },
+              {
+                "point": 1.00005622667117
+              },
+              {
+                "point": 1.10068784090826
+              },
+              {
+                "point": 1.10143763369824
+              }
+            ]
+          },
+          null
+        ]
+      },
+      {
+        "id": "forecast_m({{forecast_model2_id}})",
+        "meta": {
+          "name": "forecast_model2",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          null,
+          null,
+          {
+            "series": [
+              {
+                "point": 1.09954775768638
+              },
+              {
+                "point": 1.1002249066847
+              },
+              {
+                "point": 1.20013756818165
+              },
+              {
+                "point": 1.20198226356724
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

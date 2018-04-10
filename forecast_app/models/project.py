@@ -9,7 +9,7 @@ from django.urls import reverse
 from jsonfield import JSONField
 
 from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData
-from utils.utilities import basic_str
+from utils.utilities import basic_str, season_start_year_for_date
 
 
 #
@@ -189,6 +189,16 @@ class Project(ModelWithCDCData):
         config_dict.
         """
         return self.config_dict and self.config_dict['target_to_week_increment'][target_name]
+
+
+    def season_start_years(self):
+        """
+        :return: list of season start years for this project based on my timezeros. recall SEASON_START_EW_NUMBER
+        """
+        season_start_years = set()
+        for timezero in self.timezeros.all():
+            season_start_years.add(season_start_year_for_date(timezero.timezero_date))
+        return sorted(list(season_start_years))
 
 
     def get_distribution_preview(self):

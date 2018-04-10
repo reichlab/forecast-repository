@@ -86,10 +86,10 @@
             </tr>
             </thead>
             <tbody>
-            {% for time_zero, forecast in timezero_forecast_pairs %}
+            {% for timezero, forecast in timezero_forecast_pairs %}
                 <tr>
                     <td>
-                        {{ time_zero.timezero_date|date:"Y-m-d" }}
+                        {{ timezero.timezero_date|date:"Y-m-d" }}
                     </td>
                     <td>
                         {% if forecast %}
@@ -114,7 +114,7 @@
                             {% else %}
                                 {# show a button for uploading a file #}
                                 <form class="form-inline" method="POST" enctype="multipart/form-data"
-                                      action="{% url 'upload-forecast' forecastmodel.pk time_zero.pk %}">
+                                      action="{% url 'upload-forecast' forecastmodel.pk timezero.pk %}">
                                     {% csrf_token %}
                                     <div class="form-group">
                                         <button class="form-control btn btn-success" type="submit">
