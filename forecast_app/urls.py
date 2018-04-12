@@ -13,6 +13,7 @@ urlpatterns = [
 
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
+    url(r'^project/(?P<project_pk>\d+)/scores', views.project_scores, name='project-scores'),
     url(r'^project/(?P<project_pk>\d+)/template$', views.template_detail, name='template-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/template/delete$', views.delete_template, name='delete-template'),
     url(r'^project/(?P<project_pk>\d+)/template/upload/$', views.upload_template, name='upload-template'),

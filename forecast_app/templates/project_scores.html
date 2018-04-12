@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Project Visualizations: {{ project.name }}{% endblock %}
+
+{% block content %}
+
+    <p class="lead">Project visualizations for &ldquo;{{ project.name }}&rdquo;</p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Project:</th>
+                    <td><a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <h2>Models</h2>
+
+    {% include 'model_list_snippet.html' %}
+
+
+{% comment %}
+    <h2>Location and Season</h2>
+
+    <!--
+    Show two forms to edit location and season_start_year: #location_select and #season_select.
+    -->
+    {% include 'location_season_select_snippet.html' %}
+{% endcomment %}
+
+
+    <h2>Mean Absolute Error</h2>
+
+    <p>Mean Absolute Error for all models and their week-related targets.</p>
+    <p>TBD</p>
+
+    {% comment %}
+    {% if mean_abs_error_rows %}
+        {# show a table similar to flusight's #}
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                {% for header_name in mean_abs_error_rows.0 %}
+                    <th>{{ header_name }}</th>
+                {% endfor %}
+            </tr>
+            </thead>
+            <tbody>
+            {% for row in mean_abs_error_rows|slice:"1:" %}
+                <tr>
+                    <td>{{ row.0 }}</td>
+                    <td>{{ row.1 }}</td>
+                    <td>{{ row.2 }}</td>
+                    <td>{{ row.3 }}</td>
+                    <td>{{ row.4 }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted">(No data available)</p>
+    {% endif %}
+    {% endcomment %}
+
+{% endblock %}

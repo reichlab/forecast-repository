@@ -54,6 +54,10 @@ def template_detail(request, project_pk):
                  'ok_user_edit_project': ok_user_edit_project(request.user, project)})
 
 
+#
+# visualization-related view functions
+#
+
 def project_visualizations(request, project_pk):
     """
     View function to render various visualizations for a particular project.
@@ -62,7 +66,53 @@ def project_visualizations(request, project_pk):
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    # get season_start_year from query parameters. else use default
+    season_start_years = project.season_start_years()
+    season_start_year = _get_season_start_year(request, project)  # from query parameters. o/w use default
+
+    # None if no targets in project:
+    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year)
+
+    return render(
+        request,
+        'project_visualizations.html',
+        context={'project': project,
+                 'locations': sorted(list(project.get_locations())),
+                 'season_start_year': season_start_year,
+                 'season_start_years': season_start_years,
+                 'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
+                 'timechart_y_domain': (0, 13)  # todo xx set timechart_y_domain, maybe via config_dict
+                 })
+
+
+def project_scores(request, project_pk):
+    """
+    View function to render various scores for a particular project.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
+    season_start_years = project.season_start_years()
+    season_start_year = _get_season_start_year(request, project)  # from query parameters. o/w use default
+
+    # mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)  # slow!
+    mean_abs_error_rows = []  # todo xx set mean_abs_error_rows to actual, once fast enough
+
+    return render(
+        request,
+        'project_scores.html',
+        context={'project': project,
+                 'locations': sorted(list(project.get_locations())),
+                 'season_start_year': season_start_year,
+                 'season_start_years': season_start_years,
+                 'mean_abs_error_rows': mean_abs_error_rows,
+                 })
+
+
+def _get_season_start_year(request, project):
+    """
+    :return season_start_year from query parameters. else use default
+    """
     season_start_years = project.season_start_years()
     season_start_year = None
     if 'season_start_year' in request.GET:
@@ -72,23 +122,7 @@ def project_visualizations(request, project_pk):
             season_start_year = None
     if not season_start_year:
         season_start_year = season_start_years[-1] if season_start_years else None
-
-    # mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)  # slow!
-    mean_abs_error_rows = []  # todo xx set mean_abs_error_rows to actual, once fast enough
-
-    # None if no targets in project:
-    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year)
-    return render(
-        request,
-        'project_visualizations.html',
-        context={'project': project,
-                 # 'mean_abs_error_rows': mean_abs_error_rows,
-                 'locations': sorted(list(project.get_locations())),
-                 'season_start_year': season_start_year,
-                 'season_start_years': season_start_years,
-                 'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
-                 'timechart_y_domain': (0, 13)  # todo xx set timechart_y_domain, maybe via config_dict
-                 })
+    return season_start_year
 
 
 #

@@ -1,0 +1,9 @@
+{% if project.models.all %}
+    <ul>
+        {% for forecast_model in project.models.all|dictsort:"name" %}
+            <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <small class="text-muted">(No models)</small>
+{% endif %}

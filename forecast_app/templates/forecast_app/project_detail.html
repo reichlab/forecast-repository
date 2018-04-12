@@ -108,8 +108,10 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Visualizations:</th>
-                    <td><a href="{% url 'project-visualizations' project.pk %}">Here</a></td>
+                    <th>Analysis:</th>
+                    <td><a href="{% url 'project-visualizations' project.pk %}">Visualizations</a>,
+                        <a href="{% url 'project-scores' project.pk %}">scores</a>
+                    </td>
                 </tr>
                 <tr>
                     <th>Configuration:</th>
@@ -135,15 +137,7 @@
         {% endif %}
     </h2>
 
-    {% if project.models.all %}
-        <ul>
-            {% for forecast_model in project.models.all|dictsort:"name" %}
-                <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <small class="text-muted">(No models)</small>
-    {% endif %}
+    {% include 'model_list_snippet.html' %}
 
 
     <h2>Targets ({{ project.targets.all|length }})</h2>

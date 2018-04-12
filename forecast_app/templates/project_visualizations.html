@@ -22,55 +22,15 @@
 
     <h2>Models</h2>
 
-    {% if project.models.all %}
-        <ul>
-            {% for forecast_model in project.models.all|dictsort:"name" %}
-                <li><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></li>
-            {% endfor %}
-        </ul>
-    {% else %}
-        <small class="text-muted">(No models)</small>
-    {% endif %}
+    {% include 'model_list_snippet.html' %}
 
 
     <h2>Location and Season</h2>
 
     <!--
-    Show two forms to edit location and season_start_year. The former is handled by JavaScript since that data is in-
-    memory (the view passes all locations for a particular season_start_year). The latter submits a GET to get new
-    location data for the (presumed) new season_start_year.
+    Show two forms to edit location and season_start_year: #location_select and #season_select.
     -->
-    <div class="row">
-        <div class="col-md-4">
-            <form class="form-inline" action="#">
-                <div class="form-group">
-                    <label for="location_select">Location:</label>
-                    <select id="location_select" class="form-control" name="location_select_name">
-                        {% for location in locations %}
-                            <option>{{ location }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </form>
-        </div>
-        <div class="col-md-6">
-            <form class="form-inline" method="GET" action="{% url 'project-visualizations' project.pk %}">
-                <div class="form-group">
-                    <label for="season_select">Season start year:</label>
-                    <select id="season_select" class="form-control" name="season_start_year">
-                        {% for season_start_year_option in season_start_years %}
-                            <option
-                                    {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}
-                            >
-                                {{ season_start_year_option }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    {% include 'location_season_select_snippet.html' %}
 
 
     <h2>Time chart</h2>
@@ -126,39 +86,5 @@
     {% else %}
         <small class="text-muted">(No data available)</small>
     {% endif %}
-
-
-    <h2>Mean Absolute Error</h2>
-
-    <p>Mean Absolute Error for all models and their week-related targets.</p>
-    <p>TBD</p>
-
-    {% comment %}
-    {% if mean_abs_error_rows %}
-        {# show a table similar to flusight's #}
-        <table class="table table-striped">
-            <thead>
-            <tr>
-                {% for header_name in mean_abs_error_rows.0 %}
-                    <th>{{ header_name }}</th>
-                {% endfor %}
-            </tr>
-            </thead>
-            <tbody>
-            {% for row in mean_abs_error_rows|slice:"1:" %}
-                <tr>
-                    <td>{{ row.0 }}</td>
-                    <td>{{ row.1 }}</td>
-                    <td>{{ row.2 }}</td>
-                    <td>{{ row.3 }}</td>
-                    <td>{{ row.4 }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p class="text-muted">(No data available)</p>
-    {% endif %}
-    {% endcomment %}
 
 {% endblock %}
