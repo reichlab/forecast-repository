@@ -99,13 +99,15 @@ def project_scores(request, project_pk):
     locations = sorted(project.get_locations())
     location = _param_val_from_request(request, 'location', locations)
     try:
-        mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)
+        mean_abs_error_rows, target_to_min_mae = mean_abs_error_rows_for_project(project, season_start_year, location)
     except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to calculate scores.",
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(rte)
                                })
 
+    targets = sorted(project.get_targets_for_mean_absolute_error())
+    target_min_abs_errors = [target_to_min_mae[target] for target in targets]
     return render(
         request,
         'project_scores.html',
@@ -115,6 +117,7 @@ def project_scores(request, project_pk):
                  'locations': locations,
                  'location': location,
                  'mean_abs_error_rows': mean_abs_error_rows,
+                 'target_min_abs_errors': target_min_abs_errors,
                  })
 
 

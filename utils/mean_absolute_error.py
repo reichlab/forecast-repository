@@ -96,6 +96,7 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
 
     targets = sorted(targets)
     models_to_point_values_dicts = _models_to_point_values_dicts(project.models.all(), season_start_year, targets)
+    target_to_min_mae = {target : None for target in targets}  # corrected next
     rows = [['Model', *targets]]  # header
     for forecast_model in project.models.all():
         row = [forecast_model]
@@ -108,9 +109,12 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
             if not mae_val:
                 return []
 
-            row.append("{:0.2f}".format(mae_val))
+            target_to_min_mae[target] = min(mae_val, target_to_min_mae[target]) \
+                if target_to_min_mae[target] else mae_val
+            # row.append("{:0.2f}".format(mae_val))
+            row.append(mae_val)
         rows.append(row)
-    return rows
+    return rows, target_to_min_mae
 
 
 def _models_to_point_values_dicts(forecast_models, season_start_year, targets):

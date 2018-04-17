@@ -61,8 +61,12 @@
         the current season are calculated using the most recently updated data. Final values may differ.
     </p>
 
+
+    {# show a table similar to flusight's #}
     {% if mean_abs_error_rows %}
-        {# show a table similar to flusight's #}
+
+        {% load utils %}
+
         <table class="table table-striped">
             <thead>
             <tr>
@@ -74,11 +78,17 @@
             <tbody>
             {% for row in mean_abs_error_rows|slice:"1:" %}
                 <tr>
+                    <!-- col0: model -->
                     <td><a href="{{ row.0.get_absolute_url }}">{{ row.0.name }}</a></td>
-                    <td>{{ row.1 }}</td>
-                    <td>{{ row.2 }}</td>
-                    <td>{{ row.3 }}</td>
-                    <td>{{ row.4 }}</td>
+
+                    <!-- col1...: target -->
+                    {% for target_val in row|slice:"1:" %}
+                        <td>
+                            {% if target_val == target_min_abs_errors|index:forloop.counter0 %}<strong>{% endif %}
+                            {{ target_val|floatformat:2 }}
+                            {% if target_val == target_min_abs_errors|index:forloop.counter0 %}</strong>{% endif %}
+                        </td>
+                    {% endfor %}
                 </tr>
             {% endfor %}
             </tbody>
