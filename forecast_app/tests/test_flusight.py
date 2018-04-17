@@ -46,6 +46,7 @@ class FlusightTestCase(TestCase):
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model1.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
             act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1], 2016)
+            print('xx', exp_flusight_data_dict, act_flusight_data_dict)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 

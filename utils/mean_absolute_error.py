@@ -98,8 +98,7 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
     models_to_point_values_dicts = _models_to_point_values_dicts(project.models.all(), season_start_year, targets)
     rows = [['Model', *targets]]  # header
     for forecast_model in project.models.all():
-        print(forecast_model)
-        row = [forecast_model.name]
+        row = [forecast_model]
         for target in targets:
             forecast_to_point_dicts = models_to_point_values_dicts[forecast_model] \
                 if forecast_model in models_to_point_values_dicts \

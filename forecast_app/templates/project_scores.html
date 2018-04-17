@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Project Visualizations: {{ project.name }}{% endblock %}
+{% block title %}Project Scores: {{ project.name }}{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Project visualizations for &ldquo;{{ project.name }}&rdquo;</p>
+    <p class="lead">Project scores for &ldquo;{{ project.name }}&rdquo;</p>
 
     <div class="row">
         <div class="col-md-8">
@@ -20,24 +20,46 @@
     </div>
 
 
-    <h2>Models</h2>
-
-    {% include 'model_list_snippet.html' %}
-
-
-{% comment %}
     <h2>Location and Season</h2>
 
     <!--
-    Show two forms to edit location and season_start_year: #location_select and #season_select.
+    Show two forms to select location and season_start_year. Note that, unlike project_visualizations.html (which GETs
+    only if season_start_year changes), changing either requires a GET. todo xx refactor to be more like the former
+    Note: &nbsp; are HACKS to get spacing a little nicer.
     -->
-    {% include 'location_season_select_snippet.html' %}
-{% endcomment %}
+    <div class="row">
+        <form class="form-inline" method="GET" action="{% url 'project-scores' project.pk %}">
+            <div class="form-group">
+                <label for="location_select">Location:</label>
+                <select id="location_select" class="form-control" name="location">
+                    {% for location_option in locations %}
+                        <option {% if location_option == location %}selected="selected"{% endif %}>{{ location_option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                &nbsp;
+                <label for="season_select">Season start year:</label>
+                <select id="season_select" class="form-control" name="season_start_year">
+                    {% for season_start_year_option in season_start_years %}
+                        <option {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}>
+                            {{ season_start_year_option }}
+                        </option>
+                    {% endfor %}
+                </select>
+                &nbsp;&nbsp;<button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </form>
+    </div>
 
 
     <h2>Mean Absolute Error</h2>
 
-    <p>Mean Absolute Error for all models and their week-related targets.</p>
+    <p class="help-block">
+        <a href="https://github.com/reichlab/flusight/wiki/Scoring#1-absolute-error" target="_blank">Absolute error</a>
+        is the absolute value of difference between the eventually observed value and the point prediction. Scores for
+        the current season are calculated using the most recently updated data. Final values may differ.
+    </p>
 
     {% if mean_abs_error_rows %}
         {# show a table similar to flusight's #}
@@ -52,7 +74,7 @@
             <tbody>
             {% for row in mean_abs_error_rows|slice:"1:" %}
                 <tr>
-                    <td>{{ row.0 }}</td>
+                    <td><a href="{{ row.0.get_absolute_url }}">{{ row.0.name }}</a></td>
                     <td>{{ row.1 }}</td>
                     <td>{{ row.2 }}</td>
                     <td>{{ row.3 }}</td>

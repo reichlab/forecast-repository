@@ -12,7 +12,7 @@ from utils.utilities import is_date_in_season, start_end_dates_for_season_start_
 # This file defines functions related to the Flusight D3 component at https://github.com/reichlab/d3-foresight
 #
 
-def flusight_data_dicts_for_models(forecast_models, season_start_year):
+def flusight_data_dicts_for_models(forecast_models, season_start_year, request=None):
     """
     Returns a dict containing forecast_model's point forecasts for all locations in season_start_year, structured
     according to https://github.com/reichlab/d3-foresight . Keys are the locations, and values are the individual data
@@ -57,6 +57,8 @@ def flusight_data_dicts_for_models(forecast_models, season_start_year):
     - The length of predictions must match that of timePoints, using null for missing points.
     - All models must belong to the same Project.
     - Returns None if the project has no get_targets_for_mean_absolute_error().
+    - If request is passed then it is used to calculate each model's absolute URL (used in the flusight component's info
+      box). o/w the model's home_url is used
     """
     if not forecast_models:
         return None
@@ -88,7 +90,7 @@ def flusight_data_dicts_for_models(forecast_models, season_start_year):
     location_to_flusight_data_dict = {}  # return value
     for location in project.get_locations():  # order doesn't matter - the JavaScript just looks up the current location
         model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location,
-                                                                   model_to_location_timezero_points)
+                                                                   model_to_location_timezero_points, request)
         data_dict = {'timePoints': time_points,
                      'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
         location_to_flusight_data_dict[location] = data_dict
@@ -97,7 +99,7 @@ def flusight_data_dicts_for_models(forecast_models, season_start_year):
 
 
 def _model_dicts_for_location_to_timezero_points(project_timezeros, location,
-                                                 model_to_location_timezero_points):
+                                                 model_to_location_timezero_points, request):
     model_dicts = []
     for forecast_model, location_to_timezero_points in model_to_location_timezero_points.items():
         timezero_to_points = location_to_timezero_points[location] if location in location_to_timezero_points \
@@ -107,7 +109,9 @@ def _model_dicts_for_location_to_timezero_points(project_timezeros, location,
             'meta': {
                 'name': forecast_model.name,
                 'description': forecast_model.description,
-                'url': forecast_model.home_url},
+                # 'url': forecast_model.home_url,
+                'url': request.build_absolute_uri(forecast_model.get_absolute_url()) if request else forecast_model.home_url,
+            },
             'predictions': _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
         }
         model_dicts.append(model_dict)

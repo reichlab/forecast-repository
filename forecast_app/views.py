@@ -71,7 +71,7 @@ def project_visualizations(request, project_pk):
     season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years)
 
     # None if no targets in project:
-    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year)
+    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year, request)
 
     return render(
         request,
@@ -122,15 +122,11 @@ def _param_val_from_request(request, param_name, choices):
     """
     :return param_name's value from query parameters. else use last one in choices, or None if no choices
     """
-    param_val = None
-    if param_name in request.GET:
-        try:
-            param_val = int(request.GET[param_name])
-        except ValueError:
-            param_val = None
-    if not param_val:
-        param_val = choices[-1] if choices else None
-    return param_val
+    param_val = request.GET[param_name] if param_name in request.GET else None
+    if param_val in choices:
+        return param_val
+    else:
+        return choices[-1] if choices else None
 
 
 #

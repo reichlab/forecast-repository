@@ -20,17 +20,42 @@
     </div>
 
 
-    <h2>Models</h2>
-
-    {% include 'model_list_snippet.html' %}
-
-
     <h2>Location and Season</h2>
 
     <!--
-    Show two forms to edit location and season_start_year: #location_select and #season_select.
+    Show two forms to select location and season_start_year. The former is handled by JavaScript since that data is in-
+    memory (the view passes all locations for a particular season_start_year). The latter submits a GET to get new
+    location data for the (presumed) new season_start_year.
     -->
-    {% include 'location_season_select_snippet.html' %}
+    <div class="row">
+        <div class="col-md-4">
+            <form class="form-inline" action="#">
+                <div class="form-group">
+                    <label for="location_select">Location:</label>
+                    <select id="location_select" class="form-control" name="location_select_name">
+                        {% for location_option in locations %}
+                            <option {% if location_option == location %}selected="selected"{% endif %}>{{ location_option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6">
+            <form class="form-inline" method="GET" action="{% url 'project-visualizations' project.pk %}">
+                <div class="form-group">
+                    <label for="season_select">Season start year:</label>
+                    <select id="season_select" class="form-control" name="season_start_year">
+                        {% for season_start_year_option in season_start_years %}
+                            <option {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}>
+                                {{ season_start_year_option }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
 
     <h2>Time chart</h2>
