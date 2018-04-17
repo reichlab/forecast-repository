@@ -9,8 +9,8 @@ location data for the (presumed) new season_start_year.
             <div class="form-group">
                 <label for="location_select">Location:</label>
                 <select id="location_select" class="form-control" name="location_select_name">
-                    {% for location in locations %}
-                        <option>{{ location }}</option>
+                    {% for location_option in locations %}
+                        <option {% if location_option == location %}selected="selected"{% endif %}>{{ location_option }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -22,9 +22,7 @@ location data for the (presumed) new season_start_year.
                 <label for="season_select">Season start year:</label>
                 <select id="season_select" class="form-control" name="season_start_year">
                     {% for season_start_year_option in season_start_years %}
-                        <option
-                                {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}
-                        >
+                        <option {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}>
                             {{ season_start_year_option }}
                         </option>
                     {% endfor %}

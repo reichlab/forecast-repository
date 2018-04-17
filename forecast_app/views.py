@@ -19,6 +19,7 @@ from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_data_dicts_for_models
+from utils.mean_absolute_error import mean_abs_error_rows_for_project
 
 
 def index(request):
@@ -67,7 +68,7 @@ def project_visualizations(request, project_pk):
         return HttpResponseForbidden()
 
     season_start_years = project.season_start_years()
-    season_start_year = _get_season_start_year(request, project)  # from query parameters. o/w use default
+    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years)
 
     # None if no targets in project:
     location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year)
@@ -93,36 +94,43 @@ def project_scores(request, project_pk):
         return HttpResponseForbidden()
 
     season_start_years = project.season_start_years()
-    season_start_year = _get_season_start_year(request, project)  # from query parameters. o/w use default
+    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years)
 
-    # mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)  # slow!
-    mean_abs_error_rows = []  # todo xx set mean_abs_error_rows to actual, once fast enough
+    locations = sorted(project.get_locations())
+    location = _param_val_from_request(request, 'location', locations)
+    try:
+        mean_abs_error_rows = mean_abs_error_rows_for_project(project, season_start_year, location)
+    except RuntimeError as rte:
+        return render(request, 'message.html',
+                      context={'title': "Got an error trying to calculate scores.",
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(rte)
+                               })
 
     return render(
         request,
         'project_scores.html',
         context={'project': project,
-                 'locations': sorted(list(project.get_locations())),
-                 'season_start_year': season_start_year,
                  'season_start_years': season_start_years,
+                 'season_start_year': season_start_year,
+                 'locations': locations,
+                 'location': location,
                  'mean_abs_error_rows': mean_abs_error_rows,
                  })
 
 
-def _get_season_start_year(request, project):
+def _param_val_from_request(request, param_name, choices):
     """
-    :return season_start_year from query parameters. else use default
+    :return param_name's value from query parameters. else use last one in choices, or None if no choices
     """
-    season_start_years = project.season_start_years()
-    season_start_year = None
-    if 'season_start_year' in request.GET:
+    param_val = None
+    if param_name in request.GET:
         try:
-            season_start_year = int(request.GET['season_start_year'])
+            param_val = int(request.GET[param_name])
         except ValueError:
-            season_start_year = None
-    if not season_start_year:
-        season_start_year = season_start_years[-1] if season_start_years else None
-    return season_start_year
+            param_val = None
+    if not param_val:
+        param_val = choices[-1] if choices else None
+    return param_val
 
 
 #

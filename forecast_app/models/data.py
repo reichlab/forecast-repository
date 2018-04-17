@@ -190,6 +190,9 @@ class ModelWithCDCData(models.Model):
 
     def get_target_point_value(self, location, target):
         """
+        NB: called repeatedly, this method is pretty slow. Probably better for callers to get point values for *all*
+        locations and targets (maybe).
+
         :return: point value for a location and target
         """
         cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)

@@ -125,6 +125,58 @@ class Project(ModelWithCDCData):
         return self.__class__.__name__ + '_' + str(self.pk)
 
 
+    #
+    # distribution-related utilities
+    #
+
+    def get_distribution_preview(self):
+        """
+        :return: returns an arbitrary Forecast bin for this project as a 3-tuple: (Forecast, location, target). returns
+            None if I have no targets, locations, models, or forecasts
+        """
+        first_model = self.models.first()
+        first_forecast = first_model.forecasts.first() if first_model else None
+        locations = self.get_locations()
+        first_location = next(iter(sorted(locations))) if locations else None  # sort to make deterministic
+        targets = self.get_targets(first_location)
+        first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
+        return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
+            else None
+
+
+    #
+    # time-related utilities
+    #
+
+    def forecasts_for_timezero(self, timezero):
+        """
+        :param timezero: a TimeZero
+        :return: a list of Forecasts for timezero for each of my models
+        """
+        return [forecast_model.forecast_for_time_zero(timezero) for forecast_model in self.models.all()]
+
+
+    def time_zero_for_timezero_date(self, timezero_date_str):
+        """
+        :return: the first TimeZero in me that has a timezero_date matching timezero_date_str
+        """
+        return self.timezeros.filter(timezero_date=timezero_date_str).first()
+
+
+    def season_start_years(self):
+        """
+        :return: list of season start years for this project based on my timezeros. recall SEASON_START_EW_NUMBER
+        """
+        season_start_years = set()
+        for timezero in self.timezeros.all():
+            season_start_years.add(season_start_year_for_date(timezero.timezero_date))
+        return sorted(list(season_start_years))
+
+
+    #
+    # count-related functions
+    #
+
     def get_summary_counts(self):
         """
         :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
@@ -159,13 +211,9 @@ class Project(ModelWithCDCData):
             if first_forecast_num_rows else 0
 
 
-    def forecasts_for_timezero(self, timezero):
-        """
-        :param timezero: a TimeZero
-        :return: a list of Forecasts for timezero for each of my models
-        """
-        return [forecast_model.forecast_for_time_zero(timezero) for forecast_model in self.models.all()]
-
+    #
+    # score-related functions
+    #
 
     def get_region_for_location_name(self, location_name):
         """
@@ -191,30 +239,9 @@ class Project(ModelWithCDCData):
         return self.config_dict and self.config_dict['target_to_week_increment'][target_name]
 
 
-    def season_start_years(self):
-        """
-        :return: list of season start years for this project based on my timezeros. recall SEASON_START_EW_NUMBER
-        """
-        season_start_years = set()
-        for timezero in self.timezeros.all():
-            season_start_years.add(season_start_year_for_date(timezero.timezero_date))
-        return sorted(list(season_start_years))
-
-
-    def get_distribution_preview(self):
-        """
-        :return: returns an arbitrary Forecast bin for this project as a 3-tuple: (Forecast, location, target). returns
-            None if I have no targets, locations, models, or forecasts
-        """
-        first_model = self.models.first()
-        first_forecast = first_model.forecasts.first() if first_model else None
-        locations = self.get_locations()
-        first_location = next(iter(sorted(locations))) if locations else None  # sort to make deterministic
-        targets = self.get_targets(first_location)
-        first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
-        return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
-            else None
-
+    #
+    # template and data-related functions
+    #
 
     @transaction.atomic
     def load_template(self, template_path, file_name=None):
@@ -370,13 +397,6 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Target(s) was not found in every location. csv_filename={}, "
                                "missing location, target: {}"
                                .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
-
-
-    def time_zero_for_timezero_date(self, timezero_date_str):
-        """
-        :return: the first TimeZero in me that has a timezero_date matching timezero_date_str
-        """
-        return self.timezeros.filter(timezero_date=timezero_date_str).first()
 
 
 # NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django

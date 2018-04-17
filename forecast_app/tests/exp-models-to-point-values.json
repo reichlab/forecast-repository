@@ -1,0 +1,142 @@
+{
+  "{{forecast_model1_id}}": {
+    "{{forecast1_id}}": {
+      "HHS Region 1": {
+        "1 wk ahead": 1.60139630890691,
+        "2 wk ahead": 1.61529934610894,
+        "3 wk ahead": 1.98893847276492,
+        "4 wk ahead": 2.06145600601835
+      },
+      "HHS Region 10": {
+        "1 wk ahead": 2.89940153907353,
+        "2 wk ahead": 2.79899538806601,
+        "3 wk ahead": 2.50057065902776,
+        "4 wk ahead": 2.36933435917895
+      },
+      "HHS Region 2": {
+        "1 wk ahead": 4.99776594895244,
+        "2 wk ahead": 4.21021836008306,
+        "3 wk ahead": 3.95015450341203,
+        "4 wk ahead": 4.00420015189102
+      },
+      "HHS Region 3": {
+        "1 wk ahead": 2.99944727598047,
+        "2 wk ahead": 2.80381336935977,
+        "3 wk ahead": 2.60844846339815,
+        "4 wk ahead": 2.61039466606482
+      },
+      "HHS Region 4": {
+        "1 wk ahead": 2.49983666859139,
+        "2 wk ahead": 2.62168214634388,
+        "3 wk ahead": 2.52875366492325,
+        "4 wk ahead": 2.49467003021325
+      },
+      "HHS Region 5": {
+        "1 wk ahead": 2.00017452261038,
+        "2 wk ahead": 2.025236900354,
+        "3 wk ahead": 1.98010248287979,
+        "4 wk ahead": 2.19233072084465
+      },
+      "HHS Region 6": {
+        "1 wk ahead": 4.20174635866151,
+        "2 wk ahead": 4.22545583021166,
+        "3 wk ahead": 4.41926018901693,
+        "4 wk ahead": 4.40690443889012
+      },
+      "HHS Region 7": {
+        "1 wk ahead": 2.79371802884364,
+        "2 wk ahead": 2.49591744885472,
+        "3 wk ahead": 2.38589224099281,
+        "4 wk ahead": 2.57272852141102
+      },
+      "HHS Region 8": {
+        "1 wk ahead": 1.69920709944699,
+        "2 wk ahead": 1.60200432148928,
+        "3 wk ahead": 1.61703225908887,
+        "4 wk ahead": 1.67219918373578
+      },
+      "HHS Region 9": {
+        "1 wk ahead": 3.10171134472454,
+        "2 wk ahead": 3.10232205135854,
+        "3 wk ahead": 3.01871761249474,
+        "4 wk ahead": 3.03318356369967
+      },
+      "US National": {
+        "1 wk ahead": 3.00101461253164,
+        "2 wk ahead": 2.72809349594878,
+        "3 wk ahead": 2.5332588357381,
+        "4 wk ahead": 2.42985946508278
+      }
+    }
+  },
+  "{{forecast_model2_id}}": {
+    "{{forecast2_id}}": {
+      "HHS Region 1": {
+        "1 wk ahead": 1.8,
+        "2 wk ahead": 2.4,
+        "3 wk ahead": 2.4,
+        "4 wk ahead": 2.5
+      },
+      "HHS Region 10": {
+        "1 wk ahead": 3.35,
+        "2 wk ahead": 3.1,
+        "3 wk ahead": 2.6,
+        "4 wk ahead": 2.3
+      },
+      "HHS Region 2": {
+        "1 wk ahead": 6.1,
+        "2 wk ahead": 6.0,
+        "3 wk ahead": 5.9,
+        "4 wk ahead": 5.9
+      },
+      "HHS Region 3": {
+        "1 wk ahead": 2.8,
+        "2 wk ahead": 3.1,
+        "3 wk ahead": 3.0,
+        "4 wk ahead": 2.6
+      },
+      "HHS Region 4": {
+        "1 wk ahead": 2.5,
+        "2 wk ahead": 2.8,
+        "3 wk ahead": 2.7,
+        "4 wk ahead": 2.8
+      },
+      "HHS Region 5": {
+        "1 wk ahead": 2.0,
+        "2 wk ahead": 2.0,
+        "3 wk ahead": 1.9,
+        "4 wk ahead": 2.1
+      },
+      "HHS Region 6": {
+        "1 wk ahead": 4.6,
+        "2 wk ahead": 4.4,
+        "3 wk ahead": 4.5,
+        "4 wk ahead": 4.4
+      },
+      "HHS Region 7": {
+        "1 wk ahead": 2.3,
+        "2 wk ahead": 2.5,
+        "3 wk ahead": 2.5,
+        "4 wk ahead": 2.1
+      },
+      "HHS Region 8": {
+        "1 wk ahead": 1.7,
+        "2 wk ahead": 1.6,
+        "3 wk ahead": 1.6,
+        "4 wk ahead": 1.7
+      },
+      "HHS Region 9": {
+        "1 wk ahead": 3.2,
+        "2 wk ahead": 3.6,
+        "3 wk ahead": 3.7,
+        "4 wk ahead": 3.8
+      },
+      "US National": {
+        "1 wk ahead": 3.2,
+        "2 wk ahead": 3.3,
+        "3 wk ahead": 3.3,
+        "4 wk ahead": 3.2
+      }
+    }
+  }
+}

@@ -72,7 +72,7 @@ def flusight_data_dicts_for_models(forecast_models, season_start_year):
     else:
         targets = sorted(targets)
 
-    # set time_points. order_by -> matches ORDER BY in _point_values_for_models():
+    # set time_points. order_by -> matches ORDER BY in _flusight_point_value_rows_for_models():
     time_points = []
     project_timezeros = [timezero for timezero in project.timezeros.order_by('timezero_date')
                          if is_date_in_season(timezero.timezero_date, season_start_year)]
@@ -132,8 +132,8 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
         predictions
     """
     # point_value_rows: fm.id, fd.location, tz.timezero_date, fd.value
-    # note that some project timezeros might not be returned by _point_values_for_models():
-    point_value_rows = _point_values_for_models(forecast_models, season_start_year, targets)
+    # note that some project timezeros might not be returned by _flusight_point_value_rows_for_models():
+    point_value_rows = _flusight_point_value_rows_for_models(forecast_models, season_start_year, targets)
     model_to_location_timezero_points = {}  # return value
     for model_pk, loc_tz_val_grouper in groupby(point_value_rows, key=lambda _: _[0]):
         location_to_timezero_points_dict = {}
@@ -146,7 +146,7 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
         forecast_model = ForecastModel.objects.get(pk=model_pk)
         model_to_location_timezero_points[forecast_model] = location_to_timezero_points_dict
 
-    # b/c _point_values_for_models() does not return any rows for models that don't have data for season_start_year
+    # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for season_start_year
     # and targets, we need to add empty model entries for callers
     for forecast_model in forecast_models:
         if forecast_model not in model_to_location_timezero_points:
@@ -155,7 +155,7 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
     return model_to_location_timezero_points
 
 
-def _point_values_for_models(forecast_models, season_start_year, targets):
+def _flusight_point_value_rows_for_models(forecast_models, season_start_year, targets):
     # query notes:
     # - ORDER BY ensures groupby() will work
     # - we don't need to select targets b/c forecast ids have 1:1 correspondence to TimeZeros
