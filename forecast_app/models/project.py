@@ -217,10 +217,15 @@ class Project(ModelWithCDCData):
 
     def get_region_for_location_name(self, location_name):
         """
-        :return: Delphi region name corresponding to location_name. see here for valid ones:
+        :return: Delphi region name corresponding to location_name. returns None if not found. see here for valid ones:
             https://github.com/cmu-delphi/delphi-epidata/blob/master/labels/regions.txt. returns None if no config_dict.
         """
-        return self.config_dict and self.config_dict['location_to_delphi_region'][location_name]
+        if (not self.config_dict) or \
+                ('location_to_delphi_region' not in self.config_dict) or \
+                (location_name not in self.config_dict['location_to_delphi_region']):
+            return None
+        else:
+            return self.config_dict['location_to_delphi_region'][location_name]
 
 
     def get_targets_for_mean_absolute_error(self):

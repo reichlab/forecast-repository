@@ -36,7 +36,7 @@ def delphi_wili_for_mmwr_year_week(project, mmwr_year, mmwr_week, location):
     """
     region = project.get_region_for_location_name(location)
     if not region:
-        raise RuntimeError("location_name is not a valid Delphi location: {}".format(location))
+        raise RuntimeError("could not find region for Delphi location: {}".format(location))
 
     if (mmwr_year, mmwr_week) in DELPHI_MMWR_YEAR_AND_WEEK_TO_WILI:
         return DELPHI_MMWR_YEAR_AND_WEEK_TO_WILI[(mmwr_year, mmwr_week)]

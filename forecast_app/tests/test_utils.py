@@ -10,7 +10,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
-from utils.mean_absolute_error import mean_absolute_error, _models_to_point_values_dicts
+from utils.mean_absolute_error import mean_absolute_error, _model_ids_to_point_values_dicts, _model_ids_to_forecast_rows
 from utils.utilities import cdc_csv_filename_components, is_date_in_season, season_start_year_for_date, \
     start_end_dates_for_season_start_year, SEASON_START_EW_NUMBER
 
@@ -160,20 +160,16 @@ class UtilitiesTestCase(TestCase):
                              '3 wk ahead': 0.950515864,
                              '4 wk ahead': 1.482010693}
 
-        # test using slow row-by-row lookup of predicted values
         for target, exp_mae in target_to_exp_mae.items():
-            act_mae = mean_absolute_error(self.forecast_model, 2016, 'US National', target, mock_wili_for_epi_week_fcn)
-            self.assertAlmostEqual(exp_mae, act_mae)
-
-        # test using cached lookup
-        for target, exp_mae in target_to_exp_mae.items():
-            act_point_values_dict = _models_to_point_values_dicts([self.forecast_model], 2016, [target])
-            act_mae = mean_absolute_error(self.forecast_model, 2016, 'US National', target, mock_wili_for_epi_week_fcn,
-                                          act_point_values_dict[self.forecast_model])
+            model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts([self.forecast_model], 2016, [target])
+            model_ids_to_forecast_rows = _model_ids_to_forecast_rows([self.forecast_model], 2016)
+            act_mae = mean_absolute_error(self.forecast_model, 'US National', target, mock_wili_for_epi_week_fcn,
+                                          model_ids_to_point_values_dicts[self.forecast_model.pk],
+                                          model_ids_to_forecast_rows[self.forecast_model.pk])
             self.assertAlmostEqual(exp_mae, act_mae)
 
 
-    def test__models_to_point_values_dicts(self):
+    def test__model_ids_to_point_values_dicts(self):
         project1 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project1.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
@@ -205,11 +201,13 @@ class UtilitiesTestCase(TestCase):
                                                              'forecast1_id': forecast1.id,
                                                              'forecast_model2_id': forecast_model2.id,
                                                              'forecast2_id': forecast2.id}))
-            # wire up exp_point_values_dict to replace keys with actual objects, not just string ids
-            exp_point_values_dict_loaded = json.loads(exp_json_str)
-            exp_point_values_dict = {
-                forecast_model1: {forecast1: exp_point_values_dict_loaded[str(forecast_model1.id)][str(forecast1.id)]},
-                forecast_model2: {forecast2: exp_point_values_dict_loaded[str(forecast_model2.id)][str(forecast2.id)]},
+
+            # wire up exp_dict to replace keys with actual int IDs, not just strings
+            exp_dict_loaded = json.loads(exp_json_str)
+            exp_dict = {
+                forecast_model1.pk: {forecast1.pk: exp_dict_loaded[str(forecast_model1.id)][str(forecast1.id)]},
+                forecast_model2.pk: {forecast2.pk: exp_dict_loaded[str(forecast_model2.id)][str(forecast2.id)]},
             }
-            act_point_values_dict = _models_to_point_values_dicts([forecast_model1, forecast_model2], 2016, targets)
-            self.assertEqual(exp_point_values_dict, act_point_values_dict)
+
+            act_point_values_dict = _model_ids_to_point_values_dicts([forecast_model1, forecast_model2], 2016, targets)
+            self.assertEqual(exp_dict, act_point_values_dict)

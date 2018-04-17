@@ -106,7 +106,15 @@ def project_scores(request, project_pk):
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(rte)
                                })
 
-    targets = sorted(project.get_targets_for_mean_absolute_error())
+    targets = project.get_targets_for_mean_absolute_error()
+    if not targets:
+        return render(request, 'message.html',
+                      context={'title': "Required targets not found",
+                               'message': "The project does not have the required score-related targets defined in "
+                                          "its configuration."
+                               })
+
+    targets = sorted(targets)
     target_min_abs_errors = [target_to_min_mae[target] for target in targets]
     return render(
         request,
