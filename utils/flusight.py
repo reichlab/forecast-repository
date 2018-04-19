@@ -87,14 +87,13 @@ def flusight_data_dicts_for_models(forecast_models, season_start_year, request=N
 
     # now that we have model_to_location_timezero_points, we can build the return value, extracting each
     # location from all of the models
-    location_to_flusight_data_dict = {}  # return value
-    for location in project.get_locations():  # order doesn't matter - the JavaScript just looks up the current location
+    location_to_flusight_data_dict = {}  # return value. filled next
+    for location in project.get_locations():
         model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location,
                                                                    model_to_location_timezero_points, request)
         data_dict = {'timePoints': time_points,
                      'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
         location_to_flusight_data_dict[location] = data_dict
-
     return location_to_flusight_data_dict
 
 
@@ -138,7 +137,7 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
     # point_value_rows: fm.id, fd.location, tz.timezero_date, fd.value
     # note that some project timezeros might not be returned by _flusight_point_value_rows_for_models():
     point_value_rows = _flusight_point_value_rows_for_models(forecast_models, season_start_year, targets)
-    model_to_location_timezero_points = {}  # return value
+    model_to_location_timezero_points = {}  # return value. filled next
     for model_pk, loc_tz_val_grouper in groupby(point_value_rows, key=lambda _: _[0]):
         location_to_timezero_points_dict = {}
         for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):

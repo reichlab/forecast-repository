@@ -254,10 +254,9 @@ class ForecastTestCase(TestCase):
     def test_get_location_dicts_internal_format(self):
         act_location_dicts = self.forecast.get_location_dicts_internal_format()
 
-        exp_location_dicts = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
-                              'US National']
-        self.assertEqual(exp_location_dicts, list(act_location_dicts.keys()))  # tests order
+        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
+        self.assertEqual(exp_locations, list(act_location_dicts.keys()))  # tests order
 
         # spot-check one location's targets
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',

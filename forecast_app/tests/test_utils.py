@@ -10,7 +10,8 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
-from utils.mean_absolute_error import mean_absolute_error, _model_ids_to_point_values_dicts, _model_ids_to_forecast_rows
+from utils.mean_absolute_error import mean_absolute_error, _model_ids_to_point_values_dicts, \
+    _model_ids_to_forecast_rows, location_to_mean_abs_error_rows_for_project
 from utils.utilities import cdc_csv_filename_components, is_date_in_season, season_start_year_for_date, \
     start_end_dates_for_season_start_year, SEASON_START_EW_NUMBER
 
@@ -150,23 +151,6 @@ class UtilitiesTestCase(TestCase):
         for start_year, exp_start_end_dates in start_year_to_exp_start_end_dates.items():
             act_start_date, act_end_date = start_end_dates_for_season_start_year(start_year)
             self.assertEqual((exp_start_end_dates[0], exp_start_end_dates[1]), (act_start_date, act_end_date))
-
-
-    def test_mean_absolute_error(self):
-        # 'mini' season for testing. from:
-        #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
-        target_to_exp_mae = {'1 wk ahead': 0.215904853,
-                             '2 wk ahead': 0.458186984,
-                             '3 wk ahead': 0.950515864,
-                             '4 wk ahead': 1.482010693}
-
-        for target, exp_mae in target_to_exp_mae.items():
-            model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts([self.forecast_model], 2016, [target])
-            model_ids_to_forecast_rows = _model_ids_to_forecast_rows([self.forecast_model], 2016)
-            act_mae = mean_absolute_error(self.forecast_model, 'US National', target, mock_wili_for_epi_week_fcn,
-                                          model_ids_to_point_values_dicts[self.forecast_model.pk],
-                                          model_ids_to_forecast_rows[self.forecast_model.pk])
-            self.assertAlmostEqual(exp_mae, act_mae)
 
 
     def test__model_ids_to_point_values_dicts(self):

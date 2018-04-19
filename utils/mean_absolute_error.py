@@ -5,17 +5,43 @@ from django.db import connection
 
 from forecast_app.models import ForecastData, Forecast, ForecastModel, TimeZero
 from forecast_app.models.data import CDCData
-from utils.delphi import delphi_wili_for_mmwr_year_week
 from utils.utilities import start_end_dates_for_season_start_year
 
 
-def mean_abs_error_rows_for_project(project, season_start_year, location):
+def location_to_mean_abs_error_rows_for_project(project, season_start_year, wili_for_epi_week_fcn):
     """
-    Called by the project_visualizations() view function, returns a 2-tuple of the form: (rows, target_to_min_mae),
-    where rows is a table in the form of a list of rows where each row corresponds to a model, and each column
-    corresponds to a target, i.e., X=target vs. Y=Model. The format:
+    Called by the project_visualizations() view function, returns a dict containing a table of mean absolute errors for
+    all models and all locations in project for season_start_year. The dict maps:
+    {location: (mean_abs_error_rows, target_to_min_mae)}, where rows is a table in the form of a list of rows where each
+    row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model.
 
-        [[model_name1, target1_mae, target2_mae, ...], ...]
+    See _mean_abs_error_rows_for_project() for the format of mean_abs_error_rows.
+
+    Returns {} if no appropriate targets in project.
+    """
+    targets = project.get_targets_for_mean_absolute_error()
+    if not targets:
+        return {}
+
+    targets = sorted(targets)
+
+    # cache all the data we need for all models
+    model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(project.models.all(), season_start_year, targets)
+    model_ids_to_forecast_rows = _model_ids_to_forecast_rows(project.models.all(), season_start_year)
+
+    return {location: _mean_abs_error_rows_for_project(project, targets, location, model_ids_to_point_values_dicts,
+                                                       model_ids_to_forecast_rows, wili_for_epi_week_fcn)
+            for location in project.get_locations()}
+
+
+def _mean_abs_error_rows_for_project(project, targets, location,
+                                     model_ids_to_point_values_dicts, model_ids_to_forecast_rows,
+                                     wili_for_epi_week_fcn):
+    """
+    Returns a 2-list of the form: (rows, target_to_min_mae), where rows is a table in the form of a list of rows where
+    each row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model. The format:
+
+        [[model1_pk, target1_mae, target2_mae, ...], ...]
 
     The first row is the header.
 
@@ -32,28 +58,14 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
         | ensemble | 0.3  | 0.4  | 0.53 | 0.54 |
         +----------+------+------+------+------+
 
-
-    The second return arg - target_to_min_mae - is a dict that maps: target -> minimum MAE found.
-
-    Returns ([], {}) if the project does not have appropriate targets defined in its configuration.
+    The second return arg - target_to_min_mae - is a dict that maps: {target_ minimum_mae). Returns ([], {}) if the
+    project does not have appropriate targets defined in its configuration. NB: assumes all of project's models have the
+    same targets - something is validated by ForecastModel.load_forecast()
     """
-    # NB: assumes all of project's models have the same targets - something is validated by
-    # ForecastModel.load_forecast()
-
-    targets = project.get_targets_for_mean_absolute_error()
-    if not targets:
-        return [], {}
-
-    # cache all the data we need for all models
-    targets = sorted(targets)
-    model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(project.models.all(), season_start_year, targets)
-    model_ids_to_forecast_rows = _model_ids_to_forecast_rows(project.models.all(), season_start_year)
-
     target_to_min_mae = {target: None for target in targets}  # tracks min MAE for bolding in table. filled next
-
     rows = [['Model', *targets]]  # header
-    for forecast_model in project.models.all():
-        row = [forecast_model]
+    for forecast_model in sorted(project.models.all(), key=lambda fm: fm.name):
+        row = [forecast_model.pk]
         for target in targets:
             forecast_to_point_dicts = model_ids_to_point_values_dicts[forecast_model.pk] \
                 if forecast_model.pk in model_ids_to_point_values_dicts \
@@ -61,7 +73,7 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
             forecast_id_tz_date_csv_fname_rows = model_ids_to_forecast_rows[forecast_model.pk] \
                 if forecast_model.pk in model_ids_to_forecast_rows \
                 else {}
-            mae_val = mean_absolute_error(forecast_model, location, target, delphi_wili_for_mmwr_year_week,
+            mae_val = mean_absolute_error(forecast_model, location, target, wili_for_epi_week_fcn,
                                           forecast_to_point_dicts, forecast_id_tz_date_csv_fname_rows)
             if not mae_val:
                 return []
@@ -70,7 +82,7 @@ def mean_abs_error_rows_for_project(project, season_start_year, location):
                 if target_to_min_mae[target] else mae_val
             row.append(mae_val)
         rows.append(row)
-    return rows, target_to_min_mae
+    return [rows, target_to_min_mae]
 
 
 def mean_absolute_error(forecast_model, location, target, wili_for_epi_week_fcn,
@@ -164,7 +176,7 @@ def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets
     - target_to_points_dicts: {target -> point_value}
     """
     point_value_rows = _mae_point_value_rows_for_models(forecast_models, season_start_year, targets)
-    models_to_point_values_dicts = {}  # return value
+    models_to_point_values_dicts = {}  # return value. filled next
     for model_pk, forecast_loc_target_val_grouper in groupby(point_value_rows, key=lambda _: _[0]):
         forecast_to_point_dicts = {}
         for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):

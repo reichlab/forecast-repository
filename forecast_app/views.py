@@ -18,8 +18,9 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
+from utils.delphi import delphi_wili_for_mmwr_year_week
 from utils.flusight import flusight_data_dicts_for_models
-from utils.mean_absolute_error import mean_abs_error_rows_for_project
+from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
 
 def index(request):
@@ -68,7 +69,7 @@ def project_visualizations(request, project_pk):
         return HttpResponseForbidden()
 
     season_start_years = project.season_start_years()
-    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years)
+    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years, True)
 
     # None if no targets in project:
     location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year, request)
@@ -94,12 +95,10 @@ def project_scores(request, project_pk):
         return HttpResponseForbidden()
 
     season_start_years = project.season_start_years()
-    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years)
-
-    locations = sorted(project.get_locations())
-    location = _param_val_from_request(request, 'location', locations)
+    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years, True)
     try:
-        mean_abs_error_rows, target_to_min_mae = mean_abs_error_rows_for_project(project, season_start_year, location)
+        location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_start_year,
+                                                                                delphi_wili_for_mmwr_year_week)
     except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to calculate scores.",
@@ -114,26 +113,34 @@ def project_scores(request, project_pk):
                                           "its configuration."
                                })
 
-    targets = sorted(targets)
-    target_min_abs_errors = [target_to_min_mae[target] for target in targets]
+    locations = sorted(project.get_locations())
+    location = locations[-1]
+    model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
+                                for forecast_model in project.models.all()}
     return render(
         request,
         'project_scores.html',
         context={'project': project,
+                 'model_pk_to_name_and_url': model_pk_to_name_and_url,
                  'season_start_years': season_start_years,
                  'season_start_year': season_start_year,
                  'locations': locations,
                  'location': location,
-                 'mean_abs_error_rows': mean_abs_error_rows,
-                 'target_min_abs_errors': target_min_abs_errors,
+                 'location_to_rows_and_mins': location_to_rows_and_mins,
                  })
 
 
-def _param_val_from_request(request, param_name, choices):
+def _param_val_from_request(request, param_name, choices, is_int):
     """
     :return param_name's value from query parameters. else use last one in choices, or None if no choices
     """
     param_val = request.GET[param_name] if param_name in request.GET else None
+    if is_int:
+        try:
+            param_val = int(param_val)
+        except:
+            pass
+
     if param_val in choices:
         return param_val
     else:
