@@ -21,6 +21,7 @@ pillow = "*"
 pymmwr = "==0.1.0"
 pyyaml = "*"
 djangorestframework-csv = "*"
+newrelic = "*"
 
 
 [dev-packages]

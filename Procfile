@@ -1,1 +1,1 @@
-web: gunicorn forecast_repo.wsgi --log-file=-
+web: newrelic-admin run-program gunicorn forecast_repo.wsgi --log-file=-
