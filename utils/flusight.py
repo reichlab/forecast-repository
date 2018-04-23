@@ -134,31 +134,8 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
         timezero_points_dict, which maps timezero_datetime -> point values. note that some project TimeZeros have no
         predictions
     """
-    # point_value_rows: fm.id, fd.location, tz.timezero_date, fd.value
+    # get the rows, ordered so we can groupby()
     # note that some project timezeros might not be returned by _flusight_point_value_rows_for_models():
-    point_value_rows = _flusight_point_value_rows_for_models(forecast_models, season_start_year, targets)
-    model_to_location_timezero_points = {}  # return value. filled next
-    for model_pk, loc_tz_val_grouper in groupby(point_value_rows, key=lambda _: _[0]):
-        location_to_timezero_points_dict = {}
-        for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
-            timezero_to_points_dict = {}
-            for timezero_date, values_grouper in groupby(timezero_values_grouper, key=lambda _: _[2]):
-                point_values = [_[3] for _ in list(values_grouper)]
-                timezero_to_points_dict[timezero_date] = point_values
-            location_to_timezero_points_dict[location] = timezero_to_points_dict
-        forecast_model = ForecastModel.objects.get(pk=model_pk)
-        model_to_location_timezero_points[forecast_model] = location_to_timezero_points_dict
-
-    # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for season_start_year
-    # and targets, we need to add empty model entries for callers
-    for forecast_model in forecast_models:
-        if forecast_model not in model_to_location_timezero_points:
-            model_to_location_timezero_points[forecast_model] = {}
-
-    return model_to_location_timezero_points
-
-
-def _flusight_point_value_rows_for_models(forecast_models, season_start_year, targets):
     # query notes:
     # - ORDER BY ensures groupby() will work
     # - we don't need to select targets b/c forecast ids have 1:1 correspondence to TimeZeros
@@ -185,4 +162,25 @@ def _flusight_point_value_rows_for_models(forecast_models, season_start_year, ta
         season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
         cursor.execute(sql, [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date])
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+
+    # build the dict
+    model_to_location_timezero_points = {}  # return value. filled next
+    for model_pk, loc_tz_val_grouper in groupby(rows, key=lambda _: _[0]):
+        location_to_timezero_points_dict = {}
+        for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
+            timezero_to_points_dict = {}
+            for timezero_date, values_grouper in groupby(timezero_values_grouper, key=lambda _: _[2]):
+                point_values = [_[3] for _ in list(values_grouper)]
+                timezero_to_points_dict[timezero_date] = point_values
+            location_to_timezero_points_dict[location] = timezero_to_points_dict
+        forecast_model = ForecastModel.objects.get(pk=model_pk)
+        model_to_location_timezero_points[forecast_model] = location_to_timezero_points_dict
+
+    # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for season_start_year
+    # and targets, we need to add empty model entries for callers
+    for forecast_model in forecast_models:
+        if forecast_model not in model_to_location_timezero_points:
+            model_to_location_timezero_points[forecast_model] = {}
+
+    return model_to_location_timezero_points

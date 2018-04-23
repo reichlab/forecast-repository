@@ -138,7 +138,7 @@ def _model_ids_to_forecast_rows(forecast_models, season_start_year):
     (forecast_id, forecast_timezero_date, forecast_csv_filename). This is an optimization that avoids some ORM overhead
     when simply iterating like so: `for forecast in forecast_model.forecasts.all(): ...`
     """
-    # first get the rows, ordered so we can groupby()
+    # get the rows, ordered so we can groupby()
     sql = """
         SELECT fm.id, f.id, tz.timezero_date, f.csv_filename
         FROM {forecastmodel_table_name} fm
@@ -158,7 +158,7 @@ def _model_ids_to_forecast_rows(forecast_models, season_start_year):
         cursor.execute(sql, [*forecast_model_ids, season_start_date, season_end_date])
         rows = cursor.fetchall()
 
-    # now build the dict, keyed by groupby'd model
+    # build the dict
     model_ids_to_forecast_rows = {}  # return value. filled next
     for model_pk, forecast_row_grouper in groupby(rows, key=lambda _: _[0]):
         model_ids_to_forecast_rows[model_pk] = [row[1:] for row in forecast_row_grouper]
@@ -175,21 +175,7 @@ def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets
     - location_to_point_dicts: {location -> target_to_points_dicts}
     - target_to_points_dicts: {target -> point_value}
     """
-    point_value_rows = _mae_point_value_rows_for_models(forecast_models, season_start_year, targets)
-    models_to_point_values_dicts = {}  # return value. filled next
-    for model_pk, forecast_loc_target_val_grouper in groupby(point_value_rows, key=lambda _: _[0]):
-        forecast_to_point_dicts = {}
-        for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):
-            location_to_point_dicts = {}
-            for location, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[2]):
-                rows = list(target_val_grouper)
-                location_to_point_dicts[location] = {row[3]: row[4] for row in rows}
-            forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
-        models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
-    return models_to_point_values_dicts
-
-
-def _mae_point_value_rows_for_models(forecast_models, season_start_year, targets):
+    # get the rows, ordered so we can groupby()
     sql = """
         SELECT fm.id, f.id, fd.location, fd.target, fd.value
         FROM {forecast_data_table_name} fd
@@ -212,4 +198,17 @@ def _mae_point_value_rows_for_models(forecast_models, season_start_year, targets
         season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
         cursor.execute(sql, [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date])
-        return cursor.fetchall()
+        rows = cursor.fetchall()
+
+    # build the dict
+    models_to_point_values_dicts = {}  # return value. filled next
+    for model_pk, forecast_loc_target_val_grouper in groupby(rows, key=lambda _: _[0]):
+        forecast_to_point_dicts = {}
+        for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):
+            location_to_point_dicts = {}
+            for location, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[2]):
+                rows = list(target_val_grouper)
+                location_to_point_dicts[location] = {row[3]: row[4] for row in rows}
+            forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
+        models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
+    return models_to_point_values_dicts
