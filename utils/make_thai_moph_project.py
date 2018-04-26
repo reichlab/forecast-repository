@@ -31,7 +31,9 @@ CONFIG_DICT = {
 
 @click.command()
 @click.argument('data_dir', type=click.Path(file_okay=False, exists=True))
-def make_thai_moph_project_app(data_dir):
+@click.option('--make_project', is_flag=True, default=False)
+@click.option('--load_data', is_flag=True, default=False)
+def make_thai_moph_project_app(data_dir, make_project, load_data):
     """
     Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
     Impetus project. Note: The input files to this program are the output from a spamd export script located the
@@ -46,32 +48,56 @@ def make_thai_moph_project_app(data_dir):
 
     """
     start_time = timeit.default_timer()
-    click.echo("* started creating Thai MOPH project")
+    data_dir = Path(data_dir)
+    click.echo("* make_thai_moph_project_app(): data_dir={}, make_project={}, load_data={}"
+               .format(data_dir, make_project, load_data))
 
     project_name = 'Impetus Province Forecasts'
-    found_project = Project.objects.filter(name=project_name).first()
-    if found_project:
-        click.echo("* deleting previous project")
-        found_project.delete()
+    project = Project.objects.filter(name=project_name).first()
+    if make_project:
+        if project:
+            click.echo("* Deleting existing project: {}".format(project))
+            project.delete()
 
-    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
+        # create the Project (and Users if necessary), including loading the template and creating Targets
+        po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
+        template_path = data_dir / 'thai-moph-forecasting-template.csv'
+        project = make_thai_moph_project(project_name, template_path)
+        project.owner = po_user
+        project.model_owners.add(mo_user)
+        project.save()
+        click.echo("* Created project: {}".format(project))
 
-    click.echo("* creating project")
-    data_dir = Path(data_dir)
-    template_path = data_dir / 'thai-moph-forecasting-template.csv'
-    project = make_thai_moph_project(project_name, template_path, data_dir)
-    project.owner = po_user
-    project.model_owners.add(mo_user)
-    project.save()
+        # make the model
+        forecast_model = make_model(project, mo_user, data_dir)
+        click.echo("* created model: {}".format(forecast_model))
+    elif not project:  # not make_project, but couldn't find existing
+        raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
-    click.echo("* creating model. data_dir={}".format(data_dir))
-    make_model(project, mo_user, data_dir)
+    # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts
+    for cdc_csv_file, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(data_dir):
+        found_time_zero = project.time_zero_for_timezero_date(time_zero)
+        if found_time_zero:
+            click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+            continue
+
+        TimeZero.objects.create(project=project,
+                                timezero_date=str(time_zero),
+                                data_version_date=str(data_version_date) if data_version_date else None)
+    click.echo("- created TimeZeros: {}".format(project.timezeros.all()))
+
+    # load data if necessary
+    if load_data:
+        click.echo("* Loading forecasts")
+        forecast_model = project.models.first()
+        forecasts = forecast_model.load_forecasts_from_dir(data_dir)
+        click.echo("- Loading forecasts: loaded {} forecast(s)".format(len(forecasts)))
 
     # done
     click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 
-def make_thai_moph_project(project_name, template_path, data_dir):
+def make_thai_moph_project(project_name, template_path):
     project = Project.objects.create(
         name=project_name,
         is_public=False,
@@ -110,13 +136,6 @@ def make_thai_moph_project(project_name, template_path, data_dir):
     }.items():
         Target.objects.create(project=project, name=target_name, description=description)
 
-    # create TimeZeros from file names in data_dir. format (e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'):
-    click.echo("  creating timezeros")
-    for _, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(data_dir):
-        TimeZero.objects.create(project=project,
-                                timezero_date=str(time_zero),
-                                data_version_date=str(data_version_date) if data_version_date else None)
-
     # done
     return project
 
@@ -136,10 +155,9 @@ def make_model(project, model_owner, data_dir):
         description=description,
         home_url='http://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004761',
         aux_data_url=None)
-    forecast_model.load_forecasts_from_dir(data_dir)
 
     # done
-    return project
+    return forecast_model
 
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -21,6 +22,9 @@ from utils.cdc import CDC_CONFIG_DICT
 from utils.delphi import delphi_wili_for_mmwr_year_week
 from utils.flusight import flusight_data_dicts_for_models
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
+
+
+logger = logging.getLogger(__name__)
 
 
 def index(request):
@@ -97,8 +101,11 @@ def project_scores(request, project_pk):
     season_start_years = project.season_start_years()
     season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years, True)
     try:
+        logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
+                     "season_start_year={}".format(project, season_start_year))
         location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_start_year,
                                                                                 delphi_wili_for_mmwr_year_week)
+        logger.debug("project_scores(): done: location_to_mean_abs_error_rows_for_project()")
     except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to calculate scores.",

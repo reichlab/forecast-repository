@@ -1,3 +1,4 @@
+import logging
 from itertools import groupby
 
 import pymmwr
@@ -6,6 +7,9 @@ from django.db import connection
 from forecast_app.models import ForecastData, Forecast, ForecastModel, TimeZero
 from forecast_app.models.data import CDCData
 from utils.utilities import start_end_dates_for_season_start_year
+
+
+logger = logging.getLogger(__name__)
 
 
 def location_to_mean_abs_error_rows_for_project(project, season_start_year, wili_for_epi_week_fcn):
@@ -26,12 +30,18 @@ def location_to_mean_abs_error_rows_for_project(project, season_start_year, wili
     targets = sorted(targets)
 
     # cache all the data we need for all models
+    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_ids_to_point_values_dicts(). "
+                 "targets={}".format(targets))
     model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(project.models.all(), season_start_year, targets)
+    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_ids_to_forecast_rows()")
     model_ids_to_forecast_rows = _model_ids_to_forecast_rows(project.models.all(), season_start_year)
-
-    return {location: _mean_abs_error_rows_for_project(project, targets, location, model_ids_to_point_values_dicts,
-                                                       model_ids_to_forecast_rows, wili_for_epi_week_fcn)
-            for location in project.get_locations()}
+    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
+    location_to_mean_abs_error_rows = {
+        location: _mean_abs_error_rows_for_project(project, targets, location, model_ids_to_point_values_dicts,
+                                                   model_ids_to_forecast_rows, wili_for_epi_week_fcn)
+        for location in project.get_locations()}
+    logger.debug("location_to_mean_abs_error_rows_for_project(): done")
+    return location_to_mean_abs_error_rows
 
 
 def _mean_abs_error_rows_for_project(project, targets, location,
@@ -62,9 +72,11 @@ def _mean_abs_error_rows_for_project(project, targets, location,
     project does not have appropriate targets defined in its configuration. NB: assumes all of project's models have the
     same targets - something is validated by ForecastModel.load_forecast()
     """
+    logger.debug("_mean_abs_error_rows_for_project(): entered. location={}".format(location))
     target_to_min_mae = {target: None for target in targets}  # tracks min MAE for bolding in table. filled next
     rows = [['Model', *targets]]  # header
     for forecast_model in sorted(project.models.all(), key=lambda fm: fm.name):
+        # logger.debug("\t{}".format(forecast_model))
         row = [forecast_model.pk]
         for target in targets:
             forecast_to_point_dicts = model_ids_to_point_values_dicts[forecast_model.pk] \
@@ -82,6 +94,8 @@ def _mean_abs_error_rows_for_project(project, targets, location,
                 if target_to_min_mae[target] else mae_val
             row.append(mae_val)
         rows.append(row)
+
+    logger.debug("_mean_abs_error_rows_for_project(): done")
     return [rows, target_to_min_mae]
 
 
@@ -155,13 +169,19 @@ def _model_ids_to_forecast_rows(forecast_models, season_start_year):
     with connection.cursor() as cursor:
         season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
+        logger.debug("_model_ids_to_forecast_rows(): calling: execute(): {}, {}".format(
+            sql,
+            [*forecast_model_ids, season_start_date, season_end_date]))
         cursor.execute(sql, [*forecast_model_ids, season_start_date, season_end_date])
         rows = cursor.fetchall()
 
     # build the dict
+    logger.debug("_model_ids_to_forecast_rows(): building model_ids_to_forecast_rows")
     model_ids_to_forecast_rows = {}  # return value. filled next
     for model_pk, forecast_row_grouper in groupby(rows, key=lambda _: _[0]):
         model_ids_to_forecast_rows[model_pk] = [row[1:] for row in forecast_row_grouper]
+
+    logger.debug("_model_ids_to_forecast_rows(): done")
     return model_ids_to_forecast_rows
 
 
@@ -197,18 +217,24 @@ def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets
     with connection.cursor() as cursor:
         season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
+        logger.debug("_model_ids_to_point_values_dicts(): calling: execute(): {}, {}".format(
+            sql,
+            [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date]))
         cursor.execute(sql, [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date])
         rows = cursor.fetchall()
 
     # build the dict
+    logger.debug("_model_ids_to_point_values_dicts(): building models_to_point_values_dicts")
     models_to_point_values_dicts = {}  # return value. filled next
     for model_pk, forecast_loc_target_val_grouper in groupby(rows, key=lambda _: _[0]):
         forecast_to_point_dicts = {}
         for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):
             location_to_point_dicts = {}
             for location, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[2]):
-                rows = list(target_val_grouper)
-                location_to_point_dicts[location] = {row[3]: row[4] for row in rows}
+                grouper_rows = list(target_val_grouper)
+                location_to_point_dicts[location] = {grouper_row[3]: grouper_row[4] for grouper_row in grouper_rows}
             forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
         models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
+
+    logger.debug("_model_ids_to_point_values_dicts(): done")
     return models_to_point_values_dicts
