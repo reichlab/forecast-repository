@@ -19,7 +19,6 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
-from utils.delphi import delphi_wili_for_mmwr_year_week
 from utils.flusight import flusight_data_dicts_for_models
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
@@ -103,8 +102,8 @@ def project_scores(request, project_pk):
     try:
         logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
                      "season_start_year={}".format(project, season_start_year))
-        location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_start_year,
-                                                                                delphi_wili_for_mmwr_year_week)
+        # wili_for_epi_week_fcn defaults to delphi_wili_for_mmwr_year_week:
+        location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_start_year)
         logger.debug("project_scores(): done: location_to_mean_abs_error_rows_for_project()")
     except RuntimeError as rte:
         return render(request, 'message.html',

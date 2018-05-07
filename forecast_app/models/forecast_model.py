@@ -62,7 +62,8 @@ class ForecastModel(models.Model):
                       forecast_bin_map=None):
         """
         Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
-        Project's template. NB: does not check if a Forecast already exists for time_zero and file_name.
+        Project's template. NB: does not check if a Forecast already exists for time_zero and file_name. Is atomic so
+        that an invalid forecast's data is not saved.
 
         :param csv_file_path: Path to a CDC CSV forecast file
         :param time_zero: the TimeZero this forecast applies to

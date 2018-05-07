@@ -6,13 +6,15 @@ from django.db import connection
 
 from forecast_app.models import ForecastData, Forecast, ForecastModel, TimeZero
 from forecast_app.models.data import CDCData
+from utils.delphi import delphi_wili_for_mmwr_year_week
 from utils.utilities import start_end_dates_for_season_start_year
 
 
 logger = logging.getLogger(__name__)
 
 
-def location_to_mean_abs_error_rows_for_project(project, season_start_year, wili_for_epi_week_fcn):
+def location_to_mean_abs_error_rows_for_project(project, season_start_year,
+                                                wili_for_epi_week_fcn=delphi_wili_for_mmwr_year_week):
     """
     Called by the project_visualizations() view function, returns a dict containing a table of mean absolute errors for
     all models and all locations in project for season_start_year. The dict maps:
