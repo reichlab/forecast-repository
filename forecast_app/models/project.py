@@ -9,7 +9,7 @@ from django.urls import reverse
 from jsonfield import JSONField
 
 from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData
-from utils.utilities import basic_str, season_start_year_for_date
+from utils.utilities import basic_str
 
 
 #
@@ -163,14 +163,61 @@ class Project(ModelWithCDCData):
         return self.timezeros.filter(timezero_date=timezero_date_str).first()
 
 
-    def season_start_years(self):
+    def seasons(self):
         """
-        :return: list of season start years for this project based on my timezeros. recall SEASON_START_EW_NUMBER
+        :return: list of season names for this project based on my timezeros
         """
-        season_start_years = set()
-        for timezero in self.timezeros.all():
-            season_start_years.add(season_start_year_for_date(timezero.timezero_date))
-        return sorted(list(season_start_years))
+        return [timezero.season_name for timezero in self.timezeros.filter(is_season_start=True)]
+
+
+    def timezeros_in_season(self, season_name):
+        """
+        Utility that returns a sorted list of TimeZeros for season_name.
+
+        :param: season_name: a valid season name (see seasons()) or None, which is used to access TimeZeros that have
+            no season. For the latter, there are two cases:
+            1) there are no seasons at all
+            2) there are seasons, but the first starts after the first TimeZero, i.e., my TimeZeros start with some
+               non-season ones that are followed by some seasons
+        :return: two cases based on whether season_name is None. 1) If not None: returns a list of TimeZeros that are
+            within season_name, i.e., those that start with the TimeZero named season_name and go TO the next season,
+            or to the end if season_name is the last season. 2) If None: returns based on the two cases listed above
+            for season_name: 1) no seasons at all: return all TimeZeros. 2) starts with some non-seasons: return those
+            up TO the first season.
+        """
+        # start with all TimeZeros - case #1 (no seasons at all), and filter as needed
+        season_timezeros = self.timezeros.all()
+        if season_name:
+            season_tz = season_timezeros.filter(season_name=season_name).first()
+            if not season_tz:
+                raise RuntimeError("invalid season_name. season_name={}, seasons={}"
+                                   .format(season_name, self.seasons()))
+
+            season_timezeros = season_timezeros.filter(timezero_date__gte=season_tz.timezero_date)
+            next_season_tz = season_timezeros \
+                .filter(is_season_start=True) \
+                .filter(timezero_date__gt=season_tz.timezero_date) \
+                .first()
+            if next_season_tz:
+                season_timezeros = season_timezeros.filter(timezero_date__lt=next_season_tz.timezero_date)
+        else:  # no season_name
+            first_season_tz = season_timezeros.filter(is_season_start=True).first()
+            if first_season_tz:  # case #2 (seasons after initial TZs)
+                season_timezeros = season_timezeros.filter(timezero_date__lt=first_season_tz.timezero_date)
+        return list(season_timezeros.order_by('timezero_date'))
+
+
+    def start_end_dates_for_season(self, season_name):
+        """
+        :param: season_name: same as timezeros_in_season() - can be None
+        :return: 2-tuple: (start_date, end_date) for season_name. this is a closed interval - both are included.
+            Note that start_date == end_date if there is only one TimeZero. returns None if no TimeZeros found
+        """
+        timezeros = self.timezeros_in_season(season_name)
+        if len(timezeros) == 0:
+            return None
+
+        return timezeros[0].timezero_date, timezeros[-1].timezero_date
 
 
     #
@@ -439,7 +486,8 @@ class TimeZero(models.Model):
     """
     A date that a target is relative to. Additionally, contains an optional data_version_date the specifies the database
     date at which models should work with for this timezero_date date. Akin to rolling back (versioning) the database
-    to that date.
+    to that date. Also contains optional season demarcation information in the form of a pair of fields, which are
+    both required if a TimeZero marks a season start. The starting TimeZero includes that TimeZero (is inclusive).
      
     Assumes dates from any project can be converted to actual dates, e.g., from Dengue biweeks or CDC MMWR weeks
     ( https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html ).
@@ -452,10 +500,34 @@ class TimeZero(models.Model):
         null=True, blank=True,
         help_text="The optional database date at which models should work with for the timezero_date.")  # nullable
 
+    is_season_start = models.BooleanField(
+        default=False,
+        help_text="True if this TimeZero starts a season.")
+
+    season_name = models.CharField(
+        null=True, blank=True,
+        max_length=50, help_text="The name of the season this TimeZero starts, if is_season_start.")  # nullable
+
 
     def __repr__(self):
-        return str((self.pk, self.timezero_date, self.data_version_date))
+        return str((self.pk, self.timezero_date, self.data_version_date, self.is_season_start, self.season_name))
 
 
     def __str__(self):  # todo
         return basic_str(self)
+
+
+    # Note .. a model’s clean() method is not invoked when you call your model’s save() method.
+    def clean(self):
+        # must have season_name if is_season_start
+        if self.is_season_start and not self.season_name:
+            raise ValidationError('passed is_season_start with no season_name')
+
+        # can't have season_name if no is_season_start
+        if not self.is_season_start and self.season_name:
+            raise ValidationError('passed season_name but no is_season_start')
+
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)

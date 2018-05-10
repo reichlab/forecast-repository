@@ -10,10 +10,9 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_project import TEST_CONFIG_DICT
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
-from utils.mean_absolute_error import mean_absolute_error, _model_ids_to_point_values_dicts, \
-    _model_ids_to_forecast_rows, location_to_mean_abs_error_rows_for_project
-from utils.utilities import cdc_csv_filename_components, is_date_in_season, season_start_year_for_date, \
-    start_end_dates_for_season_start_year, SEASON_START_EW_NUMBER
+from utils.make_cdc_flusight_ensemble_project import season_start_year_for_date
+from utils.mean_absolute_error import _model_ids_to_point_values_dicts
+from utils.utilities import cdc_csv_filename_components
 
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
@@ -111,20 +110,6 @@ class UtilitiesTestCase(TestCase):
             self.assertEqual(exp_components, cdc_csv_filename_components(cdc_csv_filename))
 
 
-    def test_is_date_in_season(self):
-        # test lab standard breakpoint: "2016/2017 season" starts with EW30-2016 and ends with EW29-2017
-        date_season_exp_is_in = [
-            (pymmwr.mmwr_week_to_date(2016, 29), 2016, False),
-            (pymmwr.mmwr_week_to_date(2016, 30), 2016, True),
-            (pymmwr.mmwr_week_to_date(2016, 52), 2016, True),
-            (pymmwr.mmwr_week_to_date(2017, 1), 2016, True),
-            (pymmwr.mmwr_week_to_date(2017, 29), 2016, True),
-            (pymmwr.mmwr_week_to_date(2017, 30), 2016, False),
-        ]
-        for date, season_start_year, exp_is_in in date_season_exp_is_in:
-            self.assertEquals(exp_is_in, is_date_in_season(date, season_start_year))
-
-
     def test_season_start_year_for_date(self):
         date_exp_season_start_year = [
             (pymmwr.mmwr_week_to_date(2016, 29), 2015),
@@ -138,60 +123,49 @@ class UtilitiesTestCase(TestCase):
             self.assertEqual(exp_season_start_year, season_start_year_for_date(date))
 
 
-    def test_season_start_end_dates(self):
-        # example seasons:
-        # 2015/2016: EW30-2015 through EW29-2016
-        # 2017/2018: EW30-2017 through EW29-2018
-        start_year_to_exp_start_end_dates = {
-            2015: (pymmwr.mmwr_week_to_date(2015, SEASON_START_EW_NUMBER),
-                   pymmwr.mmwr_week_to_date(2016, SEASON_START_EW_NUMBER)),  # incl, excl
-            2017: (pymmwr.mmwr_week_to_date(2017, SEASON_START_EW_NUMBER),
-                   pymmwr.mmwr_week_to_date(2018, SEASON_START_EW_NUMBER)),  # incl, excl
-        }
-        for start_year, exp_start_end_dates in start_year_to_exp_start_end_dates.items():
-            act_start_date, act_end_date = start_end_dates_for_season_start_year(start_year)
-            self.assertEqual((exp_start_end_dates[0], exp_start_end_dates[1]), (act_start_date, act_end_date))
-
-
     def test__model_ids_to_point_values_dicts(self):
         project1 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project1.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
-        forecast_model1 = ForecastModel.objects.create(project=project1)
-        time_zero2 = TimeZero.objects.create(project=project1, timezero_date='2017-01-01')
-        forecast1 = forecast_model1.load_forecast(
+        time_zero_11 = TimeZero.objects.create(project=project1, timezero_date='2017-01-01',
+                                               is_season_start=True, season_name='season p1')
+        TimeZero.objects.create(project=project1, timezero_date='2017-01-02')  # 2nd TZ ensures start AND end dates
+        forecast_model_11 = ForecastModel.objects.create(project=project1)
+        forecast_11 = forecast_model_11.load_forecast(
             Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-            time_zero2)
+            time_zero_11)
 
         project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
-        time_zero1 = TimeZero.objects.create(project=project2,
-                                             timezero_date=datetime.date(2016, 10, 23),
-                                             # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}
-                                             data_version_date=None)
+        # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}:
+        time_zero_21 = TimeZero.objects.create(project=project2,
+                                               timezero_date=datetime.date(2016, 10, 23), data_version_date=None,
+                                               is_season_start=True, season_name='season p2')
+        # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}:
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 30),
-                                # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}
                                 data_version_date=None)
-        forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                                  time_zero1)
+        forecast_model_21 = ForecastModel.objects.create(project=project2)
+        forecast_21 = forecast_model_21.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                                      time_zero_21)
 
         targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead']
         with open('forecast_app/tests/exp-models-to-point-values.json', 'r') as fp:
             exp_json_template_str = fp.read()
             exp_json_template = Template(exp_json_template_str)
-            exp_json_str = exp_json_template.render(Context({'forecast_model1_id': forecast_model1.id,
-                                                             'forecast1_id': forecast1.id,
-                                                             'forecast_model2_id': forecast_model2.id,
-                                                             'forecast2_id': forecast2.id}))
+            exp_json_str = exp_json_template.render(Context({'forecast_model1_id': forecast_model_11.id,
+                                                             'forecast1_id': forecast_11.id,
+                                                             'forecast_model2_id': forecast_model_21.id,
+                                                             'forecast2_id': forecast_21.id}))
 
-            # wire up exp_dict to replace keys with actual int IDs, not just strings
+            # note: we must wire up exp_dict_loaded to replace keys with actual int IDs, not just strings
             exp_dict_loaded = json.loads(exp_json_str)
-            exp_dict = {
-                forecast_model1.pk: {forecast1.pk: exp_dict_loaded[str(forecast_model1.id)][str(forecast1.id)]},
-                forecast_model2.pk: {forecast2.pk: exp_dict_loaded[str(forecast_model2.id)][str(forecast2.id)]},
-            }
+            exp_dict_p1 = {forecast_model_11.pk:
+                               {forecast_11.pk: exp_dict_loaded[str(forecast_model_11.id)][str(forecast_11.id)]}}
+            act_point_values_dict = _model_ids_to_point_values_dicts(project1, 'season p1', targets)
+            self.assertEqual(exp_dict_p1, act_point_values_dict)
 
-            act_point_values_dict = _model_ids_to_point_values_dicts([forecast_model1, forecast_model2], 2016, targets)
-            self.assertEqual(exp_dict, act_point_values_dict)
+            exp_dict_p2 = {forecast_model_21.pk:
+                               {forecast_21.pk: exp_dict_loaded[str(forecast_model_21.id)][str(forecast_21.id)]}}
+            act_point_values_dict = _model_ids_to_point_values_dicts(project2, 'season p2', targets)
+            self.assertEqual(exp_dict_p2, act_point_values_dict)

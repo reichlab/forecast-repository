@@ -110,10 +110,12 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
     # create TimeZeros
     yr_wk_2016 = list(zip(itertools.repeat(2016), range(43, 53)))
     yr_wk_2017 = list(zip(itertools.repeat(2017), range(1, 19)))
-    for mmwr_year, mmwr_week in yr_wk_2016 + yr_wk_2017:
+    for idx, (mmwr_year, mmwr_week) in enumerate(yr_wk_2016 + yr_wk_2017):
         TimeZero.objects.create(project=project,
                                 timezero_date=str(pymmwr.mmwr_week_to_date(mmwr_year, mmwr_week)),
-                                data_version_date=None)
+                                data_version_date=None,
+                                is_season_start=(True if idx == 0 else False),
+                                season_name=('2016-2017' if idx == 0 else None))
 
     # done
     return project

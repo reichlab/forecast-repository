@@ -5,16 +5,15 @@ from django.db import connection
 
 from forecast_app.models import ForecastData, Forecast, TimeZero, ForecastModel
 from forecast_app.models.data import CDCData
-from utils.utilities import is_date_in_season, start_end_dates_for_season_start_year
 
 
 #
 # This file defines functions related to the Flusight D3 component at https://github.com/reichlab/d3-foresight
 #
 
-def flusight_data_dicts_for_models(forecast_models, season_start_year, request=None):
+def flusight_data_dicts_for_models(forecast_models, season_name, request=None):
     """
-    Returns a dict containing forecast_model's point forecasts for all locations in season_start_year, structured
+    Returns a dict containing forecast_model's point forecasts for all locations in season_name, structured
     according to https://github.com/reichlab/d3-foresight . Keys are the locations, and values are the individual data
     dicts for each. Recall the format of the latter:
 
@@ -76,25 +75,26 @@ def flusight_data_dicts_for_models(forecast_models, season_start_year, request=N
 
     # set time_points. order_by -> matches ORDER BY in _flusight_point_value_rows_for_models():
     time_points = []
-    project_timezeros = [timezero for timezero in project.timezeros.order_by('timezero_date')
-                         if is_date_in_season(timezero.timezero_date, season_start_year)]
+    project_timezeros = project.timezeros_in_season(season_name)
     for timezero in project_timezeros:
+        # todo xx pymmwr dependency will go away once the D3 Foresight component is changed to work with dates, not EWs:
         tz_ywd_mmwr_dict = pymmwr.date_to_mmwr_week(timezero.timezero_date)
         time_points.append({'week': tz_ywd_mmwr_dict['week'],
                             'year': tz_ywd_mmwr_dict['year']})
 
-    model_to_location_timezero_points = _model_to_location_timezero_points(forecast_models, season_start_year, targets)
+    model_to_location_timezero_points = _model_to_location_timezero_points(project, forecast_models, season_name,
+                                                                           targets)
 
     # now that we have model_to_location_timezero_points, we can build the return value, extracting each
     # location from all of the models
-    location_to_flusight_data_dict = {}  # return value. filled next
+    locations_to_flusight_data_dicts = {}  # return value. filled next
     for location in project.get_locations():
         model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location,
                                                                    model_to_location_timezero_points, request)
         data_dict = {'timePoints': time_points,
                      'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
-        location_to_flusight_data_dict[location] = data_dict
-    return location_to_flusight_data_dict
+        locations_to_flusight_data_dicts[location] = data_dict
+    return locations_to_flusight_data_dicts
 
 
 def _model_dicts_for_location_to_timezero_points(project_timezeros, location,
@@ -109,7 +109,8 @@ def _model_dicts_for_location_to_timezero_points(project_timezeros, location,
                 'name': forecast_model.name,
                 'description': forecast_model.description,
                 # 'url': forecast_model.home_url,
-                'url': request.build_absolute_uri(forecast_model.get_absolute_url()) if request else forecast_model.home_url,
+                'url': request.build_absolute_uri(
+                    forecast_model.get_absolute_url()) if request else forecast_model.home_url,
             },
             'predictions': _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
         }
@@ -128,7 +129,7 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
     return prediction_dicts
 
 
-def _model_to_location_timezero_points(forecast_models, season_start_year, targets):
+def _model_to_location_timezero_points(project, forecast_models, season_name, targets):
     """
     :return: a dict that maps: forecast_model -> location_dict. each location_dict maps: location ->
         timezero_points_dict, which maps timezero_datetime -> point values. note that some project TimeZeros have no
@@ -149,7 +150,7 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
         WHERE fm.id IN ({model_ids_query_string})
               AND fd.row_type = %s
               AND fd.target IN ({target_query_string})
-              AND %s < tz.timezero_date
+              AND %s <= tz.timezero_date
               AND tz.timezero_date <= %s
         ORDER BY fm.id, fd.location, tz.timezero_date, fd.target;
     """.format(forecast_data_table_name=ForecastData._meta.db_table,
@@ -159,7 +160,7 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
                model_ids_query_string=', '.join(['%s'] * len(forecast_models)),
                target_query_string=', '.join(['%s'] * len(targets)))
     with connection.cursor() as cursor:
-        season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
+        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
         cursor.execute(sql, [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date])
         rows = cursor.fetchall()
@@ -177,8 +178,8 @@ def _model_to_location_timezero_points(forecast_models, season_start_year, targe
         forecast_model = ForecastModel.objects.get(pk=model_pk)
         model_to_location_timezero_points[forecast_model] = location_to_timezero_points_dict
 
-    # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for season_start_year
-    # and targets, we need to add empty model entries for callers
+    # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for
+    # season_name and targets, we need to add empty model entries for callers
     for forecast_model in forecast_models:
         if forecast_model not in model_to_location_timezero_points:
             model_to_location_timezero_points[forecast_model] = {}

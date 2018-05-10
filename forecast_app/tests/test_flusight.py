@@ -35,7 +35,7 @@ class FlusightTestCase(TestCase):
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
-            flusight_data_dicts_for_models([forecast_model2, forecast_model1], 2016)
+            flusight_data_dicts_for_models([forecast_model2, forecast_model1], None)
         self.assertIn('Not all models are in the same Project', str(context.exception))
 
         # we treat the json file as a Django's template b/c mode lIDs are hard-coded, but can vary depending on the
@@ -45,21 +45,23 @@ class FlusightTestCase(TestCase):
             exp_json_template = Template(exp_json_template_str)
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model1.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1], 2016)
+            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1], None)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 
     def test_d3_foresight_out_of_season(self):
         project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17):
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 7, 17),  # 29 < SEASON_START_EW_NUMBER
-                                            # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17)
-                                            data_version_date=None)
+                                            data_version_date=None,
+                                            is_season_start=True, season_name='2016')
+        # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1} -> datetime.date(2016, 10, 30):
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 30),
-                                # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}
-                                data_version_date=None)
+                                data_version_date=None,
+                                is_season_start=True, season_name='2017')  # season has no forecast data
         forecast_model = ForecastModel.objects.create(project=project)
         forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-no-points.json', 'r') as fp:
@@ -67,7 +69,7 @@ class FlusightTestCase(TestCase):
             exp_json_template = Template(exp_json_template_str)
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model], 2016)
+            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model], '2017')
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 
@@ -98,5 +100,5 @@ class FlusightTestCase(TestCase):
             exp_json_str = exp_json_template.render(Context({'forecast_model1_id': forecast_model1.id,
                                                              'forecast_model2_id': forecast_model2.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1, forecast_model2], 2016)
+            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1, forecast_model2], None)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)

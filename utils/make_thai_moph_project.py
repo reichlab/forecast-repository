@@ -75,15 +75,17 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
     # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts
-    for cdc_csv_file, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(data_dir):
-        found_time_zero = project.time_zero_for_timezero_date(time_zero)
+    for idx, (cdc_csv_file, timezero_date, _, data_version_date) in enumerate(cdc_csv_components_from_data_dir(data_dir)):
+        found_time_zero = project.time_zero_for_timezero_date(timezero_date)
         if found_time_zero:
             click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
             continue
 
         TimeZero.objects.create(project=project,
-                                timezero_date=str(time_zero),
-                                data_version_date=str(data_version_date) if data_version_date else None)
+                                timezero_date=str(timezero_date),
+                                data_version_date=str(data_version_date) if data_version_date else None,
+                                is_season_start=(True if idx == 0 else False),
+                                season_name=('2017-2018' if idx == 0 else None))  # todo xx hard-coded season_name
     click.echo("- created TimeZeros: {}".format(project.timezeros.all()))
 
     # load data if necessary

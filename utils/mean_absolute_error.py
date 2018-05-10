@@ -7,17 +7,16 @@ from django.db import connection
 from forecast_app.models import ForecastData, Forecast, ForecastModel, TimeZero
 from forecast_app.models.data import CDCData
 from utils.delphi import delphi_wili_for_mmwr_year_week
-from utils.utilities import start_end_dates_for_season_start_year
 
 
 logger = logging.getLogger(__name__)
 
 
-def location_to_mean_abs_error_rows_for_project(project, season_start_year,
+def location_to_mean_abs_error_rows_for_project(project, season_name,
                                                 wili_for_epi_week_fcn=delphi_wili_for_mmwr_year_week):
     """
     Called by the project_visualizations() view function, returns a dict containing a table of mean absolute errors for
-    all models and all locations in project for season_start_year. The dict maps:
+    all models and all locations in project for season_name. The dict maps:
     {location: (mean_abs_error_rows, target_to_min_mae)}, where rows is a table in the form of a list of rows where each
     row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model.
 
@@ -34,9 +33,9 @@ def location_to_mean_abs_error_rows_for_project(project, season_start_year,
     # cache all the data we need for all models
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_ids_to_point_values_dicts(). "
                  "targets={}".format(targets))
-    model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(project.models.all(), season_start_year, targets)
+    model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(project, season_name, targets)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_ids_to_forecast_rows()")
-    model_ids_to_forecast_rows = _model_ids_to_forecast_rows(project.models.all(), season_start_year)
+    model_ids_to_forecast_rows = _model_ids_to_forecast_rows(project, project.models.all(), season_name)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
     location_to_mean_abs_error_rows = {
         location: _mean_abs_error_rows_for_project(project, targets, location, model_ids_to_point_values_dicts,
@@ -111,7 +110,6 @@ def mean_absolute_error(forecast_model, location, target, wili_for_epi_week_fcn,
     :param: forecast_model: ForecastModel whose forecasts are used for the calculation
     :param: location: a location in the model
     :param: target: "" target ""
-    :param: season_start_year: year of the season, e.g., 2016 for the season 2016-2017
     :param: forecast_to_point_dicts: cached points for forecast_model as returned by _model_ids_to_point_values_dicts()
     :param: forecast_id_tz_date_csv_fname_rows: cached rows for forecast_model as returned by
         _model_ids_to_forecast_rows()
@@ -140,6 +138,9 @@ def mean_absolute_error(forecast_model, location, target, wili_for_epi_week_fcn,
                                            future_yw_mmwr_dict['year'],
                                            future_yw_mmwr_dict['week'],
                                            location)
+        if true_value is None:  # truth not available
+            continue
+
         predicted_value = forecast_to_point_dicts[forecast_id][location][target]
         abs_error = abs(predicted_value - true_value)
         cdc_file_name_to_abs_error[forecast_csv_filename] = abs_error
@@ -148,9 +149,9 @@ def mean_absolute_error(forecast_model, location, target, wili_for_epi_week_fcn,
         else None
 
 
-def _model_ids_to_forecast_rows(forecast_models, season_start_year):
+def _model_ids_to_forecast_rows(project, forecast_models, season_name):
     """
-    Returns a dict for forecast_models and season_start_year that maps: ForecastModel.pk -> 3-tuple of the form:
+    Returns a dict for forecast_models and season_name that maps: ForecastModel.pk -> 3-tuple of the form:
     (forecast_id, forecast_timezero_date, forecast_csv_filename). This is an optimization that avoids some ORM overhead
     when simply iterating like so: `for forecast in forecast_model.forecasts.all(): ...`
     """
@@ -161,7 +162,7 @@ def _model_ids_to_forecast_rows(forecast_models, season_start_year):
           JOIN {forecast_table_name} f on fm.id = f.forecast_model_id
           JOIN {timezero_table_name} tz ON f.time_zero_id = tz.id
         WHERE fm.id IN ({model_ids_query_string})
-              AND %s < tz.timezero_date
+              AND %s <= tz.timezero_date
               AND tz.timezero_date <= %s
         ORDER BY fm.id;
     """.format(forecastmodel_table_name=ForecastModel._meta.db_table,
@@ -169,7 +170,7 @@ def _model_ids_to_forecast_rows(forecast_models, season_start_year):
                timezero_table_name=TimeZero._meta.db_table,
                model_ids_query_string=', '.join(['%s'] * len(forecast_models)))
     with connection.cursor() as cursor:
-        season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
+        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
         logger.debug("_model_ids_to_forecast_rows(): calling: execute(): {}, {}".format(
             sql,
@@ -187,9 +188,9 @@ def _model_ids_to_forecast_rows(forecast_models, season_start_year):
     return model_ids_to_forecast_rows
 
 
-def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets):
+def _model_ids_to_point_values_dicts(project, season_name, targets):
     """
-    :return: a dict that provides predicted point values for the passed models, season_start_year, and targets. The dict
+    :return: a dict that provides predicted point values for all of project's models, season_name, and targets. The dict
         drills down as such:
 
     - model_to_point_dicts: {forecast_model_id -> forecast_to_point_dicts}
@@ -197,6 +198,8 @@ def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets
     - location_to_point_dicts: {location -> target_to_points_dicts}
     - target_to_points_dicts: {target -> point_value}
     """
+    forecast_models = project.models.all()
+
     # get the rows, ordered so we can groupby()
     sql = """
         SELECT fm.id, f.id, fd.location, fd.target, fd.value
@@ -207,7 +210,7 @@ def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets
         WHERE fm.id IN ({model_ids_query_string})
               AND fd.row_type = %s
               AND fd.target IN ({target_query_string})
-              AND %s < tz.timezero_date
+              AND %s <= tz.timezero_date
               AND tz.timezero_date <= %s
         ORDER BY fm.id, f.id, fd.location, fd.target;
     """.format(forecast_data_table_name=ForecastData._meta.db_table,
@@ -217,7 +220,7 @@ def _model_ids_to_point_values_dicts(forecast_models, season_start_year, targets
                model_ids_query_string=', '.join(['%s'] * len(forecast_models)),
                target_query_string=', '.join(['%s'] * len(targets)))
     with connection.cursor() as cursor:
-        season_start_date, season_end_date = start_end_dates_for_season_start_year(season_start_year)
+        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
         forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
         logger.debug("_model_ids_to_point_values_dicts(): calling: execute(): {}, {}".format(
             sql,

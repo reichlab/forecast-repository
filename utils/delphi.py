@@ -30,9 +30,9 @@ def delphi_wili_for_mmwr_year_week(project, mmwr_year, mmwr_week, location):
     :param: mmwr_week: MMWR week number between 1 and 53 inclusive
     :param: location: project location name. used to look up the delphi region via Project.region_for_location_name()
     :return: true/actual wili value for the passed mmwr_year and week, using the delphi REST API. Returns as a float -
-        see: https://github.com/cmu-delphi/delphi-epidata#fluview . Caches the retrieved value for speed-ups. NB:
-        caching means that the values in server memory won't be updated if they change on delphi.midas.cs.cmu.edu ,
-        i.e., they could become stale and need flushing.
+        see: https://github.com/cmu-delphi/delphi-epidata#fluview . Returns None if the true value is not found.
+        Caches the retrieved value for speed-ups. NB: caching means that the values in server memory won't be updated if
+        they change on delphi.midas.cs.cmu.edu , i.e., they could become stale and need flushing.
     """
     region = project.get_region_for_location_name(location)
     if not region:
@@ -55,4 +55,6 @@ def delphi_wili_for_mmwr_year_week(project, mmwr_year, mmwr_week, location):
             epi_week = int(epiweek_val[4:])
             wili_val = epidata_dict['wili']
             DELPHI_MMWR_YEAR_AND_WEEK_TO_WILI[(epi_year, epi_week)] = wili_val
+    if (mmwr_year, mmwr_week) not in DELPHI_MMWR_YEAR_AND_WEEK_TO_WILI:  # truth for this year and week not available
+        DELPHI_MMWR_YEAR_AND_WEEK_TO_WILI[(mmwr_year, mmwr_week)] = None
     return DELPHI_MMWR_YEAR_AND_WEEK_TO_WILI[(mmwr_year, mmwr_week)]

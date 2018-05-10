@@ -9,11 +9,13 @@ import pymmwr
 import yaml
 from django.template import Template, Context
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
+
+
 django.setup()
 
-from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components, season_start_year_for_date
+from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components
 from forecast_app.models import Project, ForecastModel, TimeZero
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_targets
 from utils.cdc import CDC_CONFIG_DICT
@@ -41,8 +43,8 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
     project_name = 'CDC FluSight ensemble (2017-2018)'
     project_description = "Guidelines and forecasts for a collaborative U.S. influenza forecasting project. " \
                           "http://flusightnetwork.io/"
-    home_url='https://github.com/FluSightNetwork/cdc-flusight-ensemble'
-    core_data='https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
+    home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble'
+    core_data = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
     _make_cdc_flusight_project(component_models_dir, make_project, load_data,
                                project_name, project_description, home_url, None, core_data)
 
@@ -157,20 +159,28 @@ def create_timezeros(project, model_dir):
     Create TimeZeros for project based on model_dir. Returns a list of them.
     """
     time_zeros = []
-    for cdc_csv_file, time_zero, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
+    season_start_years = []  # helps track season transitions
+    for cdc_csv_file, timezero_date, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
         if not is_cdc_file_ew43_through_ew18(cdc_csv_file):
             click.echo("s (not in range)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
             continue
 
         # NB: we skip existing TimeZeros in case we are loading new forecasts
-        found_time_zero = project.time_zero_for_timezero_date(time_zero)
+        found_time_zero = project.time_zero_for_timezero_date(timezero_date)
         if found_time_zero:
             click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
             continue
 
+        season_start_year = season_start_year_for_date(timezero_date)
+        is_new_season = season_start_year not in season_start_years
+        new_season_name = '{}-{}'.format(season_start_year, season_start_year + 1) if is_new_season else None
         time_zeros.append(TimeZero.objects.create(project=project,
-                                                  timezero_date=time_zero,
-                                                  data_version_date=data_version_date))
+                                                  timezero_date=timezero_date,
+                                                  data_version_date=data_version_date,
+                                                  is_season_start=(True if is_new_season else False),
+                                                  season_name=(new_season_name if is_new_season else None)))
+        if is_new_season:
+            season_start_years.append(season_start_year)
     return time_zeros
 
 
@@ -258,6 +268,26 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
         model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts
+
+
+def season_start_year_for_date(date):
+    """
+    example seasons:
+    - 2015/2016: EW30-2015 through EW29-2016
+    - 2016/2017: EW30-2016 through EW29-2017
+    - 2017/2018: EW30-2017 through EW29-2018
+
+    rule:
+    - EW01 through EW29: the previous year
+    - EW30 through EW52/EW53: the current year
+
+    :param date:
+    :return: the season start year that date is in, based on SEASON_START_EW_NUMBER
+    """
+    ywd_mmwr_dict = pymmwr.date_to_mmwr_week(date)
+    mmwr_year = ywd_mmwr_dict['year']
+    mmwr_week = ywd_mmwr_dict['week']
+    return mmwr_year - 1 if mmwr_week < SEASON_START_EW_NUMBER else mmwr_year
 
 
 if __name__ == '__main__':

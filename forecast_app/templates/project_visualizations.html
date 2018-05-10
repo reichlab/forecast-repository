@@ -23,9 +23,9 @@
     <h2>Location and Season</h2>
 
     <!--
-    Show two forms to select location and season_start_year. The former is handled by JavaScript since that data is in-
-    memory (the view passes all locations for a particular season_start_year). The latter submits a GET to get new
-    location data for the (presumed) new season_start_year.
+    Show two forms to select location and season_name. The former is handled by JavaScript since that data is in-
+    memory (the view passes all locations for a particular season_name). The latter submits a GET to get new
+    location data for the (presumed) new season_name.
     -->
     <div class="row">
         <div class="col-md-4">
@@ -41,19 +41,17 @@
             </form>
         </div>
         <div class="col-md-6">
+            {# enable seasons form only if more than one season #}
+            {% if seasons|length < 2 %}
+                {# <fieldset> idea per https://stackoverflow.com/questions/3507958/how-can-i-make-an-entire-html-form-readonly-server-side-only-please #}
+                <fieldset disabled="disabled">
+            {% endif %}
             <form class="form-inline" method="GET" action="{% url 'project-visualizations' project.pk %}">
-                <div class="form-group">
-                    <label for="season_select">Season start year:</label>
-                    <select id="season_select" class="form-control" name="season_start_year">
-                        {% for season_start_year_option in season_start_years %}
-                            <option {% if season_start_year_option == season_start_year %}selected="selected"{% endif %}>
-                                {{ season_start_year_option }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </div>
+                {% include 'season_form_snippet.html' %}
             </form>
+            {% if seasons|length < 2 %}
+                </fieldset>
+            {% endif %}
         </div>
     </div>
 

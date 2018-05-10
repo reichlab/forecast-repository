@@ -102,28 +102,28 @@ class ForecastModel(models.Model):
         :return list of loaded Forecasts
         """
         forecasts = []
-        for cdc_csv_file, time_zero, _, _ in cdc_csv_components_from_data_dir(data_dir):
+        for cdc_csv_file, timezero_date, _, _ in cdc_csv_components_from_data_dir(data_dir):
             if is_load_file and not is_load_file(cdc_csv_file):
                 click.echo("s (!is_load_file)\t{}\t".format(cdc_csv_file.name))
                 continue
 
-            time_zero = self.project.time_zero_for_timezero_date(time_zero)
-            if not time_zero:
+            timezero_date = self.project.time_zero_for_timezero_date(timezero_date)
+            if not timezero_date:
                 click.echo("x (no TimeZero found)\t{}\t".format(cdc_csv_file.name))
                 continue
 
-            found_forecast_for_time_zero = self.forecast_for_time_zero(time_zero)
+            found_forecast_for_time_zero = self.forecast_for_time_zero(timezero_date)
             if found_forecast_for_time_zero:
                 click.echo("s (found forecast)\t{}\t".format(cdc_csv_file.name))
                 continue
 
             try:
                 if time_zero_to_template:
-                    validation_template = time_zero_to_template(time_zero)
+                    validation_template = time_zero_to_template(timezero_date)
                     # todo xx call equivalent of validate_template_data() !
                 else:
                     validation_template = None
-                forecast = self.load_forecast(cdc_csv_file, time_zero,
+                forecast = self.load_forecast(cdc_csv_file, timezero_date,
                                               validation_template=validation_template,
                                               forecast_bin_map=forecast_bin_map)
                 forecasts.append(forecast)

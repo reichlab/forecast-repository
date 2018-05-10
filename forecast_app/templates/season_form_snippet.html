@@ -1,0 +1,14 @@
+<div class="form-group">
+    <label for="season_select">Season:</label>
+    <select id="season_select" class="form-control" name="season_name">
+        {% if seasons|length < 2 %}
+            <option>(No seasons)</option>
+        {% endif %}
+        {% for season_name_option in seasons %}
+            <option {% if season_name_option == season_name %}selected="selected"{% endif %}>
+                {{ season_name_option }}
+            </option>
+        {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</div>

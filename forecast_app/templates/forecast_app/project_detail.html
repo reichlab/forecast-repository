@@ -115,7 +115,9 @@
                 </tr>
                 <tr>
                     <th>Configuration:</th>
-                    <td><pre>{{ config_dict_pretty }}</pre></td>
+                    <td>
+                        <pre>{{ config_dict_pretty }}</pre>
+                    </td>
                 </tr>
                 </tbody>
             </table>
@@ -162,6 +164,7 @@
                     <th>Time Zero</th>
                     <th>Data Version Date</th>
                     <th># Forecasts</th>
+                    <th>Starts Season</th>
                 </tr>
                 {% for timezero, num_forecasts in timezeros_to_num_forecasts.items %}
                     <tr>
@@ -174,6 +177,11 @@
                             {% endif %}
                         </td>
                         <td>{{ num_forecasts }}</td>
+                        <td>
+                            {% if timezero.is_season_start %}
+                                &nbsp; &ldquo;{{ timezero.season_name }}&rdquo;
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </table>

@@ -11,7 +11,13 @@ import pymmwr
 django.setup()
 
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest
-from utils.utilities import cdc_csv_filename_components, SEASON_START_EW_NUMBER
+from utils.utilities import cdc_csv_filename_components
+
+
+# This number is the internal reichlab standard: "We used week 30. I don't think this is a standardized concept outside
+# of our lab though. We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with
+# EW30-2016 and ends with EW29-2017."
+SEASON_START_EW_NUMBER = 30
 
 
 @click.command()

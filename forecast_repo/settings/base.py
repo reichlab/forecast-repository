@@ -49,6 +49,8 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10
 }
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # editing Projects involves possibly many <input> fields dep. on # of TimeZeros
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

@@ -71,19 +71,19 @@ def project_visualizations(request, project_pk):
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    season_start_years = project.season_start_years()
-    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years, True)
+    seasons = project.seasons()
+    season_name = _param_val_from_request(request, 'season_name', seasons, True)
 
     # None if no targets in project:
-    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_start_year, request)
+    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_name, request)
 
     return render(
         request,
         'project_visualizations.html',
         context={'project': project,
                  'locations': sorted(list(project.get_locations())),
-                 'season_start_year': season_start_year,
-                 'season_start_years': season_start_years,
+                 'season_name': season_name,
+                 'seasons': seasons,
                  'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
                  'timechart_y_domain': (0, 13)  # todo xx set timechart_y_domain, maybe via config_dict
                  })
@@ -97,13 +97,13 @@ def project_scores(request, project_pk):
     if not project.is_user_allowed_to_view(request.user):
         return HttpResponseForbidden()
 
-    season_start_years = project.season_start_years()
-    season_start_year = _param_val_from_request(request, 'season_start_year', season_start_years, True)
+    seasons = project.seasons()
+    season_name = _param_val_from_request(request, 'season_name', seasons, True)
     try:
         logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
-                     "season_start_year={}".format(project, season_start_year))
+                     "season_name={}".format(project, season_name))
         # wili_for_epi_week_fcn defaults to delphi_wili_for_mmwr_year_week:
-        location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_start_year)
+        location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_name)
         logger.debug("project_scores(): done: location_to_mean_abs_error_rows_for_project()")
     except RuntimeError as rte:
         return render(request, 'message.html',
@@ -128,8 +128,8 @@ def project_scores(request, project_pk):
         'project_scores.html',
         context={'project': project,
                  'model_pk_to_name_and_url': model_pk_to_name_and_url,
-                 'season_start_years': season_start_years,
-                 'season_start_year': season_start_year,
+                 'season_name': season_name,
+                 'seasons': seasons,
                  'locations': locations,
                  'location': location,
                  'location_to_rows_and_mins': location_to_rows_and_mins,
@@ -213,8 +213,9 @@ def edit_project(request, project_pk):
     TargetInlineFormSet = inlineformset_factory(Project, Target, fields=('name', 'description'), extra=3)
     target_formset = TargetInlineFormSet(instance=project)
 
-    TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero, fields=('timezero_date', 'data_version_date'),
-                                                  extra=3)
+    TimeZeroInlineFormSet = inlineformset_factory(
+        Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3
+    )
     timezero_formset = TimeZeroInlineFormSet(instance=project)
 
     if request.method == 'POST':

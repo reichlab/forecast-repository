@@ -53,8 +53,8 @@ class MAETestCase(TestCase):
                              '4 wk ahead': 1.482010693}
 
         for target, exp_mae in exp_target_to_mae.items():
-            model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts([self.forecast_model], 2016, [target])
-            model_ids_to_forecast_rows = _model_ids_to_forecast_rows([self.forecast_model], 2016)
+            model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(self.project, None, [target])
+            model_ids_to_forecast_rows = _model_ids_to_forecast_rows(self.project, [self.forecast_model], None)
             act_mae = mean_absolute_error(self.forecast_model, 'US National', target, mock_wili_for_epi_week_fcn,
                                           model_ids_to_point_values_dicts[self.forecast_model.pk],
                                           model_ids_to_forecast_rows[self.forecast_model.pk])
@@ -71,7 +71,7 @@ class MAETestCase(TestCase):
                              '4 wk ahead': 1.482010693}
 
         # sanity-check keys
-        act_dict = location_to_mean_abs_error_rows_for_project(self.project, 2016, mock_wili_for_epi_week_fcn)
+        act_dict = location_to_mean_abs_error_rows_for_project(self.project, None, mock_wili_for_epi_week_fcn)
         self.assertEqual(set(exp_locations), set(act_dict.keys()))
 
         # spot-check one location

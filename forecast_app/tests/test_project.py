@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import pymmwr
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -182,11 +181,72 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts
 
 
-    def test_get_season_start_years(self):
-        project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
-        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 29)))  # 2015
-        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 30)))  # 2016
-        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 29)))  # 2016
-        TimeZero.objects.create(project=project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 30)))  # 2017
-        self.assertEqual([2015, 2016, 2017], project.season_start_years())
+    def test_timezero_seasons(self):
+        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        # 2015-01-01 <no season>  time_zero1    not within
+        # 2015-02-01 <no season>  time_zero2    not within
+        # 2016-02-01 season1      time_zero3  start
+        # 2017-01-01   ""         time_zero4    within
+        # 2017-02-01 season2      time_zero5  start
+        # 2018-01-01 season3      time_zero6  start
+        time_zero1 = TimeZero.objects.create(project=project2, timezero_date='2015-01-01',
+                                             is_season_start=False)  # no season for this TZ. explicit arg
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2015-02-01',
+                                             is_season_start=False)  # ""
+        time_zero3 = TimeZero.objects.create(project=project2, timezero_date='2016-02-01',
+                                             is_season_start=True, season_name='season1')  # start season1. 2 TZs
+        time_zero4 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')  # in season1. default args
+        time_zero5 = TimeZero.objects.create(project=project2, timezero_date='2017-02-01',
+                                             is_season_start=True, season_name='season2')  # start season2. 1 TZ
+        time_zero6 = TimeZero.objects.create(project=project2, timezero_date='2018-01-01',
+                                             is_season_start=True, season_name='season3')  # start season3. 1 TZ
+
+        # above create() calls test valid TimeZero season values
+
+        # test invalid TimeZero season values
+        with self.assertRaises(ValidationError) as context:
+            TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
+                                    is_season_start=True, season_name=None)  # season start, no season name (passed)
+        self.assertIn('passed is_season_start with no season_name', str(context.exception))
+
+        with self.assertRaises(ValidationError) as context:
+            TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
+                                    is_season_start=True)  # season start, no season name (default)
+        self.assertIn('passed is_season_start with no season_name', str(context.exception))
+
+        with self.assertRaises(ValidationError) as context:
+            TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
+                                    is_season_start=False, season_name='season4')  # no season start, season name
+        self.assertIn('passed season_name but no is_season_start', str(context.exception))
+
+        # test seasons()
+        self.assertEqual(['season1', 'season2', 'season3'], sorted(project2.seasons()))
+
+        # test start_end_dates_for_season()
+        self.assertEqual((time_zero3.timezero_date, time_zero4.timezero_date),
+                         project2.start_end_dates_for_season('season1'))  # two TZs
+        self.assertEqual((time_zero5.timezero_date, time_zero5.timezero_date),
+                         project2.start_end_dates_for_season('season2'))  # only one TZ -> start == end
+        self.assertEqual((time_zero6.timezero_date, time_zero6.timezero_date),
+                         project2.start_end_dates_for_season('season3'))  # ""
+
+        # test timezeros_in_season()
+        with self.assertRaises(RuntimeError) as context:
+            project2.timezeros_in_season('not a valid season')
+        self.assertIn('invalid season_name', str(context.exception))
+
+        self.assertEqual([time_zero3, time_zero4], project2.timezeros_in_season('season1'))
+        self.assertEqual([time_zero5], project2.timezeros_in_season('season2'))
+        self.assertEqual([time_zero6], project2.timezeros_in_season('season3'))
+
+        # test timezeros_in_season() w/no season, but followed by some seasons
+        self.assertEqual([time_zero1, time_zero2], project2.timezeros_in_season(None))
+
+        # test timezeros_in_season() w/no season, followed by no seasons, i.e., no seasons at all in the project
+        project3 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        time_zero7 = TimeZero.objects.create(project=project3, timezero_date='2015-01-01')
+        self.assertEqual([time_zero7], project3.timezeros_in_season(None))
+
+        # test start_end_dates_for_season()
+        self.assertEqual((time_zero7.timezero_date, time_zero7.timezero_date),
+                         project3.start_end_dates_for_season(None))
