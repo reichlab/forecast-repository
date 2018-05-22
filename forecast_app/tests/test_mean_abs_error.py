@@ -1,3 +1,5 @@
+import datetime
+from collections import defaultdict
 from pathlib import Path
 
 import pymmwr
@@ -7,7 +9,8 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
-    _model_id_to_forecast_id_tz_date_csv_fname, location_to_mean_abs_error_rows_for_project
+    _model_id_to_forecast_id_tz_date_csv_fname, location_to_mean_abs_error_rows_for_project, \
+    _loc_target_tz_date_to_truth
 
 
 class MAETestCase(TestCase):
@@ -56,9 +59,11 @@ class MAETestCase(TestCase):
             model_id_to_point_values_dict = _model_id_to_point_values_dict(self.project, None, [target])
             model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(
                 self.project, [self.forecast_model], None)
+            loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(self.project)
             act_mae = mean_absolute_error(self.forecast_model, 'US National', target,
                                           model_id_to_point_values_dict[self.forecast_model.pk],
-                                          model_id_to_forecast_id_tz_date_csv_fname[self.forecast_model.pk])
+                                          model_id_to_forecast_id_tz_date_csv_fname[self.forecast_model.pk],
+                                          loc_target_tz_date_to_truth)
             self.assertIsNotNone(act_mae)
             self.assertAlmostEqual(exp_mae, act_mae)
 
@@ -88,3 +93,72 @@ class MAETestCase(TestCase):
         # act_target_to_min_mae
         for target, exp_mae in self.exp_target_to_mae.items():
             self.assertAlmostEqual(exp_mae, act_target_to_min_mae[target])
+
+
+    def test_loc_target_tz_date_to_truth(self):
+        self.project.delete_truth_data()
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
+        exp_loc_target_tz_date_to_truth = _exp_loc_target_tz_date_to_truth()
+        act_loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(self.project)
+        self.assertEqual(exp_loc_target_tz_date_to_truth, act_loc_target_tz_date_to_truth)
+
+
+def _exp_loc_target_tz_date_to_truth():
+    exp_loc_target_tz_date_to_truth = {
+        'HHS Region 1': {
+            '1 wk ahead': {
+                datetime.date(2017, 1, 1): [1.52411],
+                datetime.date(2017, 1, 8): [1.73987],
+                datetime.date(2016, 12, 18): [1.41861],
+                datetime.date(2016, 12, 25): [1.57644],
+            },
+            '2 wk ahead': {
+                datetime.date(2017, 1, 1): [1.73987],
+                datetime.date(2017, 1, 8): [2.06524],
+                datetime.date(2016, 12, 18): [1.57644],
+                datetime.date(2016, 12, 25): [1.52411],
+            },
+            '3 wk ahead': {
+                datetime.date(2017, 1, 1): [2.06524],
+                datetime.date(2017, 1, 8): [2.51375],
+                datetime.date(2016, 12, 18): [1.52411],
+                datetime.date(2016, 12, 25): [1.73987],
+            },
+            '4 wk ahead': {
+                datetime.date(2017, 1, 1): [2.51375],
+                datetime.date(2017, 1, 8): [3.19221],
+                datetime.date(2016, 12, 18): [1.73987],
+                datetime.date(2016, 12, 25): [2.06524],
+            }},
+        'US National': {
+            '1 wk ahead': {
+                datetime.date(2017, 1, 1): [3.08492],
+                datetime.date(2017, 1, 8): [3.51496],
+                datetime.date(2016, 12, 18): [3.36496, 9.0],  # NB two
+                datetime.date(2016, 12, 25): [3.0963],
+            },
+            '2 wk ahead': {
+                datetime.date(2017, 1, 1): [3.51496],
+                datetime.date(2017, 1, 8): [3.8035],
+                datetime.date(2016, 12, 18): [3.0963],
+                datetime.date(2016, 12, 25): [3.08492],
+            },
+            '3 wk ahead': {
+                datetime.date(2017, 1, 1): [3.8035],
+                datetime.date(2017, 1, 8): [4.45059],
+                datetime.date(2016, 12, 18): [3.08492],
+                datetime.date(2016, 12, 25): [3.51496],
+            },
+            '4 wk ahead': {
+                datetime.date(2017, 1, 1): [4.45059],
+                datetime.date(2017, 1, 8): [5.07947],
+                datetime.date(2016, 12, 18): [3.51496],
+                datetime.date(2016, 12, 25): [3.8035],
+            }
+        }
+    }
+    # convert innermost dicts to defaultdicts, which are what _loc_target_tz_date_to_truth() returns
+    for location, target_tz_dict in exp_loc_target_tz_date_to_truth.items():
+        for target, tz_date_truth in target_tz_dict.items():
+            exp_loc_target_tz_date_to_truth[location][target] = defaultdict(list, tz_date_truth)
+    return exp_loc_target_tz_date_to_truth

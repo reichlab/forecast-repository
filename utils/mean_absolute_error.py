@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 from itertools import groupby
 
 from django.db import connection
@@ -38,17 +39,18 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(
         project, project.models.all(), season_name)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
+    loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(project)
     location_to_mean_abs_error_rows = {
-        location: _mean_abs_error_rows_for_project(project, targets, location,
-                                                   model_id_to_point_values_dict,
-                                                   model_id_to_forecast_id_tz_date_csv_fname)
+        location: _mean_abs_error_rows_for_project(project, targets, location, model_id_to_point_values_dict,
+                                                   model_id_to_forecast_id_tz_date_csv_fname,
+                                                   loc_target_tz_date_to_truth)
         for location in project.get_locations()}
     logger.debug("location_to_mean_abs_error_rows_for_project(): done")
     return location_to_mean_abs_error_rows
 
 
-def _mean_abs_error_rows_for_project(project, targets, location,
-                                     model_id_to_point_values_dict, model_id_to_forecast_id_tz_date_csv_fname):
+def _mean_abs_error_rows_for_project(project, targets, location, model_id_to_point_values_dict,
+                                     model_id_to_forecast_id_tz_date_csv_fname, loc_target_tz_date_to_truth):
     """
     Returns a 2-list of the form: (rows, target_to_min_mae), where rows is a table in the form of a list of rows where
     each row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model. The format:
@@ -88,7 +90,8 @@ def _mean_abs_error_rows_for_project(project, targets, location,
                 if forecast_model.pk in model_id_to_forecast_id_tz_date_csv_fname \
                 else {}
             mae_val = mean_absolute_error(forecast_model, location, target,
-                                          forecast_to_point_dict, forecast_id_tz_date_csv_fname)
+                                          forecast_to_point_dict, forecast_id_tz_date_csv_fname,
+                                          loc_target_tz_date_to_truth)
             if not mae_val:
                 return []
 
@@ -101,7 +104,8 @@ def _mean_abs_error_rows_for_project(project, targets, location,
     return [rows, target_to_min_mae]
 
 
-def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict, forecast_id_tz_date_csv_fname):
+def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict, forecast_id_tz_date_csv_fname,
+                        loc_target_tz_date_to_truth):
     """
     Calculates the mean absolute error for the passed model and parameters. Note: Uses cached values
     (forecast_to_point_dict and forecast_id_tz_date_csv_fname) instead of hitting the database directly, for
@@ -116,36 +120,34 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
     :return: mean absolute error (scalar) for my predictions for a location and target. returns None if can't be
         calculated
     """
-    print('xx', forecast_model, location, target)
     forecasts = forecast_model.forecasts.all()
     if not forecasts:
         raise RuntimeError("Could not calculate absolute errors: no data. forecast_model={}".format(forecast_model))
-
-    truth_data_qs = forecast_model.project.truth_data_qs()
-    if truth_data_qs.count() == 0:  # same as is_truth_data_loaded(), but skip the additional truth_data_qs() call
-        return None
 
     cdc_file_name_to_abs_error = {}
     for forecast_id, forecast_timezero_date, forecast_csv_filename in forecast_id_tz_date_csv_fname:
         # todo xx this query is expensive when repeated. instead: pass in bulk similar to forecast_to_point_dict
         # todo xx also, should flag any forecasts with missing or NA values - would save repeated work
-        truth_values = truth_data_qs \
-            .filter(time_zero__timezero_date=forecast_timezero_date) \
-            .filter(location=location) \
-            .filter(target=target)
-        if truth_values.count() == 0:  # truth not available
+        try:
+            truth_values = loc_target_tz_date_to_truth[location][target][forecast_timezero_date]
+        except KeyError as ke:
+            logger.warning("mean_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. location={}, "
+                           "target={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
+                           .format(ke.args, location, target, forecast_timezero_date, loc_target_tz_date_to_truth))
+            continue  # skip this forecast's contribution to the score
+
+        if len(truth_values) == 0:  # truth not available
             logger.warning("mean_absolute_error(): truth value not found. forecast_model={}, location={!r}, "
                            "target={!r}, forecast_id={}, forecast_timezero_date={}"
                            .format(forecast_model, location, target, forecast_id, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
-        elif truth_values.count() > 1:
+        elif len(truth_values) > 1:
             logger.warning("mean_absolute_error(): >1 truth values found. forecast_model={}, location={!r}, "
                            "target={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
                            .format(forecast_model, location, target, forecast_id, forecast_timezero_date, truth_values))
             continue  # skip this forecast's contribution to the score
 
-        true_value = truth_values.first().value
-        print('  ', forecast_timezero_date, location, target, '->', true_value)
+        true_value = truth_values[0]
         if true_value is None:
             logger.warning("mean_absolute_error(): truth value was NA. forecast_model={}, location={!r}, "
                            "target={!r}, forecast_id={}, forecast_timezero_date={}"
@@ -158,6 +160,27 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
 
     return (sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)) if cdc_file_name_to_abs_error \
         else None
+
+
+def _loc_target_tz_date_to_truth(project):
+    """
+    :return: a dict that collects all my truth values, organized such that mean_absolute_error() can access them
+        quickly, as in: true_value = loc_target_tz_date_to_truth[location][target][timezero_date]
+    """
+    loc_target_tz_date_to_truth = {}
+    for location, loc_target_tz_grouper in groupby(
+            project.truth_data_qs()
+                    .order_by('location', 'target', 'time_zero')
+                    .values_list('location', 'target', 'time_zero__timezero_date', 'value'),
+            key=lambda _: _[0]):
+        target_tz_date_to_truth = {}
+        loc_target_tz_date_to_truth[location] = target_tz_date_to_truth
+        for target, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
+            tz_date_to_truth = defaultdict(list)
+            target_tz_date_to_truth[target] = tz_date_to_truth
+            for _, _, tz_date, value in target_tz_grouper:
+                tz_date_to_truth[tz_date].append(value)
+    return loc_target_tz_date_to_truth
 
 
 def _model_id_to_forecast_id_tz_date_csv_fname(project, forecast_models, season_name):
