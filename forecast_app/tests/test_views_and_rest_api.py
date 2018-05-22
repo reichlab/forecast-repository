@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero
-from forecast_app.tests.test_project import TEST_CONFIG_DICT
+from utils.cdc import CDC_CONFIG_DICT
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users
 from utils.utilities import CDC_CSV_HEADER
 
@@ -31,7 +31,7 @@ class ViewsTestCase(TestCase):
 
         # public_project
         cls.public_project = Project.objects.create(name='public project name', is_public=True,
-                                                    owner=cls.po_user, config_dict=TEST_CONFIG_DICT)
+                                                    owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
         cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
@@ -42,7 +42,7 @@ class ViewsTestCase(TestCase):
 
         # private_project
         cls.private_project = Project.objects.create(name='private project name', is_public=False,
-                                                     owner=cls.po_user, config_dict=TEST_CONFIG_DICT)
+                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
         cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
@@ -53,7 +53,7 @@ class ViewsTestCase(TestCase):
 
         # public project with no template
         cls.public_project2 = Project.objects.create(name='public project 2', is_public=True,
-                                                     owner=cls.po_user, config_dict=TEST_CONFIG_DICT)
+                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.public_project2.model_owners.add(cls.mo_user)
         cls.public_project2.save()
 

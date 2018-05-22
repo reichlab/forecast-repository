@@ -15,6 +15,13 @@ def basic_str(obj):
 
 
 #
+# date functions
+#
+
+YYYYMMDD_DATE_FORMAT = '%Y%m%d'
+
+
+#
 # numeric functions
 #
 

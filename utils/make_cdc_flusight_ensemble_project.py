@@ -45,12 +45,13 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
                           "http://flusightnetwork.io/"
     home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble'
     core_data = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
-    _make_cdc_flusight_project(component_models_dir, make_project, load_data,
-                               project_name, project_description, home_url, None, core_data)
+    _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,
+                               home_url, None, core_data,
+                               Path('utils/ensemble-truth-table-script/truths-2010-through-2016.csv'))
 
 
-def _make_cdc_flusight_project(component_models_dir, make_project, load_data,
-                               project_name, project_description, home_url, logo_url, core_data):
+def _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,
+                               home_url, logo_url, core_data, truth_file_path):
     start_time = timeit.default_timer()
     component_models_dir = Path(component_models_dir)
     model_dirs_to_load = get_model_dirs_to_load(component_models_dir)
@@ -111,6 +112,9 @@ def _make_cdc_flusight_project(component_models_dir, make_project, load_data,
     click.echo("* Creating TimeZeros")
     time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
     click.echo("- created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
+
+    click.echo("- loading truth values")
+    project.load_truth_data(truth_file_path)
 
     # load data if necessary
     if load_data:

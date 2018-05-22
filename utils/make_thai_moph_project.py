@@ -18,14 +18,9 @@ from forecast_app.models import Project, ForecastModel
 
 
 CONFIG_DICT = {
-    "target_to_week_increment": {
-        "-1_biweek_ahead": 1,
-        "0_biweek_ahead": 2,
-        "1_biweek_ahead": 3,
-        "2_biweek_ahead": 4,
-        "3_biweek_ahead": 5
-    },
-    "location_to_delphi_region": {}  # todo this will go away after [Generalize truth values to a table #60]
+    "visualization-targets": ["-1_biweek_ahead", "0_biweek_ahead", "1_biweek_ahead", "2_biweek_ahead",
+                              "3_biweek_ahead"],
+    "visualization-y-label": "DHF cases"
 }
 
 
@@ -75,7 +70,8 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
     # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts
-    for idx, (cdc_csv_file, timezero_date, _, data_version_date) in enumerate(cdc_csv_components_from_data_dir(data_dir)):
+    for idx, (cdc_csv_file, timezero_date, _, data_version_date) in enumerate(
+            cdc_csv_components_from_data_dir(data_dir)):
         found_time_zero = project.time_zero_for_timezero_date(timezero_date)
         if found_time_zero:
             click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
@@ -87,6 +83,9 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
                                 is_season_start=(True if idx == 0 else False),
                                 season_name=('2017-2018' if idx == 0 else None))  # todo xx hard-coded season_name
     click.echo("- created TimeZeros: {}".format(project.timezeros.all()))
+
+    # click.echo("- loading truth values")  # todo when file available
+    # project.load_truth_data(Path('.../truths-dengue-data.csv'))
 
     # load data if necessary
     if load_data:
@@ -103,6 +102,7 @@ def make_thai_moph_project(project_name, template_path):
     project = Project.objects.create(
         name=project_name,
         is_public=False,
+        time_interval_type=Project.BIWEEK_TIME_INTERVAL_TYPE,
         description="Impetus Project forecasts for real-time dengue hemorrhagic fever (DHF) in Thailand. Beginning in "
                     "May 2017, this project contains forecasts for biweekly DHF incidence at the province level in "
                     "Thailand. Specifically, each timezero date is associated with a biweek in which data were "

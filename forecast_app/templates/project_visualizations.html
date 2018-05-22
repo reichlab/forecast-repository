@@ -58,47 +58,66 @@
 
     <h2>Time chart</h2>
 
-    <p><em>(Beta feature)</em> Time chart for all models in the project, and their week-related targets.</p>
+    <p><em>(Beta feature)</em> Time chart for all models in the project, and their visualization-related targets.)</p>
 
     {% load static %}
 
     {# http://reichlab.io/d3-foresight/ dependencies #}
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.18.1/moment.min.js"></script>
+
     <script src="{% static 'd3-foresight-assets/d3-foresight.min.js' %}"></script>
+    {# <script src="https://unpkg.com/d3-foresight/dist/d3-foresight.js"></script> #}
+    {# <script src="https://unpkg.com/d3-foresight@0.9.3/dist/d3-foresight.js"></script> #}
+    {# <script src="https://unpkg.com/d3-foresight@0.9.3/dist/d3-foresight.min.js"></script> #}
+
     <link rel="stylesheet" href="{% static 'd3-foresight-assets/fontello/fontello.css' %}"/>
 
     <div id="timechart"></div>
 
     {% if location_to_flusight_data_dict != 'null' %}
-
         <script type="text/javascript">
             $(function () {
-
-                var config = {
-                    pointType: 'mmwr-week', // Default is regular-week. todo xx
-                    axes: {
-                        x: {
-                            title: 'Epi week'
-                        },
-                        y: {
-                            title: 'Weighted ILI (%)',
-                            domain: [{{ timechart_y_domain.0 }}, {{ timechart_y_domain.1 }}]
-                        }
-                    }
-                };
-                var timeChart = new d3Foresight.TimeChart('#timechart', config);
                 updateChartForLocation();
 
-
                 function updateChartForLocation() {
+                    // because the y-axis domain max varies per location, we have to re-configure the component after
+                    // each choice and then set the plot data. currently the component does not support post-
+                    // instantiation reconfiguration, so we recreate it before plotting
                     var location = $('#location_select').find(":selected").text();
+
+                    // reconfigure for y-axis domain max
+                    var locationToMaxVal = {{location_to_max_val|safe}};
+                    var yAxisDomainMax = locationToMaxVal[location];
+                    var config = configForTimeChart(yAxisDomainMax);
+                    console.log(location + ', ' + locationToMaxVal + ', ' + yAxisDomainMax + ' -> ' + config);
+
+                    // re-configure and replace the component
+                    var $timeChartDiv = $('#timechart');
+                    $timeChartDiv.children().remove();
+                    var timeChart = new d3Foresight.TimeChart('#timechart', config);
+
+                    // set the plot data
                     var locationToData = {{location_to_flusight_data_dict|safe}};
                     var data = locationToData[location];
                     timeChart.plot(data);
                     timeChart.update(1);  // todo xx
                 }
 
+                function configForTimeChart(yAxisDomainMax) {
+                    return {
+                        pointType: '{{ project.time_interval_type_to_foresight }}',
+                        axes: {
+                            x: {
+                                title: '{{ x_axis_label }}'
+                            },
+                            y: {
+                                title: '{{ y_axis_label }}',
+                                domain: [0, yAxisDomainMax + (0.1 * yAxisDomainMax)]
+                            }
+                        }
+                    };
+                }
 
                 $("#location_select").change(function () {
                     updateChartForLocation();

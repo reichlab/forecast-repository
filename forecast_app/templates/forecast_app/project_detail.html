@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load humanize %}
+
 {% block title %}Project: {{ project.name }}{% endblock %}
 
 {% block content %}
@@ -57,6 +59,10 @@
                     </td>
                 </tr>
                 <tr>
+                    <th>Time Interval Type</th>
+                    <td>{{ project.time_interval_type_to_foresight|title }}</td>
+                </tr>
+                <tr>
                     <th>Visibility</th>
                     <td>
                         {% if project.is_public %}
@@ -106,6 +112,10 @@
                             {% endif %}
                         {% endif %}
                     </td>
+                </tr>
+                <tr>
+                    <th>Truth data:</th>
+                    <td>{{ project.is_truth_data_loaded|intcomma }} row{{ project.is_truth_data_loaded|pluralize }}</td>
                 </tr>
                 <tr>
                     <th>Analysis:</th>

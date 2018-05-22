@@ -4,25 +4,8 @@ import re
 
 
 CDC_CONFIG_DICT = {
-    "target_to_week_increment": {
-        "1 wk ahead": 1,
-        "2 wk ahead": 2,
-        "3 wk ahead": 3,
-        "4 wk ahead": 4
-    },
-    "location_to_delphi_region": {  # todo this will go away after [Generalize truth values to a table #60]
-        "US National": "nat",
-        "HHS Region 1": "hhs1",
-        "HHS Region 2": "hhs2",
-        "HHS Region 3": "hhs3",
-        "HHS Region 4": "hhs4",
-        "HHS Region 5": "hhs5",
-        "HHS Region 6": "hhs6",
-        "HHS Region 7": "hhs7",
-        "HHS Region 8": "hhs8",
-        "HHS Region 9": "hhs9",
-        "HHS Region 10": "hhs10"
-    }
+    "visualization-targets": ["1 wk ahead", "2 wk ahead", "3 wk ahead", "4 wk ahead"],
+    "visualization-y-label": "Weighted ILI (%)"
 }
 
 

@@ -92,17 +92,16 @@
 
 
     <h3 id="config_dict">Project.config_dict</h3>
-    <p>When creating a new Project, you may choose to pass a <code>config_dict</code>. It is a
-        <a href="https://www.json.org/">JSON</a> object that specifies project-specific information used to calculate
-        statistics, currently Mean Absolute Error. There are two keys, both required:
+    <p>When creating a new Project, you must pass a <code>config_dict</code>. It is a
+        <a href="https://www.json.org/">JSON</a> object that specifies project-specific information. Here are the
+        required keys:
     </p>
     <ul>
-        <li><code>target_to_week_increment</code>: an object that maps week-related target names to ints, such as
-            '1 wk ahead' &rarr; 1 . Also, this objects's keys are used by the Mean Absolute Error method to decide which
-            targets to use.
+        <li><code>visualization-targets</code>: an array that lists week-related target names, such as '1 wk ahead'.
+            They are the targets used by the d3Foresight.TimeChart component, as well as (for the meantime) mean
+            absolute error.
         </li>
-        <li><code>location_to_delphi_region</code>: an object that maps all my locations to Delphi region names, as
-            documented <a href="https://github.com/cmu-delphi/delphi-epidata#fluview">here</a>.
+        <li><code>visualization-y-label</code>: a string that's used by the d3Foresight.TimeChart component.
         </li>
     </ul>
 

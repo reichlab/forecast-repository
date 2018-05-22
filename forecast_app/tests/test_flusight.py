@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.tests.test_project import TEST_CONFIG_DICT
+from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_data_dicts_for_models
 
 
@@ -17,7 +17,7 @@ class FlusightTestCase(TestCase):
 
 
     def test_d3_foresight(self):
-        project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 10, 23),
@@ -31,7 +31,7 @@ class FlusightTestCase(TestCase):
         forecast_model1.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
 
         # test different projects
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
@@ -50,7 +50,7 @@ class FlusightTestCase(TestCase):
 
 
     def test_d3_foresight_out_of_season(self):
-        project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17):
         time_zero = TimeZero.objects.create(project=project,
@@ -75,7 +75,7 @@ class FlusightTestCase(TestCase):
 
     # straight from test_load_forecasts_from_dir():
     def test_d3_foresight_larger(self):
-        project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 23),

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import click
 import django
 
@@ -28,8 +30,9 @@ def make_2017_2018_flu_contest_project_app(component_models_dir, make_project, l
     home_url = 'https://github.com/reichlab/2017-2018-cdc-flu-contest'
     logo_url = 'http://reichlab.io/assets/images/logo/nav-logo.png'
     core_data = 'https://github.com/reichlab/2017-2018-cdc-flu-contest/tree/master/inst/submissions'
-    _make_cdc_flusight_project(component_models_dir, make_project, load_data,
-                               project_name, project_description, home_url, logo_url, core_data)
+    _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,
+                               home_url, logo_url, core_data,
+                               Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
 
 
 if __name__ == '__main__':

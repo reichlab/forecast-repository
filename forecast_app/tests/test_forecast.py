@@ -11,7 +11,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.data import ModelWithCDCData, CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.tests.test_project import TEST_CONFIG_DICT
+from utils.cdc import CDC_CONFIG_DICT
 from utils.utilities import rescale
 
 
@@ -22,7 +22,7 @@ class ForecastTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -62,7 +62,7 @@ class ForecastTestCase(TestCase):
         self.assertIn('Invalid header', str(context.exception))
 
         # test load_forecast() with timezero not in the project
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)  # no TimeZeros
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
@@ -73,7 +73,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_load_forecasts_from_dir(self):
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
@@ -173,7 +173,8 @@ class ForecastTestCase(TestCase):
 
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
                        'Season peak week']
-        self.assertEqual(exp_targets, sorted(self.forecast.get_targets('US National')))
+        self.assertEqual(exp_targets, sorted(self.forecast.get_targets_for_location('US National')))
+        self.assertEqual(exp_targets, sorted(self.forecast.get_targets()))
 
         self.assertEqual('week', self.forecast.get_target_unit('US National', 'Season onset'))
         self.assertEqual(50.0012056690978, self.forecast.get_target_point_value('US National', 'Season onset'))
@@ -211,7 +212,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_get_location_dicts_download_format_small_forecast(self):
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -232,7 +233,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_get_location_dicts_internal_format_small_forecast(self):
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -289,7 +290,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_get_location_dicts_internal_format_for_cdc_csv_file(self):
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),

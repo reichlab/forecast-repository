@@ -11,7 +11,7 @@ import pymmwr
 django.setup()
 
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest
-from utils.utilities import cdc_csv_filename_components
+from utils.utilities import cdc_csv_filename_components, YYYYMMDD_DATE_FORMAT
 
 
 # This number is the internal reichlab standard: "We used week 30. I don't think this is a standardized concept outside
@@ -64,9 +64,9 @@ def normalize_cdc_flu_challenge_filenames_app(cdc_data_parent_dir):
             datetime_for_mmwr_week = pymmwr.mmwr_week_to_date(mmwr_year, ew_week_number)
 
             new_filename = '{time_zero}-{model_name}-{data_version_date}.cdc.csv' \
-                .format(time_zero=datetime_for_mmwr_week.strftime('%Y%m%d'),
+                .format(time_zero=datetime_for_mmwr_week.strftime(YYYYMMDD_DATE_FORMAT),
                         model_name=team_name,
-                        data_version_date=submission_datetime.strftime('%Y%m%d'))
+                        data_version_date=submission_datetime.strftime(YYYYMMDD_DATE_FORMAT))
             out_file = model_dir / new_filename
             click.echo("  {}\t-> {}".format(csv_file.name, out_file.name))
             shutil.copy(str(csv_file), str(out_file))

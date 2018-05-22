@@ -135,7 +135,8 @@
         </script>
 
     {% else %}
-        <p class="text-muted">(No data available)</p>
+        <p class="text-muted">({% if not project.is_truth_data_loaded %}No truth data loaded into project.{% else %}No
+            data available.{% endif %})</p>
     {% endif %}
 
 {% endblock %}

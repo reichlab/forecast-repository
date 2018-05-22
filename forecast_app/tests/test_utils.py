@@ -8,10 +8,10 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.tests.test_project import TEST_CONFIG_DICT
-from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
+from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
+    CDC_CONFIG_DICT
 from utils.make_cdc_flusight_ensemble_project import season_start_year_for_date
-from utils.mean_absolute_error import _model_ids_to_point_values_dicts
+from utils.mean_absolute_error import _model_id_to_point_values_dict
 from utils.utilities import cdc_csv_filename_components
 
 
@@ -27,11 +27,6 @@ EPI_YR_WK_TO_ACTUAL_WILI = {
 }
 
 
-# static mock function for delphi_wili_for_mmwr_year_week(). location_name is ignored
-def mock_wili_for_epi_week_fcn(forecast_model, year, week, location_name):
-    return EPI_YR_WK_TO_ACTUAL_WILI[(year, week)]
-
-
 class UtilitiesTestCase(TestCase):
     """
     """
@@ -39,7 +34,7 @@ class UtilitiesTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -123,8 +118,8 @@ class UtilitiesTestCase(TestCase):
             self.assertEqual(exp_season_start_year, season_start_year_for_date(date))
 
 
-    def test__model_ids_to_point_values_dicts(self):
-        project1 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+    def test__model_id_to_point_values_dict(self):
+        project1 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project1.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         time_zero_11 = TimeZero.objects.create(project=project1, timezero_date='2017-01-01',
@@ -135,7 +130,7 @@ class UtilitiesTestCase(TestCase):
             Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
             time_zero_11)
 
-        project2 = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}:
         time_zero_21 = TimeZero.objects.create(project=project2,
@@ -162,10 +157,10 @@ class UtilitiesTestCase(TestCase):
             exp_dict_loaded = json.loads(exp_json_str)
             exp_dict_p1 = {forecast_model_11.pk:
                                {forecast_11.pk: exp_dict_loaded[str(forecast_model_11.id)][str(forecast_11.id)]}}
-            act_point_values_dict = _model_ids_to_point_values_dicts(project1, 'season p1', targets)
+            act_point_values_dict = _model_id_to_point_values_dict(project1, 'season p1', targets)
             self.assertEqual(exp_dict_p1, act_point_values_dict)
 
             exp_dict_p2 = {forecast_model_21.pk:
                                {forecast_21.pk: exp_dict_loaded[str(forecast_model_21.id)][str(forecast_21.id)]}}
-            act_point_values_dict = _model_ids_to_point_values_dicts(project2, 'season p2', targets)
+            act_point_values_dict = _model_id_to_point_values_dict(project2, 'season p2', targets)
             self.assertEqual(exp_dict_p2, act_point_values_dict)

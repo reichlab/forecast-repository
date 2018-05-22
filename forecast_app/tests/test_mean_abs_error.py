@@ -5,10 +5,9 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.tests.test_project import TEST_CONFIG_DICT
-from forecast_app.tests.test_utils import mock_wili_for_epi_week_fcn
-from utils.mean_absolute_error import mean_absolute_error, _model_ids_to_point_values_dicts, \
-    _model_ids_to_forecast_rows, location_to_mean_abs_error_rows_for_project
+from utils.cdc import CDC_CONFIG_DICT
+from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
+    _model_id_to_forecast_id_tz_date_csv_fname, location_to_mean_abs_error_rows_for_project
 
 
 class MAETestCase(TestCase):
@@ -18,7 +17,7 @@ class MAETestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=TEST_CONFIG_DICT)
+        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -43,21 +42,24 @@ class MAETestCase(TestCase):
         cls.forecast4 = cls.forecast_model.load_forecast(
             Path('forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), time_zero)
 
-
-    def test_mean_absolute_error(self):
         # 'mini' season for testing. from:
         #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
-        exp_target_to_mae = {'1 wk ahead': 0.215904853,
-                             '2 wk ahead': 0.458186984,
-                             '3 wk ahead': 0.950515864,
-                             '4 wk ahead': 1.482010693}
+        cls.exp_target_to_mae = {'1 wk ahead': 0.215904853,
+                                 '2 wk ahead': 0.458186984,
+                                 '3 wk ahead': 0.950515864,
+                                 '4 wk ahead': 1.482010693}
+        cls.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths.csv'))
 
-        for target, exp_mae in exp_target_to_mae.items():
-            model_ids_to_point_values_dicts = _model_ids_to_point_values_dicts(self.project, None, [target])
-            model_ids_to_forecast_rows = _model_ids_to_forecast_rows(self.project, [self.forecast_model], None)
-            act_mae = mean_absolute_error(self.forecast_model, 'US National', target, mock_wili_for_epi_week_fcn,
-                                          model_ids_to_point_values_dicts[self.forecast_model.pk],
-                                          model_ids_to_forecast_rows[self.forecast_model.pk])
+
+    def test_mean_absolute_error(self):
+        for target, exp_mae in self.exp_target_to_mae.items():
+            model_id_to_point_values_dict = _model_id_to_point_values_dict(self.project, None, [target])
+            model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(
+                self.project, [self.forecast_model], None)
+            act_mae = mean_absolute_error(self.forecast_model, 'US National', target,
+                                          model_id_to_point_values_dict[self.forecast_model.pk],
+                                          model_id_to_forecast_id_tz_date_csv_fname[self.forecast_model.pk])
+            self.assertIsNotNone(act_mae)
             self.assertAlmostEqual(exp_mae, act_mae)
 
 
@@ -65,16 +67,13 @@ class MAETestCase(TestCase):
         exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
                          'US National']
-        exp_target_to_mae = {'1 wk ahead': 0.215904853,
-                             '2 wk ahead': 0.458186984,
-                             '3 wk ahead': 0.950515864,
-                             '4 wk ahead': 1.482010693}
 
         # sanity-check keys
-        act_dict = location_to_mean_abs_error_rows_for_project(self.project, None, mock_wili_for_epi_week_fcn)
+        act_dict = location_to_mean_abs_error_rows_for_project(self.project, None)
         self.assertEqual(set(exp_locations), set(act_dict.keys()))
 
         # spot-check one location
+        self.assertTrue(act_dict['US National'])  # must have some values
         act_mean_abs_error_rows, act_target_to_min_mae = act_dict['US National']
 
         self.assertEqual(['Model', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
@@ -83,9 +82,9 @@ class MAETestCase(TestCase):
         self.assertEqual(act_mean_abs_error_rows[1][0], self.forecast_model.pk)  # row1, col0
 
         # row1, col1+. values happen to be sorted
-        for exp_mae, act_mae in zip(list(sorted(exp_target_to_mae.values())), act_mean_abs_error_rows[1][1:]):
+        for exp_mae, act_mae in zip(list(sorted(self.exp_target_to_mae.values())), act_mean_abs_error_rows[1][1:]):
             self.assertAlmostEqual(exp_mae, act_mae)
 
         # act_target_to_min_mae
-        for target, exp_mae in exp_target_to_mae.items():
+        for target, exp_mae in self.exp_target_to_mae.items():
             self.assertAlmostEqual(exp_mae, act_target_to_min_mae[target])

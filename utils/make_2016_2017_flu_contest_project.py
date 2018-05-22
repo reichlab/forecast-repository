@@ -117,6 +117,9 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
                                 is_season_start=(True if idx == 0 else False),
                                 season_name=('2016-2017' if idx == 0 else None))
 
+    click.echo("  loading truth values")
+    project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+
     # done
     return project
 

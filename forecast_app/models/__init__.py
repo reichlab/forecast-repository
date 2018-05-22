@@ -2,6 +2,7 @@
 
 
 from .data import ForecastData
+from .truth_data import TruthData
 from .forecast import Forecast
 from .forecast_model import ForecastModel
 from .project import Project, Target, TimeZero

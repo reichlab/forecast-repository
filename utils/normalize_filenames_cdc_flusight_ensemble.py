@@ -12,7 +12,7 @@ import pymmwr
 django.setup()
 
 from utils.cdc import epi_week_filename_components_ensemble
-from utils.utilities import cdc_csv_filename_components
+from utils.utilities import cdc_csv_filename_components, YYYYMMDD_DATE_FORMAT
 
 
 @click.command()
@@ -59,9 +59,9 @@ def normalize_cdc_flusight_ensemble_filenames_app(cdc_data_parent_dir):
             data_version_date_monday = data_version_date_sunday + datetime.timedelta(days=1)  # Sunday + 1 = Monday
 
             new_filename = '{time_zero}-{model_name}-{data_version_date}.cdc.csv' \
-                .format(time_zero=time_zero.strftime('%Y%m%d'),
+                .format(time_zero=time_zero.strftime(YYYYMMDD_DATE_FORMAT),
                         model_name=team_name,
-                        data_version_date=data_version_date_monday.strftime('%Y%m%d'))
+                        data_version_date=data_version_date_monday.strftime(YYYYMMDD_DATE_FORMAT))
             out_file = model_dir / new_filename
             click.echo("\t{}\t{}".format(csv_file.name, out_file.name))
             shutil.copy(str(csv_file), str(out_file))

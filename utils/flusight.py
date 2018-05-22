@@ -1,6 +1,5 @@
 from itertools import groupby
 
-import pymmwr
 from django.db import connection
 
 from forecast_app.models import ForecastData, Forecast, TimeZero, ForecastModel
@@ -10,31 +9,35 @@ from forecast_app.models.data import CDCData
 #
 # This file defines functions related to the Flusight D3 component at https://github.com/reichlab/d3-foresight
 #
+from utils.utilities import YYYYMMDD_DATE_FORMAT
+
 
 def flusight_data_dicts_for_models(forecast_models, season_name, request=None):
     """
     Returns a dict containing forecast_model's point forecasts for all locations in season_name, structured
     according to https://github.com/reichlab/d3-foresight . Keys are the locations, and values are the individual data
-    dicts for each. Recall the format of the latter:
+    dicts for each as expected by the component. Passing all locations this way allows only a single page load for a
+    particular season, with subsequent user selection of locations doing only a data replot in the component.
+
+    Recall the format of the data dicts:
 
     let data = {
-    timePoints,
-    models: [
-      {
-        id: 'mod',
-        meta: {
-          name: 'Name',
-          description: 'Model description here',
-          url: 'http://github.com'
-        },
-        predictions
-      }
-    ]
+        timePoints,
+        models: [
+          {
+            id: 'mod',
+            meta: {
+              name: 'Name',
+              description: 'Model description here',
+              url: 'http://github.com'
+            },
+            predictions
+          }
+        ]
     }
 
-    where timePoints is a list of objects like: { "week": 1, "year": 2016 },
-
-    and predictions is a list of 'series' objects containing 'point' objects, e.g.,
+    where timePoints is a list of dates in "YYYYMMDD" format, and predictions is a list of 'series' objects containing
+    'point' objects, e.g.,
 
      "predictions": [
        {
@@ -55,7 +58,7 @@ def flusight_data_dicts_for_models(forecast_models, season_name, request=None):
     Notes:
     - The length of predictions must match that of timePoints, using null for missing points.
     - All models must belong to the same Project.
-    - Returns None if the project has no get_targets_for_mean_absolute_error().
+    - Returns None if the project has no visualization_targets().
     - If request is passed then it is used to calculate each model's absolute URL (used in the flusight component's info
       box). o/w the model's home_url is used
     """
@@ -67,21 +70,14 @@ def flusight_data_dicts_for_models(forecast_models, season_name, request=None):
         raise RuntimeError("Not all models are in the same Project")
 
     project = projects[0]
-    targets = project.get_targets_for_mean_absolute_error()
+    targets = project.visualization_targets()
     if not targets:
         return None
     else:
         targets = sorted(targets)
 
     # set time_points. order_by -> matches ORDER BY in _flusight_point_value_rows_for_models():
-    time_points = []
     project_timezeros = project.timezeros_in_season(season_name)
-    for timezero in project_timezeros:
-        # todo xx pymmwr dependency will go away once the D3 Foresight component is changed to work with dates, not EWs:
-        tz_ywd_mmwr_dict = pymmwr.date_to_mmwr_week(timezero.timezero_date)
-        time_points.append({'week': tz_ywd_mmwr_dict['week'],
-                            'year': tz_ywd_mmwr_dict['year']})
-
     model_to_location_timezero_points = _model_to_location_timezero_points(project, forecast_models, season_name,
                                                                            targets)
 
@@ -91,7 +87,8 @@ def flusight_data_dicts_for_models(forecast_models, season_name, request=None):
     for location in project.get_locations():
         model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location,
                                                                    model_to_location_timezero_points, request)
-        data_dict = {'timePoints': time_points,
+        data_dict = {'timePoints': [timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
+                                    for timezero in project_timezeros],
                      'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
         locations_to_flusight_data_dicts[location] = data_dict
     return locations_to_flusight_data_dicts

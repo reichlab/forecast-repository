@@ -1,15 +1,18 @@
+import csv
+import datetime
+import io
 import itertools
 import math
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
-from django.db.models import ManyToManyField
+from django.db import models, transaction, connection
+from django.db.models import ManyToManyField, Max
 from django.urls import reverse
 from jsonfield import JSONField
 
-from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData
-from utils.utilities import basic_str
+from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData, POSTGRES_NULL_VALUE, CDCData
+from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
 
 
 #
@@ -46,6 +49,15 @@ class Project(ModelWithCDCData):
 
     name = models.CharField(max_length=200)
 
+    WEEK_TIME_INTERVAL_TYPE = 'w'
+    BIWEEK_TIME_INTERVAL_TYPE = 'b'
+    MONTH_TIME_INTERVAL_TYPE = 'm'
+    TIME_INTERVAL_TYPE_CHOICES = ((WEEK_TIME_INTERVAL_TYPE, 'Week'),
+                                  (BIWEEK_TIME_INTERVAL_TYPE, 'Biweek'),
+                                  (MONTH_TIME_INTERVAL_TYPE, 'Month'))
+    time_interval_type = models.CharField(max_length=1,
+                                          choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE)
+
     description = models.CharField(max_length=2000,
                                    help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
@@ -58,15 +70,10 @@ class Project(ModelWithCDCData):
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
                   "the challenge, including supplemental data like Google queries or weather.")
 
-    # config_dict: specifies project-specific information using these keys:
-    #  - 'target_to_week_increment': a dict that maps week-related target names to ints, such as '1 wk ahead' -> 1 .
-    #     also, this dict's keys are used by mean_abs_error_rows_for_project() to decide which targets to use
-    # - 'location_to_delphi_region': a dict that maps all my locations to Delphi region names - see
-    #     delphi_wili_for_mmwr_year_week()
+    # config_dict: specifies project-specific information
     config_dict = JSONField(null=True, blank=True,
-                            help_text="JSON dict containing these two keys, each of which is a dict: "
-                                      "'target_to_week_increment' and 'location_to_delphi_region'. Please see "
-                                      "documentation for details.")
+                            help_text="JSON dict containing these keys: 'visualization-targets', "
+                                      "'visualization-y-label'. Please see documentation for details.")
 
 
     def __repr__(self):
@@ -81,11 +88,10 @@ class Project(ModelWithCDCData):
         """
         Validates my config_dict if provided, and my TimeZero.timezero_dates for uniqueness.
         """
-        if self.config_dict:
-            if ('target_to_week_increment' not in self.config_dict) or \
-                    ('location_to_delphi_region' not in self.config_dict):
-                raise ValidationError("config_dict did not contain both required keys: 'target_to_week_increment' and "
-                                      "'location_to_delphi_region': {}".format(self.config_dict))
+        config_dict_keys = {'visualization-targets', 'visualization-y-label'}  # definitive list
+        if self.config_dict and (set(self.config_dict.keys()) != config_dict_keys):
+            raise ValidationError("config_dict did not contain the required keys. expected keys: {}, actual keys: {}"
+                                  .format(config_dict_keys, self.config_dict.keys()))
 
         # validate my TimeZero.timezero_dates
         found_timezero_dates = []
@@ -138,7 +144,7 @@ class Project(ModelWithCDCData):
         first_forecast = first_model.forecasts.first() if first_model else None
         locations = self.get_locations()
         first_location = next(iter(sorted(locations))) if locations else None  # sort to make deterministic
-        targets = self.get_targets(first_location)
+        targets = self.get_targets_for_location(first_location)
         first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
         return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
             else None
@@ -190,7 +196,7 @@ class Project(ModelWithCDCData):
         if season_name:
             season_tz = season_timezeros.filter(season_name=season_name).first()
             if not season_tz:
-                raise RuntimeError("invalid season_name. season_name={}, seasons={}"
+                raise RuntimeError("Invalid season_name. season_name={}, seasons={}"
                                    .format(season_name, self.seasons()))
 
             season_timezeros = season_timezeros.filter(timezero_date__gte=season_tz.timezero_date)
@@ -218,6 +224,13 @@ class Project(ModelWithCDCData):
             return None
 
         return timezeros[0].timezero_date, timezeros[-1].timezero_date
+
+
+    def time_interval_type_to_foresight(self):
+        """
+        :return: my time_interval_type formatted for D3-Foresight's pointType
+        """
+        return dict(Project.TIME_INTERVAL_TYPE_CHOICES)[self.time_interval_type].lower()
 
 
     #
@@ -258,42 +271,186 @@ class Project(ModelWithCDCData):
             if first_forecast_num_rows else 0
 
 
+    def location_to_max_val(self, season_name, targets):
+        """
+        :return: a dict mapping each location to the maximum value across all my forecasts for season_name and targets
+        """
+        season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
+        loc_max_val_qs = ForecastData.objects.filter(forecast__forecast_model__project=self) \
+            .filter(row_type=CDCData.POINT_ROW_TYPE) \
+            .filter(target__in=targets) \
+            .filter(forecast__time_zero__timezero_date__gte=season_start_date) \
+            .filter(forecast__time_zero__timezero_date__lte=season_end_date) \
+            .values('location') \
+            .annotate(max_val=Max('value'))
+        # [{'location': 'TH01', 'max_val': 15.0}, ...]
+        return {location_max_val['location']: location_max_val['max_val'] for location_max_val in loc_max_val_qs}
+
+
     #
-    # score-related functions
+    # visualization-related functions
     #
 
-    def get_region_for_location_name(self, location_name):
+    def visualization_targets(self):
         """
-        :return: Delphi region name corresponding to location_name. returns None if not found. see here for valid ones:
-            https://github.com/cmu-delphi/delphi-epidata/blob/master/labels/regions.txt. returns None if no config_dict.
+        :return: list of targets that can be used for flusight_data_dicts_for_models() and mean_absolute_error()
+            (for the meantime) calls. returns None if no config_dict
         """
-        if (not self.config_dict) or \
-                ('location_to_delphi_region' not in self.config_dict) or \
-                (location_name not in self.config_dict['location_to_delphi_region']):
-            return None
-        else:
-            return self.config_dict['location_to_delphi_region'][location_name]
+        return self.config_dict and list(self.config_dict['visualization-targets'])
 
 
-    def get_targets_for_mean_absolute_error(self):
+    def visualization_y_label(self):
         """
-        :return: list of targets that can be used for ForecastModel.mean_absolute_error() calls, i.e., those that are
-        week-relative (?) ones. returns None if no config_dict.
+        :return: Y axis label used by flusight_data_dicts_for_models(). returns None if no config_dict
         """
-        return self.config_dict and list(self.config_dict['target_to_week_increment'].keys())
+        return self.config_dict and self.config_dict['visualization-y-label']
 
 
-    def get_week_increment_for_target_name(self, target_name):
+    #
+    # truth data-related functions
+    #
+
+    def is_truth_data_loaded(self):
         """
-        :return: returns an incremented week value based on the future specified by target_name. returns None if no
-        config_dict.
+        :return: True if I have truth data loaded via load_truth_data()
         """
-        return self.config_dict and self.config_dict['target_to_week_increment'][target_name]
+        return self.truth_data_qs().count()
+
+
+    def truth_data_qs(self):
+        """
+        :return: A QuerySet of my TruthData.
+        """
+        from forecast_app.models import TruthData  # avoid circular imports
+
+
+        return TruthData.objects.filter(time_zero__project=self)
+
+
+    def delete_truth_data(self):
+        """
+        Deletes all of my truth data.
+        """
+        self.truth_data_qs().delete()
+
+
+    def load_truth_data(self, truth_file_path):
+        """
+        Similar to load_template(), loads the data in truth_file_path (see below for file format docs). Like
+        load_csv_data(), uses direct SQL for performance, using a fast Postgres-specific routine if connected to it.
+        Note that this method should be called after all TimeZeros are created b/c truth data is validated against
+        them. Notes:
+
+        - Validates against the Project's template, which is therefore required to be set before this call.
+        - One csv file/project, which includes timezeros across all seasons.
+        - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
+          formatted “yyyymmdd”. A header must be included.
+        - Missing timezeros: If the program generating the csv file does not have information for a particular project
+          timezero, then it should not generate a value for it. (The alternative would be to require the program to
+          generate placeholder values for missing dates.)
+        - Non-numeric values: Some targets will have no value, such as season onset when a baseline is not met. In those
+          cases, the value should be “NA”, per
+          https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx .
+        - For date-based onset or peak targets, values must be dates in the same format as timezeros, rather than
+            project-specific time intervals such as an epidemic week.
+        - Validation:
+            - Every timezero in the csv file must have a matching one in the project. Note that the inverse is not
+              necessarily true, such as in the case above of missing timezeros.
+            - Every location in the csv file must a matching one in the Project.
+            - Ditto for every target.
+
+        :param truth_file_path: Path to csv file with the truth data, one line per timezero|location|target combination
+        """
+        from forecast_app.models import TruthData  # avoid circular imports
+
+
+        if not self.is_template_loaded():
+            raise RuntimeError("Template not loaded")
+
+        if not self.pk:
+            raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
+
+        with open(str(truth_file_path)) as csv_file_fp, \
+                connection.cursor() as cursor:
+            rows = self._load_truth_data_rows(csv_file_fp)
+            if not rows:
+                return
+
+            truth_data_table_name = TruthData._meta.db_table
+            columns = [TruthData._meta.get_field('time_zero').column, 'location', 'target', 'value']
+            if connection.vendor == 'postgresql':
+                string_io = io.StringIO()
+                csv_writer = csv.writer(string_io, delimiter=',')
+                for timezero, location, target, value in rows:
+                    # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
+                    csv_writer.writerow([timezero, location, target,
+                                         value if value is not None else POSTGRES_NULL_VALUE])
+                string_io.seek(0)
+                cursor.copy_from(string_io, truth_data_table_name, columns=columns, sep=',', null=POSTGRES_NULL_VALUE)
+            else:  # 'sqlite', etc.
+                sql = """
+                    INSERT INTO {truth_data_table_name} ({column_names})
+                    VALUES (%s, %s, %s, %s);
+                """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
+                cursor.executemany(sql, rows)
+
+        # done!
+        self.save()
+
+
+    def _load_truth_data_rows(self, csv_file_fp):
+        """
+        Similar to ModelWithCDCData.read_cdc_csv_file_rows(), loads, validates, and cleans the rows in csv_file_fp.
+        """
+        csv_reader = csv.reader(csv_file_fp, delimiter=',')
+
+        # validate header. must be 7 columns (or 8 with the last one being '') matching
+        try:
+            orig_header = next(csv_reader)
+        except StopIteration:
+            raise RuntimeError("Empty file")
+
+        header = orig_header
+        header = [h.lower() for h in [i.replace('"', '') for i in header]]
+        if header != ['timezero', 'location', 'target', 'value']:
+            raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
+
+        # collect the rows. first we load them all into memory (processing and validating them as we go)
+        locations = self.get_locations()  # template data
+        targets = self.get_targets()  # ""
+        rows = []
+        for row in csv_reader:
+            if len(row) != 4:
+                raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
+
+            timezero_date, location, target, value = row
+
+            # validate timezero_date
+            timezero = self.time_zero_for_timezero_date(datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
+            if not timezero:
+                continue
+
+            # validate location and target
+            if location not in locations:
+                raise RuntimeError("Location not found: location={}, project locations={}".format(location, locations))
+
+            if target not in targets:
+                raise RuntimeError("Target not found: targets={}, project targets={}".format(target, targets))
+
+            # parse_value() handles non-numeric cases like 'NA' and 'none':
+            value = parse_value(value)
+
+            rows.append((timezero.pk, location, target, value))
+        return rows
 
 
     #
     # template and data-related functions
     #
+
+    def is_template_loaded(self):
+        return self.csv_filename != ''
+
 
     @transaction.atomic
     def load_template(self, template_path, file_name=None):
@@ -319,10 +476,6 @@ class Project(ModelWithCDCData):
         self.csv_filename = ''
         self.save()
         ProjectTemplateData.objects.filter(project=self).delete()
-
-
-    def is_template_loaded(self):
-        return self.csv_filename != ''
 
 
     def validate_forecast_data(self, forecast, validation_template=None, forecast_bin_map=None):

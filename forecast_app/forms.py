@@ -8,7 +8,8 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
 
-        fields = ('name', 'is_public', 'description', "home_url", 'core_data', 'logo_url', 'config_dict', 'model_owners')
+        fields = ('name', 'is_public', 'time_interval_type', 'description', "home_url", 'core_data', 'logo_url',
+                  'config_dict', 'model_owners')
 
 
     def __init__(self, *args, **kwargs):

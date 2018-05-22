@@ -76,7 +76,12 @@ def project_visualizations(request, project_pk):
 
     # None if no targets in project:
     location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_name, request)
+    time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
+                                          Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
+                                          Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
 
+    targets = project.visualization_targets()
+    location_to_max_val = project.location_to_max_val(season_name, targets)
     return render(
         request,
         'project_visualizations.html',
@@ -85,7 +90,9 @@ def project_visualizations(request, project_pk):
                  'season_name': season_name,
                  'seasons': seasons,
                  'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
-                 'timechart_y_domain': (0, 13)  # todo xx set timechart_y_domain, maybe via config_dict
+                 'location_to_max_val': json.dumps(location_to_max_val),
+                 'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
+                 'y_axis_label': project.visualization_y_label(),
                  })
 
 
@@ -102,7 +109,6 @@ def project_scores(request, project_pk):
     try:
         logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
                      "season_name={}".format(project, season_name))
-        # wili_for_epi_week_fcn defaults to delphi_wili_for_mmwr_year_week:
         location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_name)
         logger.debug("project_scores(): done: location_to_mean_abs_error_rows_for_project()")
     except RuntimeError as rte:
@@ -111,7 +117,7 @@ def project_scores(request, project_pk):
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(rte)
                                })
 
-    targets = project.get_targets_for_mean_absolute_error()
+    targets = project.visualization_targets()
     if not targets:
         return render(request, 'message.html',
                       context={'title': "Required targets not found",
@@ -130,8 +136,8 @@ def project_scores(request, project_pk):
                  'model_pk_to_name_and_url': model_pk_to_name_and_url,
                  'season_name': season_name,
                  'seasons': seasons,
-                 'locations': locations,
                  'location': location,
+                 'locations': locations,
                  'location_to_rows_and_mins': location_to_rows_and_mins,
                  })
 
@@ -493,7 +499,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     elif kwargs['type'] == 'forecast':
         model_with_cdc_data_class = Forecast
     else:
-        raise RuntimeError("invalid kwargs: {}".format(kwargs))
+        raise RuntimeError("Invalid kwargs: {}".format(kwargs))
 
     model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
     project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project
@@ -533,7 +539,7 @@ def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
 
     # validate location and target
     locations = project.get_locations()
-    targets = project.get_targets(location)
+    targets = project.get_targets_for_location(location)
     if (location not in locations) or (target not in targets):
         return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
                                       "target={}, targets={}".format(project, location, locations, target, targets))

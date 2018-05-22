@@ -12,6 +12,9 @@ from utils.utilities import basic_str, parse_value, CDC_CSV_HEADER
 # ---- abstract class representing models with data ----
 #
 
+POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files
+
+
 class ModelWithCDCData(models.Model):
     """
     Abstract class representing a Model with associated CDCData. todo should use proper Python abstract class feature.
@@ -36,7 +39,7 @@ class ModelWithCDCData(models.Model):
         :return: None
         """
         if not self.pk:
-            raise Exception("Instance is not saved the the database, so can't insert data: {!r}".format(self))
+            raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
         # insert the data using direct SQL. we use psycopg2 extensions to the DB API if we're connected to a Postgres
         # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
@@ -44,8 +47,6 @@ class ModelWithCDCData(models.Model):
         with open(str(cdc_csv_file)) as cdc_csv_file_fp, \
                 connection.cursor() as cursor:
             rows = ModelWithCDCData.read_cdc_csv_file_rows(cdc_csv_file_fp, self.pk)  # add self.pk to end of each row
-
-            # insert them, if any
             if not rows:
                 return
 
@@ -55,18 +56,17 @@ class ModelWithCDCData(models.Model):
             columns = ['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value',
                        model_name + '_id']
             if connection.vendor == 'postgresql':
-                NULL_VALUE = 'NULL'
                 string_io = io.StringIO()
                 csv_writer = csv.writer(string_io, delimiter=',')
                 for location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, self_pk in rows:
-                    # note that we translate None -> NULL_VALUE for the three nullable columns
+                    # note that we translate None -> POSTGRES_NULL_VALUE for the three nullable columns
                     csv_writer.writerow([location, target, row_type, unit,
-                                         bin_start_incl if bin_start_incl is not None else NULL_VALUE,
-                                         bin_end_notincl if bin_end_notincl is not None else NULL_VALUE,
-                                         value if value is not None else NULL_VALUE,
+                                         bin_start_incl if bin_start_incl is not None else POSTGRES_NULL_VALUE,
+                                         bin_end_notincl if bin_end_notincl is not None else POSTGRES_NULL_VALUE,
+                                         value if value is not None else POSTGRES_NULL_VALUE,
                                          self_pk])
                 string_io.seek(0)
-                cursor.copy_from(string_io, table_name, columns=columns, sep=',', null=NULL_VALUE)
+                cursor.copy_from(string_io, table_name, columns=columns, sep=',', null=POSTGRES_NULL_VALUE)
             else:  # 'sqlite', etc.
                 sql = """
                     INSERT INTO {cdcdata_table_name} ({column_names})
@@ -100,8 +100,7 @@ class ModelWithCDCData(models.Model):
         if header != CDC_CSV_HEADER:
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
-        # insert the rows. first we load them all into memory (processing and validating them as we go) and then
-        # insert them in one shot
+        # collect the rows. first we load them all into memory (processing and validating them as we go)
         rows = []
         for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
             if (len(row) == 8) and (row[7] == ''):
@@ -165,15 +164,23 @@ class ModelWithCDCData(models.Model):
 
     def get_locations(self):
         """
-        :return: a set of Location names in my data
+        :return: a set of all Location names in my data
         """
         # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
         return {_['location'] for _ in self.cdcdata_set.values('location').annotate(Count('location'))}
 
 
-    def get_targets(self, location):
+    def get_targets(self):
         """
-        :return: a set of target names for a location
+        :return: a set of all target names in my data
+        """
+        # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
+        return {_['target'] for _ in self.cdcdata_set.values('target').annotate(Count('target'))}
+
+
+    def get_targets_for_location(self, location):
+        """
+        :return: a set of target names for a location in my data
         """
         # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
         return {_['target'] for _ in
