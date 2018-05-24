@@ -25,8 +25,8 @@ def print_project_info_app(print_details):
 
 
 def print_project_info(project, print_details):
-    click.echo("* {} {!r} {} {}. {}".format(project, project.csv_filename, project.owner, project.model_owners.all(),
-                                          project.get_summary_counts()))
+    click.echo("* {} {!r} {}. {} {}. {}".format(project, project.csv_filename, project.truth_data_qs().count(),
+                                            project.owner, project.model_owners.all(), project.get_summary_counts()))
     click.echo("** Targets")
     for target in project.targets.all():
         click.echo("  {}".format(target))
