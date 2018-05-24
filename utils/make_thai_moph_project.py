@@ -84,8 +84,9 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
                                 season_name=('2017-2018' if idx == 0 else None))  # todo xx hard-coded season_name
     click.echo("- created TimeZeros: {}".format(project.timezeros.all()))
 
-    # click.echo("- loading truth values")  # todo when file available
-    # project.load_truth_data(Path('.../truths-dengue-data.csv'))
+    # load the truth
+    click.echo("- loading truth values")
+    project.load_truth_data(Path('utils/dengue-truth-table-script/truths.csv'))
 
     # load data if necessary
     if load_data:

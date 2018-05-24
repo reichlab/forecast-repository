@@ -110,6 +110,7 @@ def project_scores(request, project_pk):
         logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
                      "season_name={}".format(project, season_name))
         location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_name)
+        is_all_locations_have_rows = location_to_rows_and_mins and all(location_to_rows_and_mins.values())
         logger.debug("project_scores(): done: location_to_mean_abs_error_rows_for_project()")
     except RuntimeError as rte:
         return render(request, 'message.html',
@@ -138,6 +139,7 @@ def project_scores(request, project_pk):
                  'seasons': seasons,
                  'location': location,
                  'locations': locations,
+                 'is_all_locations_have_rows': is_all_locations_have_rows,
                  'location_to_rows_and_mins': location_to_rows_and_mins,
                  })
 

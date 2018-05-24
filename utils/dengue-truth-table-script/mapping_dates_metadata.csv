@@ -1,0 +1,127 @@
+﻿link_name,date_delivered,week,data_era,data_format,file_name,order,delivery_year,biweek
+dengue_cases_2013_wk_44.csv,11/18/2013,44,3,mdyhms,Dengue_total wk 44_2013.mdb,14,2013,22
+dengue_cases_2013_wk_46.csv,12/2/2013,46,3,mdyhms,Dengue_total wk 46_2013.mdb,15,2013,23
+dengue_cases_2013_wk_48.csv,12/16/2013,48,3,mdyhms,Dengue_total wk 48_2013.mdb,16,2013,24
+dengue_cases_2013_wk_50.csv,12/20/2013,50,3,mdy,Dengue_total wk 50_2013.mdb,17,2013,25
+dengue_cases_2013_wk_52.csv,1/3/2014,52,3,mdy,Dengue Wk 52_2013 Cleaned.xlsx,18,2013,26
+dengue_cases_2013_wk_53.csv,1/16/2014,53,3,mdy,Dengue Wk 53_2013_Cleaned.xlsx,19,2013,26.5
+dengue_cases_2014_wk_01.csv,1/16/2014,1,3,mdy,Dengue wk 01_2014 Cleaned.xlsx,20,2014,0.5
+dengue_cases_2014_wk_02.csv,1/24/2014,2,3,mdy,Week02_2014 cleaned.xlsx,21,2014,1
+dengue_cases_2014_wk_04.csv,2/6/2014,4,3,mdy,Week04_2014 cleaned.xlsx,22,2014,2
+dengue_cases_2014_wk_06.csv,2/19/2014,6,3,dmyhms,Week06_2014 Cleaned.csv,23,2014,3
+dengue_cases_2014_wk_08.csv,3/5/2014,8,3,mdy,Week08_2014 Cleaned.csv,24,2014,4
+dengue_cases_2014_wk_10.csv,3/20/2014,10,3,mdy,Week10_2012 cleaned.csv,25,2014,5
+dengue_cases_2014_wk_12.csv,4/4/2014,12,3,dmyhm,Week12_2014.csv,26,2014,6
+dengue_cases_2014_wk_14.csv,4/20/2014,14,3,dmy,Week14_2014 cleaned.csv,28,2014,7
+dengue_cases_2014_wk_16.csv,5/2/2014,16,3,mdy,week16_2014 cleaned.csv,29,2014,8
+dengue_cases_2014_wk_18.csv,5/17/2014,18,3,dmy,Week18_2014 cleaned.csv,30,2014,9
+dengue_cases_2014_wk_20.csv,5/29/2014,20,3,dmy,Week20_2014 cleaned.csv,31,2014,10
+dengue_cases_2014_wk_22.csv,6/13/2014,22,3,dmy,Week22_2014 cleaned.csv,32,2014,11
+dengue_cases_2014_wk_24.csv,6/26/2014,24,3,dmy,Week24_2014 Cleaned.csv,33,2014,12
+dengue_cases_2014_wk_26.csv,7/11/2014,26,3,dmy,Week26_2014 cleaned.csv,34,2014,13
+dengue_cases_2014_wk_28.csv,8/15/2014,28,3,dmy,Week28_2014 cleaned.csv,35,2014,14
+dengue_cases_2014_wk_29.csv,8/15/2014,29,3,dmy,Week29_2014 cleaned.csv,36,2014,14.5
+dengue_cases_2014_wk_30.csv,8/18/2014,30,3,dmy,Week30_2014 cleaned.csv,37,2014,15
+dengue_cases_2014_wk_32.csv,8/18/2014,32,3,dmy,week32_2014 cleaned.csv,38,2014,16
+dengue_cases_2014_wk_34.csv,9/5/2014,34,3,dmy,Week34_2014 cleaned.csv,43,2014,17
+dengue_cases_2014_wk_36.csv,9/18/2014,36,3,dmy,Week36_14 cleaned.csv,44,2014,18
+dengue_cases_2014_wk_38.csv,9/30/2014,38,3,dmy,week38_2014 cleaned.csv,45,2014,19
+dengue_cases_2014_wk_40.csv,10/16/2014,40,3,mdyhms,Week40_2014.mdb,46,2014,20
+dengue_cases_2014_wk_42.csv,10/28/2014,42,3,mdyhms,Week42_2014.mdb,47,2014,21
+dengue_cases_2014_wk_44.csv,11/13/2014,44,3,mdyhms,Week44_2014.mdb,48,2014,22
+dengue_cases_2014_wk_46.csv,12/17/2014,46,3,mdyhms,Week46_2014.mdb,49,2014,23
+dengue_cases_2014_wk_48.csv,12/19/2014,48,3,mdyhms,Week48_2014.mdb,50,2014,24
+dengue_cases_2014_wk_50.csv,12/26/2014,50,3,mdyhms,Dengue_wk50.mdb,51,2014,25
+dengue_cases_2014_wk_52.csv,1/10/2015,52,3,mdyhms,Dengue_wk52.mdb,52,2014,26
+dengue_cases_2014_wk_53.csv,1/24/2015,53,3,mdyhms,dengue_week_52_2014_update22Jan15.accdb,53,2014,26.5
+dengue_cases_2015_wk_02.csv,1/27/2015,2,3,mdyhms,week2_2015.accdb,54,2015,1
+dengue_cases_2015_wk_04.csv,2/6/2015,4,3,mdyhms,week4_2015.accdb,55,2015,2
+dengue_cases_2015_wk_06.csv,2/20/2015,6,3,mdyhms,week 6_2015.accdb,56,2015,3
+dengue_cases_2015_wk_08.csv,3/10/2015,8,3,mdyhms,week8_2015.accdb,57,2015,4
+dengue_cases_2015_wk_10.csv,3/23/2015,10,3,mdyhms,week10_2015.accdb,58,2015,5
+dengue_cases_2015_wk_12.csv,3/31/2015,12,3,mdyhms,week12_2015.accdb,59,2015,6
+dengue_cases_2015_wk_14.csv,4/17/2015,14,3,mdyhms,week14_2015.accdb,60,2015,7
+dengue_cases_2015_wk_16.csv,4/30/2015,16,3,mdyhms,week16_2015.rar,61,2015,8
+dengue_cases_2014_final.csv,4/30/2015,NA,3,mdyhms,DHF_2014 final.rar,62,2014,#VALUE!
+dengue_cases_2015_wk_18.csv,5/18/2015,18,3,mdyhms,week18_2015.accdb,63,2015,9
+dengue_cases_2015_wk_20.csv,5/27/2015,20,3,mdyhms,week20_2015.accdb,64,2015,10
+dengue_cases_2015_wk_22.csv,6/14/2015,22,3,mdyhms,week22_2015.accdb,65,2015,11
+dengue_cases_2015_wk_24.csv,7/2/2015,24,3,mdyhms,week24_2015.accdb,66,2015,12
+dengue_cases_2015_wk_26.csv,7/14/2015,26,3,mdyhms,week26_2015.mdb,67,2015,13
+dengue_cases_2015_wk_28.csv,7/27/2015,28,3,mdyhms,week28_2015.accdb,68,2015,14
+dengue_cases_2015_wk_30.csv,8/7/2015,30,3,mdyhms,week30_2015.accdb,69,2015,15
+dengue_cases_2015_wk_32.csv,8/26/2015,32,3,mdyhms,week32_2015.accdb,70,2015,16
+dengue_cases_2015_wk_34.csv,9/9/2015,34,3,mdyhms,week34_2015.accdb,71,2015,17
+dengue_cases_2015_wk_36.csv,9/23/2015,36,3,mdyhms,week36_2015.accdb,72,2015,18
+dengue_cases_2015_wk_38.csv,10/7/2015,38,3,mdyhms,week38_2015.accdb,73,2015,19
+dengue_cases_2015_wk_40.csv,10/20/2015,40,3,mdyhms,week40_2015.accdb,74,2015,20
+dengue_cases_2015_wk_42.csv,11/1/2015,42,3,mdyhms,week42_2015.accdb,75,2015,21
+dengue_cases_2015_wk_44.csv,11/14/2015,44,3,mdyhms,week44_2015.accdb,76,2015,22
+dengue_cases_2015_wk_46.csv,11/30/2015,46,3,mdyhms,week46_2015.accdb,77,2015,23
+dengue_cases_2015_wk_48.csv,12/10/2015,48,3,mdyhms,week48_2015.accdb,78,2015,24
+dengue_cases_2015_wk_50.csv,1/7/2016,50,3,mdyhms,week50_2015.accdb,79,2015,25
+dengue_cases_2015_wk_52.csv,1/7/2016,52,3,mdyhms,week52_2015.accdb,80,2015,26
+dengue_cases_2016_wk_02.csv,1/26/2016,2,3,mdyhms,week2_2016.accdb,81,2016,1
+dengue_cases_2016_wk_04.csv,2/8/2016,4,3,mdyhms,week4_2016.accdb,82,2016,2
+dengue_cases_2016_wk_06.csv,2/16/2016,6,3,mdyhms,week6 2016.accdb,83,2016,3
+dengue_cases_2016_wk_08.csv,3/9/2016,8,3,mdyhms,week8 2016.accdb,84,2016,4
+dengue_cases_2016_wk_10.csv,3/16/2016,10,3,mdyhms,week10_2016.accdb,85,2016,5
+dengue_cases_2016_wk_12.csv,4/18/2016,12,3,mdyhms,week12_2016.accdb,86,2016,6
+dengue_cases_2016_wk_14.csv,4/18/2016,14,3,mdyhms,week14_2016.accdb,87,2016,7
+dengue_cases_2016_wk_16.csv,5/2/2016,16,3,mdyhms,week16_2016.accdb,88,2016,8
+dengue_cases_2016_wk_18.csv,5/12/2016,18,3,mdyhms,week18_2016.accdb,89,2016,9
+dengue_cases_2015_final.csv,5/12/2016,NA,3,mdyhms,DHF_2015.accdb,90,2015,#VALUE!
+dengue_cases_2016_wk_20.csv,6/1/2016,20,3,mdyhms,wk20_2016.accdb,91,2016,10
+dengue_cases_2016_wk_22.csv,6/15/2016,22,3,mdyhms,wk22_2016.accdb,92,2016,11
+dengue_cases_2016_wk_24.csv,6/22/2016,24,3,mdyhms,wk24_2016.accdb,93,2016,12
+dengue_cases_2016_wk_26.csv,7/5/2016,26,3,mdyhms,wk26_2016.accdb,94,2016,13
+dengue_cases_2016_wk_28.csv,7/28/2016,28,3,mdyhms,wk28_2016.accdb,95,2016,14
+dengue_cases_2016_wk_30.csv,8/7/2016,30,3,mdyhms,wk30_2016.accdb,96,2016,15
+dengue_cases_2016_wk_32.csv,8/17/2016,32,3,mdyhms,wk32_2016.accdb,97,2016,16
+dengue_cases_2016_wk_34.csv,8/30/2016,34,3,mdyhms,wk34_2016.accdb,98,2016,17
+dengue_cases_2016_wk_36.csv,9/20/2016,36,3,mdyhms,wk36_2016.accdb,99,2016,18
+dengue_cases_2016_wk_38.csv,9/29/2016,38,3,mdyhms,wk38_2016.accdb,100,2016,19
+dengue_cases_2016_wk_40.csv,10/13/2016,40,3,mdyhms,wk40_2016.accdb,101,2016,20
+dengue_cases_2016_wk_42.csv,11/1/2016,42,3,mdyhms,wk42_2016.accdb,102,2016,21
+dengue_cases_2016_wk_44.csv,11/17/2016,44,3,mdyhms,wk44_2016.accdb,111,2016,22
+dengue_cases_2016_wk_46.csv,11/30/2016,46,3,mdyhms,wk46_2016.accdb,112,2016,23
+dengue_cases_2016_wk_49.csv,12/20/2016,49,3,mdyhms,wk49_2016.accdb,113,2016,24.5
+dengue_cases_2016_wk_50.csv,12/20/2016,50,3,mdyhms,wk50_2016.accdb,114,2016,25
+dengue_cases_2016_wk_52.csv,1/12/2017,52,3,mdyhms,wk52_2016.accdb,115,2016,26
+dengue_cases_2017_wk_02.csv,1/24/2017,2,3,mdyhms,wk2_2017.accdb,116,2017,1
+dengue_cases_2017_wk_04.csv,2/8/2017,4,3,mdyhms,wk4_2017.accdb,117,2017,2
+dengue_cases_2017_wk_06.csv,2/22/2017,6,3,mdyhms,wk6_2017.accdb,118,2017,3
+dengue_cases_2017_wk_08.csv,3/1/2017,8,3,mdyhms,wk8_2017.accdb,119,2017,4
+dengue_cases_2017_wk_10.csv,3/22/2017,10,3,mdyhms,wk10_2017.accdb,120,2017,5
+dengue_cases_2017_wk_14.csv,4/19/2017,14,3,mdyhms,wk14_2017.accdb,121,2017,7
+dengue_cases_2017_wk_16.csv,5/3/2017,16,3,mdyhms,wk16_2017.accdb,122,2017,8
+dengue_cases_2017_wk_18.csv,5/9/2017,18,3,mdyhms,wk18_2017l.mdb,123,2017,9
+dengue_cases_2017_wk_20.csv,5/23/2017,20,3,mdyhms,wk20_2017.mdb,124,2017,10
+dengue_cases_2017_wk_22.csv,6/6/2017,22,3,mdyhms,wk22_2017.mdb,125,2017,11
+dengue_cases_2016_final.csv,6/8/2017,NA,3,mdyhms,final_2016.mdb,126,2016,#VALUE!
+dengue_cases_2017_wk_24.csv,6/20/2017,24,3,mdyhms,wk24_2017.mdb,127,2017,12
+dengue_cases_2017_wk_26.csv,7/5/2017,26,3,mdyhms,wk26_2017.mdb,128,2017,13
+dengue_cases_2017_wk_28.csv,7/19/2017,28,3,mdyhms,wk28_2017.mdb,129,2017,14
+dengue_cases_2017_wk_30.csv,8/2/2017,30,3,mdyhms,wk30_2017.mdb,130,2017,15
+dengue_cases_2017_wk_32.csv,8/17/2017,32,3,mdyhms,wk32_2017.mdb,131,2017,16
+dengue_cases_2017_wk_34.csv,8/29/2017,34,3,mdyhms,wk34_2017.mdb,132,2017,17
+dengue_cases_2017_wk_36.csv,9/17/2017,36,3,mdyhms,wk36_2017.mdb,133,2017,18
+dengue_cases_2017_wk_38.csv,9/27/2017,38,3,mdyhms,wk38_2017.mdb,134,2017,19
+dengue_cases_2017_wk_40.csv,10/11/2017,40,3,mdyhms,wk40_2017.mdb,135,2017,20
+dengue_cases_2017_wk_42.csv,10/29/2017,42,3,mdyhms,wk42_2017.mdb,136,2017,21
+dengue_cases_2017_wk_44.csv,11/10/2017,44,3,mdyhms,wk44_2017.mdb,137,2017,22
+dengue_cases_2017_wk_46.csv,11/22/2017,46,3,mdyhms,wk46_2017.mdb,138,2017,23
+dengue_cases_2017_wk_48.csv,12/11/2017,48,3,mdyhms,wk48_2017.mdb,139,2017,24
+dengue_cases_2017_wk_50.csv,12/19/2017,50,3,mdyhms,wk50_2017.mdb,140,2017,25
+dengue_cases_2017_wk_52.csv,1/7/2018,52,3,mdyhms,wk52_2017.mdb,141,2017,26
+dengue_cases_2018_wk_02.csv,1/28/2018,2,3,mdyhms,wk02_2018.mdb,142,2018,1
+dengue_cases_2018_wk_04.csv,2/12/2018,4,3,mdyhms,wk04_2018.mdb,143,2018,2
+dengue_cases_2018_wk_06.csv,2/20/2018,6,3,mdyhms,wk06_2018.mdb,144,2018,3
+dengue_cases_2018_wk_08.csv,3/8/2018,8,3,mdyhms,wk08_2018.mdb,145,2018,4
+dengue_cases_2018_wk_10.csv,3/20/2018,10,3,mdyhms,wk10_2018.mdb,146,2018,5
+dengue_cases_2018_wk_12.csv,4/5/2018,12,3,mdyhms,wk12_2018.mdb,147,2018,6
+dengue_cases_2018_wk_14.csv,4/19/2018,14,3,mdyhms,wk14_2018.mdb,148,2018,7
+dengue_cases_2018_wk_16.csv,5/3/2018,16,3,mdyhms,wk16_2018.mdb,149,2018,8
+dengue_cases_2017_final.csv,5/11/2018,NA,3,mdyhms,final_2017.mdb,150,2017,#VALUE!
+dengue_cases_2018_wk_18.csv,5/18/2018,18,3,mdyhms,wk18_2018.mdb,151,2018,9
+dengue_cases_2018_wk_18.csv,5/18/2018,18,3,mdyhms,wk18_2018.mdb,151,2018,10

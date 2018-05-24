@@ -35,15 +35,11 @@ class ProjectTestCase(TestCase):
         # csv references non-existent TimeZero in Project: should not raise error
         self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'))
 
-        # csv references non-existent location in Project
-        with self.assertRaises(RuntimeError) as context:
-            self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-location.csv'))
-        self.assertIn('Location not found', str(context.exception))
+        # csv references non-existent location in Project: should not raise error
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-location.csv'))
 
-        # csv references non-existent target in Project
-        with self.assertRaises(RuntimeError) as context:
-            self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'))
-        self.assertIn('Target not found', str(context.exception))
+        # csv references non-existent target in Project: should not raise error
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'))
 
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         self.assertEqual(0, project2.truth_data_qs().count())

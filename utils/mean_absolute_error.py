@@ -93,7 +93,7 @@ def _mean_abs_error_rows_for_project(project, targets, location, model_id_to_poi
                                           forecast_to_point_dict, forecast_id_tz_date_csv_fname,
                                           loc_target_tz_date_to_truth)
             if not mae_val:
-                return []
+                return [rows, {}]  # just header
 
             target_to_min_mae[target] = min(mae_val, target_to_min_mae[target]) \
                 if target_to_min_mae[target] else mae_val
@@ -149,9 +149,8 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
 
         true_value = truth_values[0]
         if true_value is None:
-            logger.warning("mean_absolute_error(): truth value was NA. forecast_model={}, location={!r}, "
-                           "target={!r}, forecast_id={}, forecast_timezero_date={}"
-                           .format(forecast_model, location, target, forecast_id, forecast_timezero_date))
+            logger.warning("mean_absolute_error(): truth value was NA. forecast_id={}, location={!r}, target={!r}, "
+                           "forecast_timezero_date={}".format(forecast_id, location, target, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
 
         predicted_value = forecast_to_point_dict[forecast_id][location][target]

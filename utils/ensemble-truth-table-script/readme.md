@@ -15,9 +15,4 @@ create truth tables for the following three Zoltar projects. The directory was d
    const SEASONS = [2016]
    const OUTPUT_FILE = 'truths-2016-2017-reichlab.csv'
 
-These files were created by:
-
-1. editing the variables SEASONS and OUTPUT_FILE as above
-2. running `node index.js`
-3. (#2 and #3 only) sorting by the `timezero` `location`, and `target` columns (in that order)
-4. editing to include only timezeros from each project's TimeZeros - a subset of what the script generates
+These files were created by editing the variables SEASONS and OUTPUT_FILE as above, and then running `node index.js`.

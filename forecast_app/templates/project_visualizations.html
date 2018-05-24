@@ -90,7 +90,6 @@
                     var locationToMaxVal = {{location_to_max_val|safe}};
                     var yAxisDomainMax = locationToMaxVal[location];
                     var config = configForTimeChart(yAxisDomainMax);
-                    console.log(location + ', ' + locationToMaxVal + ', ' + yAxisDomainMax + ' -> ' + config);
 
                     // re-configure and replace the component
                     var $timeChartDiv = $('#timechart');
@@ -101,7 +100,8 @@
                     var locationToData = {{location_to_flusight_data_dict|safe}};
                     var data = locationToData[location];
                     timeChart.plot(data);
-                    timeChart.update(1);  // todo xx
+                    timeChart.update(1);  // for some reason we have to do 1 before 0
+                    timeChart.update(0);
                 }
 
                 function configForTimeChart(yAxisDomainMax) {
@@ -113,7 +113,7 @@
                             },
                             y: {
                                 title: '{{ y_axis_label }}',
-                                domain: [0, yAxisDomainMax + (0.1 * yAxisDomainMax)]
+                                domain: [0, yAxisDomainMax + (0.1 * yAxisDomainMax)]  // arbitrary 10% headroom
                             }
                         }
                     };

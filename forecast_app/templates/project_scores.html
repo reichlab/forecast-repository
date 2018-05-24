@@ -63,12 +63,14 @@
     <p class="help-block">
         <a href="https://github.com/reichlab/flusight/wiki/Scoring#1-absolute-error" target="_blank">Absolute error</a>
         is the absolute value of difference between the eventually observed value and the point prediction. Scores for
-        the current season are calculated using the most recently updated data. Final values may differ.
+        the current season are calculated using the most recently updated data. Final values may differ. No scores are
+        shown for a particular location if the errors could not be calculated because not all truth values were
+        available for it.
     </p>
 
 
     {# show a table similar to flusight's #}
-    {% if location_to_rows_and_mins %}
+    {% if location_to_rows_and_mins and is_all_locations_have_rows %}
 
         <table id="mae_table" class="table table-striped">
             <thead>
@@ -135,8 +137,8 @@
         </script>
 
     {% else %}
-        <p class="text-muted">({% if not project.is_truth_data_loaded %}No truth data loaded into project.{% else %}No
-            data available.{% endif %})</p>
+        <p class="text-muted">({% if not project.is_truth_data_loaded %}No truth data loaded into project.{% else %}
+            Could not calculate scores.{% endif %})</p>
     {% endif %}
 
 {% endblock %}

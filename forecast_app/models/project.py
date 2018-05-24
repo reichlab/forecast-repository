@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 import itertools
+import logging
 import math
 
 from django.contrib.auth.models import User
@@ -13,6 +14,9 @@ from jsonfield import JSONField
 
 from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData, POSTGRES_NULL_VALUE, CDCData
 from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
+
+
+logger = logging.getLogger(__name__)
 
 
 #
@@ -419,6 +423,9 @@ class Project(ModelWithCDCData):
         locations = self.get_locations()  # template data
         targets = self.get_targets()  # ""
         rows = []
+        timezeros_missing = []  # to minimize warnings
+        locations_missing = []
+        targets_missing = []
         for row in csv_reader:
             if len(row) != 4:
                 raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
@@ -426,20 +433,31 @@ class Project(ModelWithCDCData):
             timezero_date, location, target, value = row
 
             # validate timezero_date
+            # todo cache: time_zero_for_timezero_date() results - expensive?
             timezero = self.time_zero_for_timezero_date(datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
             if not timezero:
+                if timezero_date not in timezeros_missing:
+                    timezeros_missing.append(timezero_date)
+                    logger.warning("_load_truth_data_rows(): timezero not found in project. timezero_date={}"
+                                   .format(timezero_date))
                 continue
 
             # validate location and target
             if location not in locations:
-                raise RuntimeError("Location not found: location={}, project locations={}".format(location, locations))
+                if location not in locations_missing:
+                    locations_missing.append(location)
+                    logger.warning("_load_truth_data_rows(): Location not found in project: location={}"
+                                   .format(location))
+                continue
 
             if target not in targets:
-                raise RuntimeError("Target not found: targets={}, project targets={}".format(target, targets))
+                if target not in targets:
+                    targets_missing.append(target)
+                    logger.warning("_load_truth_data_rows(): Target not found in project: targets={}"
+                                   .format(target))
+                continue
 
-            # parse_value() handles non-numeric cases like 'NA' and 'none':
-            value = parse_value(value)
-
+            value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
             rows.append((timezero.pk, location, target, value))
         return rows
 

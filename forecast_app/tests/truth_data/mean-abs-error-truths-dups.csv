@@ -1,0 +1,34 @@
+timezero,location,target,value
+20161218,US National,1 wk ahead,3.36496
+20161218,US National,1 wk ahead,9.0
+20161218,US National,2 wk ahead,3.0963
+20161218,US National,3 wk ahead,3.08492
+20161218,US National,4 wk ahead,3.51496
+20161225,US National,1 wk ahead,3.0963
+20161225,US National,2 wk ahead,3.08492
+20161225,US National,3 wk ahead,3.51496
+20161225,US National,4 wk ahead,3.8035
+20170101,US National,1 wk ahead,3.08492
+20170101,US National,2 wk ahead,3.51496
+20170101,US National,3 wk ahead,3.8035
+20170101,US National,4 wk ahead,4.45059
+20170108,US National,1 wk ahead,3.51496
+20170108,US National,2 wk ahead,3.8035
+20170108,US National,3 wk ahead,4.45059
+20170108,US National,4 wk ahead,5.07947
+20161218,HHS Region 1,1 wk ahead,1.41861
+20161218,HHS Region 1,2 wk ahead,1.57644
+20161218,HHS Region 1,3 wk ahead,1.52411
+20161218,HHS Region 1,4 wk ahead,1.73987
+20161225,HHS Region 1,1 wk ahead,1.57644
+20161225,HHS Region 1,2 wk ahead,1.52411
+20161225,HHS Region 1,3 wk ahead,1.73987
+20161225,HHS Region 1,4 wk ahead,2.06524
+20170101,HHS Region 1,1 wk ahead,1.52411
+20170101,HHS Region 1,2 wk ahead,1.73987
+20170101,HHS Region 1,3 wk ahead,2.06524
+20170101,HHS Region 1,4 wk ahead,2.51375
+20170108,HHS Region 1,1 wk ahead,1.73987
+20170108,HHS Region 1,2 wk ahead,2.06524
+20170108,HHS Region 1,3 wk ahead,2.51375
+20170108,HHS Region 1,4 wk ahead,3.19221
