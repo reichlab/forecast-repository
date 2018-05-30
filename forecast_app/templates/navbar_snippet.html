@@ -9,22 +9,17 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="http://reichlab.io/">
+            <a class="navbar-brand" href="{% url 'index' %}">
                 {# following style per https://stackoverflow.com/a/35952273/1082367 . took forever to get this close! #}
                 <img style="display: inline-block; height: 40px; margin-top: -10px"
-                     src="{% static 'nav-logo.png' %}"/>
+                     src="{% static 'zoltar_forecast_rgb.jpg' %}"/>
             </a>
         </div>
 
         <!-- Collect the nav links, forms, and other content for toggling -->
         <div id="navbar" class="collapse navbar-collapse">
 
-            <!-- Left-justified items  -->
-            <ul class="nav navbar-nav">
-                <li><span class="navbar-brand">|</span><a class="navbar-brand" href="{% url 'index' %}">Forecast
-                    Repository</a></li>
-            </ul>
-
+            <!-- Left-justified items (none) -->
 
             <!-- Right-justified items. Regarding classes, the ones from the docs ( "nav navbar-nav navbar-right" ) work,
                  but result in their being hard-justified on the right with no padding. I was able to add padding using

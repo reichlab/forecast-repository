@@ -126,8 +126,6 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
 
     cdc_file_name_to_abs_error = {}
     for forecast_id, forecast_timezero_date, forecast_csv_filename in forecast_id_tz_date_csv_fname:
-        # todo xx this query is expensive when repeated. instead: pass in bulk similar to forecast_to_point_dict
-        # todo xx also, should flag any forecasts with missing or NA values - would save repeated work
         try:
             truth_values = loc_target_tz_date_to_truth[location][target][forecast_timezero_date]
         except KeyError as ke:

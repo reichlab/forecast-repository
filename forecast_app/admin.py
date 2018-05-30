@@ -19,8 +19,8 @@ from forecast_app.models.project import TimeZero
 # Overall site settings
 #
 
-admin.site.site_header = 'Forecast Repository Admin'
-admin.site.site_title = 'Forecast Repository'
+admin.site.site_header = 'Zoltar Forecast Archive Admin'
+admin.site.site_title = 'Zoltar Forecast Archive'
 
 
 #

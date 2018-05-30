@@ -13,12 +13,12 @@
         }
     </style>
 
-    <h1>Forecast Repository Home <a href="{% url 'api-root' %}" class="btn btn-info btn-xs" role="button">API</a></h1>
+    <h1>Zoltar Home <a href="{% url 'api-root' %}" class="btn btn-info btn-xs" role="button">API</a></h1>
 
     <p><img width="50%" src="http://reichlab.io/images/blog/flusight-wide.png" class="pull-right">
-        Welcome to the <a href="http://reichlab.io/">Reichlab</a> <em>Forecast Repository</em>, a web application to
-        prototype our ideas for a repository of model forecast results along with tools to compare, etc. The main
-        ideas are outlined on the <a href="{% url 'about' %}">About</a> page.
+        Welcome to the Zoltar forecast archive, a web application to prototype ideas for a repository of model forecast
+        results along with tools to compare, etc. The main ideas are outlined on the
+        <a href="{% url 'about' %}">About</a> page.
     </p>
 
 
@@ -30,8 +30,7 @@
     </h2>
 
     {% if projects %}
-        <p class="help-block">The repository has {{ projects|length }}
-            project{{ projects|length|pluralize }}:</p>
+        <p class="help-block">The archive has {{ projects|length }} project{{ projects|length|pluralize }}:</p>
 
         <table class="table table-striped table-bordered">
             <tr>
@@ -75,7 +74,7 @@
             {% endfor %}
         </table>
     {% else %}
-        <p>There are no projects in the repository.</p>
+        <p>There are no projects in the archive.</p>
     {% endif %}
 
 {% endblock %}
