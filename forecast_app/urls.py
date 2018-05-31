@@ -14,11 +14,17 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/scores', views.project_scores, name='project-scores'),
+
     url(r'^project/(?P<project_pk>\d+)/template$', views.template_detail, name='template-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/template/delete$', views.delete_template, name='delete-template'),
     url(r'^project/(?P<project_pk>\d+)/template/upload/$', views.upload_template, name='upload-template'),
     url(r'^project/(?P<model_with_cdc_data_pk>\d+)/download', views.download_file_for_model_with_cdc_data,
         {'type': 'project'}, name='download-template'),
+
+    url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
+    url(r'^project/(?P<project_pk>\d+)/truth/delete$', views.delete_truth, name='delete-truth'),
+    url(r'^project/(?P<project_pk>\d+)/truth/upload/$', views.upload_truth, name='upload-truth'),
+    url(r'^project/(?P<project_pk>\d+)/truth/download', views.download_truth, name='download-truth'),
 
     url(r'^model/(?P<pk>\d+)$', views.ForecastModelDetailView.as_view(), name='model-detail'),
 

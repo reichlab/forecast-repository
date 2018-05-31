@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
@@ -54,6 +55,18 @@ class ProjectTestCase(TestCase):
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
         self.assertEqual(7, project2.truth_data_qs().count())
+
+        # test get_truth_data_preview()
+        exp_truth_preview = [
+            (datetime.date(2017, 1, 1), 'US National', '1 wk ahead', 0.73102),
+            (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', 0.688338),
+            (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', 0.732049),
+            (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641),
+            (datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None),
+            (datetime.date(2017, 1, 1), 'US National', 'Season peak week', None),
+            (datetime.date(2017, 1, 1), 'US National', 'Season onset', 201747.0)
+        ]
+        self.assertEqual(exp_truth_preview, project2.get_truth_data_preview())
 
 
     def test_load_template(self):

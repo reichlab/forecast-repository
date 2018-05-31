@@ -44,21 +44,6 @@ def documentation(request):
     return render(request, 'documentation.html')
 
 
-def template_detail(request, project_pk):
-    """
-    View function to render a preview of a Project's template.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
-        return HttpResponseForbidden()
-
-    return render(
-        request,
-        'template_data_detail.html',
-        context={'project': project,
-                 'ok_user_edit_project': ok_user_edit_project(request.user, project)})
-
-
 #
 # visualization-related view functions
 #
@@ -488,6 +473,8 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
     """
     Returns a response containing a CSV or JSON file for a ModelWithCDCData's (Project or Forecast) data.
+    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
+        model's owner.
 
     :param request: must be a POST with a 'format' key that's either 'csv' or 'json' - see the calling forms
     :param model_with_cdc_data_pk: pk of either a Project or Forecast - disambiguated by kwargs['type']
@@ -519,6 +506,10 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     return csv_response_for_model_with_cdc_data(model_with_cdc_data) if request.POST['format'] == 'csv' \
         else json_response_for_model_with_cdc_data(request, model_with_cdc_data)
 
+
+#
+# Sparkline-related functions
+#
 
 def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
     """
@@ -574,15 +565,29 @@ def plot_sparkline(normalized_values):
 
 
 #
-# ---- Project template upload/delete views ----
+# ---- Template-related views ----
 #
+
+def template_detail(request, project_pk):
+    """
+    View function to render a preview of a Project's template.
+    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
+    return render(
+        request,
+        'template_data_detail.html',
+        context={'project': project,
+                 'ok_user_edit_project': ok_user_edit_project(request.user, project)})
+
 
 def delete_template(request, project_pk):
     """
-    Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
-
-    :return: redirect to the forecast's forecast_model detail page
+    Does the actual deletion of template data. Assumes that confirmation has already been given by the caller.
+    Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not ok_user_edit_project(request.user, project):
@@ -594,10 +599,8 @@ def delete_template(request, project_pk):
 
 def upload_template(request, project_pk):
     """
-    Uploads the passed data into a the project's template. Authorization: The logged-in user must be a superuser or the
-    Project's owner.
-
-    :return: redirect to the new forecast's detail page
+    Uploads the passed data into a the project's template.
+    Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not ok_user_edit_project(request.user, project):
@@ -628,6 +631,95 @@ def upload_template(request, project_pk):
                       context={'title': "Got an error trying to load the data.",
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
                                           "Please go back and select a valid file.".format(rte)})
+
+
+#
+# ---- Truth-related views ----
+#
+
+def truth_detail(request, project_pk):
+    """
+    View function to render a preview of a Project's truth data.
+    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
+    return render(
+        request,
+        'truth_data_detail.html',
+        context={'project': project,
+                 'ok_user_edit_project': ok_user_edit_project(request.user, project)})
+
+
+def delete_truth(request, project_pk):
+    """
+    Does the actual deletion of truth data. Assumes that confirmation has already been given by the caller.
+    Authorization: The logged-in user must be a superuser or the Project's owner.
+
+    :return: redirect to the forecast's forecast_model detail page
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not ok_user_edit_project(request.user, project):
+        return HttpResponseForbidden()
+
+    project.delete_truth_data()
+    return redirect('project-detail', pk=project_pk)
+
+
+def upload_truth(request, project_pk):
+    """
+    Uploads the passed data into a the project's truth.
+    Authorization: The logged-in user must be a superuser or the Project's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not ok_user_edit_project(request.user, project):
+        return HttpResponseForbidden()
+
+    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
+        return render(request, 'message.html',
+                      context={'title': "No file selected to upload.",
+                               'message': "Please go back and select one."})
+
+    # error if there is already truth data
+    if project.is_truth_data_loaded():
+        return render(request, 'message.html',
+                      context={'title': "Truth data already loaded.",
+                               'message': "The project already has truth data. Please delete it and then upload again."})
+
+    # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
+    data_file = request.FILES['data_file']  # InMemoryUploadedFile
+    file_name = data_file.name
+    data = data_file.read()
+    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
+    tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
+    try:
+        # todo xx file_name: use Project.truth_data_csv_filename when implemented:
+        project.load_truth_data(Path(tmp_data_file))
+        return redirect('truth-data-detail', project_pk=project_pk)
+    except RuntimeError as rte:
+        return render(request, 'message.html',
+                      context={'title': "Got an error trying to load the data.",
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
+                                          "Please go back and select a valid file.".format(rte)})
+
+
+def download_truth(request, project_pk):
+    """
+    Returns a response containing a CSV file for a project_pk's data.
+    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
+        model's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
+    # set the HttpResponse based on download type. avoid circular imports:
+    from forecast_app.api_views import csv_response_for_project_truth_data
+
+
+    return csv_response_for_project_truth_data(project)
 
 
 #

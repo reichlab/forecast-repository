@@ -23,6 +23,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     owner = serializers.HyperlinkedRelatedField(view_name='api-user-detail', read_only=True)
     config_dict = serializers.SerializerMethodField()
     template = serializers.SerializerMethodField()
+    truth = serializers.SerializerMethodField()
 
     models = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
     targets = TargetSerializer(many=True, read_only=True)  # nested, no urls
@@ -32,7 +33,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                  'template', 'model_owners', 'models', 'targets', 'timezeros')
+                  'template', 'truth', 'model_owners', 'models', 'targets', 'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'model_owners': {'view_name': 'api-user-detail'},
@@ -46,6 +47,11 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     def get_template(self, project):
         request = self.context['request']
         return reverse('api-template-detail', args=[project.pk], request=request)
+
+
+    def get_truth(self, project):
+        request = self.context['request']
+        return reverse('api-truth-detail', args=[project.pk], request=request)
 
 
 class TemplateSerializer(serializers.ModelSerializer):
@@ -69,6 +75,29 @@ class TemplateSerializer(serializers.ModelSerializer):
     def get_template_data(self, project):
         request = self.context['request']
         return reverse('api-template-data', args=[project.pk], request=request)
+
+
+class TruthSerializer(serializers.ModelSerializer):
+    project = serializers.SerializerMethodField()
+    truth_data = serializers.SerializerMethodField()
+
+
+    class Meta:
+        model = Project
+        fields = ('id', 'url', 'project', 'truth_data')
+        extra_kwargs = {
+            'url': {'view_name': 'api-truth-detail'},
+        }
+
+
+    def get_project(self, project):
+        request = self.context['request']
+        return reverse('api-project-detail', args=[project.pk], request=request)
+
+
+    def get_truth_data(self, project):
+        request = self.context['request']
+        return reverse('api-truth-data', args=[project.pk], request=request)
 
 
 class UserSerializer(serializers.ModelSerializer):

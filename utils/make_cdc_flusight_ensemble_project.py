@@ -113,7 +113,7 @@ def _make_cdc_flusight_project(component_models_dir, make_project, load_data, pr
     time_zeros = create_timezeros(project, first_subdirectory(component_models_dir))  # assumes no non-model subdirs
     click.echo("- created {} TimeZeros: {}".format(len(time_zeros), time_zeros))
 
-    click.echo("- loading truth values")
+    click.echo("- loading truth values: {}".format(truth_file_path))
     project.load_truth_data(truth_file_path)
 
     # load data if necessary

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% load humanize %}
+
+{% block title %}Project truth data for {{ project.name }}{% endblock %}
+
+{% block content %}
+
+    <p class="lead">Project truth for &ldquo;{{ project.name }}&rdquo;
+        <a href="{% url 'api-truth-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
+
+        {% if ok_user_edit_project and project.is_truth_data_loaded %}
+            {# show a button inside a modal dialog for deleting the truth #}
+
+            {# Delete truth: a button that shows a hidden confirm modal when clicked #}
+            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
+                    data-target="#confirmModal_{{ project.html_id }}">
+                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+            </button>
+
+            {# the modal itself - hidden until above button shows it #}
+            {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-truth' delete_question='Delete truth?' %}
+        {% endif %}
+    </p>
+
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Project:</th>
+                    <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    {% if project.is_truth_data_loaded %}
+        {% include 'truth_data_snippet.html' with project=project %}
+
+        {# show the file download form with a button dropdown for the download formats #}
+        <form id="download_form" class="form-inline" method="POST" action="{% url 'download-truth' project.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Download CSV</button>
+
+            {% comment %}
+            <input id="download_format" type="text" name="format" value="csv" hidden>
+            <div class="btn-group">
+                <button type="submit" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
+                        aria-haspopup="true"
+                        aria-expanded="false">Download <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a onclick="$('#download_format').val('csv'); $('#download_form').submit()">CSV</a></li>
+                    <li><a onclick="$('#download_format').val('json'); $('#download_form').submit()">JSON</a></li>
+                </ul>
+            </div>
+            {% endcomment %}
+
+        </form>
+    {% else %}
+        <h2>Preview of {{ project.is_truth_data_loaded|intcomma }} row{{ project.is_truth_data_loaded|pluralize }}</h2>
+        <small class="text-muted">(No data)</small>
+    {% endif %}
+
+{% endblock %}

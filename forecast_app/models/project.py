@@ -4,6 +4,7 @@ import io
 import itertools
 import logging
 import math
+from collections import defaultdict
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -18,10 +19,12 @@ from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
 
 logger = logging.getLogger(__name__)
 
-
 #
 # ---- Project class ----
 #
+
+TRUTH_CSV_HEADER = ['timezero', 'location', 'target', 'value']
+
 
 class Project(ModelWithCDCData):
     """
@@ -316,9 +319,28 @@ class Project(ModelWithCDCData):
 
     def is_truth_data_loaded(self):
         """
-        :return: True if I have truth data loaded via load_truth_data()
+        :return: True if I have truth data loaded via load_truth_data(). Actually, returns the count, which acts as a
+            boolean.
         """
         return self.truth_data_qs().count()
+
+
+    def get_truth_data_preview(self):
+        """
+        :return: view helper function that returns a preview of my truth data in the form of a table that's represented
+            as a nested list of rows
+        """
+        return list(self.truth_data_qs()
+                    .values_list('time_zero__timezero_date', 'location', 'target', 'value')[:10])
+
+
+    def get_truth_data_rows(self):
+        """
+        Returns all of my data as a a list of rows, excluding any PKs and FKs columns, and ordered by PK.
+        """
+        return list(self.truth_data_qs()
+                    .order_by('id')
+                    .values_list('time_zero__timezero_date', 'location', 'target', 'value'))
 
 
     def truth_data_qs(self):
@@ -408,7 +430,7 @@ class Project(ModelWithCDCData):
         """
         csv_reader = csv.reader(csv_file_fp, delimiter=',')
 
-        # validate header. must be 7 columns (or 8 with the last one being '') matching
+        # validate header
         try:
             orig_header = next(csv_reader)
         except StopIteration:
@@ -416,16 +438,16 @@ class Project(ModelWithCDCData):
 
         header = orig_header
         header = [h.lower() for h in [i.replace('"', '') for i in header]]
-        if header != ['timezero', 'location', 'target', 'value']:
+        if header != TRUTH_CSV_HEADER:
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
         locations = self.get_locations()  # template data
         targets = self.get_targets()  # ""
         rows = []
-        timezeros_missing = []  # to minimize warnings
-        locations_missing = []
-        targets_missing = []
+        timezero_to_missing_count = defaultdict(int)  # to minimize warnings
+        location_to_missing_count = defaultdict(int)
+        target_to_missing_count = defaultdict(int)
         for row in csv_reader:
             if len(row) != 4:
                 raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
@@ -436,29 +458,33 @@ class Project(ModelWithCDCData):
             # todo cache: time_zero_for_timezero_date() results - expensive?
             timezero = self.time_zero_for_timezero_date(datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
             if not timezero:
-                if timezero_date not in timezeros_missing:
-                    timezeros_missing.append(timezero_date)
-                    logger.warning("_load_truth_data_rows(): timezero not found in project. timezero_date={}"
-                                   .format(timezero_date))
+                timezero_to_missing_count[timezero_date] += 1
                 continue
 
             # validate location and target
             if location not in locations:
-                if location not in locations_missing:
-                    locations_missing.append(location)
-                    logger.warning("_load_truth_data_rows(): Location not found in project: location={}"
-                                   .format(location))
+                location_to_missing_count[location] += 1
                 continue
 
             if target not in targets:
-                if target not in targets:
-                    targets_missing.append(target)
-                    logger.warning("_load_truth_data_rows(): Target not found in project: targets={}"
-                                   .format(target))
+                target_to_missing_count[target] += 1
                 continue
 
             value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
             rows.append((timezero.pk, location, target, value))
+
+        # report warnings
+        for timezero, count in timezero_to_missing_count.items():
+            logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
+                           .format(timezero, count))
+        for location, count in location_to_missing_count.items():
+            logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
+                           .format(location, count))
+        for target, count in target_to_missing_count.items():
+            logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
+                           .format(target, count))
+
+        # done
         return rows
 
 

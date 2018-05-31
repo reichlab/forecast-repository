@@ -59,6 +59,10 @@ def make_minimal_projects_app():
     public_project.model_owners.add(mo_user)
     public_project.save()
 
+    # create a TimeZero so that this truth file can be loaded:
+    # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+    TimeZero.objects.create(project=public_project, timezero_date='2017-01-01')
+
     private_project = Project.objects.create(name=project_names[1], is_public=False)
     private_project.owner = po_user
     private_project.model_owners.add(mo_user)

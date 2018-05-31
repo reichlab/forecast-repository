@@ -12,10 +12,15 @@ from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast
+from forecast_app.models.project import TRUTH_CSV_HEADER
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TemplateSerializer
+    TemplateSerializer, TruthSerializer
 from utils.utilities import CDC_CSV_HEADER
 
+
+#
+# Root view
+#
 
 @api_view(['GET'])
 def api_root(request, format=None):
@@ -23,6 +28,10 @@ def api_root(request, format=None):
         'projects': reverse('api-project-list', request=request, format=format),
     })
 
+
+#
+# List- and detail-related views
+#
 
 # was ListCreateAPIView -> def perform_create(self, serializer): serializer.save(owner=self.request.user)
 class ProjectList(generics.ListAPIView):
@@ -41,6 +50,38 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return project.is_user_allowed_to_view(self.request.user)
 
 
+class UserList(generics.ListCreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class UserDetail(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = ForecastModel.objects.all()
+    serializer_class = ForecastModelSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        forecast_model = self.get_object()
+        return forecast_model.project.is_user_allowed_to_view(self.request.user)
+
+
+class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = Forecast.objects.all()
+    serializer_class = ForecastSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        forecast = self.get_object()
+        return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)
+
+
 class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TemplateSerializer
@@ -52,11 +93,43 @@ class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return project.is_user_allowed_to_view(self.request.user)
 
 
+class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = Project.objects.all()
+    serializer_class = TruthSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        project = self.get_object()
+        return project.is_user_allowed_to_view(self.request.user)
+
+
+#
+# Truth data-related views
+#
+
+@api_view(['GET'])
+@renderer_classes((BrowsableAPIRenderer, CSVRenderer))
+def truth_data(request, project_pk):
+    """
+    :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_allowed_to_view(request.user):
+        return HttpResponseForbidden()
+
+    return csv_response_for_project_truth_data(project)
+
+
+#
+# Template and forecast data-related views
+#
+
 @api_view(['GET'])
 @renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
 def template_data(request, project_pk):
     """
-    :return: the Project's template data as JSON. note that the actual data is wrapped by metadata
+    :return: the Project's template data as JSON or CSV. note that the actual data is wrapped by metadata
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_allowed_to_view(request.user):
@@ -76,7 +149,7 @@ def template_data(request, project_pk):
 @renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
 def forecast_data(request, forecast_pk):
     """
-    :return: the Project's template data as JSON. note that the actual data is wrapped by metadata
+    :return: the Project's template data as JSON or CSV. note that the actual data is wrapped by metadata
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     if not forecast.forecast_model.project.is_user_allowed_to_view(request.user):
@@ -135,33 +208,24 @@ def csv_response_for_model_with_cdc_data(model_with_cdc_data):
     return response
 
 
-class UserList(generics.ListCreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+def csv_response_for_project_truth_data(project):
+    """
+    Similar to json_response_for_model_with_cdc_data(), but returns a response with project's truth data formatted as
+    CSV.
+    """
+    response = HttpResponse(content_type='text/csv')
+    # todo xx csv_filename: use Project.truth_data_csv_filename when implemented:
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
+        .format(csv_filename='project-{}-truth.csv'.format(project.pk))
 
 
-class UserDetail(generics.RetrieveAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
+    def transform_row(row):
+        return row  # todo xx replace '', etc.
 
 
-class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
-    queryset = ForecastModel.objects.all()
-    serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    writer = csv.writer(response)
+    writer.writerow(TRUTH_CSV_HEADER)
+    for row in project.get_truth_data_rows():
+        writer.writerow(transform_row(row))
 
-
-    def test_func(self):  # return True if the current user can access the view
-        forecast_model = self.get_object()
-        return forecast_model.project.is_user_allowed_to_view(self.request.user)
-
-
-class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
-    queryset = Forecast.objects.all()
-    serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
-
-
-    def test_func(self):  # return True if the current user can access the view
-        forecast = self.get_object()
-        return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)
+    return response

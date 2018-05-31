@@ -155,7 +155,8 @@ class ModelWithCDCData(models.Model):
 
     def get_data_preview(self):
         """
-        :return: a preview of my data in the form of a table that's represented as a nested list of rows
+        :return: view helper function that returns a preview of my data in the form of a table that's represented as a
+            nested list of rows
         """
         return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
                  cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)

@@ -35,6 +35,10 @@ class ViewsTestCase(TestCase):
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
         cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+
+        TimeZero.objects.create(project=cls.public_project, timezero_date='2017-01-01')
+        cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+
         cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=str('2017-12-01'),
                                                  data_version_date=None)
         cls.public_tz2 = TimeZero.objects.create(project=cls.public_project, timezero_date=str('2017-12-02'),
@@ -114,29 +118,12 @@ class ViewsTestCase(TestCase):
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
             reverse('docs'): self.OK_ALL,
+            reverse('user-detail', args=[str(self.po_user.pk)]): self.OK_ALL,
+
             reverse('project-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('template-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('template-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('download-template', args=[str(self.public_project.pk)]): self.BAD_REQ_400_ALL,
-            reverse('download-template', args=[str(self.private_project.pk)]): self.ONLY_PO_MO_400,
-            reverse('delete-template', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
-            reverse('delete-template', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
-            reverse('upload-template', args=[str(self.public_project.pk)]): self.ONLY_PO,
-            reverse('upload-template', args=[str(self.private_project.pk)]): self.ONLY_PO,
-            reverse('model-detail', args=[str(self.public_model.pk)]): self.OK_ALL,
-            reverse('model-detail', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
-            reverse('user-detail', args=[str(self.po_user.pk)]): self.OK_ALL,
-            reverse('forecast-detail', args=[str(self.public_forecast.pk)]): self.OK_ALL,
-            reverse('forecast-detail', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
-            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
-            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
-            reverse('delete-forecast', args=[str(self.public_forecast.pk)]): self.ONLY_PO_MO_302,
-            reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
-            reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
-            reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
             reverse('create-project', args=[]): self.ONLY_PO_MO,
             reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
             reverse('edit-project', args=[str(self.private_project.pk)]): self.ONLY_PO,
@@ -144,12 +131,43 @@ class ViewsTestCase(TestCase):
             reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
             reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
             reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
+
+            reverse('template-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('template-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('delete-template', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
+            reverse('delete-template', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
+            reverse('upload-template', args=[str(self.public_project.pk)]): self.ONLY_PO,
+            reverse('upload-template', args=[str(self.private_project.pk)]): self.ONLY_PO,
+            reverse('download-template', args=[str(self.public_project.pk)]): self.BAD_REQ_400_ALL,
+            reverse('download-template', args=[str(self.private_project.pk)]): self.ONLY_PO_MO_400,
+            
+            reverse('truth-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('truth-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('delete-truth', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
+            reverse('delete-truth', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
+            reverse('upload-truth', args=[str(self.public_project.pk)]): self.ONLY_PO,
+            reverse('upload-truth', args=[str(self.private_project.pk)]): self.ONLY_PO,
+            reverse('download-truth', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('download-truth', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            
+            reverse('model-detail', args=[str(self.public_model.pk)]): self.OK_ALL,
+            reverse('model-detail', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
             reverse('create-model', args=[str(self.public_project.pk)]): self.ONLY_PO_MO,
             reverse('create-model', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('edit-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO,
             reverse('edit-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
             reverse('delete-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO_302,
             reverse('delete-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO_302,
+
+            reverse('forecast-detail', args=[str(self.public_forecast.pk)]): self.OK_ALL,
+            reverse('forecast-detail', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
+            reverse('delete-forecast', args=[str(self.public_forecast.pk)]): self.ONLY_PO_MO_302,
+            reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
+            reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
+            reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
+            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
+            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
+
             reverse('forecast-sparkline', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
             reverse('forecast-sparkline', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
         }
@@ -211,14 +229,14 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, True),
                      (self.superuser, True)],
             },
-            # user detail
+            # home page
             reverse('index', args=[]): {
                 reverse('create-project', args=[]):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],
             },
-            # project detail - public_project
+            # project detail - public_project (has template and truth)
             reverse('project-detail', args=[str(self.public_project.pk)]): {
                 reverse('edit-project', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
@@ -233,16 +251,26 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, True),
                      (self.superuser, True)],
             },
-            # project detail - public_project2 (no template)
+            # project detail - public_project2 (no template or truth)
             reverse('project-detail', args=[str(self.public_project2.pk)]): {
-                reverse('upload-template', args=[str(self.public_project2.pk)]):
+                reverse('upload-template', args=[str(self.public_project2.pk)]):  # no template -> upload link
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True)],
+                reverse('upload-truth', args=[str(self.public_project2.pk)]):  # no truth -> upload link
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True)],
             },
-            # template data detail - public_project
+            # template data detail - public_project (has template and truth)
             reverse('template-data-detail', args=[str(self.public_project.pk)]): {
                 reverse('delete-template', args=[str(self.public_project.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True)],
+            },
+            reverse('truth-data-detail', args=[str(self.public_project.pk)]): {
+                reverse('delete-truth', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True)],

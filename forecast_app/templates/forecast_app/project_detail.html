@@ -114,8 +114,37 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Truth data:</th>
-                    <td>{{ project.is_truth_data_loaded|intcomma }} row{{ project.is_truth_data_loaded|pluralize }}</td>
+                    <th>Truth Data:</th>
+                    <td>
+                        {% if project.is_truth_data_loaded %}
+                            {# show a link to the truth detail #}
+                            {# <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_data_filename }}</a> #}
+                            <a href="{% url 'truth-data-detail' project.pk %}">
+                                {{ project.is_truth_data_loaded|intcomma }}
+                                row{{ project.is_truth_data_loaded|pluralize }}
+                            </a>
+                        {% else %}
+                            {# show that there's no truth data, optionally with upload button #}
+                            {% if ok_user_edit_project %}
+                                {# show a button for uploading a file #}
+                                <form class="form-inline" method="POST" enctype="multipart/form-data"
+                                      action="{% url 'upload-truth' project.pk %}">
+                                    {% csrf_token %}
+                                    <small class="text-muted">(No truth data)&nbsp;</small>
+                                    <div class="form-group">
+                                        <button class="form-control btn btn-success" type="submit">
+                                            <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                                        </button>
+                                    </div>
+                                    <div class="form-group">
+                                        <input type="file" name="data_file">
+                                    </div>
+                                </form>
+                            {% else %}
+                                <small class="text-muted">(No truth data)</small>
+                            {% endif %}
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <th>Analysis:</th>

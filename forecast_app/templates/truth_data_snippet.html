@@ -1,0 +1,26 @@
+{% load humanize %}
+
+<h2>Preview of {{ project.is_truth_data_loaded|intcomma }} row{{ project.is_truth_data_loaded|pluralize }}</h2>
+<table class="table table-striped">
+    <thead>
+    <tr>
+        <th>timezero</th>
+        <th>location</th>
+        <th>target</th>
+        <th>value</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for timezero_date, location, target, value in project.get_truth_data_preview %}
+        <tr>
+            <td>{{ timezero_date }}</td>
+            <td>{{ location }}</td>
+            <td>{{ target }}</td>
+            <td>{{ value }}</td>
+        </tr>
+    {% endfor %}
+    <tr>
+        <td>...</td>
+    </tr>
+    </tbody>
+</table>
