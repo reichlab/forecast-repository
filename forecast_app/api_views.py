@@ -1,4 +1,5 @@
 import csv
+from pathlib import Path
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
@@ -211,12 +212,21 @@ def csv_response_for_model_with_cdc_data(model_with_cdc_data):
 def csv_response_for_project_truth_data(project):
     """
     Similar to json_response_for_model_with_cdc_data(), but returns a response with project's truth data formatted as
-    CSV.
+    CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
+    to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
+    filename to hopefully hint at what's going on.
     """
     response = HttpResponse(content_type='text/csv')
-    # todo xx csv_filename: use Project.truth_data_csv_filename when implemented:
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
-        .format(csv_filename='project-{}-truth.csv'.format(project.pk))
+
+    # two cases for deciding the filename to put in download response:
+    # 1) original ends with .csv -> orig-name.csv -> orig-name-validated.csv
+    # 2) "" does not end "" -> orig-name.csv.foo -> orig-name.csv.foo-validated.csv
+    csv_filename_path = Path(project.truth_csv_filename)
+    if csv_filename_path.suffix.lower() == '.csv':
+        csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
+    else:
+        csv_filename = csv_filename_path.name + '-validated.csv'
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"'.format(csv_filename=str(csv_filename))
 
 
     def transform_row(row):

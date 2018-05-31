@@ -65,6 +65,8 @@ class Project(ModelWithCDCData):
     time_interval_type = models.CharField(max_length=1,
                                           choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE)
 
+    truth_csv_filename = models.CharField(max_length=200, help_text="Name of the truth csv file that was uploaded.")
+
     description = models.CharField(max_length=2000,
                                    help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
@@ -358,9 +360,12 @@ class Project(ModelWithCDCData):
         Deletes all of my truth data.
         """
         self.truth_data_qs().delete()
+        self.truth_csv_filename = ''
+        self.save()
 
 
-    def load_truth_data(self, truth_file_path):
+    @transaction.atomic
+    def load_truth_data(self, truth_file_path, file_name=None):
         """
         Similar to load_template(), loads the data in truth_file_path (see below for file format docs). Like
         load_csv_data(), uses direct SQL for performance, using a fast Postgres-specific routine if connected to it.
@@ -386,6 +391,8 @@ class Project(ModelWithCDCData):
             - Ditto for every target.
 
         :param truth_file_path: Path to csv file with the truth data, one line per timezero|location|target combination
+        :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
+            files have random template_path file names, so original ones must be extracted and passed separately
         """
         from forecast_app.models import TruthData  # avoid circular imports
 
@@ -398,7 +405,7 @@ class Project(ModelWithCDCData):
 
         with open(str(truth_file_path)) as csv_file_fp, \
                 connection.cursor() as cursor:
-            rows = self._load_truth_data_rows(csv_file_fp)
+            rows = self._load_truth_data_rows(csv_file_fp)  # validates
             if not rows:
                 return
 
@@ -421,6 +428,7 @@ class Project(ModelWithCDCData):
                 cursor.executemany(sql, rows)
 
         # done!
+        self.truth_csv_filename = file_name or truth_file_path.name
         self.save()
 
 
@@ -506,8 +514,7 @@ class Project(ModelWithCDCData):
         :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
             files have random template_path file names, so original ones must be extracted and passed separately
         """
-        file_name = file_name if file_name else template_path.name
-        self.csv_filename = file_name
+        self.csv_filename = file_name or template_path.name
         self.load_csv_data(template_path)
         self.validate_template_data()
         self.save()

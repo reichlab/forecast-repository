@@ -84,7 +84,7 @@ class TruthSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'project', 'truth_data')
+        fields = ('id', 'url', 'project', 'truth_csv_filename', 'truth_data')
         extra_kwargs = {
             'url': {'view_name': 'api-truth-detail'},
         }

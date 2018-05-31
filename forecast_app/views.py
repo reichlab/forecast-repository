@@ -695,8 +695,7 @@ def upload_truth(request, project_pk):
     path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
     tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
     try:
-        # todo xx file_name: use Project.truth_data_csv_filename when implemented:
-        project.load_truth_data(Path(tmp_data_file))
+        project.load_truth_data(Path(tmp_data_file), file_name)
         return redirect('truth-data-detail', project_pk=project_pk)
     except RuntimeError as rte:
         return render(request, 'message.html',

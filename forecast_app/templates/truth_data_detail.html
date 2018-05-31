@@ -32,6 +32,16 @@
                     <th>Project:</th>
                     <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
                 </tr>
+                <tr>
+                    <th>Truth Data Filename:</th>
+                    <td>
+                        {% if project.is_truth_data_loaded %}
+                            {{ project.truth_csv_filename }}
+                        {% else %}
+                            <small class="text-muted">(No truth data)</small>
+                        {% endif %}
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>
@@ -45,21 +55,6 @@
         <form id="download_form" class="form-inline" method="POST" action="{% url 'download-truth' project.pk %}">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Download CSV</button>
-
-            {% comment %}
-            <input id="download_format" type="text" name="format" value="csv" hidden>
-            <div class="btn-group">
-                <button type="submit" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
-                        aria-haspopup="true"
-                        aria-expanded="false">Download <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a onclick="$('#download_format').val('csv'); $('#download_form').submit()">CSV</a></li>
-                    <li><a onclick="$('#download_format').val('json'); $('#download_form').submit()">JSON</a></li>
-                </ul>
-            </div>
-            {% endcomment %}
-
         </form>
     {% else %}
         <h2>Preview of {{ project.is_truth_data_loaded|intcomma }} row{{ project.is_truth_data_loaded|pluralize }}</h2>

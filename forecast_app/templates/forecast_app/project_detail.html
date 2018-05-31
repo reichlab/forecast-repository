@@ -118,11 +118,7 @@
                     <td>
                         {% if project.is_truth_data_loaded %}
                             {# show a link to the truth detail #}
-                            {# <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_data_filename }}</a> #}
-                            <a href="{% url 'truth-data-detail' project.pk %}">
-                                {{ project.is_truth_data_loaded|intcomma }}
-                                row{{ project.is_truth_data_loaded|pluralize }}
-                            </a>
+                             <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_csv_filename }}</a>
                         {% else %}
                             {# show that there's no truth data, optionally with upload button #}
                             {% if ok_user_edit_project %}
