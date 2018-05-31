@@ -9,7 +9,7 @@ from collections import defaultdict
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models, transaction, connection
-from django.db.models import ManyToManyField, Max
+from django.db.models import ManyToManyField, Max, BooleanField, IntegerField
 from django.urls import reverse
 from jsonfield import JSONField
 
@@ -81,8 +81,8 @@ class Project(ModelWithCDCData):
 
     # config_dict: specifies project-specific information
     config_dict = JSONField(null=True, blank=True,
-                            help_text="JSON dict containing these keys: 'visualization-targets', "
-                                      "'visualization-y-label'. Please see documentation for details.")
+                            help_text="JSON dict containing these keys: 'visualization-y-label'. "
+                                      "Please see documentation for details.")
 
 
     def __repr__(self):
@@ -97,7 +97,7 @@ class Project(ModelWithCDCData):
         """
         Validates my config_dict if provided, and my TimeZero.timezero_dates for uniqueness.
         """
-        config_dict_keys = {'visualization-targets', 'visualization-y-label'}  # definitive list
+        config_dict_keys = {'visualization-y-label'}  # definitive list
         if self.config_dict and (set(self.config_dict.keys()) != config_dict_keys):
             raise ValidationError("config_dict did not contain the required keys. expected keys: {}, actual keys: {}"
                                   .format(config_dict_keys, self.config_dict.keys()))
@@ -302,10 +302,10 @@ class Project(ModelWithCDCData):
 
     def visualization_targets(self):
         """
-        :return: list of targets that can be used for flusight_data_dicts_for_models() and mean_absolute_error()
+        :return: list of Target names that can be used for flusight_data_dicts_for_models() and mean_absolute_error()
             (for the meantime) calls. returns None if no config_dict
         """
-        return self.config_dict and list(self.config_dict['visualization-targets'])
+        return [target.name for target in Target.objects.filter(project=self).filter(is_step_ahead=True)]
 
 
     def visualization_y_label(self):
@@ -666,6 +666,10 @@ Project._meta.get_field('csv_filename').help_text = "CSV file name of this proje
 class Target(models.Model):
     """
     Represents a project's target - a description of the desired data in the each forecast's data file.
+
+    Re: validation of combinations of is_step_ahead and step_ahead_increment: Because Project.clean() is not passed the
+    original args, and b/c is not nullable and defaults to zero, we choose not to validate those two fields, unlike
+    TimeZero.is_season_start and TimeZero.season_name.
     """
     project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
 
@@ -673,9 +677,20 @@ class Target(models.Model):
 
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target.")
 
+    is_step_ahead = BooleanField(help_text="Flag that's True if this Target is a 'k-step-ahead' one that can be used "
+                                           "in analysis tools to reference forward and back in a Project's TimeZeros "
+                                           "(when sorted by timezero_date). If True then step_ahead_increment must be "
+                                           "set. Default is False.",
+                                 default=False)
+
+    step_ahead_increment = IntegerField(help_text="Optional field that's required when Target.is_step_ahead "
+                                                  "is True, is an integer specifing how many time steps "
+                                                  "ahead the Target is. Can be negative, zero, or positive.",
+                                        default=0)
+
 
     def __repr__(self):
-        return str((self.pk, self.name))
+        return str((self.pk, self.name, self.is_step_ahead, self.step_ahead_increment))
 
 
     def __str__(self):  # todo
@@ -683,7 +698,7 @@ class Target(models.Model):
 
 
 #
-# ---- TimeZone class ----
+# ---- TimeZero class ----
 #
 
 class TimeZero(models.Model):
@@ -721,7 +736,7 @@ class TimeZero(models.Model):
         return basic_str(self)
 
 
-    # Note .. a model’s clean() method is not invoked when you call your model’s save() method.
+    # Note: a model’s clean() method is not invoked when you call your model’s save() method.
     def clean(self):
         # must have season_name if is_season_start
         if self.is_season_start and not self.season_name:

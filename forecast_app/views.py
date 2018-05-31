@@ -162,9 +162,12 @@ def create_project(request):
 
     # set up Target and TimeZero formsets using a new (unsaved) Project
     new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
-    TargetInlineFormSet = inlineformset_factory(Project, Target, fields=('name', 'description'), extra=3)
+    TargetInlineFormSet = inlineformset_factory(Project, Target,
+                                                fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
+                                                extra=3)
     target_formset = TargetInlineFormSet(instance=new_project)
-    TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero, fields=('timezero_date', 'data_version_date'),
+    TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero,
+                                                  fields=('timezero_date', 'data_version_date'),
                                                   extra=3)
     timezero_formset = TimeZeroInlineFormSet(instance=new_project)
     if request.method == 'POST':
@@ -203,7 +206,9 @@ def edit_project(request, project_pk):
     if not ok_user_edit_project(request.user, project):
         return HttpResponseForbidden()
 
-    TargetInlineFormSet = inlineformset_factory(Project, Target, fields=('name', 'description'), extra=3)
+    TargetInlineFormSet = inlineformset_factory(Project, Target,
+                                                fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
+                                                extra=3)
     target_formset = TargetInlineFormSet(instance=project)
 
     TimeZeroInlineFormSet = inlineformset_factory(

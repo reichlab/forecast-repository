@@ -105,7 +105,7 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
     click.echo("  loading template")
     project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
 
-    create_targets(project)
+    create_cdc_targets(project)
 
     # create TimeZeros
     yr_wk_2016 = list(zip(itertools.repeat(2016), range(43, 53)))
@@ -124,37 +124,41 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
     return project
 
 
-def create_targets(project):
+def create_cdc_targets(project):
     """
-    Creates CDC standard TimeZeros for project. Returns a list of them.
+    Creates CDC standard Targets for project. Returns a list of them.
     """
     targets = []
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
-    for target_name, description in (
+    for target_name, description, is_step_ahead, step_ahead_increment in (
             ('Season onset',
              "The onset of the season is defined as the MMWR surveillance week "
              "(http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) "
              "reported through ILINet reaches or exceeds the baseline value for three consecutive weeks (updated 2016-2017 "
              "ILINet baseline values for the US and each HHS region will be available at "
              "http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should "
-             "be for the first week of that three week period."),
+             "be for the first week of that three week period.",
+             False, 0),
             ('Season peak week',
              "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the highest "
-             "for the 2016-2017 influenza season."),
+             "for the 2016-2017 influenza season.",
+             False, 0),
             ('Season peak percentage',
              "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches during " \
-             "the 2016-2017 influenza season."),
-            ('1 wk ahead', week_ahead_descr),
-            ('2 wk ahead', week_ahead_descr),
-            ('3 wk ahead', week_ahead_descr),
-            ('4 wk ahead', week_ahead_descr)):
-        targets.append(Target.objects.create(project=project, name=target_name, description=description))
+             "the 2016-2017 influenza season.",
+             False, 0),
+            ('1 wk ahead', week_ahead_descr, True, 1),
+            ('2 wk ahead', week_ahead_descr, True, 2),
+            ('3 wk ahead', week_ahead_descr, True, 3),
+            ('4 wk ahead', week_ahead_descr, True, 4)):
+        targets.append(Target.objects.create(project=project, name=target_name, description=description,
+                                             is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment))
     return targets
 
 
 def make_cdc_flu_challenge_models(project, model_owner, kot_data_dir):
     """
-    creates the four Kernel of Truth (KoT) ForecastModels and their Forecasts
+    Creates the four Kernel of Truth (KoT) ForecastModels and their Forecasts.
     """
     click.echo("* creating CDC Flu challenge models. model_owner={}, kot_data_dir={}".format(model_owner, kot_data_dir))
 

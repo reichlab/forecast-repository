@@ -4,9 +4,10 @@ from pathlib import Path
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero
+from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
+from utils.make_2016_2017_flu_contest_project import create_cdc_targets
 
 
 class ProjectTestCase(TestCase):
@@ -17,6 +18,7 @@ class ProjectTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -173,16 +175,8 @@ class ProjectTestCase(TestCase):
 
     def test_project_config_dict_validation(self):
         config_dict = {
-            "visualization-targets": [],
+            "foo": "bar"
             # "visualization-y-label": "y-label!"
-        }
-        with self.assertRaises(ValidationError) as context:
-            Project.objects.create(config_dict=config_dict)
-        self.assertIn("config_dict did not contain the required keys", str(context.exception))
-
-        config_dict = {
-            # "visualization-targets": [],
-            "visualization-y-label": "y-label!"
         }
         with self.assertRaises(ValidationError) as context:
             Project.objects.create(config_dict=config_dict)
@@ -210,6 +204,16 @@ class ProjectTestCase(TestCase):
 
     def test_timezero_seasons(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+
+        Target.objects.create(project=project2, name="1 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=1)
+        Target.objects.create(project=project2, name="2 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=3)
+        Target.objects.create(project=project2, name="3 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=3)
+        Target.objects.create(project=project2, name="4 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=4)
+
         # 2015-01-01 <no season>  time_zero1    not within
         # 2015-02-01 <no season>  time_zero2    not within
         # 2016-02-01 season1      time_zero3  start
@@ -291,3 +295,25 @@ class ProjectTestCase(TestCase):
                                    'US National': 3.00101461253164}
         act_location_to_max_val = project2.location_to_max_val('season1', project2.visualization_targets())
         self.assertEqual(exp_location_to_max_val, act_location_to_max_val)
+
+
+    def test_target_step_ahead(self):
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+
+        target = Target.objects.create(project=project2, name="Test target", description="d",
+                                       is_step_ahead=True, step_ahead_increment=1)
+        self.assertTrue(target.is_step_ahead)
+        self.assertEqual(1, target.step_ahead_increment)
+
+        # test validation. note that we cannot validate combinations of is_step_ahead step_ahead_increment b/c
+        # Project.clean() is not passed the original args, and b/c is not nullable and defaults to zero. thus, here
+        # we just show that all combinations are OK
+        Target.objects.create(project=project2, name="Test target", description="d", is_step_ahead=True)
+        Target.objects.create(project=project2, name="Test target", description="d", step_ahead_increment=1)
+        Target.objects.create(project=project2, name="Test target", description="d",
+                              is_step_ahead=False, step_ahead_increment=1)
+
+
+    def test_visualization_targets(self):
+        self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
+                         sorted(self.project.visualization_targets()))

@@ -4,7 +4,6 @@ import re
 
 
 CDC_CONFIG_DICT = {
-    "visualization-targets": ["1 wk ahead", "2 wk ahead", "3 wk ahead", "4 wk ahead"],
     "visualization-y-label": "Weighted ILI (%)"
 }
 

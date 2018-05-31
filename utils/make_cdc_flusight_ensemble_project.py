@@ -17,7 +17,7 @@ django.setup()
 
 from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components
 from forecast_app.models import Project, ForecastModel, TimeZero
-from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_targets
+from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
 from utils.cdc import CDC_CONFIG_DICT
 
 
@@ -97,7 +97,7 @@ def _make_cdc_flusight_project(component_models_dir, make_project, load_data, pr
         click.echo("- loading template")
         project.load_template(template_52)
 
-        targets = create_targets(project)
+        targets = create_cdc_targets(project)
         click.echo("- created {} Targets: {}".format(len(targets), targets))
 
         click.echo("* Creating models")

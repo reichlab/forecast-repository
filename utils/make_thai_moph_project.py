@@ -18,8 +18,6 @@ from forecast_app.models import Project, ForecastModel
 
 
 CONFIG_DICT = {
-    "visualization-targets": ["-1_biweek_ahead", "0_biweek_ahead", "1_biweek_ahead", "2_biweek_ahead",
-                              "3_biweek_ahead"],
     "visualization-y-label": "DHF cases"
 }
 
@@ -126,18 +124,25 @@ def make_thai_moph_project(project_name, template_path):
 
     # create Targets
     click.echo("  creating targets")
-    for target_name, description in {
-        '-1_biweek_ahead': 'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead '
-                           'forecast)',
-        '0_biweek_ahead': 'forecasted case counts for the timezero biweek (zero-step-ahead forecast)',
-        '1_biweek_ahead': 'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead '
-                          'forecast)',
-        '2_biweek_ahead': 'forecasted case counts for 2 biweeks subsequent to the timezero biweek (2-step ahead '
-                          'forecast)',
-        '3_biweek_ahead': 'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead '
-                          'forecast)',
-    }.items():
-        Target.objects.create(project=project, name=target_name, description=description)
+    for target_name, description, is_step_ahead, step_ahead_increment in (
+            ('-1_biweek_ahead',
+             'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead forecast)',
+             True, -1),
+            ('0_biweek_ahead',
+             'forecasted case counts for the timezero biweek (zero-step-ahead forecast)',
+             True, 0),
+            ('1_biweek_ahead',
+             'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead forecast)',
+             True, 1),
+            ('2_biweek_ahead',
+             'forecasted case counts for 2 biweeks subsequent to the timezero biweek (2-step ahead forecast)',
+             True, 2),
+            ('3_biweek_ahead',
+             'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
+             True, 3),
+    ):
+        Target.objects.create(project=project, name=target_name, description=description,
+                              is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment)
 
     # done
     return project

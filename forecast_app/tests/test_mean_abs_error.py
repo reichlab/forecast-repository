@@ -5,7 +5,7 @@ from pathlib import Path
 import pymmwr
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero
+from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
@@ -21,8 +21,15 @@ class MAETestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        Target.objects.create(project=cls.project, name="1 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=1)
+        Target.objects.create(project=cls.project, name="2 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=3)
+        Target.objects.create(project=cls.project, name="3 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=3)
+        Target.objects.create(project=cls.project, name="4 wk ahead", description="d",
+                              is_step_ahead=True, step_ahead_increment=4)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 
         # EW1-KoTstable-2017-01-17.csv -> EW1 in 2017:
