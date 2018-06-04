@@ -124,6 +124,17 @@ def make_thai_moph_project(project_name, template_path):
 
     # create Targets
     click.echo("  creating targets")
+    create_thai_targets(project)
+
+    # done
+    return project
+
+
+def create_thai_targets(project):
+    """
+    Creates Thai Targets for project. Returns a list of them.
+    """
+    targets = []
     for target_name, description, is_step_ahead, step_ahead_increment in (
             ('-1_biweek_ahead',
              'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead forecast)',
@@ -139,13 +150,10 @@ def make_thai_moph_project(project_name, template_path):
              True, 2),
             ('3_biweek_ahead',
              'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
-             True, 3),
-    ):
-        Target.objects.create(project=project, name=target_name, description=description,
-                              is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment)
-
-    # done
-    return project
+             True, 3)):
+        targets.append(Target.objects.create(project=project, name=target_name, description=description,
+                                             is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment))
+    return targets
 
 
 def make_model(project, model_owner, data_dir):

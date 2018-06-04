@@ -8,6 +8,7 @@ from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
 from utils.make_2016_2017_flu_contest_project import create_cdc_targets
+from utils.make_thai_moph_project import create_thai_targets
 
 
 class ProjectTestCase(TestCase):
@@ -317,3 +318,150 @@ class ProjectTestCase(TestCase):
     def test_visualization_targets(self):
         self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
                          sorted(self.project.visualization_targets()))
+
+
+    def test_reference_target_for_actual_values(self):
+        self.assertEqual(Target.objects.filter(project=self.project).filter(name='1 wk ahead').first(),
+                         self.project.reference_target_for_actual_values())
+
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project)
+        Target.objects.filter(project=project).filter(name='1 wk ahead').delete()
+        self.assertEqual(Target.objects.filter(project=project).filter(name='2 wk ahead').first(),
+                         project.reference_target_for_actual_values())
+
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_thai_targets(project)
+        self.assertEqual(Target.objects.filter(project=project).filter(name='0_biweek_ahead').first(),
+                         project.reference_target_for_actual_values())
+
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no Targets
+        self.assertIsNone(project.reference_target_for_actual_values())
+
+
+    def test_actual_truth(self):
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project)
+
+        # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped)
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 23))
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
+
+        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        exp_loc_tz_date_to_actual_val = {
+            'HHS Region 1': {
+                datetime.date(2017, 7, 30): [0.303222],
+                datetime.date(2017, 8, 6): [0.286054]},
+            'HHS Region 10': {
+                datetime.date(2017, 7, 30): [0.364459],
+                datetime.date(2017, 8, 6): [0.240377]},
+            'HHS Region 2': {
+                datetime.date(2017, 7, 30): [1.32634],
+                datetime.date(2017, 8, 6): [1.34713]},
+            'HHS Region 3': {
+                datetime.date(2017, 7, 30): [0.797999],
+                datetime.date(2017, 8, 6): [0.586092]},
+            'HHS Region 4': {
+                datetime.date(2017, 7, 30): [0.476357],
+                datetime.date(2017, 8, 6): [0.483647]},
+            'HHS Region 5': {
+                datetime.date(2017, 7, 30): [0.602327],
+                datetime.date(2017, 8, 6): [0.612967]},
+            'HHS Region 6': {
+                datetime.date(2017, 7, 30): [1.15229],
+                datetime.date(2017, 8, 6): [0.96867]},
+            'HHS Region 7': {
+                datetime.date(2017, 7, 30): [0.174172],
+                datetime.date(2017, 8, 6): [0.115888]},
+            'HHS Region 8': {
+                datetime.date(2017, 7, 30): [0.33984],
+                datetime.date(2017, 8, 6): [0.359646]},
+            'HHS Region 9': {
+                datetime.date(2017, 7, 30): [0.892872],
+                datetime.date(2017, 8, 6): [0.912778]},
+            'US National': {
+                datetime.date(2017, 7, 30): [0.73102],
+                datetime.date(2017, 8, 6): [0.688338]},
+        }
+        self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
+
+        # test 2 step ahead target first one available
+        project.targets.get(name='1 wk ahead').delete()
+        exp_loc_tz_date_to_actual_val = {
+            'HHS Region 1': {datetime.date(2017, 8, 6): [0.286054]},
+            'HHS Region 10': {datetime.date(2017, 8, 6): [0.240377]},
+            'HHS Region 2': {datetime.date(2017, 8, 6): [1.34713]},
+            'HHS Region 3': {datetime.date(2017, 8, 6): [0.586092]},
+            'HHS Region 4': {datetime.date(2017, 8, 6): [0.483647]},
+            'HHS Region 5': {datetime.date(2017, 8, 6): [0.612967]},
+            'HHS Region 6': {datetime.date(2017, 8, 6): [0.96867]},
+            'HHS Region 7': {datetime.date(2017, 8, 6): [0.115888]},
+            'HHS Region 8': {datetime.date(2017, 8, 6): [0.359646]},
+            'HHS Region 9': {datetime.date(2017, 8, 6): [0.912778]},
+            'US National': {datetime.date(2017, 8, 6): [0.688338]}
+        }
+        self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
+
+        # test no step ahead targets available
+        project.targets.all().delete()
+        self.assertEqual({}, project.location_timezero_date_to_actual_val())
+
+
+    def test_0_step_target(self):
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project)
+
+        # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped)
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 23))
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
+
+        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+
+        # change '1 wk ahead' to '0 wk ahead' in Target and truth data
+        target = project.targets.get(name='1 wk ahead')
+        target.name = '0 wk ahead'
+        target.step_ahead_increment = 0
+        target.save()
+
+        project.truth_data_qs().filter(target='1 wk ahead').update(target='0 wk ahead')
+
+        exp_loc_tz_date_to_actual_val = {
+            'HHS Region 1': {datetime.date(2017, 7, 23): [0.303222],
+                             datetime.date(2017, 7, 30): [0.286054],
+                             datetime.date(2017, 8, 6): [0.341359]},
+            'HHS Region 10': {datetime.date(2017, 7, 23): [0.364459],
+                              datetime.date(2017, 7, 30): [0.240377],
+                              datetime.date(2017, 8, 6): [0.126923]},
+            'HHS Region 2': {datetime.date(2017, 7, 23): [1.32634],
+                             datetime.date(2017, 7, 30): [1.34713],
+                             datetime.date(2017, 8, 6): [1.15738]},
+            'HHS Region 3': {datetime.date(2017, 7, 23): [0.797999],
+                             datetime.date(2017, 7, 30): [0.586092],
+                             datetime.date(2017, 8, 6): [0.611163]},
+            'HHS Region 4': {datetime.date(2017, 7, 23): [0.476357],
+                             datetime.date(2017, 7, 30): [0.483647],
+                             datetime.date(2017, 8, 6): [0.674289]},
+            'HHS Region 5': {datetime.date(2017, 7, 23): [0.602327],
+                             datetime.date(2017, 7, 30): [0.612967],
+                             datetime.date(2017, 8, 6): [0.637141]},
+            'HHS Region 6': {datetime.date(2017, 7, 23): [1.15229],
+                             datetime.date(2017, 7, 30): [0.96867],
+                             datetime.date(2017, 8, 6): [1.02289]},
+            'HHS Region 7': {datetime.date(2017, 7, 23): [0.174172],
+                             datetime.date(2017, 7, 30): [0.115888],
+                             datetime.date(2017, 8, 6): [0.112074]},
+            'HHS Region 8': {datetime.date(2017, 7, 23): [0.33984],
+                             datetime.date(2017, 7, 30): [0.359646],
+                             datetime.date(2017, 8, 6): [0.326402]},
+            'HHS Region 9': {datetime.date(2017, 7, 23): [0.892872],
+                             datetime.date(2017, 7, 30): [0.912778],
+                             datetime.date(2017, 8, 6): [1.012]},
+            'US National': {datetime.date(2017, 7, 23): [0.73102],
+                            datetime.date(2017, 7, 30): [0.688338],
+                            datetime.date(2017, 8, 6): [0.732049]}
+        }
+        self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())

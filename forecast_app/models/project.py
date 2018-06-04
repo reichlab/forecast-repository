@@ -364,6 +364,71 @@ class Project(ModelWithCDCData):
         self.save()
 
 
+    def reference_target_for_actual_values(self):
+        """
+        Returns the target in me that should act as the one to use when computing an 'actual' step-ahead value from
+        loaded truth data. We try to use the one that is the fewest step ahead steps available, starting with zero and
+        going up from there. Returns None if no appropriate targets were found, say if there are no targets, or only
+        negative ones.
+
+        _About calculating 'actual' step-head values from truth data_: Loaded truth data contains actual values by way
+        of the project's 'step ahead' targets. Some projects provide a zero step ahead target (whose
+        step_ahead_increment is 0), which is what we need to get the an actual value for a particular
+        [location][timezero_date] combination: Just index in to the desired timezero_date. However, other projects
+        provide only non-zero targets, e.g., '1 wk ahead' (whose step_ahead_increment is 1). In these cases we need a
+        'reference' target to use, which we then apply to move that many steps ahead in the project's TimeZeros (sorted
+        by date) to get the actual (0 step ahead) value for that timezero_date. For example, if we wan the actual value
+        for this truth data:
+
+            timezero   location       target       value
+            20170723   HHS Region 1   1 wk ahead   0.303222
+            20170730   HHS Region 1   1 wk ahead   0.286054
+
+        And if we are using '1 wk ahead' as our reference target, then to get the actual step-ahead value for the
+        [location][timezero_date] combination of ['20170730']['HHS Region 1'] we need to work backwards 1
+        step_ahead_increment to ['20170723']['HHS Region 1'] and use the '1 wk ahead' target's value, i.e., 0.303222. In
+        our example above, there is actual step-ahead value for 20170723.
+
+        Generally, the definition is:
+            actual[location][timezero_date] = truth[location][ref_target][timezero_date - ref_target_incr]
+        """
+        return Target.objects.filter(project=self) \
+            .filter(is_step_ahead=True) \
+            .filter(step_ahead_increment__gte=0) \
+            .order_by('step_ahead_increment') \
+            .first()
+
+
+    def location_timezero_date_to_actual_val(self):
+        """
+        Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:
+        loc_tz_date_to_actual_val[location][timezero_date] . Returns {} if no reference_target_for_actual_values().
+        """
+        from utils.mean_absolute_error import _loc_target_tz_date_to_truth  # avoid circular imports
+
+
+        ref_target = self.reference_target_for_actual_values()
+        if not ref_target:
+            return {}
+
+        # build tz_date_to_next_tz_date by zipping ordered TimeZeros, staggered by the ref_target's step_ahead_increment
+        timezeros = TimeZero.objects.filter(project=self) \
+            .order_by('timezero_date') \
+            .values_list('timezero_date', flat=True)
+        tz_date_to_next_tz_date = dict(zip(timezeros, timezeros[ref_target.step_ahead_increment:]))
+        loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(self)  # [location][target][timezero_date] -> truth
+        loc_tz_date_to_actual_val = defaultdict(dict)  # [location][timezero_date] -> actual
+        for location in loc_target_tz_date_to_truth:
+            for truth_tz_date in loc_target_tz_date_to_truth[location][ref_target.name]:
+                actual_value = loc_target_tz_date_to_truth[location][ref_target.name][truth_tz_date]
+                if truth_tz_date not in tz_date_to_next_tz_date:  # trying to project beyond last truth date
+                    continue
+
+                actual_tz_date = tz_date_to_next_tz_date[truth_tz_date]
+                loc_tz_date_to_actual_val[location][actual_tz_date] = actual_value
+        return loc_tz_date_to_actual_val
+
+
     @transaction.atomic
     def load_truth_data(self, truth_file_path, file_name=None):
         """
@@ -397,6 +462,8 @@ class Project(ModelWithCDCData):
         from forecast_app.models import TruthData  # avoid circular imports
 
 
+        # the template needs to be loaded b/c _load_truth_data_rows() validates truth data against template locations
+        # and targets
         if not self.is_template_loaded():
             raise RuntimeError("Template not loaded")
 
@@ -666,10 +733,6 @@ Project._meta.get_field('csv_filename').help_text = "CSV file name of this proje
 class Target(models.Model):
     """
     Represents a project's target - a description of the desired data in the each forecast's data file.
-
-    Re: validation of combinations of is_step_ahead and step_ahead_increment: Because Project.clean() is not passed the
-    original args, and b/c is not nullable and defaults to zero, we choose not to validate those two fields, unlike
-    TimeZero.is_season_start and TimeZero.season_name.
     """
     project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
 
