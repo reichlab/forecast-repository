@@ -61,26 +61,27 @@ def project_visualizations(request, project_pk):
 
     # None if no targets in project:
     location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_name, request)
+
     time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
                                           Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
-
-
-    # create the 'actual list "[a JavaScript] array of the same length as timePoints"
-    def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
-        return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
-                for tz_date in sorted(tz_date_to_actual.keys())]
-
-
-    location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                 for location, tz_date_to_actual
-                                 in project.location_timezero_date_to_actual_val().items()}
+    loc_tz_date_to_actual_val = project.location_timezero_date_to_actual_val()
+    location_to_actual_points = Project.location_to_actual_points(loc_tz_date_to_actual_val)
     location_to_max_val = project.location_to_max_val(season_name, project.visualization_targets())
+
+    # correct location_to_max_val to account for max actual values
+    location_to_actual_max_val = Project.location_to_actual_max_val(loc_tz_date_to_actual_val)  # might be None
+    for location in location_to_max_val:
+        if location_to_actual_max_val[location]:
+            location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])
+
+    locations = sorted(project.get_locations())
     return render(
         request,
         'project_visualizations.html',
         context={'project': project,
-                 'locations': sorted(list(project.get_locations())),
+                 'location': locations[0],
+                 'locations': locations,
                  'season_name': season_name,
                  'seasons': seasons,
                  'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
@@ -122,7 +123,6 @@ def project_scores(request, project_pk):
                                })
 
     locations = sorted(project.get_locations())
-    location = locations[-1]
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
                                 for forecast_model in project.models.all()}
     return render(
@@ -132,7 +132,7 @@ def project_scores(request, project_pk):
                  'model_pk_to_name_and_url': model_pk_to_name_and_url,
                  'season_name': season_name,
                  'seasons': seasons,
-                 'location': location,
+                 'location': locations[0],
                  'locations': locations,
                  'is_all_locations_have_rows': is_all_locations_have_rows,
                  'location_to_rows_and_mins': location_to_rows_and_mins,

@@ -399,6 +399,43 @@ class Project(ModelWithCDCData):
             .first()
 
 
+    @staticmethod
+    def location_to_actual_points(loc_tz_date_to_actual_val):
+        """
+        :return: view function that returns a dict mapping location to a list of actual values found in
+            loc_tz_date_to_actual_val, which is as returned by location_timezero_date_to_actual_val(). it is what the D3
+            component expects: "[a JavaScript] array of the same length as timePoints"
+        """
+
+
+        def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
+            return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
+                    for tz_date in sorted(tz_date_to_actual.keys())]
+
+
+        location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                     for location, tz_date_to_actual in loc_tz_date_to_actual_val.items()}
+        return location_to_actual_points
+
+
+    @staticmethod
+    def location_to_actual_max_val(loc_tz_date_to_actual_val):
+        """
+        :return: view function that returns a dict mapping each location to the maximum value found in
+            loc_tz_date_to_actual_val, which is as returned by location_timezero_date_to_actual_val()
+        """
+
+
+        def max_from_tz_date_to_actual_dict(tz_date_to_actual):
+            flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
+            return max(flat_values) if flat_values else None  # NB: None is arbitrary
+
+
+        location_to_actual_max = {location: max_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                  for location, tz_date_to_actual in loc_tz_date_to_actual_val.items()}
+        return location_to_actual_max
+
+
     def location_timezero_date_to_actual_val(self):
         """
         Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:

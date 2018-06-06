@@ -339,7 +339,7 @@ class ProjectTestCase(TestCase):
         self.assertIsNone(project.reference_target_for_actual_values())
 
 
-    def test_actual_truth(self):
+    def test_actual_values(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         create_cdc_targets(project)
 
@@ -397,6 +397,38 @@ class ProjectTestCase(TestCase):
                 datetime.date(2017, 8, 6): [0.688338]},
         }
         self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
+
+        # test location_to_actual_points()
+        exp_location_to_actual_points = {'HHS Region 1': [None, 0.303222, 0.286054],
+                                         'HHS Region 10': [None, 0.364459, 0.240377],
+                                         'HHS Region 2': [None, 1.32634, 1.34713],
+                                         'HHS Region 3': [None, 0.797999, 0.586092],
+                                         'HHS Region 4': [None, 0.476357, 0.483647],
+                                         'HHS Region 5': [None, 0.602327, 0.612967],
+                                         'HHS Region 6': [None, 1.15229, 0.96867],
+                                         'HHS Region 7': [None, 0.174172, 0.115888],
+                                         'HHS Region 8': [None, 0.33984, 0.359646],
+                                         'HHS Region 9': [None, 0.892872, 0.912778],
+                                         'US National': [None, 0.73102, 0.688338]}
+        self.assertEqual(exp_location_to_actual_points,
+                         Project.location_to_actual_points(exp_loc_tz_date_to_actual_val))
+
+        # test location_to_actual_max_val()
+        exp_location_to_actual_max_val = {'HHS Region 1': 0.303222, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
+                                          'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
+                                          'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
+                                          'HHS Region 9': 0.912778, 'US National': 0.73102}
+        self.assertEqual(exp_location_to_actual_max_val,
+                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_val))
+
+        del exp_loc_tz_date_to_actual_val['HHS Region 1'][datetime.date(2017, 7, 30)]  # leave only None
+        del exp_loc_tz_date_to_actual_val['HHS Region 1'][datetime.date(2017, 8, 6)]  # ""
+        exp_location_to_actual_max_val = {'HHS Region 1': None, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
+                                          'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
+                                          'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
+                                          'HHS Region 9': 0.912778, 'US National': 0.73102}
+        self.assertEqual(exp_location_to_actual_max_val,
+                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_val))
 
         # test 2 step ahead target first one available
         project.targets.get(name='1 wk ahead').delete()
