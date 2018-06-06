@@ -352,36 +352,47 @@ class ProjectTestCase(TestCase):
         project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
         exp_loc_tz_date_to_actual_val = {
             'HHS Region 1': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.303222],
                 datetime.date(2017, 8, 6): [0.286054]},
             'HHS Region 10': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.364459],
                 datetime.date(2017, 8, 6): [0.240377]},
             'HHS Region 2': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [1.32634],
                 datetime.date(2017, 8, 6): [1.34713]},
             'HHS Region 3': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.797999],
                 datetime.date(2017, 8, 6): [0.586092]},
             'HHS Region 4': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.476357],
                 datetime.date(2017, 8, 6): [0.483647]},
             'HHS Region 5': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.602327],
                 datetime.date(2017, 8, 6): [0.612967]},
             'HHS Region 6': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [1.15229],
                 datetime.date(2017, 8, 6): [0.96867]},
             'HHS Region 7': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.174172],
                 datetime.date(2017, 8, 6): [0.115888]},
             'HHS Region 8': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.33984],
                 datetime.date(2017, 8, 6): [0.359646]},
             'HHS Region 9': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.892872],
                 datetime.date(2017, 8, 6): [0.912778]},
             'US National': {
+                datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.73102],
                 datetime.date(2017, 8, 6): [0.688338]},
         }
@@ -390,17 +401,50 @@ class ProjectTestCase(TestCase):
         # test 2 step ahead target first one available
         project.targets.get(name='1 wk ahead').delete()
         exp_loc_tz_date_to_actual_val = {
-            'HHS Region 1': {datetime.date(2017, 8, 6): [0.286054]},
-            'HHS Region 10': {datetime.date(2017, 8, 6): [0.240377]},
-            'HHS Region 2': {datetime.date(2017, 8, 6): [1.34713]},
-            'HHS Region 3': {datetime.date(2017, 8, 6): [0.586092]},
-            'HHS Region 4': {datetime.date(2017, 8, 6): [0.483647]},
-            'HHS Region 5': {datetime.date(2017, 8, 6): [0.612967]},
-            'HHS Region 6': {datetime.date(2017, 8, 6): [0.96867]},
-            'HHS Region 7': {datetime.date(2017, 8, 6): [0.115888]},
-            'HHS Region 8': {datetime.date(2017, 8, 6): [0.359646]},
-            'HHS Region 9': {datetime.date(2017, 8, 6): [0.912778]},
-            'US National': {datetime.date(2017, 8, 6): [0.688338]}
+            'HHS Region 1': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.286054]},
+            'HHS Region 10': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.240377]},
+            'HHS Region 2': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [1.34713]},
+            'HHS Region 3': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.586092]},
+            'HHS Region 4': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.483647]},
+            'HHS Region 5': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.612967]},
+            'HHS Region 6': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.96867]},
+            'HHS Region 7': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.115888]},
+            'HHS Region 8': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.359646]},
+            'HHS Region 9': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.912778]},
+            'US National': {
+                datetime.date(2017, 7, 23): None,
+                datetime.date(2017, 7, 30): None,
+                datetime.date(2017, 8, 6): [0.688338]}
         }
         self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
 

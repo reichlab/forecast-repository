@@ -65,8 +65,17 @@ def project_visualizations(request, project_pk):
                                           Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
 
-    targets = project.visualization_targets()
-    location_to_max_val = project.location_to_max_val(season_name, targets)
+
+    # create the 'actual list "[a JavaScript] array of the same length as timePoints"
+    def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
+        return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
+                for tz_date in sorted(tz_date_to_actual.keys())]
+
+
+    location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                 for location, tz_date_to_actual
+                                 in project.location_timezero_date_to_actual_val().items()}
+    location_to_max_val = project.location_to_max_val(season_name, project.visualization_targets())
     return render(
         request,
         'project_visualizations.html',
@@ -75,6 +84,7 @@ def project_visualizations(request, project_pk):
                  'season_name': season_name,
                  'seasons': seasons,
                  'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
+                 'location_to_actual_points': json.dumps(location_to_actual_points),
                  'location_to_max_val': json.dumps(location_to_max_val),
                  'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
                  'y_axis_label': project.visualization_y_label(),

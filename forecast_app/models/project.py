@@ -417,15 +417,18 @@ class Project(ModelWithCDCData):
             .values_list('timezero_date', flat=True)
         tz_date_to_next_tz_date = dict(zip(timezeros, timezeros[ref_target.step_ahead_increment:]))
         loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(self)  # [location][target][timezero_date] -> truth
-        loc_tz_date_to_actual_val = defaultdict(dict)  # [location][timezero_date] -> actual
+        loc_tz_date_to_actual_val = {}  # [location][timezero_date] -> actual
         for location in loc_target_tz_date_to_truth:
+            # default to None so that any TimeZeros missing from loc_target_tz_date_to_truth are present:
+            location_dict = {timezero: None for timezero in timezeros}
+            loc_tz_date_to_actual_val[location] = location_dict
             for truth_tz_date in loc_target_tz_date_to_truth[location][ref_target.name]:
                 actual_value = loc_target_tz_date_to_truth[location][ref_target.name][truth_tz_date]
                 if truth_tz_date not in tz_date_to_next_tz_date:  # trying to project beyond last truth date
                     continue
 
                 actual_tz_date = tz_date_to_next_tz_date[truth_tz_date]
-                loc_tz_date_to_actual_val[location][actual_tz_date] = actual_value
+                location_dict[actual_tz_date] = actual_value
         return loc_tz_date_to_actual_val
 
 

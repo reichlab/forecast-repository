@@ -99,6 +99,9 @@
                     // set the plot data
                     var locationToData = {{location_to_flusight_data_dict|safe}};
                     var data = locationToData[location];
+                    var locationToActual = {{location_to_actual_points|safe}};
+                    var actual = locationToActual[location];
+                    data['actual'] = actual;
                     timeChart.plot(data);
                     timeChart.update(1);  // for some reason we have to do 1 before 0
                     timeChart.update(0);
