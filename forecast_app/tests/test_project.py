@@ -1,4 +1,5 @@
 import datetime
+from collections import defaultdict
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
@@ -19,11 +20,11 @@ class ProjectTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
         create_cdc_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
         cls.forecast = cls.forecast_model.load_forecast(
             Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
@@ -350,7 +351,7 @@ class ProjectTestCase(TestCase):
 
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
-        exp_loc_tz_date_to_actual_val = {
+        exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): [0.303222],
@@ -396,7 +397,7 @@ class ProjectTestCase(TestCase):
                 datetime.date(2017, 7, 30): [0.73102],
                 datetime.date(2017, 8, 6): [0.688338]},
         }
-        self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
+        self.assertEqual(exp_loc_tz_date_to_actual_vals, project.location_timezero_date_to_actual_vals(None))
 
         # test location_to_actual_points()
         exp_location_to_actual_points = {'HHS Region 1': [None, 0.303222, 0.286054],
@@ -411,7 +412,7 @@ class ProjectTestCase(TestCase):
                                          'HHS Region 9': [None, 0.892872, 0.912778],
                                          'US National': [None, 0.73102, 0.688338]}
         self.assertEqual(exp_location_to_actual_points,
-                         Project.location_to_actual_points(exp_loc_tz_date_to_actual_val))
+                         Project.location_to_actual_points(exp_loc_tz_date_to_actual_vals))
 
         # test location_to_actual_max_val()
         exp_location_to_actual_max_val = {'HHS Region 1': 0.303222, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
@@ -419,20 +420,20 @@ class ProjectTestCase(TestCase):
                                           'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
                                           'HHS Region 9': 0.912778, 'US National': 0.73102}
         self.assertEqual(exp_location_to_actual_max_val,
-                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_val))
+                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
 
-        del exp_loc_tz_date_to_actual_val['HHS Region 1'][datetime.date(2017, 7, 30)]  # leave only None
-        del exp_loc_tz_date_to_actual_val['HHS Region 1'][datetime.date(2017, 8, 6)]  # ""
+        del exp_loc_tz_date_to_actual_vals['HHS Region 1'][datetime.date(2017, 7, 30)]  # leave only None
+        del exp_loc_tz_date_to_actual_vals['HHS Region 1'][datetime.date(2017, 8, 6)]  # ""
         exp_location_to_actual_max_val = {'HHS Region 1': None, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
                                           'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
                                           'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
                                           'HHS Region 9': 0.912778, 'US National': 0.73102}
         self.assertEqual(exp_location_to_actual_max_val,
-                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_val))
+                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
 
         # test 2 step ahead target first one available
         project.targets.get(name='1 wk ahead').delete()
-        exp_loc_tz_date_to_actual_val = {
+        exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
                 datetime.date(2017, 7, 30): None,
@@ -478,11 +479,100 @@ class ProjectTestCase(TestCase):
                 datetime.date(2017, 7, 30): None,
                 datetime.date(2017, 8, 6): [0.688338]}
         }
-        self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
+        self.assertEqual(exp_loc_tz_date_to_actual_vals, project.location_timezero_date_to_actual_vals(None))
 
         # test no step ahead targets available
         project.targets.all().delete()
-        self.assertEqual({}, project.location_timezero_date_to_actual_val())
+        self.assertEqual({}, project.location_timezero_date_to_actual_vals(None))
+
+
+    def test_loc_target_tz_date_to_truth(self):
+        # at this point self.project.timezeros.all() = <QuerySet [(1, datetime.date(2017, 1, 1), None, False, None)]>,
+        # so add remaining TimeZeros so that truths are not skipped when loading mean-abs-error-truths-dups.csv
+        TimeZero.objects.create(project=self.project, timezero_date='2016-12-18')
+        TimeZero.objects.create(project=self.project, timezero_date='2016-12-25')
+        # we omit 20170108
+
+        self.project.delete_truth_data()
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
+
+        exp_loc_target_tz_date_to_truth = {
+            'HHS Region 1': {
+                '1 wk ahead': {
+                    datetime.date(2017, 1, 1): [1.52411],
+                    datetime.date(2016, 12, 18): [1.41861],
+                    datetime.date(2016, 12, 25): [1.57644],
+                },
+                '2 wk ahead': {
+                    datetime.date(2017, 1, 1): [1.73987],
+                    datetime.date(2016, 12, 18): [1.57644],
+                    datetime.date(2016, 12, 25): [1.52411],
+                },
+                '3 wk ahead': {
+                    datetime.date(2017, 1, 1): [2.06524],
+                    datetime.date(2016, 12, 18): [1.52411],
+                    datetime.date(2016, 12, 25): [1.73987],
+                },
+                '4 wk ahead': {
+                    datetime.date(2017, 1, 1): [2.51375],
+                    datetime.date(2016, 12, 18): [1.73987],
+                    datetime.date(2016, 12, 25): [2.06524],
+                }},
+            'US National': {
+                '1 wk ahead': {
+                    datetime.date(2017, 1, 1): [3.08492],
+                    datetime.date(2016, 12, 18): [3.36496, 9.0],  # NB two!
+                    datetime.date(2016, 12, 25): [3.0963],
+                },
+                '2 wk ahead': {
+                    datetime.date(2017, 1, 1): [3.51496],
+                    datetime.date(2016, 12, 18): [3.0963],
+                    datetime.date(2016, 12, 25): [3.08492],
+                },
+                '3 wk ahead': {
+                    datetime.date(2017, 1, 1): [3.8035],
+                    datetime.date(2016, 12, 18): [3.08492],
+                    datetime.date(2016, 12, 25): [3.51496],
+                },
+                '4 wk ahead': {
+                    datetime.date(2017, 1, 1): [4.45059],
+                    datetime.date(2016, 12, 18): [3.51496],
+                    datetime.date(2016, 12, 25): [3.8035],
+                }
+            }
+        }
+        _conv_loc_target_tz_date_to_truth_to_default_dict(exp_loc_target_tz_date_to_truth)
+        self.assertEqual(exp_loc_target_tz_date_to_truth,
+                         self.project.location_target_timezero_date_to_truth())
+
+
+    def test_location_timezero_date_to_actual_vals_multi_season(self):
+        # test multiple seasons
+        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project)
+
+        # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped),
+        # separated into two small seasons
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 23),
+                                is_season_start=True, season_name='season1')
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6),
+                                is_season_start=True, season_name='season2')
+        TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 13))
+
+        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+
+        # test location_target_timezero_date_to_truth() with above multiple seasons - done in this method b/c we've
+        # set up some seasons :-)
+        self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1a(),
+                         project.location_target_timezero_date_to_truth('season1'))
+
+        # test location_timezero_date_to_actual_vals() with above multiple seasons
+        self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1b(),
+                         project.location_timezero_date_to_actual_vals('season1'))
+        self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_2b(),
+                         project.location_timezero_date_to_actual_vals('season2'))
 
 
     def test_0_step_target(self):
@@ -505,7 +595,7 @@ class ProjectTestCase(TestCase):
 
         project.truth_data_qs().filter(target='1 wk ahead').update(target='0 wk ahead')
 
-        exp_loc_tz_date_to_actual_val = {
+        exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {datetime.date(2017, 7, 23): [0.303222],
                              datetime.date(2017, 7, 30): [0.286054],
                              datetime.date(2017, 8, 6): [0.341359]},
@@ -540,4 +630,278 @@ class ProjectTestCase(TestCase):
                             datetime.date(2017, 7, 30): [0.688338],
                             datetime.date(2017, 8, 6): [0.732049]}
         }
-        self.assertEqual(exp_loc_tz_date_to_actual_val, project.location_timezero_date_to_actual_val())
+        self.assertEqual(exp_loc_tz_date_to_actual_vals, project.location_timezero_date_to_actual_vals(None))
+
+
+# converts innermost dicts to defaultdicts, which are what location_target_timezero_date_to_truth() returns
+def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):
+    for location, target_tz_dict in loc_target_tz_date_to_truth.items():
+        for target, tz_date_truth in target_tz_dict.items():
+            loc_target_tz_date_to_truth[location][target] = defaultdict(list, tz_date_truth)
+
+
+def _exp_loc_tz_date_to_actual_vals_season_1a():
+    return {
+        'HHS Region 1': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.303222],
+                                        datetime.date(2017, 7, 30): [0.286054]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.286054],
+                                        datetime.date(2017, 7, 30): [0.341359]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [0.341359],
+                                        datetime.date(2017, 7, 30): [0.325429]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.325429],
+                                        datetime.date(2017, 7, 30): [0.339203]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171119.0],
+                                          datetime.date(2017, 7, 30): [20171119.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 10': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.364459],
+                                         datetime.date(2017, 7, 30): [0.240377]},
+                          '2 wk ahead': {datetime.date(2017, 7, 23): [0.240377],
+                                         datetime.date(2017, 7, 30): [0.126923]},
+                          '3 wk ahead': {datetime.date(2017, 7, 23): [0.126923],
+                                         datetime.date(2017, 7, 30): [0.241729]},
+                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.241729],
+                                         datetime.date(2017, 7, 30): [0.293072]},
+                          'Season onset': {datetime.date(2017, 7, 23): [20171217.0],
+                                           datetime.date(2017, 7, 30): [20171217.0]},
+                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                     datetime.date(2017, 7, 30): [None]},
+                          'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                               datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 2': {'1 wk ahead': {datetime.date(2017, 7, 23): [1.32634],
+                                        datetime.date(2017, 7, 30): [1.34713]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [1.34713],
+                                        datetime.date(2017, 7, 30): [1.15738]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [1.15738],
+                                        datetime.date(2017, 7, 30): [1.41483]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [1.41483],
+                                        datetime.date(2017, 7, 30): [1.32425]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
+                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 3': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.797999],
+                                        datetime.date(2017, 7, 30): [0.586092]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.586092],
+                                        datetime.date(2017, 7, 30): [0.611163]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [0.611163],
+                                        datetime.date(2017, 7, 30): [0.623141]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.623141],
+                                        datetime.date(2017, 7, 30): [0.781271]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171217.0],
+                                          datetime.date(2017, 7, 30): [20171217.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 4': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.476357],
+                                        datetime.date(2017, 7, 30): [0.483647]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.483647],
+                                        datetime.date(2017, 7, 30): [0.674289]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [0.674289],
+                                        datetime.date(2017, 7, 30): [0.782429]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.782429],
+                                        datetime.date(2017, 7, 30): [1.11294]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171105.0],
+                                          datetime.date(2017, 7, 30): [20171105.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 5': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.602327],
+                                        datetime.date(2017, 7, 30): [0.612967]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.612967],
+                                        datetime.date(2017, 7, 30): [0.637141]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [0.637141],
+                                        datetime.date(2017, 7, 30): [0.627954]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.627954],
+                                        datetime.date(2017, 7, 30): [0.724628]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
+                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 6': {'1 wk ahead': {datetime.date(2017, 7, 23): [1.15229],
+                                        datetime.date(2017, 7, 30): [0.96867]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.96867],
+                                        datetime.date(2017, 7, 30): [1.02289]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [1.02289],
+                                        datetime.date(2017, 7, 30): [1.66769]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [1.66769],
+                                        datetime.date(2017, 7, 30): [1.74834]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171126.0],
+                                          datetime.date(2017, 7, 30): [20171126.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 7': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.174172],
+                                        datetime.date(2017, 7, 30): [0.115888]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.115888],
+                                        datetime.date(2017, 7, 30): [0.112074]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [0.112074],
+                                        datetime.date(2017, 7, 30): [0.233776]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.233776],
+                                        datetime.date(2017, 7, 30): [0.142496]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
+                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 8': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.33984],
+                                        datetime.date(2017, 7, 30): [0.359646]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.359646],
+                                        datetime.date(2017, 7, 30): [0.326402]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [0.326402],
+                                        datetime.date(2017, 7, 30): [0.419146]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.419146],
+                                        datetime.date(2017, 7, 30): [0.714684]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171210.0],
+                                          datetime.date(2017, 7, 30): [20171210.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'HHS Region 9': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.892872],
+                                        datetime.date(2017, 7, 30): [0.912778]},
+                         '2 wk ahead': {datetime.date(2017, 7, 23): [0.912778],
+                                        datetime.date(2017, 7, 30): [1.012]},
+                         '3 wk ahead': {datetime.date(2017, 7, 23): [1.012],
+                                        datetime.date(2017, 7, 30): [1.26206]},
+                         '4 wk ahead': {datetime.date(2017, 7, 23): [1.26206],
+                                        datetime.date(2017, 7, 30): [1.28077]},
+                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
+                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                    datetime.date(2017, 7, 30): [None]},
+                         'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                              datetime.date(2017, 7, 30): [None]}}
+        ,
+        'US National': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.73102],
+                                       datetime.date(2017, 7, 30): [0.688338]},
+                        '2 wk ahead': {datetime.date(2017, 7, 23): [0.688338],
+                                       datetime.date(2017, 7, 30): [0.732049]},
+                        '3 wk ahead': {datetime.date(2017, 7, 23): [0.732049],
+                                       datetime.date(2017, 7, 30): [0.911641]},
+                        '4 wk ahead': {datetime.date(2017, 7, 23): [0.911641],
+                                       datetime.date(2017, 7, 30): [1.02105]},
+                        'Season onset': {datetime.date(2017, 7, 23): [20171119.0],
+                                         datetime.date(2017, 7, 30): [20171119.0]},
+                        'Season peak percentage': {datetime.date(2017, 7, 23): [None],
+                                                   datetime.date(2017, 7, 30): [None]},
+                        'Season peak week': {datetime.date(2017, 7, 23): [None],
+                                             datetime.date(2017, 7, 30): [None]}}
+    }
+
+
+def _exp_loc_tz_date_to_actual_vals_season_1b():
+    return {
+        'HHS Region 1': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.303222],
+        },
+        'HHS Region 10': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.364459],
+        },
+        'HHS Region 2': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [1.32634],
+        },
+        'HHS Region 3': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.797999],
+        },
+        'HHS Region 4': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.476357],
+        },
+        'HHS Region 5': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.602327],
+        },
+        'HHS Region 6': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [1.15229],
+        },
+        'HHS Region 7': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.174172],
+        },
+        'HHS Region 8': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.33984],
+        },
+        'HHS Region 9': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.892872],
+        },
+        'US National': {
+            datetime.date(2017, 7, 23): None,
+            datetime.date(2017, 7, 30): [0.73102],
+        },
+    }
+
+
+def _exp_loc_tz_date_to_actual_vals_season_2b():
+    return {
+        'HHS Region 1': {
+            datetime.date(2017, 8, 6): [0.286054],
+            datetime.date(2017, 8, 13): [0.341359],
+        },
+        'HHS Region 10': {
+            datetime.date(2017, 8, 6): [0.240377],
+            datetime.date(2017, 8, 13): [0.126923],
+        },
+        'HHS Region 2': {
+            datetime.date(2017, 8, 6): [1.34713],
+            datetime.date(2017, 8, 13): [1.15738],
+        },
+        'HHS Region 3': {
+            datetime.date(2017, 8, 6): [0.586092],
+            datetime.date(2017, 8, 13): [0.611163],
+        },
+        'HHS Region 4': {
+            datetime.date(2017, 8, 6): [0.483647],
+            datetime.date(2017, 8, 13): [0.674289],
+        },
+        'HHS Region 5': {
+            datetime.date(2017, 8, 6): [0.612967],
+            datetime.date(2017, 8, 13): [0.637141],
+        },
+        'HHS Region 6': {
+            datetime.date(2017, 8, 6): [0.96867],
+            datetime.date(2017, 8, 13): [1.02289],
+        },
+        'HHS Region 7': {
+            datetime.date(2017, 8, 6): [0.115888],
+            datetime.date(2017, 8, 13): [0.112074],
+        },
+        'HHS Region 8': {
+            datetime.date(2017, 8, 6): [0.359646],
+            datetime.date(2017, 8, 13): [0.326402],
+        },
+        'HHS Region 9': {
+            datetime.date(2017, 8, 6): [0.912778],
+            datetime.date(2017, 8, 13): [1.012],
+        },
+        'US National': {
+            datetime.date(2017, 8, 6): [0.688338],
+            datetime.date(2017, 8, 13): [0.732049],
+        },
+    }

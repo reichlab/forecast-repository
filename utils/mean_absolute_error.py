@@ -1,5 +1,4 @@
 import logging
-from collections import defaultdict
 from itertools import groupby
 
 from django.db import connection
@@ -39,7 +38,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(
         project, project.models.all(), season_name)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
-    loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(project)
+    loc_target_tz_date_to_truth = project.location_target_timezero_date_to_truth(season_name)
     location_to_mean_abs_error_rows = {
         location: _mean_abs_error_rows_for_project(project, targets, location, model_id_to_point_values_dict,
                                                    model_id_to_forecast_id_tz_date_csv_fname,
@@ -157,27 +156,6 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
 
     return (sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)) if cdc_file_name_to_abs_error \
         else None
-
-
-def _loc_target_tz_date_to_truth(project):
-    """
-    :return: a dict that collects all my truth values, organized such that mean_absolute_error() can access them
-        quickly, as in: true_value = loc_target_tz_date_to_truth[location][target][timezero_date]
-    """
-    loc_target_tz_date_to_truth = {}
-    for location, loc_target_tz_grouper in groupby(
-            project.truth_data_qs()
-                    .order_by('location', 'target', 'time_zero')
-                    .values_list('location', 'target', 'time_zero__timezero_date', 'value'),
-            key=lambda _: _[0]):
-        target_tz_date_to_truth = {}
-        loc_target_tz_date_to_truth[location] = target_tz_date_to_truth
-        for target, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
-            tz_date_to_truth = defaultdict(list)
-            target_tz_date_to_truth[target] = tz_date_to_truth
-            for _, _, tz_date, value in target_tz_grouper:
-                tz_date_to_truth[tz_date].append(value)
-    return loc_target_tz_date_to_truth
 
 
 def _model_id_to_forecast_id_tz_date_csv_fname(project, forecast_models, season_name):

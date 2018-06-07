@@ -40,14 +40,14 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
         https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models , which
         has then been normalized via normalize_filenames_cdc_flusight_ensemble.py .
     """
-    project_name = 'CDC FluSight ensemble (2017-2018)'
+    project_name = 'CDC FluSight ensemble'
     project_description = "Guidelines and forecasts for a collaborative U.S. influenza forecasting project. " \
                           "http://flusightnetwork.io/"
     home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble'
     core_data = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
     _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,
                                home_url, None, core_data,
-                               Path('utils/ensemble-truth-table-script/truths-2010-through-2016.csv'))
+                               Path('utils/ensemble-truth-table-script/truths-2010-through-2017.csv'))
 
 
 def _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,

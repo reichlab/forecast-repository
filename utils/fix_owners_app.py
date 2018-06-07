@@ -43,7 +43,7 @@ def fix_owners_app():
         ('CDC Flu challenge (2016-2017)', 'nick', ('cornell',)),
         ('2017-2018 CDC Flu contest', 'nick', ('cornell',)),
         ('Impetus Province Forecasts', 'nick', ('nectec', 'cornell',)),
-        ('CDC FluSight ensemble (2017-2018)', 'nick', ('cornell',))]:
+        ('CDC FluSight ensemble', 'nick', ('cornell',))]:
         click.echo("* project: '{}', '{}', {}".format(project_name, owner_name, model_owners))
         project = Project.objects.filter(name=project_name).first()
         if not project:

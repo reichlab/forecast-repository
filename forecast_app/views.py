@@ -19,7 +19,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
 from utils.cdc import CDC_CONFIG_DICT
-from utils.flusight import flusight_data_dicts_for_models
+from utils.flusight import flusight_location_to_data_dict
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
 
@@ -60,17 +60,17 @@ def project_visualizations(request, project_pk):
     season_name = _param_val_from_request(request, 'season_name', seasons, True)
 
     # None if no targets in project:
-    location_to_flusight_data_dict = flusight_data_dicts_for_models(project.models.all(), season_name, request)
+    location_to_flusight_data_dict = flusight_location_to_data_dict(project.models.all(), season_name, request)
 
     time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
                                           Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
-    loc_tz_date_to_actual_val = project.location_timezero_date_to_actual_val()
-    location_to_actual_points = Project.location_to_actual_points(loc_tz_date_to_actual_val)
+    loc_tz_date_to_actual_vals = project.location_timezero_date_to_actual_vals(season_name)
+    location_to_actual_points = Project.location_to_actual_points(loc_tz_date_to_actual_vals)
     location_to_max_val = project.location_to_max_val(season_name, project.visualization_targets())
 
     # correct location_to_max_val to account for max actual values
-    location_to_actual_max_val = Project.location_to_actual_max_val(loc_tz_date_to_actual_val)  # might be None
+    location_to_actual_max_val = Project.location_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
     for location in location_to_max_val:
         if location_to_actual_max_val[location]:
             location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])

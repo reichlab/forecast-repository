@@ -8,7 +8,7 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
-from utils.flusight import flusight_data_dicts_for_models
+from utils.flusight import flusight_location_to_data_dict
 from utils.make_2016_2017_flu_contest_project import create_cdc_targets
 
 
@@ -37,7 +37,7 @@ class FlusightTestCase(TestCase):
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
-            flusight_data_dicts_for_models([forecast_model2, forecast_model1], None)
+            flusight_location_to_data_dict([forecast_model2, forecast_model1], None)
         self.assertIn('Not all models are in the same Project', str(context.exception))
 
         # we treat the json file as a Django's template b/c mode lIDs are hard-coded, but can vary depending on the
@@ -47,7 +47,7 @@ class FlusightTestCase(TestCase):
             exp_json_template = Template(exp_json_template_str)
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model1.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1], None)
+            act_flusight_data_dict = flusight_location_to_data_dict([forecast_model1], None)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 
@@ -72,7 +72,7 @@ class FlusightTestCase(TestCase):
             exp_json_template = Template(exp_json_template_str)
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model], '2017')
+            act_flusight_data_dict = flusight_location_to_data_dict([forecast_model], '2017')
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 
@@ -104,5 +104,5 @@ class FlusightTestCase(TestCase):
             exp_json_str = exp_json_template.render(Context({'forecast_model1_id': forecast_model1.id,
                                                              'forecast_model2_id': forecast_model2.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_data_dicts_for_models([forecast_model1, forecast_model2], None)
+            act_flusight_data_dict = flusight_location_to_data_dict([forecast_model1, forecast_model2], None)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)

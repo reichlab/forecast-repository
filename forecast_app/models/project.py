@@ -1,10 +1,10 @@
 import csv
 import datetime
 import io
-import itertools
 import logging
 import math
 from collections import defaultdict
+from itertools import groupby, product
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -302,7 +302,7 @@ class Project(ModelWithCDCData):
 
     def visualization_targets(self):
         """
-        :return: list of Target names that can be used for flusight_data_dicts_for_models() and mean_absolute_error()
+        :return: list of Target names that can be used for flusight_location_to_data_dict() and mean_absolute_error()
             (for the meantime) calls. returns None if no config_dict
         """
         return [target.name for target in Target.objects.filter(project=self).filter(is_step_ahead=True)]
@@ -310,7 +310,7 @@ class Project(ModelWithCDCData):
 
     def visualization_y_label(self):
         """
-        :return: Y axis label used by flusight_data_dicts_for_models(). returns None if no config_dict
+        :return: Y axis label used by flusight_location_to_data_dict(). returns None if no config_dict
         """
         return self.config_dict and self.config_dict['visualization-y-label']
 
@@ -399,74 +399,30 @@ class Project(ModelWithCDCData):
             .first()
 
 
-    @staticmethod
-    def location_to_actual_points(loc_tz_date_to_actual_val):
+    def location_target_timezero_date_to_truth(self, season_name=None):
         """
-        :return: view function that returns a dict mapping location to a list of actual values found in
-            loc_tz_date_to_actual_val, which is as returned by location_timezero_date_to_actual_val(). it is what the D3
-            component expects: "[a JavaScript] array of the same length as timePoints"
+        Returns my truth values as a dict that's organized for easy access, as in:
+        location_target_timezero_date_to_truth[location][target][timezero_date]. Only includes data from season_name,
+        which is None if I have no seasons.
         """
-
-
-        def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
-            return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
-                    for tz_date in sorted(tz_date_to_actual.keys())]
-
-
-        location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                     for location, tz_date_to_actual in loc_tz_date_to_actual_val.items()}
-        return location_to_actual_points
-
-
-    @staticmethod
-    def location_to_actual_max_val(loc_tz_date_to_actual_val):
-        """
-        :return: view function that returns a dict mapping each location to the maximum value found in
-            loc_tz_date_to_actual_val, which is as returned by location_timezero_date_to_actual_val()
-        """
-
-
-        def max_from_tz_date_to_actual_dict(tz_date_to_actual):
-            flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
-            return max(flat_values) if flat_values else None  # NB: None is arbitrary
-
-
-        location_to_actual_max = {location: max_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                  for location, tz_date_to_actual in loc_tz_date_to_actual_val.items()}
-        return location_to_actual_max
-
-
-    def location_timezero_date_to_actual_val(self):
-        """
-        Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:
-        loc_tz_date_to_actual_val[location][timezero_date] . Returns {} if no reference_target_for_actual_values().
-        """
-        from utils.mean_absolute_error import _loc_target_tz_date_to_truth  # avoid circular imports
-
-
-        ref_target = self.reference_target_for_actual_values()
-        if not ref_target:
-            return {}
-
-        # build tz_date_to_next_tz_date by zipping ordered TimeZeros, staggered by the ref_target's step_ahead_increment
-        timezeros = TimeZero.objects.filter(project=self) \
-            .order_by('timezero_date') \
-            .values_list('timezero_date', flat=True)
-        tz_date_to_next_tz_date = dict(zip(timezeros, timezeros[ref_target.step_ahead_increment:]))
-        loc_target_tz_date_to_truth = _loc_target_tz_date_to_truth(self)  # [location][target][timezero_date] -> truth
-        loc_tz_date_to_actual_val = {}  # [location][timezero_date] -> actual
-        for location in loc_target_tz_date_to_truth:
-            # default to None so that any TimeZeros missing from loc_target_tz_date_to_truth are present:
-            location_dict = {timezero: None for timezero in timezeros}
-            loc_tz_date_to_actual_val[location] = location_dict
-            for truth_tz_date in loc_target_tz_date_to_truth[location][ref_target.name]:
-                actual_value = loc_target_tz_date_to_truth[location][ref_target.name][truth_tz_date]
-                if truth_tz_date not in tz_date_to_next_tz_date:  # trying to project beyond last truth date
-                    continue
-
-                actual_tz_date = tz_date_to_next_tz_date[truth_tz_date]
-                location_dict[actual_tz_date] = actual_value
-        return loc_tz_date_to_actual_val
+        loc_target_tz_date_to_truth = {}
+        query_set = self.truth_data_qs() \
+            .order_by('location', 'target') \
+            .values_list('location', 'target', 'time_zero__timezero_date', 'value')
+        if season_name:
+            season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
+            query_set = query_set \
+                .filter(time_zero__timezero_date__gte=season_start_date) \
+                .filter(time_zero__timezero_date__lte=season_end_date)
+        for location, loc_target_tz_grouper in groupby(query_set, key=lambda _: _[0]):
+            target_tz_date_to_truth = {}
+            loc_target_tz_date_to_truth[location] = target_tz_date_to_truth
+            for target, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
+                tz_date_to_truth = defaultdict(list)
+                target_tz_date_to_truth[target] = tz_date_to_truth
+                for _, _, tz_date, value in target_tz_grouper:
+                    tz_date_to_truth[tz_date].append(value)
+        return loc_target_tz_date_to_truth
 
 
     @transaction.atomic
@@ -601,6 +557,100 @@ class Project(ModelWithCDCData):
 
         # done
         return rows
+
+
+    #
+    # actual data-related functions
+    #
+
+    @staticmethod
+    def location_to_actual_points(loc_tz_date_to_actual_vals):
+        """
+        :return: view function that returns a dict mapping location to a list of actual values found in
+            loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals(). it is what the D3
+            component expects: "[a JavaScript] array of the same length as timePoints"
+        """
+
+
+        def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
+            return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
+                    for tz_date in sorted(tz_date_to_actual.keys())]
+
+
+        location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                     for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+        return location_to_actual_points
+
+
+    @staticmethod
+    def location_to_actual_max_val(loc_tz_date_to_actual_vals):
+        """
+        :return: view function that returns a dict mapping each location to the maximum value found in
+            loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals()
+        """
+
+
+        def max_from_tz_date_to_actual_dict(tz_date_to_actual):
+            flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
+            return max(flat_values) if flat_values else None  # NB: None is arbitrary
+
+
+        location_to_actual_max = {location: max_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                  for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+        return location_to_actual_max
+
+
+    def location_timezero_date_to_actual_vals(self, season_name):
+        """
+        Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:
+        location_timezero_date_to_actual_vals[location][timezero_date] . Returns {} if no
+        reference_target_for_actual_values().
+        """
+
+
+        def is_tz_date_in_season(timezero_date):
+            return (timezero_date >= season_start_date) and (timezero_date <= season_end_date)
+
+
+        ref_target = self.reference_target_for_actual_values()
+        if not ref_target:
+            return {}
+
+        if season_name:
+            season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
+
+        # build tz_date_to_next_tz_date by zipping ordered TimeZeros, staggered by the ref_target's step_ahead_increment
+        timezero_qs = TimeZero.objects.filter(project=self) \
+            .order_by('timezero_date')
+        # if season_name:
+        #     season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
+        #     timezero_qs = timezero_qs \
+        #         .filter(timezero_date__gte=season_start_date) \
+        #         .filter(timezero_date__lte=season_end_date)
+        tz_dates = timezero_qs.values_list('timezero_date', flat=True)
+        tz_date_to_next_tz_date = dict(zip(tz_dates, tz_dates[ref_target.step_ahead_increment:]))
+
+        # get loc_target_tz_date_to_truth(). we use all seasons b/c might need TimeZero from a previous season to get
+        # this one. recall: [location][target][timezero_date] -> truth
+        loc_target_tz_date_to_truth = self.location_target_timezero_date_to_truth()
+        loc_tz_date_to_actual_vals = {}  # [location][timezero_date] -> actual
+        for location in loc_target_tz_date_to_truth:
+            # default to None so that any TimeZeros missing from loc_target_tz_date_to_truth are present:
+            location_dict = {}
+            for timezero in tz_dates:
+                if not season_name or is_tz_date_in_season(timezero):
+                    location_dict[timezero] = None
+            loc_tz_date_to_actual_vals[location] = location_dict
+            for truth_tz_date in loc_target_tz_date_to_truth[location][ref_target.name]:
+                if truth_tz_date not in tz_date_to_next_tz_date:  # trying to project beyond last truth date
+                    continue
+
+                actual_tz_date = tz_date_to_next_tz_date[truth_tz_date]
+                truth_value = loc_target_tz_date_to_truth[location][ref_target.name][truth_tz_date]
+                is_actual_in_season = is_tz_date_in_season(actual_tz_date) if season_name else True
+                if is_actual_in_season:
+                    location_dict[actual_tz_date] = truth_value
+        return loc_tz_date_to_actual_vals
 
 
     #
@@ -755,7 +805,7 @@ class Project(ModelWithCDCData):
                                        .format(self.csv_filename, template_location, template_target))
 
         # test that every target exists in every location
-        expected_location_template_pairs = set(itertools.product(template_locations, found_targets))
+        expected_location_template_pairs = set(product(template_locations, found_targets))
         if location_template_pairs != expected_location_template_pairs:
             raise RuntimeError("Target(s) was not found in every location. csv_filename={}, "
                                "missing location, target: {}"

@@ -12,7 +12,7 @@ from forecast_app.models.data import CDCData
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
-def flusight_data_dicts_for_models(forecast_models, season_name, request=None):
+def flusight_location_to_data_dict(forecast_models, season_name, request=None):
     """
     Returns a dict containing forecast_model's point forecasts for all locations in season_name, structured
     according to https://github.com/reichlab/d3-foresight . Keys are the locations, and values are the individual data
