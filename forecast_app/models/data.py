@@ -229,17 +229,10 @@ class ModelWithCDCData(models.Model):
         # - ORDER BY: location and target make output alphabetical. it also ensures groupby() will work
         # - row_type DESC ensures CDCData.POINT_ROW_TYPE comes before CDCData.BIN_ROW_TYPE - a requirement of below
         # - id ASC ensures bins are ordered same as original csv file
-        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        sql = """
-            SELECT location, target, row_type, unit, bin_start_incl, bin_end_notincl, value
-            FROM {cdcdata_table_name}
-            WHERE {model_name}_id = %s
-            ORDER BY location, target, row_type DESC, id ASC;
-        """.format(cdcdata_table_name=self.cdc_data_class._meta.db_table,
-                   model_name=self.__class__._meta.model_name)  # NB: sorted so groupby() will work
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [self.pk])
-            return cursor.fetchall()
+        rows = self.cdcdata_set \
+            .order_by('location', 'target', '-row_type', 'id') \
+            .values_list('location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value')
+        return rows
 
 
     def get_location_dicts_download_format(self):

@@ -1,9 +1,7 @@
 import logging
 from itertools import groupby
 
-from django.db import connection
-
-from forecast_app.models import ForecastData, Forecast, ForecastModel, TimeZero
+from forecast_app.models import ForecastData, Forecast
 from forecast_app.models.data import CDCData
 
 
@@ -165,27 +163,13 @@ def _model_id_to_forecast_id_tz_date_csv_fname(project, forecast_models, season_
     when simply iterating like so: `for forecast in forecast_model.forecasts.all(): ...`
     """
     # get the rows, ordered so we can groupby()
-    sql = """
-        SELECT fm.id, f.id, tz.timezero_date, f.csv_filename
-        FROM {forecastmodel_table_name} fm
-          JOIN {forecast_table_name} f on fm.id = f.forecast_model_id
-          JOIN {timezero_table_name} tz ON f.time_zero_id = tz.id
-        WHERE fm.id IN ({model_ids_query_string})
-              AND %s <= tz.timezero_date
-              AND tz.timezero_date <= %s
-        ORDER BY fm.id;
-    """.format(forecastmodel_table_name=ForecastModel._meta.db_table,
-               forecast_table_name=Forecast._meta.db_table,
-               timezero_table_name=TimeZero._meta.db_table,
-               model_ids_query_string=', '.join(['%s'] * len(forecast_models)))
-    with connection.cursor() as cursor:
-        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-        forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
-        logger.debug("_model_id_to_forecast_id_tz_date_csv_fname(): calling: execute(): {}, {}".format(
-            sql,
-            [*forecast_model_ids, season_start_date, season_end_date]))
-        cursor.execute(sql, [*forecast_model_ids, season_start_date, season_end_date])
-        rows = cursor.fetchall()
+    season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+    rows = Forecast.objects \
+        .filter(time_zero__timezero_date__gte=season_start_date) \
+        .filter(time_zero__timezero_date__lte=season_end_date) \
+        .filter(forecast_model__in=forecast_models) \
+        .order_by('forecast_model__id') \
+        .values_list('forecast_model__id', 'id', 'time_zero__timezero_date', 'csv_filename')
 
     # build the dict
     logger.debug("_model_id_to_forecast_id_tz_date_csv_fname(): building model_id_to_forecast_id_tz_date_csv_fname")
@@ -207,35 +191,17 @@ def _model_id_to_point_values_dict(project, season_name, targets):
     - location_to_point_dicts: {location -> target_to_points_dicts}
     - target_to_points_dicts: {target -> point_value}
     """
-    forecast_models = project.models.all()
-
     # get the rows, ordered so we can groupby()
-    sql = """
-        SELECT fm.id, f.id, fd.location, fd.target, fd.value
-        FROM {forecast_data_table_name} fd
-          JOIN {forecast_table_name} f ON fd.forecast_id = f.id
-          JOIN {timezero_table_name} tz ON f.time_zero_id = tz.id
-          JOIN {forecastmodel_table_name} fm ON f.forecast_model_id = fm.id
-        WHERE fm.id IN ({model_ids_query_string})
-              AND fd.row_type = %s
-              AND fd.target IN ({target_query_string})
-              AND %s <= tz.timezero_date
-              AND tz.timezero_date <= %s
-        ORDER BY fm.id, f.id, fd.location, fd.target;
-    """.format(forecast_data_table_name=ForecastData._meta.db_table,
-               forecast_table_name=Forecast._meta.db_table,
-               timezero_table_name=TimeZero._meta.db_table,
-               forecastmodel_table_name=ForecastModel._meta.db_table,
-               model_ids_query_string=', '.join(['%s'] * len(forecast_models)),
-               target_query_string=', '.join(['%s'] * len(targets)))
-    with connection.cursor() as cursor:
-        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-        forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
-        logger.debug("_model_id_to_point_values_dict(): calling: execute(): {}, {}".format(
-            sql,
-            [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date]))
-        cursor.execute(sql, [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date])
-        rows = cursor.fetchall()
+    season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+    logger.debug("_model_id_to_point_values_dict(): calling: execute()")
+    rows = ForecastData.objects \
+        .filter(row_type=CDCData.POINT_ROW_TYPE) \
+        .filter(target__in=targets) \
+        .filter(forecast__forecast_model__project=project) \
+        .filter(forecast__time_zero__timezero_date__gte=season_start_date) \
+        .filter(forecast__time_zero__timezero_date__lte=season_end_date) \
+        .order_by('forecast__forecast_model__id', 'forecast__id', 'location', 'target') \
+        .values_list('forecast__forecast_model__id', 'forecast__id', 'location', 'target', 'value')
 
     # build the dict
     logger.debug("_model_id_to_point_values_dict(): building models_to_point_values_dicts")

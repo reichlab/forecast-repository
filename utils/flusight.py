@@ -1,11 +1,7 @@
 from itertools import groupby
 
-from django.db import connection
-
-from forecast_app.models import ForecastData, Forecast, TimeZero, ForecastModel
+from forecast_app.models import ForecastData, ForecastModel
 from forecast_app.models.data import CDCData
-
-
 #
 # This file defines functions related to the Flusight D3 component at https://github.com/reichlab/d3-foresight
 #
@@ -138,29 +134,15 @@ def _model_to_location_timezero_points(project, forecast_models, season_name, ta
     # - ORDER BY ensures groupby() will work
     # - we don't need to select targets b/c forecast ids have 1:1 correspondence to TimeZeros
     # - "" b/c targets are needed only for ordering
-    sql = """
-        SELECT fm.id, fd.location, tz.timezero_date, fd.value
-        FROM {forecast_data_table_name} fd
-          JOIN {forecast_table_name} f ON fd.forecast_id = f.id
-          JOIN {timezero_table_name} tz ON f.time_zero_id = tz.id
-          JOIN {forecastmodel_table_name} fm ON f.forecast_model_id = fm.id
-        WHERE fm.id IN ({model_ids_query_string})
-              AND fd.row_type = %s
-              AND fd.target IN ({target_query_string})
-              AND %s <= tz.timezero_date
-              AND tz.timezero_date <= %s
-        ORDER BY fm.id, fd.location, tz.timezero_date, fd.target;
-    """.format(forecast_data_table_name=ForecastData._meta.db_table,
-               forecast_table_name=Forecast._meta.db_table,
-               timezero_table_name=TimeZero._meta.db_table,
-               forecastmodel_table_name=ForecastModel._meta.db_table,
-               model_ids_query_string=', '.join(['%s'] * len(forecast_models)),
-               target_query_string=', '.join(['%s'] * len(targets)))
-    with connection.cursor() as cursor:
-        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-        forecast_model_ids = [forecast_model.pk for forecast_model in forecast_models]
-        cursor.execute(sql, [*forecast_model_ids, CDCData.POINT_ROW_TYPE, *targets, season_start_date, season_end_date])
-        rows = cursor.fetchall()
+    season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+    rows = ForecastData.objects \
+        .filter(forecast__forecast_model__in=forecast_models) \
+        .filter(row_type=CDCData.POINT_ROW_TYPE) \
+        .filter(target__in=targets) \
+        .filter(forecast__time_zero__timezero_date__gte=season_start_date) \
+        .filter(forecast__time_zero__timezero_date__lte=season_end_date) \
+        .order_by('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'target') \
+        .values_list('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'value')
 
     # build the dict
     model_to_location_timezero_points = {}  # return value. filled next

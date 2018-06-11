@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import connection
+from django.db.models import Count
 from django.forms import inlineformset_factory
 from django.http import HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
@@ -377,26 +377,18 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     @staticmethod
     def timezeros_to_num_forecasts(project):
         """
-        :return: a dict that maps project's TimeZeros to # Forecasts for each. note that we use direct SQL instead of
-            the ORM b/c the implicit ORM joins were very very slow
+        :return: a dict that maps project's TimeZeros to # Forecasts for each
         """
-        tz_to_num_forecasts = {}
-        sql = """
-            SELECT tz.id, count(f.id)
-            FROM {timezero_table_name} tz
-              LEFT JOIN {forecast_table_name} f ON tz.id = f.time_zero_id
-            WHERE tz.project_id = %s
-            GROUP BY tz.id
-            ORDER BY tz.timezero_date;
-        """.format(timezero_table_name=TimeZero._meta.db_table,
-                   forecast_table_name=Forecast._meta.db_table)
-        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [project.pk])
-            rows = cursor.fetchall()
-            for timezero_id, num_forecasts in rows:
-                timezero = TimeZero.objects.get(pk=timezero_id)
-                tz_to_num_forecasts[timezero] = num_forecasts
+        rows = Forecast.objects.filter(forecast_model__project=project) \
+            .values('time_zero__id') \
+            .annotate(tz_count=Count('id')) \
+            .order_by('time_zero__timezero_date')  # NB: Count() param doesn't matter
+
+        # initialization is a work-around for missing LEFT JOIN items:
+        tz_to_num_forecasts = {time_zero: 0 for time_zero in project.timezeros.all()}
+        for row in rows:
+            timezero = TimeZero.objects.get(pk=row['time_zero__id'])
+            tz_to_num_forecasts[timezero] = row['tz_count']
         return tz_to_num_forecasts
 
 
