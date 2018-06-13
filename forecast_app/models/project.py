@@ -618,9 +618,9 @@ class Project(ModelWithCDCData):
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
 
         # build tz_date_to_next_tz_date by zipping ordered TimeZeros, staggered by the ref_target's step_ahead_increment
-        timezero_qs = TimeZero.objects.filter(project=self) \
-            .order_by('timezero_date')
-        tz_dates = timezero_qs.values_list('timezero_date', flat=True)
+        tz_dates = TimeZero.objects.filter(project=self) \
+            .order_by('timezero_date') \
+            .values_list('timezero_date', flat=True)
         tz_date_to_next_tz_date = dict(zip(tz_dates, tz_dates[ref_target.step_ahead_increment:]))
 
         # get loc_target_tz_date_to_truth(). we use all seasons b/c might need TimeZero from a previous season to get

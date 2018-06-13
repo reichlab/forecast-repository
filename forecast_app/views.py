@@ -60,7 +60,7 @@ def project_visualizations(request, project_pk):
     season_name = _param_val_from_request(request, 'season_name', seasons, True)
 
     # None if no targets in project:
-    location_to_flusight_data_dict = flusight_location_to_data_dict(project.models.all(), season_name, request)
+    location_to_flusight_data_dict = flusight_location_to_data_dict(project, season_name, request)
 
     time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
                                           Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
