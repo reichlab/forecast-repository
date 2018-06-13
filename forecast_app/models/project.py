@@ -182,7 +182,7 @@ class Project(ModelWithCDCData):
         """
         :return: list of season names for this project based on my timezeros
         """
-        return [timezero.season_name for timezero in self.timezeros.filter(is_season_start=True)]
+        return list(self.timezeros.filter(is_season_start=True).values_list('season_name', flat=True))
 
 
     def timezeros_in_season(self, season_name):
@@ -210,8 +210,8 @@ class Project(ModelWithCDCData):
 
             season_timezeros = season_timezeros.filter(timezero_date__gte=season_tz.timezero_date)
             next_season_tz = season_timezeros \
-                .filter(is_season_start=True) \
-                .filter(timezero_date__gt=season_tz.timezero_date) \
+                .filter(is_season_start=True,
+                        timezero_date__gt=season_tz.timezero_date) \
                 .first()
             if next_season_tz:
                 season_timezeros = season_timezeros.filter(timezero_date__lt=next_season_tz.timezero_date)
@@ -285,11 +285,12 @@ class Project(ModelWithCDCData):
         :return: a dict mapping each location to the maximum value across all my forecasts for season_name and targets
         """
         season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-        loc_max_val_qs = ForecastData.objects.filter(forecast__forecast_model__project=self) \
-            .filter(row_type=CDCData.POINT_ROW_TYPE) \
-            .filter(target__in=targets) \
-            .filter(forecast__time_zero__timezero_date__gte=season_start_date) \
-            .filter(forecast__time_zero__timezero_date__lte=season_end_date) \
+        loc_max_val_qs = ForecastData.objects \
+            .filter(forecast__forecast_model__project=self,
+                    row_type=CDCData.POINT_ROW_TYPE,
+                    target__in=targets,
+                    forecast__time_zero__timezero_date__gte=season_start_date,
+                    forecast__time_zero__timezero_date__lte=season_end_date) \
             .values('location') \
             .annotate(max_val=Max('value'))
         # [{'location': 'TH01', 'max_val': 15.0}, ...]
@@ -305,7 +306,7 @@ class Project(ModelWithCDCData):
         :return: list of Target names that can be used for flusight_location_to_data_dict() and mean_absolute_error()
             (for the meantime) calls. returns None if no config_dict
         """
-        return [target.name for target in Target.objects.filter(project=self).filter(is_step_ahead=True)]
+        return Target.objects.filter(project=self).filter(is_step_ahead=True).values_list('name', flat=True)
 
 
     def visualization_y_label(self):
@@ -392,9 +393,7 @@ class Project(ModelWithCDCData):
         Generally, the definition is:
             actual[location][timezero_date] = truth[location][ref_target][timezero_date - ref_target_incr]
         """
-        return Target.objects.filter(project=self) \
-            .filter(is_step_ahead=True) \
-            .filter(step_ahead_increment__gte=0) \
+        return Target.objects.filter(project=self, is_step_ahead=True, step_ahead_increment__gte=0) \
             .order_by('step_ahead_increment') \
             .first()
 
@@ -411,9 +410,8 @@ class Project(ModelWithCDCData):
             .values_list('location', 'target', 'time_zero__timezero_date', 'value')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-            query_set = query_set \
-                .filter(time_zero__timezero_date__gte=season_start_date) \
-                .filter(time_zero__timezero_date__lte=season_end_date)
+            query_set = query_set.filter(time_zero__timezero_date__gte=season_start_date,
+                                         time_zero__timezero_date__lte=season_end_date)
         for location, loc_target_tz_grouper in groupby(query_set, key=lambda _: _[0]):
             target_tz_date_to_truth = {}
             loc_target_tz_date_to_truth[location] = target_tz_date_to_truth

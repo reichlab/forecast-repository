@@ -136,11 +136,11 @@ def _model_to_location_timezero_points(project, forecast_models, season_name, ta
     # - "" b/c targets are needed only for ordering
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
     rows = ForecastData.objects \
-        .filter(forecast__forecast_model__in=forecast_models) \
-        .filter(row_type=CDCData.POINT_ROW_TYPE) \
-        .filter(target__in=targets) \
-        .filter(forecast__time_zero__timezero_date__gte=season_start_date) \
-        .filter(forecast__time_zero__timezero_date__lte=season_end_date) \
+        .filter(forecast__forecast_model__in=forecast_models,
+                row_type=CDCData.POINT_ROW_TYPE,
+                target__in=targets,
+                forecast__time_zero__timezero_date__gte=season_start_date,
+                forecast__time_zero__timezero_date__lte=season_end_date) \
         .order_by('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'target') \
         .values_list('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'value')
 

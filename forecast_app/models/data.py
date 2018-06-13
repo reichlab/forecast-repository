@@ -139,7 +139,7 @@ class ModelWithCDCData(models.Model):
         :param is_order_by_pk: flag that controls whether the result is ordered by pk or not. default is no ordering
             (which is faster than ordering)
         """
-        query_set = self.cdcdata_set.all().order_by('id') if is_order_by_pk else self.cdcdata_set.all()
+        query_set = self.cdcdata_set.order_by('id') if is_order_by_pk else self.cdcdata_set.all()
         return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
                  cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)
                 for cdc_data in query_set]
@@ -167,25 +167,21 @@ class ModelWithCDCData(models.Model):
         """
         :return: a set of all Location names in my data
         """
-        # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
-        return {_['location'] for _ in self.cdcdata_set.values('location').annotate(Count('location'))}
+        return set(self.cdcdata_set.values_list('location', flat=True).distinct())
 
 
     def get_targets(self):
         """
         :return: a set of all target names in my data
         """
-        # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
-        return {_['target'] for _ in self.cdcdata_set.values('target').annotate(Count('target'))}
+        return set(self.cdcdata_set.values_list('target', flat=True).distinct())
 
 
     def get_targets_for_location(self, location):
         """
         :return: a set of target names for a location in my data
         """
-        # apparently in Django we need the annotate to get a GROUP BY, and Count() is arbitrary
-        return {_['target'] for _ in
-                self.cdcdata_set.filter(location=location).values('target').annotate(Count('target'))}
+        return set(self.cdcdata_set.filter(location=location).values_list('target', flat=True).distinct())
 
 
     def get_target_unit(self, location, target):

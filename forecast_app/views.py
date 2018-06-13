@@ -31,7 +31,7 @@ def index(request):
         request,
         'index.html',
         context={'users': User.objects.all(),
-                 'projects': sorted(Project.objects.all(), key=lambda p: p.name),
+                 'projects': Project.objects.all().order_by('name'),
                  'ok_user_create_project': ok_user_create_project(request.user)}
     )
 
@@ -442,7 +442,7 @@ def timezero_forecast_pairs_for_forecast_model(forecast_model):
     :return: a list of 2-tuples of timezero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
     """
     return [(timezero, forecast_model.forecast_for_time_zero(timezero))
-            for timezero in forecast_model.project.timezeros.all().order_by('timezero_date')]
+            for timezero in forecast_model.project.timezeros.order_by('timezero_date')]
 
 
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):

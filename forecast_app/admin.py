@@ -89,7 +89,7 @@ class ProjectAdmin(admin.ModelAdmin):
 
 
     def num_model_owners(self, project):
-        return len(project.model_owners.all())
+        return project.model_owners.count()
 
 
     num_model_owners.short_description = 'model owners'

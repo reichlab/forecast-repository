@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def location_to_mean_abs_error_rows_for_project(project, season_name):
     """
-    Called by the project_visualizations() view function, returns a dict containing a table of mean absolute errors for
+    Called by the project_scores() view function, returns a dict containing a table of mean absolute errors for
     all models and all locations in project for season_name. The dict maps:
     {location: (mean_abs_error_rows, target_to_min_mae)}, where rows is a table in the form of a list of rows where each
     row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model.
@@ -77,7 +77,7 @@ def _mean_abs_error_rows_for_project(project, targets, location, model_id_to_poi
                  .format(project, targets, location))
     target_to_min_mae = {target: None for target in targets}  # tracks min MAE for bolding in table. filled next
     rows = [['Model', *targets]]  # header
-    for forecast_model in sorted(project.models.all(), key=lambda fm: fm.name):
+    for forecast_model in project.models.order_by('name'):
         row = [forecast_model.pk]
         for target in targets:
             forecast_to_point_dict = model_id_to_point_values_dict[forecast_model.pk] \
@@ -117,8 +117,7 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
     :return: mean absolute error (scalar) for my predictions for a location and target. returns None if can't be
         calculated
     """
-    forecasts = forecast_model.forecasts.all()
-    if not forecasts:
+    if not forecast_model.forecasts.exists():
         raise RuntimeError("Could not calculate absolute errors: no data. forecast_model={}".format(forecast_model))
 
     cdc_file_name_to_abs_error = {}
@@ -165,9 +164,9 @@ def _model_id_to_forecast_id_tz_date_csv_fname(project, forecast_models, season_
     # get the rows, ordered so we can groupby()
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
     rows = Forecast.objects \
-        .filter(time_zero__timezero_date__gte=season_start_date) \
-        .filter(time_zero__timezero_date__lte=season_end_date) \
-        .filter(forecast_model__in=forecast_models) \
+        .filter(time_zero__timezero_date__gte=season_start_date,
+                time_zero__timezero_date__lte=season_end_date,
+                forecast_model__in=forecast_models) \
         .order_by('forecast_model__id') \
         .values_list('forecast_model__id', 'id', 'time_zero__timezero_date', 'csv_filename')
 
@@ -195,11 +194,11 @@ def _model_id_to_point_values_dict(project, season_name, targets):
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
     logger.debug("_model_id_to_point_values_dict(): calling: execute()")
     rows = ForecastData.objects \
-        .filter(row_type=CDCData.POINT_ROW_TYPE) \
-        .filter(target__in=targets) \
-        .filter(forecast__forecast_model__project=project) \
-        .filter(forecast__time_zero__timezero_date__gte=season_start_date) \
-        .filter(forecast__time_zero__timezero_date__lte=season_end_date) \
+        .filter(row_type=CDCData.POINT_ROW_TYPE,
+                target__in=targets,
+                forecast__forecast_model__project=project,
+                forecast__time_zero__timezero_date__gte=season_start_date,
+                forecast__time_zero__timezero_date__lte=season_end_date) \
         .order_by('forecast__forecast_model__id', 'forecast__id', 'location', 'target') \
         .values_list('forecast__forecast_model__id', 'forecast__id', 'location', 'target', 'value')
 

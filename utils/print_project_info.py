@@ -13,7 +13,7 @@ from forecast_app.models import Project
 @click.command()
 @click.option('--print_details', is_flag=True, default=False)
 def print_project_info_app(print_details):
-    projects = sorted(Project.objects.all(), key=lambda p: p.name)
+    projects = Project.objects.order_by('name')
     click.echo("Users: {}".format(User.objects.all()))
 
     if len(projects) != 0:
