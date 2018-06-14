@@ -33,12 +33,17 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
                  "project={}, season_name={}, targets={}".format(project, season_name, targets))
     model_id_to_point_values_dict = _model_id_to_point_values_dict(project, season_name, targets)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_id_to_forecast_id_tz_date_csv_fname()")
-    model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(
-        project, project.models.all(), season_name)
+    model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(project, season_name)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
     loc_target_tz_date_to_truth = project.location_target_timezero_date_to_truth(season_name)
+    forecast_models = project.models.order_by('name')
+
+    for forecast_model in forecast_models:
+        if not forecast_model.forecasts.exists():
+            raise RuntimeError("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+
     location_to_mean_abs_error_rows = {
-        location: _mean_abs_error_rows_for_project(project, targets, location, model_id_to_point_values_dict,
+        location: _mean_abs_error_rows_for_project(forecast_models, targets, location, model_id_to_point_values_dict,
                                                    model_id_to_forecast_id_tz_date_csv_fname,
                                                    loc_target_tz_date_to_truth)
         for location in project.get_locations()}
@@ -46,7 +51,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     return location_to_mean_abs_error_rows
 
 
-def _mean_abs_error_rows_for_project(project, targets, location, model_id_to_point_values_dict,
+def _mean_abs_error_rows_for_project(forecast_models, targets, location, model_id_to_point_values_dict,
                                      model_id_to_forecast_id_tz_date_csv_fname, loc_target_tz_date_to_truth):
     """
     Returns a 2-list of the form: (rows, target_to_min_mae), where rows is a table in the form of a list of rows where
@@ -73,11 +78,11 @@ def _mean_abs_error_rows_for_project(project, targets, location, model_id_to_poi
     project does not have appropriate targets defined in its configuration. NB: assumes all of project's models have the
     same targets - something is validated by ForecastModel.load_forecast()
     """
-    logger.debug("_mean_abs_error_rows_for_project(): entered. project={}, targets={}, location={}"
-                 .format(project, targets, location))
+    logger.debug("_mean_abs_error_rows_for_project(): entered. forecast_models={}, targets={}, location={}"
+                 .format(forecast_models, targets, location))
     target_to_min_mae = {target: None for target in targets}  # tracks min MAE for bolding in table. filled next
     rows = [['Model', *targets]]  # header
-    for forecast_model in project.models.order_by('name'):
+    for forecast_model in forecast_models:
         row = [forecast_model.pk]
         for target in targets:
             forecast_to_point_dict = model_id_to_point_values_dict[forecast_model.pk] \
@@ -117,9 +122,6 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
     :return: mean absolute error (scalar) for my predictions for a location and target. returns None if can't be
         calculated
     """
-    if not forecast_model.forecasts.exists():
-        raise RuntimeError("Could not calculate absolute errors: no data. forecast_model={}".format(forecast_model))
-
     cdc_file_name_to_abs_error = {}
     for forecast_id, forecast_timezero_date, forecast_csv_filename in forecast_id_tz_date_csv_fname:
         try:
@@ -155,7 +157,7 @@ def mean_absolute_error(forecast_model, location, target, forecast_to_point_dict
         else None
 
 
-def _model_id_to_forecast_id_tz_date_csv_fname(project, forecast_models, season_name):
+def _model_id_to_forecast_id_tz_date_csv_fname(project, season_name):
     """
     Returns a dict for forecast_models and season_name that maps: ForecastModel.pk -> 3-tuple of the form:
     (forecast_id, forecast_timezero_date, forecast_csv_filename). This is an optimization that avoids some ORM overhead
@@ -164,9 +166,9 @@ def _model_id_to_forecast_id_tz_date_csv_fname(project, forecast_models, season_
     # get the rows, ordered so we can groupby()
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
     rows = Forecast.objects \
-        .filter(time_zero__timezero_date__gte=season_start_date,
-                time_zero__timezero_date__lte=season_end_date,
-                forecast_model__in=forecast_models) \
+        .filter(forecast_model__project=project,
+                time_zero__timezero_date__gte=season_start_date,
+                time_zero__timezero_date__lte=season_end_date) \
         .order_by('forecast_model__id') \
         .values_list('forecast_model__id', 'id', 'time_zero__timezero_date', 'csv_filename')
 

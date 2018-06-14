@@ -254,7 +254,7 @@ class Project(ModelWithCDCData):
         from .forecast_model import ForecastModel  # ""
 
 
-        return ForecastModel.objects.filter(project=self).count(), \
+        return self.models.filter(project=self).count(), \
                Forecast.objects.filter(forecast_model__project=self).count(), \
                self.get_num_forecast_rows_estimated()
 
@@ -306,7 +306,7 @@ class Project(ModelWithCDCData):
         :return: list of Target names that can be used for flusight_location_to_data_dict() and mean_absolute_error()
             (for the meantime) calls. returns None if no config_dict
         """
-        return Target.objects.filter(project=self).filter(is_step_ahead=True).values_list('name', flat=True)
+        return self.targets.filter(is_step_ahead=True).values_list('name', flat=True)
 
 
     def visualization_y_label(self):
@@ -325,7 +325,7 @@ class Project(ModelWithCDCData):
         :return: True if I have truth data loaded via load_truth_data(). Actually, returns the count, which acts as a
             boolean.
         """
-        return self.truth_data_qs().count()
+        return self.truth_data_qs().exists()
 
 
     def get_truth_data_preview(self):

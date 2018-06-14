@@ -61,8 +61,7 @@ class MAETestCase(TestCase):
     def test_mean_absolute_error(self):
         for target, exp_mae in self.exp_target_to_mae.items():
             model_id_to_point_values_dict = _model_id_to_point_values_dict(self.project, None, [target])
-            model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(
-                self.project, [self.forecast_model], None)
+            model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(self.project, None)
             loc_target_tz_date_to_truth = self.project.location_target_timezero_date_to_truth()
             act_mae = mean_absolute_error(self.forecast_model, 'US National', target,
                                           model_id_to_point_values_dict[self.forecast_model.pk],

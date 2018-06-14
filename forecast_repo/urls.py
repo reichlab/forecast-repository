@@ -15,3 +15,9 @@ urlpatterns = [
 
 # use static() to add url mapping to serve static files during development (only)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# debug_toolbar
+if settings.DEBUG:
+    import debug_toolbar
+
+    urlpatterns += url(r'^__debug__/', include(debug_toolbar.urls)),

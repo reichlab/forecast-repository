@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     # add-ons
     'django.contrib.humanize',
+    'debug_toolbar'
 ]
 
 REST_FRAMEWORK = {
@@ -59,6 +60,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 ROOT_URLCONF = 'forecast_repo.urls'
@@ -145,3 +148,8 @@ LOGGING = {
 
 # Redirect to home URL after login (Default redirects to /accounts/profile/)
 LOGIN_REDIRECT_URL = '/'
+
+#
+# https://django-debug-toolbar.readthedocs.io/en/stable/installation.html#internal-ips
+#
+INTERNAL_IPS = ['127.0.0.1']

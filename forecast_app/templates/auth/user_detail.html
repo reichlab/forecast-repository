@@ -58,23 +58,25 @@
                 <th>Objects</th>
             </tr>
             {% for project, user_role in projects_and_roles %}
-                <tr>
-                    <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
-                    <td>{{ user_role }}{% if detail_user == user %}<span class="text-muted"> (you)</span>{% endif %}
-                    </td>
-                    <td>
-                        {% if project.is_public %}
-                            <span style="color:green">Public</span>
-                        {% else %}
-                            <span style="color:red">Private</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ project.description|linebreaksbr }}</td>
-                    <td class="text-muted">
-                        {{ project.get_summary_counts.0|intcomma }} model{{ project.get_summary_counts.0|pluralize }},
-                        {{ project.get_summary_counts.1|intcomma }} forecast{{ project.get_summary_counts.1|pluralize }}
-                    </td>
-                </tr>
+                {% with proj_summary_counts=project.get_summary_counts %}
+                    <tr>
+                        <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
+                        <td>{{ user_role }}{% if detail_user == user %}<span class="text-muted"> (you)</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if project.is_public %}
+                                <span style="color:green">Public</span>
+                            {% else %}
+                                <span style="color:red">Private</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ project.description|linebreaksbr }}</td>
+                        <td class="text-muted">
+                            {{ proj_summary_counts.0|intcomma }} model{{ proj_summary_counts.0|pluralize }},
+                            {{ proj_summary_counts.1|intcomma }} forecast{{ proj_summary_counts.1|pluralize }}
+                        </td>
+                    </tr>
+                {% endwith %}
             {% endfor %}
         </table>
     {% else %}

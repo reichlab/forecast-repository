@@ -22,6 +22,7 @@ pymmwr = "==0.1.0"
 pyyaml = "*"
 djangorestframework-csv = "*"
 newrelic = "*"
+django-debug-toolbar = "*"
 
 
 [dev-packages]

@@ -37,6 +37,7 @@ $ pipenv install Pillow
 $ pipenv install pymmwr
 $ pipenv install pyyaml
 $ pipenv install djangorestframework-csv
+$ pipenv install django-debug-toolbar
 ```
 
 

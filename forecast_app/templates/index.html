@@ -41,36 +41,40 @@
                 <th>Objects</th>
             </tr>
             {% for project in projects %}
-                <tr>
-                    <td>
-                        <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
-                    </td>
-                    <td>
-                        {% if project.logo_url %}
-                            <div id="projectLogoDiv"><a href="{{ project.home_url }}"><img src="{{ project.logo_url }}"></a>
-                            </div>
-                        {% else %}
-                            <small class="text-muted">(No logo)</small>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if project.owner %}
-                            <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
-                        {% else %}
-                            <small class="text-muted">(No owner)</small>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {{ project.description|linebreaksbr }}
-                    </td>
-                    <td class="text-muted">
-                        {% include 'visibility_snippet.html' with project=project %}
-                        <br>
-                        {{ project.get_summary_counts.0|apnumber }} model{{ project.get_summary_counts.0|pluralize }},
-                        {{ project.get_summary_counts.1|apnumber }} forecast{{ project.get_summary_counts.1|pluralize }},
-                        {{ project.get_summary_counts.2|intword|intcomma }} row{{ project.get_summary_counts.2|pluralize }}
-                    </td>
-                </tr>
+                {% with proj_summary_counts=project.get_summary_counts %}
+                    {{ total }} employee{{ total|pluralize }}
+                    <tr>
+                        <td>
+                            <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
+                        </td>
+                        <td>
+                            {% if project.logo_url %}
+                                <div id="projectLogoDiv"><a href="{{ project.home_url }}"><img
+                                        src="{{ project.logo_url }}"></a>
+                                </div>
+                            {% else %}
+                                <small class="text-muted">(No logo)</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if project.owner %}
+                                <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
+                            {% else %}
+                                <small class="text-muted">(No owner)</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ project.description|linebreaksbr }}
+                        </td>
+                        <td class="text-muted">
+                            {% include 'visibility_snippet.html' with project=project %}
+                            <br>
+                            {{ proj_summary_counts.0|apnumber }} model{{ proj_summary_counts.0|pluralize }},
+                            {{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
+                            {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}
+                        </td>
+                    </tr>
+                {% endwith %}
             {% endfor %}
         </table>
     {% else %}

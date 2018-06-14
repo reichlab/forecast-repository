@@ -31,7 +31,7 @@ def index(request):
         request,
         'index.html',
         context={'users': User.objects.all(),
-                 'projects': Project.objects.all().order_by('name'),
+                 'projects': Project.objects.order_by('name'),
                  'ok_user_create_project': ok_user_create_project(request.user)}
     )
 
