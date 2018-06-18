@@ -18,9 +18,18 @@
         (a registered user in the system), and zero or more <code>model owners</code> (also users). A project owner can
         do anything to the project, including what model owners can do, but model owners are limited to creating,
         editing, and deleting Models, and uploading and deleting forecasts. (To become a model owner you must contact
-        the project owner.) Projects have a <code>template</code>, which is a data file (see the format below) that is
+        the project owner.)
+    </p>
+
+    <p>
+        Projects have a <code>template</code>, which is a data file (see the format below) that is
         used to validate forecasts, including locations, targets, number of bins, etc. Templates themselves are
         validated as well.
+    </p>
+
+    <p>
+        Projects also have <code>truth</code> data, which is loaded from a file with these columns:
+        <code>timezero, location, target, value</code>. Details TBD
     </p>
 
     <p>A project can be either <code>public</code> or <code>private</code>, which controls project visibility, including

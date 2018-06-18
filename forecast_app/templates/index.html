@@ -42,7 +42,6 @@
             </tr>
             {% for project in projects %}
                 {% with proj_summary_counts=project.get_summary_counts %}
-                    {{ total }} employee{{ total|pluralize }}
                     <tr>
                         <td>
                             <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
@@ -69,9 +68,9 @@
                         <td class="text-muted">
                             {% include 'visibility_snippet.html' with project=project %}
                             <br>
-                            {{ proj_summary_counts.0|apnumber }} model{{ proj_summary_counts.0|pluralize }},
+                            {{ proj_summary_counts.0|apnumber|capfirst }} model{{ proj_summary_counts.0|pluralize }},
                             {{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
-                            {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}
+                            {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}.
                         </td>
                     </tr>
                 {% endwith %}

@@ -337,6 +337,13 @@ class Project(ModelWithCDCData):
                     .values_list('time_zero__timezero_date', 'location', 'target', 'value')[:10])
 
 
+    def get_num_truth_rows(self):
+        """
+        :return: the total of number of truth rows in me
+        """
+        return self.truth_data_qs().count()
+
+
     def get_truth_data_rows(self):
         """
         Returns all of my data as a a list of rows, excluding any PKs and FKs columns, and ordered by PK.

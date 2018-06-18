@@ -35,6 +35,18 @@
             <table class="table table-bordered">
                 <tbody>
                 <tr>
+                    <th>Summary:</th>
+                    <td>
+                        {% with proj_summary_counts=project.get_summary_counts %}
+                            <span class="text-muted">
+                                {{ proj_summary_counts.0|apnumber|capfirst }} model{{ proj_summary_counts.0|pluralize }},
+                                {{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
+                                {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}.
+                            </span>
+                        {% endwith %}
+                    </td>
+                </tr>
+                <tr>
                     <th>Owner:</th>
                     <td>
                         {% if project.owner %}
@@ -90,6 +102,7 @@
                         {% if project.is_template_loaded %}
                             {# show a link to the template detail #}
                             <a href="{% url 'template-data-detail' project.pk %}">{{ project.csv_filename }}</a>
+                            <small class="text-muted">({{ project.get_num_rows|intword|intcomma }} rows)</small>
                         {% else %}
                             {# show that there's no template, optionally with upload button #}
                             {% if ok_user_edit_project %}
@@ -119,6 +132,7 @@
                         {% if project.is_truth_data_loaded %}
                             {# show a link to the truth detail #}
                             <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_csv_filename }}</a>
+                            <small class="text-muted">({{ project.get_num_truth_rows|intword|intcomma }} rows)</small>
                         {% else %}
                             {# show that there's no truth data, optionally with upload button #}
                             {% if ok_user_edit_project %}
