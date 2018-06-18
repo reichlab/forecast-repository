@@ -20,7 +20,17 @@
                 </tr>
                 <tr>
                     <th>TimeZero:</th>
-                    <td>{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</td>
+                    <td>
+                        {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}
+                        {% if forecast.time_zero.data_version_date %}
+                            <span class="text-muted">@ {{ forecast.time_zero.data_version_date|date:"Y-m-d" }}</span>
+                        {% else %}
+                            <small class="text-muted">(No data version date)</small>
+                        {% endif %}
+                        {% if forecast.time_zero.is_season_start %}
+                            . Starts season &ldquo;{{ forecast.time_zero.season_name }}&rdquo;.
+                        {% endif %}
+                    </td>
                 </tr>
                 <tr>
                     <th>Data Filename:</th>
