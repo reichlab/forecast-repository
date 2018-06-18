@@ -121,16 +121,17 @@
     </p>
 
     <ul>
-        <li><code>api/</code> (<a href="{% url 'api-root' %}">browsable API root</a>)</li>
-        <li><code>api/projects/</code> (list of all projects)</li>
+        <li><code>api/</code> (<a href="{% url 'api-root' %}">API root</a>)</li>
+        <li><code>api/projects/</code> (<a href="{% url 'api-project-list' %}">list of all projects</a>)</li>
         <li><code>api/project/[project_id]/</code> (project detail)</li>
-        <li>
-            <code>api/projects/[project_id]/template_data/</code> (the project template, formatted as JSON - see above)
-        </li>
-        <li><code>api/user/[project_id]/</code> (user detail)</li>
-        <li><code>api/model/[project_id]/</code> (model detail)</li>
-        <li><code>api/forecast/[project_id]/</code> (forecast detail)</li>
-        <li><code>api/forecast/[project_id]/data/</code> (forecast data as JSON - see above)</li>
+        <li><code>api/project/[project_id]/template/</code> (project template detail)</li>
+        <li><code>api/project/[project_id]/template_data/</code> (project template data, JSON format)</li>
+        <li><code>api/project/[project_id]/truth/</code> (project truth detail)</li>
+        <li><code>api/project/[project_id]/truth_data/</code> (project truth data, JSON format)</li>
+        <li><code>api/user/[user_id]/</code> (user detail)</li>
+        <li><code>api/model/[model_id]/</code> (model detail)</li>
+        <li><code>api/forecast/[forecast_id]/</code> (forecast detail)</li>
+        <li><code>api/forecast/[forecast_id]/data/</code> (forecast data, JSON format)</li>
     </ul>
 
 
