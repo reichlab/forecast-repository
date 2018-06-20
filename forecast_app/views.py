@@ -32,7 +32,7 @@ def index(request):
         'index.html',
         context={'users': User.objects.all(),
                  'projects': Project.objects.order_by('name'),
-                 'ok_user_create_project': ok_user_create_project(request.user)}
+                 'is_user_ok_create_project': is_user_ok_create_project(request.user)}
     )
 
 
@@ -53,7 +53,7 @@ def project_visualizations(request, project_pk):
     View function to render various visualizations for a particular project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     seasons = project.seasons()
@@ -97,7 +97,7 @@ def project_scores(request, project_pk):
     View function to render various scores for a particular project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     seasons = project.seasons()
@@ -167,7 +167,7 @@ def create_project(request):
 
     :param: user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
-    if not ok_user_create_project(request.user):
+    if not is_user_ok_create_project(request.user):
         return HttpResponseForbidden()
 
     # set up Target and TimeZero formsets using a new (unsaved) Project
@@ -213,7 +213,7 @@ def edit_project(request, project_pk):
     Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_edit_project(request.user, project):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     TargetInlineFormSet = inlineformset_factory(Project, Target,
@@ -256,7 +256,7 @@ def delete_project(request, project_pk):
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_edit_project(request.user, project):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     project.delete()
@@ -271,7 +271,7 @@ def create_model(request, project_pk):
     """
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_create_model(request.user, project):
+    if not is_user_ok_create_model(request.user, project):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -299,7 +299,7 @@ def edit_model(request, model_pk):
     or the model's owner.
     """
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    if not ok_user_edit_model(request.user, forecast_model):
+    if not is_user_ok_edit_model(request.user, forecast_model):
         return HttpResponseForbidden()
 
     if request.method == 'POST':
@@ -326,7 +326,7 @@ def delete_model(request, model_pk):
     """
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-    if not ok_user_edit_model(request.user, forecast_model):
+    if not is_user_ok_edit_model(request.user, forecast_model):
         return HttpResponseForbidden()
 
     forecast_model.delete()
@@ -357,7 +357,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
-        return project.is_user_allowed_to_view(self.request.user)
+        return project.is_user_ok_to_view(self.request.user)
 
 
     def get_context_data(self, **kwargs):
@@ -367,8 +367,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         config_dict_pretty.replace('\n', '<br>')
 
         context = super().get_context_data(**kwargs)
-        context['ok_user_edit_project'] = ok_user_edit_project(self.request.user, project)
-        context['ok_user_create_model'] = ok_user_create_model(self.request.user, project)
+        context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
+        context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_to_num_forecasts'] = self.timezeros_to_num_forecasts(project)
         context['config_dict_pretty'] = config_dict_pretty
         return context
@@ -452,14 +452,14 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
-        return forecast_model.project.is_user_allowed_to_view(self.request.user)
+        return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         forecast_model = self.get_object()
         context['timezero_forecast_pairs'] = timezero_forecast_pairs_for_forecast_model(forecast_model)
-        context['ok_user_edit_model'] = ok_user_edit_model(self.request.user, forecast_model)
+        context['is_user_ok_edit_model'] = is_user_ok_edit_model(self.request.user, forecast_model)
         return context
 
 
@@ -470,7 +470,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
-        return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)
+        return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
 #
@@ -499,7 +499,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 
     model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
     project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     # validate download format
@@ -527,7 +527,7 @@ def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     project = forecast.forecast_model.project
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     # validate query parameters
@@ -581,14 +581,14 @@ def template_detail(request, project_pk):
     Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     return render(
         request,
         'template_data_detail.html',
         context={'project': project,
-                 'ok_user_edit_project': ok_user_edit_project(request.user, project)})
+                 'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 
 def delete_template(request, project_pk):
@@ -597,7 +597,7 @@ def delete_template(request, project_pk):
     Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_edit_project(request.user, project):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     project.delete_template()
@@ -610,7 +610,7 @@ def upload_template(request, project_pk):
     Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_edit_project(request.user, project):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
@@ -650,14 +650,14 @@ def truth_detail(request, project_pk):
     Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     return render(
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 'ok_user_edit_project': ok_user_edit_project(request.user, project)})
+                 'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 
 def delete_truth(request, project_pk):
@@ -668,7 +668,7 @@ def delete_truth(request, project_pk):
     :return: redirect to the forecast's forecast_model detail page
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_edit_project(request.user, project):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     project.delete_truth_data()
@@ -681,7 +681,7 @@ def upload_truth(request, project_pk):
     Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not ok_user_edit_project(request.user, project):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden()
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
@@ -718,7 +718,7 @@ def download_truth(request, project_pk):
         model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     # set the HttpResponse based on download type. avoid circular imports:
@@ -798,22 +798,22 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 # ---- authorization utilities ----
 
 
-def ok_user_create_project(user):
+def is_user_ok_create_project(user):
     """
     :return: True if user (a User instance) is allowed to create Projects.
     """
     return user.is_authenticated  # any logged-in user can create. recall AnonymousUser.is_authenticated returns False
 
 
-def ok_user_edit_project(user, project):
+def is_user_ok_edit_project(user, project):
     # applies to delete too
     return user.is_superuser or (user == project.owner)
 
 
-def ok_user_create_model(user, project):
+def is_user_ok_create_model(user, project):
     return user.is_superuser or (user == project.owner) or (user in project.model_owners.all())
 
 
-def ok_user_edit_model(user, forecast_model):
+def is_user_ok_edit_model(user, forecast_model):
     # applies to delete too
     return user.is_superuser or (user == forecast_model.project.owner) or (user == forecast_model.owner)

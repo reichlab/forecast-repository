@@ -10,7 +10,7 @@
         {% include 'visibility_snippet.html' with project=project size="fa-sm" %}
         Project: {{ project.name }}
         <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
-        {% if ok_user_edit_project %}
+        {% if is_user_ok_edit_project %}
             {# Edit Project: a simple link to an edit form #}
             &nbsp;
             <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
@@ -61,7 +61,7 @@
                     <td>
                         {% if project.model_owners.all %}
                             {% for model_owner in project.model_owners.all %}
-                                {# this line's formatting keeps the comma(s) tight: #}
+                                {# this line's indentation keeps the comma(s) tight: #}
                                 <a href="{% url 'user-detail' model_owner.pk %}">
                                     {{ model_owner.username }}</a>{% if not forloop.last %}, {% endif %}
                             {% endfor %}
@@ -105,7 +105,7 @@
                             <small class="text-muted">({{ project.get_num_rows|intword|intcomma }} rows)</small>
                         {% else %}
                             {# show that there's no template, optionally with upload button #}
-                            {% if ok_user_edit_project %}
+                            {% if is_user_ok_edit_project %}
                                 {# show a button for uploading a file #}
                                 <form class="form-inline" method="POST" enctype="multipart/form-data"
                                       action="{% url 'upload-template' project.pk %}">
@@ -135,7 +135,7 @@
                             <small class="text-muted">({{ project.get_num_truth_rows|intword|intcomma }} rows)</small>
                         {% else %}
                             {# show that there's no truth data, optionally with upload button #}
-                            {% if ok_user_edit_project %}
+                            {% if is_user_ok_edit_project %}
                                 {# show a button for uploading a file #}
                                 <form class="form-inline" method="POST" enctype="multipart/form-data"
                                       action="{% url 'upload-truth' project.pk %}">
@@ -183,7 +183,7 @@
 
 
     <h2>Models ({{ project.models.all|length }})
-        {% if ok_user_create_model %}
+        {% if is_user_ok_create_model %}
             &nbsp;<a href="{% url 'create-model' project.pk %}" class="btn btn-success" role="button">New</a>
         {% endif %}
     </h2>
@@ -217,7 +217,7 @@
     {% endif %}
 
 
-    <h2>TimeZeros & Data Version Dates ({{ project.timezeros.all|length }})</h2>
+    <h2>Time zeros ({{ project.timezeros.all|length }})</h2>
 
     {% if project.timezeros.all %}
         <div class="row">
@@ -251,7 +251,7 @@
             </div>
         </div>
     {% else %}
-        <small class="text-muted">(No TimeZeros)</small>
+        <small class="text-muted">(No time zeros)</small>
     {% endif %}
 
 {% endblock %}

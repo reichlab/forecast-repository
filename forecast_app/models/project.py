@@ -114,7 +114,7 @@ class Project(ModelWithCDCData):
         super().save(*args, **kwargs)
 
 
-    def is_user_allowed_to_view(self, user):
+    def is_user_ok_to_view(self, user):
         """
         :return: True if user is allowed to view my pages based on my is_public, owner, and model_owners.
             returns False o/w

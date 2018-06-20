@@ -1,141 +1,320 @@
 {% extends "base.html" %}
 
-{% block title %}Documentation{% endblock %}
+{% block title %}Zoltar User Guide{% endblock %}
 
 {% block content %}
 
-    <h1>Documentation</h1>
-    <p>Here is some preliminary documentation. More TBD.</p>
+    <h1>Zoltar User Guide<a name="zoltar-user-guide"></a></h1>
+
+    <p><em>This is draft documentation of how to use Zoltar.</em></p>
 
 
-    <h2>Terminology</h2>
-    {% include 'terminology_snippet.html' %}
+    <h1>Table of contents<a name="table-of-contents"></a></h1>
 
-
-    <h2>For Project and Owners Model Owners</h2>
-
-    <p>A <code>project</code> is the main element for representing a forecasting challenge. It has an <code>owner</code>
-        (a registered user in the system), and zero or more <code>model owners</code> (also users). A project owner can
-        do anything to the project, including what model owners can do, but model owners are limited to creating,
-        editing, and deleting Models, and uploading and deleting forecasts. (To become a model owner you must contact
-        the project owner.)
-    </p>
-
-    <p>
-        Projects have a <code>template</code>, which is a data file (see the format below) that is
-        used to validate forecasts, including locations, targets, number of bins, etc. Templates themselves are
-        validated as well.
-    </p>
-
-    <p>
-        Projects also have <code>truth</code> data, which is loaded from a file with these columns:
-        <code>timezero, location, target, value</code>. Details TBD
-    </p>
-
-    <p>A project can be either <code>public</code> or <code>private</code>, which controls project visibility, including
-        accessing data. This applies to list and detail pages, along with API endpoints. Public projects are available
-        to anybody, users and anonymous visitors included. Private projects can only be viewed by project owners and
-        model owners. This means that in order to grant a user access to a private account, the project owner must add
-        her to the project's model owners list, even if that user will not be managing any models.
-    </p>
-
-    <p>Projects have a <code>name</code> that is approximately the length of short sentence, and a
-        <code>description</code> that should cover the following topics:
-    </p>
     <ul>
-        <li>Information about the 'real-time-ness' of data, i.e., revised/unrevised.</li>
-        <li>Details about how models interpret time_zeros and data_version_dates.</li>
-        <li>Data file naming scheme.</li>
-    </ul>
-
-    <p>Additionally, projects have a <code>home url</code>, and a <code>core data url</code> that links to a directory
-        or zip file of all data made available for forecasting.
-    </p>
-
-
-    <p>A <code>model</code> ("ForecastModel" in the code) is the represention of code that generates forecasts. Like a
-        project, it has an <code>owner</code>, <code>home URL</code>, and<code>description</code>, which should include
-        information on reproducing the model’s results. A second URL, <code>auxiliary data</code>, is optional and
-        points
-        to any data used by teams that’s not in the core_data provided by the project owner.
-    </p>
-
-    <p>A <code>forecast</code> is a single prediction for a particular time_zero. It has data that matches the project
-        template (see above) along with the original CSV data file name that was uploaded.
-    </p>
-
-
-    <h3>Forecast data file formats</h3>
-    <p>All forecasts are in the CDC standard for their flu challenge as specified in
-        <a href="https://webcache.googleusercontent.com/search?q=cache:KQEkQw99egAJ:https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx+&cd=1&hl=en&ct=clnk&gl=us">flu_challenge_2016-17_update.docx</a>
-        and in
-        <a href="https://github.com/cdcepi/FluSight-forecasts/blob/master/2016-2017_submission_template.csv">this
-            csv template file</a>:
-        a single directory for all forecasts from a particular model where each file’s contents is points and binned
-        distributions as in the example csv file above.</p>
-
-
-    <h3>Forecast data file names</h3>
-    <p>Data files must be named according to this standard:
-        <code>&lt;time_zero&gt;-&lt;model_name&gt[-&lt;data_version_date&gt].cdc.csv</code>, where:
-    <ul>
-        <li>Components are separated by a dash ("&dash;")</li>
-        <li>Two components are required: <code>time_zero</code> and <code>model_name</code>.
-            <code>data_version_date</code> and its preceding dash are optional. Thus there are two valid forms:
-            <code>&lt;time_zero&gt;-&lt;model_name&gt.cdc.csv</code> and
-            <code>&lt;time_zero&gt;-&lt;model_name&gt-&lt;data_version_date&gt.cdc.csv</code>.
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#home-page">Home page</a></li>
+        <li><a href="#project-detail-page">Project detail page</a>
+            <ul>
+                <li><a href="#project-details-table">Project details table</a></li>
+                <li><a href="#forecast-models">Forecast models</a></li>
+                <li><a href="#targets">Targets</a></li>
+                <li><a href="#time-zeros">Time zeros</a></li>
+            </ul>
         </li>
-        <li>The two dates (<code>time_zero</code> and <code>data_version_date</code>) are in <code>YYYYMMDD</code>
-            format.
+        <li><a href="#model-detail-page">Model detail page</a>
+            <ul>
+                <li><a href="#model-details-table">Model details table</a></li>
+                <li><a href="#forecasts">Forecasts</a></li>
+            </ul>
         </li>
-        <li><code>model_name</code> is limited to alphanumeric characters plus underscore. An example might be
-            &ldquo;20170917-gam_lag1_tops3-20170919.cdc.csv&rdquo;.
+        <li><a href="#data-analysis">Data analysis</a>
+            <ul>
+                <li><a href="#visualizations">Visualizations</a></li>
+                <li><a href="#scores">Scores</a></li>
+            </ul>
         </li>
-    </ul>
-    <p>Since each project being imported could have its own file naming scheme, it is the responsibility of the project
-        owner to translate file names to match the above standard. For example, CDC forecasts encode
-        <a href="http://www.cmmcp.org/epiweek.htm">epidemiological week</a>, team name, and submission date, e.g.,
-        &ldquo;EW43-JDU-2016-11-07.csv&rdquo;, and so they have to use the end date from the MMWR week to get the
-        corresponding<code>time_zero</code>.
-    </p>
-
-
-    <h3 id="config_dict">Project.config_dict</h3>
-    <p>When creating a new Project, you must pass a <code>config_dict</code>. It is a
-        <a href="https://www.json.org/">JSON</a> object that specifies project-specific information. Here are the
-        required keys:
-    </p>
-    <ul>
-        <li><code>visualization-y-label</code>: a string that's used by the d3Foresight.TimeChart component.
+        <li><a href="#for-technical-users">For technical users</a>
+            <ul>
+                <li><a href="#api">API</a></li>
+                <li><a href="#json-forecast-data-format">JSON forecast data format</a></li>
+            </ul>
         </li>
     </ul>
 
 
-    <h2>For Technical Users</h2>
+    <h1>Introduction<a name="introduction"></a></h1>
 
-    <h3 id="rest_api">REST API</h3>
-    <p>We provide the following REST endpoints. All results are <a href="https://www.json.org/">JSON</a>. The API is
-        browsable from <a href="{% url 'api-root' %}">the root URI</a>, a great starting point for developers. Details
-        TBD. Note that all projects and users are listed, but private projects, their models, and their forecasts, can
-        only be viewed by authorized users (project owners and model owners).
+    <p>The Zoltar forecast archive is a web application to develop ideas for a repository of model forecast results.
+        Until now, predictions made by models have been stored in differing formats and locations. This complicates
+        tracking, comparing, and revisiting forecasts. Zoltar supports storing, retrieving, comparing, and analyzing
+        time series forecasts for prediction challenges of interest to the modeling community.</p>
+
+    <p>This document is a first draft of a user guide covering Zoltar's main features.</p>
+
+    <p>Note: Currently the site is under beta test. If you have questions about it or want an account, please contact
+        Professor Nicholas Reich (nick@schoolph.umass.edu>), director of the
+        <a href="http://reichlab.io/">Reich Lab</a>.</p>
+
+
+    <h1>Home page<a name="home-page"></a></h1>
+
+    <p>The home page lists all of the projects in the archive. A <strong>project</strong> is a collection of
+        <strong>forecast models</strong> and their <strong>forecasts</strong>, and is described in more detail below.
+        This page shows basic project information, including name, owner, description, and (in the "Objects" column) a
+        summary of the number of models and forecasts in the project. (This number is an estimate.)</p>
+
+    <p>At the page's top is a header that's shown on all pages. It contains three icons: Home page (the Zoltar crystal
+        ball in the upper left), and on the right a user drop down menu and a help (question mark) icon on the far
+        right. The drop down menu's appearance depends on whether a user is logged in. If so then it's text is the user
+        name and the menu items are links to the user profile page, and a logout item. If the user is not logged in then
+        "Sign in" is shown. Clicking it takes you to a typical login page where you specify your account's user name and
+        password.</p>
+
+    <p>Clicking a project name takes you to its detail page.</p>
+
+    <p>Creating projects: Any logged in user can create projects via the "New" button towards the top. Clicking it will
+        take you to a form where you can fill in the details described below.</p>
+
+
+    <h1>Project detail page<a name="project-detail-page"></a></h1>
+
+    <p>A <strong>project</strong> is the main element for representing a forecasting challenge. It has an
+        <strong>owner</strong> (a registered user in the system), and zero or more <strong>model owners</strong> (also
+        users). A project owner can do anything to the project, including what model owners can do, but model owners are
+        limited to creating, editing, and deleting Models, and uploading and deleting forecasts. (To become a model
+        owner you must contact the project owner.)</p>
+
+    <p>Each project's detail page is divided into four vertical sections, described next: Details table, forecast
+        models, targets, and time zeros.</p>
+
+    <h2>Project details table<a name="project-details-table"></a></h2>
+
+    <p>At the top of the page is a table showing non-model information related to the project:</p>
+
+    <ul>
+        <li><em>Summary</em>: The same summary as on the home page: An estimate of the number of models and forecasts in
+            the project.
+        </li>
+        <li><em>Owner</em>: The user that has full control of the project, and includes authorization to view, edit, and
+            delete anything (models, forecasts, etc.) The owner is the user that created the project (which is done on
+            the home page).
+        </li>
+        <li><em>Model owners</em>: A list of users who can view the project (applicable only if the project is private),
+            and who can create and delete models, and upload and delete forecasts. The project owner controls specifies
+            model owners when she creates or edits the project.
+        </li>
+        <li><em>Time Interval Type</em>: Tells the <a href="https://github.com/reichlab/d3-foresight">D3 Foresight
+            component</a> what its x-axis label should be. Choices: Week, Biweek, or Month.
+        </li>
+        <li><em>Visibility</em>: A project can be either public or private, which controls project visibility, including
+            accessing data. This applies to list and detail pages, along with API endpoints. Public projects are
+            available to anybody, users and anonymous visitors included. Private projects can only be viewed by project
+            owners and model owners. This means that in order to grant a user access to a private account, the project
+            owner must add her to the project's model owners list, even if that user will not be managing any models.
+        </li>
+        <li><em>Description</em>: Prose provided by project owner. It should cover the following topics:
+            <ul>
+                <li>Information about the "real-time-ness" of data, i.e., revised/unrevised.</li>
+                <li>Details about how models interpret time zeros and data version dates.</li>
+                <li>Data file naming scheme.</li>
+            </ul>
+        </li>
+        <li><em>Home</em>: A link to the project's home page, which might include details about any competitions, source
+            code, team members, included models, etc.
+        </li>
+        <li><em>Core data</em>: A link to a page that contains data (e.g., CSV files) used to train models. For model
+            competitions, it should include all data sets made available to everyone in the challenge, including
+            supplemental data like Google queries or weather data. Ideally Zoltar users interested in re-running a
+            project's models have all they need in the home and core data directories. However, they are not used
+            directly by Zoltar.
+        </li>
+        <li><em>Data template</em>: Either a link to the project's template (if one has been uploaded), or an upload
+            button for (visible only for the project owner). Clicking the link takes you to a template detail page that
+            includes a data preview plus a<strong>Download</strong> button. About templates:
+            <ul>
+                <li>The template is a data file that is used to validate uploaded forecasts.</li>
+                <li>It is the same CDC format as forecasts (see below), i.e., a CSV file containing points and bins,
+                    with these columns:<code>Location, Target, Type, Unit, Bin_start_incl, Bin_end_notincl, Value</code>.
+                    TBD: Details re: how used for validate.
+                </li>
+                <li>There are no file name restrictions.</li>
+            </ul>
+        </li>
+        <li><em>Truth data</em>: Similar to the template, this is a data file that the project owner uploads. This data
+            contains observed target values for time zeros and locations in the project, and is a project-agnostic way
+            to capture actual values that models predicted for. It is used to calculate scores, and to extract the
+            'actual' data used in the D3 component's TimeChart. Each Project is responsible for generating a truth table
+            csv file in a project-specific manner. Details:
+            <ul>
+                <li>CSV file</li>
+                <li>No file name restrictions</li>
+                <li>Columns: <code>Timezero, Location, Target, Value&gt;</code>.</li>
+            </ul>
+        </li>
+        <li><em>Analysis</em>: Links to visualization and score pages (see below for details).</li>
+        <li><em>Configuration</em>: A "catch all" <a href="https://www.json.org/">JSON</a> object used to configure
+            projects. It currently contains one key:
+            <ul>
+                <li><code>visualization-y-label</code>: A string used for the y-axis in the D3 component's TimeChart.
+                </li>
+            </ul>
+        </li>
+    </ul>
+
+    <h2>Forecast models<a name="forecast-models"></a></h2>
+
+    <p>The <strong>Models</strong> section lists the project's forecast models by name, with links to model detail pages
+        (see details
+        below). If you're a project owner or model owner then a "New" button is shown that takes you to a form for
+        creating
+        a
+        model.</p>
+
+    <h2>Targets<a name="targets"></a></h2>
+
+    <p>This section lists information about project forecast targets as defined by project owners, including the
+        target's
+        name,
+        description, and whether it is a <em>step ahead</em> target. Targets are used to validate templates and forecast
+        data. Step
+        ahead targets are special ones with an integer value indicating how many steps ahead (or behind, for negative
+        values)
+        the target is relative to a time zero. (Time zeros are defined below.) Zoltar uses these targets to determine
+        what
+        to
+        plot in the D3 Foresight component's TimeChart, and to extract 'actual' values from the truth data (see above).
+    </p>
+
+    <h2>Time zeros<a name="time-zeros"></a></h2>
+
+    <p>This section details the project's <strong>time zeros</strong>. About time zeros and <strong>data version
+        dates</strong>: Because the forecasting
+        field does not have standard terminology, we have settled on the following two concepts for this application.
     </p>
 
     <ul>
-        <li><code>api/</code> (<a href="{% url 'api-root' %}">API root</a>)</li>
-        <li><code>api/projects/</code> (<a href="{% url 'api-project-list' %}">list of all projects</a>)</li>
-        <li><code>api/project/[project_id]/</code> (project detail)</li>
-        <li><code>api/project/[project_id]/template/</code> (project template detail)</li>
-        <li><code>api/project/[project_id]/template_data/</code> (project template data, JSON format)</li>
-        <li><code>api/project/[project_id]/truth/</code> (project truth detail)</li>
-        <li><code>api/project/[project_id]/truth_data/</code> (project truth data, JSON format)</li>
-        <li><code>api/user/[user_id]/</code> (user detail)</li>
-        <li><code>api/model/[model_id]/</code> (model detail)</li>
-        <li><code>api/forecast/[forecast_id]/</code> (forecast detail)</li>
-        <li><code>api/forecast/[forecast_id]/data/</code> (forecast data, JSON format)</li>
+        <li><em>Time zero</em>: The date from which a forecast originates and to which targets are relative (i.e. a
+            "2-week-ahead forecast" is two weeks ahead of the time-zero). Every forecast has a time zero.
+        </li>
+        <li><em>Data version date</em>: An optional additional piece of metadata for a forecast. If it exists, it is
+            associated with a
+            time-zero. It refers to the latest date at which any data source used for the forecasts should be
+            considered. If
+            present, it can be used externally by system users to recreate model results by "rolling back" the core data
+            to
+            a
+            particular state.
+        </li>
+    </ul>
+
+    <p>Some time zeros are tagged as starting a season, specifying the season's name, which helps to segment the time
+        zeros.
+        Zoltar uses season information in the visualization and score pages, where the user can select which season to
+        show
+        data
+        for. This also helps to keep performance up.</p>
+
+
+    <h1>Model detail page<a name="model-detail-page"></a></h1>
+
+    <p>A model is the represention of code that generates forecasts. Clicking on a model link takes you to its detail
+        page.
+        The
+        detail page is divided into two vertical sections, described next: Details table and forecasts list.</p>
+
+    <h2>Model details table<a name="model-details-table"></a></h2>
+
+    <p>At the top of the page is a table showing information related to the model:
+        - <em>Owner</em>: The model's owner. The owner is the user that created the model (which is done on the home
+        page), and she can edit or delete the model, and upload or delete its forecasts.
+        - <em>Project</em>: A link to the project the model belongs to.
+        - <em>Description</em>: Prose provided by model owner. It should include information on reproducing the model's
+        results.
+        - <em>Home</em>: A link to the model home page.
+        - <em>Auxiliary data</em>: An optional link to model-specific data files that were used by the model beyond the
+        project's core data. This is not used directly by Zoltar.</p>
+
+    <h2>Forecasts<a name="forecasts"></a></h2>
+
+    <p>The <strong>Forecasts</strong> section lists the model's forecasts, with links to forecast detail pages (see
+        details below). Each forecast is data associated with a particular time zero in the project. The data is loaded
+        from a file with a specific format (described next). There is one line per time zero, specifying the time zero
+        date (but not the data version date), the original forecast data filename that was uploaded, and an <strong>Action</strong>
+        button, either a green upload one if there is no data associated with the time zero, or a red delete button
+        otherwise. Clicking on the filename link takes you to a forecast detail page that includes a data preview plus a
+        <strong>Download</strong> button (currently CSV or JSON formats).</p>
+
+    <p>About forecast file formats: We have adopted the data format used for CDC flu challenges. Details are at
+        <a href="https://predict.phiresearchlab.org/api/v1/.../flu_challenge_2016-17_update.docx">flu<em>challenge</em>2016-17_update.docx</a>.
+        Summary:</p>
+
+    <ul>
+        <li>Files are in CSV format, and a header must be included.</li>
+        <li>The columns: <code>Location, Target, Type, Unit, Bin_start_incl, Bin_end_notincl, Value</code>.</li>
+        <li>Each file contains a mixture of lines for points and binned distributions.</li>
+        <li>Point lines look like: <code>US National,Season onset,Point,week,NA,NA,51</code>.</li>
+        <li>Bin lines look like: <code>US National,Season onset,Bin,week,40,41,0.0162552067459108</code>.</li>
+        <li>(Zoltar-specific standard) File names must match this pattern:
+            <code>&lt;time_zero&gt;-&lt;model_name&gt;[-&lt;data_version_date&gt;].cdc.csv</code> . data<em>version</em>date
+            and its preceding dash are optional. The two dates (<code>time_zero</code> and
+            <code>data_version_date</code>) are in <code>YYYYMMDD</code>format.
+        </li>
     </ul>
 
 
-    <h3 id="rest_api">JSON data format</h3>
+    <h1>Data analysis<a name="data-analysis"></a></h1>
+    <p>Zoltar provides two fledgling project analysis tools: visualizations and scores. You will find links to them on
+        project detail pages on the Analysis line in the project details section at the top of the page.</p>
+
+    <h2>Visualizations<a name="visualizations"></a></h2>
+    <p>This page uses the [https://github.com/reichlab/d3-foresight] D3 Foresight component's TimeChart
+        to display the project's models' forecasts for each step ahead target. Currently we only use the basic plot
+        feature along with the <strong>actual</strong> component. We plan to add baseline, history, and other features.
+        To use the chart:
+        - Select a location and season from the drop downs. (Note that selecting a season will reload the page, which
+        can take a long time for large projects.)
+        - Click the plot area to move the current time zero, indicated by the vertical division between gray on the left
+        and white on the right. The plot shows the step ahead target predictions for each model.
+        - Hover over the plot to see details.
+        - The legend shows model names, and allows showing or hiding them. Hover over a model name for details, and
+        click the link button to show model details in a separate Zoltar page.
+        - Click the left and right arrows to the right of the legend to move the current time zero.
+        - Click the 'hamburger' icon to toggle the legend.</p>
+
+    <h2>Scores<a name="scores"></a></h2>
+    <p>This page shows the mean absolute error values for all models in the project. (This can take a long time to load
+        for large projects.) The location and season drop downs work like those on the visualization page. The smallest
+        errors are shown in inverse text.</p>
+
+
+    <h1>For technical users<a name="for-technical-users"></a></h1>
+
+    <h2>API<a name="api"></a></h2>
+
+    <p>We provide the following REST endpoints. All results are JSON. The API is browsable from the root URI on the home
+        page (look for <strong>API</strong> buttons), and is a great starting point for developers. Note that all
+        projects and users are listed, but private projects, their models, and their forecasts, can only be accessed by
+        authorized accounts.</p>
+
+    <p>Endpoints:</p>
+
+    <ul>
+        <li><code>api/</code> # browsable API root</li>
+        <li><code>api/projects/</code> # list of all projects</li>
+        <li><code>api/project/[project_id]/</code> # project detail</li>
+        <li><code>api/project/[project_id]/template/</code> # template detail</li>
+        <li><code>api/project/[project_id]/template_data/</code> # template, formatted as JSON - see above</li>
+        <li><code>api/project/[project_id]/truth/</code> # truth detail</li>
+        <li><code>api/project/[project_id]/truth_data/</code> # truth data</li>
+        <li><code>api/user/[user_id]/</code> # user detail</li>
+        <li><code>api/model/[model_id]/</code> # model detail</li>
+        <li><code>api/forecast/[forecast_id]/</code> # forecast detail</li>
+        <li><code>api/forecast/[forecast_id]/data/</code> # forecast data as JSON - see above</li>
+    </ul>
+
+    <h2>JSON forecast data format<a name="json-forecast-data-format"></a></h2>
+
     <p>Currently all data is downloaded as JSON that is structured like this:</p>
     <pre>{'metadata': project_or_forecast_details_object, 'data': data_object}</pre>
 
@@ -156,5 +335,6 @@
  [bin_start_incl2, bin_end_notincl2, value2],
  ...
 ]</pre>
+
 
 {% endblock %}

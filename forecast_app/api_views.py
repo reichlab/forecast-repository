@@ -48,7 +48,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
-        return project.is_user_allowed_to_view(self.request.user)
+        return project.is_user_ok_to_view(self.request.user)
 
 
 class UserList(generics.ListCreateAPIView):
@@ -69,7 +69,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
-        return forecast_model.project.is_user_allowed_to_view(self.request.user)
+        return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
 class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -80,7 +80,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
-        return forecast.forecast_model.project.is_user_allowed_to_view(self.request.user)
+        return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
 class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -91,7 +91,7 @@ class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
-        return project.is_user_allowed_to_view(self.request.user)
+        return project.is_user_ok_to_view(self.request.user)
 
 
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -102,7 +102,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
-        return project.is_user_allowed_to_view(self.request.user)
+        return project.is_user_ok_to_view(self.request.user)
 
 
 #
@@ -116,7 +116,7 @@ def truth_data(request, project_pk):
     :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     return csv_response_for_project_truth_data(project)
@@ -133,7 +133,7 @@ def template_data(request, project_pk):
     :return: the Project's template data as JSON or CSV. note that the actual data is wrapped by metadata
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_allowed_to_view(request.user):
+    if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     # dispatch based on requested format. I tried a number of things to get DRF to pass a 'format' param, but didn't
@@ -153,7 +153,7 @@ def forecast_data(request, forecast_pk):
     :return: the Project's template data as JSON or CSV. note that the actual data is wrapped by metadata
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    if not forecast.forecast_model.project.is_user_allowed_to_view(request.user):
+    if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
     # dispatch based on requested format. see note in template_data() re: getting this via a 'format' param

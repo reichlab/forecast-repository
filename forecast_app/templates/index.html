@@ -16,7 +16,7 @@
     <h1>Zoltar Home <a href="{% url 'api-root' %}" class="btn btn-info btn-xs" role="button">API</a></h1>
 
     <p><img width="50%" src="http://reichlab.io/images/blog/flusight-wide.png" class="pull-right">
-        Welcome to the Zoltar forecast archive, a web application to prototype ideas for a repository of model forecast
+        Welcome to the Zoltar forecast archive, a web application to demonstrate ideas for a repository of model forecast
         results along with tools to compare, etc. The main ideas are outlined on the
         <a href="{% url 'about' %}">About</a> page.
     </p>
@@ -24,7 +24,7 @@
 
     <h2>Projects
         <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
-        {% if ok_user_create_project %}
+        {% if is_user_ok_create_project %}
             &nbsp;<a href="{% url 'create-project' %}" class="btn btn-success" role="button">New</a>
         {% endif %}
     </h2>
