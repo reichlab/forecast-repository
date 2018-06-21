@@ -37,7 +37,7 @@
         <li><a href="#for-technical-users">For technical users</a>
             <ul>
                 <li><a href="#api">API</a></li>
-                <li><a href="#json-forecast-data-format">JSON forecast data format</a></li>
+                <li><a href="#forecast-data-format">Forecast data format</a></li>
             </ul>
         </li>
     </ul>
@@ -313,9 +313,10 @@
         <li><code>api/forecast/[forecast_id]/data/</code> # forecast data as JSON - see above</li>
     </ul>
 
-    <h2>JSON forecast data format<a name="json-forecast-data-format"></a></h2>
+    <h2>Forecast data format<a name="forecast-data-format"></a></h2>
 
-    <p>Currently all data is downloaded as JSON that is structured like this:</p>
+    <p>Forecast data can be downloaded in either CSV or JSON format. The CSV matches the input file CDC format, but
+    the JSON is our own and is structured like this:</p>
     <pre>{'metadata': project_or_forecast_details_object, 'data': data_object}</pre>
 
     <p>Where <code>project_or_forecast_details_object</code> is an object that's the same as either the Project or
