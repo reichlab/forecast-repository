@@ -52,7 +52,7 @@
 
     <p>This document is a first draft of a user guide covering Zoltar's main features.</p>
 
-    <p>Note: Currently the site is under beta test. If you have questions about it or want an account, please contact
+    <p>Note: Presently the site is under beta test. If you have questions about it or want an account, please contact
         Professor Nicholas Reich (nick@schoolph.umass.edu>), director of the
         <a href="http://reichlab.io/">Reich Lab</a>.</p>
 
@@ -131,11 +131,12 @@
         </li>
         <li><em>Data template</em>: Either a link to the project's template (if one has been uploaded), or an upload
             button for (visible only for the project owner). Clicking the link takes you to a template detail page that
-            includes a data preview plus a<strong>Download</strong> button. About templates:
+            includes a data preview plus a <strong>Download</strong> button. About templates:
             <ul>
                 <li>The template is a data file that is used to validate uploaded forecasts.</li>
                 <li>It is the same CDC format as forecasts (see below), i.e., a CSV file containing points and bins,
-                    with these columns:<code>Location, Target, Type, Unit, Bin_start_incl, Bin_end_notincl, Value</code>.
+                    with these columns: <code>Location, Target, Type, Unit, Bin_start_incl, Bin_end_notincl,
+                        Value</code>.
                     TBD: Details re: how used for validate.
                 </li>
                 <li>There are no file name restrictions.</li>
@@ -149,7 +150,7 @@
             <ul>
                 <li>CSV file</li>
                 <li>No file name restrictions</li>
-                <li>Columns: <code>Timezero, Location, Target, Value&gt;</code>.</li>
+                <li>Columns: <code>Timezero, Location, Target, Value</code>.</li>
             </ul>
         </li>
         <li><em>Analysis</em>: Links to visualization and score pages (see below for details).</li>
@@ -165,25 +166,17 @@
     <h2>Forecast models<a name="forecast-models"></a></h2>
 
     <p>The <strong>Models</strong> section lists the project's forecast models by name, with links to model detail pages
-        (see details
-        below). If you're a project owner or model owner then a "New" button is shown that takes you to a form for
-        creating
-        a
-        model.</p>
+        (see details below). If you're a project owner or model owner then a "New" button is shown that takes you to a
+        form for creating a model.</p>
 
     <h2>Targets<a name="targets"></a></h2>
 
     <p>This section lists information about project forecast targets as defined by project owners, including the
-        target's
-        name,
-        description, and whether it is a <em>step ahead</em> target. Targets are used to validate templates and forecast
-        data. Step
-        ahead targets are special ones with an integer value indicating how many steps ahead (or behind, for negative
-        values)
-        the target is relative to a time zero. (Time zeros are defined below.) Zoltar uses these targets to determine
-        what
-        to
-        plot in the D3 Foresight component's TimeChart, and to extract 'actual' values from the truth data (see above).
+        target's name, description, and whether it is a <em>step ahead</em> target. Targets are used to validate
+        templates and forecast data. Step ahead targets are special ones with an integer value indicating how many steps
+        ahead (or behind, for negative values) the target is relative to a time zero. (Time zeros are defined below.)
+        Zoltar uses these targets to determine what to plot in the D3 Foresight component's TimeChart, and to extract
+        'actual' values from the truth data (see above).
     </p>
 
     <h2>Time zeros<a name="time-zeros"></a></h2>
@@ -198,30 +191,22 @@
             "2-week-ahead forecast" is two weeks ahead of the time-zero). Every forecast has a time zero.
         </li>
         <li><em>Data version date</em>: An optional additional piece of metadata for a forecast. If it exists, it is
-            associated with a
-            time-zero. It refers to the latest date at which any data source used for the forecasts should be
-            considered. If
-            present, it can be used externally by system users to recreate model results by "rolling back" the core data
-            to
-            a
-            particular state.
+            associated with a time-zero. It refers to the latest date at which any data source used for the forecasts
+            should be considered. If present, it can be used externally by system users to recreate model results by
+            "rolling back" the core data to a particular state.
         </li>
     </ul>
 
     <p>Some time zeros are tagged as starting a season, specifying the season's name, which helps to segment the time
-        zeros.
-        Zoltar uses season information in the visualization and score pages, where the user can select which season to
-        show
-        data
-        for. This also helps to keep performance up.</p>
+        zeros. Zoltar uses season information in the visualization and score pages, where the user can select which
+        season to show data for. This also helps to keep performance up.</p>
 
 
     <h1>Model detail page<a name="model-detail-page"></a></h1>
 
     <p>A model is the represention of code that generates forecasts. Clicking on a model link takes you to its detail
-        page.
-        The
-        detail page is divided into two vertical sections, described next: Details table and forecasts list.</p>
+        page. The detail page is divided into two vertical sections, described next: Details table and forecasts
+        list.</p>
 
     <h2>Model details table<a name="model-details-table"></a></h2>
 
@@ -240,13 +225,13 @@
     <p>The <strong>Forecasts</strong> section lists the model's forecasts, with links to forecast detail pages (see
         details below). Each forecast is data associated with a particular time zero in the project. The data is loaded
         from a file with a specific format (described next). There is one line per time zero, specifying the time zero
-        date (but not the data version date), the original forecast data filename that was uploaded, and an <strong>Action</strong>
-        button, either a green upload one if there is no data associated with the time zero, or a red delete button
-        otherwise. Clicking on the filename link takes you to a forecast detail page that includes a data preview plus a
-        <strong>Download</strong> button (currently CSV or JSON formats).</p>
+        date (but not the data version date), the original forecast data filename that was uploaded, and an
+        <strong>Action</strong>button, either a green upload one if there is no data associated with the time zero, or a
+        red delete button otherwise. Clicking on the filename link takes you to a forecast detail page that includes a
+        data preview plus a<strong>Download</strong> button (currently CSV or JSON formats).</p>
 
     <p>About forecast file formats: We have adopted the data format used for CDC flu challenges. Details are at
-        <a href="https://predict.phiresearchlab.org/api/v1/.../flu_challenge_2016-17_update.docx">flu<em>challenge</em>2016-17_update.docx</a>.
+        <a href="https://predict.phiresearchlab.org/api/v1/.../flu_challenge_2016-17_update.docx">flu_challenge_2016-17_update.docx</a>.
         Summary:</p>
 
     <ul>
@@ -256,7 +241,7 @@
         <li>Point lines look like: <code>US National,Season onset,Point,week,NA,NA,51</code>.</li>
         <li>Bin lines look like: <code>US National,Season onset,Bin,week,40,41,0.0162552067459108</code>.</li>
         <li>(Zoltar-specific standard) File names must match this pattern:
-            <code>&lt;time_zero&gt;-&lt;model_name&gt;[-&lt;data_version_date&gt;].cdc.csv</code> . data<em>version</em>date
+            <code>&lt;time_zero&gt;-&lt;model_name&gt;[-&lt;data_version_date&gt;].cdc.csv</code> . data_version_date
             and its preceding dash are optional. The two dates (<code>time_zero</code> and
             <code>data_version_date</code>) are in <code>YYYYMMDD</code>format.
         </li>
@@ -316,7 +301,7 @@
     <h2>Forecast data format<a name="forecast-data-format"></a></h2>
 
     <p>Forecast data can be downloaded in either CSV or JSON format. The CSV matches the input file CDC format, but
-    the JSON is our own and is structured like this:</p>
+        the JSON is our own and is structured like this:</p>
     <pre>{'metadata': project_or_forecast_details_object, 'data': data_object}</pre>
 
     <p>Where <code>project_or_forecast_details_object</code> is an object that's the same as either the Project or
