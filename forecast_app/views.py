@@ -369,15 +369,15 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
-        context['timezeros_to_num_forecasts'] = self.timezeros_to_num_forecasts(project)
+        context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
         context['config_dict_pretty'] = config_dict_pretty
         return context
 
 
     @staticmethod
-    def timezeros_to_num_forecasts(project):
+    def timezeros_num_forecasts(project):
         """
-        :return: a dict that maps project's TimeZeros to # Forecasts for each
+        :return: a list of tuples that relates project's TimeZeros to # Forecasts. sorted by timezero
         """
         rows = Forecast.objects.filter(forecast_model__project=project) \
             .values('time_zero__id') \
@@ -389,7 +389,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         for row in rows:
             timezero = TimeZero.objects.get(pk=row['time_zero__id'])
             tz_to_num_forecasts[timezero] = row['tz_count']
-        return tz_to_num_forecasts
+        return [(k, tz_to_num_forecasts[k])
+                for k in sorted(tz_to_num_forecasts.keys(), key=lambda timezero: timezero.timezero_date)]
 
 
 def forecast_models_owned_by_user(user):

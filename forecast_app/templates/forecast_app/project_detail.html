@@ -229,7 +229,7 @@
                         <th># Forecasts</th>
                         <th>Starts Season</th>
                     </tr>
-                    {% for timezero, num_forecasts in timezeros_to_num_forecasts.items %}
+                    {% for timezero, num_forecasts in timezeros_num_forecasts %}
                         <tr>
                             <td>{{ timezero.timezero_date|date:"Y-m-d" }}</td>
                             <td>

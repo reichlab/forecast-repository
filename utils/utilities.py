@@ -83,13 +83,13 @@ def cdc_csv_components_from_data_dir(cdc_csv_dir):
 
     :return a list of 4-tuples for each *.cdc.csv file in cdc_csv_dir, with the last three in the form returned by
         cdc_csv_filename_components(): (cdc_csv_file, timezero_date, model_name, data_version_date). cdc_csv_file is a
-        Path
+        Path. the list is sorted by timezero_date
     """
     cdc_csv_components = []
     for cdc_csv_file in cdc_csv_dir.glob('*.' + CDC_CSV_FILENAME_EXTENSION):
         timezero_date, model_name, data_version_date = cdc_csv_filename_components(cdc_csv_file.name)
         cdc_csv_components.append((cdc_csv_file, timezero_date, model_name, data_version_date))
-    return cdc_csv_components
+    return sorted(cdc_csv_components, key=lambda _: _[1])
 
 
 def cdc_csv_filename_components(cdc_csv_filename):

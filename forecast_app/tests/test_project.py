@@ -235,9 +235,10 @@ class ProjectTestCase(TestCase):
         time_zero6 = TimeZero.objects.create(project=project2, timezero_date='2018-01-01',
                                              is_season_start=True, season_name='season3')  # start season3. 1 TZ
 
-        # test Project.timezeros_to_num_forecasts() b/c it's convenient here
-        self.assertEqual({time_zero1: 0, time_zero2: 0, time_zero3: 0, time_zero4: 0, time_zero5: 0, time_zero6: 0},
-                         ProjectDetailView.timezeros_to_num_forecasts(project2))
+        # test Project.timezeros_num_forecasts() b/c it's convenient here
+        self.assertEqual(
+            [(time_zero1, 0), (time_zero2, 0), (time_zero3, 0), (time_zero4, 0), (time_zero5, 0), (time_zero6, 0)],
+            ProjectDetailView.timezeros_num_forecasts(project2))
 
         # above create() calls test valid TimeZero season values
 
@@ -638,8 +639,8 @@ class ProjectTestCase(TestCase):
         self.assertEqual(exp_loc_tz_date_to_actual_vals, project.location_timezero_date_to_actual_vals(None))
 
 
-    def test_timezeros_to_num_forecasts(self):
-        self.assertEqual({self.time_zero: 1}, ProjectDetailView.timezeros_to_num_forecasts(self.project))
+    def test_timezeros_num_forecasts(self):
+        self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
 # converts innermost dicts to defaultdicts, which are what location_target_timezero_date_to_truth() returns
