@@ -236,7 +236,17 @@
 
     <ul>
         <li>Files are in CSV format, and a header must be included.</li>
-        <li>The columns: <code>Location, Target, Type, Unit, Bin_start_incl, Bin_end_notincl, Value</code>.</li>
+        <li>Has these columns:
+            <ul>
+                <li><code>Location</code>: Location of forecast - either entire country or a particular region</li>
+                <li><code>Target</code>: Forecast target</li>
+                <li><code>Type</code>: Forecast type - either "Point" for point forecast or "Bin" for probabilistic bin</li>
+                <li><code>Unit</code>: Unit of forecast, e.g., "week" or "percent"</li>
+                <li><code>Bin_start_incl</code>: Inclusive starting value for probabilistic forecast bin</li>
+                <li><code>Bin_end_notincl</code>: Exclusive ending value for probabilistic forecast bin</li>
+                <li><code>Value</code>: Forecasted point value or probability assigned</li>
+            </ul>
+        </li>
         <li>Each file contains a mixture of lines for points and binned distributions.</li>
         <li>Point lines look like: <code>US National,Season onset,Point,week,NA,NA,51</code>.</li>
         <li>Bin lines look like: <code>US National,Season onset,Bin,week,40,41,0.0162552067459108</code>.</li>

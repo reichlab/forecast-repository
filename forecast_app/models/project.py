@@ -251,7 +251,6 @@ class Project(ModelWithCDCData):
         :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
         """
         from .forecast import Forecast  # avoid circular imports
-        from .forecast_model import ForecastModel  # ""
 
 
         return self.models.filter(project=self).count(), \
