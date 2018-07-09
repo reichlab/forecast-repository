@@ -28,10 +28,10 @@ CONFIG_DICT = {
 @click.option('--load_data', is_flag=True, default=False)
 def make_thai_moph_project_app(data_dir, make_project, load_data):
     """
-    Deletes and creates a database with one project, one group, and two classes of users. Then loads models from the
-    Impetus project. Note: The input files to this program are the output from a spamd export script located the
-    dengue-data repo ( https://github.com/reichlab/dengue-data/blob/master/misc/cdc-csv-export.R ) and are committed to
-    https://epimodeling.springloops.io/project/156725/svn/source/browse/-/trunk%2Farchives%2Fdengue-reports%2Fdata-summaries
+    Deletes and creates a database with one project, one group, and two classes of users. Hard-coded for 2017-2018
+    season. Then loads models from the Impetus project. Note: The input files to this program are the output from a
+    spamd export script located the dengue-data repo ( https://github.com/reichlab/dengue-data/blob/master/misc/cdc-csv-export.R )
+    and are committed to https://epimodeling.springloops.io/project/156725/svn/source/browse/-/trunk%2Farchives%2Fdengue-reports%2Fdata-summaries
     They currently must be processed (currently by hand) via these rough steps:
 
         1. download template
@@ -67,19 +67,24 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
     elif not project:  # not make_project, but couldn't find existing
         raise RuntimeError("Could not find existing project named '{}'".format(project_name))
 
-    # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts
-    for idx, (cdc_csv_file, timezero_date, _, data_version_date) in enumerate(
-            cdc_csv_components_from_data_dir(data_dir)):
+    # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts. for is_season_start and
+    # season_name we use year transitions: the first 2017 we encounter -> start of that year, etc.
+    seen_years = []  # indicates a year has been processed. used to determine season starts
+    for cdc_csv_file, timezero_date, _, data_version_date in cdc_csv_components_from_data_dir(data_dir):
         found_time_zero = project.time_zero_for_timezero_date(timezero_date)
         if found_time_zero:
             click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
             continue
 
+        timezero_year = timezero_date.year
+        is_season_start = timezero_year not in seen_years
+        if is_season_start:
+            seen_years.append(timezero_year)
         TimeZero.objects.create(project=project,
                                 timezero_date=str(timezero_date),
                                 data_version_date=str(data_version_date) if data_version_date else None,
-                                is_season_start=(True if idx == 0 else False),
-                                season_name=('2017-2018' if idx == 0 else None))  # todo xx hard-coded season_name
+                                is_season_start=(True if is_season_start else False),
+                                season_name=(str(timezero_year) if is_season_start else None))
     click.echo("- created TimeZeros: {}".format(project.timezeros.all()))
 
     if make_project:

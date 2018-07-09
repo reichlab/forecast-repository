@@ -57,7 +57,7 @@ def project_visualizations(request, project_pk):
         return HttpResponseForbidden()
 
     seasons = project.seasons()
-    season_name = _param_val_from_request(request, 'season_name', seasons, True)
+    season_name = _param_val_from_request(request, 'season_name', seasons)
 
     # None if no targets in project:
     location_to_flusight_data_dict = flusight_location_to_data_dict(project, season_name, request)
@@ -101,7 +101,7 @@ def project_scores(request, project_pk):
         return HttpResponseForbidden()
 
     seasons = project.seasons()
-    season_name = _param_val_from_request(request, 'season_name', seasons, True)
+    season_name = _param_val_from_request(request, 'season_name', seasons)
     try:
         logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
                      "season_name={}".format(project, season_name))
@@ -139,17 +139,11 @@ def project_scores(request, project_pk):
                  })
 
 
-def _param_val_from_request(request, param_name, choices, is_int):
+def _param_val_from_request(request, param_name, choices):
     """
     :return param_name's value from query parameters. else use last one in choices, or None if no choices
     """
     param_val = request.GET[param_name] if param_name in request.GET else None
-    if is_int:
-        try:
-            param_val = int(param_val)
-        except:
-            pass
-
     if param_val in choices:
         return param_val
     else:
