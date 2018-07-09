@@ -71,15 +71,16 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
     # season_name we use year transitions: the first 2017 we encounter -> start of that year, etc.
     seen_years = []  # indicates a year has been processed. used to determine season starts
     for cdc_csv_file, timezero_date, _, data_version_date in cdc_csv_components_from_data_dir(data_dir):
+        timezero_year = timezero_date.year
+        is_season_start = timezero_year not in seen_years
+        if is_season_start:
+            seen_years.append(timezero_year)
+
         found_time_zero = project.time_zero_for_timezero_date(timezero_date)
         if found_time_zero:
             click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
             continue
 
-        timezero_year = timezero_date.year
-        is_season_start = timezero_year not in seen_years
-        if is_season_start:
-            seen_years.append(timezero_year)
         TimeZero.objects.create(project=project,
                                 timezero_date=str(timezero_date),
                                 data_version_date=str(data_version_date) if data_version_date else None,
