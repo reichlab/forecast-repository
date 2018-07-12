@@ -95,9 +95,9 @@ def _make_cdc_flusight_project(component_models_dir, make_project, load_data, pr
         # forecast validation will fail if it's for a year with 53 days. for reference, we use
         # pymmwr.mmwr_weeks_in_year() determine the number of weeks in a year
         click.echo("- loading template")
-        project.load_template(template_52)
-
         targets = create_cdc_targets(project)
+
+        project.load_template(template_52)
         click.echo("- created {} Targets: {}".format(len(targets), targets))
 
         click.echo("* Creating models")

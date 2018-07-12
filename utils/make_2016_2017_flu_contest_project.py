@@ -103,9 +103,8 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
         config_dict=config_dict)
 
     click.echo("  loading template")
-    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
-
     create_cdc_targets(project)
+    project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
 
     # create TimeZeros
     yr_wk_2016 = list(zip(itertools.repeat(2016), range(43, 53)))

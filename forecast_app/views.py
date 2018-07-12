@@ -66,13 +66,15 @@ def project_visualizations(request, project_pk):
                                           Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
     loc_tz_date_to_actual_vals = project.location_timezero_date_to_actual_vals(season_name)
-    location_to_actual_points = Project.location_to_actual_points(loc_tz_date_to_actual_vals)
+    location_to_actual_points = _location_to_actual_points(loc_tz_date_to_actual_vals)
     location_to_max_val = project.location_to_max_val(season_name, project.visualization_targets())
 
     # correct location_to_max_val to account for max actual values
-    location_to_actual_max_val = Project.location_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
+    location_to_actual_max_val = _location_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
     for location in location_to_max_val:
-        if location_to_actual_max_val[location]:
+        if (location_to_max_val[location]) \
+                and (location in location_to_actual_max_val) \
+                and (location_to_actual_max_val[location]):
             location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])
 
     locations = sorted(project.get_locations())
@@ -91,6 +93,45 @@ def project_visualizations(request, project_pk):
                  'y_axis_label': project.visualization_y_label(),
                  })
 
+
+def _location_to_actual_points(loc_tz_date_to_actual_vals):
+    """
+    :return: view function that returns a dict mapping location to a list of actual values found in
+        loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals(). it is what the D3
+        component expects: "[a JavaScript] array of the same length as timePoints"
+    """
+
+
+    def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
+        return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
+                for tz_date in sorted(tz_date_to_actual.keys())]
+
+
+    location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                 for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+    return location_to_actual_points
+
+
+def _location_to_actual_max_val(loc_tz_date_to_actual_vals):
+    """
+    :return: view function that returns a dict mapping each location to the maximum value found in
+        loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals()
+    """
+
+
+    def max_from_tz_date_to_actual_dict(tz_date_to_actual):
+        flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
+        return max(flat_values) if flat_values else None  # NB: None is arbitrary
+
+
+    location_to_actual_max = {location: max_from_tz_date_to_actual_dict(tz_date_to_actual)
+                              for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+    return location_to_actual_max
+
+
+#
+# score-related view functions
+#
 
 def project_scores(request, project_pk):
     """
@@ -534,7 +575,7 @@ def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
 
     # validate location and target
     locations = project.get_locations()
-    targets = project.get_targets_for_location(location)
+    targets = project.get_target_names_for_location(location)
     if (location not in locations) or (target not in targets):
         return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
                                       "target={}, targets={}".format(project, location, locations, target, targets))

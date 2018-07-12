@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero
 from utils.cdc import CDC_CONFIG_DICT
-from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users
+from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
 from utils.utilities import CDC_CSV_HEADER
 
 
@@ -34,6 +34,7 @@ class ViewsTestCase(TestCase):
                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
+        create_cdc_targets(cls.public_project)
         cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         TimeZero.objects.create(project=cls.public_project, timezero_date='2017-01-01')
@@ -49,6 +50,7 @@ class ViewsTestCase(TestCase):
                                                      owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
+        create_cdc_targets(cls.private_project)
         cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.private_tz1 = TimeZero.objects.create(project=cls.private_project, timezero_date=str('2017-12-03'),
                                                   data_version_date=None)
@@ -140,7 +142,7 @@ class ViewsTestCase(TestCase):
             reverse('upload-template', args=[str(self.private_project.pk)]): self.ONLY_PO,
             reverse('download-template', args=[str(self.public_project.pk)]): self.BAD_REQ_400_ALL,
             reverse('download-template', args=[str(self.private_project.pk)]): self.ONLY_PO_MO_400,
-            
+
             reverse('truth-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('truth-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('delete-truth', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
@@ -149,7 +151,7 @@ class ViewsTestCase(TestCase):
             reverse('upload-truth', args=[str(self.private_project.pk)]): self.ONLY_PO,
             reverse('download-truth', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('download-truth', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            
+
             reverse('model-detail', args=[str(self.public_model.pk)]): self.OK_ALL,
             reverse('model-detail', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
             reverse('create-model', args=[str(self.public_project.pk)]): self.ONLY_PO_MO,

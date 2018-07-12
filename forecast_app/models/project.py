@@ -140,6 +140,10 @@ class Project(ModelWithCDCData):
         return self.__class__.__name__ + '_' + str(self.pk)
 
 
+    def targets_qs(self):  # concrete method
+        return self.targets
+
+
     #
     # distribution-related utilities
     #
@@ -153,7 +157,7 @@ class Project(ModelWithCDCData):
         first_forecast = first_model.forecasts.first() if first_model else None
         locations = self.get_locations()
         first_location = next(iter(sorted(locations))) if locations else None  # sort to make deterministic
-        targets = self.get_targets_for_location(first_location)
+        targets = self.get_target_names_for_location(first_location)
         first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
         return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
             else None
@@ -300,12 +304,23 @@ class Project(ModelWithCDCData):
     # visualization-related functions
     #
 
+    # def visualization_targets(self):
+    #     """
+    #     :return: list of Target names that can be used for flusight_location_to_data_dict() and mean_absolute_error()
+    #         (for the meantime) calls. returns None if no config_dict. To be compatible with the D3 Foresight component's
+    #         TimeChart, we only include those whose step_ahead_increment is >= 1. TODO xx revert this once we are working
+    #         correctly with the component
+    #     """
+    #     return self.targets.filter(is_step_ahead=True) \
+    #         .filter(step_ahead_increment__gte=1) \
+    #         .values_list('name', flat=True)
+
     def visualization_targets(self):
         """
-        :return: list of Target names that can be used for flusight_location_to_data_dict() and mean_absolute_error()
-            (for the meantime) calls. returns None if no config_dict
+        :return: list of Targets that can be used for flusight_location_to_data_dict() and mean_absolute_error()
+            (for the meantime) calls. returns None if no config_dict. they are sorted by name
         """
-        return self.targets.filter(is_step_ahead=True).values_list('name', flat=True)
+        return self.targets.filter(is_step_ahead=True).order_by('name')
 
 
     def visualization_y_label(self):
@@ -333,7 +348,7 @@ class Project(ModelWithCDCData):
             as a nested list of rows
         """
         return list(self.truth_data_qs()
-                    .values_list('time_zero__timezero_date', 'location', 'target', 'value')[:10])
+                    .values_list('time_zero__timezero_date', 'location', 'target__name', 'value')[:10])
 
 
     def get_num_truth_rows(self):
@@ -349,7 +364,7 @@ class Project(ModelWithCDCData):
         """
         return list(self.truth_data_qs()
                     .order_by('id')
-                    .values_list('time_zero__timezero_date', 'location', 'target', 'value'))
+                    .values_list('time_zero__timezero_date', 'location', 'target__name', 'value'))
 
 
     def truth_data_qs(self):
@@ -404,26 +419,32 @@ class Project(ModelWithCDCData):
             .first()
 
 
-    def location_target_timezero_date_to_truth(self, season_name=None):
+    def location_target_name_tz_date_to_truth(self, season_name=None):
         """
         Returns my truth values as a dict that's organized for easy access, as in:
-        location_target_timezero_date_to_truth[location][target][timezero_date]. Only includes data from season_name,
-        which is None if I have no seasons.
+        location_target_name_tz_date_to_truth[location][target_name][timezero_date]. Only includes data from
+        season_name, which is None if I have no seasons.
         """
         loc_target_tz_date_to_truth = {}
-        query_set = self.truth_data_qs() \
-            .order_by('location', 'target') \
-            .values_list('location', 'target', 'time_zero__timezero_date', 'value')
+        # todo xx think ordering by target!! instead order by Target.step_ahead_increment
+        truth_data_qs = self.truth_data_qs() \
+            .order_by('location', 'target__id') \
+            .values_list('location', 'target__id', 'time_zero__timezero_date', 'value')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-            query_set = query_set.filter(time_zero__timezero_date__gte=season_start_date,
-                                         time_zero__timezero_date__lte=season_end_date)
-        for location, loc_target_tz_grouper in groupby(query_set, key=lambda _: _[0]):
+            truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
+                                                 time_zero__timezero_date__lte=season_end_date)
+
+        target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
+        for location, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
             target_tz_date_to_truth = {}
             loc_target_tz_date_to_truth[location] = target_tz_date_to_truth
-            for target, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
+            for target_id, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
                 tz_date_to_truth = defaultdict(list)
-                target_tz_date_to_truth[target] = tz_date_to_truth
+                if target_id not in target_pks_to_names:
+                    continue
+
+                target_tz_date_to_truth[target_pks_to_names[target_id]] = tz_date_to_truth
                 for _, _, tz_date, value in target_tz_grouper:
                     tz_date_to_truth[tz_date].append(value)
         return loc_target_tz_date_to_truth
@@ -477,13 +498,14 @@ class Project(ModelWithCDCData):
                 return
 
             truth_data_table_name = TruthData._meta.db_table
-            columns = [TruthData._meta.get_field('time_zero').column, 'location', 'target', 'value']
+            columns = [TruthData._meta.get_field('time_zero').column, 'location',
+                       TruthData._meta.get_field('target').column, 'value']
             if connection.vendor == 'postgresql':
                 string_io = io.StringIO()
                 csv_writer = csv.writer(string_io, delimiter=',')
-                for timezero, location, target, value in rows:
+                for timezero, location, target_id, value in rows:
                     # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
-                    csv_writer.writerow([timezero, location, target,
+                    csv_writer.writerow([timezero, location, target_id,
                                          value if value is not None else POSTGRES_NULL_VALUE])
                 string_io.seek(0)
                 cursor.copy_from(string_io, truth_data_table_name, columns=columns, sep=',', null=POSTGRES_NULL_VALUE)
@@ -518,7 +540,8 @@ class Project(ModelWithCDCData):
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
         locations = self.get_locations()  # template data
-        targets = self.get_targets()  # ""
+        target_names = self.get_target_names()  # ""
+        target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
         rows = []
         timezero_to_missing_count = defaultdict(int)  # to minimize warnings
         location_to_missing_count = defaultdict(int)
@@ -527,7 +550,7 @@ class Project(ModelWithCDCData):
             if len(row) != 4:
                 raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
 
-            timezero_date, location, target, value = row
+            timezero_date, location, target_name, value = row
 
             # validate timezero_date
             # todo cache: time_zero_for_timezero_date() results - expensive?
@@ -541,12 +564,12 @@ class Project(ModelWithCDCData):
                 location_to_missing_count[location] += 1
                 continue
 
-            if target not in targets:
-                target_to_missing_count[target] += 1
+            if target_name not in target_names:
+                target_to_missing_count[target_name] += 1
                 continue
 
             value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
-            rows.append((timezero.pk, location, target, value))
+            rows.append((timezero.pk, location, target_names_to_pks[target_name], value))
 
         # report warnings
         for timezero, count in timezero_to_missing_count.items():
@@ -555,9 +578,9 @@ class Project(ModelWithCDCData):
         for location, count in location_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
                            .format(location, count))
-        for target, count in target_to_missing_count.items():
+        for target_name, count in target_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
-                           .format(target, count))
+                           .format(target_name, count))
 
         # done
         return rows
@@ -567,48 +590,13 @@ class Project(ModelWithCDCData):
     # actual data-related functions
     #
 
-    @staticmethod
-    def location_to_actual_points(loc_tz_date_to_actual_vals):
-        """
-        :return: view function that returns a dict mapping location to a list of actual values found in
-            loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals(). it is what the D3
-            component expects: "[a JavaScript] array of the same length as timePoints"
-        """
-
-
-        def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
-            return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
-                    for tz_date in sorted(tz_date_to_actual.keys())]
-
-
-        location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                     for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-        return location_to_actual_points
-
-
-    @staticmethod
-    def location_to_actual_max_val(loc_tz_date_to_actual_vals):
-        """
-        :return: view function that returns a dict mapping each location to the maximum value found in
-            loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals()
-        """
-
-
-        def max_from_tz_date_to_actual_dict(tz_date_to_actual):
-            flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
-            return max(flat_values) if flat_values else None  # NB: None is arbitrary
-
-
-        location_to_actual_max = {location: max_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                  for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-        return location_to_actual_max
-
-
     def location_timezero_date_to_actual_vals(self, season_name):
         """
         Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:
         location_timezero_date_to_actual_vals[location][timezero_date] . Returns {} if no
         reference_target_for_actual_values().
+
+        :param season_name: optional season. None means return all data
         """
 
 
@@ -630,8 +618,8 @@ class Project(ModelWithCDCData):
         tz_date_to_next_tz_date = dict(zip(tz_dates, tz_dates[ref_target.step_ahead_increment:]))
 
         # get loc_target_tz_date_to_truth(). we use all seasons b/c might need TimeZero from a previous season to get
-        # this one. recall: [location][target][timezero_date] -> truth
-        loc_target_tz_date_to_truth = self.location_target_timezero_date_to_truth()
+        # this one. recall: [location][target_name][timezero_date] -> truth
+        loc_target_tz_date_to_truth = self.location_target_name_tz_date_to_truth()  # target__id
         loc_tz_date_to_actual_vals = {}  # [location][timezero_date] -> actual
         for location in loc_target_tz_date_to_truth:
             # default to None so that any TimeZeros missing from loc_target_tz_date_to_truth are present:
@@ -703,7 +691,7 @@ class Project(ModelWithCDCData):
         # lookup b/c get_target_bins() was slow. this has the added benefit of enabling us to easily override my
         # template if validation_template is passed
         if validation_template:
-            template_location_dicts = self.get_location_dicts_internal_format_for_cdc_csv_file(validation_template)
+            template_location_dicts = self.get_loc_dicts_int_format_for_csv_file(validation_template)
         else:
             template_location_dicts = self.get_location_dicts_internal_format()
         forecast_location_dicts = forecast.get_location_dicts_internal_format()

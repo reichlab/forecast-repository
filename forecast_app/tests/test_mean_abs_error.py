@@ -6,6 +6,7 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
+from utils.make_2016_2017_flu_contest_project import create_cdc_targets
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
     _model_id_to_forecast_id_tz_date_csv_fname, location_to_mean_abs_error_rows_for_project
 
@@ -18,14 +19,15 @@ class MAETestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        Target.objects.create(project=cls.project, name="1 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=1)
-        Target.objects.create(project=cls.project, name="2 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3)
-        Target.objects.create(project=cls.project, name="3 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3)
-        Target.objects.create(project=cls.project, name="4 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=4)
+        create_cdc_targets(cls.project)
+        # Target.objects.create(project=cls.project, name="1 wk ahead", description="d",
+        #                       is_step_ahead=True, step_ahead_increment=1)
+        # Target.objects.create(project=cls.project, name="2 wk ahead", description="d",
+        #                       is_step_ahead=True, step_ahead_increment=3)
+        # Target.objects.create(project=cls.project, name="3 wk ahead", description="d",
+        #                       is_step_ahead=True, step_ahead_increment=3)
+        # Target.objects.create(project=cls.project, name="4 wk ahead", description="d",
+        #                       is_step_ahead=True, step_ahead_increment=4)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 
@@ -62,7 +64,7 @@ class MAETestCase(TestCase):
         for target, exp_mae in self.exp_target_to_mae.items():
             model_id_to_point_values_dict = _model_id_to_point_values_dict(self.project, None, [target])
             model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(self.project, None)
-            loc_target_tz_date_to_truth = self.project.location_target_timezero_date_to_truth()
+            loc_target_tz_date_to_truth = self.project.location_target_name_tz_date_to_truth()  # target__id
             act_mae = mean_absolute_error(self.forecast_model, 'US National', target,
                                           model_id_to_point_values_dict[self.forecast_model.pk],
                                           model_id_to_forecast_id_tz_date_csv_fname[self.forecast_model.pk],

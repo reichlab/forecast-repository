@@ -17,7 +17,7 @@ from forecast_app.models.project import Target, TimeZero
 from forecast_app.models import Project, ForecastModel
 
 
-CONFIG_DICT = {
+THAI_CONFIG_DICT = {
     "visualization-y-label": "DHF cases"
 }
 
@@ -124,14 +124,13 @@ def make_thai_moph_project(project_name, template_path):
         home_url='http://www.iddynamics.jhsph.edu/projects/impetus',
         logo_url='http://www.iddynamics.jhsph.edu/sites/default/files/styles/project-logo/public/content/project/logos/ImpetusLogo.png',
         core_data='https://github.com/reichlab/dengue-data',
-        config_dict=CONFIG_DICT)
+        config_dict=THAI_CONFIG_DICT)
+
+    click.echo("  creating targets")
+    create_thai_targets(project)
 
     click.echo("  loading template")
     project.load_template(template_path)
-
-    # create Targets
-    click.echo("  creating targets")
-    create_thai_targets(project)
 
     # done
     return project

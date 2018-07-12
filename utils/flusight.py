@@ -64,8 +64,6 @@ def flusight_location_to_data_dict(project, season_name, request=None):
     targets = project.visualization_targets()
     if not targets:
         return None
-    else:
-        targets = sorted(targets)
 
     # set time_points. order_by -> matches ORDER BY in _flusight_point_value_rows_for_models():
     project_timezeros = project.timezeros_in_season(season_name)
@@ -129,6 +127,7 @@ def _model_to_location_timezero_points(project, season_name, targets):
     # - we don't need to select targets b/c forecast ids have 1:1 correspondence to TimeZeros
     # - "" b/c targets are needed only for ordering
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+    # todo xx think ordering by target!! instead order by Target.step_ahead_increment
     rows = ForecastData.objects \
         .filter(forecast__forecast_model__project=project,
                 row_type=CDCData.POINT_ROW_TYPE,

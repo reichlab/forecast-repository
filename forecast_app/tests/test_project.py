@@ -7,10 +7,10 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.views import ProjectDetailView
+from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.cdc import CDC_CONFIG_DICT
 from utils.make_2016_2017_flu_contest_project import create_cdc_targets
-from utils.make_thai_moph_project import create_thai_targets
+from utils.make_thai_moph_project import create_thai_targets, THAI_CONFIG_DICT
 
 
 class ProjectTestCase(TestCase):
@@ -50,6 +50,7 @@ class ProjectTestCase(TestCase):
         self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'))
 
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
         self.assertEqual(0, project2.truth_data_qs().count())
         self.assertFalse(project2.is_truth_data_loaded())
 
@@ -83,6 +84,8 @@ class ProjectTestCase(TestCase):
 
         # create a project, don't load a template, verify csv_filename and is_template_loaded()
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
+
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
         self.assertFalse(project2.is_template_loaded())
         self.assertFalse(project2.csv_filename)
@@ -98,6 +101,7 @@ class ProjectTestCase(TestCase):
     def test_delete_template(self):
         # create a project, don't load a template, verify csv_filename and is_template_loaded()
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         project2.delete_template()
         self.assertFalse(project2.is_template_loaded())
@@ -109,6 +113,7 @@ class ProjectTestCase(TestCase):
         # header incorrect or has no lines: already checked by load_csv_data()
 
         new_project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(new_project)
 
         # no locations
         with self.assertRaises(RuntimeError) as context:
@@ -120,11 +125,6 @@ class ProjectTestCase(TestCase):
             new_project.load_template(Path('forecast_app/tests/EW1-target-no-point-2017-01-17.csv'))
         self.assertIn("First row was not the point row", str(context.exception))
 
-        # expose a bug in ModelWithCDCData.insert_data() that depended on the 'type' column's case (tested for
-        # 'Point') - should *not* raise "Target has no point value" b/c it *does* have a point row:
-        #     TH01,1_biweek_ahead,point,cases,NA,NA,NA
-        new_project.load_template(Path('forecast_app/tests/thai-template-lowercase-type.csv'))
-
         # a target without a bin
         with self.assertRaises(RuntimeError) as context:
             new_project.load_template(Path('forecast_app/tests/EW1-target-no-bins-2017-01-17.csv'))
@@ -135,13 +135,20 @@ class ProjectTestCase(TestCase):
             new_project.load_template(Path('forecast_app/tests/EW1-target-missing-from-location-2017-01-17.csv'))
         self.assertIn("Target(s) was not found in every location", str(context.exception))
 
+        # expose a bug in ModelWithCDCData.insert_data() that depended on the 'type' column's case (tested for
+        # 'Point') - should *not* raise "Target has no point value" b/c it *does* have a point row:
+        #     TH01,1_biweek_ahead,point,cases,NA,NA,NA
+        new_project2 = Project.objects.create(config_dict=THAI_CONFIG_DICT)
+        create_thai_targets(new_project2)
+        new_project2.load_template(Path('forecast_app/tests/thai-template-lowercase-type.csv'))
+
         # bad row type - neither 'point' nor 'bin'
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('forecast_app/tests/thai-template-bad-row-type-point.csv'))
+            new_project2.load_template(Path('forecast_app/tests/thai-template-bad-row-type-point.csv'))
         self.assertIn("row_type was neither 'point' nor 'bin'", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('forecast_app/tests/thai-template-bad-row-type-bin.csv'))
+            new_project2.load_template(Path('forecast_app/tests/thai-template-bad-row-type-bin.csv'))
         self.assertIn("row_type was neither 'point' nor 'bin'", str(context.exception))
 
 
@@ -156,7 +163,7 @@ class ProjectTestCase(TestCase):
 
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
                        'Season peak week']
-        self.assertEqual(exp_targets, sorted(self.project.get_targets_for_location('US National')))
+        self.assertEqual(exp_targets, sorted(self.project.get_target_names_for_location('US National')))
 
         self.assertEqual('week', self.project.get_target_unit('US National', 'Season onset'))
         self.assertEqual(51.0, self.project.get_target_point_value('US National', 'Season onset'))
@@ -207,6 +214,7 @@ class ProjectTestCase(TestCase):
 
     def test_timezero_seasons(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
 
         Target.objects.create(project=project2, name="1 wk ahead", description="d",
                               is_step_ahead=True, step_ahead_increment=1)
@@ -324,7 +332,7 @@ class ProjectTestCase(TestCase):
 
     def test_visualization_targets(self):
         self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
-                         sorted(self.project.visualization_targets()))
+                         [target.name for target in self.project.visualization_targets()])
 
 
     def test_reference_target_for_actual_values(self):
@@ -405,7 +413,7 @@ class ProjectTestCase(TestCase):
         }
         self.assertEqual(exp_loc_tz_date_to_actual_vals, project.location_timezero_date_to_actual_vals(None))
 
-        # test location_to_actual_points()
+        # test _location_to_actual_points()
         exp_location_to_actual_points = {'HHS Region 1': [None, 0.303222, 0.286054],
                                          'HHS Region 10': [None, 0.364459, 0.240377],
                                          'HHS Region 2': [None, 1.32634, 1.34713],
@@ -417,16 +425,14 @@ class ProjectTestCase(TestCase):
                                          'HHS Region 8': [None, 0.33984, 0.359646],
                                          'HHS Region 9': [None, 0.892872, 0.912778],
                                          'US National': [None, 0.73102, 0.688338]}
-        self.assertEqual(exp_location_to_actual_points,
-                         Project.location_to_actual_points(exp_loc_tz_date_to_actual_vals))
+        self.assertEqual(exp_location_to_actual_points, _location_to_actual_points(exp_loc_tz_date_to_actual_vals))
 
-        # test location_to_actual_max_val()
+        # test _location_to_actual_max_val()
         exp_location_to_actual_max_val = {'HHS Region 1': 0.303222, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
                                           'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
                                           'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
                                           'HHS Region 9': 0.912778, 'US National': 0.73102}
-        self.assertEqual(exp_location_to_actual_max_val,
-                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
+        self.assertEqual(exp_location_to_actual_max_val, _location_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
 
         del exp_loc_tz_date_to_actual_vals['HHS Region 1'][datetime.date(2017, 7, 30)]  # leave only None
         del exp_loc_tz_date_to_actual_vals['HHS Region 1'][datetime.date(2017, 8, 6)]  # ""
@@ -434,11 +440,10 @@ class ProjectTestCase(TestCase):
                                           'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
                                           'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
                                           'HHS Region 9': 0.912778, 'US National': 0.73102}
-        self.assertEqual(exp_location_to_actual_max_val,
-                         Project.location_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
+        self.assertEqual(exp_location_to_actual_max_val, _location_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
 
-        # test 2 step ahead target first one available
-        project.targets.get(name='1 wk ahead').delete()
+        # test 2 step ahead target first one not available
+        project.targets.get(name='1 wk ahead').delete()  # recall: TruthData.target: on_delete=models.CASCADE
         exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
@@ -549,7 +554,7 @@ class ProjectTestCase(TestCase):
         }
         _conv_loc_target_tz_date_to_truth_to_default_dict(exp_loc_target_tz_date_to_truth)
         self.assertEqual(exp_loc_target_tz_date_to_truth,
-                         self.project.location_target_timezero_date_to_truth())
+                         self.project.location_target_name_tz_date_to_truth())  # target__id
 
 
     def test_location_timezero_date_to_actual_vals_multi_season(self):
@@ -569,10 +574,10 @@ class ProjectTestCase(TestCase):
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
 
-        # test location_target_timezero_date_to_truth() with above multiple seasons - done in this method b/c we've
+        # test location_target_name_tz_date_to_truth() with above multiple seasons - done in this method b/c we've
         # set up some seasons :-)
         self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1a(),
-                         project.location_target_timezero_date_to_truth('season1'))
+                         project.location_target_name_tz_date_to_truth('season1'))  # target__id
 
         # test location_timezero_date_to_actual_vals() with above multiple seasons
         self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1b(),
@@ -593,13 +598,12 @@ class ProjectTestCase(TestCase):
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
 
-        # change '1 wk ahead' to '0 wk ahead' in Target and truth data
+        # change '1 wk ahead' to '0 wk ahead' in Target and truth data. also tests that target names are not used
+        # (ids or step_ahead_increment should be used)
         target = project.targets.get(name='1 wk ahead')
         target.name = '0 wk ahead'
         target.step_ahead_increment = 0
         target.save()
-
-        project.truth_data_qs().filter(target='1 wk ahead').update(target='0 wk ahead')
 
         exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {datetime.date(2017, 7, 23): [0.303222],
@@ -643,11 +647,11 @@ class ProjectTestCase(TestCase):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
-# converts innermost dicts to defaultdicts, which are what location_target_timezero_date_to_truth() returns
+# converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns
 def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):
     for location, target_tz_dict in loc_target_tz_date_to_truth.items():
-        for target, tz_date_truth in target_tz_dict.items():
-            loc_target_tz_date_to_truth[location][target] = defaultdict(list, tz_date_truth)
+        for target_name, tz_date_truth in target_tz_dict.items():
+            loc_target_tz_date_to_truth[location][target_name] = defaultdict(list, tz_date_truth)
 
 
 def _exp_loc_tz_date_to_actual_vals_season_1a():

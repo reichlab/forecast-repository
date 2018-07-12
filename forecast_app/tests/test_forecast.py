@@ -8,10 +8,11 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
-from forecast_app.models.data import ModelWithCDCData, CDCData
+from forecast_app.models.data import CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
+from utils.make_2016_2017_flu_contest_project import create_cdc_targets
 from utils.utilities import rescale
 
 
@@ -23,6 +24,7 @@ class ForecastTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -37,17 +39,13 @@ class ForecastTestCase(TestCase):
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.csv_filename)
 
-        cdc_data_rows = self.forecast.cdcdata_set.all()
-        self.assertEqual(8019, len(cdc_data_rows))  # excluding header
+        forecast_cdcdata_set = self.forecast.cdcdata_set
+        self.assertEqual(8019, forecast_cdcdata_set.count())  # excluding header
 
         # spot-check a few rows
-        self.assertEqual(['US National', 'Season onset', CDCData.POINT_ROW_TYPE, 'week', None, None, 50.0012056690978],
-                         cdc_data_rows[0].data_row())  # note 'NA' -> None
-        self.assertEqual(
-            ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', None, None, 1.22490002826229e-07],
-            cdc_data_rows[34].data_row())  # note 'none' -> None
-        self.assertEqual(['HHS Region 10', '4 wk ahead', CDCData.BIN_ROW_TYPE, 'percent', 13, 100, 0.00307617873070836],
-                         cdc_data_rows[8018].data_row())
+        act_qs = forecast_cdcdata_set.filter(location='US National', row_type=CDCData.POINT_ROW_TYPE).order_by('id').values_list('value', flat=True)
+        self.assertEqual([50.0012056690978, 4.96302456525203, 3.30854920241938, 3.00101461253164, 2.72809349594878, 2.5332588357381, 2.42985946508278],
+                         list(act_qs))
 
         # test empty file
         with self.assertRaises(RuntimeError) as context:
@@ -63,6 +61,7 @@ class ForecastTestCase(TestCase):
 
         # test load_forecast() with timezero not in the project
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
+        create_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
@@ -74,6 +73,7 @@ class ForecastTestCase(TestCase):
 
     def test_load_forecasts_from_dir(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
@@ -173,8 +173,8 @@ class ForecastTestCase(TestCase):
 
         exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
                        'Season peak week']
-        self.assertEqual(exp_targets, sorted(self.forecast.get_targets_for_location('US National')))
-        self.assertEqual(exp_targets, sorted(self.forecast.get_targets()))
+        self.assertEqual(exp_targets, sorted(self.forecast.get_target_names_for_location('US National')))
+        self.assertEqual(exp_targets, sorted(self.forecast.get_target_names()))
 
         self.assertEqual('week', self.forecast.get_target_unit('US National', 'Season onset'))
         self.assertEqual(50.0012056690978, self.forecast.get_target_point_value('US National', 'Season onset'))
@@ -198,21 +198,22 @@ class ForecastTestCase(TestCase):
     def test_forecast_delete(self):
         # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
-        self.assertEqual(1, len(self.forecast_model.forecasts.all()))  # from setUpTestData()
-        self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # ""
+        self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
+        self.assertEqual(8019, self.forecast.cdcdata_set.count())  # ""
 
         forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
                                                       self.time_zero)
-        self.assertEqual(2, len(self.forecast_model.forecasts.all()))  # includes new
-        self.assertEqual(8019, len(forecast2.cdcdata_set.all()))  # new
-        self.assertEqual(8019, len(self.forecast.cdcdata_set.all()))  # didn't change
+        self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
+        self.assertEqual(8019, forecast2.cdcdata_set.count())  # new
+        self.assertEqual(8019, self.forecast.cdcdata_set.count())  # didn't change
 
         forecast2.delete()
-        self.assertEqual(0, len(forecast2.cdcdata_set.all()))
+        self.assertEqual(0, forecast2.cdcdata_set.count())
 
 
     def test_get_location_dicts_download_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -234,6 +235,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_internal_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -254,14 +256,13 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_internal_format(self):
         act_location_dicts = self.forecast.get_location_dicts_internal_format()
-
         exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
         self.assertEqual(exp_locations, list(act_location_dicts.keys()))  # tests order
 
         # spot-check one location's targets
-        exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
-                       'Season peak week']
+        exp_targets = ['Season onset', 'Season peak week', 'Season peak percentage',
+                       '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead']  # Target creation order
         self.assertEqual(exp_targets, list(act_location_dicts['US National'].keys()))  # tests order
 
         # spot-check a target
@@ -289,8 +290,9 @@ class ForecastTestCase(TestCase):
         self.assertEqual('percent', act_location_dicts['HHS Region 1']['1 wk ahead']['unit'])
 
 
-    def test_get_location_dicts_internal_format_for_cdc_csv_file(self):
+    def test_get_loc_dicts_int_format_for_csv_file(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -299,7 +301,7 @@ class ForecastTestCase(TestCase):
         template = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
         forecast2 = forecast_model2.load_forecast(template, time_zero)
         exp_location_dicts = forecast2.get_location_dicts_internal_format()  # tested elsewhere
-        act_location_dicts = ModelWithCDCData.get_location_dicts_internal_format_for_cdc_csv_file(template)
+        act_location_dicts = forecast2.get_loc_dicts_int_format_for_csv_file(template)
         self.assertEqual(exp_location_dicts, act_location_dicts)
 
 

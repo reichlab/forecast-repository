@@ -11,12 +11,11 @@ class TruthData(models.Model):
     then loaded via Project.load_truth_data() - see.
     """
 
-    time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE,
-                                  help_text="Project TimeZero that this data point relates to.")
+    time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE)
 
     # the standard CDC format columns
     location = models.CharField(max_length=200)
-    target = models.CharField(max_length=200)
+    target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.CASCADE)
     value = models.FloatField(null=True)
 
 

@@ -3,7 +3,6 @@ import io
 from itertools import groupby
 
 from django.db import models, connection
-from django.db.models import Count
 
 from utils.utilities import basic_str, parse_value, CDC_CSV_HEADER
 
@@ -31,12 +30,18 @@ class ModelWithCDCData(models.Model):
         abstract = True
 
 
+    def targets_qs(self):  # abstract method
+        """
+        :return: a QuerySet of all my Targets
+        """
+        raise NotImplementedError("error message")
+
+
     def load_csv_data(self, cdc_csv_file):
         """
         Loads the CDC data in cdc_csv_file (a Path) into my CDCData table.
 
         :param cdc_csv_file:
-        :return: None
         """
         if not self.pk:
             raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
@@ -46,21 +51,22 @@ class ModelWithCDCData(models.Model):
         # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
         with open(str(cdc_csv_file)) as cdc_csv_file_fp, \
                 connection.cursor() as cursor:
-            rows = ModelWithCDCData.read_cdc_csv_file_rows(cdc_csv_file_fp, self.pk)  # add self.pk to end of each row
+            # add self.pk to end of each row:
+            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, True)
             if not rows:
                 return
 
             # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
             table_name = self.cdc_data_class._meta.db_table
             model_name = self.__class__._meta.model_name
-            columns = ['location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value',
-                       model_name + '_id']
+            columns = ['location', self.cdc_data_class._meta.get_field('target').column,
+                       'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value', model_name + '_id']
             if connection.vendor == 'postgresql':
                 string_io = io.StringIO()
                 csv_writer = csv.writer(string_io, delimiter=',')
-                for location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, self_pk in rows:
+                for location, target_id, row_type, unit, bin_start_incl, bin_end_notincl, value, self_pk in rows:
                     # note that we translate None -> POSTGRES_NULL_VALUE for the three nullable columns
-                    csv_writer.writerow([location, target, row_type, unit,
+                    csv_writer.writerow([location, target_id, row_type, unit,
                                          bin_start_incl if bin_start_incl is not None else POSTGRES_NULL_VALUE,
                                          bin_end_notincl if bin_end_notincl is not None else POSTGRES_NULL_VALUE,
                                          value if value is not None else POSTGRES_NULL_VALUE,
@@ -75,15 +81,15 @@ class ModelWithCDCData(models.Model):
                 cursor.executemany(sql, rows)
 
 
-    @staticmethod
-    def read_cdc_csv_file_rows(cdc_csv_file_fp, model_with_cdcdata_pk):
+    def read_cdc_csv_file_rows(self, cdc_csv_file_fp, is_append_model_with_cdcdata_pk):
         """
         Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list.
 
         :param cdc_csv_file_fp: the *.cdc.csv data file to load - either a data file or a template one
-        :param model_with_cdcdata_pk: an int PK to be included at the end of every row (will result in eight rows), or
-            None (7 rows)
-        :return: list of rows
+        :param is_append_model_with_cdcdata_pk: true if my PK should be included at the end of every row (will result
+            in eight rows), or None (7 rows)
+        :return: list of rows: location, Target.pk, row_type, unit, bin_start_incl, bin_end_notincl, value,
+            [, model_with_cdcdata_pk]  <- only if model_with_cdcdata_pk
         """
         csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
 
@@ -101,6 +107,7 @@ class ModelWithCDCData(models.Model):
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
+        target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
         rows = []
         for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
             if (len(row) == 8) and (row[7] == ''):
@@ -109,7 +116,7 @@ class ModelWithCDCData(models.Model):
             if len(row) != 7:
                 raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
 
-            location, target, row_type, unit, bin_start_incl, bin_end_notincl, value = row
+            location, target_name, row_type, unit, bin_start_incl, bin_end_notincl, value = row
 
             # validate row_type
             row_type = row_type.lower()
@@ -117,32 +124,38 @@ class ModelWithCDCData(models.Model):
                 raise RuntimeError("row_type was neither '{}' nor '{}': "
                                    .format(CDCData.POINT_ROW_TYPE, CDCData.BIN_ROW_TYPE))
 
+            # validate target
+            if target_name not in target_names_to_pks:
+                raise RuntimeError("target_name not found in targets_qs. check that Project has all Targets "
+                                   "defined. target_name={!r}, targets_qs={}".format(target_name, target_names_to_pks))
+
             # use parse_value() to handle non-numeric cases like 'NA' and 'none'
             bin_start_incl = parse_value(bin_start_incl)
             bin_end_notincl = parse_value(bin_end_notincl)
             value = parse_value(value)
 
             # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
-            if model_with_cdcdata_pk:
-                rows.append(
-                    (location, target, row_type, unit, bin_start_incl, bin_end_notincl, value, model_with_cdcdata_pk))
+            if is_append_model_with_cdcdata_pk:
+                rows.append((location, target_names_to_pks[target_name], row_type, unit,
+                             bin_start_incl, bin_end_notincl, value, self.id))
             else:
-                rows.append((location, target, row_type, unit, bin_start_incl, bin_end_notincl, value))
+                rows.append(
+                    (location, target_names_to_pks[target_name], row_type, unit,
+                     bin_start_incl, bin_end_notincl, value))
 
         return rows
 
 
     def get_data_rows(self, is_order_by_pk=None):
         """
-        Returns all of my data as a a list of rows, excluding any PKs and FKs columns.
+        Returns all of my data as a a list of rows, excluding any PKs and FKs columns. Target names are returned.
 
         :param is_order_by_pk: flag that controls whether the result is ordered by pk or not. default is no ordering
             (which is faster than ordering)
         """
         query_set = self.cdcdata_set.order_by('id') if is_order_by_pk else self.cdcdata_set.all()
-        return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
-                 cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)
-                for cdc_data in query_set]
+        return query_set.values_list('location', 'target__name', 'row_type', 'unit', 'bin_start_incl',
+                                     'bin_end_notincl', 'value')
 
 
     def get_num_rows(self):
@@ -156,11 +169,10 @@ class ModelWithCDCData(models.Model):
     def get_data_preview(self):
         """
         :return: view helper function that returns a preview of my data in the form of a table that's represented as a
-            nested list of rows
+            nested list of rows. Target names are returned.
         """
-        return [(cdc_data.location, cdc_data.target, cdc_data.row_type, cdc_data.unit,
-                 cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value)
-                for cdc_data in (self.cdcdata_set.all()[:10])]
+        return list(self.cdcdata_set.values_list('location', 'target__name', 'row_type', 'unit', 'bin_start_incl',
+                                                 'bin_end_notincl', 'value')[:10])
 
 
     def get_locations(self):
@@ -170,45 +182,48 @@ class ModelWithCDCData(models.Model):
         return set(self.cdcdata_set.values_list('location', flat=True).distinct())
 
 
-    def get_targets(self):
+    def get_target_names(self):
         """
         :return: a set of all target names in my data
         """
-        return set(self.cdcdata_set.values_list('target', flat=True).distinct())
+        return set(self.cdcdata_set.values_list('target__name', flat=True).distinct())
 
 
-    def get_targets_for_location(self, location):
+    def get_target_names_for_location(self, location):
         """
         :return: a set of target names for a location in my data
         """
-        return set(self.cdcdata_set.filter(location=location).values_list('target', flat=True).distinct())
+        return set(self.cdcdata_set.filter(location=location).values_list('target__name', flat=True).distinct())
 
 
-    def get_target_unit(self, location, target):
+    def get_target_unit(self, location, target_name):
         """
         :return: name of the unit column. arbitrarily uses the point row's unit. return None if not found
         """
-        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)
+        cdc_data_results = self.cdcdata_set.filter(location=location, target__name=target_name,
+                                                   row_type=CDCData.POINT_ROW_TYPE)
         return cdc_data_results[0].unit if len(cdc_data_results) != 0 else None
 
 
-    def get_target_point_value(self, location, target):
+    def get_target_point_value(self, location, target_name):
         """
         NB: called repeatedly, this method is pretty slow. Probably better for callers to get point values for *all*
         locations and targets (maybe).
 
-        :return: point value for a location and target
+        :return: point value for a location and target_name
         """
-        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.POINT_ROW_TYPE)
+        cdc_data_results = self.cdcdata_set.filter(location=location, target__name=target_name,
+                                                   row_type=CDCData.POINT_ROW_TYPE)
         return cdc_data_results[0].value if len(cdc_data_results) != 0 else None
 
 
-    def get_target_bins(self, location, target):
+    def get_target_bins(self, location, target_name):
         """
-        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target. returns a 3-tuple:
+        :return: the CDCData.BIN_ROW_TYPE rows of mine for a location and target_name. returns a 3-tuple:
             (bin_start_incl, bin_end_notincl, value)
         """
-        cdc_data_results = self.cdcdata_set.filter(location=location, target=target, row_type=CDCData.BIN_ROW_TYPE)
+        cdc_data_results = self.cdcdata_set.filter(location=location, target__name=target_name,
+                                                   row_type=CDCData.BIN_ROW_TYPE)
         return [(cdc_data.bin_start_incl, cdc_data.bin_end_notincl, cdc_data.value) for cdc_data in cdc_data_results]
 
 
@@ -219,15 +234,15 @@ class ModelWithCDCData(models.Model):
     def get_data_rows_for_location_dicts(self):
         """
         :return: all my rows for use by get_location_dicts_*(). differs from get_data_rows(), which 1) uses the ORM
-            instead of SQL, and 2) does not ORDER BY.
+            instead of SQL, and 2) does not ORDER BY. Target ids are returned.
         """
-        # query notes:
-        # - ORDER BY: location and target make output alphabetical. it also ensures groupby() will work
+        # query notes: ORDER BY:
+        # - location and target__id make output deterministic. it also ensures groupby() will work
         # - row_type DESC ensures CDCData.POINT_ROW_TYPE comes before CDCData.BIN_ROW_TYPE - a requirement of below
         # - id ASC ensures bins are ordered same as original csv file
         rows = self.cdcdata_set \
-            .order_by('location', 'target', '-row_type', 'id') \
-            .values_list('location', 'target', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value')
+            .order_by('location', 'target__id', '-row_type', 'id') \
+            .values_list('location', 'target__id', 'row_type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value')
         return rows
 
 
@@ -251,10 +266,11 @@ class ModelWithCDCData(models.Model):
         times.
         """
         rows = self.get_data_rows_for_location_dicts()
+        target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
         locations = []
         for location, location_grouper in groupby(rows, key=lambda _: _[0]):
             targets = []
-            for target, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
+            for target_id, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
                 # NB: this assumes that the first row is always the CDCData.POINT_ROW_TYPE point value, thanks to
                 # ORDER BY, which is not true when, for example, a target has no point row. and since this method is
                 # called by Project.validate_template_data(), we need to check it here
@@ -262,7 +278,7 @@ class ModelWithCDCData(models.Model):
                 if point_row[2] != CDCData.POINT_ROW_TYPE:
                     raise RuntimeError("First row was not the point row: {}".format(point_row))
 
-                targets.append({'name': target,
+                targets.append({'name': target_pks_to_names[target_id],
                                 'unit': point_row[3],
                                 'point': point_row[-1],
                                 'bins': [bin_list[-3:] for bin_list in target_grouper]})
@@ -270,14 +286,14 @@ class ModelWithCDCData(models.Model):
         return locations
 
 
-    @staticmethod
-    def get_location_dicts_internal_format_for_cdc_csv_file(cdc_csv_file):
+    def get_loc_dicts_int_format_for_csv_file(self, cdc_csv_file):
         """
-        Returns same as get_location_dicts_internal_format(), but is passed a template file (Path) to load from instead of using
-        my table's data.
+        :return same as get_location_dicts_internal_format(), but is passed a template file (Path) to load from instead
+            of using my table's data.
         """
         with open(str(cdc_csv_file)) as cdc_csv_file_fp:
-            rows = ModelWithCDCData.read_cdc_csv_file_rows(cdc_csv_file_fp, None)  # no self.pk at end of each row
+            # no self.pk at end of each row:
+            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, False)
 
 
             # sort so groupby() will work
@@ -290,7 +306,7 @@ class ModelWithCDCData(models.Model):
 
             rows.sort(key=key)
 
-            return ModelWithCDCData._get_location_dicts_internal_format_for_rows(rows)
+            return self._get_location_dicts_internal_format_for_rows(rows)
 
 
     def get_location_dicts_internal_format(self):
@@ -321,15 +337,15 @@ class ModelWithCDCData(models.Model):
         load all rows into memory and then iterate over them there.
         """
         rows = self.get_data_rows_for_location_dicts()
-        return ModelWithCDCData._get_location_dicts_internal_format_for_rows(rows)
+        return self._get_location_dicts_internal_format_for_rows(rows)
 
 
-    @staticmethod
-    def _get_location_dicts_internal_format_for_rows(rows):
+    def _get_location_dicts_internal_format_for_rows(self, rows):
+        target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
         location_target_dict = {}
         for location, location_grouper in groupby(rows, key=lambda _: _[0]):
             target_dict = {}
-            for target, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
+            for target_id, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
                 # NB: this assumes that the first row is always the CDCData.POINT_ROW_TYPE point value, thanks to
                 # ORDER BY, which is not true when, for example, a target has no point row. and since this method is
                 # called by Project.validate_template_data(), we need to check it here
@@ -337,9 +353,9 @@ class ModelWithCDCData(models.Model):
                 if point_row[2] != CDCData.POINT_ROW_TYPE:
                     raise RuntimeError("First row was not the point row: {}".format(point_row))
 
-                target_dict[target] = {'unit': point_row[3],
-                                       'point': point_row[-1],
-                                       'bins': [bin_list[-3:] for bin_list in target_grouper]}
+                target_dict[target_pks_to_names[target_id]] = {'unit': point_row[3],
+                                                               'point': point_row[-1],
+                                                               'bins': [bin_list[-3:] for bin_list in target_grouper]}
             location_target_dict[location] = target_dict
         return location_target_dict
 
@@ -354,9 +370,9 @@ class CDCData(models.Model):
     code, such as by ForecastModel.load_forecast(). Django manages migration (CREATE TABLE) and cascading deletion.
     """
 
-    # the standard CDC format columns from the source forecast.csv_filename:
+    # the standard CDC format columns
     location = models.CharField(max_length=200)
-    target = models.CharField(max_length=200)
+    target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.SET_NULL)
 
     POINT_ROW_TYPE = 'point'
     BIN_ROW_TYPE = 'bin'
@@ -389,8 +405,8 @@ class CDCData(models.Model):
         return basic_str(self)
 
 
-    def data_row(self):
-        return [self.location, self.target, self.row_type, self.unit,
+    def data_row(self):  # returns Target name
+        return [self.location, self.target.name, self.row_type, self.unit,
                 self.bin_start_incl, self.bin_end_notincl, self.value]
 
 
