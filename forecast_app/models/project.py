@@ -426,7 +426,8 @@ class Project(ModelWithCDCData):
         season_name, which is None if I have no seasons.
         """
         loc_target_tz_date_to_truth = {}
-        # todo xx think ordering by target!! instead order by Target.step_ahead_increment
+        # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
+        # at all for the second groupby() call below
         truth_data_qs = self.truth_data_qs() \
             .order_by('location', 'target__id') \
             .values_list('location', 'target__id', 'time_zero__timezero_date', 'value')

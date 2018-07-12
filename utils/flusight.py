@@ -61,13 +61,13 @@ def flusight_location_to_data_dict(project, season_name, request=None):
     if not project.models.count():
         return None
 
-    targets = project.visualization_targets()
-    if not targets:
+    step_ahead_targets = project.visualization_targets()
+    if not step_ahead_targets:
         return None
 
     # set time_points. order_by -> matches ORDER BY in _flusight_point_value_rows_for_models():
     project_timezeros = project.timezeros_in_season(season_name)
-    model_to_location_timezero_points = _model_to_location_timezero_points(project, season_name, targets)
+    model_to_location_timezero_points = _model_id_to_location_timezero_points(project, season_name, step_ahead_targets)
 
     # now that we have model_to_location_timezero_points, we can build the return value, extracting each
     # location from all of the models
@@ -114,7 +114,7 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
     return prediction_dicts
 
 
-def _model_to_location_timezero_points(project, season_name, targets):
+def _model_id_to_location_timezero_points(project, season_name, step_ahead_targets):
     """
     :return: a dict that maps: forecast_model -> location_dict. each location_dict maps: location ->
         timezero_points_dict, which maps timezero_datetime -> point values. note that some project TimeZeros have no
@@ -126,15 +126,16 @@ def _model_to_location_timezero_points(project, season_name, targets):
     # - ORDER BY ensures groupby() will work
     # - we don't need to select targets b/c forecast ids have 1:1 correspondence to TimeZeros
     # - "" b/c targets are needed only for ordering
+    # - ORDER BY target__step_ahead_increment ensures values are sorted by target deterministically
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-    # todo xx think ordering by target!! instead order by Target.step_ahead_increment
     rows = ForecastData.objects \
         .filter(forecast__forecast_model__project=project,
                 row_type=CDCData.POINT_ROW_TYPE,
-                target__in=targets,
+                target__in=step_ahead_targets,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \
-        .order_by('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'target') \
+        .order_by('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date',
+                  'target__step_ahead_increment') \
         .values_list('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'value')
 
     # build the dict
@@ -151,7 +152,7 @@ def _model_to_location_timezero_points(project, season_name, targets):
         model_to_location_timezero_points[forecast_model] = location_to_timezero_points_dict
 
     # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for
-    # season_name and targets, we need to add empty model entries for callers
+    # season_name and step_ahead_targets, we need to add empty model entries for callers
     for forecast_model in project.models.all():
         if forecast_model not in model_to_location_timezero_points:
             model_to_location_timezero_points[forecast_model] = {}

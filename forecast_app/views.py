@@ -155,13 +155,11 @@ def project_scores(request, project_pk):
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(rte)
                                })
 
-    targets = project.visualization_targets()
-    if not targets:
+    step_ahead_targets = project.visualization_targets()
+    if not step_ahead_targets:
         return render(request, 'message.html',
                       context={'title': "Required targets not found",
-                               'message': "The project does not have the required score-related targets defined in "
-                                          "its configuration."
-                               })
+                               'message': "The project does not have the required score-related targets."})
 
     locations = sorted(project.get_locations())
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]

@@ -194,14 +194,13 @@ def _model_id_to_point_values_dict(project, season_name, target_names):
     # get the rows, ordered so we can groupby()
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
     logger.debug("_model_id_to_point_values_dict(): calling: execute()")
-    # todo xx think ordering by target!! instead order by Target.step_ahead_increment
     rows = ForecastData.objects \
         .filter(row_type=CDCData.POINT_ROW_TYPE,
                 target__name__in=target_names,
                 forecast__forecast_model__project=project,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \
-        .order_by('forecast__forecast_model__id', 'forecast__id', 'location', 'target') \
+        .order_by('forecast__forecast_model__id', 'forecast__id', 'location') \
         .values_list('forecast__forecast_model__id', 'forecast__id', 'location', 'target__name', 'value')
 
     # build the dict
