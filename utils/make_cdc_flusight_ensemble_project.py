@@ -9,12 +9,11 @@ import pymmwr
 import yaml
 from django.template import Template, Context
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
-
-
 django.setup()
 
+from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components
 from forecast_app.models import Project, ForecastModel, TimeZero
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets

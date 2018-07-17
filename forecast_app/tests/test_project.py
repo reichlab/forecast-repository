@@ -212,6 +212,16 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts
 
 
+    def test_row_count_cache(self):
+        self.assertIsNotNone(self.project.row_count_cache)  # verify post_save worked
+        # assume last_update default works
+        self.assertIsNone(self.project.row_count_cache.row_count)
+
+        self.project.update_row_count_cache()
+        # assume last_update default works
+        self.assertEqual(self.project.get_num_forecast_rows(), self.project.row_count_cache.row_count)
+
+
     def test_timezero_seasons(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         create_cdc_targets(project2)

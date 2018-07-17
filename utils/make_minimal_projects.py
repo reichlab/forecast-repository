@@ -5,12 +5,11 @@ from pathlib import Path
 import click
 import django
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-from utils.cdc import CDC_CONFIG_DICT
-
-
 django.setup()
 
+from utils.cdc import CDC_CONFIG_DICT
 from forecast_app.models import Project, TimeZero, ForecastModel
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
 

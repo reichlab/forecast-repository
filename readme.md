@@ -28,7 +28,7 @@ $ pipenv install django
 $ pipenv install click
 $ pipenv install requests
 $ pipenv install jsonfield
-$ pipenv install psycopg2
+$ pipenv install psycopg2-binary
 $ pipenv install dj-database-url
 $ pipenv install gunicorn
 $ pipenv install whitenoise

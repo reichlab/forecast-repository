@@ -41,7 +41,11 @@
                             <span class="text-muted">
                                 {{ proj_summary_counts.0|apnumber|capfirst }} model{{ proj_summary_counts.0|pluralize }},
                                 {{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
-                                {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}.
+                                {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}
+                                (est.){% if project.row_count_cache.row_count %},
+                                {{ project.row_count_cache.row_count|intword|intcomma }}
+                                row{{ project.row_count_cache.row_count|pluralize }} (actual) as of
+                                {{ project.row_count_cache.last_update }}{% endif %}
                             </span>
                         {% endwith %}
                     </td>

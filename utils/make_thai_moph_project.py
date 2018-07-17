@@ -9,8 +9,6 @@ from utils.utilities import cdc_csv_components_from_data_dir
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-
-
 django.setup()
 
 from forecast_app.models.project import Target, TimeZero

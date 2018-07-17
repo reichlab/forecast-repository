@@ -252,7 +252,8 @@ class Project(ModelWithCDCData):
 
     def get_summary_counts(self):
         """
-        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows)
+        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows). The latter is
+            estimated.
         """
         from .forecast import Forecast  # avoid circular imports
 
@@ -301,19 +302,28 @@ class Project(ModelWithCDCData):
 
 
     #
-    # visualization-related functions
+    # row count cache-related functions
     #
 
-    # def visualization_targets(self):
-    #     """
-    #     :return: list of Target names that can be used for flusight_location_to_data_dict() and mean_absolute_error()
-    #         (for the meantime) calls. returns None if no config_dict. To be compatible with the D3 Foresight component's
-    #         TimeChart, we only include those whose step_ahead_increment is >= 1. TODO xx revert this once we are working
-    #         correctly with the component
-    #     """
-    #     return self.targets.filter(is_step_ahead=True) \
-    #         .filter(step_ahead_increment__gte=1) \
-    #         .values_list('name', flat=True)
+    def update_row_count_cache(self):
+        """
+        Updates the RowCountCache related to me. Assumes one exists - see note at create_row_count_cache_for_project().
+        Blocks the current thread until done - which can take a while due to Project.get_num_forecast_rows() being a
+        time-consuming operation. Does not need to be @transaction.atomic b/c we have only one transaction here. Note
+        this does not preclude race conditions if called simultaneously by different threads. In that case, the most
+        recent call wins, which is not terrible if we assume that one used the latest data.
+
+        :return the row count
+        """
+        num_forecast_rows = self.get_num_forecast_rows()
+        self.row_count_cache.row_count = num_forecast_rows  # recall last_update is auto_now
+        self.row_count_cache.save()
+        return num_forecast_rows
+
+
+    #
+    # visualization-related functions
+    #
 
     def visualization_targets(self):
         """

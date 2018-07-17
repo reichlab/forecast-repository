@@ -8,8 +8,6 @@ import pymmwr
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-
-
 django.setup()
 
 from utils.cdc import CDC_CONFIG_DICT

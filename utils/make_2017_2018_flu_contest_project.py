@@ -5,8 +5,6 @@ import django
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-
-
 django.setup()
 
 from utils.make_cdc_flusight_ensemble_project import _make_cdc_flusight_project

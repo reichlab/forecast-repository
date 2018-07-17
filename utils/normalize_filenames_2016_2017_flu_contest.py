@@ -7,7 +7,6 @@ import pymmwr
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-
 django.setup()
 
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest

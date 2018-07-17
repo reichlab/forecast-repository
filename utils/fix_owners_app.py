@@ -4,6 +4,7 @@ import django
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
+
 from django.contrib.auth.models import User
 from forecast_app.models import Project
 
@@ -76,7 +77,8 @@ def fix_owners_app():
             old_model_owner = forecast_model.owner
             forecast_model.owner = project_owner
             forecast_model.save()
-            click.echo("  - set model owner: {}: {} -> {}".format(forecast_model, old_model_owner, forecast_model.owner))
+            click.echo(
+                "  - set model owner: {}: {} -> {}".format(forecast_model, old_model_owner, forecast_model.owner))
 
         project.save()
 
