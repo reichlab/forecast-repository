@@ -8,8 +8,8 @@ urlpatterns = [
     # our app and REST API
     url(r'', include('forecast_app.urls')),
     url(r'^api/', include('forecast_app.api_urls')),
-    url(r'^django-rq/', include('django_rq.urls')),
     url(r'^admin/', admin.site.urls),  # admin interface - mainly for User management
+    url(r'^django-rq/', include('django_rq.urls')),
 ]
 
 # use static() to add url mapping to serve static files during development (only)
