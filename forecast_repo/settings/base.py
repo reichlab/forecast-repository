@@ -42,7 +42,8 @@ INSTALLED_APPS = [
 
     # add-ons
     'django.contrib.humanize',
-    'debug_toolbar'
+    'debug_toolbar',
+    'django_rq',
 ]
 
 REST_FRAMEWORK = {
