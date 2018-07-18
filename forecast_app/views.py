@@ -67,7 +67,7 @@ def update_project_row_count_cache(request, project_pk):
         raise PermissionDenied
 
     project.update_row_count_cache()
-    messages.success(request, 'Updated row count cache for project "{}"'.format(project.name))
+    messages.success(request, 'Updated row count cache for project "{}".'.format(project.name))
     return redirect('zadmin')  # hard-coded
 
 
@@ -282,7 +282,7 @@ def create_project(request):
             target_formset.save()
             timezero_formset.save()
 
-            messages.success(request, 'Created project "{}"'.format(new_project.name))
+            messages.success(request, 'Created project "{}".'.format(new_project.name))
             return redirect('project-detail', pk=new_project.pk)
 
     else:  # GET
@@ -324,7 +324,7 @@ def edit_project(request, project_pk):
             target_formset.save()
             timezero_formset.save()
 
-            messages.success(request, 'Edited project "{}"'.format(project.name))
+            messages.success(request, 'Edited project "{}."'.format(project.name))
             return redirect('project-detail', pk=project.pk)
 
     else:  # GET
@@ -350,7 +350,7 @@ def delete_project(request, project_pk):
 
     project_name = project.name
     project.delete()
-    messages.success(request, 'Deleted project "{}"'.format(project_name))
+    messages.success(request, 'Deleted project "{}".'.format(project_name))
     return redirect('user-detail', pk=user.pk)
 
 
@@ -371,7 +371,7 @@ def create_model(request, project_pk):
             new_model.owner = user  # force the owner to the current user
             new_model.project = project
             new_model.save()
-            messages.success(request, 'Created model "{}"'.format(new_model))
+            messages.success(request, 'Created model "{}".'.format(new_model))
             return redirect('model-detail', pk=new_model.pk)
 
     else:  # GET
@@ -397,7 +397,7 @@ def edit_model(request, model_pk):
         if forecast_model_form.is_valid():
             forecast_model_form.save()
 
-            messages.success(request, 'Edited model "{}"'.format(forecast_model))
+            messages.success(request, 'Edited model "{}".'.format(forecast_model))
             return redirect('model-detail', pk=forecast_model.pk)
 
     else:  # GET
@@ -421,7 +421,7 @@ def delete_model(request, model_pk):
 
     forecast_model_name = forecast_model.name
     forecast_model.delete()
-    messages.success(request, 'Deleted model "{}"'.format(forecast_model_name))
+    messages.success(request, 'Deleted model "{}."'.format(forecast_model_name))
     return redirect('user-detail', pk=user.pk)
 
 
