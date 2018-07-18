@@ -23,6 +23,8 @@ pyyaml = "*"
 djangorestframework-csv = "*"
 newrelic = "*"
 django-debug-toolbar = "*"
+rq = "*"
+django-rq = "*"
 
 
 [dev-packages]

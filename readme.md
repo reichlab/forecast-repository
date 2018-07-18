@@ -38,11 +38,62 @@ $ pipenv install pymmwr
 $ pipenv install pyyaml
 $ pipenv install djangorestframework-csv
 $ pipenv install django-debug-toolbar
+$ pipenv install rq
+$ pipenv install django-rq
 ```
 
 
 # Utils
 The files under utils/ are currently project-specific ones. They should probably be moved.
+
+
+# RQ infrastructure
+Zoltar uses an asynchronous messaging queue to support executing long-running tasks outside the web dyno, which keeps
+the latter responsive and prevents Heroku's 30 second timeouts. We use [RQ](https://python-rq.org/) for this, which
+requires a [Redis](https://redis.io/) server along with one or more worker dynos. Here's the setup to run locally:
+
+1. Start Redis:
+```$bash
+redis-server
+```
+
+1. Start an rq worker:
+```$bash
+cd ~/IdeaProjects/django-redis-play
+pipenv shell
+export PATH="/Applications/Postgres.app/Contents/Versions/9.6/bin:${PATH}" ; export DJANGO_SETTINGS_MODULE=forecast_repo.settings.local_sqlite3 ; export PYTHONPATH=.
+python3 manage.py rqworker
+```
+
+1. Optionally start monitor (`rq info` or `rqstats`):
+```$bash
+cd ~/IdeaProjects/django-redis-play
+pipenv shell
+rq info --interval 1
+
+# alternatively:
+export PATH="/Applications/Postgres.app/Contents/Versions/9.6/bin:${PATH}" ; export DJANGO_SETTINGS_MODULE=forecast_repo.settings.local_sqlite3 ; export PYTHONPATH=.
+python3 manage.py rqstats --interval 1
+```
+
+1. Start the web app
+```$bash
+cd ~/IdeaProjects/django-redis-play
+pipenv shell
+export PATH="/Applications/Postgres.app/Contents/Versions/9.6/bin:${PATH}" ; export DJANGO_SETTINGS_MODULE=forecast_repo.settings.local_sqlite3 ; export PYTHONPATH=.
+python3 manage.py runserver --settings=forecast_repo.settings.local_sqlite3
+```
+
+1. Execute the functions that insert onto the queue, e.g.,
+```$bash
+cd ~/IdeaProjects/django-redis-play
+pipenv shell
+export PATH="/Applications/Postgres.app/Contents/Versions/9.6/bin:${PATH}" ; export DJANGO_SETTINGS_MODULE=forecast_repo.settings.local_sqlite3 ; export PYTHONPATH=.
+python3 utils/row_count_util.py update
+```
+
+1. Optionally monitor the progress in the web app
+- [http://127.0.0.1:8000/zadmin](http://127.0.0.1:8000/zadmin)
 
 
 # Running the tests

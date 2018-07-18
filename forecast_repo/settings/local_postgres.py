@@ -1,6 +1,3 @@
-from .base import *
-
-
 DEBUG = True
 
 DATABASES = {
@@ -12,4 +9,15 @@ DATABASES = {
         'HOST': '127.0.0.1',
         'PORT': '5432',
     }
+}
+
+#
+# ---- Django-RQ config ----
+#
+
+RQ_QUEUES = {
+    'default': {
+        'URL': 'redis://localhost:6379/0',
+        'DEFAULT_TIMEOUT': 360,
+    },
 }

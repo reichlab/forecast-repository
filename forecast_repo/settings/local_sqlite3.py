@@ -9,3 +9,14 @@ DATABASES = {
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
+
+#
+# ---- Django-RQ config ----
+#
+
+RQ_QUEUES = {
+    'default': {
+        'URL': 'redis://localhost:6379/0',
+        'DEFAULT_TIMEOUT': 360,
+    },
+}
