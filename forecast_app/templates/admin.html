@@ -6,7 +6,23 @@
 
 {% block content %}
 
-    <h1>Administration Tools</h1>
+    <p class="lead">Administration Tools</p>
+
+
+    <h2>RQ</h2>
+
+    <ul>
+        <li>Connection: {{ conn }}</li>
+        <li>Queue: {{ queue }}</li>
+        <li>Jobs: ({{ queue.jobs|length }}):
+            <ul>
+                {% for job in queue.jobs %}
+                    <li>{{ job }}</li>
+                {% endfor %}
+            </ul>
+        </li>
+    </ul>
+
 
     <h2>Row Count Caches</h2>
 

@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 
+import django_rq
 from PIL import Image, ImageDraw
 from django.conf import settings
 from django.contrib import messages
@@ -53,9 +54,13 @@ def zadmin(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
+    queue = django_rq.get_queue()  # name='default'
+    conn = django_rq.get_connection()  # name='default'
     return render(
         request, 'admin.html',
-        context={'projects': Project.objects.order_by('name')})
+        context={'projects': Project.objects.order_by('name'),
+                 'queue': queue,
+                 'conn': conn})
 
 
 def update_project_row_count_cache(request, project_pk):
