@@ -57,28 +57,16 @@ def zadmin(request):
     queue = django_rq.get_queue()  # name='default'
     conn = django_rq.get_connection()  # name='default'
     return render(
-        request, 'admin.html',
+        request, 'zadmin.html',
         context={'projects': Project.objects.order_by('name'),
                  'queue': queue,
                  'conn': conn})
 
 
-def update_project_row_count_cache(request, project_pk):
-    """
-    View function that updates project's RowCountCache.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_admin(request.user):
-        raise PermissionDenied
-
-    project.update_row_count_cache()
-    messages.success(request, 'Updated row count cache for project "{}".'.format(project.name))
-    return redirect('zadmin')  # hard-coded
-
-
 def clear_row_count_caches(request):
     """
-    View function that resets all projects' RowCountCaches.
+    View function that resets all projects' RowCountCaches in the calling thread, and therefore blocks. However, this
+    operation is fast.
     """
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
@@ -89,22 +77,37 @@ def clear_row_count_caches(request):
 
     messages.success(request, 'All row count caches were cleared.')
 
-    # redirect to same page. NB: many ways to do this, with limitations. some that I tried in Firefox follow.
-    # in the end I decided to hard-code, knowing the referring page
-
-    # failed:
-    # return HttpResponseRedirect(request.path_info)  # NO: The page isn’t redirecting properly
-    # return redirect(request.path_info)  # ""
-    # return HttpResponseRedirect("")  # ""
-    # return redirect(request.build_absolute_uri())  # ""
-    # return redirect(request.get_full_path())  # ""
-    # return redirect('')  # NO: Reverse for '' not found. '' is not a valid view function or pattern name.
-
-    # ok:
-    # return redirect(request.META['HTTP_REFERER'])  # OK, but: many users/browsers have the http_referer turned off ->
-    # return redirect(request.META.get('HTTP_REFERER', redirect_if_referer_not_found))
-
+    # redirect to same page. NB: many ways to do this, with limitations. some that I tried in Firefox include
+    # `return HttpResponseRedirect(request.path_info)` -> "The page isn’t redirecting properly",
+    # `return redirect('')` -> "Reverse for '' not found.", and others. This did work, but had a caveat
+    # ("many users/browsers have the http_referer turned off"):
+    # `return redirect(request.META['HTTP_REFERER'])`. in the end I decided to hard-code, knowing the referring page
     return redirect('zadmin')  # hard-coded
+
+
+def update_row_count_caches(request):
+    """
+    View function that enqueues updates of all projects' RowCountCaches and then returns. Users are not notified when
+    the updates are done, and so must refresh, etc. Note that we choose to enqueue each project's update separately,
+    rather than a single enqueue that updates them all in a loop, b/c each one might take a while, and we're trying to
+    limit each job's duration.
+    """
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    for project in Project.objects.all():
+        django_rq.enqueue(_update_project_row_count_cache, project.pk)
+
+    messages.success(request, 'Scheduled updating row count caches for all projects.')
+    return redirect('zadmin')  # hard-coded
+
+
+def _update_project_row_count_cache(project_pk):
+    """
+    Enqueue helper function.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    project.update_row_count_cache()
 
 
 #

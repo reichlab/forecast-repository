@@ -10,8 +10,7 @@ urlpatterns = [
 
     url(r'^zadmin', views.zadmin, name='zadmin'),
     url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
-    url(r'^project/(?P<project_pk>\d+)/update_row_count_cache/$', views.update_project_row_count_cache,
-        name='update-project-row-count-cache'),
+    url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),
     url(r'^users/', views.UserListView.as_view(), name='user-list'),

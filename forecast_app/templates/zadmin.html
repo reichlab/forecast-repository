@@ -14,7 +14,7 @@
     <ul>
         <li>Connection: {{ conn }}</li>
         <li>Queue: {{ queue }}</li>
-        <li>Jobs: ({{ queue.jobs|length }}):
+        <li>Jobs: ({{ queue.jobs|length }})
             <ul>
                 {% for job in queue.jobs %}
                     <li>{{ job }}</li>
@@ -32,7 +32,6 @@
                 <th>Project</th>
                 <th>row_count</th>
                 <th>last_update</th>
-                <th>Action</th>
             </tr>
             {% for project in projects %}
                 {% with proj_summary_counts=project.get_summary_counts %}
@@ -46,13 +45,6 @@
                         <td>
                             {{ project.row_count_cache.last_update|date:"Y-m-d h:i:s" }}
                         </td>
-                        <td>
-                            <form class="form-inline" style="display: inline-block;" method="POST"
-                                  action="{% url 'update-project-row-count-cache' project.pk %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-success">Update</button>
-                            </form>
-                        </td>
                     </tr>
                 {% endwith %}
             {% endfor %}
@@ -62,6 +54,12 @@
               action="{% url 'clear-row-count-caches' %}">
             {% csrf_token %}
             <button type="submit" class="btn btn-danger">Clear All</button>
+        </form>
+
+        <form class="form-inline" style="display: inline-block;" method="POST"
+              action="{% url 'update-row-count-caches' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">Update All</button>
         </form>
 
     {% else %}

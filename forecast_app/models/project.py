@@ -315,9 +315,11 @@ class Project(ModelWithCDCData):
 
         :return the row count
         """
+        logger.debug("update_row_count_cache(): calling: get_num_forecast_rows()")
         num_forecast_rows = self.get_num_forecast_rows()
         self.row_count_cache.row_count = num_forecast_rows  # recall last_update is auto_now
         self.row_count_cache.save()
+        logger.debug("update_row_count_cache(): done: {}".format(num_forecast_rows))
         return num_forecast_rows
 
 
