@@ -35,17 +35,17 @@
             <table class="table table-bordered">
                 <tbody>
                 <tr>
-                    <th title="Count of models, forecasts, and rows (est)">Summary:</th>
+                    <th title="Count of models, forecasts, and rows">Summary:</th>
                     <td>
                         {% with proj_summary_counts=project.get_summary_counts %}
                             <span class="text-muted">
                                 {{ proj_summary_counts.0|apnumber|capfirst }} model{{ proj_summary_counts.0|pluralize }},
                                 {{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
-                                {{ proj_summary_counts.2|intword|intcomma }} row{{ proj_summary_counts.2|pluralize }}
-                                (est.){% if project.row_count_cache.row_count %},
-                                {{ project.row_count_cache.row_count|intword|intcomma }}
+                                {{ proj_summary_counts.2|intcomma }} row{{ proj_summary_counts.2|pluralize }}
+                                (estimated){% if project.row_count_cache.row_count != None %},
+                                {{ project.row_count_cache.row_count|intcomma }}
                                 row{{ project.row_count_cache.row_count|pluralize }} (actual) as of
-                                {{ project.row_count_cache.last_update }}{% endif %}
+                                {{ project.row_count_cache.last_update|date:"Y-m-d h:i:s" }}{% endif %}
                             </span>
                         {% endwith %}
                     </td>

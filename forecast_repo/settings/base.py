@@ -153,3 +153,18 @@ LOGIN_REDIRECT_URL = '/'
 # https://django-debug-toolbar.readthedocs.io/en/stable/installation.html#internal-ips
 #
 INTERNAL_IPS = ['127.0.0.1']
+
+#
+# set tags to match Bootstrap 3, per https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
+#
+
+from django.contrib.messages import constants as message_constants
+
+
+MESSAGE_TAGS = {
+    # message_constants.DEBUG: 'debug',
+    # message_constants.INFO: 'info',
+    # message_constants.SUCCESS: 'success',
+    # message_constants.WARNING: 'warning',
+    message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
+}

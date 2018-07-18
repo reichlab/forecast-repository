@@ -5,13 +5,15 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db.models import Count
 from django.forms import inlineformset_factory
-from django.http import HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
@@ -32,8 +34,7 @@ def index(request):
         'index.html',
         context={'users': User.objects.all(),
                  'projects': Project.objects.order_by('name'),
-                 'is_user_ok_create_project': is_user_ok_create_project(request.user)}
-    )
+                 'is_user_ok_create_project': is_user_ok_create_project(request.user)})
 
 
 def about(request):
@@ -42,6 +43,63 @@ def about(request):
 
 def documentation(request):
     return render(request, 'documentation.html')
+
+
+#
+# admin-related view functions
+#
+
+def zadmin(request):
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    return render(
+        request, 'admin.html',
+        context={'projects': Project.objects.order_by('name')})
+
+
+def update_project_row_count_cache(request, project_pk):
+    """
+    View function that updates project's RowCountCache.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    project.update_row_count_cache()
+    messages.success(request, 'Updated row count cache for project "{}"'.format(project.name))
+    return redirect('zadmin')  # hard-coded
+
+
+def clear_row_count_caches(request):
+    """
+    View function that resets all projects' RowCountCaches.
+    """
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    for project in Project.objects.all():
+        project.row_count_cache.row_count = None
+        project.row_count_cache.save()
+
+    messages.success(request, 'All row count caches were cleared.')
+
+    # redirect to same page. NB: many ways to do this, with limitations. some that I tried in Firefox follow.
+    # in the end I decided to hard-code, knowing the referring page
+
+    # failed:
+    # return HttpResponseRedirect(request.path_info)  # NO: The page isn’t redirecting properly
+    # return redirect(request.path_info)  # ""
+    # return HttpResponseRedirect("")  # ""
+    # return redirect(request.build_absolute_uri())  # ""
+    # return redirect(request.get_full_path())  # ""
+    # return redirect('')  # NO: Reverse for '' not found. '' is not a valid view function or pattern name.
+
+    # ok:
+    # return redirect(request.META['HTTP_REFERER'])  # OK, but: many users/browsers have the http_referer turned off ->
+    # return redirect(request.META.get('HTTP_REFERER', redirect_if_referer_not_found))
+
+    return redirect('zadmin')  # hard-coded
 
 
 #
@@ -54,7 +112,7 @@ def project_visualizations(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     seasons = project.seasons()
     season_name = _param_val_from_request(request, 'season_name', seasons)
@@ -90,8 +148,7 @@ def project_visualizations(request, project_pk):
                  'location_to_actual_points': json.dumps(location_to_actual_points),
                  'location_to_max_val': json.dumps(location_to_max_val),
                  'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
-                 'y_axis_label': project.visualization_y_label(),
-                 })
+                 'y_axis_label': project.visualization_y_label()})
 
 
 def _location_to_actual_points(loc_tz_date_to_actual_vals):
@@ -139,7 +196,7 @@ def project_scores(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     seasons = project.seasons()
     season_name = _param_val_from_request(request, 'season_name', seasons)
@@ -152,8 +209,8 @@ def project_scores(request, project_pk):
     except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to calculate scores.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(rte)
-                               })
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
+                                   rte)})
 
     step_ahead_targets = project.visualization_targets()
     if not step_ahead_targets:
@@ -174,8 +231,7 @@ def project_scores(request, project_pk):
                  'location': locations[0],
                  'locations': locations,
                  'is_all_locations_have_rows': is_all_locations_have_rows,
-                 'location_to_rows_and_mins': location_to_rows_and_mins,
-                 })
+                 'location_to_rows_and_mins': location_to_rows_and_mins})
 
 
 def _param_val_from_request(request, param_name, choices):
@@ -201,7 +257,7 @@ def create_project(request):
     :param: user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
     if not is_user_ok_create_project(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     # set up Target and TimeZero formsets using a new (unsaved) Project
     new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
@@ -226,7 +282,7 @@ def create_project(request):
             target_formset.save()
             timezero_formset.save()
 
-            # todo xx flash a temporary 'success' message
+            messages.success(request, 'Created project "{}"'.format(new_project.name))
             return redirect('project-detail', pk=new_project.pk)
 
     else:  # GET
@@ -247,7 +303,7 @@ def edit_project(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     TargetInlineFormSet = inlineformset_factory(Project, Target,
                                                 fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
@@ -268,7 +324,7 @@ def edit_project(request, project_pk):
             target_formset.save()
             timezero_formset.save()
 
-            # todo xx flash a temporary 'success' message
+            messages.success(request, 'Edited project "{}"'.format(project.name))
             return redirect('project-detail', pk=project.pk)
 
     else:  # GET
@@ -290,10 +346,11 @@ def delete_project(request, project_pk):
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
+    project_name = project.name
     project.delete()
-    # todo xx flash a temporary 'success' message
+    messages.success(request, 'Deleted project "{}"'.format(project_name))
     return redirect('user-detail', pk=user.pk)
 
 
@@ -305,7 +362,7 @@ def create_model(request, project_pk):
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_create_model(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     if request.method == 'POST':
         forecast_model_form = ForecastModelForm(request.POST)
@@ -314,7 +371,7 @@ def create_model(request, project_pk):
             new_model.owner = user  # force the owner to the current user
             new_model.project = project
             new_model.save()
-            # todo xx flash a temporary 'success' message
+            messages.success(request, 'Created model "{}"'.format(new_model))
             return redirect('model-detail', pk=new_model.pk)
 
     else:  # GET
@@ -333,14 +390,14 @@ def edit_model(request, model_pk):
     """
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
     if not is_user_ok_edit_model(request.user, forecast_model):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     if request.method == 'POST':
         forecast_model_form = ForecastModelForm(request.POST, instance=forecast_model)
         if forecast_model_form.is_valid():
             forecast_model_form.save()
 
-            # todo xx flash a temporary 'success' message
+            messages.success(request, 'Edited model "{}"'.format(forecast_model))
             return redirect('model-detail', pk=forecast_model.pk)
 
     else:  # GET
@@ -360,10 +417,11 @@ def delete_model(request, model_pk):
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
     if not is_user_ok_edit_model(request.user, forecast_model):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
+    forecast_model_name = forecast_model.name
     forecast_model.delete()
-    # todo xx flash a temporary 'success' message
+    messages.success(request, 'Deleted model "{}"'.format(forecast_model_name))
     return redirect('user-detail', pk=user.pk)
 
 
@@ -534,7 +592,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
     project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     # validate download format
     if ('format' not in request.POST) or (request.POST['format'] not in ['csv', 'json']):
@@ -562,7 +620,7 @@ def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     project = forecast.forecast_model.project
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     # validate query parameters
     location = request.GET['location'] if 'location' in request.GET else None
@@ -616,7 +674,7 @@ def template_detail(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     return render(
         request,
@@ -632,7 +690,7 @@ def delete_template(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     project.delete_template()
     return redirect('project-detail', pk=project_pk)
@@ -645,7 +703,7 @@ def upload_template(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
         return render(request, 'message.html',
@@ -685,7 +743,7 @@ def truth_detail(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     return render(
         request,
@@ -703,7 +761,7 @@ def delete_truth(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     project.delete_truth_data()
     return redirect('project-detail', pk=project_pk)
@@ -716,7 +774,7 @@ def upload_truth(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
         return render(request, 'message.html',
@@ -753,7 +811,7 @@ def download_truth(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     # set the HttpResponse based on download type. avoid circular imports:
     from forecast_app.api_views import csv_response_for_project_truth_data
@@ -777,7 +835,7 @@ def delete_forecast(request, forecast_pk):
     is_allowed_to_delete = request.user.is_superuser or (request.user == forecast.forecast_model.project.owner) or \
                            (request.user == forecast.forecast_model.owner)
     if not is_allowed_to_delete:
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
     forecast.delete()
@@ -796,7 +854,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
                            (request.user == forecast_model.owner)
     if not is_allowed_to_upload:
-        return HttpResponseForbidden()
+        raise PermissionDenied
 
     if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
         return render(request, 'message.html',
@@ -837,6 +895,10 @@ def is_user_ok_create_project(user):
     :return: True if user (a User instance) is allowed to create Projects.
     """
     return user.is_authenticated  # any logged-in user can create. recall AnonymousUser.is_authenticated returns False
+
+
+def is_user_ok_admin(user):
+    return user.is_superuser
 
 
 def is_user_ok_edit_project(user, project):
