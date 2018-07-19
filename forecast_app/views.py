@@ -95,9 +95,7 @@ def update_row_count_caches(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    for project in Project.objects.all():
-        django_rq.enqueue(_update_project_row_count_cache, project.pk)
-
+    enqueue_row_count_updates_all_projs()
     messages.success(request, 'Scheduled updating row count caches for all projects.')
     return redirect('zadmin')  # hard-coded
 
@@ -108,6 +106,11 @@ def _update_project_row_count_cache(project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     project.update_row_count_cache()
+
+
+def enqueue_row_count_updates_all_projs():
+    for project in Project.objects.all():
+        django_rq.enqueue(_update_project_row_count_cache, project.pk)
 
 
 #

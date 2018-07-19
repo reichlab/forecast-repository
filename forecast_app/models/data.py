@@ -34,7 +34,7 @@ class ModelWithCDCData(models.Model):
         """
         :return: a QuerySet of all my Targets
         """
-        raise NotImplementedError("error message")
+        raise NotImplementedError()
 
 
     def load_csv_data(self, cdc_csv_file):

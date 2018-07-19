@@ -5,6 +5,8 @@ import django
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
+from forecast_app.views import enqueue_row_count_updates_all_projs
+
 from forecast_app.models import Project
 
 
@@ -20,7 +22,7 @@ def print():
     """
     click.echo("row count caches:")
     for project in Project.objects.all():
-        click.echo("- {}: {} @ {}"
+        click.echo("- {} | {} | {}"
                    .format(project, project.row_count_cache.row_count, project.row_count_cache.last_update))
         project.row_count_cache.row_count = None
 
@@ -30,7 +32,7 @@ def clear():
     """
     A subcommand that resets all projects' RowCountCaches in the calling thread, and therefore blocks.
     """
-    click.echo("clearing all projects' RowCountCache")
+    click.echo("clearing all projects' row count caches")
     for project in Project.objects.all():
         click.echo("- clearing {}".format(project))
         project.row_count_cache.row_count = None
@@ -41,14 +43,11 @@ def clear():
 @cli.command()
 def update():
     """
-    A subcommand that updates all projects' RowCountCaches in the calling thread, and therefore blocks.
+    A subcommand that enqueues updating all projects' RowCountCaches.
     """
-    click.echo("updating all projects' RowCountCache")
-    for project in Project.objects.all():
-        click.echo("- updating {}...".format(project))
-        num_forecast_rows = project.update_row_count_cache()
-        click.echo("  -> {} rows".format(num_forecast_rows))
-    click.echo("update done")
+    click.echo("enqueuing all projects' row count caches")
+    enqueue_row_count_updates_all_projs()
+    click.echo("enqueuing done")
 
 
 if __name__ == '__main__':
