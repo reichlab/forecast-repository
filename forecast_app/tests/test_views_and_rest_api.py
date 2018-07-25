@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import django_rq
+import redis
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -132,7 +134,6 @@ class ViewsTestCase(TestCase):
 
             reverse('zadmin'): self.ONLY_SU_200,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
-            reverse('update-row-count-caches'): self.ONLY_SU_302,  # 200 (message.html) if no Redis connection
 
             reverse('project-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
@@ -185,6 +186,17 @@ class ViewsTestCase(TestCase):
             reverse('forecast-sparkline', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
             reverse('forecast-sparkline', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
         }
+
+        # handle case of no Redis connection (e.g., when no server running):
+        # - yes connection -> self.ONLY_SU_302
+        # - no connection -> self.ONLY_SU_200 (message.html)
+        try:
+            conn = django_rq.get_connection()  # name='default'
+            conn.ping()
+            url_to_exp_user_status_code_pairs[reverse('update-row-count-caches')] = self.ONLY_SU_302
+        except redis.exceptions.ConnectionError as exc:
+            url_to_exp_user_status_code_pairs[reverse('update-row-count-caches')] = self.ONLY_SU_200
+
         # NB: re: 'forecast-sparkline' URIs: 1) BAD_REQ_400 is expected b/c we don't pass the correct query params.
         # however, 400 does indicate that the code passed the authorization portion. 2) the 'data' arg is only for the
         # two 'forecast-sparkline' cases, but it doesn't hurt to pass it for all cases, so we do b/c it's simpler :-)

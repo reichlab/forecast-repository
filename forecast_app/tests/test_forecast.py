@@ -195,6 +195,19 @@ class ForecastTestCase(TestCase):
             self.assertIn(start_end_val_tuple, act_bins)
 
 
+    def test_forecast_zero_values_not_loaded(self):
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        create_cdc_targets(project2)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        time_zero = TimeZero.objects.create(project=project2,
+                                            timezero_date=datetime.date.today(),
+                                            data_version_date=None)
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast2 = forecast_model2.load_forecast(
+            Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-zero-vals.csv'), time_zero)
+        self.assertEqual(154, forecast2.cdcdata_set.count())  # 158 - 4 skipped rows
+
+
     def test_forecast_delete(self):
         # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
@@ -204,7 +217,7 @@ class ForecastTestCase(TestCase):
         forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
                                                       self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(8019, forecast2.cdcdata_set.count())  # new
+        self.assertEqual(5237, forecast2.cdcdata_set.count())  # new. 8019 - 2782 skipped rows
         self.assertEqual(8019, self.forecast.cdcdata_set.count())  # didn't change
 
         forecast2.delete()
