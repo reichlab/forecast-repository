@@ -104,6 +104,10 @@ $ cd forecast_app/tests
 $ python3 ../../manage.py test --verbosity 2 --settings=forecast_repo.settings.local_sqlite3
 ```
 
+Note that some tests require redis-server to be accepting connections. O/w test_url_access
+(forecast_app.tests.test_views_and_rest_api.ViewsTestCase) will fail: AssertionError: 302 != 200
+
+
 # Django project layout
 This project's settings scheme follows the "split settings.py into separate files in their own 'settings' module"
 approach. Since we plan on deploying to Heroku, there is no production.py. Regardless, every app needs to set

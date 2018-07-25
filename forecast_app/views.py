@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 import django_rq
+import redis
 from PIL import Image, ImageDraw
 from django.conf import settings
 from django.contrib import messages
@@ -54,13 +55,19 @@ def zadmin(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    queue = django_rq.get_queue()  # name='default'
-    conn = django_rq.get_connection()  # name='default'
-    return render(
-        request, 'zadmin.html',
-        context={'projects': Project.objects.order_by('name'),
-                 'queue': queue,
-                 'conn': conn})
+    try:
+        queue = django_rq.get_queue()  # name='default'
+        conn = django_rq.get_connection()  # name='default'
+        return render(
+            request, 'zadmin.html',
+            context={'projects': Project.objects.order_by('name'),
+                     'queue': queue,
+                     'conn': conn})
+    except redis.exceptions.ConnectionError as exc:
+        return render(request, 'message.html',
+                      context={'title': "Got an error connecting to Redis.",
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
+                                   exc)})
 
 
 def clear_row_count_caches(request):
@@ -95,9 +102,15 @@ def update_row_count_caches(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    enqueue_row_count_updates_all_projs()
-    messages.success(request, 'Scheduled updating row count caches for all projects.')
-    return redirect('zadmin')  # hard-coded
+    try:
+        enqueue_row_count_updates_all_projs()
+        messages.success(request, 'Scheduled updating row count caches for all projects.')
+        return redirect('zadmin')  # hard-coded
+    except redis.exceptions.ConnectionError as exc:
+        return render(request, 'message.html',
+                      context={'title': "Got an error connecting to Redis.",
+                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
+                                   exc)})
 
 
 def _update_project_row_count_cache(project_pk):
@@ -728,7 +741,7 @@ def upload_template(request, project_pk):
                                'message': "The project already has a template. Please delete it and then upload again."})
 
     # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile
+    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
     file_name = data_file.name
     data = data_file.read()
     path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
@@ -799,7 +812,7 @@ def upload_truth(request, project_pk):
                                'message': "The project already has truth data. Please delete it and then upload again."})
 
     # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile
+    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
     file_name = data_file.name
     data = data_file.read()
     path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
@@ -872,7 +885,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                       context={'title': "No file selected to upload.",
                                'message': "Please go back and select one."})
 
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile
+    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
     file_name = data_file.name
 
     # error if data already exists for same time_zero and data_file.name
