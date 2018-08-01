@@ -108,7 +108,10 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
     for timezero in project_timezeros:
         if timezero.timezero_date in timezero_to_points:
             point_dicts = [{'point': point} for point in timezero_to_points[timezero.timezero_date]]
-            prediction_dicts.append({'series': point_dicts})
+            prediction_dict = {'series': point_dicts}
+            if timezero.data_version_date:
+                prediction_dict['dataVersionTime'] = timezero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+            prediction_dicts.append(prediction_dict)
         else:  # no forecasts for this TimeZero
             prediction_dicts.append(None)
     return prediction_dicts

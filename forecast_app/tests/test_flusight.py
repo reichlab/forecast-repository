@@ -24,11 +24,11 @@ class FlusightTestCase(TestCase):
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 10, 23),
                                             # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}
-                                            data_version_date=None)
+                                            data_version_date=datetime.date(2016, 10, 22))  # -> outputs dataVersionTime
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 30),
                                 # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}
-                                data_version_date=None)
+                                data_version_date=datetime.date(2016, 10, 29))
         forecast_model1 = ForecastModel.objects.create(project=project)
         forecast_model1.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
 

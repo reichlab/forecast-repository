@@ -27,7 +27,8 @@
               {
                 "point": 3.2
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -62,7 +63,8 @@
               {
                 "point": 2.5
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -89,7 +91,7 @@
                 "point": 6.1
               },
               {
-                "point": 6
+                "point": 6.0
               },
               {
                 "point": 5.9
@@ -97,7 +99,8 @@
               {
                 "point": 5.9
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -127,12 +130,13 @@
                 "point": 3.1
               },
               {
-                "point": 3
+                "point": 3.0
               },
               {
                 "point": 2.6
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -167,7 +171,8 @@
               {
                 "point": 2.8
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -191,10 +196,10 @@
           {
             "series": [
               {
-                "point": 2
+                "point": 2.0
               },
               {
-                "point": 2
+                "point": 2.0
               },
               {
                 "point": 1.9
@@ -202,7 +207,8 @@
               {
                 "point": 2.1
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -237,42 +243,8 @@
               {
                 "point": 4.4
               }
-            ]
-          },
-          null
-        ]
-      }
-    ]
-  },
-  "HHS Region 7": {
-    "timePoints": [
-      "20161023",
-      "20161030"
-    ],
-    "models": [
-      {
-        "id": "({{forecast_model_id}})",
-        "meta": {
-          "name": "",
-          "description": "",
-          "url": ""
-        },
-        "predictions": [
-          {
-            "series": [
-              {
-                "point": 2.3
-              },
-              {
-                "point": 2.5
-              },
-              {
-                "point": 2.5
-              },
-              {
-                "point": 2.1
-              }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -307,7 +279,44 @@
               {
                 "point": 1.7
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
+          },
+          null
+        ]
+      }
+    ]
+  },
+  "HHS Region 7": {
+    "timePoints": [
+      "20161023",
+      "20161030"
+    ],
+    "models": [
+      {
+        "id": "({{forecast_model_id}})",
+        "meta": {
+          "name": "",
+          "description": "",
+          "url": ""
+        },
+        "predictions": [
+          {
+            "series": [
+              {
+                "point": 2.3
+              },
+              {
+                "point": 2.5
+              },
+              {
+                "point": 2.5
+              },
+              {
+                "point": 2.1
+              }
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -342,7 +351,8 @@
               {
                 "point": 3.8
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
@@ -377,7 +387,8 @@
               {
                 "point": 2.3
               }
-            ]
+            ],
+            "dataVersionTime": "20161022"
           },
           null
         ]
