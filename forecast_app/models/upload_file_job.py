@@ -63,7 +63,7 @@ class UploadFileJob(models.Model):
 
     def __repr__(self):
         return str((self.pk, self.status_as_str(), self.filename,
-                    self.is_failed, self.failure_message,
+                    self.is_failed, self.failure_message[:30],
                     self.created_at, self.updated_at,
                     self.input_json, self.output_json))
 

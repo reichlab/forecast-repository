@@ -79,7 +79,7 @@ class ForecastModel(models.Model):
             raise RuntimeError("time_zero was not in project. time_zero={}, project.timezeros={}"
                                .format(time_zero, self.project.timezeros.all()))
 
-        file_name = file_name if file_name else csv_file_path_or_fp.name
+        file_name = file_name or csv_file_path_or_fp.name
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
                                                                             csv_filename=file_name)
         new_forecast.load_csv_data(csv_file_path_or_fp)

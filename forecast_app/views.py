@@ -1,21 +1,16 @@
 import io
 import json
 import logging
-import os
 import time
-from pathlib import Path
 
 import boto3
 import django_rq
 import redis
 from PIL import Image, ImageDraw
-from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.db.models import Count
 from django.forms import inlineformset_factory
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -748,31 +743,39 @@ def upload_template(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied
 
-    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
-        return render(request, 'message.html',
-                      context={'title': "No file selected to upload.",
-                               'message': "Please go back and select one."})
-
-    # error if there is already a template
     if project.is_template_loaded():
         return render(request, 'message.html',
                       context={'title': "Template already exists.",
                                'message': "The project already has a template. Please delete it and then upload again."})
 
-    # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
-    file_name = data_file.name
-    data = data_file.read()
-    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
-    tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
-    try:
-        project.load_template(Path(tmp_data_file), file_name)
-        return redirect('template-data-detail', project_pk=project_pk)
-    except RuntimeError as rte:
-        return render(request, 'message.html',
-                      context={'title': "Got an error trying to load the data.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
-                                          "Please go back and select a valid file.".format(rte)})
+    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
+    if is_error:
+        return is_error
+
+    # upload to S3 and enqueue a job to process a new UploadFileJob
+    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+    is_error = _upload_file(data_file, process_upload_file_job__template,
+                            project_pk=project_pk)
+    redirect_if_upload_file_error(request, is_error)
+
+    # todo _upload_file() should return two args: upload_file_job, accept is_error:
+    messages.success(request, "Queued the template file '{}' for uploading.".format(data_file.name))
+    return redirect('template-data-detail', project_pk=project_pk)
+
+
+def process_upload_file_job__template(upload_file_job_pk):
+    """
+    An _upload_file() enqueue() function that loads a template file. Called by upload_forecast().
+
+    - Expected UploadFileJob.input_json key(s): 'project_pk' - passed to _upload_file()
+    - Saves UploadFileJob.output_json key(s): None
+
+    :param upload_file_job_pk: the UploadFileJob's pk
+    """
+    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+        project_pk = upload_file_job.input_json['project_pk']
+        project = get_object_or_404(Project, pk=project_pk)
+        project.load_template(s3_file_fp, upload_file_job.filename)
 
 
 #
@@ -819,31 +822,39 @@ def upload_truth(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied
 
-    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
-        return render(request, 'message.html',
-                      context={'title': "No file selected to upload.",
-                               'message': "Please go back and select one."})
-
-    # error if there is already truth data
     if project.is_truth_data_loaded():
         return render(request, 'message.html',
                       context={'title': "Truth data already loaded.",
                                'message': "The project already has truth data. Please delete it and then upload again."})
 
-    # todo memory, etc: https://stackoverflow.com/questions/3702465/how-to-copy-inmemoryuploadedfile-object-to-disk
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
-    file_name = data_file.name
-    data = data_file.read()
-    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile :-)
-    tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
-    try:
-        project.load_truth_data(Path(tmp_data_file), file_name)
-        return redirect('truth-data-detail', project_pk=project_pk)
-    except RuntimeError as rte:
-        return render(request, 'message.html',
-                      context={'title': "Got an error trying to load the data.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
-                                          "Please go back and select a valid file.".format(rte)})
+    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
+    if is_error:
+        return is_error
+
+    # upload to S3 and enqueue a job to process a new UploadFileJob
+    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+    is_error = _upload_file(data_file, process_upload_file_job__truth,
+                            project_pk=project_pk)
+    redirect_if_upload_file_error(request, is_error)
+
+    # todo _upload_file() should return two args: upload_file_job, accept is_error:
+    messages.success(request, "Queued the truth file '{}' for uploading.".format(data_file.name))
+    return redirect('project-detail', pk=project_pk)
+
+
+def process_upload_file_job__truth(upload_file_job_pk):
+    """
+    An _upload_file() enqueue() function that loads a template file. Called by upload_truth().
+
+    - Expected UploadFileJob.input_json key(s): 'project_pk' - passed to _upload_file()
+    - Saves UploadFileJob.output_json key(s): None
+
+    :param upload_file_job_pk: the UploadFileJob's pk
+    """
+    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+        project_pk = upload_file_job.input_json['project_pk']
+        project = get_object_or_404(Project, pk=project_pk)
+        project.load_truth_data(s3_file_fp, upload_file_job.filename)
 
 
 def download_truth(request, project_pk):
@@ -867,32 +878,50 @@ def download_truth(request, project_pk):
 # ---- Forecast upload/delete views ----
 #
 
-def process_upload_file_job__noop(upload_file_job_pk):
+def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
-    An _upload_file() enqueue() function that does nothing.
-    Expected UploadFileJob.input_json keys: none.
+    Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
+    owner, or the model's owner.
 
-    :param upload_file_job_pk: the UploadFileJob's pk
+    :return: redirect to the new forecast's detail page
     """
-    logger.debug("process_upload_file_job__noop(): Entered. upload_file_job_pk={}".format(upload_file_job_pk))
-    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
-        # show that we can access the file's data
-        file_size = s3_file_fp.seek(0, io.SEEK_END)
-        s3_file_fp.seek(0)
-        lines = s3_file_fp.readlines()
-        s3_file_fp.seek(0)
-        logger.debug(
-            "process_upload_file_job__noop(): upload_file_job={}, s3_file_fp={}.\n\t-> from s3_file_fp: {}, {}, {}"
-            .format(upload_file_job, s3_file_fp, file_size, len(lines), repr(lines[0:2])))
+    forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
+    time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
+    is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+                           (request.user == forecast_model.owner)
+    if not is_allowed_to_upload:
+        raise PermissionDenied
 
-        # simulate a long-running operation
-        time.sleep(5)
+    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
+    if is_error:
+        return is_error
+
+    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+    existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
+    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == data_file.name):
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
+                                          "existing data and then upload again. You may need to refresh the page to "
+                                          "see the delete button.".format(time_zero.timezero_date, data_file.name)})
+
+    # upload to S3 and enqueue a job to process a new UploadFileJob
+    is_error = _upload_file(data_file, process_upload_file_job__forecast,
+                            forecast_model_pk=forecast_model_pk,
+                            timezero_pk=timezero_pk)
+    redirect_if_upload_file_error(request, is_error)
+
+    # todo _upload_file() should return two args: upload_file_job, accept is_error:
+    messages.success(request, "Queued the forecast file '{}' for uploading.".format(data_file.name))
+    return redirect('model-detail', pk=forecast_model_pk)
 
 
 def process_upload_file_job__forecast(upload_file_job_pk):
     """
-    An _upload_file() enqueue() function that loads a forecast data file.
-    Expected UploadFileJob.input_json keys: 'forecast_model_pk', 'timezero_pk'.
+    An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast().
+
+    - Expected UploadFileJob.input_json key(s): 'forecast_model_pk', 'timezero_pk' - passed to _upload_file()
+    - Saves UploadFileJob.output_json key(s): 'forecast_pk'
 
     :param upload_file_job_pk: the UploadFileJob's pk
     """
@@ -904,63 +933,6 @@ def process_upload_file_job__forecast(upload_file_job_pk):
         new_forecast = forecast_model.load_forecast(s3_file_fp, time_zero, file_name=upload_file_job.filename)
         upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
         upload_file_job.save()
-
-
-def upload_forecast(request, forecast_model_pk, timezero_pk):
-    """
-    Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
-    owner, or the model's owner.
-
-    :return: redirect to the new forecast's detail page
-    """
-    forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
-    time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-
-    # check authorization
-    is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-                           (request.user == forecast_model.owner)
-    if not is_allowed_to_upload:
-        raise PermissionDenied
-
-    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': "No file selected to upload. Please go back and select one."})
-
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
-    file_name = data_file.name
-
-    # error if file too large
-    if data_file.size > MAX_UPLOAD_FILE_SIZE:
-        message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': message})
-
-    # error if data already exists for same time_zero and data_file.name
-    existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == file_name):
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
-                                          "existing data and then upload again. You may need to refresh the page to "
-                                          "see the delete button.".format(time_zero.timezero_date, file_name)})
-
-    # continue: upload to S3 and and enqueue a job to process a new UploadFileJob
-    is_error = _upload_file(data_file, process_upload_file_job__forecast,
-                            forecast_model_pk=forecast_model_pk,
-                            timezero_pk=timezero_pk)
-    # is_error = _upload_file(data_file, process_upload_file_job__noop, hi='there')
-
-    if is_error:
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': "There was an error uploading the file. The error was: "
-                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
-    else:
-        # todo _upload_file() should return two args: upload_file_job, accept is_error:
-        messages.success(request, "Queued the file '{}' for uploading.".format(file_name))
-        return redirect('model-detail', pk=forecast_model.pk)
 
 
 def delete_forecast(request, forecast_pk):
@@ -1066,6 +1038,60 @@ def _upload_file(data_file, process_upload_file_job_fcn, **kwargs):
 
     logger.debug("_upload_file(): Done")
     return False  # is_error
+
+
+def process_upload_file_job__noop(upload_file_job_pk):
+    """
+    A demonstration _upload_file() enqueue() function that does nothing. Expected UploadFileJob.input_json keys: none.
+
+    :param upload_file_job_pk: the UploadFileJob's pk
+    """
+    logger.debug("process_upload_file_job__noop(): Entered. upload_file_job_pk={}".format(upload_file_job_pk))
+    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+        # show that we can access the file's data
+        file_size = s3_file_fp.seek(0, io.SEEK_END)
+        s3_file_fp.seek(0)
+        lines = s3_file_fp.readlines()
+        s3_file_fp.seek(0)
+        logger.debug(
+            "process_upload_file_job__noop(): upload_file_job={}, s3_file_fp={}.\n\t-> from s3_file_fp: {}, {}, {}"
+                .format(upload_file_job, s3_file_fp, file_size, len(lines), repr(lines[0:2])))
+
+        # simulate a long-running operation
+        time.sleep(5)
+
+
+def validate_data_file(request):
+    """
+    An upload_*() helper function that checks the file in request.
+
+    :return is_error: True if there was an error, and False o/w. If true, it is actually a render()'d error message to
+        return from the calling view function
+    """
+    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "No file selected to upload. Please go back and select one."})
+
+    data_file = request.FILES['data_file']
+    if data_file.size > MAX_UPLOAD_FILE_SIZE:
+        message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': message})
+    return None  # is_error
+
+
+def redirect_if_upload_file_error(request, is_error):
+    """
+    An upload_*() helper function that redirects to an appropriate message page if is_error, which is as returned by
+    _upload_file().
+    """
+    if is_error:
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "There was an error uploading the file. The error was: "
+                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
 
 
 #
