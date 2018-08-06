@@ -23,6 +23,62 @@
         </li>
     </ul>
 
+    <form class="form-inline" method="POST" enctype="multipart/form-data"
+          action="{% url 'empty-rq' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <button class="form-control btn btn-danger" type="submit">Empty RQ</button>
+        </div>
+    </form>
+
+
+    <h2>UploadFileJobs</h2>
+
+    {% if upload_file_jobs %}
+        <br>
+        <table class="table table-striped table-bordered">
+            <thead>
+            <tr>
+                <th>pk</th>
+                <th>Status</th>
+                <th>File Name</th>
+                <th>Failed?</th>
+                <th>&Delta;T</th>
+                <th>Created</th>
+                <th>Updated</th>
+                <th>JSON In</th>
+                <th>JSON Out</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for upload_file_job in upload_file_jobs %}
+                <tr>
+                    <td>{{ upload_file_job.pk }}</td>
+                    <td>{{ upload_file_job.status_as_str }}</td>
+                    <td>{{ upload_file_job.filename }}</td>
+                    <td>{% if upload_file_job.is_failed %}{{ upload_file_job.failure_message }}{% else %}
+                        No{% endif %}</td>
+                    <td>{{ upload_file_job.elapsed_time }}</td>
+                    <td>{{ upload_file_job.created_at|date:"Y-m-d h:i:s" }}</td>
+                    <td>{{ upload_file_job.updated_at|date:"Y-m-d h:i:s" }}</td>
+                    <td>{{ upload_file_job.input_json }}</td>
+                    <td>{{ upload_file_job.output_json }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>(No jobs)</p>
+    {% endif %}
+
+    <form class="form-inline" method="POST" enctype="multipart/form-data"
+          action="{% url 'delete-file-jobs' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <button class="form-control btn btn-danger" type="submit">Delete File Jobs</button>
+        </div>
+    </form>
+
 
     <h2>Row Count Caches</h2>
 

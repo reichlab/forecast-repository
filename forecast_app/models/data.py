@@ -37,20 +37,28 @@ class ModelWithCDCData(models.Model):
         raise NotImplementedError()
 
 
-    def load_csv_data(self, cdc_csv_file):
+    def load_csv_data(self, csv_file_path_or_fp):
         """
-        Loads the CDC data in cdc_csv_file (a Path) into my CDCData table.
+        Loads the CDC data in csv_file_path_or_fp (a Path) into my CDCData table.
 
-        :param cdc_csv_file:
+        :param csv_file_path_or_fp: Path to a CDC CSV forecast file, OR an already-open file-like object
         """
         if not self.pk:
             raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
+        # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
+        if isinstance(csv_file_path_or_fp, io.IOBase):
+            self._load_csv_data(csv_file_path_or_fp)
+        else:
+            with open(str(csv_file_path_or_fp)) as cdc_csv_file_fp:
+                self._load_csv_data(cdc_csv_file_fp)
+
+
+    def _load_csv_data(self, cdc_csv_file_fp):
         # insert the data using direct SQL. we use psycopg2 extensions to the DB API if we're connected to a Postgres
         # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
         # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
-        with open(str(cdc_csv_file)) as cdc_csv_file_fp, \
-                connection.cursor() as cursor:
+        with connection.cursor() as cursor:
             # add self.pk to end of each row:
             rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, True)
             if not rows:
@@ -96,8 +104,10 @@ class ModelWithCDCData(models.Model):
         # validate header. must be 7 columns (or 8 with the last one being '') matching
         try:
             orig_header = next(csv_reader)
-        except StopIteration:
-            raise RuntimeError("Empty file")
+        except StopIteration:  # a kind of Exception, so much come first
+            raise RuntimeError("Empty file.")
+        except Exception as exc:
+            raise RuntimeError("Error reading from cdc_csv_file_fp={}. exc={}".format(cdc_csv_file_fp, exc))
 
         header = orig_header
         if (len(header) == 8) and (header[7] == ''):

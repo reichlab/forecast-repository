@@ -1,8 +1,11 @@
+import io
 import json
 import logging
 import os
+import time
 from pathlib import Path
 
+import boto3
 import django_rq
 import redis
 from PIL import Image, ImageDraw
@@ -22,6 +25,7 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
+from forecast_app.models.upload_file_job import UploadFileJob, S3_UPLOAD_BUCKET_NAME, upload_file_job_s3_file
 from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_location_to_data_dict
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
@@ -62,12 +66,27 @@ def zadmin(request):
             request, 'zadmin.html',
             context={'projects': Project.objects.order_by('name'),
                      'queue': queue,
-                     'conn': conn})
+                     'conn': conn,
+                     'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at'),
+                     })
     except redis.exceptions.ConnectionError as exc:
         return render(request, 'message.html',
                       context={'title': "Got an error connecting to Redis.",
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
                                    exc)})
+
+
+def empty_rq(request):
+    queue = django_rq.get_queue()  # name='default'
+    queue.empty()
+    messages.success(request, "Emptied the queue.")
+    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
+
+
+def delete_file_jobs(request):
+    UploadFileJob.objects.all().delete()  # NB: pre_delete() signal deletes corresponding S3 object (the uploaded file)
+    messages.success(request, "Deleted all UploadFileJobs.")
+    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
 
 
 def clear_row_count_caches(request):
@@ -82,7 +101,7 @@ def clear_row_count_caches(request):
         project.row_count_cache.row_count = None
         project.row_count_cache.save()
 
-    messages.success(request, 'All row count caches were cleared.')
+    messages.success(request, "All row count caches were cleared.")
 
     # redirect to same page. NB: many ways to do this, with limitations. some that I tried in Firefox include
     # `return HttpResponseRedirect(request.path_info)` -> "The page isn’t redirecting properly",
@@ -104,7 +123,7 @@ def update_row_count_caches(request):
 
     try:
         enqueue_row_count_updates_all_projs()
-        messages.success(request, 'Scheduled updating row count caches for all projects.')
+        messages.success(request, "Scheduled updating row count caches for all projects.")
         return redirect('zadmin')  # hard-coded
     except redis.exceptions.ConnectionError as exc:
         return render(request, 'message.html',
@@ -306,7 +325,7 @@ def create_project(request):
             target_formset.save()
             timezero_formset.save()
 
-            messages.success(request, 'Created project "{}".'.format(new_project.name))
+            messages.success(request, "Created project '{}'.".format(new_project.name))
             return redirect('project-detail', pk=new_project.pk)
 
     else:  # GET
@@ -348,7 +367,7 @@ def edit_project(request, project_pk):
             target_formset.save()
             timezero_formset.save()
 
-            messages.success(request, 'Edited project "{}."'.format(project.name))
+            messages.success(request, "Edited project '{}.'".format(project.name))
             return redirect('project-detail', pk=project.pk)
 
     else:  # GET
@@ -374,7 +393,7 @@ def delete_project(request, project_pk):
 
     project_name = project.name
     project.delete()
-    messages.success(request, 'Deleted project "{}".'.format(project_name))
+    messages.success(request, "Deleted project '{}'.".format(project_name))
     return redirect('user-detail', pk=user.pk)
 
 
@@ -395,7 +414,7 @@ def create_model(request, project_pk):
             new_model.owner = user  # force the owner to the current user
             new_model.project = project
             new_model.save()
-            messages.success(request, 'Created model "{}".'.format(new_model))
+            messages.success(request, "Created model '{}'".format(new_model))
             return redirect('model-detail', pk=new_model.pk)
 
     else:  # GET
@@ -421,7 +440,7 @@ def edit_model(request, model_pk):
         if forecast_model_form.is_valid():
             forecast_model_form.save()
 
-            messages.success(request, 'Edited model "{}".'.format(forecast_model))
+            messages.success(request, "Edited model '{}'".format(forecast_model))
             return redirect('model-detail', pk=forecast_model.pk)
 
     else:  # GET
@@ -445,7 +464,7 @@ def delete_model(request, model_pk):
 
     forecast_model_name = forecast_model.name
     forecast_model.delete()
-    messages.success(request, 'Deleted model "{}."'.format(forecast_model_name))
+    messages.success(request, "Deleted model '{}'.".format(forecast_model_name))
     return redirect('user-detail', pk=user.pk)
 
 
@@ -848,6 +867,102 @@ def download_truth(request, project_pk):
 # ---- Forecast upload/delete views ----
 #
 
+def process_upload_file_job__noop(upload_file_job_pk):
+    """
+    An _upload_file() enqueue() function that does nothing.
+    Expected UploadFileJob.input_json keys: none.
+
+    :param upload_file_job_pk: the UploadFileJob's pk
+    """
+    logger.debug("process_upload_file_job__noop(): Entered. upload_file_job_pk={}".format(upload_file_job_pk))
+    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+        # show that we can access the file's data
+        file_size = s3_file_fp.seek(0, io.SEEK_END)
+        s3_file_fp.seek(0)
+        lines = s3_file_fp.readlines()
+        s3_file_fp.seek(0)
+        logger.debug(
+            "process_upload_file_job__noop(): upload_file_job={}, s3_file_fp={}.\n\t-> from s3_file_fp: {}, {}, {}"
+            .format(upload_file_job, s3_file_fp, file_size, len(lines), repr(lines[0:2])))
+
+        # simulate a long-running operation
+        time.sleep(5)
+
+
+def process_upload_file_job__forecast(upload_file_job_pk):
+    """
+    An _upload_file() enqueue() function that loads a forecast data file.
+    Expected UploadFileJob.input_json keys: 'forecast_model_pk', 'timezero_pk'.
+
+    :param upload_file_job_pk: the UploadFileJob's pk
+    """
+    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+        forecast_model_pk = upload_file_job.input_json['forecast_model_pk']
+        forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
+        timezero_pk = upload_file_job.input_json['timezero_pk']
+        time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
+        new_forecast = forecast_model.load_forecast(s3_file_fp, time_zero, file_name=upload_file_job.filename)
+        upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
+        upload_file_job.save()
+
+
+def upload_forecast(request, forecast_model_pk, timezero_pk):
+    """
+    Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
+    owner, or the model's owner.
+
+    :return: redirect to the new forecast's detail page
+    """
+    forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
+    time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
+
+    # check authorization
+    is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+                           (request.user == forecast_model.owner)
+    if not is_allowed_to_upload:
+        raise PermissionDenied
+
+    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "No file selected to upload. Please go back and select one."})
+
+    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
+    file_name = data_file.name
+
+    # error if file too large
+    if data_file.size > MAX_UPLOAD_FILE_SIZE:
+        message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': message})
+
+    # error if data already exists for same time_zero and data_file.name
+    existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
+    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == file_name):
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
+                                          "existing data and then upload again. You may need to refresh the page to "
+                                          "see the delete button.".format(time_zero.timezero_date, file_name)})
+
+    # continue: upload to S3 and and enqueue a job to process a new UploadFileJob
+    is_error = _upload_file(data_file, process_upload_file_job__forecast,
+                            forecast_model_pk=forecast_model_pk,
+                            timezero_pk=timezero_pk)
+    # is_error = _upload_file(data_file, process_upload_file_job__noop, hi='there')
+
+    if is_error:
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "There was an error uploading the file. The error was: "
+                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
+    else:
+        # todo _upload_file() should return two args: upload_file_job, accept is_error:
+        messages.success(request, "Queued the file '{}' for uploading.".format(file_name))
+        return redirect('model-detail', pk=forecast_model.pk)
+
+
 def delete_forecast(request, forecast_pk):
     """
     Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
@@ -866,53 +981,96 @@ def delete_forecast(request, forecast_pk):
     return redirect('model-detail', pk=forecast_model_pk)
 
 
-def upload_forecast(request, forecast_model_pk, timezero_pk):
+#
+# ---- Upload-related functions ----
+#
+
+# The following code supports the user's uploading arbitrary files to Zoltar for processing - forecast data files, for
+# example. We implement this using a general view function named __upload_file(), which accepts two functions that
+# are used to control how the uploaded file is processed. Doing it this way keeps that function general. Currently we
+# use simple (but limited) pass-through uploading, rather than more efficient direct uploading, but this is a todo.
+# See for more: https://devcenter.heroku.com/articles/s3#file-uploads .
+
+
+MAX_UPLOAD_FILE_SIZE = 5E+06
+
+
+def _upload_file(data_file, process_upload_file_job_fcn, **kwargs):
     """
-    Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
-    owner, or the model's owner.
+    Accepts a file uploaded to this app by the user. Creates a UploadFileJob to track the job, saves data_file in an
+    S3 bucket, then enqueues process_upload_file_job_fcn to process the file by an RQ worker.
 
-    :return: redirect to the new forecast's detail page
+    :param data_file: the data file to use as found in request.FILES . it is an UploadedFile (e.g.,
+        InMemoryUploadedFile or TemporaryUploadedFile)
+    :param process_upload_file_job_fcn: a function of one arg (upload_file_job_pk) that is passed to
+        django_rq.enqueue(). NB: It MUST use the upload_file_job_s3_file context to have access to the file that was
+        uploaded to S3, e.g.,
+            with upload_file_job_s3_file() as s3_file_fp: ...
+        NB: If it needs to save upload_file_job.output_json, make sure to call save(), e.g.,
+            upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
+            upload_file_job.save()
+    :param kwargs: saved in the new UploadFileJob's input_json
+    :return is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the
+        user
     """
-    forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
-    time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-    is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-                           (request.user == forecast_model.owner)
-    if not is_allowed_to_upload:
-        raise PermissionDenied
-
-    if 'data_file' not in request.FILES:  # user submitted without specifying a file to upload
-        return render(request, 'message.html',
-                      context={'title': "No file selected to upload.",
-                               'message': "Please go back and select one."})
-
-    data_file = request.FILES['data_file']  # InMemoryUploadedFile or TemporaryUploadedFile
-    file_name = data_file.name
-
-    # error if data already exists for same time_zero and data_file.name
-    existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == file_name):
-        return render(request, 'message.html',
-                      context={'title': "A forecast already exists.",
-                               'message': "time_zero={}, file_name='{}'. Please delete existing data and then "
-                                          "upload again. You may need to refresh the page to see the delete "
-                                          "button.".format(time_zero.timezero_date, file_name)})
-
-    data = data_file.read()
-    path = default_storage.save('tmp/temp.csv', ContentFile(data))  # todo xx use with TemporaryFile!!
-    tmp_data_file = os.path.join(settings.MEDIA_ROOT, path)
+    # create the UploadFileJob
+    logger.debug("_upload_file(): Got data_file: name={!r}, size={}, content_type={}"
+                 .format(data_file.name, data_file.size, data_file.content_type))
     try:
-        forecast_model.load_forecast(Path(tmp_data_file), time_zero, file_name)
-        return redirect('model-detail', pk=forecast_model.pk)
-    except RuntimeError as rte:
-        return render(request, 'message.html',
-                      context={'title': "Got an error trying to load the data.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;. "
-                                          "Please go back and select a valid file.".format(rte)})
+        upload_file_job = UploadFileJob.objects.create(filename=data_file.name)  # status = PENDING
+        upload_file_job.input_json = kwargs
+        upload_file_job.save()
+        logger.debug("__upload_file(): 1/3 Created the UploadFileJob: {}".format(upload_file_job))
+    except Exception as exc:
+        logger.debug("__upload_file(): Error creating the UploadFileJob: {}".format(exc))
+        return "Error creating the UploadFileJob: {}".format(exc)  # is_error
+
+    # upload the file to S3
+    try:
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(S3_UPLOAD_BUCKET_NAME)
+        # todo use chunks? for chunk in data_file.chunks(): print(chunk):
+
+        # bucket.put_object(Key=upload_file_job.s3_key(), Body=data_file, ContentType='text/csv')  # todo xx nope
+        bucket.put_object(Key=upload_file_job.s3_key(), Body=data_file)
+
+        upload_file_job.status = UploadFileJob.S3_FILE_UPLOADED
+        upload_file_job.save()
+        logger.debug("_upload_file(): 2/3 Uploaded the file to S3: {}, {}. upload_file_job={}"
+                     .format(S3_UPLOAD_BUCKET_NAME, upload_file_job.s3_key(), upload_file_job))
+    except Exception as exc:
+        failure_message = "_upload_file(): FAILED_S3_FILE_UPLOAD: Error uploading file to S3: {}. upload_file_job={}" \
+            .format(exc, upload_file_job)
+        upload_file_job.is_failed = True
+        upload_file_job.failure_message = failure_message
+        upload_file_job.save()
+        logger.debug(failure_message)
+        return "Error uploading file to S3: {}. upload_file_job={}".format(exc, upload_file_job)  # is_error
+
+    # enqueue a worker
+    try:
+        rq_job = django_rq.enqueue(process_upload_file_job_fcn, upload_file_job.pk,
+                                   job_id=upload_file_job.rq_job_id())  # name="default"
+        upload_file_job.status = UploadFileJob.QUEUED
+        upload_file_job.save()
+        logger.debug("_upload_file(): 3/3 Enqueued the job: {}. upload_file_job={}".format(rq_job, upload_file_job))
+    except Exception as exc:
+        failure_message = "_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {}. upload_file_job={}" \
+            .format(exc, upload_file_job)
+        upload_file_job.is_failed = True
+        upload_file_job.failure_message = failure_message
+        upload_file_job.save()
+        upload_file_job.delete_s3_object()  # NB: in current thread
+        logger.debug(failure_message)
+        return "Error enqueuing the job: {}. upload_file_job={}".format(exc, upload_file_job)  # is_error
+
+    logger.debug("_upload_file(): Done")
+    return False  # is_error
 
 
 #
 # ---- authorization utilities ----
-
+#
 
 def is_user_ok_create_project(user):
     """

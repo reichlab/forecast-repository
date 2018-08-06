@@ -6,6 +6,48 @@ for a more detailed description. The internal [reichlab Slack](https://reichlab.
 https://github.com/reichlab/forecast-repository .
 
 
+# AWS S3 configuration
+Zoltar uses S3 for temporary storage of uploaded files (forecasts, truth, and templates). You'll need to set two 
+S3-related environment variables, either locally or, for Heroku:
+
+```bash
+heroku config:set \
+  AWS_ACCESS_KEY_ID=<YOUR_ACCESS_KEY> \
+  AWS_SECRET_ACCESS_KEY=<YOUR_SECRET_KEY>
+```
+
+These keys must enable read, write, and list operations on a bucket named S3_UPLOAD_BUCKET_NAME in that account. For
+development that account was configured thus:
+
+- (IAM) Zoltar app user:
+  - no groups
+  - Permissions > Permissions policies > Attached directly: 
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:DeleteObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::mc.zoltarapp.sandbox",
+                "arn:aws:s3:::mc.zoltarapp.sandbox/*"
+            ]
+        }
+    ]
+}
+```
+- (S3) Zoltar upload bucket:
+  - Permissions > Access control list: default (root)
+  - Permissions > Bucket policy: none (controlled above at the user level) 
+
+
 # Requirements (see Pipfile)
 - [Python 3](http://install.python-guide.org)
 - [pipenv](https://docs.pipenv.org/)
@@ -40,6 +82,7 @@ $ pipenv install djangorestframework-csv
 $ pipenv install django-debug-toolbar
 $ pipenv install rq
 $ pipenv install django-rq
+$ pipenv install boto3
 ```
 
 
