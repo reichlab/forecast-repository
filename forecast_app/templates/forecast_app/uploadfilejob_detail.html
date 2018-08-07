@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Upload File Job: {{ upload_file_job.id }}{% endblock %}
+
+{% block content %}
+
+    <p class="lead">Upload File Job: {{ upload_file_job.id }}
+        <a href="{% url 'api-upload-file-job-detail' upload_file_job.pk %}" class="btn btn-info btn-xs" role="button">
+            API
+        </a>
+    </p>
+    <p>Reload the page to refresh the status.</p>
+    <br>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>User:</th>
+                    <td>
+                        <a href="{% url 'user-detail' upload_file_job.user.pk %}">{{ upload_file_job.user.username }}</a>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Status:</th>
+                    <td>{{ upload_file_job.status_as_str }}</td>
+                </tr>
+                <tr>
+                    <th>File Name:</th>
+                    <td>{{ upload_file_job.filename }}</td>
+                </tr>
+                <tr>
+                    <th>Failed?</th>
+                    <td>{% if upload_file_job.is_failed %}{{ upload_file_job.failure_message }}{% else %}
+                        No{% endif %}</td>
+                </tr>
+                <tr>
+                    <th>&Delta;T:</th>
+                    <td>{{ upload_file_job.elapsed_time }}</td>
+                </tr>
+                <tr>
+                    <th>Created:</th>
+                    <td>{{ upload_file_job.created_at|date:"Y-m-d h:i:s" }}</td>
+                </tr>
+                <tr>
+                    <th>Updated:</th>
+                    <td>{{ upload_file_job.updated_at|date:"Y-m-d h:i:s" }}</td>
+                </tr>
+                <tr>
+                    <th>JSON In:</th>
+                    <td>{{ upload_file_job.input_json }}</td>
+                </tr>
+                <tr>
+                    <th>JSON Out:</th>
+                    <td>{{ upload_file_job.output_json }}</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% endblock %}

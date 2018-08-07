@@ -36,6 +36,8 @@ urlpatterns = [
 
     url(r'^user/(?P<pk>\d+)$', views.UserDetailView.as_view(), name='user-detail'),
 
+    url(r'^uploadfilejob/(?P<pk>\d+)$', views.UploadFileJobDetailView.as_view(), name='upload-file-job-detail'),
+
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
     url(r'^forecast/(?P<model_with_cdc_data_pk>\d+)/download', views.download_file_for_model_with_cdc_data,
         {'type': 'forecast'}, name='download-forecast'),

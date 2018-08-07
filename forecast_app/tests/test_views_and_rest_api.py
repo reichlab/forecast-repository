@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero
+from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import CDC_CONFIG_DICT
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
 from utils.utilities import CDC_CSV_HEADER
@@ -46,6 +47,8 @@ class ViewsTestCase(TestCase):
                                                  data_version_date=None)
         cls.public_tz2 = TimeZero.objects.create(project=cls.public_project, timezero_date=str('2017-12-02'),
                                                  data_version_date=None)
+
+        cls.upload_file_job = UploadFileJob.objects.create(user=cls.po_user)
 
         # private_project
         cls.private_project = Project.objects.create(name='private project name', is_public=False,
@@ -130,7 +133,9 @@ class ViewsTestCase(TestCase):
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
             reverse('docs'): self.OK_ALL,
-            reverse('user-detail', args=[str(self.po_user.pk)]): self.OK_ALL,
+
+            reverse('user-detail', args=[str(self.po_user.pk)]): self.ONLY_PO,
+            reverse('upload-file-job-detail', args=[str(self.upload_file_job.pk)]): self.ONLY_PO,
 
             reverse('zadmin'): self.ONLY_SU_200,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
@@ -330,8 +335,8 @@ class ViewsTestCase(TestCase):
             reverse('api-template-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-template-data', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-user-detail', args=[self.po_user.pk]): self.OK_ALL,
-            reverse('api-user-detail', args=[self.mo_user.pk]): self.OK_ALL,
+            reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
+            reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,
@@ -349,6 +354,8 @@ class ViewsTestCase(TestCase):
                     self.client.login(username=user.username, password=password)
 
                 response = self.client.get(url)
+                if exp_status_code != response.status_code:
+                    print('xx', url, user, exp_status_code, response.status_code)
                 self.assertEqual(exp_status_code, response.status_code)
 
 
@@ -400,8 +407,11 @@ class ViewsTestCase(TestCase):
 
         # 'api-user-detail'
         # a rest_framework.response.Response:
+        # o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data':
+        self.client.login(username=self.po_user.username, password=self.po_user_password)
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
         exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
+        self.client.logout()  # AnonymousUser
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-model-detail'

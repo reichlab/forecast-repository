@@ -1,4 +1,3 @@
-import codecs
 import io
 import logging
 import tempfile
@@ -6,6 +5,7 @@ import traceback
 from contextlib import contextmanager
 
 import boto3
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import BooleanField
 from django.db.models.signals import pre_delete
@@ -41,8 +41,8 @@ class UploadFileJob(models.Model):
     )
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
 
-    # todo: user!
-    # user = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True)  # user who submitted
+    # User who submitted the job:
+    user = models.ForeignKey(User, related_name='upload_file_jobs', on_delete=models.SET_NULL, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)  # when this instance was created. basically the submit date
 
@@ -62,7 +62,8 @@ class UploadFileJob(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.status_as_str(), self.filename,
+        return str((self.pk, self.user,
+                    self.status_as_str(), self.filename,
                     self.is_failed, self.failure_message[:30],
                     self.created_at, self.updated_at,
                     self.input_json, self.output_json))

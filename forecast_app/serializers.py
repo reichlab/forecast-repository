@@ -3,6 +3,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
+from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user, \
     timezero_forecast_pairs_for_forecast_model
 
@@ -125,6 +126,18 @@ class UserSerializer(serializers.ModelSerializer):
                  'is_project_owner': role == 'Project Owner',
                  'is_model_owner': role == 'Model Owner'}
                 for project, role in projects_and_roles_for_user(user)]
+
+
+class UploadFileJobSerializer(serializers.ModelSerializer):
+    user = serializers.HyperlinkedRelatedField(view_name='api-user-detail', read_only=True)
+
+    class Meta:
+        model = UploadFileJob
+        fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'is_failed', 'failure_message', 'filename',
+                  'input_json', 'output_json')
+        extra_kwargs = {
+            'url': {'view_name': 'api-upload-file-job-detail'},
+        }
 
 
 class ForecastModelSerializer(serializers.ModelSerializer):

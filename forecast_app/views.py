@@ -545,11 +545,17 @@ def projects_and_roles_for_user(user):
     return projects_and_roles
 
 
-class UserDetailView(DetailView):
+class UserDetailView(UserPassesTestMixin, DetailView):
     model = User
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
+
+
+    def test_func(self):  # return True if the current user can access the view
+        detail_user = self.get_object()
+        return self.request.user.is_superuser or (detail_user == self.request.user)
 
 
     def get_context_data(self, **kwargs):
@@ -601,6 +607,18 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
+
+
+class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
+    model = UploadFileJob
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+    context_object_name = 'upload_file_job'
+
+
+    def test_func(self):  # return True if the current user can access the view
+        upload_file_job = self.get_object()
+        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
 
 
 #
@@ -754,13 +772,12 @@ def upload_template(request, project_pk):
 
     # upload to S3 and enqueue a job to process a new UploadFileJob
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error = _upload_file(data_file, process_upload_file_job__template,
-                            project_pk=project_pk)
+    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__template,
+                                             project_pk=project_pk)
     redirect_if_upload_file_error(request, is_error)
 
-    # todo _upload_file() should return two args: upload_file_job, accept is_error:
     messages.success(request, "Queued the template file '{}' for uploading.".format(data_file.name))
-    return redirect('template-data-detail', project_pk=project_pk)
+    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
 
 
 def process_upload_file_job__template(upload_file_job_pk):
@@ -833,13 +850,12 @@ def upload_truth(request, project_pk):
 
     # upload to S3 and enqueue a job to process a new UploadFileJob
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error = _upload_file(data_file, process_upload_file_job__truth,
-                            project_pk=project_pk)
+    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__truth,
+                                             project_pk=project_pk)
     redirect_if_upload_file_error(request, is_error)
 
-    # todo _upload_file() should return two args: upload_file_job, accept is_error:
     messages.success(request, "Queued the truth file '{}' for uploading.".format(data_file.name))
-    return redirect('project-detail', pk=project_pk)
+    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
 
 
 def process_upload_file_job__truth(upload_file_job_pk):
@@ -906,14 +922,13 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "see the delete button.".format(time_zero.timezero_date, data_file.name)})
 
     # upload to S3 and enqueue a job to process a new UploadFileJob
-    is_error = _upload_file(data_file, process_upload_file_job__forecast,
-                            forecast_model_pk=forecast_model_pk,
-                            timezero_pk=timezero_pk)
+    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
+                                             forecast_model_pk=forecast_model_pk,
+                                             timezero_pk=timezero_pk)
     redirect_if_upload_file_error(request, is_error)
 
-    # todo _upload_file() should return two args: upload_file_job, accept is_error:
     messages.success(request, "Queued the forecast file '{}' for uploading.".format(data_file.name))
-    return redirect('model-detail', pk=forecast_model_pk)
+    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
 
 
 def process_upload_file_job__forecast(upload_file_job_pk):
@@ -950,6 +965,7 @@ def delete_forecast(request, forecast_pk):
 
     forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
     forecast.delete()
+    messages.success(request, "Deleted the forecast.")
     return redirect('model-detail', pk=forecast_model_pk)
 
 
@@ -967,11 +983,12 @@ def delete_forecast(request, forecast_pk):
 MAX_UPLOAD_FILE_SIZE = 5E+06
 
 
-def _upload_file(data_file, process_upload_file_job_fcn, **kwargs):
+def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
     """
     Accepts a file uploaded to this app by the user. Creates a UploadFileJob to track the job, saves data_file in an
     S3 bucket, then enqueues process_upload_file_job_fcn to process the file by an RQ worker.
 
+    :param user: the User from request.User
     :param data_file: the data file to use as found in request.FILES . it is an UploadedFile (e.g.,
         InMemoryUploadedFile or TemporaryUploadedFile)
     :param process_upload_file_job_fcn: a function of one arg (upload_file_job_pk) that is passed to
@@ -982,20 +999,21 @@ def _upload_file(data_file, process_upload_file_job_fcn, **kwargs):
             upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
             upload_file_job.save()
     :param kwargs: saved in the new UploadFileJob's input_json
-    :return is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the
-        user
+    :return a 2-tuple: (is_error, upload_file_job) where:
+        - is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the user
+        - upload_file_job the new UploadFileJob instance if not is_error. None o/w
     """
     # create the UploadFileJob
     logger.debug("_upload_file(): Got data_file: name={!r}, size={}, content_type={}"
                  .format(data_file.name, data_file.size, data_file.content_type))
     try:
-        upload_file_job = UploadFileJob.objects.create(filename=data_file.name)  # status = PENDING
+        upload_file_job = UploadFileJob.objects.create(user=user, filename=data_file.name)  # status = PENDING
         upload_file_job.input_json = kwargs
         upload_file_job.save()
         logger.debug("__upload_file(): 1/3 Created the UploadFileJob: {}".format(upload_file_job))
     except Exception as exc:
         logger.debug("__upload_file(): Error creating the UploadFileJob: {}".format(exc))
-        return "Error creating the UploadFileJob: {}".format(exc)  # is_error
+        return "Error creating the UploadFileJob: {}".format(exc), None
 
     # upload the file to S3
     try:
@@ -1017,7 +1035,7 @@ def _upload_file(data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
         logger.debug(failure_message)
-        return "Error uploading file to S3: {}. upload_file_job={}".format(exc, upload_file_job)  # is_error
+        return "Error uploading file to S3: {}. upload_file_job={}".format(exc, upload_file_job), None
 
     # enqueue a worker
     try:
@@ -1034,10 +1052,10 @@ def _upload_file(data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.save()
         upload_file_job.delete_s3_object()  # NB: in current thread
         logger.debug(failure_message)
-        return "Error enqueuing the job: {}. upload_file_job={}".format(exc, upload_file_job)  # is_error
+        return "Error enqueuing the job: {}. upload_file_job={}".format(exc, upload_file_job), None
 
     logger.debug("_upload_file(): Done")
-    return False  # is_error
+    return False, upload_file_job
 
 
 def process_upload_file_job__noop(upload_file_job_pk):

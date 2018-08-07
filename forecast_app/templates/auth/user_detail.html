@@ -108,4 +108,14 @@
         <small class="text-muted">(No models owned by {{ detail_user }})</small>
     {% endif %}
 
+
+    <h2>Upload File Jobs</h2>
+
+    {% if detail_user.upload_file_jobs.all %}
+        <p class="help-block">Upload file jobs created by {{ detail_user }}:</p>
+        {% include 'upload_file_job_table_snippet.html' with upload_file_jobs=detail_user.upload_file_jobs.all %}
+    {% else %}
+        <small class="text-muted">(No upload file jobs created by {{ detail_user }})</small>
+    {% endif %}
+
 {% endblock %}

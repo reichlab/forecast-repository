@@ -14,8 +14,9 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast
 from forecast_app.models.project import TRUTH_CSV_HEADER
+from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TemplateSerializer, TruthSerializer
+    TemplateSerializer, TruthSerializer, UploadFileJobSerializer
 from utils.utilities import CDC_CSV_HEADER
 
 
@@ -56,9 +57,25 @@ class UserList(generics.ListCreateAPIView):
     serializer_class = UserSerializer
 
 
-class UserDetail(generics.RetrieveAPIView):
+class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+    def test_func(self):  # return True if the current user can access the view
+        detail_user = self.get_object()
+        return self.request.user.is_superuser or (detail_user == self.request.user)
+
+
+class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = UploadFileJob.objects.all()
+    serializer_class = UploadFileJobSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        upload_file_job = self.get_object()
+        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
 
 
 class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
