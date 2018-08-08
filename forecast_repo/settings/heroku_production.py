@@ -1,11 +1,24 @@
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 from .base import *
 
 
+#
+# ---- DEBUG and SECRET_KEY ----
+#
+
 DEBUG = False
 
-TEST_RUNNER = 'gettingstarted.heroku_test_runner.HerokuDiscoverRunner'
+if 'SECRET_KEY' not in os.environ:
+    raise ImproperlyConfigured("The 'SECRET_KEY' environment variable was not set.")
+
+SECRET_KEY = os.environ['SECRET_KEY']
+
+
+#
+# ---- MIDDLEWARE ----
+#
 
 MIDDLEWARE.extend([
     # Simplified static file serving.

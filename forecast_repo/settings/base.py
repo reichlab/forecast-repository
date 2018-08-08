@@ -21,7 +21,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '8%n4ehf+f-!evlnfbq(3lohe#0gob8@a*0*t*az1msd2^ri9uo'
+# SECRET_KEY = ...  # set by 'children' modules that: from .base import *
 
 INSTALLED_APPS = [
 

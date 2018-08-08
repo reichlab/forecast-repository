@@ -3,6 +3,8 @@ from .base import *
 
 DEBUG = True
 
+SECRET_KEY = '&6kqgmf2fi3==##07k$!ns_#sd1%v4e4%$lbgft9(c7ar9itbh'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
