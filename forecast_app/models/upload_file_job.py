@@ -5,6 +5,7 @@ import traceback
 from contextlib import contextmanager
 
 import boto3
+import django_rq
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import BooleanField
@@ -105,6 +106,20 @@ class UploadFileJob(models.Model):
         return str(self.pk)
 
 
+    def cancel_rq_job(self):
+        """
+        Cancels the RQ job corresponding to me.
+        """
+        try:
+            logger.debug("cancel_rq_job(): Started: {}".format(self))
+            queue = django_rq.get_queue()  # name='default'
+            job = queue.fetch_job(self.rq_job_id())
+            job.cancel()  # NB: just removes it from the queue and won't will kill it if is already executing
+            logger.debug("cancel_rq_job(): Done: {}".format(self))
+        except Exception as exc:
+            logger.debug("cancel_rq_job(): Failed: {}, {}".format(exc, self))
+
+
     def delete_s3_object(self):
         """
         Deletes the S3 object corresponding to me. note that we do not log delete failures in the instance. This is b/c
@@ -184,4 +199,5 @@ def upload_file_job_s3_file(upload_file_job_pk):
 
 @receiver(pre_delete, sender=UploadFileJob)
 def delete_s3_obj_for_upload_file_job(sender, instance, using, **kwargs):
+    instance.cancel_rq_job()  # in case it's still in the queue
     instance.delete_s3_object()

@@ -79,7 +79,9 @@ def empty_rq(request):
 
 
 def delete_file_jobs(request):
-    UploadFileJob.objects.all().delete()  # NB: pre_delete() signal deletes corresponding S3 object (the uploaded file)
+    # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding S3 object (the uploaded
+    # file)
+    UploadFileJob.objects.all().delete()
     messages.success(request, "Deleted all UploadFileJobs.")
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
 
