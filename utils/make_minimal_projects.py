@@ -62,30 +62,37 @@ def make_minimal_projects_app():
     # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
     TimeZero.objects.create(project=public_project, timezero_date='2017-01-01')
 
-    private_project = Project.objects.create(name=project_names[1], is_public=False)
+    private_project = Project.objects.create(name=project_names[1], is_public=False, config_dict=CDC_CONFIG_DICT)
     private_project.owner = po_user
     private_project.model_owners.add(mo_user)
     private_project.save()
 
-    create_cdc_targets(public_project)
+    for project in [public_project, private_project]:
+        fill_project(project, mo_user)
+
+    click.echo("* Done")
+
+
+def fill_project(project, mo_user):
+    create_cdc_targets(project)
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))
     #   -> {'year': 2017, 'week': 3, 'day': 3}
-    time_zero1 = TimeZero.objects.create(project=public_project,
+    time_zero1 = TimeZero.objects.create(project=project,
                                          timezero_date=datetime.date(2017, 1, 17),
                                          data_version_date=None)
-    TimeZero.objects.create(project=public_project,
+    TimeZero.objects.create(project=project,
                             timezero_date=datetime.date(2017, 1, 24),
                             data_version_date=None)
 
     # template_path = Path('forecast_app/tests/2016-2017_submission_template.csv')
     template_path = Path('forecast_app/tests/2016-2017_submission_template-small.csv')
-    click.echo("* loading template into public_project={}, template_path={}".format(public_project, template_path))
+    click.echo("* loading template into project={}, template_path={}".format(project, template_path))
     start_time = timeit.default_timer()
-    public_project.load_template(template_path)
-    click.echo("  loaded template: {}. {}".format(public_project.csv_filename, timeit.default_timer() - start_time))
+    project.load_template(template_path)
+    click.echo("  loaded template: {}. {}".format(project.csv_filename, timeit.default_timer() - start_time))
 
     click.echo("creating ForecastModel")
-    forecast_model1 = ForecastModel.objects.create(project=public_project,
+    forecast_model1 = ForecastModel.objects.create(project=project,
                                                    name='Test ForecastModel1',
                                                    description="a ForecastModel for testing",
                                                    home_url='http://example.com',
@@ -97,13 +104,11 @@ def make_minimal_projects_app():
     forecast1 = forecast_model1.load_forecast(csv_file_path, time_zero1)
     click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
 
-    ForecastModel.objects.create(project=public_project,
+    ForecastModel.objects.create(project=project,
                                  name='Test ForecastModel2',
                                  description="a second ForecastModel for testing",
                                  home_url='http://example.com',
                                  owner=mo_user)
-
-    click.echo("* Done")
 
 
 if __name__ == '__main__':

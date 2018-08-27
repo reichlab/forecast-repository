@@ -776,7 +776,11 @@ def upload_template(request, project_pk):
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__template,
                                              project_pk=project_pk)
-    redirect_if_upload_file_error(request, is_error)
+    if is_error:
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "There was an error uploading the file. The error was: "
+                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
 
     messages.success(request, "Queued the template file '{}' for uploading.".format(data_file.name))
     return redirect('upload-file-job-detail', pk=upload_file_job.pk)
@@ -854,7 +858,11 @@ def upload_truth(request, project_pk):
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__truth,
                                              project_pk=project_pk)
-    redirect_if_upload_file_error(request, is_error)
+    if is_error:
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "There was an error uploading the file. The error was: "
+                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
 
     messages.success(request, "Queued the truth file '{}' for uploading.".format(data_file.name))
     return redirect('upload-file-job-detail', pk=upload_file_job.pk)
@@ -927,7 +935,11 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
                                              forecast_model_pk=forecast_model_pk,
                                              timezero_pk=timezero_pk)
-    redirect_if_upload_file_error(request, is_error)
+    if is_error:
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': "There was an error uploading the file. The error was: "
+                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
 
     messages.success(request, "Queued the forecast file '{}' for uploading.".format(data_file.name))
     return redirect('upload-file-job-detail', pk=upload_file_job.pk)
@@ -1100,18 +1112,6 @@ def validate_data_file(request):
                       context={'title': "Error uploading file.",
                                'message': message})
     return None  # is_error
-
-
-def redirect_if_upload_file_error(request, is_error):
-    """
-    An upload_*() helper function that redirects to an appropriate message page if is_error, which is as returned by
-    _upload_file().
-    """
-    if is_error:
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': "There was an error uploading the file. The error was: "
-                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
 
 
 #

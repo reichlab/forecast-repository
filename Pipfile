@@ -23,6 +23,7 @@ django-debug-toolbar = "*"
 rq = "*"
 django-rq = "*"
 "boto3" = "*"
+djangorestframework-jwt = "*"
 
 [dev-packages]
 

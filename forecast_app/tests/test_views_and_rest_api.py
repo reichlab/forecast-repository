@@ -325,6 +325,25 @@ class ViewsTestCase(TestCase):
                         self.assertNotIn(exp_url, str(response.content))
 
 
+    # via https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
+    def test_api_jwt_auth(self):
+        # recall from base.py: ROOT_URLCONF = 'forecast_repo.urls'
+        jwt_auth_url = reverse('auth-jwt-get')
+
+        # test invalid user
+        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': 'badpass'},
+                                format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # test valid user: self.po_user, self.po_user_password
+        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': self.po_user_password},
+                                format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue('token' in resp.data)
+        token = resp.data['token']
+        # e.g., eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InByb2plY3Rfb3duZXIxIiwiZXhwIjoxNTM1MzgwMjM0LCJlbWFpbCI6IiJ9.T_mHlvd3EjeAPhKRZwipyLhklV5StBQ_tRJ9YR-v8sA
+
+
     def test_api_endpoints(self):
         url_to_exp_user_status_code_pairs = {
             reverse('api-root'): self.OK_ALL,
@@ -346,16 +365,19 @@ class ViewsTestCase(TestCase):
         }
         for idx, (url, user_exp_status_code_list) in enumerate(url_to_exp_user_status_code_pairs.items()):
             for user, exp_status_code in user_exp_status_code_list:
+                # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
+                # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
                 self.client.logout()  # AnonymousUser
                 if user:
                     password = self.po_user_password if user == self.po_user \
                         else self.mo_user_password if user == self.mo_user \
                         else self.superuser_password
-                    self.client.login(username=user.username, password=password)
-
+                    jwt_auth_url = reverse('auth-jwt-get')
+                    jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password},
+                                                     format='json')
+                    jwt_token = jwt_auth_resp.data['token']
+                    self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
                 response = self.client.get(url)
-                if exp_status_code != response.status_code:
-                    print('xx', url, user, exp_status_code, response.status_code)
                 self.assertEqual(exp_status_code, response.status_code)
 
 

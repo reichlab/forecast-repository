@@ -41,6 +41,27 @@ class ProjectList(generics.ListAPIView):
     serializer_class = ProjectSerializer
 
 
+    # def get_serializer(self, *args, **kwargs):
+    #     # (<QuerySet [(3, 'public project'), (4, 'private project')]>,) {'many': True}
+    #     super_serializer = super().get_serializer(*args, **kwargs)
+    #     print('yy', args, kwargs, type(super_serializer), super_serializer)
+    #     return super_serializer
+
+
+    # def get_serializer_class(self):
+    #     # return super().get_serializer_class()
+    #
+    #     # project = self.get_object()
+    #     # return project.is_user_ok_to_view(self.request.user)
+    #
+    #     print('xx', self.request.user)
+    #     return ProjectSerializer
+    #     # if xx:
+    #     #     return ProjectSerializer
+    #     # else:
+    #     #     return ProjectSerializerMinimal
+
+
 class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer

@@ -47,7 +47,14 @@ INSTALLED_APPS = [
 ]
 
 REST_FRAMEWORK = {
-    # 'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+    # 'DEFAULT_PERMISSION_CLASSES': [
+    #     'rest_framework.permissions.AllowAny',  # default
+    # ],
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',  # djangorestframework-jwt
+        # 'rest_framework.authentication.SessionAuthentication',  # default
+        # 'rest_framework.authentication.BasicAuthentication',  # ""
+    ),
     'PAGE_SIZE': 10
 }
 
@@ -63,6 +70,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
     'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'forecast_app.middleware.AuthenticationMiddlewareJWT',
 ]
 
 ROOT_URLCONF = 'forecast_repo.urls'
