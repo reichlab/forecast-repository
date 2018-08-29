@@ -37,29 +37,18 @@ def api_root(request, format=None):
 
 # was ListCreateAPIView -> def perform_create(self, serializer): serializer.save(owner=self.request.user)
 class ProjectList(generics.ListAPIView):
+    """
+    View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
+    Note that this means API users have more limited access than the web home page, which lists all projects regardless
+    of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
+    it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
+    me and won.
+    """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
 
-
-    # def get_serializer(self, *args, **kwargs):
-    #     # (<QuerySet [(3, 'public project'), (4, 'private project')]>,) {'many': True}
-    #     super_serializer = super().get_serializer(*args, **kwargs)
-    #     print('yy', args, kwargs, type(super_serializer), super_serializer)
-    #     return super_serializer
-
-
-    # def get_serializer_class(self):
-    #     # return super().get_serializer_class()
-    #
-    #     # project = self.get_object()
-    #     # return project.is_user_ok_to_view(self.request.user)
-    #
-    #     print('xx', self.request.user)
-    #     return ProjectSerializer
-    #     # if xx:
-    #     #     return ProjectSerializer
-    #     # else:
-    #     #     return ProjectSerializerMinimal
+    def get_queryset(self):
+        return [project for project in super().get_queryset() if project.is_user_ok_to_view(self.request.user)]
 
 
 class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):

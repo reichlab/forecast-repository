@@ -381,6 +381,29 @@ class ViewsTestCase(TestCase):
                 self.assertEqual(exp_status_code, response.status_code)
 
 
+    def test_api_project_list_authorization(self):
+        # verify filtering based on user authorization
+
+        # anonymous access: self.public_project, self.public_project2
+        self.client.logout()  # AnonymousUser
+        # a rest_framework.utils.serializer_helpers.ReturnDict:
+        response = self.client.get(reverse('api-project-list'), format='json')
+        self.assertEqual({self.public_project.id, self.public_project2.id},
+                         {proj_resp_dict['id'] for proj_resp_dict in response.data})
+
+        # authorized access: self.mo_user: self.public_project, self.private_project, self.public_project2
+        jwt_auth_url = reverse('auth-jwt-get')
+        jwt_auth_resp = self.client.post(jwt_auth_url,
+                                         {'username': self.mo_user.username, 'password': self.mo_user_password},
+                                         format='json')
+        jwt_token = jwt_auth_resp.data['token']
+        self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
+
+        response = self.client.get(reverse('api-project-list'), format='json')
+        self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
+                         {proj_resp_dict['id'] for proj_resp_dict in response.data})
+
+
     def test_api_endpoint_keys(self):
         """
         Tests returned value keys as a content sanity check.
@@ -390,10 +413,10 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-root'), format='json')
         self.assertEqual(['projects'], list(response.data.keys()))
 
-        # 'api-project-list'
+        # 'api-project-list' - per-user authorization tested in test_api_project_list_authorization()
         # a rest_framework.utils.serializer_helpers.ReturnList:
         response = self.client.get(reverse('api-project-list'), format='json')
-        self.assertEqual(3, len(response.data))
+        self.assertEqual(2, len(response.data))
 
         # 'api-project-detail'
         # a rest_framework.utils.serializer_helpers.ReturnDict:
