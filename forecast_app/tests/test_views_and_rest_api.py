@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.models import Project, ForecastModel, TimeZero
+from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import CDC_CONFIG_DICT
 from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
@@ -69,17 +69,17 @@ class ViewsTestCase(TestCase):
         cls.public_project2.save()
 
         # public_model
-        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
+        cls.csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
                                                         description='', home_url='http://example.com',
                                                         owner=cls.mo_user)
-        cls.public_forecast = cls.public_model.load_forecast(csv_file_path, cls.public_tz1)
+        cls.public_forecast = cls.public_model.load_forecast(cls.csv_file_path, cls.public_tz1)
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          description='', home_url='http://example.com',
                                                          owner=cls.mo_user)
-        cls.private_forecast = cls.private_model.load_forecast(csv_file_path, cls.private_tz1)
+        cls.private_forecast = cls.private_model.load_forecast(cls.csv_file_path, cls.private_tz1)
 
         # user/response pairs for testing authorization
         cls.OK_ALL = [(None, status.HTTP_200_OK),
@@ -369,16 +369,29 @@ class ViewsTestCase(TestCase):
                 # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
                 self.client.logout()  # AnonymousUser
                 if user:
-                    password = self.po_user_password if user == self.po_user \
-                        else self.mo_user_password if user == self.mo_user \
-                        else self.superuser_password
-                    jwt_auth_url = reverse('auth-jwt-get')
-                    jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password},
-                                                     format='json')
-                    jwt_token = jwt_auth_resp.data['token']
-                    self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
+                    self.authenticate_jwt_user(user)
                 response = self.client.get(url)
                 self.assertEqual(exp_status_code, response.status_code)
+
+
+    def test_api_delete_endpoints(self):
+        # anonymous delete: self.public_forecast -> disallowed
+        self.client.logout()  # AnonymousUser
+        response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # authorized self.mo_user: delete private_forecast2 (new Forecast) -> allowed
+        self.authenticate_jwt_user(self.mo_user)
+        self.assertEqual(1, self.private_model.forecasts.count())
+
+        private_forecast2 = self.private_model.load_forecast(self.csv_file_path, self.private_tz1)
+        private_forecast2_pk = private_forecast2.pk
+        self.assertEqual(2, self.private_model.forecasts.count())
+
+        response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))
+        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+        self.assertIsNone(Forecast.objects.filter(pk=private_forecast2_pk).first())  # is deleted
+        self.assertEqual(1, self.private_model.forecasts.count())  # is no longer in list
 
 
     def test_api_project_list_authorization(self):
@@ -392,13 +405,7 @@ class ViewsTestCase(TestCase):
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
 
         # authorized access: self.mo_user: self.public_project, self.private_project, self.public_project2
-        jwt_auth_url = reverse('auth-jwt-get')
-        jwt_auth_resp = self.client.post(jwt_auth_url,
-                                         {'username': self.mo_user.username, 'password': self.mo_user_password},
-                                         format='json')
-        jwt_token = jwt_auth_resp.data['token']
-        self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
-
+        self.authenticate_jwt_user(self.mo_user)
         response = self.client.get(reverse('api-project-list'), format='json')
         self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
@@ -537,3 +544,14 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
         self.assertEqual(list(response_dict), ['metadata', 'locations'])
         self.assertEqual(len(response_dict['locations']), 11)
+
+
+    def authenticate_jwt_user(self, user):
+        password = self.po_user_password if user == self.po_user \
+            else self.mo_user_password if user == self.mo_user \
+            else self.superuser_password
+        jwt_auth_url = reverse('auth-jwt-get')
+        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password},
+                                         format='json')
+        jwt_token = jwt_auth_resp.data['token']
+        self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)

@@ -4,8 +4,9 @@ from pathlib import Path
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
-from rest_framework import generics
+from rest_framework import generics, mixins
 from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
@@ -47,6 +48,7 @@ class ProjectList(generics.ListAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
 
+
     def get_queryset(self):
         return [project for project in super().get_queryset() if project.is_user_ok_to_view(self.request.user)]
 
@@ -71,6 +73,7 @@ class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
 
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
@@ -99,15 +102,26 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
-class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+class ForecastDetail(mixins.RetrieveModelMixin, mixins.DestroyModelMixin, generics.GenericAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def get(self, request, *args, **kwargs):
         forecast = self.get_object()
-        return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
+        if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
+            raise PermissionDenied
+
+        return self.retrieve(request, *args, **kwargs)
+
+
+    def delete(self, request, *args, **kwargs):
+        forecast = self.get_object()
+        if not forecast.is_user_ok_to_delete(request.user):
+            raise PermissionDenied
+
+        response = self.destroy(request, *args, **kwargs)
+        return response
 
 
 class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):

@@ -56,6 +56,10 @@ class Forecast(ModelWithCDCData):
         return self.csv_filename
 
 
+    def is_user_ok_to_delete(self, user):
+        return user.is_superuser or (user == self.forecast_model.project.owner) or (user == self.forecast_model.owner)
+
+
     def rescaled_bin_for_loc_and_target(self, location, target):
         """
         Used for sparkline calculations.

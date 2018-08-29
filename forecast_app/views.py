@@ -972,8 +972,7 @@ def delete_forecast(request, forecast_pk):
     :return: redirect to the forecast's forecast_model detail page
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    is_allowed_to_delete = request.user.is_superuser or (request.user == forecast.forecast_model.project.owner) or \
-                           (request.user == forecast.forecast_model.owner)
+    is_allowed_to_delete = forecast.is_user_ok_to_delete(request.user)
     if not is_allowed_to_delete:
         raise PermissionDenied
 
