@@ -344,7 +344,7 @@ class ViewsTestCase(TestCase):
         # e.g., eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InByb2plY3Rfb3duZXIxIiwiZXhwIjoxNTM1MzgwMjM0LCJlbWFpbCI6IiJ9.T_mHlvd3EjeAPhKRZwipyLhklV5StBQ_tRJ9YR-v8sA
 
 
-    def test_api_endpoints(self):
+    def test_api_get_endpoints(self):
         url_to_exp_user_status_code_pairs = {
             reverse('api-root'): self.OK_ALL,
             reverse('api-project-list'): self.OK_ALL,
@@ -358,6 +358,8 @@ class ViewsTestCase(TestCase):
             reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
+            reverse('api-forecast-list', args=[self.public_model.pk]): self.OK_ALL,
+            reverse('api-forecast-list', args=[self.private_model.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,
             reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-data', args=[self.public_forecast.pk]): self.OK_ALL,
@@ -374,27 +376,7 @@ class ViewsTestCase(TestCase):
                 self.assertEqual(exp_status_code, response.status_code)
 
 
-    def test_api_delete_endpoints(self):
-        # anonymous delete: self.public_forecast -> disallowed
-        self.client.logout()  # AnonymousUser
-        response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
-        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
-
-        # authorized self.mo_user: delete private_forecast2 (new Forecast) -> allowed
-        self.authenticate_jwt_user(self.mo_user)
-        self.assertEqual(1, self.private_model.forecasts.count())
-
-        private_forecast2 = self.private_model.load_forecast(self.csv_file_path, self.private_tz1)
-        private_forecast2_pk = private_forecast2.pk
-        self.assertEqual(2, self.private_model.forecasts.count())
-
-        response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))
-        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
-        self.assertIsNone(Forecast.objects.filter(pk=private_forecast2_pk).first())  # is deleted
-        self.assertEqual(1, self.private_model.forecasts.count())  # is no longer in list
-
-
-    def test_api_project_list_authorization(self):
+    def test_api_get_project_list_authorization(self):
         # verify filtering based on user authorization
 
         # anonymous access: self.public_project, self.public_project2
@@ -411,7 +393,7 @@ class ViewsTestCase(TestCase):
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
 
 
-    def test_api_endpoint_keys(self):
+    def test_api_get_endpoint_keys(self):
         """
         Tests returned value keys as a content sanity check.
         """
@@ -472,6 +454,14 @@ class ViewsTestCase(TestCase):
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'description', 'home_url', 'aux_data_url', 'forecasts']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
+        # 'api-forecast-list'
+        # a rest_framework.response.Response:
+        response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
+        response_dicts = json.loads(response.content)
+        exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
+        self.assertEqual(1, len(response_dicts))
+        self.assertEqual(exp_keys, list(response_dicts[0].keys()))
+
         # 'api-forecast-detail'
         # a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
@@ -498,6 +488,26 @@ class ViewsTestCase(TestCase):
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
                          'US National']
         self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
+
+
+    def test_api_delete_endpoints(self):
+        # anonymous delete: self.public_forecast -> disallowed
+        self.client.logout()  # AnonymousUser
+        response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # authorized self.mo_user: delete private_forecast2 (new Forecast) -> allowed
+        self.authenticate_jwt_user(self.mo_user)
+        self.assertEqual(1, self.private_model.forecasts.count())
+
+        private_forecast2 = self.private_model.load_forecast(self.csv_file_path, self.private_tz1)
+        private_forecast2_pk = private_forecast2.pk
+        self.assertEqual(2, self.private_model.forecasts.count())
+
+        response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))
+        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+        self.assertIsNone(Forecast.objects.filter(pk=private_forecast2_pk).first())  # is deleted
+        self.assertEqual(1, self.private_model.forecasts.count())  # is no longer in list
 
 
     def test_data_download_formats(self):

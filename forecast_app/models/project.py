@@ -576,8 +576,9 @@ class Project(ModelWithCDCData):
 
             # validate timezero_date
             # todo cache: time_zero_for_timezero_date() results - expensive?
-            timezero = self.time_zero_for_timezero_date(datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
-            if not timezero:
+            time_zero = self.time_zero_for_timezero_date(
+                datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
+            if not time_zero:
                 timezero_to_missing_count[timezero_date] += 1
                 continue
 
@@ -591,12 +592,12 @@ class Project(ModelWithCDCData):
                 continue
 
             value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
-            rows.append((timezero.pk, location, target_names_to_pks[target_name], value))
+            rows.append((time_zero.pk, location, target_names_to_pks[target_name], value))
 
         # report warnings
-        for timezero, count in timezero_to_missing_count.items():
+        for time_zero, count in timezero_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
-                           .format(timezero, count))
+                           .format(time_zero, count))
         for location, count in location_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
                            .format(location, count))

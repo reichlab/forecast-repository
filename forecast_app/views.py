@@ -508,7 +508,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     @staticmethod
     def timezeros_num_forecasts(project):
         """
-        :return: a list of tuples that relates project's TimeZeros to # Forecasts. sorted by timezero
+        :return: a list of tuples that relates project's TimeZeros to # Forecasts. sorted by time_zero
         """
         rows = Forecast.objects.filter(forecast_model__project=project) \
             .values('time_zero__id') \
@@ -518,8 +518,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         # initialization is a work-around for missing LEFT JOIN items:
         tz_to_num_forecasts = {time_zero: 0 for time_zero in project.timezeros.all()}
         for row in rows:
-            timezero = TimeZero.objects.get(pk=row['time_zero__id'])
-            tz_to_num_forecasts[timezero] = row['tz_count']
+            time_zero = TimeZero.objects.get(pk=row['time_zero__id'])
+            tz_to_num_forecasts[time_zero] = row['tz_count']
         return [(k, tz_to_num_forecasts[k])
                 for k in sorted(tz_to_num_forecasts.keys(), key=lambda timezero: timezero.timezero_date)]
 
@@ -772,7 +772,7 @@ def upload_template(request, project_pk):
     if is_error:
         return is_error
 
-    # upload to S3 and enqueue a job to process a new UploadFileJob
+    # upload to S3 and enqueue a job to process a new UploadFileJob. NB: if multiple files, just uses the first one
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__template,
                                              project_pk=project_pk)
@@ -904,6 +904,10 @@ def download_truth(request, project_pk):
 # ---- Forecast upload/delete views ----
 #
 
+def is_user_ok_upload_forecast(request, forecast_model):
+    return request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+           (request.user == forecast_model.owner)
+
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
@@ -913,9 +917,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
     time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-    is_allowed_to_upload = request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-                           (request.user == forecast_model.owner)
-    if not is_allowed_to_upload:
+    if not is_user_ok_upload_forecast(request, forecast_model):
         raise PermissionDenied
 
     is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
