@@ -7,10 +7,12 @@ import boto3
 import django_rq
 import redis
 from PIL import Image, ImageDraw
+from django import db
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
+from django.db import connection
 from django.db.models import Count
 from django.forms import inlineformset_factory
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -56,12 +58,17 @@ def zadmin(request):
 
     try:
         queue = django_rq.get_queue()  # name='default'
-        conn = django_rq.get_connection()  # name='default'
+        rq_conn = django_rq.get_connection()  # name='default'
+
+        django_db_name = db.utils.settings.DATABASES['default']['NAME']
+
         return render(
             request, 'zadmin.html',
             context={'projects': Project.objects.order_by('name'),
                      'queue': queue,
-                     'conn': conn,
+                     'rq_conn': rq_conn,
+                     'django_db_name': django_db_name,
+                     'django_conn': connection,
                      'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at'),
                      })
     except redis.exceptions.ConnectionError as exc:
@@ -907,6 +914,7 @@ def download_truth(request, project_pk):
 def is_user_ok_upload_forecast(request, forecast_model):
     return request.user.is_superuser or (request.user == forecast_model.project.owner) or \
            (request.user == forecast_model.owner)
+
 
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """

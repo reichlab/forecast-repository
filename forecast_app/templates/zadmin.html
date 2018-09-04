@@ -9,10 +9,18 @@
     <p class="lead">Zoltar Administration Tools</p>
 
 
+    <h2>Django</h2>
+
+    <ul>
+        <li>Database Name: &ldquo;{{ django_db_name }}&rdquo;</li>
+        <li>Database Vendor: &ldquo;{{ django_conn.vendor }}&rdquo;</li>
+    </ul>
+
+
     <h2>RQ</h2>
 
     <ul>
-        <li>Connection: {{ conn }}</li>
+        <li>Connection: {{ rq_conn }}</li>
         <li>Queue: {{ queue }}</li>
         <li>Jobs: ({{ queue.jobs|length }})
             <ul>
