@@ -59,9 +59,7 @@ def zadmin(request):
     try:
         queue = django_rq.get_queue()  # name='default'
         rq_conn = django_rq.get_connection()  # name='default'
-
         django_db_name = db.utils.settings.DATABASES['default']['NAME']
-
         return render(
             request, 'zadmin.html',
             context={'projects': Project.objects.order_by('name'),
@@ -85,7 +83,7 @@ def empty_rq(request):
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
 
 
-def delete_file_jobs(request):
+def delete_upload_file_jobs(request):
     # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding S3 object (the uploaded
     # file)
     UploadFileJob.objects.all().delete()

@@ -12,7 +12,7 @@ urlpatterns = [
     url(r'^empty_rq/$', views.empty_rq, name='empty-rq'),
     url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),
-    url(r'^delete_file_jobs/$', views.delete_file_jobs, name='delete-file-jobs'),
+    url(r'^delete_upload_file_jobs/$', views.delete_upload_file_jobs, name='delete-file-jobs'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),
     url(r'^users/', views.UserListView.as_view(), name='user-list'),
