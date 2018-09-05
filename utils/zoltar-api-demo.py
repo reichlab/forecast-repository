@@ -3,7 +3,6 @@
 # been loaded, and that an account with the appropriate authorizations is identified in the below environment variables.
 #
 
-import json
 import os
 import time
 
@@ -89,17 +88,17 @@ def get_forecast(host, token, forecast_pk):
 
 @click.command()
 def demo_zoltar_api_app():
+    #
     # authenticate the dev user
-    # mo1_token = get_token(ZOLTAR_HOST, 'model_owner1', 'mo1-asdf')
+    #
     mo1_token = get_token(ZOLTAR_HOST, os.environ.get('DEV_USERNAME'), os.environ.get('DEV_PASSWORD'))
 
     #
     # print all projects
     #
-
     projects = get_projects(ZOLTAR_HOST, mo1_token)
     print('- projects', projects)
-    # e.g.,
+    # example:
     # [{'id': 1,
     #   'url': 'http://localhost:8000/api/project/1/',
     #   'owner': 'http://localhost:8000/api/user/2/',
@@ -113,17 +112,12 @@ def demo_zoltar_api_app():
     #   'truth': 'http://localhost:8000/api/project/1/truth/',
     #   'model_owners': ['http://localhost:8000/api/user/3/'],
     #   'models': ['http://localhost:8000/api/model/1/', 'http://localhost:8000/api/model/2/'],
-    #   'targets': [
-    #       {'name': 'Season onset',
-    #        'description': "The onset of the season is defined as the MMWR surveillance week (http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) reported through ILINet reaches or exceeds the baseline value for three consecutive weeks (updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should be for the first week of that three week period."},
-    #       ...],
-    #   'timezeros': [{'timezero_date': '2017-01-01', 'data_version_date': None},
-    #                      ...]}]
+    #   'targets': [{'name': 'Season onset', 'description': "The onset of the season is defined as ..."}, ...],
+    #   'timezeros': [{'timezero_date': '2017-01-01', 'data_version_date': None}, ...]}]
 
     #
     # print one project's details. first get the project id from the previously-requested list of projects
     #
-
     # project = get_project_from_obj_list(projects, 'public project')
     project = get_project_from_obj_list(projects, 'private project')
     print('- project', get_project(ZOLTAR_HOST, mo1_token, project['id']))
@@ -132,11 +126,12 @@ def demo_zoltar_api_app():
     # upload a forecast to the first model found, first printing the model's forecasts and then deleting the existing
     # one if found
     #
-
     model_uri = project['models'][0]
     model = get_resource(model_uri, mo1_token)
     print('- model (with forecasts)', model)
-    # {'id': 3, 'url': 'http://localhost:8000/api/model/3/',
+    # example:
+    # {'id': 3,
+    #  'url': 'http://localhost:8000/api/model/3/',
     #  'project': 'http://localhost:8000/api/project/2/',
     #  'owner': 'http://localhost:8000/api/user/3/',
     #  'name': 'Test ForecastModel1',
@@ -151,11 +146,11 @@ def demo_zoltar_api_app():
     #
     # delete existing Forecast, if any
     #
-
     TIMEZERO_DATE = '2017-01-17'  # NB: date formats are currently inconsistent - yyyy-mm-dd vs. yyyymmdd. will be fixed
     forecast_for_tz_date = get_forecast_from_obj(model, TIMEZERO_DATE)
     forecast_uri = forecast_for_tz_date['forecast']
     print('- forecast_for_tz_date', forecast_for_tz_date)
+    # example:
     # {'timezero_date': '2017-01-17', 'data_version_date': None, 'forecast': None}
     # {'timezero_date': '2017-01-24', 'data_version_date': None, 'forecast': 'http://localhost:8000/api/forecast/3/'}
 
@@ -168,71 +163,47 @@ def demo_zoltar_api_app():
     #
     # upload a new forecast
     #
-
+    # from UploadFileJob:
+    status_int_to_name = {0: 'PENDING', 1: 'S3_FILE_UPLOADED', 2: 'QUEUED', 3: 'S3_FILE_DOWNLOADED', 4: 'SUCCESS'}
     CSV_FILE = '/Users/cornell/IdeaProjects/forecast-repository/forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'
     upload_file_job = upload_forecast(model_uri, mo1_token, TIMEZERO_DATE, CSV_FILE)
-    print('- upload_file_job', upload_file_job)
-    # {'id': 13,
-    #  'url': 'http://localhost:8000/api/uploadfilejob/13/',
+    print('- upload_file_job', status_int_to_name[upload_file_job['status']], upload_file_job)
+    # example:
+    # {'id': 50,
+    #  'url': 'http://localhost:8000/api/uploadfilejob/50/',
     #  'status': 2,
     #  'user': 'http://localhost:8000/api/user/3/',
-    #  'created_at': '2018-09-04T14:57:57.911518-04:00',
-    #  'updated_at': '2018-09-04T14:57:58.603810-04:00',
-    #  'is_failed': False,
-    #  'failure_message': '',
-    #  'filename': 'EW1-KoTsarima-2017-01-17-small.csv',
-    #  'input_json': "{'forecast_model_pk': 3, 'timezero_pk': 4}",
-    #  'output_json': None}
-
-    #
-    # get the updated status (assuming it's done after 2sec). recall statuses from UploadFileJob:
-    #
-    #   PENDING = 0
-    #   S3_FILE_UPLOADED = 1
-    #   QUEUED = 2
-    #   S3_FILE_DOWNLOADED = 3
-    #   SUCCESS = 4
-    #
-
-    print('- sleeping...')
-    time.sleep(2)
-    upload_file_job = get_upload_file_job(ZOLTAR_HOST, mo1_token, upload_file_job['id'])
-    print('- updated upload_file_job', upload_file_job)
-    # {'id': 18,
-    #  'url': 'http://localhost:8000/api/uploadfilejob/18/',
-    #  'status': 4,
-    #  'user': 'http://localhost:8000/api/user/3/',
-    #  'created_at': '2018-09-04T15:06:54.581167-04:00',
-    #  'updated_at': '2018-09-04T15:06:55.622736-04:00',
+    #  'created_at': '2018-09-05T09:18:21.346093-04:00',
+    #  'updated_at': '2018-09-05T09:18:22.164622-04:00',
     #  'is_failed': False, 'failure_message': '',
     #  'filename': 'EW1-KoTsarima-2017-01-17-small.csv',
     #  'input_json': "{'forecast_model_pk': 3, 'timezero_pk': 4}",
-    #  'output_json': "{'forecast_pk': 20}"}  # <- NB: the new forecast
+    #  'output_json': None}
+    #
+    # get the updated status (assuming it's done after 2sec)
+    #
+    print('- sleeping...')
+    time.sleep(2)
+    upload_file_job = get_upload_file_job(ZOLTAR_HOST, mo1_token, upload_file_job['id'])
+    print('- updated upload_file_job', status_int_to_name[upload_file_job['status']], upload_file_job)
+    # example: 'status' and 'output_json' are updated, example: {'status': 4, 'output_json': {'forecast_pk': 52}, ...}
 
     #
     # print the model's forecasts again - see the new one?
     #
-
     model = get_resource(model_uri, mo1_token)
     print('- updated model forecasts', model['forecasts'])
 
     #
-    # get the new forecast from the upload_file_job by parsing the generic 'output_json' field, which comes in as a
-    # string like "{'forecast_pk': 25}". unfortunately that is not valid JSON (JSONField controls this):
-    #   json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
-    # so we replace it, noting that this might break other uses of the 'output_json' field.
-    # - todo xx think cleaner solution
-    # - todo xx move to new function above
+    # get the new forecast from the upload_file_job by parsing the generic 'output_json' field
     #
-
-    ufj_output_json = json.loads(upload_file_job['output_json'].replace('\'', '"'))
-    new_forecast_pk = ufj_output_json['forecast_pk']
+    new_forecast_pk = upload_file_job['output_json']['forecast_pk']
     new_forecast = get_forecast(ZOLTAR_HOST, mo1_token, new_forecast_pk)
     print('- new forecast', new_forecast_pk, new_forecast)
 
     #
     # print its data (default is JSON)
-    # - todo xx get as CSV
+    # - todo get as CSV
     #
     data_uri = new_forecast['forecast_data']
     data_json = get_resource(data_uri, mo1_token)

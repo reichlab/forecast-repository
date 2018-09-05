@@ -130,6 +130,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UploadFileJobSerializer(serializers.ModelSerializer):
     user = serializers.HyperlinkedRelatedField(view_name='api-user-detail', read_only=True)
+    output_json = serializers.JSONField()  # per https://github.com/dmkoch/django-jsonfield/issues/188
+
 
     class Meta:
         model = UploadFileJob
