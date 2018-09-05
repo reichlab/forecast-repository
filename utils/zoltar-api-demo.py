@@ -1,8 +1,3 @@
-#
-# This file demonstrates some of Zoltar's API features. It assumes the projects defined in make_minimal_projects.py have
-# been loaded, and that an account with the appropriate authorizations is identified in the below environment variables.
-#
-
 import os
 import time
 
@@ -12,8 +7,8 @@ import requests
 
 # ---- ZOLTAR_HOST ----
 
-ZOLTAR_HOST = 'http://localhost:8000'
-# ZOLTAR_HOST = 'https://rl-zoltar-staging.herokuapp.com'
+# ZOLTAR_HOST = 'http://localhost:8000'
+ZOLTAR_HOST = 'https://rl-zoltar-staging.herokuapp.com'
 
 
 #
@@ -21,23 +16,20 @@ ZOLTAR_HOST = 'http://localhost:8000'
 #
 
 def get_resource(uri, token):
-    response = requests.get(uri,
-                            headers={'Accept': 'application/json; indent=4',
-                                     'Authorization': 'JWT {}'.format(token)})
+    response = requests.get(uri, headers={'Accept': 'application/json; indent=4',
+                                          'Authorization': 'JWT {}'.format(token)})
     return response.json()
 
 
 def delete_resource(uri, token):
-    response = requests.delete(uri,
-                               headers={'Accept': 'application/json; indent=4',
-                                        'Authorization': 'JWT {}'.format(token)})
+    response = requests.delete(uri, headers={'Accept': 'application/json; indent=4',
+                                             'Authorization': 'JWT {}'.format(token)})
     if response.status_code != 204:  # 204 No Content
         print('delete_resource(): unexpected status code: '.format(response.status_code))
 
 
 def get_token(host, username, password):
-    response = requests.post(host + '/api-token-auth/',
-                             {'username': username, 'password': password})
+    response = requests.post(host + '/api-token-auth/', {'username': username, 'password': password})
     return response.json()['token']
 
 
@@ -47,7 +39,7 @@ def upload_forecast(model_uri, token, timezero_date, file):
     timezero_date = timezero_date[:4] + timezero_date[5:7] + timezero_date[8:]  # remove '-'
     response = requests.post(model_uri + 'forecasts/',
                              headers={'Authorization': 'JWT {}'.format(token)},
-                             data={'timezero_date': timezero_date, },
+                             data={'timezero_date': timezero_date},
                              files={'data_file': open(file, 'rb')})
     return response.json()  # UploadFileJobSerializer
 
@@ -87,11 +79,24 @@ def get_forecast(host, token, forecast_pk):
 # ---- the app ----
 
 @click.command()
-def demo_zoltar_api_app():
+@click.argument('forecast_csv_file', type=click.Path(file_okay=True, exists=True))
+def demo_zoltar_api_app(forecast_csv_file):
+    """
+    This app demonstrates some of Zoltar's API features. It assumes the projects defined in make_minimal_projects.py
+    have been loaded, and that an account with the appropriate authorizations is identified in the below environment
+    variables.
+
+    Inputs:
+    - DEV_USERNAME environment variable: username of account in server
+    - DEV_PASSWORD environment variable: password for ""
+    - forecast_csv_file app argument: path of the forecast *.cdc.csv file to load into the private project's
+    """
     #
     # authenticate the dev user
     #
-    mo1_token = get_token(ZOLTAR_HOST, os.environ.get('DEV_USERNAME'), os.environ.get('DEV_PASSWORD'))
+    username = os.environ.get('DEV_USERNAME')
+    mo1_token = get_token(ZOLTAR_HOST, username, os.environ.get('DEV_PASSWORD'))
+    print('- token', username, mo1_token)
 
     #
     # print all projects
@@ -146,8 +151,8 @@ def demo_zoltar_api_app():
     #
     # delete existing Forecast, if any
     #
-    TIMEZERO_DATE = '2017-01-17'  # NB: date formats are currently inconsistent - yyyy-mm-dd vs. yyyymmdd. will be fixed
-    forecast_for_tz_date = get_forecast_from_obj(model, TIMEZERO_DATE)
+    timezero_date = '2017-01-17'  # NB: date formats are currently inconsistent - yyyy-mm-dd vs. yyyymmdd. will be fixed
+    forecast_for_tz_date = get_forecast_from_obj(model, timezero_date)
     forecast_uri = forecast_for_tz_date['forecast']
     print('- forecast_for_tz_date', forecast_for_tz_date)
     # example:
@@ -165,8 +170,7 @@ def demo_zoltar_api_app():
     #
     # from UploadFileJob:
     status_int_to_name = {0: 'PENDING', 1: 'S3_FILE_UPLOADED', 2: 'QUEUED', 3: 'S3_FILE_DOWNLOADED', 4: 'SUCCESS'}
-    CSV_FILE = '/Users/cornell/IdeaProjects/forecast-repository/forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'
-    upload_file_job = upload_forecast(model_uri, mo1_token, TIMEZERO_DATE, CSV_FILE)
+    upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
     print('- upload_file_job', status_int_to_name[upload_file_job['status']], upload_file_job)
     # example:
     # {'id': 50,
@@ -179,14 +183,22 @@ def demo_zoltar_api_app():
     #  'filename': 'EW1-KoTsarima-2017-01-17-small.csv',
     #  'input_json': "{'forecast_model_pk': 3, 'timezero_pk': 4}",
     #  'output_json': None}
+
     #
-    # get the updated status (assuming it's done after 2sec)
+    # get the updated status via polling (busy wait every 1 second)
     #
-    print('- sleeping...')
-    time.sleep(2)
-    upload_file_job = get_upload_file_job(ZOLTAR_HOST, mo1_token, upload_file_job['id'])
-    print('- updated upload_file_job', status_int_to_name[upload_file_job['status']], upload_file_job)
-    # example: 'status' and 'output_json' are updated, example: {'status': 4, 'output_json': {'forecast_pk': 52}, ...}
+    print('- polling for status change. upload_file_job pk:', upload_file_job['id'])
+    while True:
+        upload_file_job = get_upload_file_job(ZOLTAR_HOST, mo1_token, upload_file_job['id'])
+        status = status_int_to_name[upload_file_job['status']]
+        is_failed = upload_file_job['is_failed']
+        print('  =', status, 'FAILED' if is_failed else '')
+        if is_failed:
+            print('  x failed')
+            break
+        if status == 'SUCCESS':
+            break
+        time.sleep(1)
 
     #
     # print the model's forecasts again - see the new one?
@@ -202,12 +214,19 @@ def demo_zoltar_api_app():
     print('- new forecast', new_forecast_pk, new_forecast)
 
     #
-    # print its data (default is JSON)
-    # - todo get as CSV
+    # GET its data (default format is JSON)
     #
     data_uri = new_forecast['forecast_data']
     data_json = get_resource(data_uri, mo1_token)
     print('- data_json', data_json)
+
+    # GET the data as CSV
+    # - todo fix api_views.forecast_data() to use proper accept type rather than 'format' query parameter
+    response = requests.get(data_uri,
+                            headers={'Authorization': 'JWT {}'.format(mo1_token)},
+                            params={'format': 'csv'})
+    data_cvs = response.content
+    print('- data_csv', data_cvs)
 
 
 if __name__ == '__main__':
