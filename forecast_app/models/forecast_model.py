@@ -59,7 +59,7 @@ class ForecastModel(models.Model):
 
     @transaction.atomic
     def load_forecast(self, csv_file_path, time_zero, file_name=None, validation_template=None,
-                      forecast_bin_map=None):
+                      forecast_bin_map_fcn=None):
         """
         Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
         Project's template. NB: does not check if a Forecast already exists for time_zero and file_name. Is atomic so
@@ -71,7 +71,7 @@ class ForecastModel(models.Model):
             files have random csv_file_path file names, so original ones must be extracted and passed separately
         :param validation_template: optional validation template (a Path) to override the Project one. useful in cases
             (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
-        :param forecast_bin_map: as in Project.validate_forecast_data()
+        :param forecast_bin_map_fcn: as in Project.validate_forecast_data()
         :return: returns a new Forecast for it.
             raises a RuntimeError if the data could not be loaded
         """
@@ -84,11 +84,11 @@ class ForecastModel(models.Model):
                                                                             csv_filename=file_name)
         new_forecast.load_csv_data(csv_file_path)
         self.project.validate_forecast_data(new_forecast, validation_template=validation_template,
-                                            forecast_bin_map=forecast_bin_map)
+                                            forecast_bin_map_fcn=forecast_bin_map_fcn)
         return new_forecast
 
 
-    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, forecast_bin_map=None):
+    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, forecast_bin_map_fcn=None):
         """
         Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
         Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.
@@ -98,7 +98,7 @@ class ForecastModel(models.Model):
             validation_template (a Path) to validate each forecast in data_dir against
         :param is_load_file: a boolean function of one arg (cdc_csv_file) that returns True if that file should be
             loaded. cdc_csv_file is a Path
-        :param forecast_bin_map: as in Project.validate_forecast_data()
+        :param forecast_bin_map_fcn: as in Project.validate_forecast_data()
         :return list of loaded Forecasts
         """
         forecasts = []
@@ -125,7 +125,7 @@ class ForecastModel(models.Model):
                     validation_template = None
                 forecast = self.load_forecast(cdc_csv_file, timezero_date,
                                               validation_template=validation_template,
-                                              forecast_bin_map=forecast_bin_map)
+                                              forecast_bin_map_fcn=forecast_bin_map_fcn)
                 forecasts.append(forecast)
                 click.echo("o\t{}\t".format(cdc_csv_file.name))
             except RuntimeError as rte:

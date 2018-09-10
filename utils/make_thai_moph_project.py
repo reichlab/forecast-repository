@@ -140,12 +140,6 @@ def create_thai_targets(project):
     """
     targets = []
     for target_name, description, is_step_ahead, step_ahead_increment in (
-            ('-1_biweek_ahead',
-             'forecasted case counts for the biweek prior to the timezero biweek (minus-one-step-ahead forecast)',
-             True, -1),
-            ('0_biweek_ahead',
-             'forecasted case counts for the timezero biweek (zero-step-ahead forecast)',
-             True, 0),
             ('1_biweek_ahead',
              'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead forecast)',
              True, 1),
@@ -154,7 +148,14 @@ def create_thai_targets(project):
              True, 2),
             ('3_biweek_ahead',
              'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
-             True, 3)):
+             True, 3),
+            ('4_biweek_ahead',
+             'forecasted case counts for 4 biweeks subsequent to the timezero biweek (4-step ahead forecast)',
+             True, 4),
+            ('5_biweek_ahead',
+             'forecasted case counts for 5 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
+             True, 5),
+    ):
         targets.append(Target.objects.create(project=project, name=target_name, description=description,
                                              is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment))
     return targets

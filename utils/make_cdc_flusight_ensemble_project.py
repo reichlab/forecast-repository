@@ -254,7 +254,7 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
             return {52: template_52, 53: template_53}[pymmwr.mmwr_weeks_in_year(season_start_year)]
 
 
-        def forecast_bin_map(forecast_bin):
+        def forecast_bin_map_fcn(forecast_bin):
             # handle the cases of 52,1 and 53,1 -> changing them to 52,53 and 53,54 respectively
             # (52.0, 1.0, 0.0881763527054108)
             bin_start_incl, bin_end_notincl, value = forecast_bin
@@ -267,7 +267,7 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
             model_dir,
             time_zero_to_template=time_zero_to_template,
             is_load_file=is_cdc_file_ew43_through_ew18,
-            forecast_bin_map=forecast_bin_map)
+            forecast_bin_map_fcn=forecast_bin_map_fcn)
         model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts

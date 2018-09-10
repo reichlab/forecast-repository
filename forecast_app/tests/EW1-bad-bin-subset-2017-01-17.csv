@@ -7,6 +7,7 @@ US National,2 wk ahead,Point,percent,NA,NA,1.5
 US National,3 wk ahead,Point,percent,NA,NA,1.5
 US National,4 wk ahead,Point,percent,NA,NA,1.5
 HHS Region 1,Season onset,Point,week,NA,NA,51
+HHS Region 1,Season onset,Bin,week,100,100,0.029411765
 HHS Region 1,Season peak week,Point,week,NA,NA,51
 HHS Region 1,Season peak percentage,Point,percent,NA,NA,1.5
 HHS Region 1,1 wk ahead,Point,percent,NA,NA,1.5

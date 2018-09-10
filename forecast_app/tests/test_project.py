@@ -357,7 +357,7 @@ class ProjectTestCase(TestCase):
 
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         create_thai_targets(project)
-        self.assertEqual(Target.objects.filter(project=project).filter(name='0_biweek_ahead').first(),
+        self.assertEqual(Target.objects.filter(project=project).filter(name='1_biweek_ahead').first(),
                          project.reference_target_for_actual_values())
 
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no Targets

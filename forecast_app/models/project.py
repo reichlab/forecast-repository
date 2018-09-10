@@ -686,14 +686,14 @@ class Project(ModelWithCDCData):
         ProjectTemplateData.objects.filter(project=self).delete()
 
 
-    def validate_forecast_data(self, forecast, validation_template=None, forecast_bin_map=None):
+    def validate_forecast_data(self, forecast, validation_template=None, forecast_bin_map_fcn=None):
         """
         Validates forecast's data against my template. Raises if invalid.
 
         :param forecast: a Forecast
         :param validation_template: optional validation template (a Path) to override mine. useful in cases
             (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
-        :param forecast_bin_map: a function of one arg (forecast_bin) that returns a modified version of the bin to use
+        :param forecast_bin_map_fcn: a function of one arg (forecast_bin) that returns a modified version of the bin to use
             in the validation against the template. forecast_bin is a 3-tuple: bin_start_incl, bin_end_notincl, value
         """
         if not self.is_template_loaded():
@@ -731,8 +731,8 @@ class Project(ModelWithCDCData):
             for template_target in template_targets:
                 template_bins = template_target_dicts[template_target]['bins']
                 forecast_bins = forecast_target_dicts[template_target]['bins']
-                if forecast_bin_map:
-                    forecast_bins = list(map(forecast_bin_map, forecast_bins))
+                if forecast_bin_map_fcn:
+                    forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
 
                 # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
                 template_bins_sorted = sorted([b[:2] for b in template_bins],
@@ -740,7 +740,9 @@ class Project(ModelWithCDCData):
                 forecast_bins_sorted = sorted([b[:2] for b in forecast_bins],
                                               key=lambda x: (x[0] is None or x[1] is None, x))
 
-                if template_bins_sorted != forecast_bins_sorted:  # compare bin_start_incl and bin_end_notincl
+                # compare bins (bin_start_incl and bin_end_notincl). note that we test subsets and not lists b/c
+                # some forecasts do not generate bins with values of zero
+                if not (set(forecast_bins_sorted) <= set(template_bins_sorted)):
                     raise RuntimeError("Bins did not match template. template={}, csv_filename={}, "
                                        "template_location={}, template_target={}, # template_bins={}, forecast_bins={}"
                                        .format(template_name,
@@ -751,7 +753,7 @@ class Project(ModelWithCDCData):
                 # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
                 # (0.9300285798758262 -> 0.07 fixed it)
                 forecast_bin_sum = sum([b[-1] if b[-1] is not None else 0 for b in forecast_bins])
-                if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):
+                if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):  # todo hard-coded magic number
                     raise RuntimeError("Bin did not sum to 1.0. template={}, csv_filename={}, "
                                        "template_location={}, template_target={}, forecast_bin_sum={}"
                                        .format(template_name, forecast.csv_filename, template_location, template_target,

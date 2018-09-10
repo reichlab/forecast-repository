@@ -116,7 +116,7 @@ class ForecastTestCase(TestCase):
         self.assertIn("Targets did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-wrong-number-of-bins-2017-01-17.csv'),
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad-bin-subset-2017-01-17.csv'),
                                               self.time_zero)
         self.assertIn("Bins did not match template", str(context.exception))
 
