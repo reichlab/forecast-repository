@@ -11,7 +11,7 @@ django.setup()
 
 from utils.cdc import CDC_CONFIG_DICT
 from forecast_app.models import Project, TimeZero, ForecastModel
-from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users
 
 
 @click.command()
@@ -67,7 +67,7 @@ def make_minimal_projects_app():
     private_project.model_owners.add(mo_user)
     private_project.save()
 
-    create_cdc_targets(public_project)
+    make_cdc_targets(public_project)
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))
     #   -> {'year': 2017, 'week': 3, 'day': 3}
     time_zero1 = TimeZero.objects.create(project=public_project,

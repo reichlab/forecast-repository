@@ -12,7 +12,7 @@ from forecast_app.models.data import CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
-from utils.make_2016_2017_flu_contest_project import create_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets
 from utils.utilities import rescale
 
 
@@ -24,7 +24,7 @@ class ForecastTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(cls.project)
+        make_cdc_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -61,7 +61,7 @@ class ForecastTestCase(TestCase):
 
         # test load_forecast() with timezero not in the project
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
@@ -73,7 +73,7 @@ class ForecastTestCase(TestCase):
 
     def test_load_forecasts_from_dir(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
@@ -213,7 +213,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_download_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -235,7 +235,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_internal_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -292,7 +292,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_loc_dicts_int_format_for_csv_file(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),

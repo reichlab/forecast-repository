@@ -9,7 +9,7 @@ from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_location_to_data_dict
-from utils.make_2016_2017_flu_contest_project import create_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets
 
 
 class FlusightTestCase(TestCase):
@@ -19,7 +19,7 @@ class FlusightTestCase(TestCase):
 
     def test_d3_foresight(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 10, 23),
@@ -45,7 +45,7 @@ class FlusightTestCase(TestCase):
 
     def test_d3_foresight_out_of_season(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17):
         time_zero = TimeZero.objects.create(project=project,
@@ -71,7 +71,7 @@ class FlusightTestCase(TestCase):
     # straight from test_load_forecasts_from_dir():
     def test_d3_foresight_larger(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
         project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 23),
@@ -87,9 +87,9 @@ class FlusightTestCase(TestCase):
                                 data_version_date=None)
         forecast_model1 = ForecastModel.objects.create(name='forecast_model1', project=project)
         forecast_model2 = ForecastModel.objects.create(name='forecast_model2', project=project)
-        forecst_dir = Path('forecast_app/tests/load_forecasts')
-        forecast_model1.load_forecasts_from_dir(forecst_dir)
-        forecast_model2.load_forecasts_from_dir(forecst_dir / 'third-file')
+        forecast_dir = Path('forecast_app/tests/load_forecasts')
+        forecast_model1.load_forecasts_from_dir(forecast_dir)
+        forecast_model2.load_forecasts_from_dir(forecast_dir / 'third-file')
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-data.json', 'r') as fp:
             exp_json_template_str = fp.read()
             exp_json_template = Template(exp_json_template_str)

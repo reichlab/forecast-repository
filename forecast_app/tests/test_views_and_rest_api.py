@@ -11,7 +11,7 @@ from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero
 from utils.cdc import CDC_CONFIG_DICT
-from utils.make_2016_2017_flu_contest_project import get_or_create_super_po_mo_users, create_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users
 from utils.utilities import CDC_CSV_HEADER
 
 
@@ -36,7 +36,7 @@ class ViewsTestCase(TestCase):
                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
-        create_cdc_targets(cls.public_project)
+        make_cdc_targets(cls.public_project)
         cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         TimeZero.objects.create(project=cls.public_project, timezero_date='2017-01-01')
@@ -52,7 +52,7 @@ class ViewsTestCase(TestCase):
                                                      owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
-        create_cdc_targets(cls.private_project)
+        make_cdc_targets(cls.private_project)
         cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.private_tz1 = TimeZero.objects.create(project=cls.private_project, timezero_date=str('2017-12-03'),
                                                   data_version_date=None)

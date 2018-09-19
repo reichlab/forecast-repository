@@ -11,7 +11,7 @@ from forecast_app.models import Project
 
 
 @click.command()
-@click.argument('verbosity', type=click.Choice(['1', '2', '3']), default='1')
+@click.argument('verbosity', type=click.Choice(['1', '2', '3', '4']), default='1')
 def main(verbosity):
     """
     :param verbosity: increasing from 1 (minimal verbosity) to 3 (maximal)
@@ -33,26 +33,30 @@ def print_project_info(project, verbosity):
     if verbosity == 1:
         return
 
-    click.echo("** Targets")
+    click.echo("** Targets ({})".format(project.targets.count()))
     for target in project.targets.all():
-        click.echo("  {}".format(target))
+        click.echo("- {}".format(target))
 
-    click.echo("** Locations")
+    click.echo("** Locations ({})".format(len(project.get_locations())))
     for location in sorted(project.get_locations()):
-        click.echo("  {}".format(location))
+        click.echo("- {}".format(location))
 
-    click.echo("** TimeZeros")
+    click.echo("** TimeZeros ({})".format(project.timezeros.count()))
     for timezero in project.timezeros.all():
-        click.echo("  {}".format(timezero))
+        click.echo("- {}".format(timezero))
 
     if verbosity == 2:
         return
 
-    click.echo("** ForecastModels {}".format(project.models.all()))
+    click.echo("** ForecastModels ({})".format(project.models.count()))
     for forecast_model in project.models.all():
-        click.echo("*** {}".format(forecast_model))
-        for forecast in forecast_model.forecasts.order_by('time_zero'):
-            click.echo("  {}".format(forecast))
+        if verbosity == 3:
+            click.echo("- {}".format(forecast_model))
+        else:
+            click.echo("*** {}".format(forecast_model))
+        if verbosity == 4:
+            for forecast in forecast_model.forecasts.order_by('time_zero'):
+                click.echo("  {}".format(forecast))
 
 
 if __name__ == '__main__':

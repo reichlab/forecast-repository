@@ -10,10 +10,9 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
     CDC_CONFIG_DICT
-from utils.make_2016_2017_flu_contest_project import create_cdc_targets
-from utils.make_cdc_flusight_ensemble_project import season_start_year_for_date
+from utils.make_cdc_flu_contests_project import make_cdc_targets, season_start_year_for_date
 from utils.mean_absolute_error import _model_id_to_point_values_dict
-from utils.utilities import cdc_csv_filename_components
+from utils.utilities import cdc_csv_filename_components, first_model_subdirectory
 
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
@@ -36,7 +35,7 @@ class UtilitiesTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(cls.project)
+        make_cdc_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -107,6 +106,15 @@ class UtilitiesTestCase(TestCase):
             self.assertEqual(exp_components, cdc_csv_filename_components(cdc_csv_filename))
 
 
+    def test_first_model_subdirectory(self):
+        no_cdc_files_path = Path('forecast_app/tests/first_model_subdirs_no')
+        self.assertIsNone(first_model_subdirectory(no_cdc_files_path))
+
+        yes_cdc_files_path = Path('forecast_app/tests/first_model_subdirs_yes')
+        self.assertEqual(Path('forecast_app/tests/first_model_subdirs_yes/model1'),
+                         first_model_subdirectory(yes_cdc_files_path))
+
+
     def test_season_start_year_for_date(self):
         date_exp_season_start_year = [
             (pymmwr.mmwr_week_to_date(2016, 29), 2015),
@@ -122,7 +130,7 @@ class UtilitiesTestCase(TestCase):
 
     def test__model_id_to_point_values_dict(self):
         project1 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project1)
+        make_cdc_targets(project1)
         project1.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         time_zero_11 = TimeZero.objects.create(project=project1, timezero_date='2017-01-01',
@@ -134,7 +142,7 @@ class UtilitiesTestCase(TestCase):
             time_zero_11)
 
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}:
         time_zero_21 = TimeZero.objects.create(project=project2,

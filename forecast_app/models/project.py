@@ -28,7 +28,7 @@ TRUTH_CSV_HEADER = ['timezero', 'location', 'target', 'value']
 
 class Project(ModelWithCDCData):
     """
-    The main class representing a forecast challenge, including metadata, core data, targets, and model entries.
+    The make_cdc_flu_contests_project_app class representing a forecast challenge, including metadata, core data, targets, and model entries.
     NB: The inherited 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
     was loaded - see is_template_loaded().
     """

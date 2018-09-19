@@ -912,7 +912,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
 #
 # ---- authorization utilities ----
-
+#
 
 def is_user_ok_create_project(user):
     """

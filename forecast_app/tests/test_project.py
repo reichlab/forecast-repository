@@ -9,7 +9,7 @@ from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.cdc import CDC_CONFIG_DICT
-from utils.make_2016_2017_flu_contest_project import create_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets
 from utils.make_thai_moph_project import create_thai_targets, THAI_CONFIG_DICT
 
 
@@ -22,7 +22,7 @@ class ProjectTestCase(TestCase):
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
-        create_cdc_targets(cls.project)
+        make_cdc_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -50,7 +50,7 @@ class ProjectTestCase(TestCase):
         self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'))
 
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         self.assertEqual(0, project2.truth_data_qs().count())
         self.assertFalse(project2.is_truth_data_loaded())
 
@@ -84,7 +84,7 @@ class ProjectTestCase(TestCase):
 
         # create a project, don't load a template, verify csv_filename and is_template_loaded()
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
 
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
         self.assertFalse(project2.is_template_loaded())
@@ -101,7 +101,7 @@ class ProjectTestCase(TestCase):
     def test_delete_template(self):
         # create a project, don't load a template, verify csv_filename and is_template_loaded()
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         project2.delete_template()
         self.assertFalse(project2.is_template_loaded())
@@ -113,7 +113,7 @@ class ProjectTestCase(TestCase):
         # header incorrect or has no lines: already checked by load_csv_data()
 
         new_project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(new_project)
+        make_cdc_targets(new_project)
 
         # no locations
         with self.assertRaises(RuntimeError) as context:
@@ -224,7 +224,7 @@ class ProjectTestCase(TestCase):
 
     def test_timezero_seasons(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project2)
+        make_cdc_targets(project2)
 
         Target.objects.create(project=project2, name="1 wk ahead", description="d",
                               is_step_ahead=True, step_ahead_increment=1)
@@ -350,7 +350,7 @@ class ProjectTestCase(TestCase):
                          self.project.reference_target_for_actual_values())
 
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
         Target.objects.filter(project=project).filter(name='1 wk ahead').delete()
         self.assertEqual(Target.objects.filter(project=project).filter(name='2 wk ahead').first(),
                          project.reference_target_for_actual_values())
@@ -366,7 +366,7 @@ class ProjectTestCase(TestCase):
 
     def test_actual_values(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
 
         # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped)
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 23))
@@ -570,7 +570,7 @@ class ProjectTestCase(TestCase):
     def test_location_timezero_date_to_actual_vals_multi_season(self):
         # test multiple seasons
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
 
         # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped),
         # separated into two small seasons
@@ -598,7 +598,7 @@ class ProjectTestCase(TestCase):
 
     def test_0_step_target(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        create_cdc_targets(project)
+        make_cdc_targets(project)
 
         # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped)
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 23))

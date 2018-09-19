@@ -83,11 +83,15 @@ def cdc_csv_components_from_data_dir(cdc_csv_dir):
 
     :return a list of 4-tuples for each *.cdc.csv file in cdc_csv_dir, with the last three in the form returned by
         cdc_csv_filename_components(): (cdc_csv_file, timezero_date, model_name, data_version_date). cdc_csv_file is a
-        Path. the list is sorted by timezero_date
+        Path. the list is sorted by timezero_date. Returns [] if no
     """
     cdc_csv_components = []
     for cdc_csv_file in cdc_csv_dir.glob('*.' + CDC_CSV_FILENAME_EXTENSION):
-        timezero_date, model_name, data_version_date = cdc_csv_filename_components(cdc_csv_file.name)
+        filename_components = cdc_csv_filename_components(cdc_csv_file.name)
+        if not filename_components:
+            continue
+
+        timezero_date, model_name, data_version_date = filename_components
         cdc_csv_components.append((cdc_csv_file, timezero_date, model_name, data_version_date))
     return sorted(cdc_csv_components, key=lambda _: _[1])
 
@@ -111,3 +115,20 @@ def cdc_csv_filename_components(cdc_csv_filename):
     model_name = groups[3]
     data_version_date = datetime.date(int(groups[4]), int(int(groups[5])), int(int(groups[6]))) if groups[4] else None
     return timezero_date, model_name, data_version_date
+
+
+def first_model_subdirectory(directory):
+    """
+    :param directory: a Path of a directory that contains one or more model subdirectories, i.e., directories with
+        *.cdc.csv files
+    :return: the first one of those. returns None if directory contains no model subdirectories.
+    """
+    for subdir in directory.iterdir():
+        if not subdir.is_dir():
+            continue
+
+        cdc_csv_components = cdc_csv_components_from_data_dir(subdir)
+        if cdc_csv_components:
+            return subdir
+
+    return None

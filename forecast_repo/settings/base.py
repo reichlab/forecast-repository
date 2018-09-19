@@ -31,8 +31,8 @@ INSTALLED_APPS = [
     # this application
     'forecast_app.apps.ForecastAppConfig',
 
-    # django.contrib.admin (and friends) is listed after the main application b/c o/w it overrides the
-    # registration/logged_out.html template used by this application
+    # django.contrib.admin (and friends) is listed after the make_cdc_flu_contests_project_app application b/c o/w it
+    # overrides the registration/logged_out.html template used by this application
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
