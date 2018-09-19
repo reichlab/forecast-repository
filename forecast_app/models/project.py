@@ -186,7 +186,10 @@ class Project(ModelWithCDCData):
         """
         :return: list of season names for this project based on my timezeros
         """
-        return list(self.timezeros.filter(is_season_start=True).values_list('season_name', flat=True))
+        return list(self.timezeros
+                    .filter(is_season_start=True)
+                    .order_by('timezero_date')
+                    .values_list('season_name', flat=True))
 
 
     def timezeros_in_season(self, season_name):
