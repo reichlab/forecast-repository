@@ -471,7 +471,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv"')
         split_content = response.content.decode("utf-8").split('\r\n')
         self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
-        self.assertEqual(len(split_content), 8021)
+        self.assertEqual(len(split_content), 5239)  # 8021 rows - 2782 bin=0 rows 5239
 
         # forecast data as JSON. a django.http.response.JsonResponse:
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),

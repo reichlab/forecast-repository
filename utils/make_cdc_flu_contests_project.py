@@ -92,7 +92,8 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     for component_models_dir in [kot_data_dir, component_models_dir_2017, component_models_dir_ensemble]:
         model_dirs_to_load.extend(get_model_dirs_to_load(component_models_dir))
 
-    click.echo("* Creating models. model_dirs_to_load={}".format([d.name for d in model_dirs_to_load]))
+    click.echo("* Creating models. {} model_dirs_to_load={}"
+               .format(len(model_dirs_to_load), [d.name for d in model_dirs_to_load]))
     models = make_cdc_flusight_ensemble_models(project, model_dirs_to_load, po_user)
     click.echo("- created {} model(s): {}".format(len(models), models))
 

@@ -82,7 +82,7 @@ class ForecastModel(models.Model):
         file_name = file_name if file_name else csv_file_path.name
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
                                                                             csv_filename=file_name)
-        new_forecast.load_csv_data(csv_file_path)
+        new_forecast.load_csv_data(csv_file_path, True)  # skip_zero_bins
         self.project.validate_forecast_data(new_forecast, validation_template=validation_template,
                                             forecast_bin_map_fcn=forecast_bin_map_fcn)
         return new_forecast

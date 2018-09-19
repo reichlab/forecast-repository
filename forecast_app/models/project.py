@@ -672,7 +672,7 @@ class Project(ModelWithCDCData):
             files have random template_path file names, so original ones must be extracted and passed separately
         """
         self.csv_filename = file_name or template_path.name
-        self.load_csv_data(template_path)
+        self.load_csv_data(template_path, False)  # skip_zero_bins
         self.validate_template_data()
         self.save()
 

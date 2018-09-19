@@ -108,7 +108,7 @@ class ForecastTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-locations-dont-match-2017-01-17.csv'),
                                               self.time_zero)
-        self.assertIn("First row was not the point row", str(context.exception))  # turns out this is the first failure
+        self.assertIn("Locations did not match template", str(context.exception))  # turns out this is the first failure
 
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-targets-dont-match-2017-01-17.csv'),
@@ -204,7 +204,7 @@ class ForecastTestCase(TestCase):
         forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
                                                       self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(8019, forecast2.cdcdata_set.count())
+        self.assertEqual(5237, forecast2.cdcdata_set.count())  # 8019 rows - 2782 bin=0 rows 5237
         self.assertEqual(8019, self.forecast.cdcdata_set.count())  # didn't change
 
         forecast2.delete()

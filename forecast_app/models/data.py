@@ -37,11 +37,12 @@ class ModelWithCDCData(models.Model):
         raise NotImplementedError()
 
 
-    def load_csv_data(self, cdc_csv_file):
+    def load_csv_data(self, cdc_csv_file, skip_zero_bins):
         """
         Loads the CDC data in cdc_csv_file (a Path) into my CDCData table.
 
         :param cdc_csv_file:
+        :param skip_zero_bins: passed to read_cdc_csv_file_rows()
         """
         if not self.pk:
             raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
@@ -51,8 +52,8 @@ class ModelWithCDCData(models.Model):
         # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
         with open(str(cdc_csv_file)) as cdc_csv_file_fp, \
                 connection.cursor() as cursor:
-            # add self.pk to end of each row:
-            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, True)
+            # add self.pk to end of each row. is_append_model_with_cdcdata_pk, skip_zero_bins:
+            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, True, skip_zero_bins)
             if not rows:
                 return
 
@@ -81,13 +82,14 @@ class ModelWithCDCData(models.Model):
                 cursor.executemany(sql, rows)
 
 
-    def read_cdc_csv_file_rows(self, cdc_csv_file_fp, is_append_model_with_cdcdata_pk):
+    def read_cdc_csv_file_rows(self, cdc_csv_file_fp, is_append_model_with_cdcdata_pk, skip_zero_bins):
         """
         Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list.
 
         :param cdc_csv_file_fp: the *.cdc.csv data file to load - either a data file or a template one
         :param is_append_model_with_cdcdata_pk: true if my PK should be included at the end of every row (will result
             in eight rows), or None (7 rows)
+        :param skip_zero_bins: True if bin rows with a value of zero should be skipped
         :return: list of rows: location, Target.pk, row_type, unit, bin_start_incl, bin_end_notincl, value,
             [, model_with_cdcdata_pk]  <- only if model_with_cdcdata_pk
         """
@@ -133,6 +135,15 @@ class ModelWithCDCData(models.Model):
             bin_start_incl = parse_value(bin_start_incl)
             bin_end_notincl = parse_value(bin_end_notincl)
             value = parse_value(value)
+
+            # skip bin rows with a value of zero - a storage (and thus performance) optimization that does not affect
+            # score calculation, etc. see [Consider not storing bin rows with zero values #84](https://github.com/reichlab/forecast-repository/issues/84)
+            # Note however from that issue:
+            #   Point 3 means Zoltar's export features (CSV and JSON formats) will not include those skipped rows. Thus,
+            #   the exported CSV files will not be identical to the imported ones. This represents the first change in
+            #   Zoltar in which data is lost.
+            if skip_zero_bins and (row_type == CDCData.BIN_ROW_TYPE) and (value == 0):
+                continue
 
             # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
             if is_append_model_with_cdcdata_pk:
@@ -292,8 +303,8 @@ class ModelWithCDCData(models.Model):
             of using my table's data.
         """
         with open(str(cdc_csv_file)) as cdc_csv_file_fp:
-            # no self.pk at end of each row:
-            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, False)
+            # no self.pk at end of each row. is_append_model_with_cdcdata_pk, skip_zero_bins:
+            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, False, False)
 
 
             # sort so groupby() will work
