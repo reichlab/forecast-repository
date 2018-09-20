@@ -9,7 +9,7 @@ time python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_thai_mop
     --make_project \
     --load_data
 
-echo "#### make_cdc_flusight_ensemble_project.py"
+echo "#### make_cdc_flu_contests_project.py"
 time python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_cdc_flu_contests_project.py \
     /Users/cornell/IdeaProjects/split_kot_models_from_submissions \
     /Users/cornell/IdeaProjects/2017-2018-cdc-flu-contest/inst/submissions \

@@ -49,13 +49,13 @@ class ModelWithCDCData(models.Model):
 
         # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
         if isinstance(csv_file_path_or_fp, io.IOBase):
-            self._load_csv_data(csv_file_path_or_fp)
+            self._load_csv_data(csv_file_path_or_fp, skip_zero_bins)
         else:
             with open(str(csv_file_path_or_fp)) as cdc_csv_file_fp:
-                self._load_csv_data(cdc_csv_file_fp)
+                self._load_csv_data(cdc_csv_file_fp, skip_zero_bins)
 
 
-    def _load_csv_data(self, cdc_csv_file_fp):
+    def _load_csv_data(self, cdc_csv_file_fp, skip_zero_bins):
         # insert the data using direct SQL. we use psycopg2 extensions to the DB API if we're connected to a Postgres
         # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
         # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
@@ -90,13 +90,14 @@ class ModelWithCDCData(models.Model):
                 cursor.executemany(sql, rows)
 
 
-    def read_cdc_csv_file_rows(self, cdc_csv_file_fp, is_append_model_with_cdcdata_pk):
+    def read_cdc_csv_file_rows(self, cdc_csv_file_fp, is_append_model_with_cdcdata_pk, skip_zero_bins):
         """
         Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list.
 
         :param cdc_csv_file_fp: the *.cdc.csv data file to load - either a data file or a template one
         :param is_append_model_with_cdcdata_pk: true if my PK should be included at the end of every row (will result
             in eight rows), or None (7 rows)
+        :param skip_zero_bins: True if bin rows with a value of zero should be skipped
         :return: list of rows: location, Target.pk, row_type, unit, bin_start_incl, bin_end_notincl, value,
             [, model_with_cdcdata_pk]  <- only if model_with_cdcdata_pk
         """
