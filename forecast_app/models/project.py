@@ -467,7 +467,7 @@ class Project(ModelWithCDCData):
 
 
     @transaction.atomic
-    def load_truth_data(self, truth_file_path, file_name=None):
+    def load_truth_data(self, truth_file_path_or_fp, file_name=None):
         """
         Similar to load_template(), loads the data in truth_file_path (see below for file format docs). Like
         load_csv_data(), uses direct SQL for performance, using a fast Postgres-specific routine if connected to it.
@@ -492,13 +492,11 @@ class Project(ModelWithCDCData):
             - Every location in the csv file must a matching one in the Project.
             - Ditto for every target.
 
-        :param truth_file_path: Path to csv file with the truth data, one line per timezero|location|target combination
+        :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
+            combination, OR an already-open file-like object
         :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
             files have random template_path file names, so original ones must be extracted and passed separately
         """
-        from forecast_app.models import TruthData  # avoid circular imports
-
-
         # the template needs to be loaded b/c _load_truth_data_rows() validates truth data against template locations
         # and targets
         if not self.is_template_loaded():
@@ -507,9 +505,24 @@ class Project(ModelWithCDCData):
         if not self.pk:
             raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
-        with open(str(truth_file_path)) as csv_file_fp, \
-                connection.cursor() as cursor:
-            rows = self._load_truth_data_rows(csv_file_fp)  # validates
+        # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
+        if isinstance(truth_file_path_or_fp, io.IOBase):
+            self._load_truth_data(truth_file_path_or_fp)
+        else:
+            with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
+                self._load_truth_data(cdc_csv_file_fp)
+
+        # done!
+        self.truth_csv_filename = file_name or truth_file_path_or_fp.name
+        self.save()
+
+
+    def _load_truth_data(self, cdc_csv_file_fp):
+        from forecast_app.models import TruthData  # avoid circular imports
+
+
+        with connection.cursor() as cursor:
+            rows = self._load_truth_data_rows(cdc_csv_file_fp)  # validates
             if not rows:
                 return
 
@@ -531,10 +544,6 @@ class Project(ModelWithCDCData):
                     VALUES (%s, %s, %s, %s);
                 """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
                 cursor.executemany(sql, rows)
-
-        # done!
-        self.truth_csv_filename = file_name or truth_file_path.name
-        self.save()
 
 
     def _load_truth_data_rows(self, csv_file_fp):
@@ -570,8 +579,9 @@ class Project(ModelWithCDCData):
 
             # validate timezero_date
             # todo cache: time_zero_for_timezero_date() results - expensive?
-            timezero = self.time_zero_for_timezero_date(datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
-            if not timezero:
+            time_zero = self.time_zero_for_timezero_date(
+                datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
+            if not time_zero:
                 timezero_to_missing_count[timezero_date] += 1
                 continue
 
@@ -585,12 +595,12 @@ class Project(ModelWithCDCData):
                 continue
 
             value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
-            rows.append((timezero.pk, location, target_names_to_pks[target_name], value))
+            rows.append((time_zero.pk, location, target_names_to_pks[target_name], value))
 
         # report warnings
-        for timezero, count in timezero_to_missing_count.items():
+        for time_zero, count in timezero_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
-                           .format(timezero, count))
+                           .format(time_zero, count))
         for location, count in location_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
                            .format(location, count))
@@ -665,17 +675,17 @@ class Project(ModelWithCDCData):
 
 
     @transaction.atomic
-    def load_template(self, template_path, file_name=None):
+    def load_template(self, template_path_or_fp, file_name=None):
         """
         Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
         Project's template.
 
-        :param template_path: Path to a CDC CSV forecast file
+        :param template_path_or_fp: Path to a CDC CSV template file, OR an already-open file-like object
         :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
             files have random template_path file names, so original ones must be extracted and passed separately
         """
-        self.csv_filename = file_name or template_path.name
-        self.load_csv_data(template_path, False)  # skip_zero_bins
+        self.csv_filename = file_name or template_path_or_fp.name
+        self.load_csv_data(template_path_or_fp)
         self.validate_template_data()
         self.save()
 

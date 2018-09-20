@@ -2,17 +2,25 @@
 
 {% load humanize %}
 
-{% block title %}Admin{% endblock %}
+{% block title %}Zoltar Admin{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Administration Tools</p>
+    <p class="lead">Zoltar Administration Tools</p>
+
+
+    <h2>Django</h2>
+
+    <ul>
+        <li>Database Name: &ldquo;{{ django_db_name }}&rdquo;</li>
+        <li>Database Vendor: &ldquo;{{ django_conn.vendor }}&rdquo;</li>
+    </ul>
 
 
     <h2>RQ</h2>
 
     <ul>
-        <li>Connection: {{ conn }}</li>
+        <li>Connection: {{ rq_conn }}</li>
         <li>Queue: {{ queue }}</li>
         <li>Jobs: ({{ queue.jobs|length }})
             <ul>
@@ -22,6 +30,32 @@
             </ul>
         </li>
     </ul>
+
+    <form class="form-inline" method="POST" enctype="multipart/form-data"
+          action="{% url 'empty-rq' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <button class="form-control btn btn-danger" type="submit">Empty RQ</button>
+        </div>
+    </form>
+
+
+    <h2>UploadFileJobs</h2>
+
+    {% if upload_file_jobs %}
+        <br>
+        {% include 'upload_file_job_table_snippet.html' with upload_file_jobs=upload_file_jobs %}
+    {% else %}
+        <p>(No jobs)</p>
+    {% endif %}
+
+    <form class="form-inline" method="POST" enctype="multipart/form-data"
+          action="{% url 'delete-file-jobs' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <button class="form-control btn btn-danger" type="submit">Delete File Jobs</button>
+        </div>
+    </form>
 
 
     <h2>Row Count Caches</h2>

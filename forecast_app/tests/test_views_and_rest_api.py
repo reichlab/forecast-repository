@@ -9,7 +9,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.models import Project, ForecastModel, TimeZero
+from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
+from forecast_app.models.upload_file_job import UploadFileJob
 from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
 from utils.utilities import CDC_CSV_HEADER
 
@@ -46,6 +47,8 @@ class ViewsTestCase(TestCase):
         cls.public_tz2 = TimeZero.objects.create(project=cls.public_project, timezero_date=str('2017-12-02'),
                                                  data_version_date=None)
 
+        cls.upload_file_job = UploadFileJob.objects.create(user=cls.po_user)
+
         # private_project
         cls.private_project = Project.objects.create(name='private project name', is_public=False,
                                                      owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
@@ -65,17 +68,17 @@ class ViewsTestCase(TestCase):
         cls.public_project2.save()
 
         # public_model
-        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
+        cls.csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
                                                         description='', home_url='http://example.com',
                                                         owner=cls.mo_user)
-        cls.public_forecast = cls.public_model.load_forecast(csv_file_path, cls.public_tz1)
+        cls.public_forecast = cls.public_model.load_forecast(cls.csv_file_path, cls.public_tz1)
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          description='', home_url='http://example.com',
                                                          owner=cls.mo_user)
-        cls.private_forecast = cls.private_model.load_forecast(csv_file_path, cls.private_tz1)
+        cls.private_forecast = cls.private_model.load_forecast(cls.csv_file_path, cls.private_tz1)
 
         # user/response pairs for testing authorization
         cls.OK_ALL = [(None, status.HTTP_200_OK),
@@ -129,7 +132,9 @@ class ViewsTestCase(TestCase):
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
             reverse('docs'): self.OK_ALL,
-            reverse('user-detail', args=[str(self.po_user.pk)]): self.OK_ALL,
+
+            reverse('user-detail', args=[str(self.po_user.pk)]): self.ONLY_PO,
+            reverse('upload-file-job-detail', args=[str(self.upload_file_job.pk)]): self.ONLY_PO,
 
             reverse('zadmin'): self.ONLY_SU_200,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
@@ -319,7 +324,26 @@ class ViewsTestCase(TestCase):
                         self.assertNotIn(exp_url, str(response.content))
 
 
-    def test_api_endpoints(self):
+    # via https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
+    def test_api_jwt_auth(self):
+        # recall from base.py: ROOT_URLCONF = 'forecast_repo.urls'
+        jwt_auth_url = reverse('auth-jwt-get')
+
+        # test invalid user
+        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': 'badpass'},
+                                format='json')
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # test valid user: self.po_user, self.po_user_password
+        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': self.po_user_password},
+                                format='json')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue('token' in resp.data)
+        token = resp.data['token']
+        # e.g., eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InByb2plY3Rfb3duZXIxIiwiZXhwIjoxNTM1MzgwMjM0LCJlbWFpbCI6IiJ9.T_mHlvd3EjeAPhKRZwipyLhklV5StBQ_tRJ9YR-v8sA
+
+
+    def test_api_get_endpoints(self):
         url_to_exp_user_status_code_pairs = {
             reverse('api-root'): self.OK_ALL,
             reverse('api-project-list'): self.OK_ALL,
@@ -329,10 +353,12 @@ class ViewsTestCase(TestCase):
             reverse('api-template-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-template-data', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-user-detail', args=[self.po_user.pk]): self.OK_ALL,
-            reverse('api-user-detail', args=[self.mo_user.pk]): self.OK_ALL,
+            reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
+            reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
+            reverse('api-forecast-list', args=[self.public_model.pk]): self.OK_ALL,
+            reverse('api-forecast-list', args=[self.private_model.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,
             reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-data', args=[self.public_forecast.pk]): self.OK_ALL,
@@ -340,18 +366,33 @@ class ViewsTestCase(TestCase):
         }
         for idx, (url, user_exp_status_code_list) in enumerate(url_to_exp_user_status_code_pairs.items()):
             for user, exp_status_code in user_exp_status_code_list:
+                # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
+                # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
                 self.client.logout()  # AnonymousUser
                 if user:
-                    password = self.po_user_password if user == self.po_user \
-                        else self.mo_user_password if user == self.mo_user \
-                        else self.superuser_password
-                    self.client.login(username=user.username, password=password)
-
+                    self.authenticate_jwt_user(user)
                 response = self.client.get(url)
                 self.assertEqual(exp_status_code, response.status_code)
 
 
-    def test_api_endpoint_keys(self):
+    def test_api_get_project_list_authorization(self):
+        # verify filtering based on user authorization
+
+        # anonymous access: self.public_project, self.public_project2
+        self.client.logout()  # AnonymousUser
+        # a rest_framework.utils.serializer_helpers.ReturnDict:
+        response = self.client.get(reverse('api-project-list'), format='json')
+        self.assertEqual({self.public_project.id, self.public_project2.id},
+                         {proj_resp_dict['id'] for proj_resp_dict in response.data})
+
+        # authorized access: self.mo_user: self.public_project, self.private_project, self.public_project2
+        self.authenticate_jwt_user(self.mo_user)
+        response = self.client.get(reverse('api-project-list'), format='json')
+        self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
+                         {proj_resp_dict['id'] for proj_resp_dict in response.data})
+
+
+    def test_api_get_endpoint_keys(self):
         """
         Tests returned value keys as a content sanity check.
         """
@@ -360,10 +401,10 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-root'), format='json')
         self.assertEqual(['projects'], list(response.data.keys()))
 
-        # 'api-project-list'
+        # 'api-project-list' - per-user authorization tested in test_api_project_list_authorization()
         # a rest_framework.utils.serializer_helpers.ReturnList:
         response = self.client.get(reverse('api-project-list'), format='json')
-        self.assertEqual(3, len(response.data))
+        self.assertEqual(2, len(response.data))
 
         # 'api-project-detail'
         # a rest_framework.utils.serializer_helpers.ReturnDict:
@@ -399,8 +440,11 @@ class ViewsTestCase(TestCase):
 
         # 'api-user-detail'
         # a rest_framework.response.Response:
+        # o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data':
+        self.client.login(username=self.po_user.username, password=self.po_user_password)
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
         exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
+        self.client.logout()  # AnonymousUser
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-model-detail'
@@ -408,6 +452,14 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'description', 'home_url', 'aux_data_url', 'forecasts']
         self.assertEqual(exp_keys, list(response.data.keys()))
+
+        # 'api-forecast-list'
+        # a rest_framework.response.Response:
+        response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
+        response_dicts = json.loads(response.content)
+        exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
+        self.assertEqual(1, len(response_dicts))
+        self.assertEqual(exp_keys, list(response_dicts[0].keys()))
 
         # 'api-forecast-detail'
         # a rest_framework.response.Response:
@@ -435,6 +487,26 @@ class ViewsTestCase(TestCase):
                          'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
                          'US National']
         self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
+
+
+    def test_api_delete_endpoints(self):
+        # anonymous delete: self.public_forecast -> disallowed
+        self.client.logout()  # AnonymousUser
+        response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # authorized self.mo_user: delete private_forecast2 (new Forecast) -> allowed
+        self.authenticate_jwt_user(self.mo_user)
+        self.assertEqual(1, self.private_model.forecasts.count())
+
+        private_forecast2 = self.private_model.load_forecast(self.csv_file_path, self.private_tz1)
+        private_forecast2_pk = private_forecast2.pk
+        self.assertEqual(2, self.private_model.forecasts.count())
+
+        response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))
+        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+        self.assertIsNone(Forecast.objects.filter(pk=private_forecast2_pk).first())  # is deleted
+        self.assertEqual(1, self.private_model.forecasts.count())  # is no longer in list
 
 
     def test_data_download_formats(self):
@@ -481,3 +553,14 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
         self.assertEqual(list(response_dict), ['metadata', 'locations'])
         self.assertEqual(len(response_dict['locations']), 11)
+
+
+    def authenticate_jwt_user(self, user):
+        password = self.po_user_password if user == self.po_user \
+            else self.mo_user_password if user == self.mo_user \
+            else self.superuser_password
+        jwt_auth_url = reverse('auth-jwt-get')
+        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password},
+                                         format='json')
+        jwt_token = jwt_auth_resp.data['token']
+        self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)

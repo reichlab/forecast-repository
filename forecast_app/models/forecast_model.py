@@ -58,17 +58,17 @@ class ForecastModel(models.Model):
 
 
     @transaction.atomic
-    def load_forecast(self, csv_file_path, time_zero, file_name=None, validation_template=None,
+    def load_forecast(self, csv_file_path_or_fp, time_zero, file_name=None, validation_template=None,
                       forecast_bin_map_fcn=None):
         """
         Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
         Project's template. NB: does not check if a Forecast already exists for time_zero and file_name. Is atomic so
         that an invalid forecast's data is not saved.
 
-        :param csv_file_path: Path to a CDC CSV forecast file
+        :param csv_file_path_or_fp: Path to a CDC CSV forecast file, OR an already-open file-like object
         :param time_zero: the TimeZero this forecast applies to
-        :param file_name: optional name to use for the file. if None (default), uses csv_file_path. helpful b/c uploaded
-            files have random csv_file_path file names, so original ones must be extracted and passed separately
+        :param file_name: optional name to use for the file. if None (default), uses csv_file_path_or_fp. helpful b/c uploaded
+            files have random csv_file_path_or_fp file names, so original ones must be extracted and passed separately
         :param validation_template: optional validation template (a Path) to override the Project one. useful in cases
             (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
         :param forecast_bin_map_fcn: as in Project.validate_forecast_data()
@@ -79,10 +79,10 @@ class ForecastModel(models.Model):
             raise RuntimeError("time_zero was not in project. time_zero={}, project.timezeros={}"
                                .format(time_zero, self.project.timezeros.all()))
 
-        file_name = file_name if file_name else csv_file_path.name
+        file_name = file_name or csv_file_path_or_fp.name
         new_forecast = forecast_app.models.forecast.Forecast.objects.create(forecast_model=self, time_zero=time_zero,
                                                                             csv_filename=file_name)
-        new_forecast.load_csv_data(csv_file_path, True)  # skip_zero_bins
+        new_forecast.load_csv_data(csv_file_path_or_fp, True)  # skip_zero_bins
         self.project.validate_forecast_data(new_forecast, validation_template=validation_template,
                                             forecast_bin_map_fcn=forecast_bin_map_fcn)
         return new_forecast

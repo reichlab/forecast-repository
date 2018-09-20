@@ -1,11 +1,13 @@
 import csv
+import datetime
 from pathlib import Path
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
-from rest_framework import generics
+from rest_framework import generics, mixins, status
 from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
@@ -14,9 +16,12 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast
 from forecast_app.models.project import TRUTH_CSV_HEADER
+from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TemplateSerializer, TruthSerializer
-from utils.utilities import CDC_CSV_HEADER
+    TemplateSerializer, TruthSerializer, UploadFileJobSerializer
+from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_file_job__forecast, \
+    is_user_ok_upload_forecast
+from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
 
 
 #
@@ -36,8 +41,18 @@ def api_root(request, format=None):
 
 # was ListCreateAPIView -> def perform_create(self, serializer): serializer.save(owner=self.request.user)
 class ProjectList(generics.ListAPIView):
-    queryset = Project.objects.all()
+    """
+    View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
+    Note that this means API users have more limited access than the web home page, which lists all projects regardless
+    of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
+    it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
+    me and won.
+    """
     serializer_class = ProjectSerializer
+
+
+    def get_queryset(self):
+        return [project for project in Project.objects.all() if project.is_user_ok_to_view(self.request.user)]
 
 
 class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -56,9 +71,26 @@ class UserList(generics.ListCreateAPIView):
     serializer_class = UserSerializer
 
 
-class UserDetail(generics.RetrieveAPIView):
+class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        detail_user = self.get_object()
+        return self.request.user.is_superuser or (detail_user == self.request.user)
+
+
+class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = UploadFileJob.objects.all()
+    serializer_class = UploadFileJobSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def test_func(self):  # return True if the current user can access the view
+        upload_file_job = self.get_object()
+        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
 
 
 class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -72,15 +104,111 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
-class ForecastDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+class ForecastModelForecastList(mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView):
+    serializer_class = ForecastSerializer
+
+
+    def get_queryset(self):
+        forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
+        return forecast_model.forecasts
+
+
+    def get(self, request, *args, **kwargs):
+        forecast_model = ForecastModel.objects.get(pk=kwargs['pk'])
+        if not forecast_model.project.is_user_ok_to_view(request.user):
+            raise PermissionDenied
+
+        return self.list(request, *args, **kwargs)
+
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handles uploading a new Forecast to this ForecastModel. POST form fields:
+        - 'data_file' (required): The data file to upload. NB: 'data_file'is our naming convention. it's used here and
+            in views.upload_template(). it could be renamed. if multiple files, just uses the first one.
+        - 'timezero_date' (required): The TimeZero.timezero_date to use to look up the TimeZero to associate with the
+            upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. it is an error if the corresponding
+            TimeZero isn't found.
+        """
+        # todo xx merge below with views.upload_forecast() and views.validate_data_file()
+
+        # check authorization
+        forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
+        if not is_user_ok_upload_forecast(request, forecast_model):
+            raise PermissionDenied
+
+        # validate 'data_file'
+        if 'data_file' not in request.FILES:
+            return JsonResponse({'error': "No 'data_file' form field."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # NB: if multiple files, just uses the first one:
+        data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+        if data_file.size > MAX_UPLOAD_FILE_SIZE:
+            message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
+            return JsonResponse({'error': message},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # validate 'timezero_date'
+        if 'timezero_date' not in request.POST:
+            return JsonResponse({'error': "No 'timezero_date' form field."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        timezero_date_str = request.POST['timezero_date']
+        try:
+            timezero_date_obj = datetime.datetime.strptime(timezero_date_str, YYYYMMDD_DATE_FORMAT)
+        except ValueError as ve:
+            return JsonResponse({'error': "Badly formatted 'timezero_date' form field: '{}'".format(ve)},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        time_zero = forecast_model.project.time_zero_for_timezero_date(timezero_date_obj)
+        if not time_zero:
+            return JsonResponse({'error': "No TimeZero found. 'timezero_date'='{}', project TimeZeros={}"
+                                .format(timezero_date_obj, forecast_model.project.timezeros.all())},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # check for existing forecast
+        existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
+        if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == data_file.name):
+            return JsonResponse({'error': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
+                                          "existing data and then upload again. You may need to refresh the page to "
+                                          "see the delete button."
+                                .format(time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), data_file.name)},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # upload to S3 and enqueue a job to process a new UploadFileJob
+        is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
+                                                 forecast_model_pk=forecast_model.pk,
+                                                 timezero_pk=time_zero.pk)
+        if is_error:
+            return JsonResponse({'error': "There was an error uploading the file. The error was: '{}'"
+                                .format(is_error)},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        upload_file_job_serializer = UploadFileJobSerializer(upload_file_job, context={'request': request})
+        return JsonResponse(upload_file_job_serializer.data)
+
+
+class ForecastDetail(mixins.RetrieveModelMixin, mixins.DestroyModelMixin, generics.GenericAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def get(self, request, *args, **kwargs):
         forecast = self.get_object()
-        return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
+        if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
+            raise PermissionDenied
+
+        return self.retrieve(request, *args, **kwargs)
+
+
+    def delete(self, request, *args, **kwargs):
+        forecast = self.get_object()
+        if not forecast.is_user_ok_to_delete(request.user):
+            raise PermissionDenied
+
+        response = self.destroy(request, *args, **kwargs)
+        return response
 
 
 class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):

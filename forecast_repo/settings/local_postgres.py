@@ -26,3 +26,11 @@ RQ_QUEUES = {
         'DEFAULT_TIMEOUT': 360,
     },
 }
+
+#
+# ---- djangorestframework-jwt config ----
+#
+
+JWT_AUTH = {
+    'JWT_VERIFY_EXPIRATION': False,  # dangerous
+}
