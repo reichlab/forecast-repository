@@ -15,6 +15,11 @@ from forecast_app.models.project import Target, TimeZero
 from forecast_app.models import Project, ForecastModel
 
 
+#
+# ---- application----
+#
+
+THAI_PROJECT_NAME = 'Impetus Province Forecasts'
 THAI_CONFIG_DICT = {
     "visualization-y-label": "DHF cases"
 }
@@ -43,8 +48,7 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
     click.echo("* make_thai_moph_project_app(): data_dir={}, make_project={}, load_data={}"
                .format(data_dir, make_project, load_data))
 
-    project_name = 'Impetus Province Forecasts'
-    project = Project.objects.filter(name=project_name).first()
+    project = Project.objects.filter(name=THAI_PROJECT_NAME).first()
     if make_project:
         if project:
             click.echo("* Deleting existing project: {}".format(project))
@@ -53,7 +57,7 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
         # create the Project (and Users if necessary), including loading the template and creating Targets
         po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
         template_path = data_dir / 'thai-moph-forecasting-template.csv'
-        project = make_thai_moph_project(project_name, template_path)
+        project = make_thai_moph_project(THAI_PROJECT_NAME, template_path)
         project.owner = po_user
         project.model_owners.add(mo_user)
         project.save()
@@ -63,7 +67,7 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
         forecast_model = make_model(project, mo_user, data_dir)
         click.echo("* created model: {}".format(forecast_model))
     elif not project:  # not make_project, but couldn't find existing
-        raise RuntimeError("Could not find existing project named '{}'".format(project_name))
+        raise RuntimeError("Could not find existing project named '{}'".format(THAI_PROJECT_NAME))
 
     # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts. for is_season_start and
     # season_name we use year transitions: the first 2017 we encounter -> start of that year, etc.

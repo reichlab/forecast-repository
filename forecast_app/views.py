@@ -22,8 +22,8 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
-from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_location_to_data_dict
+from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
 

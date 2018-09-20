@@ -14,8 +14,7 @@ from utils.utilities import cdc_csv_components_from_data_dir, first_model_subdir
 from forecast_app.models import Project, TimeZero
 from utils.make_cdc_flu_contests_project import make_cdc_targets, \
     is_cdc_file_ew43_through_ew18, season_start_year_for_date, get_or_create_super_po_mo_users, \
-    get_model_dirs_to_load, make_cdc_flusight_ensemble_models, metadata_dict_for_file
-from utils.cdc import CDC_CONFIG_DICT
+    get_model_dirs_to_load, make_cdc_flusight_ensemble_models, metadata_dict_for_file, CDC_CONFIG_DICT
 
 
 @click.command()

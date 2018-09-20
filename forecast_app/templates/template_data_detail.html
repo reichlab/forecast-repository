@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load humanize %}
+
 {% block title %}Project template for {{ project.name }}{% endblock %}
 
 {% block content %}
@@ -65,7 +67,7 @@
             </div>
         </form>
     {% else %}
-        <h2>Preview of {{ project.get_num_rows }} rows</h2>
+        <h2>Preview of {{ project.get_num_rows|intword|intcomma }} row{{ project.get_num_rows|pluralize }}</h2>
         <small class="text-muted">(No data)</small>
     {% endif %}
 

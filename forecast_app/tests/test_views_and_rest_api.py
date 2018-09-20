@@ -10,8 +10,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero
-from utils.cdc import CDC_CONFIG_DICT
-from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users
+from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
 from utils.utilities import CDC_CSV_HEADER
 
 

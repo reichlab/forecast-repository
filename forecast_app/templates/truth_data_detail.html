@@ -57,7 +57,8 @@
             <button type="submit" class="btn btn-primary">Download CSV</button>
         </form>
     {% else %}
-        <h2>Preview of {{ project.is_truth_data_loaded|intcomma }} row{{ project.is_truth_data_loaded|pluralize }}</h2>
+        <h2>Preview of {{ project.get_num_truth_rows|intword|intcomma }}
+            row{{ project.get_num_truth_rows|pluralize }}</h2>
         <small class="text-muted">(No data)</small>
     {% endif %}
 

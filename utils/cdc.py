@@ -3,11 +3,6 @@ import datetime
 import re
 
 
-CDC_CONFIG_DICT = {
-    "visualization-y-label": "Weighted ILI (%)"
-}
-
-
 def epi_week_filename_components_2016_2017_flu_contest(filename):
     """
     :param filename: something like 'EW1-KoTstable-2017-01-17.csv'

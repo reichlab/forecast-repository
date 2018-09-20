@@ -8,9 +8,8 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
-    CDC_CONFIG_DICT
-from utils.make_cdc_flu_contests_project import make_cdc_targets, season_start_year_for_date
+from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
+from utils.make_cdc_flu_contests_project import make_cdc_targets, season_start_year_for_date, CDC_CONFIG_DICT
 from utils.mean_absolute_error import _model_id_to_point_values_dict
 from utils.utilities import cdc_csv_filename_components, first_model_subdirectory
 

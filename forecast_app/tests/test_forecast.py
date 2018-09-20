@@ -11,8 +11,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.data import CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import CDC_CONFIG_DICT
-from utils.make_cdc_flu_contests_project import make_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets, CDC_CONFIG_DICT
 from utils.utilities import rescale
 
 

@@ -7,9 +7,8 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_location_to_data_dict
-from utils.make_cdc_flu_contests_project import make_cdc_targets
+from utils.make_cdc_flu_contests_project import make_cdc_targets, CDC_CONFIG_DICT
 
 
 class FlusightTestCase(TestCase):

@@ -1,4 +1,7 @@
-<h2>Preview of {{ model_with_cdc_data.get_num_rows }} rows</h2>
+{% load humanize %}
+
+<h2>Preview of {{ model_with_cdc_data.get_num_rows|intword|intcomma }}
+    row{{ model_with_cdc_data.get_num_rows|pluralize }}</h2>
 <table class="table table-striped">
     <thead>
     <tr>

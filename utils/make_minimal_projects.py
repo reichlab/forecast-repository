@@ -9,9 +9,15 @@ import django
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.cdc import CDC_CONFIG_DICT
 from forecast_app.models import Project, TimeZero, ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users
+from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
+
+
+#
+# ---- application----
+#
+
+MINIMAL_PROJECT_NAMES = ['public project', 'private project']
 
 
 @click.command()
@@ -43,8 +49,7 @@ def make_minimal_projects_app():
     """
     click.echo("* started creating temp projects")
 
-    project_names = ['public project', 'private project']
-    for project_name in project_names:
+    for project_name in MINIMAL_PROJECT_NAMES:
         found_project = Project.objects.filter(name=project_name).first()
         if found_project:
             click.echo("* deleting previous project: {}".format(found_project))
@@ -53,7 +58,7 @@ def make_minimal_projects_app():
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
 
     click.echo("* creating Projects")
-    public_project = Project.objects.create(name=project_names[0], is_public=True, config_dict=CDC_CONFIG_DICT)
+    public_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[0], is_public=True, config_dict=CDC_CONFIG_DICT)
     public_project.owner = po_user
     public_project.model_owners.add(mo_user)
     public_project.save()
@@ -62,7 +67,7 @@ def make_minimal_projects_app():
     # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
     TimeZero.objects.create(project=public_project, timezero_date='2017-01-01')
 
-    private_project = Project.objects.create(name=project_names[1], is_public=False)
+    private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False)
     private_project.owner = po_user
     private_project.model_owners.add(mo_user)
     private_project.save()

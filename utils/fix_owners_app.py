@@ -1,9 +1,13 @@
 import click
 import django
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from utils.make_cdc_flu_contests_project import CDC_PROJECT_NAME
+from utils.make_thai_moph_project import THAI_PROJECT_NAME
+
+
 django.setup()
+from utils.make_minimal_projects import MINIMAL_PROJECT_NAMES
 
 from django.contrib.auth.models import User
 from forecast_app.models import Project
@@ -19,7 +23,7 @@ def fix_owners_app():
 
     # delete test projects
     click.echo("* deleting test projects")
-    for project_name in ['public project', 'private project']:
+    for project_name in MINIMAL_PROJECT_NAMES:
         project = Project.objects.filter(name=project_name).first()
         if not project:
             click.echo("  x couldn't find project: '{}'".format(project_name))
@@ -40,11 +44,8 @@ def fix_owners_app():
         click.echo("  - deleted user: {}".format(user))
 
     # change project and model owners
-    for project_name, owner_name, model_owners in [
-        ('CDC Flu challenge (2016-2017)', 'nick', ('cornell',)),
-        ('2017-2018 CDC Flu contest', 'nick', ('cornell',)),
-        ('Impetus Province Forecasts', 'nick', ('nectec', 'cornell',)),
-        ('CDC FluSight ensemble', 'nick', ('cornell',))]:
+    for project_name, owner_name, model_owners in [(CDC_PROJECT_NAME, 'nick', ('cornell',)),
+                                                   (THAI_PROJECT_NAME, 'nick', ('nectec', 'cornell',))]:
         click.echo("* project: '{}', '{}', {}".format(project_name, owner_name, model_owners))
         project = Project.objects.filter(name=project_name).first()
         if not project:

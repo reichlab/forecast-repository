@@ -10,8 +10,7 @@ import pymmwr
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users
-from utils.cdc import CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
 from forecast_app.models import Project, TimeZero, ForecastModel
 
 

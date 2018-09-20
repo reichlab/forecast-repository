@@ -18,7 +18,6 @@ django.setup()
 
 from django.contrib.auth.models import User
 from forecast_app.models import Project, Target, TimeZero, ForecastModel
-from utils.cdc import CDC_CONFIG_DICT
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory
 
@@ -26,6 +25,12 @@ from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_c
 #
 # ---- application----
 #
+
+CDC_PROJECT_NAME = 'CDC Flu challenge'
+CDC_CONFIG_DICT = {
+    "visualization-y-label": "Weighted ILI (%)"
+}
+
 
 @click.command()
 @click.argument('kot_data_dir', type=click.Path(file_okay=False, exists=True))  # 2016/17
@@ -48,8 +53,7 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     start_time = timeit.default_timer()
 
     # create the project. error if already exists
-    project_name = 'CDC Flu challenge'
-    project = Project.objects.filter(name=project_name).first()  # None if doesn't exist
+    project = Project.objects.filter(name=CDC_PROJECT_NAME).first()  # None if doesn't exist
     if project:
         logger.warning("Found existing project. deleting project={}".format(project))
         project.delete()
@@ -61,7 +65,7 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
 
     logger.info("* Creating Project...")
-    project = make_project(project_name, po_user, mo_user)
+    project = make_project(CDC_PROJECT_NAME, po_user, mo_user)
     logger.info("- created Project: {}".format(project))
 
     logger.info("* Creating Targets...")
