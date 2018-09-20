@@ -14,12 +14,11 @@ from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
 from jsonfield import JSONField
 
+from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
 from utils.utilities import basic_str
 
 
 logger = logging.getLogger(__name__)
-
-S3_UPLOAD_BUCKET_NAME = 'mc.zoltarapp.sandbox'
 
 
 class UploadFileJob(models.Model):

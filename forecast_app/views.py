@@ -22,7 +22,8 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
 from forecast_app.models.project import Target
-from forecast_app.models.upload_file_job import UploadFileJob, S3_UPLOAD_BUCKET_NAME, upload_file_job_s3_file
+from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_s3_file
+from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
 from utils.cdc import CDC_CONFIG_DICT
 from utils.flusight import flusight_location_to_data_dict
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project

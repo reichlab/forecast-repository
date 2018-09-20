@@ -7,11 +7,12 @@ https://github.com/reichlab/forecast-repository .
 
 
 # AWS S3 configuration
-Zoltar uses S3 for temporary storage of uploaded files (forecasts, truth, and templates). You'll need to set two 
+Zoltar uses S3 for temporary storage of uploaded files (forecasts, truth, and templates). You'll need to set three 
 S3-related environment variables, either locally or, for Heroku:
 
 ```bash
 heroku config:set \
+  S3_UPLOAD_BUCKET_NAME=<bucket name with below access keys> \
   AWS_ACCESS_KEY_ID=<YOUR_ACCESS_KEY> \
   AWS_SECRET_ACCESS_KEY=<YOUR_SECRET_KEY>
 ```

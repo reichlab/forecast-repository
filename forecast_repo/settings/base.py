@@ -177,3 +177,12 @@ MESSAGE_TAGS = {
     # message_constants.WARNING: 'warning',
     message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
 }
+
+#
+# support for upload_file_job.py
+#
+
+S3_UPLOAD_BUCKET_NAME = os.environ.get('S3_UPLOAD_BUCKET_NAME')
+
+if not S3_UPLOAD_BUCKET_NAME:
+    raise RuntimeError('base.py: S3_UPLOAD_BUCKET_NAME not configured!')
