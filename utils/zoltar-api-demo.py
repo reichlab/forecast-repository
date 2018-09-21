@@ -179,7 +179,7 @@ def demo_zoltar_api_app(forecast_csv_file):
     #  'user': 'http://localhost:8000/api/user/3/',
     #  'created_at': '2018-09-05T09:18:21.346093-04:00',
     #  'updated_at': '2018-09-05T09:18:22.164622-04:00',
-    #  'is_failed': False, 'failure_message': '',
+    #  'failure_message': '',
     #  'filename': 'EW1-KoTsarima-2017-01-17-small.csv',
     #  'input_json': "{'forecast_model_pk': 3, 'timezero_pk': 4}",
     #  'output_json': None}
@@ -191,9 +191,8 @@ def demo_zoltar_api_app(forecast_csv_file):
     while True:
         upload_file_job = get_upload_file_job(ZOLTAR_HOST, mo1_token, upload_file_job['id'])
         status = status_int_to_name[upload_file_job['status']]
-        is_failed = upload_file_job['is_failed']
-        print('  =', status, 'FAILED' if is_failed else '')
-        if is_failed:
+        print('  =', status)
+        if status == 'FAILED':
             print('  x failed')
             break
         if status == 'SUCCESS':

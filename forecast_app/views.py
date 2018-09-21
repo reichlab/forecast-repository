@@ -1053,7 +1053,7 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
     except Exception as exc:
         failure_message = "_upload_file(): FAILED_S3_FILE_UPLOAD: Error uploading file to S3: {}. upload_file_job={}" \
             .format(exc, upload_file_job)
-        upload_file_job.is_failed = True
+        upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
         logger.debug(failure_message)
@@ -1069,7 +1069,7 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
     except Exception as exc:
         failure_message = "_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {}. upload_file_job={}" \
             .format(exc, upload_file_job)
-        upload_file_job.is_failed = True
+        upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
         upload_file_job.delete_s3_object()  # NB: in current thread

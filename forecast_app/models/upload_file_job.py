@@ -8,7 +8,6 @@ import boto3
 import django_rq
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import BooleanField
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
@@ -31,13 +30,14 @@ class UploadFileJob(models.Model):
     QUEUED = 2
     S3_FILE_DOWNLOADED = 3
     SUCCESS = 4
+    FAILED = 5
 
     STATUS_CHOICES = (
         (PENDING, 'PENDING'),
         (S3_FILE_UPLOADED, 'S3_FILE_UPLOADED'),
         (QUEUED, 'QUEUED'),
         (S3_FILE_DOWNLOADED, 'S3_FILE_DOWNLOADED'),
-        (SUCCESS, 'SUCCESS'),
+        (FAILED, 'FAILED'),
     )
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
 
@@ -48,9 +48,7 @@ class UploadFileJob(models.Model):
 
     updated_at = models.DateTimeField(auto_now=True)  # time of last save(). basically last time status changed
 
-    is_failed = BooleanField(default=False)
-
-    failure_message = models.CharField(max_length=2000)  # non-empty if is_failed
+    failure_message = models.CharField(max_length=2000)  # non-empty message if status == FAILED
 
     filename = models.CharField(max_length=200)  # original name of the uploaded file
 
@@ -64,13 +62,17 @@ class UploadFileJob(models.Model):
     def __repr__(self):
         return str((self.pk, self.user,
                     self.status_as_str(), self.filename,
-                    self.is_failed, self.failure_message[:30],
+                    self.is_failed(), self.failure_message[:30],
                     self.created_at, self.updated_at,
                     self.input_json, self.output_json))
 
 
     def __str__(self):  # todo
         return basic_str(self)
+
+
+    def is_failed(self):
+        return self.status == UploadFileJob.FAILED
 
 
     def status_as_str(self):
@@ -182,7 +184,7 @@ def upload_file_job_s3_file(upload_file_job_pk):
             upload_file_job.save()
             logger.debug("upload_file_job_s3_file(): Done. upload_file_job={}".format(upload_file_job))
         except Exception as exc:
-            upload_file_job.is_failed = True
+            upload_file_job.status = UploadFileJob.FAILED
             upload_file_job.failure_message = "FAILED_PROCESS_FILE: exc={}, traceback={}" \
                 .format(exc, traceback.format_exc())
             upload_file_job.save()

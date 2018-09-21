@@ -135,7 +135,7 @@ class UploadFileJobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UploadFileJob
-        fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'is_failed', 'failure_message', 'filename',
+        fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
                   'input_json', 'output_json')
         extra_kwargs = {
             'url': {'view_name': 'api-upload-file-job-detail'},
