@@ -7,8 +7,7 @@ import requests
 
 # ---- ZOLTAR_HOST ----
 
-# ZOLTAR_HOST = 'http://localhost:8000'
-ZOLTAR_HOST = 'https://rl-zoltar-staging.herokuapp.com'
+ZOLTAR_HOST = 'https://reichlab-forecast-repository.herokuapp.com/'
 
 
 #
