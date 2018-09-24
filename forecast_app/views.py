@@ -57,24 +57,30 @@ def zadmin(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
+    rq_queue = django_rq.get_queue()  # name='default'
+    rq_conn = django_rq.get_connection()  # name='default'
+    rq_jobs = _rq_jobs_for_queue(rq_queue)
+    django_db_name = db.utils.settings.DATABASES['default']['NAME']
+    return render(
+        request, 'zadmin.html',
+        context={'projects': Project.objects.order_by('name'),
+                 'rq_conn': rq_conn,
+                 'rq_queue': rq_queue,
+                 'rq_jobs': rq_jobs,
+                 'django_db_name': django_db_name,
+                 'django_conn': connection,
+                 'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at'),
+                 })
+
+
+def _rq_jobs_for_queue(rq_queue):
+    """
+    :return: a list of Jobs in rq_queue, handling the connection errors that happen when redis-server is not running.
+    """
     try:
-        queue = django_rq.get_queue()  # name='default'
-        rq_conn = django_rq.get_connection()  # name='default'
-        django_db_name = db.utils.settings.DATABASES['default']['NAME']
-        return render(
-            request, 'zadmin.html',
-            context={'projects': Project.objects.order_by('name'),
-                     'queue': queue,
-                     'rq_conn': rq_conn,
-                     'django_db_name': django_db_name,
-                     'django_conn': connection,
-                     'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at'),
-                     })
+        return rq_queue.jobs  # todo xx
     except redis.exceptions.ConnectionError as exc:
-        return render(request, 'message.html',
-                      context={'title': "Got an error connecting to Redis.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
-                                   exc)})
+        return []
 
 
 def empty_rq(request):

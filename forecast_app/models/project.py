@@ -268,7 +268,7 @@ class Project(ModelWithCDCData):
 
     def get_num_forecast_rows(self):
         """
-        :return: the total number of data rows across all my models' forecasts
+        :return: the total number of data rows across all my models' forecasts. can be expensive for large databases
         """
         return ForecastData.objects.filter(forecast__forecast_model__project=self).count()
 

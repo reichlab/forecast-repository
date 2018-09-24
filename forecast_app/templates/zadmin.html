@@ -21,10 +21,10 @@
 
     <ul>
         <li>Connection: {{ rq_conn }}</li>
-        <li>Queue: {{ queue }}</li>
-        <li>Jobs: ({{ queue.jobs|length }})
+        <li>Queue: {{ rq_queue }}</li>
+        <li>Jobs: ({{ rq_jobs|length }})
             <ul>
-                {% for job in queue.jobs %}
+                {% for job in rq_jobs %}
                     <li>{{ job }}</li>
                 {% endfor %}
             </ul>
