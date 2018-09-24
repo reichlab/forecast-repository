@@ -37,6 +37,7 @@ class UploadFileJob(models.Model):
         (S3_FILE_UPLOADED, 'S3_FILE_UPLOADED'),
         (QUEUED, 'QUEUED'),
         (S3_FILE_DOWNLOADED, 'S3_FILE_DOWNLOADED'),
+        (SUCCESS, 'SUCCESS'),
         (FAILED, 'FAILED'),
     )
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
@@ -80,7 +81,7 @@ class UploadFileJob(models.Model):
             if self.status == status_int:
                 return status_name
 
-        return None
+        return '!?'
 
 
     def elapsed_time(self):
