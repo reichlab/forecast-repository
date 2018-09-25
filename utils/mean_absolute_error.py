@@ -30,8 +30,8 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_id_to_point_values_dict(). "
                  "project={}, season_name={}, target_names={}".format(project, season_name, target_names))
     model_id_to_point_values_dict = _model_id_to_point_values_dict(project, season_name, target_names)
-    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_id_to_forecast_id_tz_date_csv_fname()")
-    model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(project, season_name)
+    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_id_to_forecast_id_tz_dates()")
+    model_id_to_forecast_id_tz_dates = _model_id_to_forecast_id_tz_dates(project, season_name)
     logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
     loc_target_tz_date_to_truth = project.location_target_name_tz_date_to_truth(season_name)  # target__id
     forecast_models = project.models.order_by('name')
@@ -42,8 +42,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     location_to_mean_abs_error_rows = {
         location: _mean_abs_error_rows_for_project(forecast_models, target_names, location,
-                                                   model_id_to_point_values_dict,
-                                                   model_id_to_forecast_id_tz_date_csv_fname,
+                                                   model_id_to_point_values_dict, model_id_to_forecast_id_tz_dates,
                                                    loc_target_tz_date_to_truth)
         for location in project.get_locations()}
     logger.debug("location_to_mean_abs_error_rows_for_project(): done")
@@ -51,7 +50,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
 
 def _mean_abs_error_rows_for_project(forecast_models, target_names, location, model_id_to_point_values_dict,
-                                     model_id_to_forecast_id_tz_date_csv_fname, loc_target_tz_date_to_truth):
+                                     model_id_to_forecast_id_tz_dates, loc_target_tz_date_to_truth):
     """
     Returns a 2-list of the form: (rows, target_to_min_mae), where rows is a table in the form of a list of rows where
     each row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model. The format:
@@ -87,12 +86,11 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location, mo
             forecast_to_point_dict = model_id_to_point_values_dict[forecast_model.pk] \
                 if forecast_model.pk in model_id_to_point_values_dict \
                 else {}
-            forecast_id_tz_date_csv_fname = model_id_to_forecast_id_tz_date_csv_fname[forecast_model.pk] \
-                if forecast_model.pk in model_id_to_forecast_id_tz_date_csv_fname \
+            forecast_id_tz_dates = model_id_to_forecast_id_tz_dates[forecast_model.pk] \
+                if forecast_model.pk in model_id_to_forecast_id_tz_dates \
                 else {}
             mae_val = mean_absolute_error(forecast_model, location, target_name,
-                                          forecast_to_point_dict, forecast_id_tz_date_csv_fname,
-                                          loc_target_tz_date_to_truth)
+                                          forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth)
             if not mae_val:
                 return [rows, {}]  # just header
 
@@ -105,24 +103,23 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location, mo
     return [rows, target_to_min_mae]
 
 
-def mean_absolute_error(forecast_model, location, target_name, forecast_to_point_dict, forecast_id_tz_date_csv_fname,
-                        loc_target_tz_date_to_truth):
+def mean_absolute_error(forecast_model, location, target_name,
+                        forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth):
     """
     Calculates the mean absolute error for the passed model and parameters. Note: Uses cached values
-    (forecast_to_point_dict and forecast_id_tz_date_csv_fname) instead of hitting the database directly, for
+    (forecast_to_point_dict and forecast_id_tz_dates) instead of hitting the database directly, for
     speed.
 
     :param: forecast_model: ForecastModel whose forecasts are used for the calculation
     :param: location: a location in the model
     :param: target_name: "" target_name ""
     :param: forecast_to_point_dict: cached points for forecast_model as returned by _model_id_to_point_values_dict()
-    :param: forecast_id_tz_date_csv_fname: cached rows for forecast_model as returned by
-        _model_id_to_forecast_id_tz_date_csv_fname()
+    :param: forecast_id_tz_dates: cached rows for forecast_model as returned by _model_id_to_forecast_id_tz_dates()
     :return: mean absolute error (scalar) for my predictions for a location and target_name. returns None if can't be
         calculated
     """
-    cdc_file_name_to_abs_error = {}
-    for forecast_id, forecast_timezero_date, forecast_csv_filename in forecast_id_tz_date_csv_fname:
+    forecast_id_to_abs_error = {}
+    for forecast_id, forecast_timezero_date in forecast_id_tz_dates:
         try:
             truth_values = loc_target_tz_date_to_truth[location][target_name][forecast_timezero_date]
         except KeyError as ke:
@@ -139,28 +136,30 @@ def mean_absolute_error(forecast_model, location, target_name, forecast_to_point
         elif len(truth_values) > 1:
             logger.warning("mean_absolute_error(): >1 truth values found. forecast_model={}, location={!r}, "
                            "target_name={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
-                           .format(forecast_model, location, target_name, forecast_id, forecast_timezero_date, truth_values))
+                           .format(forecast_model, location, target_name, forecast_id, forecast_timezero_date,
+                                   truth_values))
             continue  # skip this forecast's contribution to the score
 
         true_value = truth_values[0]
         if true_value is None:
-            logger.warning("mean_absolute_error(): truth value was NA. forecast_id={}, location={!r}, target_name={!r}, "
-                           "forecast_timezero_date={}".format(forecast_id, location, target_name, forecast_timezero_date))
+            logger.warning(
+                "mean_absolute_error(): truth value was NA. forecast_id={}, location={!r}, target_name={!r}, "
+                "forecast_timezero_date={}".format(forecast_id, location, target_name, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
 
         predicted_value = forecast_to_point_dict[forecast_id][location][target_name]
         abs_error = abs(predicted_value - true_value)
-        cdc_file_name_to_abs_error[forecast_csv_filename] = abs_error
+        forecast_id_to_abs_error[forecast_id] = abs_error
 
-    return (sum(cdc_file_name_to_abs_error.values()) / len(cdc_file_name_to_abs_error)) if cdc_file_name_to_abs_error \
+    return (sum(forecast_id_to_abs_error.values()) / len(forecast_id_to_abs_error)) if forecast_id_to_abs_error \
         else None
 
 
-def _model_id_to_forecast_id_tz_date_csv_fname(project, season_name):
+def _model_id_to_forecast_id_tz_dates(project, season_name):
     """
-    Returns a dict for forecast_models and season_name that maps: ForecastModel.pk -> 3-tuple of the form:
-    (forecast_id, forecast_timezero_date, forecast_csv_filename). This is an optimization that avoids some ORM overhead
-    when simply iterating like so: `for forecast in forecast_model.forecasts.all(): ...`
+    Returns a dict for forecast_models and season_name that maps: ForecastModel.pk -> 2-tuple of the form:
+    (forecast_id, forecast_timezero_date). This is an optimization that avoids some ORM overhead when simply iterating
+    like so: `for forecast in forecast_model.forecasts.all(): ...`
     """
     # get the rows, ordered so we can groupby()
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
@@ -169,16 +168,16 @@ def _model_id_to_forecast_id_tz_date_csv_fname(project, season_name):
                 time_zero__timezero_date__gte=season_start_date,
                 time_zero__timezero_date__lte=season_end_date) \
         .order_by('forecast_model__id') \
-        .values_list('forecast_model__id', 'id', 'time_zero__timezero_date', 'csv_filename')
+        .values_list('forecast_model__id', 'id', 'time_zero__timezero_date')
 
     # build the dict
-    logger.debug("_model_id_to_forecast_id_tz_date_csv_fname(): building model_id_to_forecast_id_tz_date_csv_fname")
-    model_id_to_forecast_id_tz_date_csv_fname = {}  # return value. filled next
+    logger.debug("_model_id_to_forecast_id_tz_dates(): building model_id_to_forecast_id_tz_date")
+    model_id_to_forecast_id_tz_date = {}  # return value. filled next
     for model_pk, forecast_row_grouper in groupby(rows, key=lambda _: _[0]):
-        model_id_to_forecast_id_tz_date_csv_fname[model_pk] = [row[1:] for row in forecast_row_grouper]
+        model_id_to_forecast_id_tz_date[model_pk] = [row[1:] for row in forecast_row_grouper]
 
-    logger.debug("_model_id_to_forecast_id_tz_date_csv_fname(): done")
-    return model_id_to_forecast_id_tz_date_csv_fname
+    logger.debug("_model_id_to_forecast_id_tz_dates(): done")
+    return model_id_to_forecast_id_tz_date
 
 
 def _model_id_to_point_values_dict(project, season_name, target_names):

@@ -7,7 +7,7 @@ from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_targets, CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
-    _model_id_to_forecast_id_tz_date_csv_fname, location_to_mean_abs_error_rows_for_project
+    _model_id_to_forecast_id_tz_dates, location_to_mean_abs_error_rows_for_project
 
 
 class MAETestCase(TestCase):
@@ -62,11 +62,11 @@ class MAETestCase(TestCase):
     def test_mean_absolute_error(self):
         for target, exp_mae in self.exp_target_to_mae.items():
             model_id_to_point_values_dict = _model_id_to_point_values_dict(self.project, None, [target])
-            model_id_to_forecast_id_tz_date_csv_fname = _model_id_to_forecast_id_tz_date_csv_fname(self.project, None)
+            model_id_to_forecast_id_tz_dates = _model_id_to_forecast_id_tz_dates(self.project, None)
             loc_target_tz_date_to_truth = self.project.location_target_name_tz_date_to_truth()  # target__id
             act_mae = mean_absolute_error(self.forecast_model, 'US National', target,
                                           model_id_to_point_values_dict[self.forecast_model.pk],
-                                          model_id_to_forecast_id_tz_date_csv_fname[self.forecast_model.pk],
+                                          model_id_to_forecast_id_tz_dates[self.forecast_model.pk],
                                           loc_target_tz_date_to_truth)
             self.assertIsNotNone(act_mae)
             self.assertAlmostEqual(exp_mae, act_mae)
