@@ -10,7 +10,7 @@ import django
 django.setup()
 
 from forecast_app.models import Project, TimeZero, ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
 
 
 #
@@ -79,7 +79,7 @@ def make_minimal_projects_app():
 
 
 def fill_project(project, mo_user):
-    make_cdc_targets(project)
+    make_cdc_locations_and_targets(project)
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))
     #   -> {'year': 2017, 'week': 3, 'day': 3}
     time_zero1 = TimeZero.objects.create(project=project,

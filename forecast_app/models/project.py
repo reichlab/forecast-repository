@@ -140,6 +140,10 @@ class Project(ModelWithCDCData):
         return self.__class__.__name__ + '_' + str(self.pk)
 
 
+    def locations_qs(self):  # concrete method
+        return self.locations
+
+
     def targets_qs(self):  # concrete method
         return self.targets
 
@@ -155,8 +159,8 @@ class Project(ModelWithCDCData):
         """
         first_model = self.models.first()
         first_forecast = first_model.forecasts.first() if first_model else None
-        locations = self.get_locations()
-        first_location = next(iter(sorted(locations))) if locations else None  # sort to make deterministic
+        location_names = self.get_location_names()
+        first_location = next(iter(sorted(location_names))) if location_names else None  # sort to make deterministic
         targets = self.get_target_names_for_location(first_location)
         first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
         return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
@@ -289,7 +293,8 @@ class Project(ModelWithCDCData):
 
     def location_to_max_val(self, season_name, targets):
         """
-        :return: a dict mapping each location to the maximum value across all my forecasts for season_name and targets
+        :return: a dict mapping each location_name to the maximum value across all my forecasts for season_name and
+            targets
         """
         season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
         loc_max_val_qs = ForecastData.objects \
@@ -298,10 +303,10 @@ class Project(ModelWithCDCData):
                     target__in=targets,
                     forecast__time_zero__timezero_date__gte=season_start_date,
                     forecast__time_zero__timezero_date__lte=season_end_date) \
-            .values('location') \
+            .values('location__name') \
             .annotate(max_val=Max('value'))
-        # [{'location': 'TH01', 'max_val': 15.0}, ...]
-        return {location_max_val['location']: location_max_val['max_val'] for location_max_val in loc_max_val_qs}
+        # [{'location__name': 'HHS Region 1', 'max_val': 2.06145600601835}, ...]
+        return {location_max_val['location__name']: location_max_val['max_val'] for location_max_val in loc_max_val_qs}
 
 
     #
@@ -363,7 +368,7 @@ class Project(ModelWithCDCData):
             as a nested list of rows
         """
         return list(self.truth_data_qs()
-                    .values_list('time_zero__timezero_date', 'location', 'target__name', 'value')[:10])
+                    .values_list('time_zero__timezero_date', 'location__name', 'target__name', 'value')[:10])
 
 
     def get_num_truth_rows(self):
@@ -379,7 +384,7 @@ class Project(ModelWithCDCData):
         """
         return list(self.truth_data_qs()
                     .order_by('id')
-                    .values_list('time_zero__timezero_date', 'location', 'target__name', 'value'))
+                    .values_list('time_zero__timezero_date', 'location__name', 'target__name', 'value'))
 
 
     def truth_data_qs(self):
@@ -444,22 +449,26 @@ class Project(ModelWithCDCData):
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
         truth_data_qs = self.truth_data_qs() \
-            .order_by('location', 'target__id') \
-            .values_list('location', 'target__id', 'time_zero__timezero_date', 'value')
+            .order_by('location__id', 'target__id') \
+            .values_list('location__id', 'target__id', 'time_zero__timezero_date', 'value')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
             truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
                                                  time_zero__timezero_date__lte=season_end_date)
 
+        location_pks_to_names = {location.id: location.name for location in self.locations_qs().all()}
         target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
-        for location, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+        for location_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+            if location_id not in location_pks_to_names:
+                continue
+
             target_tz_date_to_truth = {}
-            loc_target_tz_date_to_truth[location] = target_tz_date_to_truth
+            loc_target_tz_date_to_truth[location_pks_to_names[location_id]] = target_tz_date_to_truth
             for target_id, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
-                tz_date_to_truth = defaultdict(list)
                 if target_id not in target_pks_to_names:
                     continue
 
+                tz_date_to_truth = defaultdict(list)
                 target_tz_date_to_truth[target_pks_to_names[target_id]] = tz_date_to_truth
                 for _, _, tz_date, value in target_tz_grouper:
                     tz_date_to_truth[tz_date].append(value)
@@ -527,14 +536,16 @@ class Project(ModelWithCDCData):
                 return
 
             truth_data_table_name = TruthData._meta.db_table
-            columns = [TruthData._meta.get_field('time_zero').column, 'location',
-                       TruthData._meta.get_field('target').column, 'value']
+            columns = [TruthData._meta.get_field('time_zero').column,
+                       TruthData._meta.get_field('location').column,
+                       TruthData._meta.get_field('target').column,
+                       'value']
             if connection.vendor == 'postgresql':
                 string_io = io.StringIO()
                 csv_writer = csv.writer(string_io, delimiter=',')
-                for timezero, location, target_id, value in rows:
+                for timezero, location_id, target_id, value in rows:
                     # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
-                    csv_writer.writerow([timezero, location, target_id,
+                    csv_writer.writerow([timezero, location_id, target_id,
                                          value if value is not None else POSTGRES_NULL_VALUE])
                 string_io.seek(0)
                 cursor.copy_from(string_io, truth_data_table_name, columns=columns, sep=',', null=POSTGRES_NULL_VALUE)
@@ -564,8 +575,9 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
-        locations = self.get_locations()  # template data
-        target_names = self.get_target_names()  # ""
+        # location_names = self.get_location_names()  # template data
+        location_names_to_pks = {location.name: location.id for location in self.locations_qs().all()}
+        # target_names = self.get_target_names()  # template data
         target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
         rows = []
         timezero_to_missing_count = defaultdict(int)  # to minimize warnings
@@ -575,7 +587,7 @@ class Project(ModelWithCDCData):
             if len(row) != 4:
                 raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
 
-            timezero_date, location, target_name, value = row
+            timezero_date, location_name, target_name, value = row
 
             # validate timezero_date
             # todo cache: time_zero_for_timezero_date() results - expensive?
@@ -586,24 +598,24 @@ class Project(ModelWithCDCData):
                 continue
 
             # validate location and target
-            if location not in locations:
-                location_to_missing_count[location] += 1
+            if location_name not in location_names_to_pks:
+                location_to_missing_count[location_name] += 1
                 continue
 
-            if target_name not in target_names:
+            if target_name not in target_names_to_pks:
                 target_to_missing_count[target_name] += 1
                 continue
 
             value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
-            rows.append((time_zero.pk, location, target_names_to_pks[target_name], value))
+            rows.append((time_zero.pk, location_names_to_pks[location_name], target_names_to_pks[target_name], value))
 
         # report warnings
         for time_zero, count in timezero_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
                            .format(time_zero, count))
-        for location, count in location_to_missing_count.items():
+        for location_name, count in location_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
-                           .format(location, count))
+                           .format(location_name, count))
         for target_name, count in target_to_missing_count.items():
             logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
                            .format(target_name, count))
@@ -832,12 +844,33 @@ Project._meta.get_field('csv_filename').help_text = "CSV file name of this proje
 
 
 #
+# ---- Location class ----
+#
+
+class Location(models.Model):
+    """
+    Represents one of a project's locations - just a string naming the target.
+    """
+    project = models.ForeignKey(Project, related_name='locations', on_delete=models.CASCADE)
+
+    name = models.CharField(max_length=200)
+
+
+    def __repr__(self):
+        return str((self.pk, self.name))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
+
+
+#
 # ---- Target class ----
 #
 
 class Target(models.Model):
     """
-    Represents a project's target - a description of the desired data in the each forecast's data file.
+    Represents one of a project's targets - a description of the desired data in the each forecast's data file.
     """
     project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
 

@@ -21,7 +21,7 @@ from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
-from forecast_app.models.project import Target
+from forecast_app.models.project import Target, Location
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_s3_file
 from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
 from utils.flusight import flusight_location_to_data_dict
@@ -187,13 +187,13 @@ def project_visualizations(request, project_pk):
                 and (location_to_actual_max_val[location]):
             location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])
 
-    locations = sorted(project.get_locations())
+    location_names = sorted(project.get_location_names())
     return render(
         request,
         'project_visualizations.html',
         context={'project': project,
-                 'location': locations[0],
-                 'locations': locations,
+                 'location': location_names[0],
+                 'locations': location_names,
                  'season_name': season_name,
                  'seasons': seasons,
                  'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
@@ -270,7 +270,7 @@ def project_scores(request, project_pk):
                       context={'title': "Required targets not found",
                                'message': "The project does not have the required score-related targets."})
 
-    locations = sorted(project.get_locations())
+    location_names = sorted(project.get_location_names())
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
                                 for forecast_model in project.models.all()}
     return render(
@@ -280,10 +280,11 @@ def project_scores(request, project_pk):
                  'model_pk_to_name_and_url': model_pk_to_name_and_url,
                  'season_name': season_name,
                  'seasons': seasons,
-                 'location': locations[0],
-                 'locations': locations,
+                 'location': location_names[0],
+                 'locations': location_names,
                  'is_all_locations_have_rows': is_all_locations_have_rows,
-                 'location_to_rows_and_mins': location_to_rows_and_mins})
+                 'location_to_rows_and_mins': json.dumps(location_to_rows_and_mins),  # converts None -> null
+                 })
 
 
 def _param_val_from_request(request, param_name, choices):
@@ -311,26 +312,34 @@ def create_project(request):
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
 
-    # set up Target and TimeZero formsets using a new (unsaved) Project
-    new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
+    # set up inline formsets using a new (unsaved) Project
+    LocationInlineFormSet = inlineformset_factory(Project, Location,
+                                                  fields=('name',),
+                                                  extra=3)
     TargetInlineFormSet = inlineformset_factory(Project, Target,
                                                 fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
                                                 extra=3)
-    target_formset = TargetInlineFormSet(instance=new_project)
     TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero,
                                                   fields=('timezero_date', 'data_version_date'),
                                                   extra=3)
+
+    new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
+
+    location_formset = LocationInlineFormSet(instance=new_project)
+    target_formset = TargetInlineFormSet(instance=new_project)
     timezero_formset = TimeZeroInlineFormSet(instance=new_project)
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=new_project)
         target_formset = TargetInlineFormSet(request.POST, instance=new_project)
         timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project)
-        if project_form.is_valid() and target_formset.is_valid() and timezero_formset.is_valid():
+        if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
+                and timezero_formset.is_valid():
             new_project = project_form.save(commit=False)
             new_project.owner = request.user  # force the owner to the current user
             new_project.save()
             project_form.save_m2m()
 
+            location_formset.save()
             target_formset.save()
             timezero_formset.save()
 
@@ -344,6 +353,7 @@ def create_project(request):
                   context={'title': 'New Project',
                            'button_name': 'Create',
                            'form': project_form,
+                           'location_formset': location_formset,
                            'target_formset': target_formset,
                            'timezero_formset': timezero_formset})
 
@@ -357,22 +367,29 @@ def edit_project(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied
 
+    # set up inline formsets
+    LocationInlineFormSet = inlineformset_factory(Project, Location,
+                                                  fields=('name',),
+                                                  extra=3)
     TargetInlineFormSet = inlineformset_factory(Project, Target,
                                                 fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
                                                 extra=3)
-    target_formset = TargetInlineFormSet(instance=project)
-
     TimeZeroInlineFormSet = inlineformset_factory(
         Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3
     )
+    location_formset = LocationInlineFormSet(instance=project)
+    target_formset = TargetInlineFormSet(instance=project)
     timezero_formset = TimeZeroInlineFormSet(instance=project)
-
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=project)
+        location_formset = LocationInlineFormSet(request.POST, instance=project)
         target_formset = TargetInlineFormSet(request.POST, instance=project)
         timezero_formset = TimeZeroInlineFormSet(request.POST, instance=project)
-        if project_form.is_valid() and target_formset.is_valid() and timezero_formset.is_valid():
+        if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
+                and timezero_formset.is_valid():
             project_form.save()
+
+            location_formset.save()
             target_formset.save()
             timezero_formset.save()
 
@@ -386,6 +403,7 @@ def edit_project(request, project_pk):
                   context={'title': 'Edit Project',
                            'button_name': 'Save',
                            'form': project_form,
+                           'location_formset': location_formset,
                            'target_formset': target_formset,
                            'timezero_formset': timezero_formset})
 
@@ -514,6 +532,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
         context['config_dict_pretty'] = config_dict_pretty
+        context['location_names'] = project.locations.all().order_by('name').values_list('name', flat=True)
         return context
 
 
@@ -700,11 +719,12 @@ def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
                                       "target={}".format(location, target))
 
     # validate location and target
-    locations = project.get_locations()
+    location_names = project.get_location_names()
     targets = project.get_target_names_for_location(location)
-    if (location not in locations) or (target not in targets):
+    if (location not in location_names) or (target not in targets):
         return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
-                                      "target={}, targets={}".format(project, location, locations, target, targets))
+                                      "target={}, targets={}"
+                                      .format(project, location, location_names, target, targets))
 
     rescaled_vals_from_forecast = forecast.rescaled_bin_for_loc_and_target(location, target)
 

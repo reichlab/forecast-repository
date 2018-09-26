@@ -115,7 +115,8 @@
                             } else {  // tdVal = mae value
                                 var targetName = headerRow[idx];
                                 var min_mae = target_to_min_mae[targetName];
-                                var maeStr = Number(tdVal).toFixed(2);
+                                // recall that tdVal is null when the absolute error was not able to be calculated
+                                var maeStr = tdVal === null ? '-' : Number(tdVal).toFixed(2);
                                 if (tdVal === min_mae) {
                                     $tr.append($('<td><span class="label label-default">' + maeStr + '</span></td>'));
                                 } else {

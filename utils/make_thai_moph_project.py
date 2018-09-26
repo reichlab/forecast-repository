@@ -4,14 +4,13 @@ from pathlib import Path
 import click
 import django
 
-from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
-from utils.utilities import cdc_csv_components_from_data_dir
-
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from forecast_app.models.project import Target, TimeZero
+from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
+from utils.utilities import cdc_csv_components_from_data_dir
+from forecast_app.models.project import Target, TimeZero, Location
 from forecast_app.models import Project, ForecastModel
 
 
@@ -129,7 +128,7 @@ def make_thai_moph_project(project_name, template_path):
         config_dict=THAI_CONFIG_DICT)
 
     click.echo("  creating targets")
-    create_thai_targets(project)
+    create_thai_locations_and_targets(project)
 
     click.echo("  loading template")
     project.load_template(template_path)
@@ -138,10 +137,19 @@ def make_thai_moph_project(project_name, template_path):
     return project
 
 
-def create_thai_targets(project):
+def create_thai_locations_and_targets(project):
     """
-    Creates Thai Targets for project. Returns a list of them.
+    Creates Thai Targets for project.
     """
+    for location_name in ['TH01', 'TH02', 'TH03', 'TH04', 'TH05', 'TH06', 'TH07', 'TH08', 'TH09', 'TH10', 'TH11',
+                          'TH12', 'TH13', 'TH14', 'TH15', 'TH16', 'TH17', 'TH18', 'TH20', 'TH22', 'TH23', 'TH24',
+                          'TH25', 'TH26', 'TH27', 'TH28', 'TH29', 'TH30', 'TH31', 'TH32', 'TH33', 'TH34', 'TH35',
+                          'TH36', 'TH37', 'TH38', 'TH39', 'TH40', 'TH41', 'TH42', 'TH43', 'TH44', 'TH46', 'TH47',
+                          'TH48', 'TH49', 'TH50', 'TH51', 'TH52', 'TH53', 'TH54', 'TH55', 'TH56', 'TH57', 'TH58',
+                          'TH59', 'TH60', 'TH61', 'TH62', 'TH63', 'TH64', 'TH65', 'TH66', 'TH67', 'TH68', 'TH69',
+                          'TH70', 'TH72', 'TH73', 'TH74', 'TH75', 'TH76', 'TH77', 'TH78', 'TH79', 'TH80']:
+        Location.objects.create(project=project, name=location_name)
+
     targets = []
     for target_name, description, is_step_ahead, step_ahead_increment in (
             ('1_biweek_ahead',
@@ -162,7 +170,6 @@ def create_thai_targets(project):
     ):
         targets.append(Target.objects.create(project=project, name=target_name, description=description,
                                              is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment))
-    return targets
 
 
 def make_model(project, model_owner, data_dir):

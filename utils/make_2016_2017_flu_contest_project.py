@@ -10,7 +10,7 @@ import pymmwr
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
 from forecast_app.models import Project, TimeZero, ForecastModel
 
 
@@ -63,7 +63,7 @@ def make_cdc_flu_challenge_project(project_name, config_dict):
         config_dict=config_dict)
 
     click.echo("  loading template")
-    make_cdc_targets(project)
+    make_cdc_locations_and_targets(project)
     project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))  # todo xx move into repo
 
     # create TimeZeros

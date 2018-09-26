@@ -223,8 +223,8 @@ def demo_zoltar_api_app(forecast_csv_file):
     response = requests.get(data_uri,
                             headers={'Authorization': 'JWT {}'.format(mo1_token)},
                             params={'format': 'csv'})
-    data_cvs = response.content
-    print('- data_csv', data_cvs)
+    data_csv = response.content
+    print('- data_csv', data_csv)
 
 
 if __name__ == '__main__':

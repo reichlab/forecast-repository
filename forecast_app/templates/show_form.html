@@ -31,6 +31,11 @@
         {% csrf_token %}
         {% include 'form_snippet.html' %}
 
+        {% if location_formset %}
+            <h2>Locations</h2>
+            {% include 'formset_snippet.html' with formset=location_formset %}
+        {% endif %}
+
         {% if target_formset %}
             <h2>Targets</h2>
             {% include 'formset_snippet.html' with formset=target_formset %}

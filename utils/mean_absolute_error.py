@@ -41,15 +41,15 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
             raise RuntimeError("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
 
     location_to_mean_abs_error_rows = {
-        location: _mean_abs_error_rows_for_project(forecast_models, target_names, location,
-                                                   model_id_to_point_values_dict, model_id_to_forecast_id_tz_dates,
-                                                   loc_target_tz_date_to_truth)
-        for location in project.get_locations()}
+        location_name: _mean_abs_error_rows_for_project(forecast_models, target_names, location_name,
+                                                        model_id_to_point_values_dict, model_id_to_forecast_id_tz_dates,
+                                                        loc_target_tz_date_to_truth)
+        for location_name in project.get_location_names()}
     logger.debug("location_to_mean_abs_error_rows_for_project(): done")
     return location_to_mean_abs_error_rows
 
 
-def _mean_abs_error_rows_for_project(forecast_models, target_names, location, model_id_to_point_values_dict,
+def _mean_abs_error_rows_for_project(forecast_models, target_names, location_name, model_id_to_point_values_dict,
                                      model_id_to_forecast_id_tz_dates, loc_target_tz_date_to_truth):
     """
     Returns a 2-list of the form: (rows, target_to_min_mae), where rows is a table in the form of a list of rows where
@@ -76,8 +76,8 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location, mo
     project does not have appropriate target_names defined in its configuration. NB: assumes all of project's models have the
     same target_names - something is validated by ForecastModel.load_forecast()
     """
-    logger.debug("_mean_abs_error_rows_for_project(): entered. forecast_models={}, target_names={}, location={}"
-                 .format(forecast_models, target_names, location))
+    logger.debug("_mean_abs_error_rows_for_project(): entered. forecast_models={}, target_names={}, location_name={}"
+                 .format(forecast_models, target_names, location_name))
     target_to_min_mae = {target: None for target in target_names}  # tracks min MAE for bolding in table. filled next
     rows = [['Model', *target_names]]  # header
     for forecast_model in forecast_models:
@@ -89,10 +89,13 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location, mo
             forecast_id_tz_dates = model_id_to_forecast_id_tz_dates[forecast_model.pk] \
                 if forecast_model.pk in model_id_to_forecast_id_tz_dates \
                 else {}
-            mae_val = mean_absolute_error(forecast_model, location, target_name,
+            mae_val = mean_absolute_error(forecast_model, location_name, target_name,
                                           forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth)
             if not mae_val:
-                return [rows, {}]  # just header
+                logger.warning("_mean_abs_error_rows_for_project(): no mae_val. forecast_model={}, location_name={!r}, "
+                               "target_name={!r}".format(forecast_model, location_name, target_name))
+                row.append(None)  # NB: has to be handled correctly when displaying; o/w might show as NaN, etc.
+                continue
 
             target_to_min_mae[target_name] = min(mae_val, target_to_min_mae[target_name]) \
                 if target_to_min_mae[target_name] else mae_val
@@ -103,7 +106,7 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location, mo
     return [rows, target_to_min_mae]
 
 
-def mean_absolute_error(forecast_model, location, target_name,
+def mean_absolute_error(forecast_model, location_name, target_name,
                         forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth):
     """
     Calculates the mean absolute error for the passed model and parameters. Note: Uses cached values
@@ -111,43 +114,44 @@ def mean_absolute_error(forecast_model, location, target_name,
     speed.
 
     :param: forecast_model: ForecastModel whose forecasts are used for the calculation
-    :param: location: a location in the model
+    :param: location_name: a location_name in the model
     :param: target_name: "" target_name ""
     :param: forecast_to_point_dict: cached points for forecast_model as returned by _model_id_to_point_values_dict()
     :param: forecast_id_tz_dates: cached rows for forecast_model as returned by _model_id_to_forecast_id_tz_dates()
-    :return: mean absolute error (scalar) for my predictions for a location and target_name. returns None if can't be
-        calculated
+    :return: mean absolute error (scalar) for my predictions for a location_name and target_name. returns None if can't
+        be calculated
     """
     forecast_id_to_abs_error = {}
     for forecast_id, forecast_timezero_date in forecast_id_tz_dates:
         try:
-            truth_values = loc_target_tz_date_to_truth[location][target_name][forecast_timezero_date]
+            truth_values = loc_target_tz_date_to_truth[location_name][target_name][forecast_timezero_date]
         except KeyError as ke:
-            logger.warning("mean_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. location={}, "
-                           "target_name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
-                           .format(ke.args, location, target_name, forecast_timezero_date, loc_target_tz_date_to_truth))
+            logger.warning(
+                "mean_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. location_name={}, "
+                "target_name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
+                .format(ke.args, location_name, target_name, forecast_timezero_date, loc_target_tz_date_to_truth))
             continue  # skip this forecast's contribution to the score
 
         if len(truth_values) == 0:  # truth not available
-            logger.warning("mean_absolute_error(): truth value not found. forecast_model={}, location={!r}, "
+            logger.warning("mean_absolute_error(): truth value not found. forecast_model={}, location_name={!r}, "
                            "target_name={!r}, forecast_id={}, forecast_timezero_date={}"
-                           .format(forecast_model, location, target_name, forecast_id, forecast_timezero_date))
+                           .format(forecast_model, location_name, target_name, forecast_id, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
         elif len(truth_values) > 1:
-            logger.warning("mean_absolute_error(): >1 truth values found. forecast_model={}, location={!r}, "
+            logger.warning("mean_absolute_error(): >1 truth values found. forecast_model={}, location_name={!r}, "
                            "target_name={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
-                           .format(forecast_model, location, target_name, forecast_id, forecast_timezero_date,
+                           .format(forecast_model, location_name, target_name, forecast_id, forecast_timezero_date,
                                    truth_values))
             continue  # skip this forecast's contribution to the score
 
         true_value = truth_values[0]
         if true_value is None:
             logger.warning(
-                "mean_absolute_error(): truth value was NA. forecast_id={}, location={!r}, target_name={!r}, "
-                "forecast_timezero_date={}".format(forecast_id, location, target_name, forecast_timezero_date))
+                "mean_absolute_error(): truth value was NA. forecast_id={}, location_name={!r}, target_name={!r}, "
+                "forecast_timezero_date={}".format(forecast_id, location_name, target_name, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
 
-        predicted_value = forecast_to_point_dict[forecast_id][location][target_name]
+        predicted_value = forecast_to_point_dict[forecast_id][location_name][target_name]
         abs_error = abs(predicted_value - true_value)
         forecast_id_to_abs_error[forecast_id] = abs_error
 
@@ -187,8 +191,8 @@ def _model_id_to_point_values_dict(project, season_name, target_names):
 
     - model_to_point_dicts: {forecast_model_id -> forecast_to_point_dicts}
     - forecast_to_point_dicts: {forecast_id -> location_to_point_dicts}
-    - location_to_point_dicts: {location -> target_to_points_dicts}
-    - target_to_points_dicts: {target -> point_value}
+    - location_to_point_dicts: {location_name -> target_to_points_dicts}
+    - target_to_points_dicts: {target_name -> point_value}
     """
     # get the rows, ordered so we can groupby()
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
@@ -199,8 +203,8 @@ def _model_id_to_point_values_dict(project, season_name, target_names):
                 forecast__forecast_model__project=project,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \
-        .order_by('forecast__forecast_model__id', 'forecast__id', 'location') \
-        .values_list('forecast__forecast_model__id', 'forecast__id', 'location', 'target__name', 'value')
+        .order_by('forecast__forecast_model__id', 'forecast__id', 'location__id') \
+        .values_list('forecast__forecast_model__id', 'forecast__id', 'location__name', 'target__name', 'value')
 
     # build the dict
     logger.debug("_model_id_to_point_values_dict(): building models_to_point_values_dicts")

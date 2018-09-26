@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Target
 from forecast_app.models.forecast_model import ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
     _model_id_to_forecast_id_tz_dates, location_to_mean_abs_error_rows_for_project
 
@@ -18,7 +18,7 @@ class MAETestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_targets(cls.project)
+        make_cdc_locations_and_targets(cls.project)
         # Target.objects.create(project=cls.project, name="1 wk ahead", description="d",
         #                       is_step_ahead=True, step_ahead_increment=1)
         # Target.objects.create(project=cls.project, name="2 wk ahead", description="d",

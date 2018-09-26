@@ -193,6 +193,17 @@
     {% include 'model_list_snippet.html' %}
 
 
+    <h2>Locations ({{ project.locations.all|length }})</h2>
+
+    {% if project.locations.all %}
+        {% for location in project.locations.all %}
+            <code>{{ location.name }}</code>{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    {% else %}
+        <small class="text-muted">(No locations)</small>
+    {% endif %}
+
+
     <h2>Targets ({{ project.targets.all|length }})</h2>
 
     {% if project.targets.all %}

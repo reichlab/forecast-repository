@@ -60,14 +60,19 @@ class Forecast(ModelWithCDCData):
         return user.is_superuser or (user == self.forecast_model.project.owner) or (user == self.forecast_model.owner)
 
 
-    def rescaled_bin_for_loc_and_target(self, location, target):
+    def rescaled_bin_for_loc_and_target(self, location_name, target_name):
         """
         Used for sparkline calculations.
 
         :return: list of scaled (0-100) values for the passed location and target
         """
-        values = [_[2] for _ in self.get_target_bins(location, target)]  # bin_start_incl, bin_end_notincl, value
+        # bin_start_incl, bin_end_notincl, value:
+        values = [_[2] for _ in self.get_target_bins(location_name, target_name)]
         return rescale(values)
+
+
+    def locations_qs(self):  # concrete method
+        return self.forecast_model.project.locations_qs()
 
 
     def targets_qs(self):  # concrete method

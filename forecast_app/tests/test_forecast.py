@@ -11,7 +11,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.data import CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.utilities import rescale
 
 
@@ -23,7 +23,7 @@ class ForecastTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_targets(cls.project)
+        make_cdc_locations_and_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -42,9 +42,13 @@ class ForecastTestCase(TestCase):
         self.assertEqual(8019, forecast_cdcdata_set.count())  # excluding header
 
         # spot-check a few rows
-        act_qs = forecast_cdcdata_set.filter(location='US National', row_type=CDCData.POINT_ROW_TYPE).order_by('id').values_list('value', flat=True)
-        self.assertEqual([50.0012056690978, 4.96302456525203, 3.30854920241938, 3.00101461253164, 2.72809349594878, 2.5332588357381, 2.42985946508278],
-                         list(act_qs))
+        act_qs = forecast_cdcdata_set.filter(location__name='US National', row_type=CDCData.POINT_ROW_TYPE) \
+            .order_by('id') \
+            .values_list('value', flat=True)
+        self.assertEqual(
+            [50.0012056690978, 4.96302456525203, 3.30854920241938, 3.00101461253164, 2.72809349594878, 2.5332588357381,
+             2.42985946508278],
+            list(act_qs))
 
         # test empty file
         with self.assertRaises(RuntimeError) as context:
@@ -60,7 +64,7 @@ class ForecastTestCase(TestCase):
 
         # test load_forecast() with timezero not in the project
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
-        make_cdc_targets(project2)
+        make_cdc_locations_and_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
@@ -72,7 +76,7 @@ class ForecastTestCase(TestCase):
 
     def test_load_forecasts_from_dir(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_targets(project2)
+        make_cdc_locations_and_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
@@ -107,7 +111,7 @@ class ForecastTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-locations-dont-match-2017-01-17.csv'),
                                               self.time_zero)
-        self.assertIn("Locations did not match template", str(context.exception))  # turns out this is the first failure
+        self.assertIn("location_name not found", str(context.exception))  # turns out this is the first failure
 
         with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-targets-dont-match-2017-01-17.csv'),
@@ -166,14 +170,15 @@ class ForecastTestCase(TestCase):
                        ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05)]
         self.assertEqual(exp_preview, self.forecast.get_data_preview())
 
-        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
-        self.assertEqual(exp_locations, sorted(self.forecast.get_locations()))
+        exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
+                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
+                              'US National']
+        self.assertEqual(exp_location_names, sorted(self.forecast.get_location_names()))
 
-        exp_targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset', 'Season peak percentage',
-                       'Season peak week']
-        self.assertEqual(exp_targets, sorted(self.forecast.get_target_names_for_location('US National')))
-        self.assertEqual(exp_targets, sorted(self.forecast.get_target_names()))
+        exp_target_names = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset',
+                            'Season peak percentage', 'Season peak week']
+        self.assertEqual(exp_target_names, sorted(self.forecast.get_target_names_for_location('US National')))
+        self.assertEqual(exp_target_names, sorted(self.forecast.get_target_names()))
 
         self.assertEqual('week', self.forecast.get_target_unit('US National', 'Season onset'))
         self.assertEqual(50.0012056690978, self.forecast.get_target_point_value('US National', 'Season onset'))
@@ -212,7 +217,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_download_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_targets(project2)
+        make_cdc_locations_and_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -234,7 +239,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_internal_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_targets(project2)
+        make_cdc_locations_and_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
@@ -255,8 +260,8 @@ class ForecastTestCase(TestCase):
 
     def test_get_location_dicts_internal_format(self):
         act_location_dicts = self.forecast.get_location_dicts_internal_format()
-        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
+        exp_locations = ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
+                         'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National']
         self.assertEqual(exp_locations, list(act_location_dicts.keys()))  # tests order
 
         # spot-check one location's targets
@@ -291,7 +296,7 @@ class ForecastTestCase(TestCase):
 
     def test_get_loc_dicts_int_format_for_csv_file(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_targets(project2)
+        make_cdc_locations_and_targets(project2)
         project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),

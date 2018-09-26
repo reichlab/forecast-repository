@@ -14,7 +14,7 @@ class TruthData(models.Model):
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE)
 
     # the standard CDC format columns
-    location = models.CharField(max_length=200)
+    location = models.ForeignKey('Location', blank=True, null=True, on_delete=models.CASCADE)
     target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.CASCADE)
     value = models.FloatField(null=True)
 

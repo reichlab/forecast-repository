@@ -11,7 +11,8 @@ from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
-from utils.make_cdc_flu_contests_project import make_cdc_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
+    CDC_CONFIG_DICT
 from utils.utilities import CDC_CSV_HEADER
 
 
@@ -36,7 +37,7 @@ class ViewsTestCase(TestCase):
                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
-        make_cdc_targets(cls.public_project)
+        make_cdc_locations_and_targets(cls.public_project)
         cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         TimeZero.objects.create(project=cls.public_project, timezero_date='2017-01-01')
@@ -54,7 +55,7 @@ class ViewsTestCase(TestCase):
                                                      owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
-        make_cdc_targets(cls.private_project)
+        make_cdc_locations_and_targets(cls.private_project)
         cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.private_tz1 = TimeZero.objects.create(project=cls.private_project, timezero_date=str('2017-12-03'),
                                                   data_version_date=None)
@@ -410,7 +411,7 @@ class ViewsTestCase(TestCase):
         # a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                    'template', 'truth', 'model_owners', 'models', 'targets', 'timezeros']
+                    'template', 'truth', 'model_owners', 'models', 'locations', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-template-detail'
@@ -434,8 +435,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(proj_detail_dict, response_dict['metadata'])
 
         # check data keys
-        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'US National']
+        exp_locations = ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
+                         'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National']
         self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
 
         # 'api-user-detail'
@@ -483,9 +484,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(forecast_detail_dict, response_dict['metadata'])
 
         # check data keys
-        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
-                         'US National']
+        exp_locations = ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
+                         'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National']
         self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
 
 

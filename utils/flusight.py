@@ -11,9 +11,9 @@ from utils.utilities import YYYYMMDD_DATE_FORMAT
 def flusight_location_to_data_dict(project, season_name, request=None):
     """
     Returns a dict containing project's forecast_model's point forecasts for all locations in season_name, structured
-    according to https://github.com/reichlab/d3-foresight . Keys are the locations, and values are the individual data
-    dicts for each as expected by the component. Passing all locations this way allows only a single page load for a
-    particular season, with subsequent user selection of locations doing only a data replot in the component.
+    according to https://github.com/reichlab/d3-foresight . Keys are the location names, and values are the individual
+    data dicts for each as expected by the component. Passing all locations this way allows only a single page load for
+    a particular season, with subsequent user selection of locations doing only a data replot in the component.
 
     Recall the format of the data dicts:
 
@@ -72,22 +72,22 @@ def flusight_location_to_data_dict(project, season_name, request=None):
     # now that we have model_to_location_timezero_points, we can build the return value, extracting each
     # location from all of the models
     locations_to_flusight_data_dicts = {}  # return value. filled next
-    for location in project.get_locations():
-        model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location,
+    for location_name in project.get_location_names():
+        model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location_name,
                                                                    model_to_location_timezero_points, request)
         data_dict = {'timePoints': [timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
                                     for timezero in project_timezeros],
                      'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
-        locations_to_flusight_data_dicts[location] = data_dict
+        locations_to_flusight_data_dicts[location_name] = data_dict
     return locations_to_flusight_data_dicts
 
 
-def _model_dicts_for_location_to_timezero_points(project_timezeros, location,
+def _model_dicts_for_location_to_timezero_points(project_timezeros, location_name,
                                                  model_to_location_timezero_points, request):
     model_dicts = []
     for forecast_model, location_to_timezero_points in model_to_location_timezero_points.items():
-        timezero_to_points = location_to_timezero_points[location] if location in location_to_timezero_points \
-            else {}  # NB: ordered by timezero_date
+        timezero_to_points = location_to_timezero_points[location_name] \
+            if location_name in location_to_timezero_points else {}  # NB: ordered by timezero_date
         model_dict = {
             'id': forecast_model.name[:10] + '(' + str(forecast_model.id) + ')',
             'meta': {
@@ -137,9 +137,9 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
                 target__in=step_ahead_targets,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \
-        .order_by('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date',
+        .order_by('forecast__forecast_model__id', 'location__id', 'forecast__time_zero__timezero_date',
                   'target__step_ahead_increment') \
-        .values_list('forecast__forecast_model__id', 'location', 'forecast__time_zero__timezero_date', 'value')
+        .values_list('forecast__forecast_model__id', 'location__name', 'forecast__time_zero__timezero_date', 'value')
 
     # build the dict
     model_to_location_timezero_points = {}  # return value. filled next

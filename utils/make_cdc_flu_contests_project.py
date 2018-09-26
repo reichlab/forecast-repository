@@ -16,8 +16,9 @@ logger = logging.getLogger(__name__)
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from django.contrib.auth.models import User
+from forecast_app.models.project import Location
 from forecast_app.models import Project, Target, TimeZero, ForecastModel
+from django.contrib.auth.models import User
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory
 
@@ -68,8 +69,9 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     project = make_project(CDC_PROJECT_NAME, po_user, mo_user)
     logger.info("- created Project: {}".format(project))
 
-    logger.info("* Creating Targets...")
-    targets = make_cdc_targets(project)
+    logger.info("* Creating Locations and Targets...")
+    locations, targets = make_cdc_locations_and_targets(project)
+    logger.info("- created {} Locations: {}".format(len(locations), locations))
     logger.info("- created {} Targets: {}".format(len(targets), targets))
 
     logger.info("* Creating TimeZeros...")
@@ -112,9 +114,9 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
 
 def make_project(project_name, po_user, mo_user):
     project_description = "Guidelines and forecasts for a collaborative U.S. influenza forecasting project."
-    home_url = 'http://example.com'  # todo
+    home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble'
     logo_url = 'http://reichlab.io/assets/images/logo/nav-logo.png'
-    core_data = 'http://example.com'  # todo
+    core_data = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
     project = Project.objects.create(
         owner=po_user,
         is_public=True,
@@ -127,6 +129,25 @@ def make_project(project_name, po_user, mo_user):
     project.model_owners.add(mo_user)
     project.save()
     return project
+
+
+def make_cdc_locations_and_targets(project):
+    """
+    Creates CDC standard Targets for project. Returns 2-tuple listing the new ones: (new_locations, new_targets)
+    """
+    return make_cdc_locations(project), make_cdc_targets(project)
+
+
+def make_cdc_locations(project):
+    """
+    Creates CDC standard Locations for project. Returns a list of them.
+    """
+    locations = []
+    for location_name in ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5',
+                          'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10',
+                          'US National']:
+        locations.append(Location.objects.create(project=project, name=location_name))
+    return locations
 
 
 def make_cdc_targets(project):
