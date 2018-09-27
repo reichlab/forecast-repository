@@ -37,8 +37,8 @@ def print_project_info(project, verbosity):
     for target in project.targets.all():
         click.echo("- {}".format(target))
 
-    click.echo("** Locations ({})".format(len(project.get_location_names())))
-    for location in sorted(project.get_location_names()):
+    click.echo("** Locations ({})".format(project.locations.count()))
+    for location in project.locations.all().order_by('name'):
         click.echo("- {}".format(location))
 
     click.echo("** TimeZeros ({})".format(project.timezeros.count()))

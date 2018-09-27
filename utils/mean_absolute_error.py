@@ -27,30 +27,27 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
         return {}
 
     # cache all the data we need for all models
-    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_id_to_point_values_dict(). "
-                 "project={}, season_name={}, target_names={}".format(project, season_name, target_names))
-    model_id_to_point_values_dict = _model_id_to_point_values_dict(project, season_name, target_names)
-    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _model_id_to_forecast_id_tz_dates()")
+    model_id_to_point_values_dict = _model_id_to_point_values_dict(project, target_names, season_name)
     model_id_to_forecast_id_tz_dates = _model_id_to_forecast_id_tz_dates(project, season_name)
-    logger.debug("location_to_mean_abs_error_rows_for_project(): calling: _mean_abs_error_rows_for_project(), multiple")
     loc_target_tz_date_to_truth = project.location_target_name_tz_date_to_truth(season_name)  # target__id
     forecast_models = project.models.order_by('name')
 
     for forecast_model in forecast_models:
         if not forecast_model.forecasts.exists():
+            # todo this should probably simply skip the model's contribution
             raise RuntimeError("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
 
     location_to_mean_abs_error_rows = {
         location_name: _mean_abs_error_rows_for_project(forecast_models, target_names, location_name,
                                                         model_id_to_point_values_dict, model_id_to_forecast_id_tz_dates,
                                                         loc_target_tz_date_to_truth)
-        for location_name in project.get_location_names()}
-    logger.debug("location_to_mean_abs_error_rows_for_project(): done")
+        for location_name in project.locations.all().values_list('name', flat=True)}
     return location_to_mean_abs_error_rows
 
 
-def _mean_abs_error_rows_for_project(forecast_models, target_names, location_name, model_id_to_point_values_dict,
-                                     model_id_to_forecast_id_tz_dates, loc_target_tz_date_to_truth):
+def _mean_abs_error_rows_for_project(forecast_models, target_names, location_name,
+                                     model_id_to_point_values_dict, model_id_to_forecast_id_tz_dates,
+                                     loc_target_tz_date_to_truth):
     """
     Returns a 2-list of the form: (rows, target_to_min_mae), where rows is a table in the form of a list of rows where
     each row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model. The format:
@@ -76,8 +73,6 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location_nam
     project does not have appropriate target_names defined in its configuration. NB: assumes all of project's models have the
     same target_names - something is validated by ForecastModel.load_forecast()
     """
-    logger.debug("_mean_abs_error_rows_for_project(): entered. forecast_models={}, target_names={}, location_name={}"
-                 .format(forecast_models, target_names, location_name))
     target_to_min_mae = {target: None for target in target_names}  # tracks min MAE for bolding in table. filled next
     rows = [['Model', *target_names]]  # header
     for forecast_model in forecast_models:
@@ -102,7 +97,6 @@ def _mean_abs_error_rows_for_project(forecast_models, target_names, location_nam
             row.append(mae_val)
         rows.append(row)
 
-    logger.debug("_mean_abs_error_rows_for_project(): done")
     return [rows, target_to_min_mae]
 
 
@@ -129,7 +123,7 @@ def mean_absolute_error(forecast_model, location_name, target_name,
             logger.warning(
                 "mean_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. location_name={}, "
                 "target_name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
-                .format(ke.args, location_name, target_name, forecast_timezero_date, loc_target_tz_date_to_truth))
+                    .format(ke.args, location_name, target_name, forecast_timezero_date, loc_target_tz_date_to_truth))
             continue  # skip this forecast's contribution to the score
 
         if len(truth_values) == 0:  # truth not available
@@ -147,7 +141,7 @@ def mean_absolute_error(forecast_model, location_name, target_name,
         true_value = truth_values[0]
         if true_value is None:
             logger.warning(
-                "mean_absolute_error(): truth value was NA. forecast_id={}, location_name={!r}, target_name={!r}, "
+                "mean_absolute_error(): truth value was None. forecast_id={}, location_name={!r}, target_name={!r}, "
                 "forecast_timezero_date={}".format(forecast_id, location_name, target_name, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
 
@@ -159,57 +153,54 @@ def mean_absolute_error(forecast_model, location_name, target_name,
         else None
 
 
-def _model_id_to_forecast_id_tz_dates(project, season_name):
+def _model_id_to_forecast_id_tz_dates(project, season_name=None):
     """
-    Returns a dict for forecast_models and season_name that maps: ForecastModel.pk -> 2-tuple of the form:
+    Returns a dict for forecast_models and season_name that maps: ForecastModel.pk -> list of 2-tuples of the form:
     (forecast_id, forecast_timezero_date). This is an optimization that avoids some ORM overhead when simply iterating
     like so: `for forecast in forecast_model.forecasts.all(): ...`
     """
     # get the rows, ordered so we can groupby()
-    season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-    rows = Forecast.objects \
-        .filter(forecast_model__project=project,
-                time_zero__timezero_date__gte=season_start_date,
-                time_zero__timezero_date__lte=season_end_date) \
+    forecast_data_qs = Forecast.objects \
+        .filter(forecast_model__project=project)
+    if season_name:
+        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+        forecast_data_qs = forecast_data_qs \
+            .filter(forecast__time_zero__timezero_date__gte=season_start_date,
+                    forecast__time_zero__timezero_date__lte=season_end_date)
+    forecast_data_qs = forecast_data_qs \
         .order_by('forecast_model__id') \
         .values_list('forecast_model__id', 'id', 'time_zero__timezero_date')
 
     # build the dict
-    logger.debug("_model_id_to_forecast_id_tz_dates(): building model_id_to_forecast_id_tz_date")
     model_id_to_forecast_id_tz_date = {}  # return value. filled next
-    for model_pk, forecast_row_grouper in groupby(rows, key=lambda _: _[0]):
+    for model_pk, forecast_row_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
         model_id_to_forecast_id_tz_date[model_pk] = [row[1:] for row in forecast_row_grouper]
 
-    logger.debug("_model_id_to_forecast_id_tz_dates(): done")
     return model_id_to_forecast_id_tz_date
 
 
-def _model_id_to_point_values_dict(project, season_name, target_names):
+def _model_id_to_point_values_dict(project, target_names, season_name=None):
     """
     :return: a dict that provides predicted point values for all of project's models, season_name, and target_names.
-        The dict drills down as such:
-
-    - model_to_point_dicts: {forecast_model_id -> forecast_to_point_dicts}
-    - forecast_to_point_dicts: {forecast_id -> location_to_point_dicts}
-    - location_to_point_dicts: {location_name -> target_to_points_dicts}
-    - target_to_points_dicts: {target_name -> point_value}
+        Use is like: the_dict[forecast_model_id][forecast_id][location_name][target_name]
     """
     # get the rows, ordered so we can groupby()
-    season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-    logger.debug("_model_id_to_point_values_dict(): calling: execute()")
-    rows = ForecastData.objects \
+    forecast_data_qs = ForecastData.objects \
         .filter(row_type=CDCData.POINT_ROW_TYPE,
                 target__name__in=target_names,
-                forecast__forecast_model__project=project,
-                forecast__time_zero__timezero_date__gte=season_start_date,
-                forecast__time_zero__timezero_date__lte=season_end_date) \
+                forecast__forecast_model__project=project)
+    if season_name:
+        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+        forecast_data_qs = forecast_data_qs \
+            .filter(forecast__time_zero__timezero_date__gte=season_start_date,
+                    forecast__time_zero__timezero_date__lte=season_end_date)
+    forecast_data_qs = forecast_data_qs \
         .order_by('forecast__forecast_model__id', 'forecast__id', 'location__id') \
         .values_list('forecast__forecast_model__id', 'forecast__id', 'location__name', 'target__name', 'value')
 
     # build the dict
-    logger.debug("_model_id_to_point_values_dict(): building models_to_point_values_dicts")
     models_to_point_values_dicts = {}  # return value. filled next
-    for model_pk, forecast_loc_target_val_grouper in groupby(rows, key=lambda _: _[0]):
+    for model_pk, forecast_loc_target_val_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
         forecast_to_point_dicts = {}
         for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):
             location_to_point_dicts = {}
@@ -219,5 +210,4 @@ def _model_id_to_point_values_dict(project, season_name, target_names):
             forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
         models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
 
-    logger.debug("_model_id_to_point_values_dict(): done")
     return models_to_point_values_dicts

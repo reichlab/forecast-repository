@@ -179,11 +179,11 @@ class Project(ModelWithCDCData):
         return [forecast_model.forecast_for_time_zero(timezero) for forecast_model in self.models.all()]
 
 
-    def time_zero_for_timezero_date(self, timezero_date_str):
+    def time_zero_for_timezero_date(self, timezero_date):
         """
-        :return: the first TimeZero in me that has a timezero_date matching timezero_date_str
+        :return: the first TimeZero in me that has a timezero_date matching timezero_date
         """
-        return self.timezeros.filter(timezero_date=timezero_date_str).first()
+        return self.timezeros.filter(timezero_date=timezero_date).first()
 
 
     def seasons(self):
@@ -483,6 +483,9 @@ class Project(ModelWithCDCData):
         Note that this method should be called after all TimeZeros are created b/c truth data is validated against
         them. Notes:
 
+        - A template needs to be loaded b/c _load_truth_data_rows() validates truth data against template locations and
+          targets
+        - TimeZeros "" b/c truth timezeros are validated against project ones
         - Validates against the Project's template, which is therefore required to be set before this call.
         - One csv file/project, which includes timezeros across all seasons.
         - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
@@ -506,8 +509,6 @@ class Project(ModelWithCDCData):
         :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
             files have random template_path file names, so original ones must be extracted and passed separately
         """
-        # the template needs to be loaded b/c _load_truth_data_rows() validates truth data against template locations
-        # and targets
         if not self.is_template_loaded():
             raise RuntimeError("Template not loaded")
 
@@ -575,9 +576,7 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
-        # location_names = self.get_location_names()  # template data
         location_names_to_pks = {location.name: location.id for location in self.locations_qs().all()}
-        # target_names = self.get_target_names()  # template data
         target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
         rows = []
         timezero_to_missing_count = defaultdict(int)  # to minimize warnings

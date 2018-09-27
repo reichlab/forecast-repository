@@ -168,10 +168,10 @@ class UtilitiesTestCase(TestCase):
             exp_dict_loaded = json.loads(exp_json_str)
             exp_dict_p1 = {forecast_model_11.pk:
                                {forecast_11.pk: exp_dict_loaded[str(forecast_model_11.id)][str(forecast_11.id)]}}
-            act_point_values_dict = _model_id_to_point_values_dict(project1, 'season p1', targets)
+            act_point_values_dict = _model_id_to_point_values_dict(project1, targets, 'season p1')
             self.assertEqual(exp_dict_p1, act_point_values_dict)
 
             exp_dict_p2 = {forecast_model_21.pk:
                                {forecast_21.pk: exp_dict_loaded[str(forecast_model_21.id)][str(forecast_21.id)]}}
-            act_point_values_dict = _model_id_to_point_values_dict(project2, 'season p2', targets)
+            act_point_values_dict = _model_id_to_point_values_dict(project2, targets, 'season p2')
             self.assertEqual(exp_dict_p2, act_point_values_dict)

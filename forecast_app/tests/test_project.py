@@ -159,7 +159,7 @@ class ProjectTestCase(TestCase):
         exp_location_names = {'HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
                               'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
                               'US National'}
-        self.assertEqual(exp_location_names, self.project.get_location_names())
+        self.assertEqual(exp_location_names, self.project.get_location_names())  # query
 
         exp_target_names = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset',
                             'Season peak percentage', 'Season peak week']

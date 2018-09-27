@@ -32,14 +32,14 @@ class ModelWithCDCData(models.Model):
 
     def locations_qs(self):  # abstract method
         """
-        :return: a QuerySet of all my Locations
+        :return: a QuerySet of all my Locations, queried from the database
         """
         raise NotImplementedError()
 
 
     def targets_qs(self):  # abstract method
         """
-        :return: a QuerySet of all my Targets
+        :return: a QuerySet of all my Targets, queried from the database
         """
         raise NotImplementedError()
 
@@ -214,14 +214,14 @@ class ModelWithCDCData(models.Model):
 
     def get_location_names(self):
         """
-        :return: a set of all Location names in my data
+        :return: queries all my data and returns a set of all Location names
         """
         return set(self.cdcdata_set.values_list('location__name', flat=True).distinct())
 
 
     def get_target_names(self):
         """
-        :return: a set of all target names in my data
+        :return: queries all my data and returns a set of all target names in my data
         """
         return set(self.cdcdata_set.values_list('target__name', flat=True).distinct())
 

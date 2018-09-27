@@ -72,7 +72,7 @@ def flusight_location_to_data_dict(project, season_name, request=None):
     # now that we have model_to_location_timezero_points, we can build the return value, extracting each
     # location from all of the models
     locations_to_flusight_data_dicts = {}  # return value. filled next
-    for location_name in project.get_location_names():
+    for location_name in project.locations.all().values_list('name', flat=True):
         model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location_name,
                                                                    model_to_location_timezero_points, request)
         data_dict = {'timePoints': [timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)

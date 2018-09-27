@@ -187,7 +187,7 @@ def project_visualizations(request, project_pk):
                 and (location_to_actual_max_val[location]):
             location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])
 
-    location_names = sorted(project.get_location_names())
+    location_names = sorted(project.locations.all().values_list('name', flat=True))
     return render(
         request,
         'project_visualizations.html',
@@ -270,7 +270,7 @@ def project_scores(request, project_pk):
                       context={'title': "Required targets not found",
                                'message': "The project does not have the required score-related targets."})
 
-    location_names = sorted(project.get_location_names())
+    location_names = project.locations.all().order_by('name')
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
                                 for forecast_model in project.models.all()}
     return render(
@@ -719,7 +719,7 @@ def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
                                       "target={}".format(location, target))
 
     # validate location and target
-    location_names = project.get_location_names()
+    location_names = project.locations.all().values_list('name', flat=True)
     targets = project.get_target_names_for_location(location)
     if (location not in location_names) or (target not in targets):
         return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
