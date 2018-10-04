@@ -34,7 +34,8 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     for forecast_model in forecast_models:
         if not forecast_model.forecasts.exists():
-            logger.warning("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+            logger.warning("location_to_mean_abs_error_rows_for_project(): could not calculate absolute errors: model "
+                           "had no data: {}".format(forecast_model))
             continue
 
     location_to_mean_abs_error_rows = {

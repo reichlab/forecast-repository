@@ -13,6 +13,8 @@ urlpatterns = [
     url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),
     url(r'^delete_upload_file_jobs/$', views.delete_upload_file_jobs, name='delete-file-jobs'),
+    url(r'^delete_scores', views.delete_scores, name='delete-scores'),
+    url(r'^delete_score_last_updates', views.delete_score_last_updates, name='delete-score-last-updates'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),
     url(r'^users/', views.UserListView.as_view(), name='user-list'),
@@ -22,8 +24,6 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/scores', views.project_scores, name='project-scores'),
     url(r'^project/(?P<project_pk>\d+)/score_data', views.project_score_data, name='project-score-data'),
     url(r'^project/(?P<project_pk>\d+)/download_score_data', views.download_scores, name='download-scores'),
-    url(r'^delete_scores', views.delete_scores, name='delete-scores'),
-    url(r'^delete_score_last_updates', views.delete_score_last_updates, name='delete-score-last-updates'),
 
     url(r'^project/(?P<project_pk>\d+)/template$', views.template_detail, name='template-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/template/delete$', views.delete_template, name='delete-template'),

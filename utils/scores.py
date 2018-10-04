@@ -21,7 +21,6 @@ ABSOLUTE_ERROR_SCORE_DESCRIPTION = "The absolute of error between the model's po
                                    "Lower is better."  # official description
 
 
-# todo xx almost all code duplicated from location_to_mean_abs_error_rows_for_project():
 @transaction.atomic
 def calculate_absolute_error_score_values(project):
     """
@@ -43,7 +42,7 @@ def calculate_absolute_error_score_values(project):
     # validate targets
     targets = project.visualization_targets()
     if not targets:
-        logger.warning("No visualization targets. project={}".format(project))
+        logger.warning("calculate_absolute_error_score_values(): no visualization targets. project={}".format(project))
         return
 
     # cache all the data we need for all models
@@ -55,7 +54,8 @@ def calculate_absolute_error_score_values(project):
     # calculate for all combinations of model, location, and target
     for forecast_model in project.models.order_by('name'):
         if not forecast_model.forecasts.exists():
-            logger.warning("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+            logger.warning("calculate_absolute_error_score_values(): could not calculate absolute errors: model had "
+                           "no data: {}".format(forecast_model))
             continue
 
         for location in locations:
@@ -82,28 +82,28 @@ def calculate_absolute_error(abs_err_score, forecast_model, location, target,
         try:
             truth_values = loc_target_tz_date_to_truth[location.name][target.name][forecast_timezero_date]
         except KeyError as ke:
-            logger.warning("loc_target_tz_date_to_truth was missing a key: {}. location.name={}, target.name={}, " \
-                           "forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
+            logger.warning("calculate_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. "
+                           "location.name={}, target.name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
                            .format(ke.args, location.name, target.name, forecast_timezero_date,
                                    loc_target_tz_date_to_truth))
             continue  # skip this forecast's contribution to the score
 
         if len(truth_values) == 0:  # truth not available
-            logger.warning("truth value not found. forecast_model={}, location.name={!r}, target.name={!r}, "
-                           "forecast_id={}, forecast_timezero_date={}"
+            logger.warning("calculate_absolute_error(): truth value not found. forecast_model={}, location.name={!r}, "
+                           "target.name={!r}, forecast_id={}, forecast_timezero_date={}"
                            .format(forecast_model, location.name, target.name, forecast_id, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
         elif len(truth_values) > 1:
-            logger.warning(">1 truth values found. forecast_model={}, location.name={!r}, target.name={!r}, " \
-                           "forecast_id={}, forecast_timezero_date={}, truth_values={}"
+            logger.warning("calculate_absolute_error(): >1 truth values found. forecast_model={}, location.name={!r}, "
+                           "target.name={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
                            .format(forecast_model, location.name, target.name, forecast_id, forecast_timezero_date,
                                    truth_values))
             continue  # skip this forecast's contribution to the score
 
         true_value = truth_values[0]
         if true_value is None:
-            logger.warning("truth value was None. forecast_id={}, location.name={!r}, target.name={!r}, "
-                           "forecast_timezero_date={}"
+            logger.warning("calculate_absolute_error(): truth value was None. forecast_id={}, location.name={!r}, "
+                           "target.name={!r}, forecast_timezero_date={}"
                            .format(forecast_id, location.name, target.name, forecast_timezero_date))
             continue  # skip this forecast's contribution to the score
 

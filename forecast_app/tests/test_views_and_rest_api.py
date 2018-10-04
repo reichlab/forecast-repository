@@ -10,6 +10,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
+from forecast_app.models.score import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
     CDC_CONFIG_DICT
@@ -138,12 +139,23 @@ class ViewsTestCase(TestCase):
             reverse('upload-file-job-detail', args=[str(self.upload_file_job.pk)]): self.ONLY_PO,
 
             reverse('zadmin'): self.ONLY_SU_200,
+            reverse('empty-rq'): self.ONLY_SU_302,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
+            reverse('update-row-count-caches'): self.ONLY_SU_302,
+            reverse('delete-file-jobs'): self.ONLY_SU_302,
+            reverse('delete-scores'): self.ONLY_SU_302,
+            reverse('delete-score-last-updates'): self.ONLY_SU_302,
 
             reverse('project-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('project-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('project-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('project-score-data', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('project-score-data', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('download-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('download-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('create-project', args=[]): self.ONLY_PO_MO,
             reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
             reverse('edit-project', args=[str(self.private_project.pk)]): self.ONLY_PO,
@@ -553,6 +565,15 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
         self.assertEqual(list(response_dict), ['metadata', 'locations'])
         self.assertEqual(len(response_dict['locations']), 11)
+
+        # score data as CSV. a django.http.response.HttpResponse
+        response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], "text/csv")
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')
+        split_content = response.content.decode("utf-8").split('\r\n')
+        self.assertEqual(split_content[0], ','.join(SCORE_CSV_HEADER_PREFIX))
+        self.assertEqual(len(split_content), 2)  # no score data
 
 
     def authenticate_jwt_user(self, user):

@@ -56,7 +56,7 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     # create the project. error if already exists
     project = Project.objects.filter(name=CDC_PROJECT_NAME).first()  # None if doesn't exist
     if project:
-        logger.warning("Found existing project. deleting project={}".format(project))
+        logger.warning("make_cdc_flu_contests_project_app(): found existing project. deleting project={}".format(project))
         project.delete()
 
     # make and fill the Project, Targets, and TimeZeros
