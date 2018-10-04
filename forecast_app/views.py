@@ -1,4 +1,3 @@
-import csv
 import io
 import json
 import logging
@@ -18,13 +17,11 @@ from django.db.models import Count
 from django.forms import inlineformset_factory
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
-from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
 from forecast_app.models.project import Target, Location
-from forecast_app.models.score import _write_csv_score_data_for_project
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_s3_file
 from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
 from utils.flusight import flusight_location_to_data_dict
@@ -404,15 +401,10 @@ def download_scores(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    response = HttpResponse(content_type='text/csv')
-    csv_filename = get_valid_filename(project.name + '-scores.csv')
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"'.format(csv_filename=str(csv_filename))
+    from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
 
-    # recall https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/scores.csv:
-    #   Model,Year,Epiweek,Season,Model Week,Location,Target,Score,Multi bin score
-    writer = csv.writer(response)
-    _write_csv_score_data_for_project(writer, project)
-    return response
+
+    return csv_response_for_project_score_data(project)
 
 
 #

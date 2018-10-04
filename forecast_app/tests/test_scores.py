@@ -5,9 +5,10 @@ from pathlib import Path
 
 from django.test import TestCase
 
+from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.models.score import Score, _write_csv_score_data_for_project
+from forecast_app.models.score import Score
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.scores import calculate_absolute_error_score_values, ABSOLUTE_ERROR_SCORE_NAME
 

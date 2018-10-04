@@ -9,8 +9,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
-from forecast_app.models.score import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
     CDC_CONFIG_DICT
@@ -366,6 +366,8 @@ class ViewsTestCase(TestCase):
             reverse('api-template-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-template-data', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-score-data', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
             reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
@@ -377,7 +379,7 @@ class ViewsTestCase(TestCase):
             reverse('api-forecast-data', args=[self.public_forecast.pk]): self.OK_ALL,
             reverse('api-forecast-data', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
         }
-        for idx, (url, user_exp_status_code_list) in enumerate(url_to_exp_user_status_code_pairs.items()):
+        for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
             for user, exp_status_code in user_exp_status_code_list:
                 # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
                 # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
@@ -423,7 +425,7 @@ class ViewsTestCase(TestCase):
         # a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                    'template', 'truth', 'model_owners', 'models', 'locations', 'targets', 'timezeros']
+                    'template', 'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-template-detail'
