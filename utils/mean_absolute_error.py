@@ -12,8 +12,8 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     """
     Called by the project_scores() view function, returns a dict containing a table of mean absolute errors for
     all models and all locations in project for season_name. The dict maps:
-    {location: (mean_abs_error_rows, target_to_min_mae)}, where rows is a table in the form of a list of rows where each
-    row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model.
+    {location.name: (mean_abs_error_rows, target_to_min_mae)}, where rows is a table in the form of a list of rows where
+    each row corresponds to a model, and each column corresponds to a target, i.e., X=target vs. Y=Model.
 
     See _mean_abs_error_rows_for_project() for the format of mean_abs_error_rows.
 
@@ -34,8 +34,8 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     for forecast_model in forecast_models:
         if not forecast_model.forecasts.exists():
-            # todo this should probably simply skip the model's contribution
-            raise RuntimeError("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+            logger.warning("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+            continue
 
     location_to_mean_abs_error_rows = {
         location_name: _mean_abs_error_rows_for_project(forecast_models, target_names, location_name,
@@ -159,14 +159,15 @@ def _model_id_to_forecast_id_tz_dates(project, season_name=None):
     (forecast_id, forecast_timezero_date). This is an optimization that avoids some ORM overhead when simply iterating
     like so: `for forecast in forecast_model.forecasts.all(): ...`
     """
+    logger.debug("_model_id_to_forecast_id_tz_dates(): entered. project={}, season_name={}"
+                 .format(project, season_name))
     # get the rows, ordered so we can groupby()
-    forecast_data_qs = Forecast.objects \
-        .filter(forecast_model__project=project)
+    forecast_data_qs = Forecast.objects.filter(forecast_model__project=project)
     if season_name:
         season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
         forecast_data_qs = forecast_data_qs \
-            .filter(forecast__time_zero__timezero_date__gte=season_start_date,
-                    forecast__time_zero__timezero_date__lte=season_end_date)
+            .filter(time_zero__timezero_date__gte=season_start_date,
+                    time_zero__timezero_date__lte=season_end_date)
     forecast_data_qs = forecast_data_qs \
         .order_by('forecast_model__id') \
         .values_list('forecast_model__id', 'id', 'time_zero__timezero_date')
@@ -176,6 +177,7 @@ def _model_id_to_forecast_id_tz_dates(project, season_name=None):
     for model_pk, forecast_row_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
         model_id_to_forecast_id_tz_date[model_pk] = [row[1:] for row in forecast_row_grouper]
 
+    logger.debug("_model_id_to_forecast_id_tz_dates(): done ({})".format(len(model_id_to_forecast_id_tz_date)))
     return model_id_to_forecast_id_tz_date
 
 
@@ -184,6 +186,8 @@ def _model_id_to_point_values_dict(project, target_names, season_name=None):
     :return: a dict that provides predicted point values for all of project's models, season_name, and target_names.
         Use is like: the_dict[forecast_model_id][forecast_id][location_name][target_name]
     """
+    logger.debug("_model_id_to_point_values_dict(): entered. project={}, target_names={}, season_name={}"
+                 .format(project, target_names, season_name))
     # get the rows, ordered so we can groupby()
     forecast_data_qs = ForecastData.objects \
         .filter(row_type=CDCData.POINT_ROW_TYPE,
@@ -210,4 +214,5 @@ def _model_id_to_point_values_dict(project, target_names, season_name=None):
             forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
         models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
 
+    logger.debug("_model_id_to_point_values_dict(): done ({})".format(len(models_to_point_values_dicts)))
     return models_to_point_values_dicts

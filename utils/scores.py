@@ -1,6 +1,10 @@
 import logging
 
-from forecast_app.models import Score, ScoreValue
+import django_rq
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+
+from forecast_app.models import Score, ScoreValue, Project
 from utils.mean_absolute_error import _model_id_to_point_values_dict, _model_id_to_forecast_id_tz_dates
 
 
@@ -18,6 +22,7 @@ ABSOLUTE_ERROR_SCORE_DESCRIPTION = "The absolute of error between the model's po
 
 
 # todo xx almost all code duplicated from location_to_mean_abs_error_rows_for_project():
+@transaction.atomic
 def calculate_absolute_error_score_values(project):
     """
     The top-level function that creates ScoreValue instances for the passed args, saving them into the passed score.
@@ -26,13 +31,14 @@ def calculate_absolute_error_score_values(project):
 
     :param project: a Project
     """
-    # clear or create the Score
-    abs_err_score = Score.objects.filter(name=ABSOLUTE_ERROR_SCORE_NAME).first()
-    if abs_err_score:
-        abs_err_score.values.all().delete()
-    else:
-        abs_err_score = Score.objects.create(name=ABSOLUTE_ERROR_SCORE_NAME,
-                                             description=ABSOLUTE_ERROR_SCORE_DESCRIPTION)
+    # clear or create the Score itself, deleting any existing ScoreValues if any
+    abs_err_score, is_created = Score.objects.get_or_create(name=ABSOLUTE_ERROR_SCORE_NAME,
+                                                            description=ABSOLUTE_ERROR_SCORE_DESCRIPTION)
+    if not is_created:
+        abs_err_score.values.filter(forecast__forecast_model__project=project).delete()
+
+    logger.debug("calculate_absolute_error_score_values(): entered. project={}, score={}"
+                 .format(project, abs_err_score))
 
     # validate targets
     targets = project.visualization_targets()
@@ -49,8 +55,8 @@ def calculate_absolute_error_score_values(project):
     # calculate for all combinations of model, location, and target
     for forecast_model in project.models.order_by('name'):
         if not forecast_model.forecasts.exists():
-            # todo this should probably simply skip the model's contribution
-            raise RuntimeError("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+            logger.warning("Could not calculate absolute errors: model had no data: {}".format(forecast_model))
+            continue
 
         for location in locations:
             for target in targets:
@@ -62,6 +68,11 @@ def calculate_absolute_error_score_values(project):
                     else {}
                 calculate_absolute_error(abs_err_score, forecast_model, location, target,
                                          forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth)
+
+    # done
+    abs_err_score.set_last_update_for_project(project)
+    logger.debug("calculate_absolute_error_score_values(): done. # values={}".format(
+        ScoreValue.objects.filter(score=abs_err_score, forecast__forecast_model__project=project).count()))
 
 
 # todo xx almost all code duplicated from mean_absolute_error():
@@ -97,6 +108,24 @@ def calculate_absolute_error(abs_err_score, forecast_model, location, target,
             continue  # skip this forecast's contribution to the score
 
         predicted_value = forecast_to_point_dict[forecast_id][location.name][target.name]
-        ScoreValue.objects.create(score=abs_err_score, forecast_model=forecast_model,
-                                  location=location, target=target,
-                                  value=(abs(true_value - predicted_value)))
+        ScoreValue.objects.create(forecast_id=forecast_id, location=location, target=target,
+                                  score=abs_err_score, value=(abs(true_value - predicted_value)))
+
+
+#
+# RQ-related queueing functions
+#
+
+def enqueue_score_updates_all_projs():
+    for project in Project.objects.all():
+        logger.debug("enqueuing update project scores. project={}".format(project))
+        django_rq.enqueue(_update_project_scores, project.pk)
+
+
+def _update_project_scores(project_pk):
+    """
+    Enqueue helper function.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    # see: [todo xx this is a place-holder implementation. the design needs fleshing out so that this can be a method on a Score subcass, for example]
+    calculate_absolute_error_score_values(project)

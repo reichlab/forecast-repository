@@ -1,7 +1,9 @@
+import csv
 import io
 import json
 import logging
 import time
+from itertools import groupby
 
 import boto3
 import django_rq
@@ -17,10 +19,11 @@ from django.db.models import Count
 from django.forms import inlineformset_factory
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm
-from forecast_app.models import Project, ForecastModel, Forecast, TimeZero
+from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
 from forecast_app.models.project import Target, Location
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_s3_file
 from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
@@ -50,7 +53,7 @@ def documentation(request):
 
 
 #
-# admin-related view functions
+# ---- admin-related view functions ----
 #
 
 def zadmin(request):
@@ -61,6 +64,14 @@ def zadmin(request):
     rq_conn = django_rq.get_connection()  # name='default'
     rq_jobs = _rq_jobs_for_queue(rq_queue)
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
+
+    score_last_update_rows = []
+    for score_last_update in ScoreLastUpdate.objects.all():
+        score_last_update_rows.append((score_last_update.project,
+                                       score_last_update.score,
+                                       score_last_update.score.num_score_values_for_project(score_last_update.project),
+                                       score_last_update.last_update))
+
     return render(
         request, 'zadmin.html',
         context={'projects': Project.objects.order_by('name'),
@@ -69,7 +80,9 @@ def zadmin(request):
                  'rq_jobs': rq_jobs,
                  'django_db_name': django_db_name,
                  'django_conn': connection,
-                 'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at'),
+                 'upload_file_jobs': UploadFileJob.objects.all().order_by('updated_at'),
+                 'score_last_update_rows': score_last_update_rows,
+                 'scores': Score.objects.all().order_by('name')
                  })
 
 
@@ -141,6 +154,11 @@ def update_row_count_caches(request):
                                    exc)})
 
 
+def enqueue_row_count_updates_all_projs():
+    for project in Project.objects.all():
+        django_rq.enqueue(_update_project_row_count_cache, project.pk)
+
+
 def _update_project_row_count_cache(project_pk):
     """
     Enqueue helper function.
@@ -149,13 +167,8 @@ def _update_project_row_count_cache(project_pk):
     project.update_row_count_cache()
 
 
-def enqueue_row_count_updates_all_projs():
-    for project in Project.objects.all():
-        django_rq.enqueue(_update_project_row_count_cache, project.pk)
-
-
 #
-# visualization-related view functions
+# ---- visualization-related view functions ----
 #
 
 def project_visualizations(request, project_pk):
@@ -239,7 +252,25 @@ def _location_to_actual_max_val(loc_tz_date_to_actual_vals):
 
 
 #
-# score-related view functions
+# ---- score utility functions ----
+#
+
+def delete_scores(request):
+    # NB: delete() runs in current thread
+    Score.objects.all().delete()
+    messages.success(request, "Deleted all Scores.")
+    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
+
+
+def delete_score_last_updates(request):
+    # NB: delete() runs in current thread
+    ScoreLastUpdate.objects.all().delete()
+    messages.success(request, "Deleted all ScoreLastUpdates.")
+    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
+
+
+#
+# ---- scores function ----
 #
 
 def project_scores(request, project_pk):
@@ -270,7 +301,7 @@ def project_scores(request, project_pk):
                       context={'title': "Required targets not found",
                                'message': "The project does not have the required score-related targets."})
 
-    location_names = project.locations.all().order_by('name')
+    location_names = project.locations.all().order_by('name').values_list('name', flat=True)
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
                                 for forecast_model in project.models.all()}
     return render(
@@ -296,6 +327,158 @@ def _param_val_from_request(request, param_name, choices):
         return param_val
     else:
         return choices[-1] if choices else None
+
+
+#
+# ---- score data functions ----
+#
+
+def project_score_data(request, project_pk):
+    """
+    View function that renders a summary of all Scores in the passed Project.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_ok_to_view(request.user):
+        raise PermissionDenied
+
+    # set model_score_count_rows. we order by model.name then score.name, which we do in two passes: 1) look up objects
+    # for PKs, and 2) iterate over sort, including only the first model in the rows
+    model_score_counts = []
+    for forecast_model_id, score_id, count in _model_score_count_rows_for_project(project):
+        forecast_model = ForecastModel.objects.filter(pk=forecast_model_id).first()
+        score = Score.objects.filter(pk=score_id).first()
+        model_score_counts.append([forecast_model, score, count])
+
+    model_score_count_rows = []
+    for forecast_model, score, count in sorted(model_score_counts,
+                                               key=lambda row: (row[0].name, row[1].name)):
+        model_score_count_rows.append([forecast_model, score, count])
+    return render(request, 'project_score_data.html',
+                  context={'project': project,
+                           'score_summaries': [[score, score.num_score_values_for_project(project),
+                                                score.last_update_for_project(project)]
+                                               for score in sorted(Score.objects.all(),
+                                                                   key=lambda score: score.name)],
+                           'model_score_count_rows': model_score_count_rows,
+                           })
+
+
+def _model_score_count_rows_for_project(project):
+    """
+    :return list of rows summarizing score information for project
+    """
+    sql = """
+        SELECT fm.id, sv.score_id, count(fm.id)
+        FROM {scorevalue_table_name} AS sv
+                    LEFT OUTER JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
+                    LEFT OUTER JOIN {forecastmodel_forecast_table_name} AS fm ON f.forecast_model_id = fm.id
+        WHERE fm.project_id = %s
+        GROUP BY sv.score_id, fm.id;
+    """.format(scorevalue_table_name=ScoreValue._meta.db_table,
+               forecast_table_name=Forecast._meta.db_table,
+               forecastmodel_forecast_table_name=ForecastModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        return cursor.fetchall()
+
+
+def download_scores(request, project_pk):
+    """
+    Returns a response containing a CSV file for a project_pk's scores.
+    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
+        model's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_ok_to_view(request.user):
+        raise PermissionDenied
+
+    response = HttpResponse(content_type='text/csv')
+    csv_filename = get_valid_filename(project.name + '-scores.csv')
+    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"'.format(csv_filename=str(csv_filename))
+
+    # recall https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/scores.csv:
+    #   Model,Year,Epiweek,Season,Model Week,Location,Target,Score,Multi bin score
+    writer = csv.writer(response)
+    _write_csv_score_data_for_project(writer, project)
+    return response
+
+
+def _write_csv_score_data_for_project(csv_writer, project):
+    """
+    Writes all ScoreValue data for project into csv_writer. There is one column per ScoreValue BUT: all Scores are on
+    one line. Thus, the row 'key' is the (fixed) first five columns:
+
+        `ForecastModel.name, TimeZero.timezero_date, season, Location.name, Target.name`
+
+    Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
+    the header. An example header and first few rows:
+
+        model,           timezero,    season,    location,  target,          constant score,  Absolute Error
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      3_biweek_ahead,  <blank>          9
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      4_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      5_biweek_ahead,  <blank>          8
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      1_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      2_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
+
+    Notes:
+    - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
+    - we use get_valid_filename() to ensure values are CSV-compliant, i.e., no commas, returns, tabs, etc. Using that
+      function is as good as any :-)
+    - we use groupby to group row 'keys' so that all score values are together
+    """
+    # re: scores order: it is crucial that order matches query ORDER BY ... sv.score_id so that columns match values
+    scores = Score.objects.all().order_by('pk')
+
+    # write hearder
+    SCORE_CSV_HEADER = ['model', 'timezero', 'season', 'location', 'target'] + \
+                       [get_valid_filename(score.name) for score in scores]
+    csv_writer.writerow(SCORE_CSV_HEADER)
+
+    # get the raw rows - sorted so groupby() will work
+    sql = """
+        SELECT f.forecast_model_id, f.time_zero_id, sv.location_id, sv.target_id, sv.score_id, sv.value
+        FROM {scorevalue_table_name} AS sv
+               INNER JOIN {score_table_name} s ON sv.score_id = s.id
+               INNER JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
+               INNER JOIN {forecastmodel_table_name} AS fm ON f.forecast_model_id = fm.id
+        WHERE fm.project_id = %s
+        ORDER BY f.forecast_model_id, f.time_zero_id, sv.location_id, sv.target_id, sv.score_id;
+    """.format(scorevalue_table_name=ScoreValue._meta.db_table,
+               score_table_name=Score._meta.db_table,
+               forecast_table_name=Forecast._meta.db_table,
+               forecastmodel_table_name=ForecastModel._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        rows = cursor.fetchall()
+
+    # write grouped rows
+    forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
+    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
+    location_id_to_obj = {location.pk: location for location in project.locations.all()}
+    target_id_to_obj = {target.pk: target for target in project.targets.all()}
+    for (forecast_model_id, time_zero_id, location_id, target_id), score_id_value_grouper \
+            in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
+        forecast_model = forecast_model_id_to_obj[forecast_model_id]
+        timezero = timezero_id_to_obj[time_zero_id]
+        location = location_id_to_obj[location_id]
+        target = target_id_to_obj[target_id]
+        season = '?'  # todo xx timezero.containing_season_name()
+        # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
+        #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
+        score_groups = list(score_id_value_grouper)
+        # NB: if a score is missing then we need to use '' for it so that scores align with the header:
+        score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
+        score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
+        csv_writer.writerow(
+            [get_valid_filename(forecast_model.name), timezero.timezero_date, get_valid_filename(season),
+             get_valid_filename(location.name), get_valid_filename(target.name)]
+            + score_values)
 
 
 #
@@ -696,7 +879,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 
 
 #
-# Sparkline-related functions
+# ---- Sparkline-related functions ----
 #
 
 def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
@@ -925,8 +1108,7 @@ def download_truth(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    # set the HttpResponse based on download type. avoid circular imports:
-    from forecast_app.api_views import csv_response_for_project_truth_data
+    from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
 
 
     return csv_response_for_project_truth_data(project)
@@ -1102,7 +1284,7 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         logger.debug(failure_message)
         return "Error enqueuing the job: {}. upload_file_job={}".format(exc, upload_file_job), None
 
-    logger.debug("_upload_file(): Done")
+    logger.debug("_upload_file(): done")
     return False, upload_file_job
 
 
@@ -1112,7 +1294,7 @@ def process_upload_file_job__noop(upload_file_job_pk):
 
     :param upload_file_job_pk: the UploadFileJob's pk
     """
-    logger.debug("process_upload_file_job__noop(): Entered. upload_file_job_pk={}".format(upload_file_job_pk))
+    logger.debug("process_upload_file_job__noop(): entered. upload_file_job_pk={}".format(upload_file_job_pk))
     with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
         # show that we can access the file's data
         file_size = s3_file_fp.seek(0, io.SEEK_END)

@@ -445,6 +445,8 @@ class Project(ModelWithCDCData):
         location_target_name_tz_date_to_truth[location][target_name][timezero_date]. Only includes data from
         season_name, which is None if I have no seasons.
         """
+        logger.debug("location_target_name_tz_date_to_truth(): entered. project={}, season_name={}"
+                 .format(self, season_name))
         loc_target_tz_date_to_truth = {}
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
@@ -472,6 +474,7 @@ class Project(ModelWithCDCData):
                 target_tz_date_to_truth[target_pks_to_names[target_id]] = tz_date_to_truth
                 for _, _, tz_date, value in target_tz_grouper:
                     tz_date_to_truth[tz_date].append(value)
+        logger.debug("location_target_name_tz_date_to_truth(): done ({})".format(len(loc_target_tz_date_to_truth)))
         return loc_target_tz_date_to_truth
 
 

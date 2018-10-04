@@ -53,7 +53,7 @@ def print_project_info(project, verbosity):
         if verbosity == 3:
             click.echo("- {}".format(forecast_model))
         else:
-            click.echo("*** {}".format(forecast_model))
+            click.echo("*** {} ({} forecasts)".format(forecast_model, forecast_model.forecasts.count()))
         if verbosity == 4:
             for forecast in forecast_model.forecasts.order_by('time_zero'):
                 click.echo("  {}".format(forecast))

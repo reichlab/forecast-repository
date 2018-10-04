@@ -20,6 +20,10 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/scores', views.project_scores, name='project-scores'),
+    url(r'^project/(?P<project_pk>\d+)/score_data', views.project_score_data, name='project-score-data'),
+    url(r'^project/(?P<project_pk>\d+)/download_score_data', views.download_scores, name='download-scores'),
+    url(r'^delete_scores', views.delete_scores, name='delete-scores'),
+    url(r'^delete_score_last_updates', views.delete_score_last_updates, name='delete-score-last-updates'),
 
     url(r'^project/(?P<project_pk>\d+)/template$', views.template_detail, name='template-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/template/delete$', views.delete_template, name='delete-template'),

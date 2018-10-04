@@ -3,7 +3,7 @@ from pathlib import Path
 import pymmwr
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Target
+from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
@@ -70,6 +70,14 @@ class MAETestCase(TestCase):
                                           loc_target_tz_date_to_truth)
             self.assertIsNotNone(act_mae)
             self.assertAlmostEqual(exp_mae, act_mae)
+
+
+    def test_model_id_to_forecast_id_tz_dates_bug(self):
+        # expose a bug in _model_id_to_forecast_id_tz_dates() when season_name != None:
+        # django.core.exceptions.FieldError: Cannot resolve keyword 'forecast' into field. Choices are: cdcdata_set, csv_filename, forecast_model, forecast_model_id, id, scorevalue, time_zero, time_zero_id
+        TimeZero.objects.create(project=self.project, timezero_date='2016-02-01',
+                                is_season_start=True, season_name='season1')
+        _model_id_to_forecast_id_tz_dates(self.project, 'season1')
 
 
     def test_location_to_mean_abs_error_rows_for_project(self):

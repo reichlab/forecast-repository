@@ -24,7 +24,6 @@ def print():
     for project in Project.objects.all():
         click.echo("- {} | {} | {}"
                    .format(project, project.row_count_cache.row_count, project.row_count_cache.last_update))
-        project.row_count_cache.row_count = None
 
 
 @cli.command()

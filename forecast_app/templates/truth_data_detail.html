@@ -51,7 +51,6 @@
     {% if project.is_truth_data_loaded %}
         {% include 'truth_data_snippet.html' with project=project %}
 
-        {# show the file download form with a button dropdown for the download formats #}
         <form id="download_form" class="form-inline" method="POST" action="{% url 'download-truth' project.pk %}">
             {% csrf_token %}
             <button type="submit" class="btn btn-primary">Download CSV</button>

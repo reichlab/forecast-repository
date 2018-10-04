@@ -117,7 +117,7 @@ class UploadFileJob(models.Model):
             queue = django_rq.get_queue()  # name='default'
             job = queue.fetch_job(self.rq_job_id())
             job.cancel()  # NB: just removes it from the queue and won't will kill it if is already executing
-            logger.debug("cancel_rq_job(): Done: {}".format(self))
+            logger.debug("cancel_rq_job(): done: {}".format(self))
         except Exception as exc:
             logger.debug("cancel_rq_job(): Failed: {}, {}".format(exc, self))
 
@@ -131,12 +131,12 @@ class UploadFileJob(models.Model):
         Apps can infer this condition by looking for non-deleted S3 objects whose status != SUCCESS .
         """
         try:
-            logger.debug("delete_s3_object(): Started: {}".format(self))
+            logger.debug("delete_s3_object(): started: {}".format(self))
             s3 = boto3.resource('s3')
             s3.Object(S3_UPLOAD_BUCKET_NAME, self.s3_key()).delete()
-            logger.debug("delete_s3_object(): Done: {}".format(self))
+            logger.debug("delete_s3_object(): done: {}".format(self))
         except Exception as exc:
-            logger.debug("delete_s3_object(): Failed: {}, {}".format(exc, self))
+            logger.debug("delete_s3_object(): failed: {}, {}".format(exc, self))
 
 
 #

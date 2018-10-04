@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Project Score Data: {{ project.name }}{% endblock %}
+
+{% block content %}
+
+    <p class="lead">Project score data for &ldquo;{{ project.name }}&rdquo;</p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <table class="table table-bordered">
+                <tbody>
+                <tr>
+                    <th>Project:</th>
+                    <td><a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <h2>Scores (all models)</h2>
+
+    {% if score_summaries %}
+        <table class="table table-striped table-bordered">
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th># Score Values</th>
+                <th>Last Update</th>
+            </tr>
+            {% for score, num_score_values, last_update in score_summaries %}
+                <tr>
+                    <td>{{ score.name }}</td>
+                    <td>{{ score.description }}</td>
+                    <td>{{ num_score_values }}</td>
+                    <td>{{ last_update.last_update }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>
+            <small class="text-muted">(No scores defined)</small>
+        </p>
+    {% endif %}
+
+    <form id="download_form" class="form-inline" method="POST" action="{% url 'download-scores' project.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Download CSV</button>
+    </form>
+
+
+    <h2>Score Counts (per model)</h2>
+
+    {% if model_score_count_rows %}
+        <div class="row">
+            <div class="col-md-8">
+                <table class="table table-striped table-bordered">
+                    <tr>
+                        <th>Model</th>
+                        <th>Score</th>
+                        <th># Score Values</th>
+                    </tr>
+                    {% for forecast_model, score, count in model_score_count_rows %}
+                        <tr>
+                            <td>
+                                {% if forecast_model %}
+                                    <a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a>
+                                {% else %}{% endif %}
+                            </td>
+                            <td>
+                                {{ score.name }}
+                            </td>
+                            <td>
+                                {{ count }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <p>
+            <small class="text-muted">(No score data)</small>
+        </p>
+    {% endif %}
+
+
+{% endblock %}
