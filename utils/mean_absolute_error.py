@@ -117,42 +117,24 @@ def mean_absolute_error(forecast_model, location_name, target_name,
         be calculated
     """
     forecast_id_to_abs_error = {}
-    for forecast_id, forecast_timezero_date in forecast_id_tz_dates:
-        try:
-            truth_values = loc_target_tz_date_to_truth[location_name][target_name][forecast_timezero_date]
-        except KeyError as ke:
-            logger.warning(
-                "mean_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. location_name={}, "
-                "target_name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
-                    .format(ke.args, location_name, target_name, forecast_timezero_date, loc_target_tz_date_to_truth))
-            continue  # skip this forecast's contribution to the score
 
-        if len(truth_values) == 0:  # truth not available
-            logger.warning("mean_absolute_error(): truth value not found. forecast_model={}, location_name={!r}, "
-                           "target_name={!r}, forecast_id={}, forecast_timezero_date={}"
-                           .format(forecast_model, location_name, target_name, forecast_id, forecast_timezero_date))
-            continue  # skip this forecast's contribution to the score
-        elif len(truth_values) > 1:
-            logger.warning("mean_absolute_error(): >1 truth values found. forecast_model={}, location_name={!r}, "
-                           "target_name={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
-                           .format(forecast_model, location_name, target_name, forecast_id, forecast_timezero_date,
-                                   truth_values))
-            continue  # skip this forecast's contribution to the score
 
-        true_value = truth_values[0]
-        if true_value is None:
-            logger.warning(
-                "mean_absolute_error(): truth value was None. forecast_id={}, location_name={!r}, target_name={!r}, "
-                "forecast_timezero_date={}".format(forecast_id, location_name, target_name, forecast_timezero_date))
-            continue  # skip this forecast's contribution to the score
-
-        predicted_value = forecast_to_point_dict[forecast_id][location_name][target_name]
+    def mae_fcn(forecast_id, forecast_timezero_date, predicted_value, true_value):
         abs_error = abs(predicted_value - true_value)
         forecast_id_to_abs_error[forecast_id] = abs_error
+
+
+    iterate_forecast_errors(forecast_model, location_name, target_name,
+                            forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth,
+                            mae_fcn)
 
     return (sum(forecast_id_to_abs_error.values()) / len(forecast_id_to_abs_error)) if forecast_id_to_abs_error \
         else None
 
+
+#
+# caching functions to speed up prediction and truth calculations
+#
 
 def _model_id_to_forecast_id_tz_dates(project, season_name=None):
     """
@@ -217,3 +199,52 @@ def _model_id_to_point_values_dict(project, target_names, season_name=None):
 
     logger.debug("_model_id_to_point_values_dict(): done ({})".format(len(models_to_point_values_dicts)))
     return models_to_point_values_dicts
+
+
+#
+# iterate_forecast_errors()
+#
+
+def iterate_forecast_errors(forecast_model, location_name, target_name,
+                            forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth,
+                            error_fcn):
+    """
+    A helper function that takes a function of four args and calls it for each forecast id and timezero_date in
+    forecast_id_tz_dates. This function handles various errors related to truth, skipping those forecasts that caused
+    errors. error_fcn's args:
+
+        forecast_id, forecast_timezero_date, predicted_value, true_value
+
+    error_fcn is purely used for its side-effects - this function returns None.
+    """
+    for forecast_id, forecast_timezero_date in forecast_id_tz_dates:
+        try:
+            truth_values = loc_target_tz_date_to_truth[location_name][target_name][forecast_timezero_date]
+        except KeyError as ke:
+            logger.warning("calculate_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. "
+                           "location_name={}, target_name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
+                           .format(ke.args, location_name, target_name, forecast_timezero_date,
+                                   loc_target_tz_date_to_truth))
+            continue  # skip this forecast's contribution to the score
+
+        if len(truth_values) == 0:  # truth not available
+            logger.warning("calculate_absolute_error(): truth value not found. forecast_model={}, location_name={!r}, "
+                           "target_name={!r}, forecast_id={}, forecast_timezero_date={}"
+                           .format(forecast_model, location_name, target_name, forecast_id, forecast_timezero_date))
+            continue  # skip this forecast's contribution to the score
+        elif len(truth_values) > 1:
+            logger.warning("calculate_absolute_error(): >1 truth values found. forecast_model={}, location_name={!r}, "
+                           "target_name={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
+                           .format(forecast_model, location_name, target_name, forecast_id, forecast_timezero_date,
+                                   truth_values))
+            continue  # skip this forecast's contribution to the score
+
+        true_value = truth_values[0]
+        if true_value is None:
+            logger.warning("calculate_absolute_error(): truth value was None. forecast_id={}, location_name={!r}, "
+                           "target_name={!r}, forecast_timezero_date={}"
+                           .format(forecast_id, location_name, target_name, forecast_timezero_date))
+            continue  # skip this forecast's contribution to the score
+
+        predicted_value = forecast_to_point_dict[forecast_id][location_name][target_name]
+        error_fcn(forecast_id, forecast_timezero_date, predicted_value, true_value)

@@ -5,7 +5,8 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Score, ScoreValue, Project
-from utils.mean_absolute_error import _model_id_to_point_values_dict, _model_id_to_forecast_id_tz_dates
+from utils.mean_absolute_error import _model_id_to_point_values_dict, _model_id_to_forecast_id_tz_dates, \
+    iterate_forecast_errors
 
 
 logger = logging.getLogger(__name__)
@@ -75,41 +76,16 @@ def calculate_absolute_error_score_values(project):
         ScoreValue.objects.filter(score=abs_err_score, forecast__forecast_model__project=project).count()))
 
 
-# todo xx almost all code duplicated from mean_absolute_error():
 def calculate_absolute_error(abs_err_score, forecast_model, location, target,
                              forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth):
-    for forecast_id, forecast_timezero_date in forecast_id_tz_dates:
-        try:
-            truth_values = loc_target_tz_date_to_truth[location.name][target.name][forecast_timezero_date]
-        except KeyError as ke:
-            logger.warning("calculate_absolute_error(): loc_target_tz_date_to_truth was missing a key: {}. "
-                           "location.name={}, target.name={}, forecast_timezero_date={}. loc_target_tz_date_to_truth={}"
-                           .format(ke.args, location.name, target.name, forecast_timezero_date,
-                                   loc_target_tz_date_to_truth))
-            continue  # skip this forecast's contribution to the score
-
-        if len(truth_values) == 0:  # truth not available
-            logger.warning("calculate_absolute_error(): truth value not found. forecast_model={}, location.name={!r}, "
-                           "target.name={!r}, forecast_id={}, forecast_timezero_date={}"
-                           .format(forecast_model, location.name, target.name, forecast_id, forecast_timezero_date))
-            continue  # skip this forecast's contribution to the score
-        elif len(truth_values) > 1:
-            logger.warning("calculate_absolute_error(): >1 truth values found. forecast_model={}, location.name={!r}, "
-                           "target.name={!r}, forecast_id={}, forecast_timezero_date={}, truth_values={}"
-                           .format(forecast_model, location.name, target.name, forecast_id, forecast_timezero_date,
-                                   truth_values))
-            continue  # skip this forecast's contribution to the score
-
-        true_value = truth_values[0]
-        if true_value is None:
-            logger.warning("calculate_absolute_error(): truth value was None. forecast_id={}, location.name={!r}, "
-                           "target.name={!r}, forecast_timezero_date={}"
-                           .format(forecast_id, location.name, target.name, forecast_timezero_date))
-            continue  # skip this forecast's contribution to the score
-
-        predicted_value = forecast_to_point_dict[forecast_id][location.name][target.name]
+    def score_value_error_fcn(forecast_id, forecast_timezero_date, predicted_value, true_value):
         ScoreValue.objects.create(forecast_id=forecast_id, location=location, target=target,
                                   score=abs_err_score, value=(abs(true_value - predicted_value)))
+
+
+    iterate_forecast_errors(forecast_model, location.name, target.name,
+                            forecast_to_point_dict, forecast_id_tz_dates, loc_target_tz_date_to_truth,
+                            score_value_error_fcn)
 
 
 #
