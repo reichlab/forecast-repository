@@ -470,13 +470,15 @@ def _write_csv_score_data_for_project(csv_writer, project):
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     location_id_to_obj = {location.pk: location for location in project.locations.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
+    timezero_to_season_name = {timezero: project.season_name_containing_timezero(timezero)
+                               for timezero in project.timezeros.all()}
     for (forecast_model_id, time_zero_id, location_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
         forecast_model = forecast_model_id_to_obj[forecast_model_id]
         timezero = timezero_id_to_obj[time_zero_id]
         location = location_id_to_obj[location_id]
         target = target_id_to_obj[target_id]
-        season = '?'  # todo xx timezero.containing_season_name()
+        season_name = timezero_to_season_name[timezero]
         # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
         #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
         score_groups = list(score_id_value_grouper)
@@ -484,6 +486,6 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
         csv_writer.writerow(
-            [get_valid_filename(forecast_model.name), timezero.timezero_date, get_valid_filename(season),
+            [get_valid_filename(forecast_model.name), timezero.timezero_date, get_valid_filename(season_name),
              get_valid_filename(location.name), get_valid_filename(target.name)]
             + score_values)

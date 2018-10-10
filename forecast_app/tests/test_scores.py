@@ -26,7 +26,8 @@ class ScoresTestCase(TestCase):
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
 
         # load truth only for the TimeZero in truths-2016-2017-reichlab.csv we're testing against
-        time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
+        time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1),
+                                            is_season_start=True, season_name='season1')
         cls.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
@@ -72,6 +73,6 @@ class ScoresTestCase(TestCase):
                 self.assertEqual(exp_row[3], act_row[3])  # location
                 self.assertEqual(exp_row[4], act_row[4])  # target
                 if idx == 0:  # header
-                    self.assertEqual(exp_row[5], act_row[5])  # Absolute_Error
+                    self.assertEqual(exp_row[5], act_row[5])  # Absolute_Error. make sure column name matches score name
                 else:  # float
                     self.assertAlmostEqual(float(exp_row[5]), float(act_row[5]))  # Absolute_Error

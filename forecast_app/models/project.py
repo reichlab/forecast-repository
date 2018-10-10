@@ -168,23 +168,8 @@ class Project(ModelWithCDCData):
 
 
     #
-    # time-related utilities
+    # season-related utilities
     #
-
-    def forecasts_for_timezero(self, timezero):
-        """
-        :param timezero: a TimeZero
-        :return: a list of Forecasts for timezero for each of my models
-        """
-        return [forecast_model.forecast_for_time_zero(timezero) for forecast_model in self.models.all()]
-
-
-    def time_zero_for_timezero_date(self, timezero_date):
-        """
-        :return: the first TimeZero in me that has a timezero_date matching timezero_date
-        """
-        return self.timezeros.filter(timezero_date=timezero_date).first()
-
 
     def seasons(self):
         """
@@ -212,25 +197,25 @@ class Project(ModelWithCDCData):
             up TO the first season.
         """
         # start with all TimeZeros - case #1 (no seasons at all), and filter as needed
-        season_timezeros = self.timezeros.all()
+        season_timezeros_qs = self.timezeros.all()
         if season_name:
-            season_tz = season_timezeros.filter(season_name=season_name).first()
+            season_tz = season_timezeros_qs.filter(season_name=season_name).first()
             if not season_tz:
                 raise RuntimeError("Invalid season_name. season_name={}, seasons={}"
                                    .format(season_name, self.seasons()))
 
-            season_timezeros = season_timezeros.filter(timezero_date__gte=season_tz.timezero_date)
-            next_season_tz = season_timezeros \
+            season_timezeros_qs = season_timezeros_qs.filter(timezero_date__gte=season_tz.timezero_date)
+            next_season_tz = season_timezeros_qs \
                 .filter(is_season_start=True,
                         timezero_date__gt=season_tz.timezero_date) \
                 .first()
             if next_season_tz:
-                season_timezeros = season_timezeros.filter(timezero_date__lt=next_season_tz.timezero_date)
+                season_timezeros_qs = season_timezeros_qs.filter(timezero_date__lt=next_season_tz.timezero_date)
         else:  # no season_name
-            first_season_tz = season_timezeros.filter(is_season_start=True).first()
+            first_season_tz = season_timezeros_qs.filter(is_season_start=True).first()
             if first_season_tz:  # case #2 (seasons after initial TZs)
-                season_timezeros = season_timezeros.filter(timezero_date__lt=first_season_tz.timezero_date)
-        return list(season_timezeros.order_by('timezero_date'))
+                season_timezeros_qs = season_timezeros_qs.filter(timezero_date__lt=first_season_tz.timezero_date)
+        return list(season_timezeros_qs.order_by('timezero_date'))
 
 
     def start_end_dates_for_season(self, season_name):
@@ -244,6 +229,42 @@ class Project(ModelWithCDCData):
             return None
 
         return timezeros[0].timezero_date, timezeros[-1].timezero_date
+
+
+    def season_name_containing_timezero(self, timezero):
+        """
+        :return: season_name of the season that contains timezero, or None if it's not in a season
+        """
+        if timezero not in self.timezeros.all():
+            raise RuntimeError("TimeZero does not belong to project: timezero={}".format(timezero))
+
+        # order my timezeros by date and then iterate from earliest to latest, keeping track of the current season and
+        # returning the first match. must handle two cases: the earliest timezero defines a season, or not
+        containing_season_name = None  # return value. updated in loop
+        for project_timezero in self.timezeros.all().order_by('timezero_date'):
+            if project_timezero.is_season_start:
+                containing_season_name = project_timezero.season_name
+            if project_timezero == timezero:
+                return containing_season_name
+
+
+    #
+    # time-related utilities
+    #
+
+    def forecasts_for_timezero(self, timezero):
+        """
+        :param timezero: a TimeZero
+        :return: a list of Forecasts for timezero for each of my models
+        """
+        return [forecast_model.forecast_for_time_zero(timezero) for forecast_model in self.models.all()]
+
+
+    def time_zero_for_timezero_date(self, timezero_date):
+        """
+        :return: the first TimeZero in me that has a timezero_date matching timezero_date
+        """
+        return self.timezeros.filter(timezero_date=timezero_date).first()
 
 
     def time_interval_type_to_foresight(self):
@@ -446,7 +467,7 @@ class Project(ModelWithCDCData):
         season_name, which is None if I have no seasons.
         """
         logger.debug("location_target_name_tz_date_to_truth(): entered. project={}, season_name={}"
-                 .format(self, season_name))
+                     .format(self, season_name))
         loc_target_tz_date_to_truth = {}
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
