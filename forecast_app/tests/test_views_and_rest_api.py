@@ -142,6 +142,7 @@ class ViewsTestCase(TestCase):
             reverse('empty-rq'): self.ONLY_SU_302,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
             reverse('update-row-count-caches'): self.ONLY_SU_302,
+            reverse('update-all-scores'): self.ONLY_SU_302,
             reverse('delete-file-jobs'): self.ONLY_SU_302,
             reverse('delete-scores'): self.ONLY_SU_302,
             reverse('delete-score-last-updates'): self.ONLY_SU_302,
@@ -211,8 +212,9 @@ class ViewsTestCase(TestCase):
             conn = django_rq.get_connection()  # name='default'
             conn.ping()
             url_to_exp_user_status_code_pairs[reverse('update-row-count-caches')] = self.ONLY_SU_302
-        except redis.exceptions.ConnectionError as exc:
+        except redis.exceptions.ConnectionError:
             url_to_exp_user_status_code_pairs[reverse('update-row-count-caches')] = self.ONLY_SU_200
+            url_to_exp_user_status_code_pairs[reverse('update-all-scores')] = self.ONLY_SU_200
 
         # NB: re: 'forecast-sparkline' URIs: 1) BAD_REQ_400 is expected b/c we don't pass the correct query params.
         # however, 400 does indicate that the code passed the authorization portion. 2) the 'data' arg is only for the

@@ -136,6 +136,17 @@ def clear_row_count_caches(request):
     return redirect('zadmin')  # hard-coded
 
 
+def update_all_scores(request):
+    """
+    View function that enqueues updates of all scores for all projects.
+    """
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    Score.enqueue_update_scores_for_all_projects()
+    return redirect('zadmin')  # hard-coded
+
+
 def update_row_count_caches(request):
     """
     View function that enqueues updates of all projects' RowCountCaches and then returns. Users are not notified when

@@ -165,6 +165,15 @@ class Score(models.Model):
                 django_rq.enqueue(_update_project_scores, score.pk, project.pk)
 
 
+def _update_project_scores(score_pk, project_pk):
+    """
+    Enqueue helper function.
+    """
+    score = get_object_or_404(Score, pk=score_pk)
+    project = get_object_or_404(Project, pk=project_pk)
+    score.update_score(project)
+
+
 #
 # ScoreValue
 #
@@ -215,16 +224,3 @@ class ScoreLastUpdate(models.Model):
 
     def __str__(self):  # todo
         return basic_str(self)
-
-
-#
-# RQ-related queueing functions
-#
-
-def _update_project_scores(score_pk, project_pk):
-    """
-    Enqueue helper function.
-    """
-    score = get_object_or_404(Score, pk=score_pk)
-    project = get_object_or_404(Project, pk=project_pk)
-    score.update_score(project)

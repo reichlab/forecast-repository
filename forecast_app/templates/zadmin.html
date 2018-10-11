@@ -129,6 +129,11 @@
             <small class="text-muted">(No scores)</small>
         </p>
     {% endif %}
+    <form class="form-inline" style="display: inline-block;" method="POST"
+          action="{% url 'update-all-scores' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Update All</button>
+    </form>
 
 
     <h2>ScoreLastUpdates</h2>
