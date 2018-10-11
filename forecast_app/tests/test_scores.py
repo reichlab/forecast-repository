@@ -9,6 +9,7 @@ from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score
+from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 
 
@@ -36,14 +37,15 @@ class ScoresTestCase(TestCase):
     def test_score_creation(self):
         # test creation of the current Scores/types
         Score.ensure_all_scores_exist()
-        self.assertEqual(2, Score.objects.count())
-        self.assertEqual({Score.ERROR_SCORE_TYPE, Score.ABS_ERROR_SCORE_TYPE},
-                         set([score.score_type for score in Score.objects.all()]))
+        self.assertEqual(3, Score.objects.count())
+        self.assertEqual(set(SCORE_ABBREV_TO_NAME_AND_DESCR.keys()),
+                         set([score.abbreviation for score in Score.objects.all()]))
 
 
     def test_absolute_error_score(self):
-        # test ABS_ERROR_SCORE_TYPE
-        score, is_created = Score.score_type_to_score_and_is_created(Score.ABS_ERROR_SCORE_TYPE)
+        # sanity-test 'Absolute Error'
+        Score.ensure_all_scores_exist()
+        score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score(self.project)
 
         # test creation of a ScoreLastUpdate entry. we don't test score_last_update.last_update
@@ -74,15 +76,26 @@ class ScoresTestCase(TestCase):
         act_csv_reader = csv.reader(string_io, delimiter=',')  # Location, Target, predicted_value, truth_value, abs_err
         act_rows = list(act_csv_reader)
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17_exp-download.csv', 'r') as fp:
-            exp_csv_reader = csv.reader(fp, delimiter=',')  # model,timezero,season,location,target,Absolute_Error
+            # each row: model,timezero,season,location,target,error,abs_error,const
+            exp_csv_reader = csv.reader(fp, delimiter=',')
             exp_rows = list(exp_csv_reader)
             for idx, (exp_row, act_row) in enumerate(zip(exp_rows, act_rows)):
+                if idx == 0:  # header
+                    exp_header = ['model', 'timezero', 'season', 'location', 'target', 'error', 'abs_error', 'const']
+                    self.assertEqual(exp_header, act_row)
+                    continue
+
                 self.assertEqual(exp_row[0], act_row[0])  # model
-                self.assertEqual(exp_row[1], act_row[1])  # timezero
+                self.assertEqual(exp_row[1], act_row[1])  # timezero. format: YYYYMMDD_DATE_FORMAT
                 self.assertEqual(exp_row[2], act_row[2])  # season
                 self.assertEqual(exp_row[3], act_row[3])  # location
                 self.assertEqual(exp_row[4], act_row[4])  # target
-                if idx == 0:  # header
-                    self.assertEqual(exp_row[5], act_row[5])  # Absolute_Error. make sure column name matches score name
-                else:  # float
-                    self.assertAlmostEqual(float(exp_row[5]), float(act_row[5]))  # Absolute_Error
+
+                # test values: error, abs_error, const. any could be ''
+                def test_float_or_empty(exp_val, act_val):
+                    self.assertEqual(exp_val, act_val) if not exp_val \
+                        else self.assertAlmostEqual(float(exp_val), float(act_val))
+
+                test_float_or_empty(exp_row[5], act_row[5])
+                test_float_or_empty(exp_row[6], act_row[6])
+                test_float_or_empty(exp_row[7], act_row[7])
