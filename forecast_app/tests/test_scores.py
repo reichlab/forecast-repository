@@ -10,7 +10,6 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.scores import calculate_absolute_error_score_values, ABSOLUTE_ERROR_SCORE_NAME
 
 
 class ScoresTestCase(TestCase):
@@ -34,11 +33,22 @@ class ScoresTestCase(TestCase):
         cls.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
 
 
-    def test_abs_error_score(self):
-        # test creates a correctly-named Score
-        calculate_absolute_error_score_values(self.project)
-        abs_err_score = Score.objects.filter(name=ABSOLUTE_ERROR_SCORE_NAME).first()
-        self.assertIsNotNone(abs_err_score)
+    def test_score_creation(self):
+        # test creation of the current Scores/types
+        Score.ensure_all_scores_exist()
+        self.assertEqual(2, Score.objects.count())
+        self.assertEqual({Score.ERROR_SCORE_TYPE, Score.ABS_ERROR_SCORE_TYPE},
+                         set([score.score_type for score in Score.objects.all()]))
+
+
+    def test_absolute_error_score(self):
+        # test ABS_ERROR_SCORE_TYPE
+        score, is_created = Score.score_type_to_score_and_is_created(Score.ABS_ERROR_SCORE_TYPE)
+        score.update_score(self.project)
+
+        # test creation of a ScoreLastUpdate entry. we don't test score_last_update.last_update
+        score_last_update = score.last_update_for_project(self.project)
+        self.assertIsNotNone(score_last_update)
 
         # test score values
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17_exp-abs-errors.csv', 'r') as fp:
@@ -47,7 +57,7 @@ class ScoresTestCase(TestCase):
             exp_rows = sorted([(i[0], i[1], i[-1]) for i in csv_reader])  # Location, Target, abs_err
 
             # convert actual rows from IDs into strings for readability
-            act_rows = sorted(abs_err_score.values.values_list('location__name', 'target__name', 'value'))
+            act_rows = sorted(score.values.values_list('location__name', 'target__name', 'value'))
             for exp_row, act_row in zip(exp_rows, act_rows):
                 self.assertEqual(exp_row[0], act_row[0])  # location name
                 self.assertEqual(exp_row[1], act_row[1])  # target name
@@ -55,7 +65,7 @@ class ScoresTestCase(TestCase):
 
 
     def test_download_scores(self):
-        calculate_absolute_error_score_values(self.project)
+        Score.update_scores_for_all_projects()
         string_io = io.StringIO()
         csv_writer = csv.writer(string_io, delimiter=',')
         _write_csv_score_data_for_project(csv_writer, self.project)

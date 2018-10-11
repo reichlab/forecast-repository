@@ -9,7 +9,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
+from forecast_app.api_views import score_csv_header_prefix
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
@@ -574,7 +574,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response['Content-Type'], "text/csv")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')
         split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(split_content[0], ','.join(SCORE_CSV_HEADER_PREFIX))
+        self.assertEqual(split_content[0], ','.join(score_csv_header_prefix))
         self.assertEqual(len(split_content), 2)  # no score data
 
 

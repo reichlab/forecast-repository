@@ -1,12 +1,12 @@
 import click
 import django
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+django.setup()
+
 from utils.make_cdc_flu_contests_project import CDC_PROJECT_NAME
 from utils.make_thai_moph_project import THAI_PROJECT_NAME
-
-
-django.setup()
 from utils.make_minimal_projects import MINIMAL_PROJECT_NAMES
 
 from django.contrib.auth.models import User

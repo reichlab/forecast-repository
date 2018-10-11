@@ -393,7 +393,7 @@ def csv_response_for_project_truth_data(project):
 # Score data-related functions
 #
 
-SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'location', 'target']
+score_csv_header_prefix = ['model', 'timezero', 'season', 'location', 'target']
 
 
 def csv_response_for_project_score_data(project):
@@ -444,9 +444,9 @@ def _write_csv_score_data_for_project(csv_writer, project):
     # re: scores order: it is crucial that order matches query ORDER BY ... sv.score_id so that columns match values
     scores = Score.objects.all().order_by('pk')
 
-    # write hearder
-    SCORE_CSV_HEADER = SCORE_CSV_HEADER_PREFIX + [get_valid_filename(score.name) for score in scores]
-    csv_writer.writerow(SCORE_CSV_HEADER)
+    # write headder
+    score_csv_header = score_csv_header_prefix + [score.csv_column_name() for score in scores]
+    csv_writer.writerow(score_csv_header)
 
     # get the raw rows - sorted so groupby() will work
     sql = """
