@@ -88,8 +88,8 @@ def _rq_jobs_for_queue(rq_queue):
     :return: a list of Jobs in rq_queue, handling the connection errors that happen when redis-server is not running.
     """
     try:
-        return rq_queue.jobs  # todo xx
-    except redis.exceptions.ConnectionError as exc:
+        return rq_queue.jobs
+    except redis.exceptions.ConnectionError:
         return []
 
 
@@ -97,9 +97,12 @@ def empty_rq(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    queue = django_rq.get_queue()  # name='default'
-    queue.empty()
-    messages.success(request, "Emptied the queue.")
+    try:
+        queue = django_rq.get_queue()  # name='default'
+        queue.empty()
+        messages.success(request, "Emptied the queue.")
+    except redis.exceptions.ConnectionError as ce:
+        messages.warning(request, "Error emptying queue: {}.".format(ce))
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
 
 
@@ -143,7 +146,10 @@ def update_all_scores(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    Score.enqueue_update_scores_for_all_projects()
+    try:
+        Score.enqueue_update_scores_for_all_projects()
+    except redis.exceptions.ConnectionError as ce:
+        messages.warning(request, "Error updating scores: {}.".format(ce))
     return redirect('zadmin')  # hard-coded
 
 
@@ -160,12 +166,9 @@ def update_row_count_caches(request):
     try:
         enqueue_row_count_updates_all_projs()
         messages.success(request, "Scheduled updating row count caches for all projects.")
-        return redirect('zadmin')  # hard-coded
-    except redis.exceptions.ConnectionError as exc:
-        return render(request, 'message.html',
-                      context={'title': "Got an error connecting to Redis.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
-                                   exc)})
+    except redis.exceptions.ConnectionError as ce:
+        messages.warning(request, "Error updating row count caches: {}.".format(ce))
+    return redirect('zadmin')  # hard-coded
 
 
 def enqueue_row_count_updates_all_projs():

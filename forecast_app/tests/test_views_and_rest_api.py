@@ -205,17 +205,6 @@ class ViewsTestCase(TestCase):
             reverse('forecast-sparkline', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
         }
 
-        # handle case of no Redis connection (e.g., when no server running):
-        # - yes connection -> self.ONLY_SU_302
-        # - no connection -> self.ONLY_SU_200 (message.html)
-        try:
-            conn = django_rq.get_connection()  # name='default'
-            conn.ping()
-            url_to_exp_user_status_code_pairs[reverse('update-row-count-caches')] = self.ONLY_SU_302
-        except redis.exceptions.ConnectionError:
-            url_to_exp_user_status_code_pairs[reverse('update-row-count-caches')] = self.ONLY_SU_200
-            url_to_exp_user_status_code_pairs[reverse('update-all-scores')] = self.ONLY_SU_200
-
         # NB: re: 'forecast-sparkline' URIs: 1) BAD_REQ_400 is expected b/c we don't pass the correct query params.
         # however, 400 does indicate that the code passed the authorization portion. 2) the 'data' arg is only for the
         # two 'forecast-sparkline' cases, but it doesn't hurt to pass it for all cases, so we do b/c it's simpler :-)
@@ -230,6 +219,8 @@ class ViewsTestCase(TestCase):
                         else self.superuser_password
                     self.client.login(username=user.username, password=password)
                 response = self.client.get(url, data={'location': None, 'target': None})
+                if exp_status_code != response.status_code:
+                    print('  xx', url, user, exp_status_code, response.status_code)
                 self.assertEqual(exp_status_code, response.status_code)
 
 
