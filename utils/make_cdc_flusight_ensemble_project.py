@@ -169,7 +169,7 @@ def load_cdc_flusight_ensemble_forecasts(project, model_dirs_to_load, template_5
             click.echo("Warning: model_dir was not a directory: {}".format(model_dir))
             continue
 
-        click.echo("** {}/{}: {}".format(idx, len(model_dirs_to_load), model_dir))
+        click.echo("** {}/{}: {}".format(idx, len(model_dirs_to_load) - 1, model_dir))
         metadata_dict = metadata_dict_for_file(model_dir / 'metadata.txt')
         model_name = metadata_dict['model_name']
         forecast_model = project.models.filter(name=model_name).first()

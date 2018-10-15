@@ -478,7 +478,9 @@ def _write_csv_score_data_for_project(csv_writer, project):
         timezero = timezero_id_to_obj[time_zero_id]
         location = location_id_to_obj[location_id]
         target = target_id_to_obj[target_id]
-        season_name = timezero_to_season_name[timezero]
+        # following step to convert None to '' is necessary b/c we use get_valid_filename(season_name), which bypasses
+        # csv.writer's correct handling of None -> ''
+        season_name = timezero_to_season_name[timezero] if timezero_to_season_name[timezero] is not None else ''
         # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
         #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
         score_groups = list(score_id_value_grouper)
