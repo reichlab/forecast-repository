@@ -213,13 +213,13 @@ class ScoreLastUpdate(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
 
     # datetime at the last update. auto_now: automatically set the field to now every time the object is saved.
-    last_update = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     score = models.ForeignKey(Score, on_delete=models.CASCADE)
 
 
     def __repr__(self):
-        return str((self.pk, self.project, self.last_update, self.score))
+        return str((self.pk, self.project, self.updated_at, self.score))
 
 
     def __str__(self):  # todo

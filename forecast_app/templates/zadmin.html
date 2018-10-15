@@ -108,7 +108,7 @@
                             {{ project.row_count_cache.row_count|intcomma }}
                         </td>
                         <td>
-                            {{ project.row_count_cache.last_update|date:"Y-m-d h:i:s" }}
+                            {{ project.row_count_cache.updated_at|date:"Y-m-d h:i:s" }}
                         </td>
                     </tr>
                 {% endwith %}

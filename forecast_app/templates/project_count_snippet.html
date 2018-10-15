@@ -7,4 +7,4 @@
 (estimated){% if project.row_count_cache.row_count != None %},
     {% if use_intword %}{{ project.row_count_cache.row_count|intword|intcomma }}{% else %}{{ project.row_count_cache.row_count|intcomma }}{% endif %}
     row{{ project.row_count_cache.row_count|pluralize }} (actual) as of
-    {{ project.row_count_cache.last_update|date:"Y-m-d" }}{% endif %}
+    {{ project.row_count_cache.updated_at|date:"Y-m-d" }}{% endif %}

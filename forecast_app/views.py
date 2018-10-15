@@ -63,15 +63,15 @@ def zadmin(request):
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
     score_last_update_rows = []
-    for score_last_update in ScoreLastUpdate.objects.order_by('-last_update'):
+    for score_last_update in ScoreLastUpdate.objects.order_by('-updated_at'):
         score_last_update_rows.append((score_last_update.project,
                                        score_last_update.score,
                                        score_last_update.score.num_score_values_for_project(score_last_update.project),
-                                       score_last_update.last_update))
+                                       score_last_update.updated_at))
 
     return render(
         request, 'zadmin.html',
-        context={'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__last_update'),
+        context={'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
                  'projects_sort_pk': Project.objects.order_by('pk'),
                  'rq_conn': rq_conn,
                  'rq_queue': rq_queue,

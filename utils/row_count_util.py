@@ -23,7 +23,7 @@ def print():
     click.echo("row count caches:")
     for project in Project.objects.all():
         click.echo("- {} | {} | {}"
-                   .format(project, project.row_count_cache.row_count, project.row_count_cache.last_update))
+                   .format(project, project.row_count_cache.row_count, project.row_count_cache.updated_at))
 
 
 @cli.command()

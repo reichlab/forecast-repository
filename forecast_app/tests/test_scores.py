@@ -48,7 +48,7 @@ class ScoresTestCase(TestCase):
         score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score(self.project)
 
-        # test creation of a ScoreLastUpdate entry. we don't test score_last_update.last_update
+        # test creation of a ScoreLastUpdate entry. we don't test score_last_update.updated_at
         score_last_update = score.last_update_for_project(self.project)
         self.assertIsNotNone(score_last_update)
 

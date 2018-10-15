@@ -35,7 +35,7 @@ def print():
             score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project)
             click.echo("  + pk={} | '{}' | '{}' | num={} | {}"
                        .format(score.pk, score.abbreviation, score.name, score_values_qs.count(),
-                               score_last_update.last_update if score_last_update else 'no update'))
+                               score_last_update.updated_at if score_last_update else 'no update'))
 
 
 @cli.command()
