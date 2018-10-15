@@ -10,7 +10,8 @@ import django
 django.setup()
 
 from forecast_app.models import Project, TimeZero, ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
+    CDC_CONFIG_DICT
 
 
 #
@@ -79,7 +80,10 @@ def make_minimal_projects_app():
 
 
 def fill_project(project, mo_user):
+    # make the Locations and Targets
     make_cdc_locations_and_targets(project)
+
+    # make a few TimeZeros that match the small template, truth, and forecast data
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))
     #   -> {'year': 2017, 'week': 3, 'day': 3}
     time_zero1 = TimeZero.objects.create(project=project,
@@ -89,19 +93,25 @@ def fill_project(project, mo_user):
                             timezero_date=datetime.date(2017, 1, 24),
                             data_version_date=None)
 
-    # template_path = Path('forecast_app/tests/2016-2017_submission_template.csv')
+    # load the template
     template_path = Path('forecast_app/tests/2016-2017_submission_template-small.csv')
     click.echo("* loading template into project={}, template_path={}".format(project, template_path))
     start_time = timeit.default_timer()
     project.load_template(template_path)
     click.echo("  loaded template: {}. {}".format(project.csv_filename, timeit.default_timer() - start_time))
 
+    # load the truth data
+    project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
+
+    # create the models
     click.echo("creating ForecastModel")
     forecast_model1 = ForecastModel.objects.create(project=project,
                                                    name='Test ForecastModel1',
                                                    description="a ForecastModel for testing",
                                                    home_url='http://example.com',
                                                    owner=mo_user)
+
+    # load the forecasts using the small data file
     # csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))

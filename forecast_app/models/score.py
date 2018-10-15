@@ -123,8 +123,8 @@ class Score(models.Model):
         """
         The top-level method for updating a project's score. You should call this rather than directly calling the
         'calc_*()' methods b/c this method does some important pre- and post-calculation housekeeping. Runs in the
-        calling thread and therefore blocks. Use score_type_to_score_and_is_created() to map a *_SCORE_TYPE int to the corresponding
-        Score instance.
+        calling thread and therefore blocks. Use score_type_to_score_and_is_created() to map a *_SCORE_TYPE int to the
+        corresponding Score instance.
         """
         import forecast_app.scores.definitions
 

@@ -25,7 +25,7 @@ def print():
     for score in Score.objects.all():
         click.echo("- {} | {}".format(score, ScoreValue.objects.filter(score=score).count()))
 
-    # by Project. NB nested loops are the dumb/slow way. todo xx use LEFT OUTER JOIN, GROUP BY, etc.
+    # by Project
     click.echo("\n* project scores. {}".format(SCORE_ABBREV_TO_NAME_AND_DESCR))
     for project in Project.objects.all():
         click.echo("- {}".format(project.name))
@@ -44,7 +44,6 @@ def clear():
     A subcommand that resets all projects' scores in the calling thread, and therefore blocks.
     """
     click.echo("clearing all projects' scores")
-    # NB nested loops are the dumb/slow way. todo xx use LEFT OUTER JOIN, GROUP BY, etc.
     for project in Project.objects.all():
         for score in Score.objects.all():
             click.echo("- clearing {} > {}".format(project, score))
