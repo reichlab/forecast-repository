@@ -39,8 +39,8 @@ def print():
 
     click.echo("\n* Score Forecasts:")
     for score in Score.objects.all().order_by('name'):
-        for project in Project.objects.order_by('name'):
-            for forecast_model in project.models.all().order_by('project__id', 'name'):
+        for project in Project.objects.all():
+            for forecast_model in project.models.all().order_by('project__name', 'name'):
                 score_last_update = score.last_update_for_forecast_model(forecast_model)  # None o/w
                 score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project)
                 last_update_str = '{:%Y-%m-%d %H:%M:%S}'.format(score_last_update.updated_at) if score_last_update \

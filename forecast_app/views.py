@@ -63,7 +63,8 @@ def zadmin(request):
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
     score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
-    for score_last_update in ScoreLastUpdate.objects.order_by('-updated_at'):
+    for score_last_update in ScoreLastUpdate.objects \
+            .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
         score_last_update_rows.append(
             (score_last_update.forecast_model,
              score_last_update.score,
