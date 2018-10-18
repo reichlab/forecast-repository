@@ -440,8 +440,8 @@ def _write_csv_score_data_for_project(csv_writer, project):
 
     Notes:
     - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
-    - we use get_valid_filename() to ensure values are CSV-compliant, i.e., no commas, returns, tabs, etc. Using that
-      function is as good as any :-)
+    - NB: we were using get_valid_filename() to ensure values are CSV-compliant, i.e., no commas, returns, tabs, etc.
+      (a function that was as good as any), but we removed it to help performance in the loop
     - we use groupby to group row 'keys' so that all score values are together
     """
     # re: scores order: it is crucial that order matches query ORDER BY ... sv.score_id so that columns match values
@@ -472,11 +472,11 @@ def _write_csv_score_data_for_project(csv_writer, project):
     # write grouped rows
     logger.debug("_write_csv_score_data_for_project(): preparing to iterate")
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
-    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
+    timezeros = project.timezeros.all()
+    timezero_id_to_obj = {timezero.pk: timezero for timezero in timezeros}
     location_id_to_obj = {location.pk: location for location in project.locations.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
-    timezero_to_season_name = {timezero: project.season_name_containing_timezero(timezero)
-                               for timezero in project.timezeros.all()}
+    timezero_to_season_name = {timezero: project.season_name_containing_timezero(timezero) for timezero in timezeros}
     logger.debug("_write_csv_score_data_for_project(): iterating")
     for (forecast_model_id, time_zero_id, location_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
@@ -484,17 +484,12 @@ def _write_csv_score_data_for_project(csv_writer, project):
         timezero = timezero_id_to_obj[time_zero_id]
         location = location_id_to_obj[location_id]
         target = target_id_to_obj[target_id]
-        # following step to convert None to '' is necessary b/c we use get_valid_filename(season_name), which bypasses
-        # csv.writer's correct handling of None -> ''
-        season_name = timezero_to_season_name[timezero] if timezero_to_season_name[timezero] is not None else ''
         # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
         #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
         score_groups = list(score_id_value_grouper)
-        # NB: if a score is missing then we need to use '' for it so that scores align with the header:
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
-        csv_writer.writerow(
-            [get_valid_filename(forecast_model.name), timezero.timezero_date, get_valid_filename(season_name),
-             get_valid_filename(location.name), get_valid_filename(target.name)]
-            + score_values)
+        csv_writer.writerow([forecast_model.name, timezero.timezero_date, timezero_to_season_name[timezero],
+                             location.name, target.name]
+                            + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")

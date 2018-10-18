@@ -397,6 +397,7 @@ def _model_score_count_rows_for_project(project):
     """
     :return list of rows summarizing score information for project
     """
+    # todo xx use meta for column names, e.g., self.cdc_data_class._meta.get_field('location').column
     sql = """
         SELECT fm.id, sv.score_id, count(fm.id)
         FROM {scorevalue_table_name} AS sv
