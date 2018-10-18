@@ -4,7 +4,7 @@ import django_rq
 from django.db import models
 from django.shortcuts import get_object_or_404
 
-from forecast_app.models import Forecast, Project
+from forecast_app.models import Forecast, Project, ForecastModel
 from utils.utilities import basic_str
 
 
@@ -20,12 +20,12 @@ class Score(models.Model):
     Represents the definition of a score. In our terminology, a `Score` has corresponding `ScoreValue` objects.
     Example scores: `Error`, `Absolute Error`, `Log Score`, and `Multi Bin Log Score`.
 
-    Design notes: We needed a way to represent arbitrary scores in a way that was clean and generalizable, but with
-    minimal impact to migrations, etc. After looking at many options, including the inbuilt ones
+    Design notes: We needed a way to represent arbitrary scores in a way that was fairly clean and generalizable, but
+    with minimal impact to migrations, etc. After looking at many options, including the inbuilt ones
     ( https://docs.djangoproject.com/en/1.11/topics/db/models/#model-inheritance ) and third party ones like
     https://django-polymorphic.readthedocs.io/ and
     https://django-model-utils.readthedocs.io/en/latest/managers.html#inheritancemanager , we decided to simply store
-    a text abbreviation for each Score, which is used to look up the corresponding function to call in the (hard-coded)
+    a text abbreviation for each Score and use that to look up the corresponding function to call in the hard-coded
     forecast_app.scores.definitions module.
 
     To add a new score:
@@ -37,19 +37,20 @@ class Score(models.Model):
        - The abbreviation is used to obtain the function name to call that calculates it by creating ScoreValue entries
          for a particular Score and Project. The naming convention for these functions is documented in #2 next.
     2. Define a function in the forecast_app.scores.definitions module named `calc_<abbreviation>`, where <abbreviation>
-       is the one from your score definition in #1. The function will be passed two arguments: score and project. It
-       should create ScoreValues for every Forecast in the Project.
+       is the one from your score definition in #1. The function will be passed two arguments: score and forecast_model.
+       It should create ScoreValues for every Forecast in the model.
     3. Call Score.ensure_all_scores_exist().
 
     Notes:
-    - To update a particular score for a particular project, call update_score() rather than directly calling the
-      'calc_*()' method (see update_score() docs for details)
+    - To update a particular score for a particular ForecastModel, call update_score_for_model() rather than directly
+       calling the 'calc_*()' method (see update_score_for_model() docs for details).
     - Newly-created scores will require restarting the web and any worker processes so they have the definitions
       available to them.
     """
 
     abbreviation = models.CharField(max_length=200, help_text="Short name used as a column header for this score in "
-                                                              "downloaded CSV score files.")
+                                                              "downloaded CSV score files. Also used to look up the "
+                                                              "Score's calculation function name.")
 
     name = models.CharField(max_length=200, help_text="The score's name, e.g., 'Absolute Error'.")
 
@@ -71,6 +72,13 @@ class Score(models.Model):
         return ScoreValue.objects.filter(score=self).count()
 
 
+    def num_score_values_for_model(self, forecast_model):
+        """
+        Returns # ScoreValues for me related to project.
+        """
+        return ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model).count()
+
+
     def num_score_values_for_project(self, project):
         """
         Returns # ScoreValues for me related to project.
@@ -78,18 +86,25 @@ class Score(models.Model):
         return ScoreValue.objects.filter(score=self, forecast__forecast_model__project=project).count()
 
 
+    def last_update_for_forecast_model(self, forecast_model):
+        """
+        :return: my ScoreLastUpdate for forecast_model, or None if no entry
+        """
+        return ScoreLastUpdate.objects.filter(forecast_model=forecast_model, score=self).first()  # None o/w
+
+
     def last_update_for_project(self, project):
         """
         :return: my ScoreLastUpdate for project, or None if no entry
         """
-        return ScoreLastUpdate.objects.filter(project=project, score=self).first()  # None o/w
+        return ScoreLastUpdate.objects.filter(forecast_model__project=project, score=self).first()  # None o/w
 
 
-    def set_last_update_for_project(self, project):
+    def set_last_update_for_forecast_model(self, forecast_model):
         """
         Updates my ScoreLastUpdate for project, creating it if necessary.
         """
-        score_last_update, is_created = ScoreLastUpdate.objects.get_or_create(project=project, score=self)
+        score_last_update, is_created = ScoreLastUpdate.objects.get_or_create(forecast_model=forecast_model, score=self)
         score_last_update.save()  # triggers last_update's auto_now
 
 
@@ -119,38 +134,27 @@ class Score(models.Model):
                 logger.debug("ensure_all_scores_exist(): created Score: {}".format(score))
 
 
-    def update_score(self, project):
+    def update_score_for_model(self, forecast_model):
         """
-        The top-level method for updating a project's score. You should call this rather than directly calling the
-        'calc_*()' methods b/c this method does some important pre- and post-calculation housekeeping. Runs in the
-        calling thread and therefore blocks. Use score_type_to_score_and_is_created() to map a *_SCORE_TYPE int to the
-        corresponding Score instance.
+        The top-level method for updating this score for forecast_model. You should call this rather than directly
+        calling the 'calc_*()' methods b/c this method does some important pre- and post-calculation housekeeping.
+        Runs in the calling thread and therefore blocks.
         """
         import forecast_app.scores.definitions
 
 
-        logger.debug("update_score(): entered. score={}, project={}".format(self, project))
+        logger.debug("update_score_for_model(): entered. score={}, forecast_model={}".format(self, forecast_model))
 
-        logger.debug("update_score(): deleting existing ScoreValues for project")
-        ScoreValue.objects.filter(score=self, forecast__forecast_model__project=project).delete()
+        logger.debug("update_score_for_model(): deleting existing ScoreValues for model")
+        ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model).delete()
 
+        # e.g., 'calc_error' or 'calc_abs_error':
         calc_function = getattr(forecast_app.scores.definitions, 'calc_' + self.abbreviation)
-        logger.debug("update_score(): calling calculation function: {}".format(calc_function))
-        calc_function(self, project)
+        logger.debug("update_score_for_model(): calling calculation function: {}".format(calc_function))
+        calc_function(self, forecast_model)
 
-        self.set_last_update_for_project(project)
+        self.set_last_update_for_forecast_model(forecast_model)
         logger.debug("update_score(): done. created {} ScoreValues".format(self.num_score_values()))
-
-
-    @classmethod
-    def update_scores_for_all_projects(cls):
-        """
-        Update all scores for all projects. Limited usefulness b/c runs in the calling thread and therefore blocks.
-        """
-        Score.ensure_all_scores_exist()
-        for score in cls.objects.all():
-            for project in Project.objects.all():
-                score.update_score(project)
 
 
     @classmethod
@@ -161,17 +165,19 @@ class Score(models.Model):
         Score.ensure_all_scores_exist()
         for score in cls.objects.all():
             for project in Project.objects.all():
-                logger.debug("enqueuing update project scores. score={}, project={}".format(score, project))
-                django_rq.enqueue(_update_project_scores, score.pk, project.pk)
+                for forecast_model in project.models.all():
+                    logger.debug("enqueuing update project scores. score={}, forecast_model={}"
+                                 .format(score, forecast_model))
+                    django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
 
 
-def _update_project_scores(score_pk, project_pk):
+def _update_model_scores(score_pk, forecast_model_pk):
     """
     Enqueue helper function.
     """
     score = get_object_or_404(Score, pk=score_pk)
-    project = get_object_or_404(Project, pk=project_pk)
-    score.update_score(project)
+    forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
+    score.update_score_for_model(forecast_model)
 
 
 #
@@ -207,10 +213,10 @@ class ScoreValue(models.Model):
 
 class ScoreLastUpdate(models.Model):
     """
-    Similar to RowCountCache, records the last time a particular Score was updated for a particular Project.
+    Similar to RowCountCache, records the last time a particular Score was updated for a particular ForecastModel.
     """
 
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    forecast_model = models.ForeignKey(ForecastModel, on_delete=models.CASCADE)
 
     # datetime at the last update. auto_now: automatically set the field to now every time the object is saved.
     updated_at = models.DateTimeField(auto_now=True)
@@ -219,7 +225,7 @@ class ScoreLastUpdate(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.project, self.updated_at, self.score))
+        return str((self.pk, self.forecast_model, self.updated_at, self.score))
 
 
     def __str__(self):  # todo

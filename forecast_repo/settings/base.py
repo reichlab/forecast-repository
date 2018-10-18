@@ -80,7 +80,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
 
         # 'DIRS': [],
-        # per https://stackoverflow.com/questions/25991081/cant-modify-django-rest-framework-base-html-file :
+        # https://stackoverflow.com/questions/25991081/cant-modify-django-rest-framework-base-html-file :
         'DIRS': [os.path.join(BASE_DIR, 'templates')],
 
         'APP_DIRS': True,
@@ -164,7 +164,7 @@ LOGIN_REDIRECT_URL = '/'
 INTERNAL_IPS = ['127.0.0.1']
 
 #
-# set tags to match Bootstrap 3, per https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
+# set tags to match Bootstrap 3, https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
 #
 
 from django.contrib.messages import constants as message_constants

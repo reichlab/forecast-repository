@@ -1,18 +1,31 @@
 import click
 import django
+import django_rq
+from django.shortcuts import get_object_or_404
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
+from forecast_app.models.score import _update_model_scores
+
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 
-from forecast_app.models import Score, ScoreValue, Project
+from forecast_app.models import Score, ScoreValue, Project, ForecastModel
 
 
-@click.group()
-def cli():
-    pass
+# https://stackoverflow.com/questions/44051647/get-params-sent-to-a-subcommand-of-a-click-group
+class MyGroup(click.Group):
+    def invoke(self, ctx):
+        ctx.obj = tuple(ctx.args)
+        super().invoke(ctx)
+
+
+@click.group(cls=MyGroup)
+@click.pass_context
+def cli(ctx):
+    args = ctx.obj
+    click.echo('cli: {} {}'.format(ctx.invoked_subcommand, ' '.join(args)))
 
 
 @cli.command()
@@ -29,13 +42,14 @@ def print():
     click.echo("\n* project scores. {}".format(SCORE_ABBREV_TO_NAME_AND_DESCR))
     for project in Project.objects.all():
         click.echo("- {}".format(project.name))
-        for score in Score.objects.all():
-            # abbreviation, name, description = Score.SCORE_TYPE_TO_INFO[score.score_type]
-            score_last_update = score.last_update_for_project(project)  # None o/w
-            score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project)
-            click.echo("  + pk={} | '{}' | '{}' | num={} | {}"
-                       .format(score.pk, score.abbreviation, score.name, score_values_qs.count(),
-                               score_last_update.updated_at if score_last_update else 'no update'))
+        for forecast_model in project.models.all():
+            for score in Score.objects.all():
+                # abbreviation, name, description = Score.SCORE_TYPE_TO_INFO[score.score_type]
+                score_last_update = score.last_update_for_forecast_model(forecast_model)  # None o/w
+                score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project)
+                click.echo("  + pk={} | '{}' | '{}' | num={} | {}"
+                           .format(score.pk, score.abbreviation, score.name, score_values_qs.count(),
+                                   score_last_update.updated_at if score_last_update else 'no update'))
 
 
 @cli.command()
@@ -64,12 +78,19 @@ def delete():
 
 
 @cli.command()
-def update():
+@click.option('--model-pk')
+def update(model_pk):
     """
-    A subcommand that enqueues updating all projects' 'Absolute Error' score.
+    A subcommand that enqueues updating all projects' scores, or scores for a single model if model_pk is valid.
     """
-    click.echo("enqueuing all projects' scores...")
-    Score.enqueue_update_scores_for_all_projects()
+    if model_pk:
+        forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
+        click.echo("enqueuing scores. forecast_model={}".format(forecast_model))
+        for score in Score.objects.all():
+            django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+    else:
+        click.echo("enqueuing scores for all projects")
+        Score.enqueue_update_scores_for_all_projects()
     click.echo("enqueuing done")
 
 

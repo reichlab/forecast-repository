@@ -32,7 +32,7 @@ class RowCountCache(models.Model):
         return basic_str(self)
 
 
-# per https://stackoverflow.com/questions/1652550/can-django-automatically-create-a-related-one-to-one-model
+# https://stackoverflow.com/questions/1652550/can-django-automatically-create-a-related-one-to-one-model
 # NB: because this is the only place a RowCountCache is created, it means existing projects will not have one added,
 # which will cause problems b/c RowCountCache-related code assumes one exists
 @receiver(post_save, sender=Project)

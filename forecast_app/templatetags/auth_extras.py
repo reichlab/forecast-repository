@@ -6,7 +6,7 @@ register = template.Library()
 
 
 #
-# per https://stackoverflow.com/questions/34571880/how-to-check-in-template-if-user-belongs-to-a-group
+# https://stackoverflow.com/questions/34571880/how-to-check-in-template-if-user-belongs-to-a-group
 #
 # In your base.html (template) use the following:
 #   {% load auth_extras %}

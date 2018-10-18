@@ -172,14 +172,18 @@
     {% if score_last_update_rows %}
         <table class="table table-striped table-bordered">
             <tr>
+                <th>Model</th>
                 <th>Project</th>
                 <th>Score</th>
                 <th># Score Values</th>
                 <th>Last Update</th>
             </tr>
-            {% for project, score, num_score_values, last_update in score_last_update_rows %}
+            {% for forecast_model, score, num_score_values, last_update in score_last_update_rows %}
                 <tr>
-                    <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
+                    <td><a href="{% url 'model-detail' forecast_model.pk %}">{{ forecast_model.name }}</a></td>
+                    <td>
+                        <a href="{% url 'project-detail' forecast_model.project.pk %}">{{ forecast_model.project.name }}</a>
+                    </td>
                     <td>{{ score.name }}</td>
                     <td>{{ num_score_values }}</td>
                     <td>{{ last_update|date:"Y-m-d h:i:s" }}</td>

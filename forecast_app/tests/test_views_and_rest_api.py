@@ -219,8 +219,6 @@ class ViewsTestCase(TestCase):
                         else self.superuser_password
                     self.client.login(username=user.username, password=password)
                 response = self.client.get(url, data={'location': None, 'target': None})
-                if exp_status_code != response.status_code:
-                    print('  xx', url, user, exp_status_code, response.status_code)
                 self.assertEqual(exp_status_code, response.status_code)
 
 
@@ -330,7 +328,7 @@ class ViewsTestCase(TestCase):
                         self.assertNotIn(exp_url, str(response.content))
 
 
-    # via https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
+    # https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
     def test_api_jwt_auth(self):
         # recall from base.py: ROOT_URLCONF = 'forecast_repo.urls'
         jwt_auth_url = reverse('auth-jwt-get')

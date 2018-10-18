@@ -463,7 +463,7 @@ class Project(ModelWithCDCData):
     def location_target_name_tz_date_to_truth(self, season_name=None):
         """
         Returns my truth values as a dict that's organized for easy access, as in:
-        location_target_name_tz_date_to_truth[location][target_name][timezero_date]. Only includes data from
+        location_target_name_tz_date_to_truth[location_name][target_name][timezero_date]. Only includes data from
         season_name, which is None if I have no seasons.
         """
         logger.debug("location_target_name_tz_date_to_truth(): entered. project={}, season_name={}"
@@ -782,7 +782,7 @@ class Project(ModelWithCDCData):
                 if forecast_bin_map_fcn:
                     forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
 
-                # per https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
+                # https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
                 template_bins_sorted = sorted([b[:2] for b in template_bins],
                                               key=lambda x: (x[0] is None or x[1] is None, x))
                 forecast_bins_sorted = sorted([b[:2] for b in forecast_bins],
@@ -862,7 +862,7 @@ class Project(ModelWithCDCData):
                                .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
 
 
-# NB: only works for abstract superclasses. per https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
+# NB: only works for abstract superclasses. via https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
 Project._meta.get_field('csv_filename').help_text = "CSV file name of this project's template file."
 
 

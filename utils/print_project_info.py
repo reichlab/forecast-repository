@@ -28,7 +28,7 @@ def main(verbosity):
 
 
 def print_project_info(project, verbosity):
-    click.echo("* {} {!r} {}. {} {}. {}".format(project, project.csv_filename, project.truth_data_qs().count(),
+    click.echo("\n* {} {!r} {}. {} {}. {}".format(project, project.csv_filename, project.truth_data_qs().count(),
                                             project.owner, project.model_owners.all(), project.get_summary_counts()))
     if verbosity == 1:
         return

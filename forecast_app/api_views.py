@@ -286,8 +286,7 @@ def template_data(request, project_pk):
 
     # dispatch based on requested format. I tried a number of things to get DRF to pass a 'format' param, but didn't
     # succeed. What worked was to install the https://github.com/mjumbewu/django-rest-framework-csv custom CSV renderer
-    # per http://www.django-rest-framework.org/api-guide/renderers/#csv , and then decorate these two view-based
-    # functions
+    # http://www.django-rest-framework.org/api-guide/renderers/#csv , and then decorate these two view-based functions
     if ('format' in request.query_params) and (request.query_params['format'] == 'csv'):
         return csv_response_for_model_with_cdc_data(project)
     else:
@@ -320,7 +319,7 @@ def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
     #   curl -H 'Accept: application/json; indent=4' http://127.0.0.p1:8000/api/project/1/template_data/
     # but when I tried this, returned a delimited string instead of JSON:
     #   return Response(JSONRenderer().render(location_dicts))
-    # via https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
+    # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
     from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
 
 

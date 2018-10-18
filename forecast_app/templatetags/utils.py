@@ -5,7 +5,7 @@ register = template.Library()
 
 
 #
-# per https://stackoverflow.com/questions/4651172/reference-list-item-by-index-within-django-template/29664945#29664945
+# https://stackoverflow.com/questions/4651172/reference-list-item-by-index-within-django-template/29664945#29664945
 #
 # A better way: custom template filter: https://docs.djangoproject.com/en/dev/howto/custom-template-tags/
 #

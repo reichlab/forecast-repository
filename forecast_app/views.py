@@ -62,12 +62,13 @@ def zadmin(request):
     rq_jobs = _rq_jobs_for_queue(rq_queue)
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
-    score_last_update_rows = []
+    score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
     for score_last_update in ScoreLastUpdate.objects.order_by('-updated_at'):
-        score_last_update_rows.append((score_last_update.project,
-                                       score_last_update.score,
-                                       score_last_update.score.num_score_values_for_project(score_last_update.project),
-                                       score_last_update.updated_at))
+        score_last_update_rows.append(
+            (score_last_update.forecast_model,
+             score_last_update.score,
+             score_last_update.score.num_score_values_for_model(score_last_update.forecast_model),
+             score_last_update.updated_at))
 
     return render(
         request, 'zadmin.html',
@@ -374,16 +375,19 @@ def project_score_data(request, project_pk):
         score = Score.objects.filter(pk=score_id).first()
         model_score_counts.append([forecast_model, score, count])
 
-    model_score_count_rows = []
-    for forecast_model, score, count in sorted(model_score_counts,
-                                               key=lambda row: (row[0].name, row[1].name)):
+    # score, num_score_values, last_update:
+    score_summaries = [(score,
+                        score.num_score_values_for_project(project),
+                        score.last_update_for_project(project))
+                       for score in sorted(Score.objects.all(), key=lambda score: score.name)]
+
+    model_score_count_rows = []  # forecast_model, score, count
+    for forecast_model, score, count in sorted(model_score_counts, key=lambda row: (row[0].name, row[1].name)):
         model_score_count_rows.append([forecast_model, score, count])
+
     return render(request, 'project_score_data.html',
                   context={'project': project,
-                           'score_summaries': [[score, score.num_score_values_for_project(project),
-                                                score.last_update_for_project(project)]
-                                               for score in sorted(Score.objects.all(),
-                                                                   key=lambda score: score.name)],
+                           'score_summaries': score_summaries,
                            'model_score_count_rows': model_score_count_rows,
                            })
 

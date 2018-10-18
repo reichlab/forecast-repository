@@ -43,7 +43,7 @@
         <div class="col-md-6">
             {# enable seasons form only if more than one season #}
             {% if seasons|length < 2 %}
-                {# <fieldset> idea per https://stackoverflow.com/questions/3507958/how-can-i-make-an-entire-html-form-readonly-server-side-only-please #}
+                {# <fieldset> idea via https://stackoverflow.com/questions/3507958/how-can-i-make-an-entire-html-form-readonly-server-side-only-please #}
                 <fieldset disabled="disabled">
             {% endif %}
             <form class="form-inline" method="GET" action="{% url 'project-visualizations' project.pk %}">
