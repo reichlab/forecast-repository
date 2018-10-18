@@ -18,7 +18,7 @@ def cli():
 @cli.command()
 def print():
     """
-    A subcommand that prints all projects' RowCountCaches in the calling thread, and therefore blocks.
+    A subcommand that prints all projects' RowCountCaches. Runs in the calling thread and therefore blocks.
     """
     click.echo("row count caches:")
     for project in Project.objects.all():
@@ -29,7 +29,7 @@ def print():
 @cli.command()
 def clear():
     """
-    A subcommand that resets all projects' RowCountCaches in the calling thread, and therefore blocks.
+    A subcommand that resets all projects' RowCountCaches. Runs in the calling thread and therefore blocks.
     """
     click.echo("clearing all projects' row count caches")
     for project in Project.objects.all():

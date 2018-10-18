@@ -122,8 +122,8 @@ def delete_upload_file_jobs(request):
 
 def clear_row_count_caches(request):
     """
-    View function that resets all projects' RowCountCaches in the calling thread, and therefore blocks. However, this
-    operation is fast.
+    View function that resets all projects' RowCountCaches. Runs in the calling thread and therefore blocks. However,
+    this operation is fast.
     """
     if not is_user_ok_admin(request.user):
         raise PermissionDenied

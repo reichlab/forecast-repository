@@ -7,9 +7,7 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from forecast_app.models.score import _update_model_scores
-
-from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
+from forecast_app.models.score import _update_model_scores, ScoreLastUpdate
 
 from forecast_app.models import Score, ScoreValue, Project, ForecastModel
 
@@ -31,66 +29,61 @@ def cli(ctx):
 @cli.command()
 def print():
     """
-    A subcommand that prints all projects' scores in the calling thread, and therefore blocks.
+    A subcommand that prints all projects' scores. Runs in the calling thread and therefore blocks.
     """
-    # by Score
-    click.echo("\n* scores:")
+    Score.ensure_all_scores_exist()
+
+    click.echo("\n* Scores:")
     for score in Score.objects.all():
         click.echo("- {} | {}".format(score, ScoreValue.objects.filter(score=score).count()))
 
-    # by Project
-    click.echo("\n* project scores. {}".format(SCORE_ABBREV_TO_NAME_AND_DESCR))
-    for project in Project.objects.all():
-        click.echo("- {}".format(project.name))
-        for forecast_model in project.models.all():
-            for score in Score.objects.all():
-                # abbreviation, name, description = Score.SCORE_TYPE_TO_INFO[score.score_type]
+    click.echo("\n* Score Forecasts:")
+    for score in Score.objects.all().order_by('name'):
+        for project in Project.objects.order_by('name'):
+            for forecast_model in project.models.all().order_by('project__id', 'name'):
                 score_last_update = score.last_update_for_forecast_model(forecast_model)  # None o/w
                 score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project)
-                click.echo("  + pk={} | '{}' | '{}' | num={} | {}"
-                           .format(score.pk, score.abbreviation, score.name, score_values_qs.count(),
-                                   score_last_update.updated_at if score_last_update else 'no update'))
+                last_update_str = '{:%Y-%m-%d %H:%M:%S}'.format(score_last_update.updated_at) if score_last_update \
+                    else '[no updated_at]'
+                click.echo("  + (score={}) '{}' | {} | {} . (proj={}, model={}) '{}'"
+                           .format(score.pk, score.abbreviation, score_values_qs.count(),
+                                   last_update_str, forecast_model.project.pk, forecast_model.pk, forecast_model.name))
 
 
 @cli.command()
-def clear():
+@click.option('--score-pk')
+def clear(score_pk):
     """
-    A subcommand that resets all projects' scores in the calling thread, and therefore blocks.
+    A subcommand that clears score values and last update dates, controlled by the args. Runs in the calling thread, and
+    therefore blocks.
+
+    :param score_pk: if a valid Score pk then only that score is cleared. o/w all scores are
     """
-    click.echo("clearing all projects' scores")
-    for project in Project.objects.all():
-        for score in Score.objects.all():
-            click.echo("- clearing {} > {}".format(project, score))
-            ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project).delete()
+    scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
+    for score in scores:
+        click.echo("clearing {}".format(score))
+        ScoreValue.objects.filter(score=score).delete()
+        ScoreLastUpdate.objects.filter(score=score).delete()
     click.echo("clear done")
 
 
 @cli.command()
-def delete():
-    """
-    A subcommand that deletes all scores in the calling thread, and therefore blocks.
-    """
-    click.echo("deleting all scores")
-    for score in Score.objects.all():
-        click.echo("- deleting {}".format(score))
-        score.delete()
-    click.echo("delete done")
-
-
-@cli.command()
+@click.option('--score-pk')
 @click.option('--model-pk')
-def update(model_pk):
+def update(score_pk, model_pk):
     """
-    A subcommand that enqueues updating all projects' scores, or scores for a single model if model_pk is valid.
+    A subcommand that enqueues updating model scores, controlled by the args. Runs in the calling thread, and therefore
+    blocks.
+
+    :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are
+    :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are
     """
-    if model_pk:
-        forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
-        click.echo("enqueuing scores. forecast_model={}".format(forecast_model))
-        for score in Score.objects.all():
+    scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
+    models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
+    for score in scores:
+        for forecast_model in models:
+            click.echo("enqueuing score={}, forecast_model={}".format(score, forecast_model))
             django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
-    else:
-        click.echo("enqueuing scores for all projects")
-        Score.enqueue_update_scores_for_all_projects()
     click.echo("enqueuing done")
 
 
