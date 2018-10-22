@@ -71,10 +71,12 @@ def zadmin(request):
              score_last_update.score.num_score_values_for_model(score_last_update.forecast_model),
              score_last_update.updated_at))
 
+    projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
+    print('xx', projects_sort_pk)
     return render(
         request, 'zadmin.html',
         context={'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
-                 'projects_sort_pk': Project.objects.order_by('pk'),
+                 'projects_sort_pk': projects_sort_pk,
                  'rq_conn': rq_conn,
                  'rq_queue': rq_queue,
                  'rq_jobs': rq_jobs,

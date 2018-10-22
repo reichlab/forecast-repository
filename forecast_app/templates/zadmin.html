@@ -58,8 +58,10 @@
     <p>Projects:</p>
     {% if projects_sort_pk %}
         <ul>
-            {% for project in projects_sort_pk %}
-                <li>{{ project.pk }}: <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></li>
+            {% for project, num_models in projects_sort_pk %}
+                <li>{{ project.pk }}: <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
+                    ({{ num_models }} model{{ num_models|pluralize }})
+                </li>
             {% endfor %}
         </ul>
     {% else %}
