@@ -15,7 +15,7 @@ urlpatterns = [
     url(r'^delete_upload_file_jobs/$', views.delete_upload_file_jobs, name='delete-file-jobs'),
 
     url(r'^update_all_scores', views.update_all_scores, name='update-all-scores'),
-    url(r'^delete_scores', views.delete_scores, name='delete-scores'),
+    url(r'^clear_all_scores', views.clear_all_scores, name='clear-all-scores'),
     url(r'^delete_score_last_updates', views.delete_score_last_updates, name='delete-score-last-updates'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),

@@ -157,6 +157,14 @@ class Score(models.Model):
         logger.debug("update_score(): done. created {} ScoreValues".format(self.num_score_values()))
 
 
+    def clear(self):
+        """
+        Deletes all my ScoreValues and ScoreLastUpdates.
+        """
+        ScoreValue.objects.filter(score=self).delete()
+        ScoreLastUpdate.objects.filter(score=self).delete()
+
+
     @classmethod
     def enqueue_update_scores_for_all_projects(cls):
         """

@@ -62,8 +62,7 @@ def clear(score_pk):
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     for score in scores:
         click.echo("clearing {}".format(score))
-        ScoreValue.objects.filter(score=score).delete()
-        ScoreLastUpdate.objects.filter(score=score).delete()
+        score.clear()
     click.echo("clear done")
 
 

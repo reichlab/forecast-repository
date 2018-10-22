@@ -153,9 +153,9 @@
         </table>
 
         <form class="form-inline" style="display: inline-block;" method="POST"
-              action="{% url 'delete-scores' %}">
+              action="{% url 'clear-all-scores' %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-danger">Delete All</button>
+            <button type="submit" class="btn btn-danger">Clear All</button>
         </form>
     {% else %}
         <p>

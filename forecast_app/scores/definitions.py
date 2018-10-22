@@ -163,8 +163,8 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
 
 def _timezero_loc_target_pks_to_truth_values(forecast_model):
     """
-    Similar to Project.location_target_name_tz_date_to_truth(), returns my truth values as a nested dict that's
-    organized for easy access using these keys: [timezero_pk][location_pk][target_id] -> truth_values (a list).
+    Similar to Project.location_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
+    that's organized for easy access using these keys: [timezero_pk][location_pk][target_id] -> truth_values (a list).
     """
     truth_data_qs = forecast_model.project.truth_data_qs() \
         .order_by('time_zero__id', 'location__id', 'target__id') \

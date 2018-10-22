@@ -276,13 +276,14 @@ def _location_to_actual_max_val(loc_tz_date_to_actual_vals):
 # ---- score utility functions ----
 #
 
-def delete_scores(request):
+def clear_all_scores(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    # NB: delete() runs in current thread
-    Score.objects.all().delete()
-    messages.success(request, "Deleted all Scores.")
+    # NB: runs in current thread
+    for score in Score.objects.all():
+        score.clear()
+    messages.success(request, "Cleared all Scores.")
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
 
 
