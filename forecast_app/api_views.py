@@ -476,7 +476,8 @@ def _write_csv_score_data_for_project(csv_writer, project):
     timezero_id_to_obj = {timezero.pk: timezero for timezero in timezeros}
     location_id_to_obj = {location.pk: location for location in project.locations.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
-    timezero_to_season_name = {timezero: project.season_name_containing_timezero(timezero) for timezero in timezeros}
+    timezero_to_season_name = project.timezero_to_season_name()
+
     logger.debug("_write_csv_score_data_for_project(): iterating")
     for (forecast_model_id, time_zero_id, location_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):

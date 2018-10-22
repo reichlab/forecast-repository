@@ -322,6 +322,17 @@ class ProjectTestCase(TestCase):
         act_location_to_max_val = project2.location_to_max_val('season1', project2.visualization_targets())
         self.assertEqual(exp_location_to_max_val, act_location_to_max_val)
 
+        # test timezero_to_season_name()
+        exp_timezero_to_season_name = {
+            time_zero1: None,
+            time_zero2: None,
+            time_zero3: 'season1',
+            time_zero4: 'season1',
+            time_zero5: 'season2',
+            time_zero6: 'season3',
+        }
+        self.assertEqual(exp_timezero_to_season_name, project2.timezero_to_season_name())
+
         # test season_name_containing_timezero(). test both cases: first timezero starts a season or not
         timezero_to_exp_season_name = {time_zero1: None,
                                        time_zero2: None,
@@ -332,8 +343,8 @@ class ProjectTestCase(TestCase):
         for timezero, exp_season_name in timezero_to_exp_season_name.items():
             self.assertEqual(exp_season_name, project2.season_name_containing_timezero(timezero))
 
-        del(timezero_to_exp_season_name[time_zero1])
-        del(timezero_to_exp_season_name[time_zero2])
+        del (timezero_to_exp_season_name[time_zero1])
+        del (timezero_to_exp_season_name[time_zero2])
         time_zero1.delete()
         time_zero2.delete()
         for timezero, exp_season_name in timezero_to_exp_season_name.items():

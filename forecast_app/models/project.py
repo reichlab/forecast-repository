@@ -231,21 +231,36 @@ class Project(ModelWithCDCData):
         return timezeros[0].timezero_date, timezeros[-1].timezero_date
 
 
-    def season_name_containing_timezero(self, timezero):
+    def season_name_containing_timezero(self, timezero, timezeros=None):
         """
-        :return: season_name of the season that contains timezero, or None if it's not in a season
+        :return: season_name of the season that contains timezero, or None if it's not in a season. timezeros, if
+            passed, allows optimizing by callers who compute timezeros only once.
         """
-        if timezero not in self.timezeros.all():
-            raise RuntimeError("TimeZero does not belong to project: timezero={}".format(timezero))
+        timezeros = timezeros or self.timezeros.all()
+        if timezero not in timezeros:
+            raise RuntimeError("TimeZero not found in timezeros: timezero={}, timezeros={}".format(timezero, timezeros))
 
         # order my timezeros by date and then iterate from earliest to latest, keeping track of the current season and
         # returning the first match. must handle two cases: the earliest timezero defines a season, or not
         containing_season_name = None  # return value. updated in loop
-        for project_timezero in self.timezeros.all().order_by('timezero_date'):
+        for project_timezero in timezeros.order_by('timezero_date'):
             if project_timezero.is_season_start:
                 containing_season_name = project_timezero.season_name
             if project_timezero == timezero:
                 return containing_season_name
+
+
+    def timezero_to_season_name(self):
+        """
+        :return: a dict mapping each of my timezeros -> containing season name
+        """
+        _timezero_to_season_name = {}
+        containing_season_name = None
+        for timezero in self.timezeros.order_by('timezero_date'):
+            if timezero.is_season_start:
+                containing_season_name = timezero.season_name
+            _timezero_to_season_name[timezero] = containing_season_name
+        return _timezero_to_season_name
 
 
     #
