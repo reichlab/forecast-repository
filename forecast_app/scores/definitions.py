@@ -115,44 +115,34 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
         # validate truth. todo: duplicate of iterate_forecast_errors()
         if timezero_pk not in timezero_loc_target_pks_to_truth_values:
             logger.warning("calculate_error_score_values(): timezero_pk not in truth: "
-                           "forecast_model={}, timezero_pk={}, timezero_loc_target_pks_to_truth_values={}"
-                           .format(forecast_model, timezero_pk, timezero_loc_target_pks_to_truth_values))
+                           "forecast_model={}, timezero_pk={}".format(forecast_model, timezero_pk))
             continue
         elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
             logger.warning("calculate_error_score_values(): location_pk not in truth: "
-                           "forecast_model={}, location_pk={}, timezero_loc_target_pks_to_truth_values={}"
-                           .format(forecast_model, location_pk, timezero_loc_target_pks_to_truth_values[timezero_pk]))
+                           "forecast_model={}, location_pk={}".format(forecast_model, location_pk))
             continue
         elif target_id not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
             logger.warning("calculate_error_score_values(): target_id not in truth: "
-                           "forecast_model={}, target_id={}, timezero_loc_target_pks_to_truth_values={}"
-                           .format(forecast_model, target_id,
-                                   timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]))
+                           "forecast_model={}, target_id={}".format(forecast_model, target_id))
             continue
 
         truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_id]
         if len(truth_values) == 0:  # truth not available
             logger.warning("calculate_error_score_values(): truth value not found. "
-                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}. "
-                           "timezero_loc_target_pks_to_truth_values={}"
-                           .format(forecast_model, timezero_pk, location_pk, target_id,
-                                   timezero_loc_target_pks_to_truth_values))
+                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, timezero_pk, location_pk, target_id))
             continue
         elif len(truth_values) > 1:
             logger.warning("calculate_error_score_values(): >1 truth values found. "
-                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}. "
-                           "timezero_loc_target_pks_to_truth_values={}"
-                           .format(forecast_model, timezero_pk, location_pk, target_id,
-                                   timezero_loc_target_pks_to_truth_values))
+                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, timezero_pk, location_pk, target_id))
             continue
 
         true_value = truth_values[0]
         if true_value is None:
             logger.warning("calculate_error_score_values(): true_value is None. "
-                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}. "
-                           "timezero_loc_target_pks_to_truth_values={}"
-                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id,
-                                   timezero_loc_target_pks_to_truth_values))
+                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
             continue
 
         ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
