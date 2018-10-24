@@ -53,6 +53,9 @@ def calc_const(score, forecast_model):
 # ---- 'Error' and 'Absolute Error' calculation functions ----
 #
 
+LOG_SINGLE_BIN_NEGATIVE_INFINITY = -999  # see use below for docs
+
+
 def calc_log_single_bin(score, forecast_model):
     """
     Calculates 'Log score (single bin)' scores per
@@ -78,8 +81,14 @@ def calc_log_single_bin(score, forecast_model):
                     predicted_value = _bin_predicted_value_containing_true_value(forecast, location, target, true_value)
                     _validate_predicted_value(forecast_model, forecast.pk, timezero_pk, location.pk, target.pk,
                                               predicted_value)
+                    # following implements the logic: "clip Math.log(0) to -999 instead of its real value (-Infinity)"
+                    # from: https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
+                    try:
+                        score_value = math.log(predicted_value)
+                    except ValueError:  # math.log(0) -> ValueError: math domain error
+                        score_value = LOG_SINGLE_BIN_NEGATIVE_INFINITY
                     ScoreValue.objects.create(forecast=forecast, location=location, target=target, score=score,
-                                              value=math.log(predicted_value))
+                                              value=score_value)
                 except RuntimeError as rte:
                     logger.warning(rte)
                     continue  # skip this forecast's contribution to the score

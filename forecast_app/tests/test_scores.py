@@ -8,10 +8,12 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.api_views import _write_csv_score_data_for_project
-from forecast_app.models import Project, TimeZero, Location, Target, TruthData
+from forecast_app.models import Project, TimeZero, Location, Target
+from forecast_app.models.data import CDCData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score
-from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, _timezero_loc_target_pks_to_truth_values
+from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, _timezero_loc_target_pks_to_truth_values, \
+    LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 
 
@@ -83,8 +85,8 @@ class ScoresTestCase(TestCase):
         project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
-        forecast_model2.load_forecast(Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv'),
-                                      time_zero2)
+        forecast2 = forecast_model2.load_forecast(
+            Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv'), time_zero2)
 
         # expected truth from truths-2016-2017-reichlab-small.csv: 20161030, US National, 1 wk ahead -> 1.55838
         # -> corresponding bin in 20161030-KoTstable-20161114-small.cdc.csv:
@@ -114,13 +116,27 @@ class ScoresTestCase(TestCase):
         truth_data = project2.truth_data_qs().filter(target__name='1 wk ahead').first()
         truth_data.value = 1.5  # 1.5 -> same bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
         truth_data.save()
+
         score.update_score_for_model(forecast_model2)
         score_value = score.values.first()
         self.assertAlmostEqual(math.log(0.20253796115633), score_value.value)
 
-        # todo test "clip Math.log(0) to -999 instead of its real value (-Infinity)"
-        # https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
-        self.fail()
+        # test "clip Math.log(0) to -999 instead of its real value (-Infinity)". do so by changing this bin to have a
+        # value of zero: US National,1 wk ahead,Bin,percent,1.6,1.7,0.0770752152650201
+        forecast_data = forecast2.cdcdata_set \
+            .filter(location__name='US National', target__name='1 wk ahead', row_type=CDCData.BIN_ROW_TYPE,
+                    bin_start_incl=1.6, bin_end_notincl=1.7) \
+            .first()
+        forecast_data.value = 0
+        forecast_data.save()
+
+        truth_data = project2.truth_data_qs().filter(target__name='1 wk ahead').first()
+        truth_data.value = 1.65  # 1.65 -> bin: US National,1 wk ahead,Bin,percent,1.6,1.7,0  # NB: value is now 0
+        truth_data.save()
+
+        score.update_score_for_model(forecast_model2)
+        score_value = score.values.first()
+        self.assertAlmostEqual(LOG_SINGLE_BIN_NEGATIVE_INFINITY, score_value.value)
 
 
     def test_download_scores(self):
