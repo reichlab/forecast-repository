@@ -1,7 +1,7 @@
 import csv
 import datetime
 import io
-import json
+import math
 from collections import defaultdict
 from pathlib import Path
 
@@ -39,13 +39,13 @@ class ScoresTestCase(TestCase):
     def test_score_creation(self):
         # test creation of the current Scores/types
         Score.ensure_all_scores_exist()
-        self.assertEqual(3, Score.objects.count())
+        self.assertEqual(4, Score.objects.count())
         self.assertEqual(set(SCORE_ABBREV_TO_NAME_AND_DESCR.keys()),
                          set([score.abbreviation for score in Score.objects.all()]))
 
 
     def test_absolute_error_score(self):
-        # sanity-test 'Absolute Error'
+        # sanity-test 'abs_error'
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()
         update_scores_for_all_projects()
@@ -68,6 +68,46 @@ class ScoresTestCase(TestCase):
                 self.assertAlmostEqual(float(exp_row[2]), act_row[2])  # value
 
 
+    def test_log_score_single_bin_score(self):
+        Score.ensure_all_scores_exist()
+        score = Score.objects.filter(abbreviation='log_single_bin').first()
+        self.assertIsNotNone(score)
+
+        # creation of a ScoreLastUpdate entry is tested above
+
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        make_cdc_locations_and_targets(project2)
+        project2.load_template(Path('forecast_app/tests/scores/2016-2017_submission_template-small.csv'))
+
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
+        project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
+
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
+        forecast_model2.load_forecast(Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv'),
+                                      time_zero2)
+
+        # expected truth from truths-2016-2017-reichlab-small.csv: 20161030, US National, 1 wk ahead -> 1.55838
+        # -> corresponding row in 20161030-KoTstable-20161114-small.cdc.csv:
+        #    ['US National', '1 wk ahead', 'Bin', 'percent', 1.5, 1.6, 0.20253796115633]  # 1.5 <= 1.55838 < 1.6
+        exp_score = math.log(0.20253796115633)
+
+        # calculate the score and test results
+        score.update_score_for_model(forecast_model2)
+        self.assertEqual(1, score.values.count())  # only one location + target in the forecast -> only one bin
+
+        score_value = score.values.first()
+        self.assertEqual('US National', score_value.location.name)
+        self.assertEqual('1 wk ahead', score_value.target.name)
+        self.assertEqual(exp_score, score_value.value)
+
+        # todo when truth falls exactly on Bin_start_incl and Bin_end_notincl
+        self.fail()
+
+        # todo "clip Math.log(0) to -999 instead of its real value (-Infinity)"
+        # https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
+        self.fail()
+
+
     def test_download_scores(self):
         Score.ensure_all_scores_exist()
         update_scores_for_all_projects()
@@ -84,7 +124,8 @@ class ScoresTestCase(TestCase):
             exp_rows = list(exp_csv_reader)
             for idx, (exp_row, act_row) in enumerate(zip(exp_rows, act_rows)):
                 if idx == 0:  # header
-                    exp_header = ['model', 'timezero', 'season', 'location', 'target', 'error', 'abs_error', 'const']
+                    exp_header = ['model', 'timezero', 'season', 'location', 'target', 'error', 'abs_error', 'const',
+                                  'log_single_bin']
                     self.assertEqual(exp_header, act_row)
                     continue
 

@@ -69,7 +69,8 @@ def clear(score_pk):
 @cli.command()
 @click.option('--score-pk')
 @click.option('--model-pk')
-def update(score_pk, model_pk):
+@click.option('--no-enqueue', is_flag=True, default=False)
+def update(score_pk, model_pk, no_enqueue):
     """
     A subcommand that enqueues updating model scores, controlled by the args. Runs in the calling thread, and therefore
     blocks.
@@ -81,9 +82,13 @@ def update(score_pk, model_pk):
     models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
     for score in scores:
         for forecast_model in models:
-            click.echo("enqueuing score={}, forecast_model={}".format(score, forecast_model))
-            django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
-    click.echo("enqueuing done")
+            if no_enqueue:
+                click.echo("(no enqueue) calculating score={}, forecast_model={}".format(score, forecast_model))
+                _update_model_scores(score.pk, forecast_model.pk)
+            else:
+                click.echo("enqueuing score={}, forecast_model={}".format(score, forecast_model))
+                django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+    click.echo("update done")
 
 
 if __name__ == '__main__':

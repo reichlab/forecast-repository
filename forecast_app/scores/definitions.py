@@ -1,4 +1,5 @@
 import logging
+import math
 from collections import defaultdict
 from itertools import groupby
 
@@ -22,6 +23,8 @@ SCORE_ABBREV_TO_NAME_AND_DESCR = {
     'abs_error': ('Absolute Error', "The absolute value of the truth value minus the model's point estimate. "
                                     "Lower is better."),
     'const': ('Constant Value', "A debugging score that scores 1.0 only for first location and first target."),
+    'log_single_bin': ('Log score (single bin)', "Natural log of probability assigned to the true bin. Higher is "
+                                                 "better."),
 }
 
 
@@ -44,6 +47,69 @@ def calc_const(score, forecast_model):
     for forecast in Forecast.objects.filter(forecast_model=forecast_model):
         ScoreValue.objects.create(score=score, forecast=forecast, location=first_location, target=first_target,
                                   value=1.0)
+
+
+#
+# ---- 'Error' and 'Absolute Error' calculation functions ----
+#
+
+def calc_log_single_bin(score, forecast_model):
+    """
+    Calculates 'Log score (single bin)' scores per
+    https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin.
+    """
+    try:
+        targets = _validate_targets_and_data(forecast_model)
+    except RuntimeError as rte:
+        logger.warning(rte)
+
+    # cache truth values: [location_name][target_name][timezero_date]:
+    timezero_loc_target_pks_to_truth_values = _timezero_loc_target_pks_to_truth_values(forecast_model)
+
+    # calculate scores for all combinations of location and target. NB: this naive approach is slow b/c we query ea time
+    locations = forecast_model.project.locations.all()
+    for forecast in forecast_model.forecasts.all():
+        timezero_pk = forecast.time_zero.pk
+        for location in locations:
+            for target in targets:
+                try:
+                    true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast.pk,
+                                                 timezero_pk, location.pk, target.pk)
+                    predicted_value = _bin_predicted_value_containing_true_value(forecast, location, target, true_value)
+                    _validate_predicted_value(forecast_model, forecast.pk, timezero_pk, location.pk, target.pk,
+                                              predicted_value)
+                    ScoreValue.objects.create(forecast=forecast, location=location, target=target, score=score,
+                                              value=math.log(predicted_value))
+                except RuntimeError as rte:
+                    logger.warning(rte)
+                    continue  # skip this forecast's contribution to the score
+
+
+def _bin_predicted_value_containing_true_value(forecast, location, target, true_value):
+    """
+    Returns the bin in forecast's data for location target that contains true_value.
+
+    :return: 3-tuple: (bin_start_incl, bin_end_notincl, value)
+    """
+    temp_qs = ForecastData.objects \
+        .filter(forecast=forecast,
+                row_type=CDCData.BIN_ROW_TYPE,
+                location=location,
+                target=target)
+
+    forecast_data_qs = ForecastData.objects \
+        .filter(forecast=forecast,
+                row_type=CDCData.BIN_ROW_TYPE,
+                location=location,
+                target=target,
+                bin_start_incl__lte=true_value,
+                bin_end_notincl__gt=true_value) \
+        .values_list('value', flat=True)
+    if forecast_data_qs.count() != 1:
+        raise RuntimeError("_bin_predicted_value_containing_true_value(): not exactly one bin row: {}"
+                           .format(forecast_data_qs))
+
+    return forecast_data_qs[0]
 
 
 #
@@ -80,23 +146,15 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
     from forecast_app.models import ScoreValue  # avoid circular imports
 
 
-    # validate targets
-    targets = forecast_model.project.visualization_targets()
-    if not targets:
-        logger.warning("calculate_error_score_values(): no visualization targets. project={}"
-                       .format(forecast_model.project))
-        return
-
-    # validate forecast data
-    if not forecast_model.forecasts.exists():
-        logger.warning("calculate_error_score_values(): could not calculate absolute errors: model had "
-                       "no data: {}".format(forecast_model))
-        return
+    try:
+        targets = _validate_targets_and_data(forecast_model)
+    except RuntimeError as rte:
+        logger.warning(rte)
 
     # cache truth values: [location_name][target_name][timezero_date]:
     timezero_loc_target_pks_to_truth_values = _timezero_loc_target_pks_to_truth_values(forecast_model)
 
-    # get predicted values
+    # get predicted point values
     forecast_data_qs = ForecastData.objects \
         .filter(row_type=CDCData.POINT_ROW_TYPE,
                 target__in=targets,
@@ -104,52 +162,23 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id', 'value')
 
     # calculate scores for all combinations of location and target
-    for forecast_pk, timezero_pk, location_pk, target_id, predicted_value in forecast_data_qs:
-        # validate predicted_value. todo is predicted_value ever None (e.g., 'NA')?
-        if predicted_value is None:
-            logger.warning("calculate_error_score_values(): predicted_value is None."
-                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
+    for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value in forecast_data_qs:
+        try:
+            _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_pk, predicted_value)
+            true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
+                                         timezero_pk, location_pk, target_pk)
+            ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
+                                      target_id=target_pk, score=score,
+                                      value=abs(true_value - predicted_value)
+                                      if is_absolute_error else true_value - predicted_value)
+        except RuntimeError as rte:
+            logger.warning(rte)
             continue  # skip this forecast's contribution to the score
 
-        # validate truth. todo: duplicate of iterate_forecast_errors()
-        if timezero_pk not in timezero_loc_target_pks_to_truth_values:
-            logger.warning("calculate_error_score_values(): timezero_pk not in truth: "
-                           "forecast_model={}, timezero_pk={}".format(forecast_model, timezero_pk))
-            continue
-        elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
-            logger.warning("calculate_error_score_values(): location_pk not in truth: "
-                           "forecast_model={}, location_pk={}".format(forecast_model, location_pk))
-            continue
-        elif target_id not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
-            logger.warning("calculate_error_score_values(): target_id not in truth: "
-                           "forecast_model={}, target_id={}".format(forecast_model, target_id))
-            continue
 
-        truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_id]
-        if len(truth_values) == 0:  # truth not available
-            logger.warning("calculate_error_score_values(): truth value not found. "
-                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, timezero_pk, location_pk, target_id))
-            continue
-        elif len(truth_values) > 1:
-            logger.warning("calculate_error_score_values(): >1 truth values found. "
-                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, timezero_pk, location_pk, target_id))
-            continue
-
-        true_value = truth_values[0]
-        if true_value is None:
-            logger.warning("calculate_error_score_values(): true_value is None. "
-                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
-            continue
-
-        ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
-                                  target_id=target_id, score=score,
-                                  value=abs(true_value - predicted_value)
-                                  if is_absolute_error else true_value - predicted_value)
-
+#
+# ---- utility functions ----
+#
 
 def _timezero_loc_target_pks_to_truth_values(forecast_model):
     """
@@ -171,3 +200,58 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
                 target_pk_to_truth[target_id].append(value)
 
     return timezero_loc_target_pks_to_truth_values
+
+
+def _validate_targets_and_data(forecast_model):
+    # validate targets
+    targets = forecast_model.project.visualization_targets()
+    if not targets:
+        raise RuntimeError("calculate_error_score_values(): no visualization targets. project={}"
+                           .format(forecast_model.project))
+
+    # validate forecast data
+    if not forecast_model.forecasts.exists():
+        raise RuntimeError("calculate_error_score_values(): could not calculate absolute errors: model had "
+                           "no data: {}".format(forecast_model))
+
+    return targets
+
+
+def _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_id, predicted_value):
+    # validate predicted_value. todo is predicted_value ever None (e.g., 'NA')?
+    if predicted_value is None:
+        raise RuntimeError("calculate_error_score_values(): predicted_value is None."
+                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
+
+
+def _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
+                    timezero_pk, location_pk, target_id):
+    # todo: duplicate of iterate_forecast_errors()
+    if timezero_pk not in timezero_loc_target_pks_to_truth_values:
+        raise RuntimeError("calculate_error_score_values(): timezero_pk not in truth: "
+                           "forecast_model={}, timezero_pk={}".format(forecast_model, timezero_pk))
+    elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
+        raise RuntimeError("calculate_error_score_values(): location_pk not in truth: "
+                           "forecast_model={}, location_pk={}".format(forecast_model, location_pk))
+    elif target_id not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
+        raise RuntimeError("calculate_error_score_values(): target_id not in truth: "
+                           "forecast_model={}, target_id={}".format(forecast_model, target_id))
+
+    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_id]
+    if len(truth_values) == 0:  # truth not available
+        raise RuntimeError("calculate_error_score_values(): truth value not found. "
+                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, timezero_pk, location_pk, target_id))
+    elif len(truth_values) > 1:
+        raise RuntimeError("calculate_error_score_values(): >1 truth values found. "
+                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, timezero_pk, location_pk, target_id))
+
+    true_value = truth_values[0]
+    if true_value is None:
+        raise RuntimeError("calculate_error_score_values(): true_value is None. "
+                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
+                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
+
+    return true_value
