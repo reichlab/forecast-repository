@@ -1,4 +1,5 @@
 import logging
+import timeit
 
 import django_rq
 from django.db import models
@@ -143,6 +144,7 @@ class Score(models.Model):
         import forecast_app.scores.definitions
 
 
+        start_time = timeit.default_timer()
         logger.debug("update_score_for_model(): entered. score={}, forecast_model={}".format(self, forecast_model))
 
         logger.debug("update_score_for_model(): deleting existing ScoreValues for model")
@@ -154,7 +156,8 @@ class Score(models.Model):
         calc_function(self, forecast_model)
 
         self.set_last_update_for_forecast_model(forecast_model)
-        logger.debug("update_score(): done. created {} ScoreValues".format(self.num_score_values()))
+        logger.debug("update_score_for_model(): done. -> {} total ScoreValues. time: {}"
+                     .format(self.num_score_values(), timeit.default_timer() - start_time))
 
 
     def clear(self):

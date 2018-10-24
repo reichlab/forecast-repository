@@ -8,7 +8,7 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.api_views import _write_csv_score_data_for_project
-from forecast_app.models import Project, TimeZero, Location, Target
+from forecast_app.models import Project, TimeZero, Location, Target, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, _timezero_loc_target_pks_to_truth_values
@@ -68,7 +68,7 @@ class ScoresTestCase(TestCase):
                 self.assertAlmostEqual(float(exp_row[2]), act_row[2])  # value
 
 
-    def test_log_score_single_bin_score(self):
+    def test_log_single_bin_score(self):
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='log_single_bin').first()
         self.assertIsNotNone(score)
@@ -87,10 +87,9 @@ class ScoresTestCase(TestCase):
                                       time_zero2)
 
         # expected truth from truths-2016-2017-reichlab-small.csv: 20161030, US National, 1 wk ahead -> 1.55838
-        # -> corresponding row in 20161030-KoTstable-20161114-small.cdc.csv:
-        #    ['US National', '1 wk ahead', 'Bin', 'percent', 1.5, 1.6, 0.20253796115633]  # 1.5 <= 1.55838 < 1.6
-        exp_score = math.log(0.20253796115633)
-
+        # -> corresponding bin in 20161030-KoTstable-20161114-small.cdc.csv:
+        #    US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633  # where 1.5 <= 1.55838 < 1.6
+        #   -> expected score is math.log(0.20253796115633) = -1.596827947504047
         # calculate the score and test results
         score.update_score_for_model(forecast_model2)
         self.assertEqual(1, score.values.count())  # only one location + target in the forecast -> only one bin
@@ -98,12 +97,28 @@ class ScoresTestCase(TestCase):
         score_value = score.values.first()
         self.assertEqual('US National', score_value.location.name)
         self.assertEqual('1 wk ahead', score_value.target.name)
-        self.assertEqual(exp_score, score_value.value)
+        self.assertAlmostEqual(math.log(0.20253796115633), score_value.value)
 
-        # todo when truth falls exactly on Bin_start_incl and Bin_end_notincl
-        self.fail()
+        # test when truth falls exactly on Bin_end_notincl
+        truth_data = project2.truth_data_qs().filter(target__name='1 wk ahead').first()
+        # this takes us to the next bin:
+        #   US National,1 wk ahead,Bin,percent,1.6,1.7,0.0770752152650201
+        #   -> math.log(0.0770752152650201) = -2.562973512284597
+        truth_data.value = 1.6
+        truth_data.save()
+        score.update_score_for_model(forecast_model2)
+        score_value = score.values.first()
+        self.assertAlmostEqual(math.log(0.0770752152650201), score_value.value)
 
-        # todo "clip Math.log(0) to -999 instead of its real value (-Infinity)"
+        # test when truth falls exactly on Bin_start_incl
+        truth_data = project2.truth_data_qs().filter(target__name='1 wk ahead').first()
+        truth_data.value = 1.5  # 1.5 -> same bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
+        truth_data.save()
+        score.update_score_for_model(forecast_model2)
+        score_value = score.values.first()
+        self.assertAlmostEqual(math.log(0.20253796115633), score_value.value)
+
+        # todo test "clip Math.log(0) to -999 instead of its real value (-Infinity)"
         # https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
         self.fail()
 

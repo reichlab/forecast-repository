@@ -554,6 +554,8 @@ class Project(ModelWithCDCData):
         if not self.pk:
             raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
+        self.delete_truth_data()
+
         # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
         if isinstance(truth_file_path_or_fp, io.IOBase):
             self._load_truth_data(truth_file_path_or_fp)

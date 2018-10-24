@@ -91,12 +91,6 @@ def _bin_predicted_value_containing_true_value(forecast, location, target, true_
 
     :return: 3-tuple: (bin_start_incl, bin_end_notincl, value)
     """
-    temp_qs = ForecastData.objects \
-        .filter(forecast=forecast,
-                row_type=CDCData.BIN_ROW_TYPE,
-                location=location,
-                target=target)
-
     forecast_data_qs = ForecastData.objects \
         .filter(forecast=forecast,
                 row_type=CDCData.BIN_ROW_TYPE,
@@ -106,8 +100,9 @@ def _bin_predicted_value_containing_true_value(forecast, location, target, true_
                 bin_end_notincl__gt=true_value) \
         .values_list('value', flat=True)
     if forecast_data_qs.count() != 1:
-        raise RuntimeError("_bin_predicted_value_containing_true_value(): not exactly one bin row: {}"
-                           .format(forecast_data_qs))
+        raise RuntimeError("_bin_predicted_value_containing_true_value(): got {} bin rows, not one. forecast={}, "
+                           "location={}, target={}, true_value={}"
+                           .format(forecast_data_qs.count(), forecast, location, target, true_value))
 
     return forecast_data_qs[0]
 
