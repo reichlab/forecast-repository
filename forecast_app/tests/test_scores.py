@@ -41,7 +41,7 @@ class ScoresTestCase(TestCase):
     def test_score_creation(self):
         # test creation of the current Scores/types
         Score.ensure_all_scores_exist()
-        self.assertEqual(4, Score.objects.count())
+        self.assertEqual(3, Score.objects.count())
         self.assertEqual(set(SCORE_ABBREV_TO_NAME_AND_DESCR.keys()),
                          set([score.abbreviation for score in Score.objects.all()]))
 
@@ -155,7 +155,7 @@ class ScoresTestCase(TestCase):
             exp_rows = list(exp_csv_reader)
             for idx, (exp_row, act_row) in enumerate(zip(exp_rows, act_rows)):
                 if idx == 0:  # header
-                    exp_header = ['model', 'timezero', 'season', 'location', 'target', 'error', 'abs_error', 'const',
+                    exp_header = ['model', 'timezero', 'season', 'location', 'target', 'error', 'abs_error',
                                   'log_single_bin']
                     self.assertEqual(exp_header, act_row)
                     continue
@@ -175,7 +175,6 @@ class ScoresTestCase(TestCase):
 
                 test_float_or_empty(exp_row[5], act_row[5])
                 test_float_or_empty(exp_row[6], act_row[6])
-                test_float_or_empty(exp_row[7], act_row[7])
 
 
     def test_timezero_loc_target_pks_to_truth_values(self):
