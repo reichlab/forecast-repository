@@ -85,6 +85,7 @@ $ pipenv install rq
 $ pipenv install django-rq
 $ pipenv install boto3
 $ pipenv install djangorestframework-jwt
+$ pipenv install transitions
 ```
 
 

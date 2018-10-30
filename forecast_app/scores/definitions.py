@@ -1,12 +1,10 @@
 import logging
-import math
 from collections import defaultdict
 from itertools import groupby
 
-from django.db import transaction
-
-from forecast_app.models import Forecast, ScoreValue, ForecastData
-from forecast_app.models.data import CDCData
+from forecast_app.models import Forecast, ScoreValue
+from forecast_app.scores.calc_error import calculate_error_score_values
+from forecast_app.scores.calc_log import _calc_log_bin
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +23,8 @@ SCORE_ABBREV_TO_NAME_AND_DESCR = {
     # 'const': ('Constant Value', "A debugging score that scores 1.0 only for first location and first target."),
     'log_single_bin': ('Log score (single bin)', "Natural log of probability assigned to the true bin. Higher is "
                                                  "better."),
+    'log_multi_bin': ('Log score (multi bin)', "This is calculated by finding the natural log of probability "
+                                               "assigned to the true and a few neighbouring bins. Higher is better."),
 }
 
 
@@ -53,7 +53,7 @@ def calc_const(score, forecast_model):
 
 
 #
-# ---- 'Error' and 'Absolute Error' calculation functions ----
+# ---- 'log_single_bin' and 'log_multi_bin' calculation functions ----
 #
 
 LOG_SINGLE_BIN_NEGATIVE_INFINITY = -999  # see use below for docs
@@ -62,132 +62,36 @@ LOG_SINGLE_BIN_NEGATIVE_INFINITY = -999  # see use below for docs
 def calc_log_single_bin(score, forecast_model):
     """
     Calculates 'Log score (single bin)' scores per
-    https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin.
+    https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin .
     """
-    try:
-        targets = _validate_targets_and_data(forecast_model)
-    except RuntimeError as rte:
-        logger.warning(rte)
+    _calc_log_bin(score, forecast_model, 0)
 
-    # cache truth values: [location_name][target_name][timezero_date]:
-    timezero_loc_target_pks_to_truth_values = _timezero_loc_target_pks_to_truth_values(forecast_model)
 
-    # calculate scores for all combinations of location and target
-    forecast_data_qs = ForecastData.objects \
-        .filter(forecast__forecast_model=forecast_model,
-                row_type=CDCData.BIN_ROW_TYPE,
-                target__in=targets) \
-        .order_by('forecast__id', 'location__id', 'target__id', 'bin_start_incl') \
-        .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
-                     'bin_start_incl', 'bin_end_notincl', 'value')
-
-    # re: iterator() memory usage: django 1.1 uses django.db.models.sql.constants.GET_ITERATOR_CHUNK_SIZE, which is
-    # hard-coded to 100. django 2 allows passing in: def iterator(self, chunk_size=2000). note that iterator() takes
-    # care of making postgres use server-side cursors for iteration without our having to deal with the backend database
-
-    # these help check boundary transitions:
-    curr_target_pk = None
-    is_skip_curr_target = False
-    for forecast_pk, timezero_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl, predicted_value \
-            in forecast_data_qs.iterator():
-        # starting a new target, i.e., a new predictive distribution?
-        if target_pk != curr_target_pk:
-            is_new_target = True
-            curr_target_pk = target_pk
-        else:
-            is_new_target = False
-
-        # skip to next predictive distribution?
-        if is_skip_curr_target and (not is_new_target):
-            continue
-        else:
-            is_skip_curr_target = False
-
-        # check this bin row for a match
-        try:
-            true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
-                                         timezero_pk, location_pk, target_pk)
-            _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_pk,
-                                      predicted_value)
-            is_truth_in_bin = (bin_start_incl <= true_value) and (true_value < bin_end_notincl)
-            if not is_truth_in_bin:
-                continue
-
-            # following implements the logic: "clip Math.log(0) to -999 instead of its real value (-Infinity)"
-            # from: https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
-            try:
-                score_value = math.log(predicted_value)
-            except ValueError:  # math.log(0) -> ValueError: math domain error
-                score_value = LOG_SINGLE_BIN_NEGATIVE_INFINITY
-            ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk, target_id=target_pk,
-                                      score=score, value=score_value)
-            is_skip_curr_target = True
-        except RuntimeError as rte:
-            logger.warning(rte)
-            continue  # skip this forecast's contribution to the score
+def calc_log_multi_bin(score, forecast_model):
+    """
+    Calculates 'Log score (multi bin)' scores per
+    https://github.com/reichlab/flusight/wiki/Scoring#3-log-score-multi-bin .
+    """
+    _calc_log_bin(score, forecast_model, 5)
 
 
 #
-# ---- 'Error' and 'Absolute Error' calculation functions ----
+# ---- 'error' and 'abs_error' calculation functions ----
 #
 
 
 def calc_error(score, forecast_model):
     """
-    Calculates 'Error' scores.
+    Calculates 'error' scores.
     """
-    calculate_error_score_values(score, forecast_model, is_absolute_error=False)
+    calculate_error_score_values(score, forecast_model, False)
 
 
 def calc_abs_error(score, forecast_model):
     """
-    Calculates 'Absolute Error' scores.
+    Calculates 'abs_error' scores.
     """
-    calculate_error_score_values(score, forecast_model, is_absolute_error=True)
-
-
-def calculate_error_score_values(score, forecast_model, is_absolute_error):
-    """
-    Creates ScoreValue instances for the passed args, saving them into the passed score. The score is simply `true_value
-    - predicted_value` (optionally passed to abs() based on is_absolute_error) for each combination of Location + Target
-    in forecast_model's project. Runs in the calling thread and therefore blocks. Note that this implementation uses a
-    naive approach to calculating scores, iterating over truth and forecast tables instead of caching.
-    
-    :param score: a Score
-    :param forecast_model: a ForecastModel
-    :param is_absolute_error: True if abs() should be called
-    """
-    from forecast_app.models import ScoreValue  # avoid circular imports
-
-
-    try:
-        targets = _validate_targets_and_data(forecast_model)
-    except RuntimeError as rte:
-        logger.warning(rte)
-
-    # cache truth values: [location_name][target_name][timezero_date]:
-    timezero_loc_target_pks_to_truth_values = _timezero_loc_target_pks_to_truth_values(forecast_model)
-
-    # get predicted point values
-    forecast_data_qs = ForecastData.objects \
-        .filter(row_type=CDCData.POINT_ROW_TYPE,
-                target__in=targets,
-                forecast__forecast_model=forecast_model) \
-        .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id', 'value')
-
-    # calculate scores for all combinations of location and target
-    for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value in forecast_data_qs:
-        try:
-            _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_pk, predicted_value)
-            true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
-                                         timezero_pk, location_pk, target_pk)
-            ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
-                                      target_id=target_pk, score=score,
-                                      value=abs(true_value - predicted_value)
-                                      if is_absolute_error else true_value - predicted_value)
-        except RuntimeError as rte:
-            logger.warning(rte)
-            continue  # skip this forecast's contribution to the score
+    calculate_error_score_values(score, forecast_model, True)
 
 
 #
@@ -216,8 +120,9 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
     return timezero_loc_target_pks_to_truth_values
 
 
-def _validate_targets_and_data(forecast_model):
+def _validate_score_targets_and_data(forecast_model):
     # validate targets
+    # todo xx include all non-date-related targets, e.g., 'Season peak percentage':
     targets = forecast_model.project.visualization_targets()
     if not targets:
         raise RuntimeError("calculate_error_score_values(): no visualization targets. project={}"
@@ -262,10 +167,4 @@ def _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, for
                            "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
                            .format(forecast_model, timezero_pk, location_pk, target_id))
 
-    true_value = truth_values[0]
-    if true_value is None:
-        raise RuntimeError("calculate_error_score_values(): true_value is None. "
-                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
-
-    return true_value
+    return truth_values[0]

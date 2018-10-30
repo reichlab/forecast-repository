@@ -24,6 +24,7 @@ rq = "*"
 django-rq = "*"
 "boto3" = "*"
 djangorestframework-jwt = "*"
+transitions = "*"
 
 [dev-packages]
 
