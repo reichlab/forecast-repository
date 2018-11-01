@@ -44,19 +44,28 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
                 forecast__forecast_model=forecast_model) \
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id', 'value')
 
-    # calculate scores for all combinations of location and target
+    # calculate scores for all combinations of location and target. keep a list of errors so we don't log thousands of
+    # duplicate messages. dict format: {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
+    forec_tz_loc_targ_pk_to_error_str = {}
     for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value in forecast_data_qs:
-        try:
-            true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
-                                         timezero_pk, location_pk, target_pk)
-            if true_value is None or predicted_value is None:
-                # note: future validation might ensure no bin values are None
-                continue  # skip this forecast's contribution to the score
-
-            ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
-                                      target_id=target_pk, score=score,
-                                      value=abs(true_value - predicted_value)
-                                      if is_absolute_error else true_value - predicted_value)
-        except RuntimeError as rte:
-            logger.warning(rte)
+        true_value, error_string = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_pk,
+                                                   timezero_pk, location_pk, target_pk)
+        error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
+        if error_string and (error_key not in forec_tz_loc_targ_pk_to_error_str):
+            forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
             continue  # skip this forecast's contribution to the score
+
+        if true_value is None or predicted_value is None:
+            # note: future validation might ensure no bin values are None
+            continue  # skip this forecast's contribution to the score
+
+        ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
+                                  target_id=target_pk, score=score,
+                                  value=abs(true_value - predicted_value)
+                                  if is_absolute_error else true_value - predicted_value)
+
+    # print errors
+    for (forecast_pk, timezero_pk, location_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
+        logger.warning("calculate_error_score_values(): truth validation error: {!r}: "
+                       "forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
+                       .format(error_string, forecast_pk, timezero_pk, location_pk, target_pk))

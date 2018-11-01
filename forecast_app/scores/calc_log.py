@@ -70,28 +70,37 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
                      'bin_start_incl', 'bin_end_notincl', 'value')
 
-    # line_processing_machine = LineProcessingMachine(score, num_bins_one_side)
+    # calculate scores for all combinations of location and target. keep a list of errors so we don't log thousands of
+    # duplicate messages. dict format: {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
+    forec_tz_loc_targ_pk_to_error_str = {}
     line_processing_machine = LineProcessingMachine(score, num_bins_one_side)
     for forecast_pk, timezero_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl, predicted_value \
             in forecast_data_qs.iterator():
-        try:
-            true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
-                                         timezero_pk, location_pk, target_pk)
-            if predicted_value is None:
-                # note: future validation might ensure no bin values are None
-                continue  # skip this forecast's contribution to the score
-
-            input_tuple = InputTuple(forecast_pk, location_pk, target_pk,
-                                     bin_start_incl, bin_end_notincl,
-                                     predicted_value, true_value)
-            line_processing_machine.set_input_tuple(input_tuple)
-            line_processing_machine.advance()
-        except RuntimeError as rte:
-            logger.warning(rte)
+        true_value, error_string = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_pk,
+                                     timezero_pk, location_pk, target_pk)
+        error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
+        if error_string and (error_key not in forec_tz_loc_targ_pk_to_error_str):
+            forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
             continue  # skip this forecast's contribution to the score
+
+        if predicted_value is None:
+            # note: future validation might ensure no bin values are None
+            continue  # skip this forecast's contribution to the score
+
+        input_tuple = InputTuple(forecast_pk, location_pk, target_pk,
+                                 bin_start_incl, bin_end_notincl,
+                                 predicted_value, true_value)
+        line_processing_machine.set_input_tuple(input_tuple)
+        line_processing_machine.advance()
 
     # handle the case where we fall off the end and haven't saved the score yet
     line_processing_machine.handle_post_to_eof()
+
+    # print errors
+    for (forecast_pk, timezero_pk, location_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
+        logger.warning("_calc_log_bin(): truth validation error: {!r}: "
+                       "forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
+                       .format(error_string, forecast_pk, timezero_pk, location_pk, target_pk))
 
 
 #

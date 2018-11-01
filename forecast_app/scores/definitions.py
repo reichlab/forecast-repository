@@ -136,27 +136,23 @@ def _validate_score_targets_and_data(forecast_model):
     return targets
 
 
-def _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
-                    timezero_pk, location_pk, target_id):
-    # todo: duplicate of iterate_forecast_errors()
+# todo: duplicate of iterate_forecast_errors()
+def _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_pk, timezero_pk, location_pk, target_pk):
+    """
+    :return: 2-tuple of the form: (truth_value, error_string) where error_string is non-None if the inputs were invalid.
+        in that case, truth_value is None. o/w truth_value_or_none is valid
+    """
     if timezero_pk not in timezero_loc_target_pks_to_truth_values:
-        raise RuntimeError("_validate_truth(): timezero_pk not in truth: "
-                           "forecast_model={}, timezero_pk={}".format(forecast_model, timezero_pk))
+        return None, 'timezero_pk not in truth'
     elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
-        raise RuntimeError("_validate_truth(): location_pk not in truth: "
-                           "forecast_model={}, location_pk={}".format(forecast_model, location_pk))
-    elif target_id not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
-        raise RuntimeError("_validate_truth(): target_id not in truth: "
-                           "forecast_model={}, target_id={}".format(forecast_model, target_id))
+        return None, 'location_pk not in truth'
+    elif target_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
+        return None, 'target_pk not in truth'
 
-    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_id]
+    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_pk]
     if len(truth_values) == 0:  # truth not available
-        raise RuntimeError("_validate_truth(): truth value not found. "
-                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, timezero_pk, location_pk, target_id))
+        return None, 'truth value not found'
     elif len(truth_values) > 1:
-        raise RuntimeError("_validate_truth(): >1 truth values found. "
-                           "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, timezero_pk, location_pk, target_id))
+        return None, '>1 truth values found'
 
-    return truth_values[0]
+    return truth_values[0], None
