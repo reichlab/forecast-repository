@@ -125,45 +125,37 @@ def _validate_score_targets_and_data(forecast_model):
     # todo xx include all non-date-related targets, e.g., 'Season peak percentage':
     targets = forecast_model.project.visualization_targets()
     if not targets:
-        raise RuntimeError("calculate_error_score_values(): no visualization targets. project={}"
+        raise RuntimeError("_validate_score_targets_and_data(): no visualization targets. project={}"
                            .format(forecast_model.project))
 
     # validate forecast data
     if not forecast_model.forecasts.exists():
-        raise RuntimeError("calculate_error_score_values(): could not calculate absolute errors: model had "
+        raise RuntimeError("_validate_score_targets_and_data(): could not calculate absolute errors: model had "
                            "no data: {}".format(forecast_model))
 
     return targets
-
-
-def _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_id, predicted_value):
-    # validate predicted_value. todo is predicted_value ever None (e.g., 'NA')?
-    if predicted_value is None:
-        raise RuntimeError("calculate_error_score_values(): predicted_value is None."
-                           "forecast_model={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_id={}"
-                           .format(forecast_model, forecast_pk, timezero_pk, location_pk, target_id))
 
 
 def _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
                     timezero_pk, location_pk, target_id):
     # todo: duplicate of iterate_forecast_errors()
     if timezero_pk not in timezero_loc_target_pks_to_truth_values:
-        raise RuntimeError("calculate_error_score_values(): timezero_pk not in truth: "
+        raise RuntimeError("_validate_truth(): timezero_pk not in truth: "
                            "forecast_model={}, timezero_pk={}".format(forecast_model, timezero_pk))
     elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
-        raise RuntimeError("calculate_error_score_values(): location_pk not in truth: "
+        raise RuntimeError("_validate_truth(): location_pk not in truth: "
                            "forecast_model={}, location_pk={}".format(forecast_model, location_pk))
     elif target_id not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
-        raise RuntimeError("calculate_error_score_values(): target_id not in truth: "
+        raise RuntimeError("_validate_truth(): target_id not in truth: "
                            "forecast_model={}, target_id={}".format(forecast_model, target_id))
 
     truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_id]
     if len(truth_values) == 0:  # truth not available
-        raise RuntimeError("calculate_error_score_values(): truth value not found. "
+        raise RuntimeError("_validate_truth(): truth value not found. "
                            "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
                            .format(forecast_model, timezero_pk, location_pk, target_id))
     elif len(truth_values) > 1:
-        raise RuntimeError("calculate_error_score_values(): >1 truth values found. "
+        raise RuntimeError("_validate_truth(): >1 truth values found. "
                            "forecast_model={}, timezero_pk={}, location_pk={}, target_id={}"
                            .format(forecast_model, timezero_pk, location_pk, target_id))
 

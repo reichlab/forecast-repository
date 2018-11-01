@@ -23,7 +23,7 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
 
 
     try:
-        from forecast_app.scores.definitions import _validate_score_targets_and_data, _validate_predicted_value, \
+        from forecast_app.scores.definitions import _validate_score_targets_and_data, \
             _validate_truth, LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports
 
 
@@ -47,9 +47,12 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
     # calculate scores for all combinations of location and target
     for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value in forecast_data_qs:
         try:
-            _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_pk, predicted_value)
             true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
                                          timezero_pk, location_pk, target_pk)
+            if true_value is None or predicted_value is None:
+                # note: future validation might ensure no bin values are None
+                continue  # skip this forecast's contribution to the score
+
             ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,
                                       target_id=target_pk, score=score,
                                       value=abs(true_value - predicted_value)

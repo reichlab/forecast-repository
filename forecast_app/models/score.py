@@ -132,7 +132,7 @@ class Score(models.Model):
             score, is_created = Score.objects.get_or_create(abbreviation=abbreviation,
                                                             name=name, description=description)
             if is_created:
-                logger.debug("ensure_all_scores_exist(): created Score: {}".format(score))
+                logger.info("ensure_all_scores_exist(): created Score: {}".format(score))
 
 
     def update_score_for_model(self, forecast_model):
@@ -145,18 +145,18 @@ class Score(models.Model):
 
 
         start_time = timeit.default_timer()
-        logger.debug("update_score_for_model(): entered. score={}, forecast_model={}".format(self, forecast_model))
+        logger.info("update_score_for_model(): entered. score={}, forecast_model={}".format(self, forecast_model))
 
-        logger.debug("update_score_for_model(): deleting existing ScoreValues for model")
+        logger.info("update_score_for_model(): deleting existing ScoreValues for model")
         ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model).delete()
 
         # e.g., 'calc_error' or 'calc_abs_error':
         calc_function = getattr(forecast_app.scores.definitions, 'calc_' + self.abbreviation)
-        logger.debug("update_score_for_model(): calling calculation function: {}".format(calc_function))
+        logger.info("update_score_for_model(): calling calculation function: {}".format(calc_function))
         calc_function(self, forecast_model)
 
         self.set_last_update_for_forecast_model(forecast_model)
-        logger.debug("update_score_for_model(): done. -> {} total ScoreValues. time: {}"
+        logger.info("update_score_for_model(): done. -> {} total ScoreValues. time: {}"
                      .format(self.num_score_values(), timeit.default_timer() - start_time))
 
 
@@ -177,7 +177,7 @@ class Score(models.Model):
         for score in cls.objects.all():
             for project in Project.objects.all():
                 for forecast_model in project.models.all():
-                    logger.debug("enqueuing update project scores. score={}, forecast_model={}"
+                    logger.info("enqueuing update project scores. score={}, forecast_model={}"
                                  .format(score, forecast_model))
                     django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
 

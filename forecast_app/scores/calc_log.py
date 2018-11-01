@@ -50,7 +50,7 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
         bin row is: (2 * num_bins) + 1 . pass zero to get single bin behavior.
     """
     from forecast_app.scores.definitions import _validate_score_targets_and_data, \
-        _timezero_loc_target_pks_to_truth_values, _validate_truth, _validate_predicted_value  # avoid circular imports
+        _timezero_loc_target_pks_to_truth_values, _validate_truth  # avoid circular imports
 
 
     try:
@@ -76,8 +76,10 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
         try:
             true_value = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_model, forecast_pk,
                                          timezero_pk, location_pk, target_pk)
-            _validate_predicted_value(forecast_model, forecast_pk, timezero_pk, location_pk, target_pk,
-                                      predicted_value)
+            if predicted_value is None:
+                # note: future validation might ensure no bin values are None
+                continue  # skip this forecast's contribution to the score
+
             input_tuple = InputTuple(forecast_pk, location_pk, target_pk,
                                      bin_start_incl, bin_end_notincl,
                                      predicted_value, true_value)
