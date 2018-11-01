@@ -86,7 +86,9 @@ class ScoresTestCase(TestCase):
         # expected score is therefore: math.log(0.20253796115633) = -1.596827947504047
 
         # calculate the score and test results
+        print('xx')
         score.update_score_for_model(forecast_model2)
+        print('xx2')
         self.assertEqual(1, score.values.count())  # only one location + target in the forecast -> only one bin
 
         score_value = score.values.first()

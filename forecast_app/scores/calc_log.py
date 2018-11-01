@@ -1,9 +1,9 @@
 import collections
+import enum
 import logging
 import math
 from collections import namedtuple
-
-from transitions import Machine, State
+from enum import Enum
 
 from forecast_app.models import ForecastData, ScoreValue
 from forecast_app.models.data import CDCData
@@ -26,8 +26,8 @@ logging.getLogger("transitions").setLevel(logging.WARNING)  # o/w too noisy
 # Once we fill values_post_match with num_bins_one_side + 1 items, we can save the score and then skip to the next
 # target.
 #
-# We use a state machine formalism to represent and implement this program. The library we chose is
-# https://github.com/pytransitions/transitions . The diagram is located at multi-bin-score-state-machine.JPG .
+# We use a state machine formalism to represent and implement this program.The diagram is located at
+# multi-bin-score-state-machine.JPG .
 #
 #
 # Re: iterator() memory usage: django 1.1 uses django.db.models.sql.constants.GET_ITERATOR_CHUNK_SIZE, which is
@@ -70,6 +70,7 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
                      'bin_start_incl', 'bin_end_notincl', 'value')
 
+    # line_processing_machine = LineProcessingMachine(score, num_bins_one_side)
     line_processing_machine = LineProcessingMachine(score, num_bins_one_side)
     for forecast_pk, timezero_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl, predicted_value \
             in forecast_data_qs.iterator():
@@ -83,15 +84,13 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
             input_tuple = InputTuple(forecast_pk, location_pk, target_pk,
                                      bin_start_incl, bin_end_notincl,
                                      predicted_value, true_value)
-            line_processing_machine.set_input_tuple(input_tuple)  # todo a way to do this via advance()?
+            line_processing_machine.set_input_tuple(input_tuple)
             line_processing_machine.advance()
-
         except RuntimeError as rte:
             logger.warning(rte)
             continue  # skip this forecast's contribution to the score
 
     # handle the case where we fall off the end and haven't saved the score yet
-    # todo is there a way to do this all in the machine without having to call it externally like this?
     line_processing_machine.handle_post_to_eof()
 
 
@@ -105,77 +104,108 @@ InputTuple = namedtuple('InputTuple', ['forecast_pk', 'location_pk', 'target_pk'
                                        'predicted_value', 'true_value'])
 
 
-class LineProcessingMachine(Machine):
+@enum.unique
+class MachineState(Enum):
+    distribution_start = 0
+    pre_match_collecting = 1
+    post_match_collecting = 2
+    post_match_end_of_file = 3
+    skipping_to_next_distribution = 4
+
+
+class LineProcessingMachine:
+    """
+    NB: does minimal state error checking
+
+    State machine description from previous (pytransitions) implementation:
+
+    * states:
+    - 'distribution_start'             # on_enter='clear_state_vars'
+    - 'pre_match_collecting'           # on_enter='add_value_to_pre'
+    - 'post_match_collecting'          # on_enter='add_value_to_post'
+    - 'post_match_end_of_file'         # on_enter='save_score'
+    - 'skipping_to_next_distribution'  # on_enter=None
+
+    * transitions:
+    - source='distribution_start', 'post_match_collecting', conditions='is_match'
+    - source='distribution_start', 'pre_match_collecting', unless='is_match'
+
+    - source='pre_match_collecting', 'post_match_collecting', conditions='is_match'
+    - source='pre_match_collecting', 'pre_match_collecting', unless='is_match'
+
+    - source='post_match_collecting', 'skipping_to_next_distribution', conditions='is_post_full', after='save_score'
+    - source='post_match_collecting', 'post_match_collecting', unless='is_post_full'
+
+    - source='post_match_collecting', 'post_match_end_of_file'  # state transitioned to manually @ EOF
+
+    - source='skipping_to_next_distribution', 'distribution_start', conditions='is_start_new_distribution'
+    - source='skipping_to_next_distribution', 'skipping_to_next_distribution', unless='is_start_new_distribution'
+    """
+
 
     def __init__(self, score, num_bins_one_side):
-        """
-        :param score: the Score to save into
-        :param num_bins_one_side: as documented in _calc_log_bin()
-        """
         self.score = score
         self.num_bins_one_side = num_bins_one_side
 
-        # extended state variables
         self.values_pre_match_dq = collections.deque([], self.num_bins_one_side)  # default is moving from right to left
         self.values_post_match = []
 
-        # input (and past) variables passed to set_input_tuple() - InputTuple instances
         self.input_tuple_previous = None
         self.input_tuple_current = None
 
-        # define the machine
-        states = [
-            State(name='distribution_start', on_enter='clear_state_vars'),
-            State(name='pre_match_collecting', on_enter='add_value_to_pre'),
-            State(name='post_match_collecting', on_enter='add_value_to_post'),
-            State(name='post_match_end_of_file', on_enter='save_score'),  # NB: state transitioned to manually @ EOF
-            State(name='skipping_to_next_distribution'),
-        ]
-        super().__init__(self, states=states, initial='distribution_start')
+        self.state = None
+        self.transition_to_state(MachineState.distribution_start)  # initial state
 
-        # add 'distribution_start' transitions
-        self.add_transition(trigger='advance',
-                            source='distribution_start', dest='post_match_collecting',
-                            conditions='is_match')
-        self.add_transition(trigger='advance',
-                            source='distribution_start', dest='pre_match_collecting',
-                            unless='is_match')
 
-        # add 'pre_match_collecting' transitions
-        self.add_transition(trigger='advance',
-                            source='pre_match_collecting', dest='post_match_collecting',
-                            conditions='is_match')
-        self.add_transition(trigger='advance',
-                            source='pre_match_collecting', dest='pre_match_collecting',
-                            unless='is_match')
+    def advance(self):
+        # decide state to transition to
+        if self.state == MachineState.distribution_start and self.is_match():
+            self.transition_to_state(MachineState.post_match_collecting)
+        elif self.state == MachineState.distribution_start:  # not self.is_match()
+            self.transition_to_state(MachineState.pre_match_collecting)
 
-        # add 'post_match_collecting' transitions
-        self.add_transition(trigger='advance',
-                            source='post_match_collecting', dest='skipping_to_next_distribution',
-                            conditions='is_post_full',
-                            after='save_score')
-        self.add_transition(trigger='advance',
-                            source='post_match_collecting', dest='post_match_collecting',
-                            unless='is_post_full')
-        self.add_transition(trigger='post_to_eof',
-                            source='post_match_collecting', dest='post_match_end_of_file')
+        elif self.state == MachineState.pre_match_collecting and self.is_match():
+            self.transition_to_state(MachineState.post_match_collecting)
+        elif self.state == MachineState.pre_match_collecting:  # not self.is_match()
+            self.transition_to_state(MachineState.pre_match_collecting)
 
-        # 'post_match_end_of_file': no transitions
+        elif self.state == MachineState.post_match_collecting and self.is_post_full():
+            self.transition_to_state(MachineState.skipping_to_next_distribution)
+            self.save_score()  # after
+        elif self.state == MachineState.post_match_collecting:  # not self.is_post_full()
+            self.transition_to_state(MachineState.post_match_collecting)
 
-        # add 'skipping_to_next_distribution' transitions
-        self.add_transition(trigger='advance',
-                            source='skipping_to_next_distribution', dest='distribution_start',
-                            conditions='is_start_new_distribution')
-        self.add_transition(trigger='advance',
-                            source='skipping_to_next_distribution', dest='skipping_to_next_distribution',
-                            unless='is_start_new_distribution')
+        # elif self.state == MachineState.post_match_collecting:
+        #     self.transition_to_state(MachineState.post_match_end_of_file)
+
+        elif self.state == MachineState.skipping_to_next_distribution and self.is_start_new_distribution():
+            self.transition_to_state(MachineState.distribution_start)
+        elif self.state == MachineState.skipping_to_next_distribution:  # not self.is_start_new_distribution()
+            self.transition_to_state(MachineState.skipping_to_next_distribution)
+        else:
+            raise RuntimeError('advance(): no matching transitions: {}'.format(self.state))
+
+
+    def transition_to_state(self, new_state):
+        # fire on_enter method
+        if new_state == MachineState.distribution_start:
+            self.clear_state_vars()
+        elif new_state == MachineState.pre_match_collecting:
+            self.add_value_to_pre()
+        elif new_state == MachineState.post_match_collecting:
+            self.add_value_to_post()
+        elif new_state == MachineState.post_match_end_of_file:
+            self.save_score()
+        elif new_state == MachineState.skipping_to_next_distribution:
+            pass
+        else:
+            raise RuntimeError('bad from state: {}'.format(new_state))
+
+        # set the new state
+        self.state = new_state
 
 
     def set_input_tuple(self, input_tuple):
-        """
-        Called (externally) for each new input bin line before advancing the machine, sets my input variables
-        accordingly.
-        """
         self.input_tuple_previous = self.input_tuple_current
         self.input_tuple_current = input_tuple
 
@@ -245,8 +275,5 @@ class LineProcessingMachine(Machine):
 
 
     def handle_post_to_eof(self):
-        """
-        Handles the EOF case - see multi-bin-score-state-machine.JPG .
-        """
-        if self.state == 'post_match_collecting':
-            self.post_to_eof()
+        if self.state == MachineState.post_match_collecting:  # vs. MachineState.skipping_to_next_distribution
+            self.transition_to_state(MachineState.post_match_end_of_file)
