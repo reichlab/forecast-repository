@@ -172,11 +172,7 @@ class ProjectTestCase(TestCase):
         exp_target_names = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset',
                             'Season peak percentage', 'Season peak week']
         self.assertEqual(exp_target_names, sorted(self.project.get_target_names_for_location('US National')))
-
-        self.assertEqual('week', self.project.get_target_unit('US National', 'Season onset'))
         self.assertEqual(51.0, self.project.get_target_point_value('US National', 'Season onset'))
-
-        self.assertEqual('percent', self.project.get_target_unit('US National', 'Season peak percentage'))
         self.assertEqual(1.5, self.project.get_target_point_value('US National', 'Season peak percentage'))
 
         act_bins = self.project.get_target_bins('US National', 'Season onset')

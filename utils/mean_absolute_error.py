@@ -2,7 +2,6 @@ import logging
 from itertools import groupby
 
 from forecast_app.models import ForecastData, Forecast
-from forecast_app.models.data import CDCData
 
 
 logger = logging.getLogger(__name__)

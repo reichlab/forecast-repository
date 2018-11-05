@@ -56,7 +56,6 @@ def normalize_cdc_flusight_ensemble_filenames_app(cdc_data_parent_dir):
             data_version_date_sunday = pymmwr.mmwr_week_to_date(future_yw_mmwr_dict['year'],
                                                                 future_yw_mmwr_dict['week'])  # first day of EW (a Sun)
             data_version_date_monday = data_version_date_sunday + datetime.timedelta(days=1)  # Sunday + 1 = Monday
-
             new_filename = '{time_zero}-{model_name}-{data_version_date}.cdc.csv' \
                 .format(time_zero=time_zero.strftime(YYYYMMDD_DATE_FORMAT),
                         model_name=team_name,

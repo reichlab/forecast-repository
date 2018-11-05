@@ -6,7 +6,6 @@ from collections import namedtuple
 from enum import Enum
 
 from forecast_app.models import ForecastData, ScoreValue
-from forecast_app.models.data import CDCData
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +76,7 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
     for forecast_pk, timezero_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl, predicted_value \
             in forecast_data_qs.iterator():
         true_value, error_string = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_pk,
-                                     timezero_pk, location_pk, target_pk)
+                                                   timezero_pk, location_pk, target_pk)
         error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
         if error_string and (error_key not in forec_tz_loc_targ_pk_to_error_str):
             forec_tz_loc_targ_pk_to_error_str[error_key] = error_string

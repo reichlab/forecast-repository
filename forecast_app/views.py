@@ -62,6 +62,7 @@ def zadmin(request):
     rq_jobs = _rq_jobs_for_queue(rq_queue)
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
+    Score.ensure_all_scores_exist()
     score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
     for score_last_update in ScoreLastUpdate.objects \
             .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
@@ -446,12 +447,10 @@ def create_project(request):
         raise PermissionDenied
 
     # set up inline formsets using a new (unsaved) Project
-    LocationInlineFormSet = inlineformset_factory(Project, Location,
-                                                  fields=('name',),
-                                                  extra=3)
-    TargetInlineFormSet = inlineformset_factory(Project, Target,
-                                                fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
-                                                extra=3)
+    LocationInlineFormSet = inlineformset_factory(
+        Project, Location, fields=('name',), extra=3)
+    TargetInlineFormSet = inlineformset_factory(
+        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3)
     TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero,
                                                   fields=('timezero_date', 'data_version_date'),
                                                   extra=3)
@@ -501,12 +500,10 @@ def edit_project(request, project_pk):
         raise PermissionDenied
 
     # set up inline formsets
-    LocationInlineFormSet = inlineformset_factory(Project, Location,
-                                                  fields=('name',),
-                                                  extra=3)
-    TargetInlineFormSet = inlineformset_factory(Project, Target,
-                                                fields=('name', 'description', 'is_step_ahead', 'step_ahead_increment'),
-                                                extra=3)
+    LocationInlineFormSet = inlineformset_factory(
+        Project, Location, fields=('name',), extra=3)
+    TargetInlineFormSet = inlineformset_factory(
+        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3)
     TimeZeroInlineFormSet = inlineformset_factory(
         Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3
     )

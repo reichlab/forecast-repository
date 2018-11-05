@@ -168,7 +168,7 @@ def create_thai_locations_and_targets(project):
              'forecasted case counts for 5 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
              True, 5),
     ):
-        targets.append(Target.objects.create(project=project, name=target_name, description=description,
+        targets.append(Target.objects.create(project=project, name=target_name, description=description, unit='cases',
                                              is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment))
 
 

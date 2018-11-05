@@ -212,6 +212,7 @@
             <tr>
                 <th>Name</th>
                 <th>Description</th>
+                <th>Unit</th>
                 <th title="Integer value indicating # steps ahead relative to a time zero. Used for time chart plots, and to extract 'actual' values from the truth data.">
                     Step Ahead?
                 </th>
@@ -220,6 +221,7 @@
                 <tr>
                     <td>{{ target.name }}</td>
                     <td>{{ target.description }}</td>
+                    <td>{{ target.unit }}</td>
                     <td>
                         {% if target.is_step_ahead %}
                             {{ target.step_ahead_increment }} step{{ target.step_ahead_increment|pluralize }}

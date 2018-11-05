@@ -1,12 +1,12 @@
 from itertools import groupby
 
 from forecast_app.models import ForecastData, ForecastModel
-from forecast_app.models.data import CDCData
+from utils.utilities import YYYYMMDD_DATE_FORMAT
+
+
 #
 # This file defines functions related to the Flusight D3 component at https://github.com/reichlab/d3-foresight
 #
-from utils.utilities import YYYYMMDD_DATE_FORMAT
-
 
 def flusight_location_to_data_dict(project, season_name, request=None):
     """

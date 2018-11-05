@@ -1,7 +1,6 @@
 import logging
 
 from forecast_app.models import ForecastData
-from forecast_app.models.data import CDCData
 
 
 logger = logging.getLogger(__name__)

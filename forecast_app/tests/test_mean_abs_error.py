@@ -23,14 +23,6 @@ class MAETestCase(TestCase):
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(cls.project)
-        # Target.objects.create(project=cls.project, name="1 wk ahead", description="d",
-        #                       is_step_ahead=True, step_ahead_increment=1)
-        # Target.objects.create(project=cls.project, name="2 wk ahead", description="d",
-        #                       is_step_ahead=True, step_ahead_increment=3)
-        # Target.objects.create(project=cls.project, name="3 wk ahead", description="d",
-        #                       is_step_ahead=True, step_ahead_increment=3)
-        # Target.objects.create(project=cls.project, name="4 wk ahead", description="d",
-        #                       is_step_ahead=True, step_ahead_increment=4)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 

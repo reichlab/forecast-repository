@@ -156,7 +156,7 @@ def make_cdc_targets(project):
     """
     targets = []
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
-    for target_name, description, is_step_ahead, step_ahead_increment in (
+    for target_name, description, unit, is_step_ahead, step_ahead_increment in (
             ('Season onset',
              "The onset of the season is defined as the MMWR surveillance week "
              "(http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) "
@@ -164,20 +164,20 @@ def make_cdc_targets(project):
              "ILINet baseline values for the US and each HHS region will be available at "
              "http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should "
              "be for the first week of that three week period.",
-             False, 0),
+             'week', False, 0),
             ('Season peak week',
              "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the highest "
              "for the 2016-2017 influenza season.",
-             False, 0),
+             'week', False, 0),
             ('Season peak percentage',
              "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches during " \
              "the 2016-2017 influenza season.",
-             False, 0),
-            ('1 wk ahead', week_ahead_descr, True, 1),
-            ('2 wk ahead', week_ahead_descr, True, 2),
-            ('3 wk ahead', week_ahead_descr, True, 3),
-            ('4 wk ahead', week_ahead_descr, True, 4)):
-        targets.append(Target.objects.create(project=project, name=target_name, description=description,
+             'percent', False, 0),
+            ('1 wk ahead', week_ahead_descr, 'percent', True, 1),
+            ('2 wk ahead', week_ahead_descr, 'percent', True, 2),
+            ('3 wk ahead', week_ahead_descr, 'percent', True, 3),
+            ('4 wk ahead', week_ahead_descr, 'percent', True, 4)):
+        targets.append(Target.objects.create(project=project, name=target_name, description=description, unit=unit,
                                              is_step_ahead=is_step_ahead, step_ahead_increment=step_ahead_increment))
     return targets
 

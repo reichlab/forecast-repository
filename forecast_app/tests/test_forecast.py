@@ -129,12 +129,6 @@ class ForecastTestCase(TestCase):
                                               self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
-        # target units match. also tests that all targets have a point value
-        with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-units-dont-match-2017-01-17.csv'),
-                                              self.time_zero)
-        self.assertIn("Target unit not found or didn't match template", str(context.exception))
-
 
     @unittest.skip
     def test_forecast_data_validation_additional(self):
@@ -183,11 +177,7 @@ class ForecastTestCase(TestCase):
                             'Season peak percentage', 'Season peak week']
         self.assertEqual(exp_target_names, sorted(self.forecast.get_target_names_for_location('US National')))
         self.assertEqual(exp_target_names, sorted(self.forecast.get_target_names()))
-
-        self.assertEqual('week', self.forecast.get_target_unit('US National', 'Season onset'))
         self.assertEqual(50.0012056690978, self.forecast.get_target_point_value('US National', 'Season onset'))
-
-        self.assertEqual('percent', self.forecast.get_target_unit('US National', 'Season peak percentage'))
         self.assertEqual(3.30854920241938,
                          self.forecast.get_target_point_value('US National', 'Season peak percentage'))
 
@@ -292,10 +282,6 @@ class ForecastTestCase(TestCase):
         act_bins = act_location_dicts['US National']['Season onset']['bins']
         self.assertEqual(34, len(act_bins))
         self.assertEqual(exp_bins, act_bins)  # tests order
-
-        # spot-check a few units
-        self.assertEqual('week', act_location_dicts['US National']['Season onset']['unit'])
-        self.assertEqual('percent', act_location_dicts['HHS Region 1']['1 wk ahead']['unit'])
 
 
     def test_get_loc_dicts_int_format_for_csv_file(self):

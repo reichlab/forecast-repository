@@ -13,7 +13,7 @@ from django.db.models import ManyToManyField, Max, BooleanField, IntegerField
 from django.urls import reverse
 from jsonfield import JSONField
 
-from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData, POSTGRES_NULL_VALUE, CDCData
+from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData, POSTGRES_NULL_VALUE
 from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
 
 
@@ -824,16 +824,6 @@ class Project(ModelWithCDCData):
                                        .format(template_name, forecast.csv_filename, template_location, template_target,
                                                forecast_bin_sum))
 
-                # test unit. recall that get_target_unit() arbitrarily uses the point row's unit. this means that the
-                # following test also handles when a point line is missing as well
-                template_unit = template_target_dicts[template_target]['unit']
-                forecast_unit = forecast_target_dicts[template_target]['unit']
-                if (not forecast_unit) or (template_unit != forecast_unit):
-                    raise RuntimeError("Target unit not found or didn't match template. template={}, csv_filename={}, "
-                                       "template_location={}, template_target={}, template_unit={}, forecast_unit={}"
-                                       .format(template_name, forecast.csv_filename, template_location, template_target,
-                                               template_unit, forecast_unit))
-
 
     def validate_template_data(self):
         """
@@ -913,17 +903,15 @@ class Target(models.Model):
     Represents one of a project's targets - a description of the desired data in the each forecast's data file.
     """
     project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
-
     name = models.CharField(max_length=200)
-
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target.")
-
+    unit = models.CharField(max_length=200, help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.",
+                            blank=True)  # blank=True allows omitting in forms
     is_step_ahead = BooleanField(help_text="Flag that's True if this Target is a 'k-step-ahead' one that can be used "
                                            "in analysis tools to reference forward and back in a Project's TimeZeros "
                                            "(when sorted by timezero_date). If True then step_ahead_increment must be "
                                            "set. Default is False.",
                                  default=False)
-
     step_ahead_increment = IntegerField(help_text="Optional field that's required when Target.is_step_ahead "
                                                   "is True, is an integer specifing how many time steps "
                                                   "ahead the Target is. Can be negative, zero, or positive.",
