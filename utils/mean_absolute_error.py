@@ -173,7 +173,7 @@ def _model_id_to_point_values_dict(project, target_names, season_name=None):
                  .format(project, target_names, season_name))
     # get the rows, ordered so we can groupby()
     forecast_data_qs = ForecastData.objects \
-        .filter(row_type=CDCData.POINT_ROW_TYPE,
+        .filter(is_point_row=True,
                 target__name__in=target_names,
                 forecast__forecast_model__project=project)
     if season_name:

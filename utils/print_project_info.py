@@ -28,11 +28,13 @@ def main(verbosity):
 
 
 def print_project_info(project, verbosity):
+    # verbosity == 1
     click.echo("\n* {} {!r} {}. {} {}. {}".format(project, project.csv_filename, project.truth_data_qs().count(),
                                             project.owner, project.model_owners.all(), project.get_summary_counts()))
     if verbosity == 1:
         return
 
+    # verbosity == 2
     click.echo("** Targets ({})".format(project.targets.count()))
     for target in project.targets.all():
         click.echo("- {}".format(target))
@@ -48,6 +50,7 @@ def print_project_info(project, verbosity):
     if verbosity == 2:
         return
 
+    # verbosity == 3
     click.echo("** ForecastModels ({})".format(project.models.count()))
     for forecast_model in project.models.all():
         if verbosity == 3:

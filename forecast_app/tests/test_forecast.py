@@ -7,12 +7,13 @@ from pathlib import Path
 
 from django.test import TestCase
 
+from forecast_app.api_views import csv_response_for_model_with_cdc_data
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.data import CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.utilities import rescale
+from utils.utilities import rescale, CDC_CSV_HEADER
 
 
 class ForecastTestCase(TestCase):
@@ -42,7 +43,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(8019, forecast_cdcdata_set.count())  # excluding header
 
         # spot-check a few rows
-        act_qs = forecast_cdcdata_set.filter(location__name='US National', row_type=CDCData.POINT_ROW_TYPE) \
+        act_qs = forecast_cdcdata_set.filter(location__name='US National', is_point_row=True) \
             .order_by('id') \
             .values_list('value', flat=True)
         self.assertEqual(
@@ -155,19 +156,22 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_data_accessors(self):  # (via ModelWithCDCData)
         # test get_data_rows()
-        self.assertEqual(8019, len(self.forecast.get_data_rows()))
+        data_rows = self.forecast.get_data_rows()
+        self.assertEqual(8019, len(data_rows))
+        self.assertEqual(['US National', 'Season onset', 'point', 'week', None, None, 50.0012056690978], data_rows[0])
+        self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 1.95984004521967e-05], data_rows[1])
 
         # test get_data_preview()
-        exp_preview = [('US National', 'Season onset', CDCData.POINT_ROW_TYPE, 'week', None, None, 50.0012056690978),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 40, 41, 1.95984004521967e-05),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 41, 42, 1.46988003391476e-05),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 42, 43, 6.98193016109509e-06),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 43, 44, 3.79719008761312e-06),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 44, 45, 4.28715009891804e-06),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 45, 46, 1.59237003674098e-05),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 46, 47, 3.0989970715036e-05),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 47, 48, 5.3895601243541e-05),
-                       ('US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05)]
+        exp_preview = [['US National', 'Season onset', CDCData.POINT_ROW_TYPE, 'week', None, None, 50.0012056690978],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 40, 41, 1.95984004521967e-05],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 41, 42, 1.46988003391476e-05],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 42, 43, 6.98193016109509e-06],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 43, 44, 3.79719008761312e-06],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 44, 45, 4.28715009891804e-06],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 45, 46, 1.59237003674098e-05],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 46, 47, 3.0989970715036e-05],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 47, 48, 5.3895601243541e-05],
+                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05]]
         self.assertEqual(exp_preview, self.forecast.get_data_preview())
 
         exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
@@ -320,6 +324,17 @@ class ForecastTestCase(TestCase):
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
+
+
+    def test_download_forecast_data(self):
+        # csv format
+        response = csv_response_for_model_with_cdc_data(self.forecast)
+        split_content = response.content.decode("utf-8").split('\r\n')
+        self.assertEqual(len(split_content), 8021)  # 8019 data rows + 1 header + 1 EOF
+        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
+        # relies on order, which is OK - see get_data_rows(): `order_by('id')`
+        self.assertEqual(split_content[1], 'US National,Season onset,point,week,,,50.0012056690978')
+        self.assertEqual(split_content[2], 'US National,Season onset,bin,week,40.0,41.0,1.95984004521967e-05')
 
 
     def test_sparkline_data(self):

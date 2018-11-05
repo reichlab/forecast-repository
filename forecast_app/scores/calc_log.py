@@ -64,7 +64,7 @@ def _calc_log_bin(score, forecast_model, num_bins_one_side):
     # calculate scores for all combinations of location and target
     forecast_data_qs = ForecastData.objects \
         .filter(forecast__forecast_model=forecast_model,
-                row_type=CDCData.BIN_ROW_TYPE,
+                is_point_row=False,
                 target__in=targets) \
         .order_by('forecast__id', 'location__id', 'target__id', 'bin_start_incl') \
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',

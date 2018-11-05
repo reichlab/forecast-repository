@@ -347,15 +347,10 @@ def csv_response_for_model_with_cdc_data(model_with_cdc_data):
     response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
         .format(csv_filename=model_with_cdc_data.csv_filename)
 
-
-    def transform_row(row):
-        return row  # todo xx replace '', etc.
-
-
     writer = csv.writer(response)
     writer.writerow(CDC_CSV_HEADER)
-    for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):
-        writer.writerow(transform_row(row))
+    for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):  # calls transform_row_to_output_format()
+        writer.writerow(row)
 
     return response
 

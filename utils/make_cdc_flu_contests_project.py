@@ -109,7 +109,7 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     click.echo("- Loading forecasts: loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     # done!
-    logger.info("* Done! time: {}".format(timeit.default_timer() - start_time))
+    logger.info("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 
 def make_project(project_name, po_user, mo_user):

@@ -1,9 +1,8 @@
 import json
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
-import django_rq
-import redis
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -15,6 +14,11 @@ from forecast_app.models.upload_file_job import UploadFileJob
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
     CDC_CONFIG_DICT
 from utils.utilities import CDC_CSV_HEADER
+
+
+# todo has no affect on errors like:
+# WARNING 2018-11-02 10:48:20,606 exception 5530 140735224639488 Forbidden (Permission denied): /api/project/2/template/
+logging.getLogger().setLevel(logging.ERROR)
 
 
 class ViewsTestCase(TestCase):

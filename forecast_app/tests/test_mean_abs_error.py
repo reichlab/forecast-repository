@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pymmwr
@@ -8,6 +9,9 @@ from forecast_app.models.forecast_model import ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
     _model_id_to_forecast_id_tz_dates, location_to_mean_abs_error_rows_for_project
+
+
+logging.getLogger().setLevel(logging.ERROR)
 
 
 class MAETestCase(TestCase):

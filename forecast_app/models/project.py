@@ -335,7 +335,7 @@ class Project(ModelWithCDCData):
         season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
         loc_max_val_qs = ForecastData.objects \
             .filter(forecast__forecast_model__project=self,
-                    row_type=CDCData.POINT_ROW_TYPE,
+                    is_point_row=True,
                     target__in=targets,
                     forecast__time_zero__timezero_date__gte=season_start_date,
                     forecast__time_zero__timezero_date__lte=season_end_date) \

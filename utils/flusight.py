@@ -133,7 +133,7 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
     rows = ForecastData.objects \
         .filter(forecast__forecast_model__project=project,
-                row_type=CDCData.POINT_ROW_TYPE,
+                is_point_row=True,
                 target__in=step_ahead_targets,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \

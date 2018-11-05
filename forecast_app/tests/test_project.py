@@ -1,4 +1,5 @@
 import datetime
+import logging
 from collections import defaultdict
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.make_thai_moph_project import create_thai_locations_and_targets, THAI_CONFIG_DICT
+
+
+logging.getLogger().setLevel(logging.ERROR)
 
 
 class ProjectTestCase(TestCase):
@@ -152,7 +156,11 @@ class ProjectTestCase(TestCase):
 
 
     def test_project_template_data_accessors(self):
-        self.assertEqual(8019, len(self.project.get_data_rows()))  # individual rows via SQL
+        data_rows = self.project.get_data_rows()
+        self.assertEqual(8019, len(data_rows))  # individual rows via SQL
+        self.assertEqual(['US National', 'Season onset', 'point', 'week', None, None, 51.0], data_rows[0])
+        self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 0.029411765], data_rows[1])
+
         self.assertEqual(8019, self.project.cdcdata_set.count())  # individual rows as CDCData instances
 
         # test Project template accessors (via ModelWithCDCData) - the twin to test_forecast_data_accessors()

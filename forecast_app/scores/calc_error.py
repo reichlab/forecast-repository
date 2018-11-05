@@ -39,7 +39,7 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
 
     # get predicted point values
     forecast_data_qs = ForecastData.objects \
-        .filter(row_type=CDCData.POINT_ROW_TYPE,
+        .filter(is_point_row=True,
                 target__in=targets,
                 forecast__forecast_model=forecast_model) \
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id', 'value')
