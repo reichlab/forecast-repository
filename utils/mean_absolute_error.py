@@ -21,7 +21,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     if not project.is_truth_data_loaded():  # no reason to do all the work
         return {}
 
-    target_names = [target.name for target in project.visualization_targets()]
+    target_names = [target.name for target in project.step_ahead_targets()]
     if not target_names:
         return {}
 

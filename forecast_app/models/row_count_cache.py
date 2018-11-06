@@ -17,10 +17,8 @@ class RowCountCache(models.Model):
         related_name='row_count_cache',
         on_delete=models.CASCADE,
         primary_key=True)
-
-    # datetime at the last update. auto_now: automatically set the field to now every time the object is saved.
+    # datetime at the last update. auto_now: automatically set the field to now every time the object is saved:
     updated_at = models.DateTimeField(auto_now=True)
-
     row_count = IntegerField(default=None, null=True)  # count at the last update. None -> has not be updated at all yet
 
 

@@ -10,8 +10,6 @@ from forecast_app.models import ForecastData, ScoreValue
 
 logger = logging.getLogger(__name__)
 
-logging.getLogger("transitions").setLevel(logging.WARNING)  # o/w too noisy
-
 
 #
 # Implementation notes:

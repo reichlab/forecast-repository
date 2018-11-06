@@ -14,17 +14,12 @@ class ForecastModel(models.Model):
     core data, and a list of the actual forecasts.
     """
     owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.", on_delete=models.SET_NULL)
-
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
-
     name = models.CharField(max_length=200)
-
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. Please see "
                                                               "documentation forwhat should be included here - "
                                                               "information on reproducing the model’s results, etc.")
-
     home_url = models.URLField(help_text="The model's home site.")
-
     aux_data_url = models.URLField(
         null=True, blank=True,
         help_text="Optional model-specific auxiliary data directory or Zip file containing data files (e.g., "

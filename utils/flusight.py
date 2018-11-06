@@ -54,14 +54,14 @@ def flusight_location_to_data_dict(project, season_name, request=None):
     Notes:
     - The length of predictions must match that of timePoints, using null for missing points.
     - All models must belong to the same Project.
-    - Returns None if the project has no visualization_targets().
+    - Returns None if the project has no step_ahead_targets().
     - If request is passed then it is used to calculate each model's absolute URL (used in the flusight component's info
       box). o/w the model's home_url is used
     """
     if not project.models.count():
         return None
 
-    step_ahead_targets = project.visualization_targets()
+    step_ahead_targets = project.step_ahead_targets()
     if not step_ahead_targets:
         return None
 

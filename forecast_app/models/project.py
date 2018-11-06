@@ -46,7 +46,7 @@ class Project(ModelWithCDCData):
                                               "can only be accessed by the project's owner or any of its model_owners. "
                                               "True means it is publicly accessible.")
 
-    model_owners = ManyToManyField(User, blank=True,  # blank=True allows omitting in forms
+    model_owners = ManyToManyField(User, blank=True,
                                    help_text="Users who are allowed to create, edit, and delete ForecastModels "
                                              "in this project. Or: non-editing users who simply need access "
                                              "to a private project. Use control/command click to add/remove from "
@@ -371,12 +371,12 @@ class Project(ModelWithCDCData):
     # visualization-related functions
     #
 
-    def visualization_targets(self):
-        """
-        :return: list of Targets that can be used for flusight_location_to_data_dict() and mean_absolute_error()
-            (for the meantime) calls. returns None if no config_dict. they are sorted by name
-        """
+    def step_ahead_targets(self):
         return self.targets.filter(is_step_ahead=True).order_by('name')
+
+
+    def non_date_targets(self):
+        return self.targets.filter(is_date=False).order_by('name')
 
 
     def visualization_y_label(self):
@@ -882,7 +882,6 @@ class Location(models.Model):
     Represents one of a project's locations - just a string naming the target.
     """
     project = models.ForeignKey(Project, related_name='locations', on_delete=models.CASCADE)
-
     name = models.CharField(max_length=200)
 
 
@@ -906,7 +905,9 @@ class Target(models.Model):
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target.")
     unit = models.CharField(max_length=200, help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.",
-                            blank=True)  # blank=True allows omitting in forms
+                            blank=True)
+    is_date = BooleanField(help_text="Flag that's True if this Target is relative to dates. Default is False.",
+                           default=False)
     is_step_ahead = BooleanField(help_text="Flag that's True if this Target is a 'k-step-ahead' one that can be used "
                                            "in analysis tools to reference forward and back in a Project's TimeZeros "
                                            "(when sorted by timezero_date). If True then step_ahead_increment must be "
@@ -926,6 +927,26 @@ class Target(models.Model):
         return basic_str(self)
 
 
+    def save(self, *args, **kwargs):
+        """
+        Validates is_step_ahead and step_ahead_increment, and is_date and is_step_ahead.
+
+        NB: we can't test constraints involving step_ahead_increment b/c it can be zero, and we are not passed the
+        keyword arguments that create() got.
+        """
+        # if self.is_step_ahead and not self.step_ahead_increment:
+        #     raise ValidationError('passed is_step_ahead with no step_ahead_increment')
+
+        # if not self.is_step_ahead and self.step_ahead_increment:
+        #     raise ValidationError('passed step_ahead_increment but not is_step_ahead')
+
+        if self.is_date and self.is_step_ahead:
+            raise ValidationError('passed is_date and is_step_ahead')
+
+        # done
+        return super().save(*args, **kwargs)
+
+
 #
 # ---- TimeZero class ----
 #
@@ -941,17 +962,13 @@ class TimeZero(models.Model):
     ( https://ibis.health.state.nm.us/resource/MMWRWeekCalendar.html ).
     """
     project = models.ForeignKey(Project, related_name='timezeros', on_delete=models.CASCADE)
-
     timezero_date = models.DateField(help_text="A date that a target is relative to.")
-
     data_version_date = models.DateField(
         null=True, blank=True,
         help_text="The optional database date at which models should work with for the timezero_date.")  # nullable
-
     is_season_start = models.BooleanField(
         default=False,
         help_text="True if this TimeZero starts a season.")
-
     season_name = models.CharField(
         null=True, blank=True,
         max_length=50, help_text="The name of the season this TimeZero starts, if is_season_start.")  # nullable
@@ -965,17 +982,15 @@ class TimeZero(models.Model):
         return basic_str(self)
 
 
-    # Note: a model’s clean() method is not invoked when you call your model’s save() method.
-    def clean(self):
-        # must have season_name if is_season_start
+    def save(self, *args, **kwargs):
+        """
+        Validates is_season_start and season_name.
+        """
         if self.is_season_start and not self.season_name:
             raise ValidationError('passed is_season_start with no season_name')
 
-        # can't have season_name if no is_season_start
         if not self.is_season_start and self.season_name:
-            raise ValidationError('passed season_name but no is_season_start')
+            raise ValidationError('passed season_name but not is_season_start')
 
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
+        # done
         return super().save(*args, **kwargs)

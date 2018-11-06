@@ -245,16 +245,17 @@ class ProjectTestCase(TestCase):
         # 2017-01-01   ""         time_zero4    within
         # 2017-02-01 season2      time_zero5  start
         # 2018-01-01 season3      time_zero6  start
-        time_zero1 = TimeZero.objects.create(project=project2, timezero_date='2015-01-01',
+        time_zero1 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2015, 1, 1),
                                              is_season_start=False)  # no season for this TZ. explicit arg
-        time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2015-02-01',
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2015, 2, 1),
                                              is_season_start=False)  # ""
-        time_zero3 = TimeZero.objects.create(project=project2, timezero_date='2016-02-01',
+        time_zero3 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 2, 1),
                                              is_season_start=True, season_name='season1')  # start season1. 2 TZs
-        time_zero4 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')  # in season1. default args
-        time_zero5 = TimeZero.objects.create(project=project2, timezero_date='2017-02-01',
+        time_zero4 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1)
+                                             )  # in season1. default args
+        time_zero5 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 2, 1),
                                              is_season_start=True, season_name='season2')  # start season2. 1 TZ
-        time_zero6 = TimeZero.objects.create(project=project2, timezero_date='2018-01-01',
+        time_zero6 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2018, 1, 1),
                                              is_season_start=True, season_name='season3')  # start season3. 1 TZ
 
         # test Project.timezeros_num_forecasts() b/c it's convenient here
@@ -278,7 +279,7 @@ class ProjectTestCase(TestCase):
         with self.assertRaises(ValidationError) as context:
             TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
                                     is_season_start=False, season_name='season4')  # no season start, season name
-        self.assertIn('passed season_name but no is_season_start', str(context.exception))
+        self.assertIn('passed season_name but not is_season_start', str(context.exception))
 
         # test seasons()
         self.assertEqual(['season1', 'season2', 'season3'], sorted(project2.seasons()))
@@ -305,7 +306,7 @@ class ProjectTestCase(TestCase):
 
         # test timezeros_in_season() w/no season, followed by no seasons, i.e., no seasons at all in the project
         project3 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        time_zero7 = TimeZero.objects.create(project=project3, timezero_date='2015-01-01')
+        time_zero7 = TimeZero.objects.create(project=project3, timezero_date=datetime.date(2015, 1, 1))
         self.assertEqual([time_zero7], project3.timezeros_in_season(None))
 
         # test start_end_dates_for_season()
@@ -323,7 +324,7 @@ class ProjectTestCase(TestCase):
                                    'HHS Region 6': 4.41926018901693, 'HHS Region 7': 2.79371802884364,
                                    'HHS Region 8': 1.69920709944699, 'HHS Region 9': 3.10232205135854,
                                    'US National': 3.00101461253164}
-        act_location_to_max_val = project2.location_to_max_val('season1', project2.visualization_targets())
+        act_location_to_max_val = project2.location_to_max_val('season1', project2.step_ahead_targets())
         self.assertEqual(exp_location_to_max_val, act_location_to_max_val)
 
         # test timezero_to_season_name()
@@ -355,26 +356,42 @@ class ProjectTestCase(TestCase):
             self.assertEqual(exp_season_name, project2.season_name_containing_timezero(timezero))
 
 
-    def test_target_step_ahead(self):
+    def test_target_step_ahead_validation(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
 
+        # no is_step_ahead, no step_ahead_increment: valid
+        target = Target.objects.create(project=project2, name="Test target", description="d")
+        self.assertFalse(target.is_step_ahead)
+
+        # yes is_step_ahead, yes step_ahead_increment: valid
         target = Target.objects.create(project=project2, name="Test target", description="d",
                                        is_step_ahead=True, step_ahead_increment=1)
         self.assertTrue(target.is_step_ahead)
         self.assertEqual(1, target.step_ahead_increment)
 
-        # test validation. note that we cannot validate combinations of is_step_ahead step_ahead_increment b/c
-        # Project.clean() is not passed the original args, and b/c is not nullable and defaults to zero. thus, here
-        # we just show that all combinations are OK
-        Target.objects.create(project=project2, name="Test target", description="d", is_step_ahead=True)
-        Target.objects.create(project=project2, name="Test target", description="d", step_ahead_increment=1)
-        Target.objects.create(project=project2, name="Test target", description="d",
-                              is_step_ahead=False, step_ahead_increment=1)
+        # yes is_step_ahead, no step_ahead_increment: invalid
+        # no is_step_ahead, yes step_ahead_increment: invalid
+        # NB: we can't test these b/c step_ahead_increment can be zero
+
+
+    def test_target_date_validation(self):
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+
+        # yes is_date, no is_step_ahead: valid
+        Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False)
+
+        # no is_date, yes is_step_ahead: valid
+        Target.objects.create(project=project2, name="t", description="d", is_date=False, is_step_ahead=True)
+
+        # yes is_date, yes is_step_ahead: invalid
+        with self.assertRaises(ValidationError) as context:
+            Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=True)
+        self.assertIn('passed is_date and is_step_ahead', str(context.exception))
 
 
     def test_visualization_targets(self):
         self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
-                         [target.name for target in self.project.visualization_targets()])
+                         [target.name for target in self.project.step_ahead_targets()])
 
 
     def test_reference_target_for_actual_values(self):

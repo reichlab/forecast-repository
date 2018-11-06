@@ -213,7 +213,7 @@ def project_visualizations(request, project_pk):
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
     loc_tz_date_to_actual_vals = project.location_timezero_date_to_actual_vals(season_name)
     location_to_actual_points = _location_to_actual_points(loc_tz_date_to_actual_vals)
-    location_to_max_val = project.location_to_max_val(season_name, project.visualization_targets())
+    location_to_max_val = project.location_to_max_val(season_name, project.step_ahead_targets())
 
     # correct location_to_max_val to account for max actual values
     location_to_actual_max_val = _location_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
@@ -311,6 +311,13 @@ def project_scores(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
+    # NB: inner knowledge about the targets location_to_mean_abs_error_rows_for_project() uses:
+    step_ahead_targets = project.step_ahead_targets()
+    if not step_ahead_targets:
+        return render(request, 'message.html',
+                      context={'title': "Required targets not found",
+                               'message': "The project does not have the required score-related targets."})
+
     seasons = project.seasons()
     season_name = _param_val_from_request(request, 'season_name', seasons)
     try:
@@ -324,12 +331,6 @@ def project_scores(request, project_pk):
                       context={'title': "Got an error trying to calculate scores.",
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
                                    rte)})
-
-    step_ahead_targets = project.visualization_targets()
-    if not step_ahead_targets:
-        return render(request, 'message.html',
-                      context={'title': "Required targets not found",
-                               'message': "The project does not have the required score-related targets."})
 
     location_names = project.locations.all().order_by('name').values_list('name', flat=True)
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]

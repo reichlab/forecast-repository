@@ -1,45 +1,56 @@
 Location,Target,predicted_value,truth_value,abs_err
 HHS Region 1,1 wk ahead,1.8,1.52411,0.27589
-HHS Region 10,1 wk ahead,3.35,2.15197,1.19803
-HHS Region 2,1 wk ahead,6.1,5.07086,1.02914
-HHS Region 3,1 wk ahead,2.8,2.81366,0.01366
-HHS Region 4,1 wk ahead,2.5,2.89395,0.39395
-HHS Region 5,1 wk ahead,2,2.11757,0.11757
-HHS Region 6,1 wk ahead,4.6,4.80185,0.20185
-HHS Region 7,1 wk ahead,2.3,2.75581,0.45581
-HHS Region 8,1 wk ahead,1.7,1.90851,0.20851
-HHS Region 9,1 wk ahead,3.2,2.83778,0.36222
-US National,1 wk ahead,3.2,3.07623,0.12377
 HHS Region 1,2 wk ahead,2.4,1.73987,0.66013
-HHS Region 10,2 wk ahead,3.1,3.25108,0.15108
-HHS Region 2,2 wk ahead,6,5.68166,0.31834
-HHS Region 3,2 wk ahead,3.1,3.09968,0.00032
-HHS Region 4,2 wk ahead,2.8,3.68564,0.88564
-HHS Region 5,2 wk ahead,2,2.4432,0.4432
-HHS Region 6,2 wk ahead,4.4,5.26955,0.86955
-HHS Region 7,2 wk ahead,2.5,3.46528,0.96528
-HHS Region 8,2 wk ahead,1.6,2.2668,0.6668
-HHS Region 9,2 wk ahead,3.6,2.68071,0.91929
-US National,2 wk ahead,3.3,3.50708,0.20708
 HHS Region 1,3 wk ahead,2.4,2.06524,0.33476
-HHS Region 10,3 wk ahead,2.6,2.51434,0.08566
-HHS Region 2,3 wk ahead,5.9,6.01053,0.11053
-HHS Region 3,3 wk ahead,3,3.45232,0.45232
-HHS Region 4,3 wk ahead,2.7,3.69188,0.99188
-HHS Region 5,3 wk ahead,1.9,2.76295,0.86295
-HHS Region 6,3 wk ahead,4.5,6.10427,1.60427
-HHS Region 7,3 wk ahead,2.5,4.56991,2.06991
-HHS Region 8,3 wk ahead,1.6,2.07104,0.47104
-HHS Region 9,3 wk ahead,3.7,2.9577,0.7423
-US National,3 wk ahead,3.3,3.79872,0.49872
 HHS Region 1,4 wk ahead,2.5,2.51375,0.01375
+HHS Region 1,Season peak percentage,3.9,3.19221,0.70779
+HHS Region 10,1 wk ahead,3.35,2.15197,1.19803
+HHS Region 10,2 wk ahead,3.1,3.25108,0.15108
+HHS Region 10,3 wk ahead,2.6,2.51434,0.08566
 HHS Region 10,4 wk ahead,2.3,2.28634,0.01366
+HHS Region 10,Season peak percentage,4.4,3.67061,0.72939
+HHS Region 2,1 wk ahead,6.1,5.07086,1.02914
+HHS Region 2,2 wk ahead,6,5.68166,0.31834
+HHS Region 2,3 wk ahead,5.9,6.01053,0.11053
 HHS Region 2,4 wk ahead,5.9,6.49829,0.59829
+HHS Region 2,Season peak percentage,8.7,6.93759,1.76241
+HHS Region 3,1 wk ahead,2.8,2.81366,0.01366
+HHS Region 3,2 wk ahead,3.1,3.09968,0.00032
+HHS Region 3,3 wk ahead,3,3.45232,0.45232
 HHS Region 3,4 wk ahead,2.6,3.73339,1.13339
+HHS Region 3,Season peak percentage,4,5.20003,1.20003
+HHS Region 4,1 wk ahead,2.5,2.89395,0.39395
+HHS Region 4,2 wk ahead,2.8,3.68564,0.88564
+HHS Region 4,3 wk ahead,2.7,3.69188,0.99188
 HHS Region 4,4 wk ahead,2.8,4.53169,1.73169
+HHS Region 4,Season peak percentage,3.9,5.5107,1.6107
+HHS Region 5,1 wk ahead,2,2.11757,0.11757
+HHS Region 5,2 wk ahead,2,2.4432,0.4432
+HHS Region 5,3 wk ahead,1.9,2.76295,0.86295
 HHS Region 5,4 wk ahead,2.1,3.182,1.082
+HHS Region 5,Season peak percentage,3.5,4.31787,0.81787
+HHS Region 6,1 wk ahead,4.6,4.80185,0.20185
+HHS Region 6,2 wk ahead,4.4,5.26955,0.86955
+HHS Region 6,3 wk ahead,4.5,6.10427,1.60427
 HHS Region 6,4 wk ahead,4.4,8.13221,3.73221
+HHS Region 6,Season peak percentage,8.1,9.87589,1.77589
+HHS Region 7,1 wk ahead,2.3,2.75581,0.45581
+HHS Region 7,2 wk ahead,2.5,3.46528,0.96528
+HHS Region 7,3 wk ahead,2.5,4.56991,2.06991
 HHS Region 7,4 wk ahead,2.1,5.52653,3.42653
+HHS Region 7,Season peak percentage,4.2,6.35948,2.15948
+HHS Region 8,1 wk ahead,1.7,1.90851,0.20851
+HHS Region 8,2 wk ahead,1.6,2.2668,0.6668
+HHS Region 8,3 wk ahead,1.6,2.07104,0.47104
 HHS Region 8,4 wk ahead,1.7,2.27632,0.57632
+HHS Region 8,Season peak percentage,3,2.72703,0.27297
+HHS Region 9,1 wk ahead,3.2,2.83778,0.36222
+HHS Region 9,2 wk ahead,3.6,2.68071,0.91929
+HHS Region 9,3 wk ahead,3.7,2.9577,0.7423
 HHS Region 9,4 wk ahead,3.8,3.03987,0.76013
+HHS Region 9,Season peak percentage,5.5,3.30484,2.19516
+US National,1 wk ahead,3.2,3.07623,0.12377
+US National,2 wk ahead,3.3,3.50708,0.20708
+US National,3 wk ahead,3.3,3.79872,0.49872
 US National,4 wk ahead,3.2,4.43601,1.23601
+US National,Season peak percentage,3.9,5.06094,1.16094

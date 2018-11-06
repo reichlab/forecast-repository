@@ -48,13 +48,10 @@ class Score(models.Model):
     - Newly-created scores will require restarting the web and any worker processes so they have the definitions
       available to them.
     """
-
     abbreviation = models.CharField(max_length=200, help_text="Short name used as a column header for this score in "
                                                               "downloaded CSV score files. Also used to look up the "
                                                               "Score's calculation function name.")
-
     name = models.CharField(max_length=200, help_text="The score's name, e.g., 'Absolute Error'.")
-
     description = models.CharField(max_length=2000, help_text="A paragraph describing the score.")
 
 
@@ -200,13 +197,9 @@ class ScoreValue(models.Model):
     Represents a single value of a Score, e.g., an 'Absolute Error' (the Score) of 0.1 (the ScoreValue).
     """
     score = models.ForeignKey(Score, related_name='values', on_delete=models.CASCADE)
-
     forecast = models.ForeignKey(Forecast, on_delete=models.CASCADE)
-
     location = models.ForeignKey('Location', blank=True, null=True, on_delete=models.SET_NULL)
-
     target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.SET_NULL)
-
     value = models.FloatField(null=False)
 
 
@@ -228,10 +221,8 @@ class ScoreLastUpdate(models.Model):
     """
 
     forecast_model = models.ForeignKey(ForecastModel, on_delete=models.CASCADE)
-
-    # datetime at the last update. auto_now: automatically set the field to now every time the object is saved.
+    # datetime at the last update. auto_now: automatically set the field to now every time the object is saved:
     updated_at = models.DateTimeField(auto_now=True)
-
     score = models.ForeignKey(Score, on_delete=models.CASCADE)
 
 

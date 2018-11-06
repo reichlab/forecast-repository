@@ -41,21 +41,14 @@ class UploadFileJob(models.Model):
         (FAILED, 'FAILED'),
     )
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
-
     # User who submitted the job:
     user = models.ForeignKey(User, related_name='upload_file_jobs', on_delete=models.SET_NULL, blank=True, null=True)
-
     created_at = models.DateTimeField(auto_now_add=True)  # when this instance was created. basically the submit date
-
     updated_at = models.DateTimeField(auto_now=True)  # time of last save(). basically last time status changed
-
     failure_message = models.CharField(max_length=2000)  # non-empty message if status == FAILED
-
     filename = models.CharField(max_length=200)  # original name of the uploaded file
-
     # app-specific data passed to the UploadFileJob from the request. ex: 'model_pk':
     input_json = JSONField(null=True, blank=True)
-
     # app-specific results from a successful completion of the upload. ex: 'forecast_pk':
     output_json = JSONField(null=True, blank=True)
 

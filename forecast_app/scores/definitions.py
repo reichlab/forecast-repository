@@ -122,11 +122,9 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
 
 def _validate_score_targets_and_data(forecast_model):
     # validate targets
-    # todo xx include all non-date-related targets, e.g., 'Season peak percentage':
-    targets = forecast_model.project.visualization_targets()
+    targets = forecast_model.project.non_date_targets()
     if not targets:
-        raise RuntimeError("_validate_score_targets_and_data(): no visualization targets. project={}"
-                           .format(forecast_model.project))
+        raise RuntimeError("_validate_score_targets_and_data(): no targets. project={}".format(forecast_model.project))
 
     # validate forecast data
     if not forecast_model.forecasts.exists():
