@@ -154,6 +154,7 @@ def update_all_scores(request):
 
     try:
         Score.enqueue_update_scores_for_all_projects()
+        messages.success(request, "Scheduled score updating for all projects.")
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, "Error updating scores: {}.".format(ce))
     return redirect('zadmin')  # hard-coded
