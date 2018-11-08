@@ -15,6 +15,7 @@ from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, _timezero_loc_target_pks_to_truth_values, \
     LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.make_thai_moph_project import THAI_CONFIG_DICT, create_thai_locations_and_targets
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -244,9 +245,6 @@ class ScoresTestCase(TestCase):
 
     def test_log_multi_bin_score_large_case(self):
         # a larger case with more than one loc+target
-        Score.ensure_all_scores_exist()
-        score = Score.objects.filter(abbreviation='log_multi_bin').first()
-
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
         make_cdc_locations_and_targets(project2)
@@ -260,6 +258,8 @@ class ScoresTestCase(TestCase):
 
         # test the scores - only ones with truth are created. see log-score-multi-bin-hand-calc.xlsx for how expected
         # values were verified
+        Score.ensure_all_scores_exist()
+        score = Score.objects.filter(abbreviation='log_multi_bin').first()
         score.update_score_for_model(forecast_model2)
 
         # check two targets from different distributions
@@ -377,6 +377,53 @@ class ScoresTestCase(TestCase):
 
         act_dict = _timezero_loc_target_pks_to_truth_values(self.forecast_model)
         self.assertEqual(exp_dict, act_dict)
+
+
+    def test_impetus_bugs(self):
+        project2 = Project.objects.create(config_dict=THAI_CONFIG_DICT)
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 4, 23))
+        create_thai_locations_and_targets(project2)
+        project2.load_template(Path('forecast_app/tests/scores/thai-moph-forecasting-template-small.csv'))
+
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast2 = forecast_model2.load_forecast(
+            Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
+            time_zero2)
+
+        project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
+
+        # test the scores
+        Score.ensure_all_scores_exist()
+        score = Score.objects.filter(abbreviation='log_single_bin').first()
+        score.update_score_for_model(forecast_model2)
+
+        # test scores themselves
+        exp_loc_targ_val = [
+            ('TH01', '1_biweek_ahead', -0.8580218237501793),
+            ('TH01', '2_biweek_ahead', -1.1026203100656484),
+            ('TH01', '3_biweek_ahead', -6.214608098422191),
+            ('TH01', '4_biweek_ahead', -0.1660545843300827),
+            ('TH01', '5_biweek_ahead', -3.146555163288575),
+            ('TH02', '1_biweek_ahead', -0.0397808700118446),
+            ('TH02', '2_biweek_ahead', -1.2517634681622845),
+            ('TH02', '4_biweek_ahead', -2.864704011147587),
+            ('TH02', '5_biweek_ahead', -5.298317366548036)
+        ]
+        score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model=forecast_model2)
+        act_values = list(score_values_qs
+                          .order_by('score_id', 'forecast_id', 'location_id', 'target_id')
+                          .values_list('location__name', 'target__name', 'value'))
+        self.assertEqual(9, score_values_qs.count())
+
+        for exp_loc_targ_val, act_loc_targ_val in zip(exp_loc_targ_val, act_values):
+            self.assertEqual(exp_loc_targ_val[0], act_loc_targ_val[0])  # location name
+            self.assertEqual(exp_loc_targ_val[1], act_loc_targ_val[1])  # target name
+            self.assertAlmostEqual(float(exp_loc_targ_val[2]), act_loc_targ_val[2])  # value
+
+
+#
+# ---- utilities ----
+#
 
 
 def _update_scores_for_all_projects():
