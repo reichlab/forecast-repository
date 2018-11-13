@@ -361,10 +361,10 @@ class ForecastTestCase(TestCase):
                                  0.30261551563521500]
         rescaled_vals_from_forecast = self.forecast.rescaled_bin_for_loc_and_target('US National', 'Season peak week')
 
-        # double check that manually-computed rescale from Excel matches Python. use assertAlmostEquals() b/c
+        # double check that manually-computed rescale from Excel matches Python. use assertAlmostEqual() b/c
         # self.assertEqual(rescaled_values_from_db, rescaled_vals_from_xl) fails (different precision b/w Excel and
         # Python):
         for v1, v2 in zip(rescaled_values_from_db, rescaled_vals_from_xl):
-            self.assertAlmostEquals(v1, v2)
+            self.assertAlmostEqual(v1, v2)
 
         self.assertEqual(rescaled_values_from_db, rescaled_vals_from_forecast)

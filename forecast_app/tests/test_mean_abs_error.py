@@ -1,14 +1,14 @@
+import datetime
 import logging
 from pathlib import Path
 
 import pymmwr
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero
+from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast_model import ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.mean_absolute_error import mean_absolute_error, _model_id_to_point_values_dict, \
-    _model_id_to_forecast_id_tz_dates, location_to_mean_abs_error_rows_for_project
+from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -54,50 +54,75 @@ class MAETestCase(TestCase):
                                  '4 wk ahead': 1.482010693}
         cls.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths.csv'))
 
+        # score needed for MAE calculation
+        Score.ensure_all_scores_exist()
+        cls.score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name
+        cls.score.update_score_for_model(cls.forecast_model)
 
-    def test_mean_absolute_error(self):
-        for target, exp_mae in self.exp_target_to_mae.items():
-            model_id_to_point_values_dict = _model_id_to_point_values_dict(self.project, [target], None)
-            model_id_to_forecast_id_tz_dates = _model_id_to_forecast_id_tz_dates(self.project, None)
-            loc_target_tz_date_to_truth = self.project.location_target_name_tz_date_to_truth()  # target__id
-            act_mae = mean_absolute_error(self.forecast_model, 'US National', target,
-                                          model_id_to_point_values_dict[self.forecast_model.pk],
-                                          model_id_to_forecast_id_tz_dates[self.forecast_model.pk],
-                                          loc_target_tz_date_to_truth)
-            self.assertIsNotNone(act_mae)
+
+    def test_mae(self):
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        make_cdc_locations_and_targets(project2)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
+        TimeZero.objects.create(project=project2,
+                                timezero_date=datetime.date(2016, 10, 23), is_season_start=True, season_name='s1')
+        TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
+        TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 11, 6))
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2.load_forecasts_from_dir(Path('forecast_app/tests/load_forecasts'))
+        project2.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+
+        Score.ensure_all_scores_exist()
+        score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name
+        score.update_score_for_model(forecast_model2)
+
+        score_value_rows_for_season = _score_value_rows_for_season(project2, 's1')
+        self.assertEqual(5 * 11, len(score_value_rows_for_season))  # 5 targets * 11 locations
+
+        # spot-check a location
+        exp_maes = [0.1830079332082548, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,
+                    0.15125133156909953]
+        hhs1_loc = project2.locations.filter(name='HHS Region 1').first()
+        hhs1_loc_rows = filter(lambda row: row[0] == hhs1_loc.id, score_value_rows_for_season)
+        act_maes = [row[-1] for row in hhs1_loc_rows]
+        for exp_mae, act_mae in zip(exp_maes, act_maes):
             self.assertAlmostEqual(exp_mae, act_mae)
 
+        # test location_to_mean_abs_error_rows_for_project(), since we have a nice fixture
+        loc_to_mae_rows_no_season = location_to_mean_abs_error_rows_for_project(project2, None)
+        act_rows = loc_to_mae_rows_no_season[hhs1_loc.name][0]
+        act_loc_to_min = loc_to_mae_rows_no_season[hhs1_loc.name][1]
 
-    def test_model_id_to_forecast_id_tz_dates_bug(self):
-        # expose a bug in _model_id_to_forecast_id_tz_dates() when season_name != None:
-        # django.core.exceptions.FieldError: Cannot resolve keyword 'forecast' into field. Choices are: cdcdata_set, csv_filename, forecast_model, forecast_model_id, id, scorevalue, time_zero, time_zero_id
-        TimeZero.objects.create(project=self.project, timezero_date='2016-02-01',
-                                is_season_start=True, season_name='season1')
-        _model_id_to_forecast_id_tz_dates(self.project, 'season1')
+        self.assertEqual(loc_to_mae_rows_no_season,
+                         location_to_mean_abs_error_rows_for_project(project2, 's1'))  # season_name shouldn't matter
+        self.assertEqual(set(project2.locations.values_list('name', flat=True)),
+                         set(loc_to_mae_rows_no_season.keys()))
 
+        exp_rows = [['Model', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season peak percentage'],
+                    [forecast_model2.pk, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,
+                     0.15125133156909953, 0.1830079332082548]]
+        self.assertEqual(exp_rows[0], act_rows[0])  # header
+        self.assertEqual(exp_rows[1][0], act_rows[1][0])  # model
+        self.assertAlmostEqual(exp_rows[1][1], act_rows[1][1])  # 1 wk ahead
+        self.assertAlmostEqual(exp_rows[1][2], act_rows[1][2])
+        self.assertAlmostEqual(exp_rows[1][3], act_rows[1][3])
+        self.assertAlmostEqual(exp_rows[1][4], act_rows[1][4])
+        self.assertAlmostEqual(exp_rows[1][5], act_rows[1][5])
 
-    def test_location_to_mean_abs_error_rows_for_project(self):
-        exp_locations = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                         'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
-                         'US National']
-
-        # sanity-check keys
-        act_dict = location_to_mean_abs_error_rows_for_project(self.project, None)
-        self.assertEqual(set(exp_locations), set(act_dict.keys()))
-
-        # spot-check one location
-        self.assertTrue(act_dict['US National'])  # must have some values
-        act_mean_abs_error_rows, act_target_to_min_mae = act_dict['US National']
-
-        self.assertEqual(['Model', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
-                         act_mean_abs_error_rows[0])  # row0
-
-        self.assertEqual(act_mean_abs_error_rows[1][0], self.forecast_model.pk)  # row1, col0
-
-        # row1, col1+. values happen to be sorted
-        for exp_mae, act_mae in zip(list(sorted(self.exp_target_to_mae.values())), act_mean_abs_error_rows[1][1:]):
-            self.assertAlmostEqual(exp_mae, act_mae)
-
-        # act_target_to_min_mae
-        for target, exp_mae in self.exp_target_to_mae.items():
-            self.assertAlmostEqual(exp_mae, act_target_to_min_mae[target])
+        target_spp = project2.targets.filter(name='Season peak percentage').first()
+        target_1wk = project2.targets.filter(name='1 wk ahead').first()
+        target_2wk = project2.targets.filter(name='2 wk ahead').first()
+        target_3wk = project2.targets.filter(name='3 wk ahead').first()
+        target_4wk = project2.targets.filter(name='4 wk ahead').first()
+        exp_loc_to_min = {
+            target_spp: 0.1830079332082548,
+            target_1wk: 0.127335480231265,
+            target_2wk: 0.040631614561185525,
+            target_3wk: 0.09119562794624952,
+            target_4wk: 0.15125133156909953
+        }
+        self.assertAlmostEqual(exp_loc_to_min[target_spp], act_loc_to_min[target_spp.name])
+        self.assertAlmostEqual(exp_loc_to_min[target_1wk], act_loc_to_min[target_1wk.name])
+        self.assertAlmostEqual(exp_loc_to_min[target_2wk], act_loc_to_min[target_2wk.name])
+        self.assertAlmostEqual(exp_loc_to_min[target_3wk], act_loc_to_min[target_3wk.name])
+        self.assertAlmostEqual(exp_loc_to_min[target_4wk], act_loc_to_min[target_4wk.name])

@@ -920,7 +920,7 @@ class Target(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.name, self.is_step_ahead, self.step_ahead_increment))
+        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment))
 
 
     def __str__(self):  # todo

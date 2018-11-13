@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 # provides information about all scores in the system. used by ensure_all_scores_exist() to create Score instances. maps
 # each Score's abbreviation to a 2-tuple: (name, description). recall that the abbreviation is used to look up the
-# corresponding function in the forecast_app.scores.functions module - see `calc_<abbreviation>` documentation in Score
+# corresponding function in the forecast_app.scores.functions module - see `calc_<abbreviation>` documentation in Score.
+# in that sense, these abbreviations are the official names to use when looking up a particular score
 SCORE_ABBREV_TO_NAME_AND_DESCR = {
     'error': ('Error', "The the truth value minus the model's point estimate."),
     'abs_error': ('Absolute Error', "The absolute value of the truth value minus the model's point estimate. "

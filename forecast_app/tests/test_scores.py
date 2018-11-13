@@ -386,9 +386,8 @@ class ScoresTestCase(TestCase):
         project2.load_template(Path('forecast_app/tests/scores/thai-moph-forecasting-template-small.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast2 = forecast_model2.load_forecast(
-            Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
-            time_zero2)
+        forecast_model2.load_forecast(Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
+                                      time_zero2)
 
         project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
 

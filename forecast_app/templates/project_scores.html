@@ -62,9 +62,9 @@
 
     <p class="help-block">
         <a href="https://github.com/reichlab/flusight/wiki/Scoring#1-absolute-error" target="_blank">Absolute error</a>
-        is the absolute value of difference between the eventually observed value and the point prediction. Scores for
-        the current season are calculated using the most recently updated data. Final values may differ. No scores are
-        shown for a particular location if the errors could not be calculated because not all truth values were
+        is the absolute value of difference between the eventually observed value and the point prediction. This page
+        is an aggregate of scores that are currently in Zoltar, and only as up-to-date as they are. No scores are shown
+        for a particular location or target if the errors could not be calculated because not all truth values were
         available for it.
     </p>
 
@@ -117,7 +117,7 @@
                                 var min_mae = target_to_min_mae[targetName];
                                 // recall that tdVal is null when the absolute error was not able to be calculated
                                 var maeStr = tdVal === null ? '-' : Number(tdVal).toFixed(2);
-                                if (tdVal === min_mae) {
+                                if (tdVal && (tdVal === min_mae)) {
                                     $tr.append($('<td><span class="label label-default">' + maeStr + '</span></td>'));
                                 } else {
                                     $tr.append($('<td>' + maeStr + '</td>'));

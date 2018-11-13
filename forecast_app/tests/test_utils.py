@@ -1,16 +1,17 @@
 import datetime
 import json
+from itertools import groupby
 from pathlib import Path
 
 import pymmwr
 from django.template import Template, Context
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero
+from forecast_app.models import Project, TimeZero, ForecastData
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date, CDC_CONFIG_DICT
-from utils.mean_absolute_error import _model_id_to_point_values_dict
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date, \
+    CDC_CONFIG_DICT
 from utils.utilities import cdc_csv_filename_components, first_model_subdirectory
 
 
@@ -175,3 +176,37 @@ class UtilitiesTestCase(TestCase):
                                {forecast_21.pk: exp_dict_loaded[str(forecast_model_21.id)][str(forecast_21.id)]}}
             act_point_values_dict = _model_id_to_point_values_dict(project2, targets, 'season p2')
             self.assertEqual(exp_dict_p2, act_point_values_dict)
+
+
+def _model_id_to_point_values_dict(project, target_names, season_name=None):
+    """
+    :return: a dict that provides predicted point values for all of project's models, season_name, and target_names.
+        Use is like: the_dict[forecast_model_id][forecast_id][location_name][target_name]
+    """
+    # get the rows, ordered so we can groupby()
+    forecast_data_qs = ForecastData.objects \
+        .filter(is_point_row=True,
+                target__name__in=target_names,
+                forecast__forecast_model__project=project)
+    if season_name:
+        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
+        forecast_data_qs = forecast_data_qs \
+            .filter(forecast__time_zero__timezero_date__gte=season_start_date,
+                    forecast__time_zero__timezero_date__lte=season_end_date)
+    forecast_data_qs = forecast_data_qs \
+        .order_by('forecast__forecast_model__id', 'forecast__id', 'location__id') \
+        .values_list('forecast__forecast_model__id', 'forecast__id', 'location__name', 'target__name', 'value')
+
+    # build the dict
+    models_to_point_values_dicts = {}  # return value. filled next
+    for model_pk, forecast_loc_target_val_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
+        forecast_to_point_dicts = {}
+        for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):
+            location_to_point_dicts = {}
+            for location, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[2]):
+                grouper_rows = list(target_val_grouper)
+                location_to_point_dicts[location] = {grouper_row[3]: grouper_row[4] for grouper_row in grouper_rows}
+            forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
+        models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
+
+    return models_to_point_values_dicts
