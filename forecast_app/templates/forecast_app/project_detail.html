@@ -14,13 +14,13 @@
             {# Edit Project: a simple link to an edit form #}
             &nbsp;
             <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
-                <span class="glyphicon glyphicon-pencil"></span>
+                <i class="fas fa-edit"></i>
             </a>
 
             {# Delete Project: a button that shows a hidden confirm modal when clicked #}
             <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
                     data-target="#confirmModal_{{ project.html_id }}">
-                <span class="glyphicon glyphicon-trash" aria-hidden="true"></span>
+                <i class="fas fa-trash-alt"></i>
             </button>
 
             {# the modal itself - hidden until above button shows it #}
@@ -113,7 +113,7 @@
                                     <small class="text-muted">(No template)&nbsp;</small>
                                     <div class="form-group">
                                         <button class="form-control btn btn-success" type="submit">
-                                            <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                                            <i class="fas fa-cloud-upload-alt"></i>
                                         </button>
                                     </div>
                                     <div class="form-group">
@@ -145,7 +145,7 @@
                                     <small class="text-muted">(No truth data)&nbsp;</small>
                                     <div class="form-group">
                                         <button class="form-control btn btn-success" type="submit">
-                                            <span class="glyphicon glyphicon-upload" aria-hidden="true"></span>
+                                            <i class="fas fa-cloud-upload-alt"></i>
                                         </button>
                                     </div>
                                     <div class="form-group">
@@ -223,7 +223,7 @@
                     <td>{{ target.name }}</td>
                     <td>{{ target.description }}</td>
                     <td>{{ target.unit }}</td>
-                    <td>{% if target.is_date %}<span class="glyphicon glyphicon-ok"></span>{% else %}{% endif %}</td>
+                    <td>{% if target.is_date %}<i class="fas fa-check"></i>{% else %}{% endif %}</td>
                     <td>
                         {% if target.is_step_ahead %}
                             {{ target.step_ahead_increment }} step{{ target.step_ahead_increment|pluralize }}
