@@ -7,6 +7,7 @@ from forecast_app.models.project import Location
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user, \
     timezero_forecast_pairs_for_forecast_model
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 class LocationSerializer(serializers.ModelSerializer):
@@ -22,6 +23,11 @@ class TargetSerializer(serializers.ModelSerializer):
 
 
 class TimeZeroSerializer(serializers.ModelSerializer):
+    # customize these to use our standard format
+    timezero_date = serializers.DateField(format=YYYYMMDD_DATE_FORMAT, input_formats=[YYYYMMDD_DATE_FORMAT])
+    data_version_date = serializers.DateField(format=YYYYMMDD_DATE_FORMAT, input_formats=[YYYYMMDD_DATE_FORMAT])
+
+
     class Meta:
         model = TimeZero
         fields = ('timezero_date', 'data_version_date')
@@ -172,10 +178,14 @@ class ForecastModelSerializer(serializers.ModelSerializer):
 
     def get_forecasts(self, forecast_model):
         request = self.context['request']
-        return [{'timezero_date': timezero.timezero_date,
-                 'data_version_date': timezero.data_version_date,
-                 'forecast': reverse('api-forecast-detail', args=[forecast.pk], request=request) if forecast else None}
-                for timezero, forecast in timezero_forecast_pairs_for_forecast_model(forecast_model)]
+        # customize these to use our standard format:
+        return [
+            {'timezero_date': timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
+            if timezero.timezero_date else None,
+             'data_version_date': timezero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+             if timezero.data_version_date else None,
+             'forecast': reverse('api-forecast-detail', args=[forecast.pk], request=request) if forecast else None}
+            for timezero, forecast in timezero_forecast_pairs_for_forecast_model(forecast_model)]
 
 
 class ForecastSerializer(serializers.ModelSerializer):
