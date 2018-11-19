@@ -183,12 +183,15 @@ def get_resource(uri, token):
 def delete_resource(uri, token):
     response = requests.delete(uri, headers={'Accept': 'application/json; indent=4',
                                              'Authorization': 'JWT {}'.format(token)})
-    if response.status_code != 204:  # 204 No Content
-        print('delete_resource(): unexpected status code: '.format(response.status_code))
+    if response.status_code != 204:  # HTTP_204_NO_CONTENT
+        raise RuntimeError('delete_resource(): status code was not 204: {}'.format(response.text))
 
 
 def get_token(host, username, password):
     response = requests.post(host + '/api-token-auth/', {'username': username, 'password': password})
+    if response.status_code != 200:  # HTTP_200_OK
+        raise RuntimeError('get_token(): status code was not 200: {}'.format(response.text))
+
     return response.json()['token']
 
 

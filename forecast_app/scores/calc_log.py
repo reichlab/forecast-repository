@@ -146,21 +146,21 @@ class LineProcessingMachine:
         if (self.state == MachineState.distribution_start) \
                 and not self.is_match():  # case a)
             self.transition_to_state(MachineState.pre_match_collecting)
-        elif (self.state == MachineState.distribution_start):  # self.is_match(). case b)
+        elif self.state == MachineState.distribution_start:  # self.is_match(). case b)
             self.transition_to_state(MachineState.post_match_collecting)
 
-        # in pre_match_collecting - 3 cases
-        elif (self.state == MachineState.pre_match_collecting) \
-                and self.is_start_new_distribution():  # case a)
-            self.transition_to_state(MachineState.distribution_start)
+        # in pre_match_collecting - 4 cases
         elif (self.state == MachineState.pre_match_collecting) \
                 and not self.is_start_new_distribution() \
-                and not self.is_match():  # case b)
+                and not self.is_match():  # case a)
             self.transition_to_state(MachineState.pre_match_collecting)
         elif (self.state == MachineState.pre_match_collecting) \
-                and not self.is_start_new_distribution() \
-                and self.is_match():  # case c)
+                and self.is_match():  # cases b) and d)
             self.transition_to_state(MachineState.post_match_collecting)
+        elif (self.state == MachineState.pre_match_collecting) \
+                and self.is_start_new_distribution() \
+                and not self.is_match():  # case c)
+            self.transition_to_state(MachineState.pre_match_collecting)
 
         # in post_match_collecting - 4 cases
         elif (self.state == MachineState.post_match_collecting) \
@@ -187,12 +187,14 @@ class LineProcessingMachine:
 
         # in skipping_to_next_distribution - 3 cases
         elif (self.state == MachineState.skipping_to_next_distribution) \
-                and not self.is_start_new_distribution():  # case a)
+                and not self.is_start_new_distribution() \
+                and not self.is_match():  # case a)
             self.transition_to_state(MachineState.skipping_to_next_distribution)
         elif (self.state == MachineState.skipping_to_next_distribution) \
                 and self.is_start_new_distribution() \
                 and not self.is_match():  # case b)
-            self.transition_to_state(MachineState.distribution_start)
+            self.clear_state_vars()  # transition action
+            self.transition_to_state(MachineState.pre_match_collecting)
         elif (self.state == MachineState.skipping_to_next_distribution) \
                 and self.is_start_new_distribution() \
                 and self.is_match():  # case c)
