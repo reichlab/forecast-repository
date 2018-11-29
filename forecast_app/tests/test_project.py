@@ -395,18 +395,18 @@ class ProjectTestCase(TestCase):
 
 
     def test_reference_target_for_actual_values(self):
-        self.assertEqual(Target.objects.filter(project=self.project).filter(name='1 wk ahead').first(),
+        self.assertEqual(Target.objects.filter(project=self.project, name='1 wk ahead').first(),
                          self.project.reference_target_for_actual_values())
 
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project)
-        Target.objects.filter(project=project).filter(name='1 wk ahead').delete()
-        self.assertEqual(Target.objects.filter(project=project).filter(name='2 wk ahead').first(),
+        Target.objects.filter(project=project, name='1 wk ahead').delete()
+        self.assertEqual(Target.objects.filter(project=project, name='2 wk ahead').first(),
                          project.reference_target_for_actual_values())
 
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         create_thai_locations_and_targets(project)
-        self.assertEqual(Target.objects.filter(project=project).filter(name='1_biweek_ahead').first(),
+        self.assertEqual(Target.objects.filter(project=project, name='1_biweek_ahead').first(),
                          project.reference_target_for_actual_values())
 
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no Targets

@@ -67,24 +67,25 @@ $ pipenv install
 
 Pipfile was created via:
 ```bash
-$ pipenv install django
-$ pipenv install click
-$ pipenv install requests
-$ pipenv install jsonfield
-$ pipenv install psycopg2-binary
-$ pipenv install dj-database-url
-$ pipenv install gunicorn
-$ pipenv install whitenoise
-$ pipenv install djangorestframework
-$ pipenv install Pillow
-$ pipenv install pymmwr
-$ pipenv install pyyaml
-$ pipenv install djangorestframework-csv
-$ pipenv install django-debug-toolbar
-$ pipenv install rq
-$ pipenv install django-rq
-$ pipenv install boto3
-$ pipenv install djangorestframework-jwt
+pipenv install django
+pipenv install click
+pipenv install requests
+pipenv install jsonfield
+pipenv install psycopg2-binary
+pipenv install dj-database-url
+pipenv install gunicorn
+pipenv install whitenoise
+pipenv install djangorestframework
+pipenv install Pillow
+pipenv install pymmwr
+pipenv install pyyaml
+pipenv install djangorestframework-csv
+pipenv install django-debug-toolbar
+pipenv install rq
+pipenv install django-rq
+pipenv install boto3
+pipenv install djangorestframework-jwt
+pipenv install more-itertools
 ```
 
 

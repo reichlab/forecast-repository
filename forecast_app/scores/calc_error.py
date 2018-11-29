@@ -6,7 +6,7 @@ from forecast_app.models import ForecastData
 logger = logging.getLogger(__name__)
 
 
-def calculate_error_score_values(score, forecast_model, is_absolute_error):
+def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     """
     Implements the 'error' and 'abs_error' scores. Creates ScoreValue instances for the passed args, saving them into
     the passed score. The score is simply `true_value - predicted_value` (optionally passed to abs() based on
@@ -34,7 +34,7 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
     from forecast_app.scores.definitions import _timezero_loc_target_pks_to_truth_values  # avoid circular imports
 
 
-    timezero_loc_target_pks_to_truth_values = _timezero_loc_target_pks_to_truth_values(forecast_model)
+    tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
 
     # get predicted point values
     forecast_data_qs = ForecastData.objects \
@@ -47,11 +47,12 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
     # duplicate messages. dict format: {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
     forec_tz_loc_targ_pk_to_error_str = {}
     for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value in forecast_data_qs:
-        true_value, error_string = _validate_truth(timezero_loc_target_pks_to_truth_values, forecast_pk,
+        true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals,
                                                    timezero_pk, location_pk, target_pk)
-        error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
-        if error_string and (error_key not in forec_tz_loc_targ_pk_to_error_str):
-            forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
+        if error_string:
+            error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
+            if error_key not in forec_tz_loc_targ_pk_to_error_str:
+                forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
             continue  # skip this forecast's contribution to the score
 
         if true_value is None or predicted_value is None:
@@ -65,6 +66,6 @@ def calculate_error_score_values(score, forecast_model, is_absolute_error):
 
     # print errors
     for (forecast_pk, timezero_pk, location_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
-        logger.warning("calculate_error_score_values(): truth validation error: {!r}: "
+        logger.warning("_calculate_error_score_values(): truth validation error: {!r}: "
                        "forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
                        .format(error_string, forecast_pk, timezero_pk, location_pk, target_pk))

@@ -20,10 +20,12 @@ pyyaml = "*"
 djangorestframework-csv = "*"
 newrelic = "*"
 django-debug-toolbar = "*"
+redis = "<3"
 rq = "*"
 django-rq = "*"
 "boto3" = "*"
 djangorestframework-jwt = "*"
+more-itertools = "*"
 
 [dev-packages]
 

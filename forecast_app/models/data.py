@@ -446,7 +446,8 @@ class CDCData(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, *self._data_row()))
+        return str((self.pk, self.location, self.target.name, self.is_point_row,
+                    self.bin_start_incl, self.bin_end_notincl, self.value))
 
 
     def __str__(self):  # todo
@@ -468,7 +469,8 @@ class ProjectTemplateData(CDCData):
 
 
     def __repr__(self):
-        return str((self.pk, self.project.pk, *self._data_row()))
+        return str((self.pk, self.project.pk, self.location.pk, self.target.pk, self.is_point_row,
+                    self.bin_start_incl, self.bin_end_notincl, self.value))
 
 
 class ForecastData(CDCData):
@@ -481,4 +483,5 @@ class ForecastData(CDCData):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, *self._data_row()))
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, self.is_point_row,
+                    self.bin_start_incl, self.bin_end_notincl, self.value))
