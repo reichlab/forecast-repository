@@ -34,7 +34,6 @@ class TimeZeroSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
-    owner = serializers.HyperlinkedRelatedField(view_name='api-user-detail', read_only=True)
     config_dict = serializers.SerializerMethodField()
     template = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
@@ -52,6 +51,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
                   'template', 'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
+            'owner': {'view_name': 'api-user-detail'},
             'model_owners': {'view_name': 'api-user-detail'},
         }
 

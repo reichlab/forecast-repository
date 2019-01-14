@@ -17,7 +17,7 @@ from forecast_app.models import Project
 def fix_owners_app():
     """
     App that sets project owners and model owners for the current programmatically-created projects. Used after making
-    those projects and before uploading to Heroku remote postres database.
+    those projects and before uploading to Heroku remote postgres database.
     """
     click.echo("fix_owners_app(): starting")
 

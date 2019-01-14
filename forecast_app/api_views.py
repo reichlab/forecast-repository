@@ -9,10 +9,10 @@ from django.contrib.auth.models import User
 from django.db import connection
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.utils.text import get_valid_filename
-from rest_framework import generics, mixins, status
+from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import get_object_or_404
+from rest_framework.generics import get_object_or_404, RetrieveDestroyAPIView, ListCreateAPIView
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -23,8 +23,6 @@ from forecast_app.models.project import TRUTH_CSV_HEADER
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TemplateSerializer, TruthSerializer, UploadFileJobSerializer
-from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_file_job__forecast, \
-    is_user_ok_upload_forecast
 from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
 
 
@@ -73,7 +71,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return project.is_user_ok_to_view(self.request.user)
 
 
-class UserList(generics.ListCreateAPIView):
+class UserList(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -81,7 +79,7 @@ class UserList(generics.ListCreateAPIView):
 class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -92,7 +90,7 @@ class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = UploadFileJob.objects.all()
     serializer_class = UploadFileJobSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -103,7 +101,7 @@ class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
 class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = ForecastModel.objects.all()
     serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -111,7 +109,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
-class ForecastModelForecastList(mixins.ListModelMixin, mixins.CreateModelMixin, generics.GenericAPIView):
+class ForecastModelForecastList(ListCreateAPIView):
     serializer_class = ForecastSerializer
 
 
@@ -138,6 +136,9 @@ class ForecastModelForecastList(mixins.ListModelMixin, mixins.CreateModelMixin, 
             TimeZero isn't found.
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
+
+        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_file_job__forecast, \
+            is_user_ok_upload_forecast  # imported here so that test_api_upload_forecast() can patch _upload_file()
 
         # check authorization
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
@@ -176,7 +177,7 @@ class ForecastModelForecastList(mixins.ListModelMixin, mixins.CreateModelMixin, 
 
         # check for existing forecast
         existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-        if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == data_file.name):
+        if existing_forecast_for_time_zero:
             return JsonResponse({'error': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
                                           "existing data and then upload again. You may need to refresh the page to "
                                           "see the delete button."
@@ -196,7 +197,7 @@ class ForecastModelForecastList(mixins.ListModelMixin, mixins.CreateModelMixin, 
         return JsonResponse(upload_file_job_serializer.data)
 
 
-class ForecastDetail(mixins.RetrieveModelMixin, mixins.DestroyModelMixin, generics.GenericAPIView):
+class ForecastDetail(RetrieveDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
 
@@ -221,7 +222,7 @@ class ForecastDetail(mixins.RetrieveModelMixin, mixins.DestroyModelMixin, generi
 class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TemplateSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -232,7 +233,7 @@ class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TruthSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view

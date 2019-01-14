@@ -1,8 +1,10 @@
+import datetime
 import json
 import logging
 from pathlib import Path
 from unittest.mock import patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -13,7 +15,7 @@ from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
     CDC_CONFIG_DICT
-from utils.utilities import CDC_CSV_HEADER
+from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
 
 
 # todo has no affect on errors like:
@@ -45,12 +47,12 @@ class ViewsTestCase(TestCase):
         make_cdc_locations_and_targets(cls.public_project)
         cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
-        TimeZero.objects.create(project=cls.public_project, timezero_date='2017-01-01')
+        TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
         cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
 
-        cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=str('2017-12-01'),
+        cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 1),
                                                  data_version_date=None)
-        cls.public_tz2 = TimeZero.objects.create(project=cls.public_project, timezero_date=str('2017-12-02'),
+        cls.public_tz2 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 2),
                                                  data_version_date=None)
 
         cls.upload_file_job = UploadFileJob.objects.create(user=cls.po_user)
@@ -62,9 +64,11 @@ class ViewsTestCase(TestCase):
         cls.private_project.save()
         make_cdc_locations_and_targets(cls.private_project)
         cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        cls.private_tz1 = TimeZero.objects.create(project=cls.private_project, timezero_date=str('2017-12-03'),
+        cls.private_tz1 = TimeZero.objects.create(project=cls.private_project,
+                                                  timezero_date=datetime.date(2017, 12, 3),
                                                   data_version_date=None)
-        cls.private_tz2 = TimeZero.objects.create(project=cls.private_project, timezero_date=str('2017-12-04'),
+        cls.private_tz2 = TimeZero.objects.create(project=cls.private_project,
+                                                  timezero_date=datetime.date(2017, 12, 4),
                                                   data_version_date=None)
 
         # public project with no template
@@ -573,6 +577,74 @@ class ViewsTestCase(TestCase):
         self.assertEqual(len(split_content), 2)  # no score data
 
 
+    def test_api_upload_forecast(self):
+        # to avoid the requirement of RQ, redis, and S3, we patch _upload_file() to return (is_error, upload_file_job)
+        # with desired return args
+        with patch('forecast_app.views._upload_file') as upload_file_mock:
+            upload_forecast_url = reverse('api-forecast-list', args=[str(self.public_model.pk)])
+            data_file = SimpleUploadedFile('file.csv', b'file_content', content_type='text/csv')
+            jwt_token = self.authenticate_jwt_user(self.mo_user)
+
+            # case: no 'data_file'
+            json_response = self.client.post(upload_forecast_url, {
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: no 'timezero_date'
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: invalid 'timezero_date' format - YYYYMMDD_DATE_FORMAT
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': 'x20171202',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: no 'time_zero'
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': '19621022',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: existing_forecast_for_time_zero
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': self.public_tz1.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),  # public_tz1
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: blue sky: _upload_file() -> NOT is_error
+            upload_file_mock.return_value = False, UploadFileJob.objects.create()  # is_error, upload_file_job
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+            # case: _upload_file() -> is_error
+            upload_file_mock.return_value = True, None  # is_error, upload_file_job
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # todo NEW: auto-creates time_zero if not found
+            self.fail()
+
+
     def authenticate_jwt_user(self, user):
         password = self.po_user_password if user == self.po_user \
             else self.mo_user_password if user == self.mo_user \
@@ -582,3 +654,4 @@ class ViewsTestCase(TestCase):
                                          format='json')
         jwt_token = jwt_auth_resp.data['token']
         self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
+        return jwt_token

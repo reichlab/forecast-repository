@@ -712,7 +712,7 @@ def projects_and_roles_for_user(user):
 
 class UserDetailView(UserPassesTestMixin, DetailView):
     model = User
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
@@ -748,7 +748,7 @@ def timezero_forecast_pairs_for_forecast_model(forecast_model):
 
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -766,7 +766,7 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -776,7 +776,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
 class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
     model = UploadFileJob
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
     context_object_name = 'upload_file_job'
 

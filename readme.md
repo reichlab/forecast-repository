@@ -177,8 +177,8 @@ $ heroku login
 
 ## optional: dump local db then copy to remote
 ```bash
-$ PGPASSWORD=mypassword
-$ pg_dump -Fc --no-acl --no-owner -h localhost -U cornell forecast_repo > /tmp/mc-1219-forecast_repo.dump
+$ PGPASSWORD=password
+$ pg_dump -Fc --no-acl --no-owner -h localhost -U username forecast_repo > /tmp/mc-1219-forecast_repo.dump
 ```
 
 - upload to somewhere publicly accessible, e.g., Amazon S3
