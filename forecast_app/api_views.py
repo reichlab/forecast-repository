@@ -19,7 +19,7 @@ from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue
-from forecast_app.models.project import TRUTH_CSV_HEADER
+from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TemplateSerializer, TruthSerializer, UploadFileJobSerializer
@@ -171,9 +171,8 @@ class ForecastModelForecastList(ListCreateAPIView):
 
         time_zero = forecast_model.project.time_zero_for_timezero_date(timezero_date_obj)
         if not time_zero:
-            return JsonResponse({'error': "No TimeZero found. 'timezero_date'='{}', project TimeZeros={}"
-                                .format(timezero_date_obj, forecast_model.project.timezeros.all())},
-                                status=status.HTTP_400_BAD_REQUEST)
+            time_zero = TimeZero.objects.create(project=forecast_model.project, timezero_date=timezero_date_obj)
+            logger.info("post(): created time_zero: {}".format(time_zero))
 
         # check for existing forecast
         existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)

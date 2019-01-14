@@ -607,14 +607,6 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
-            # case: no 'time_zero'
-            json_response = self.client.post(upload_forecast_url, {
-                'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
-                'timezero_date': '19621022',
-            }, format='multipart')
-            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-
             # case: existing_forecast_for_time_zero
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
@@ -641,8 +633,13 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
-            # todo NEW: auto-creates time_zero if not found
-            self.fail()
+            # case: auto-creates time_zero if not found
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': '19621022',  # doesn't exist
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
 
     def authenticate_jwt_user(self, user):

@@ -5,10 +5,12 @@ import click
 import requests
 
 
-# ---- ZOLTAR_HOST ----
+# ---- Variables ----
 
 # ZOLTAR_HOST = 'http://127.0.0.1:8000'
 ZOLTAR_HOST = 'https://reichlab-forecast-repository.herokuapp.com'
+
+STATUS_INT_TO_NAME = {0: 'PENDING', 1: 'S3_FILE_UPLOADED', 2: 'QUEUED', 3: 'S3_FILE_DOWNLOADED', 4: 'SUCCESS'}
 
 
 # ---- the app ----
@@ -111,9 +113,8 @@ def demo_zoltar_api_app(forecast_csv_file):
     # upload a new forecast
     #
     # from UploadFileJob:
-    status_int_to_name = {0: 'PENDING', 1: 'S3_FILE_UPLOADED', 2: 'QUEUED', 3: 'S3_FILE_DOWNLOADED', 4: 'SUCCESS'}
     upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
-    print('- upload_file_job', status_int_to_name[upload_file_job['status']], upload_file_job)
+    print('- upload_file_job 1', STATUS_INT_TO_NAME[upload_file_job['status']], upload_file_job)
     # example:
     # {'id': 50,
     #  'url': 'http://localhost:8000/api/uploadfilejob/50/',
@@ -125,21 +126,7 @@ def demo_zoltar_api_app(forecast_csv_file):
     #  'filename': 'EW1-KoTsarima-2017-01-17-small.csv',
     #  'input_json': "{'forecast_model_pk': 3, 'timezero_pk': 4}",
     #  'output_json': None}
-
-    #
-    # get the updated status via polling (busy wait every 1 second)
-    #
-    print('- polling for status change. upload_file_job pk:', upload_file_job['id'])
-    while True:
-        upload_file_job = get_upload_file_job(ZOLTAR_HOST, mo1_token, upload_file_job['id'])
-        status = status_int_to_name[upload_file_job['status']]
-        print('  =', status)
-        if status == 'FAILED':
-            print('  x failed')
-            break
-        if status == 'SUCCESS':
-            break
-        time.sleep(1)
+    upload_file_job = do_busy_poll(mo1_token, upload_file_job)
 
     #
     # print the model's forecasts again - see the new url for '20170117'?
@@ -169,10 +156,41 @@ def demo_zoltar_api_app(forecast_csv_file):
     data_csv = response.content
     print('- data_csv', data_csv)
 
+    #
+    # upload a new forecast, but let post() auto-create a TimeZero for timezero_date
+    timezero_date = '19621022'  # YYYYMMDD_DATE_FORMAT
+
+    # todo delete_resource(timezero_uri, mo1_token)
+
+    upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
+    print('- upload_file_job 2', STATUS_INT_TO_NAME[upload_file_job['status']], upload_file_job)
+    do_busy_poll(mo1_token, upload_file_job)
+
+    # done
+    print('- done')
+
 
 #
 # ---- REST and other utility functions ----
 #
+
+def do_busy_poll(token, upload_file_job):
+    #
+    # get the updated status via polling (busy wait every 1 second)
+    #
+    print('- polling for status change. upload_file_job pk:', upload_file_job['id'])
+    while True:
+        upload_file_job = get_upload_file_job(ZOLTAR_HOST, token, upload_file_job['id'])
+        status = STATUS_INT_TO_NAME[upload_file_job['status']]
+        print('  =', status)
+        if status == 'FAILED':
+            print('  x failed')
+            break
+        if status == 'SUCCESS':
+            break
+        time.sleep(1)
+    return upload_file_job
+
 
 def get_resource(uri, token):
     response = requests.get(uri, headers={'Accept': 'application/json; indent=4',
