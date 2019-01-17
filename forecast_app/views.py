@@ -453,9 +453,8 @@ def create_project(request):
         Project, Location, fields=('name',), extra=3)
     TargetInlineFormSet = inlineformset_factory(
         Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3)
-    TimeZeroInlineFormSet = inlineformset_factory(Project, TimeZero,
-                                                  fields=('timezero_date', 'data_version_date'),
-                                                  extra=3)
+    TimeZeroInlineFormSet = inlineformset_factory(
+        Project, TimeZero, fields=('timezero_date', 'data_version_date'), extra=3)
 
     new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
 
@@ -464,6 +463,7 @@ def create_project(request):
     timezero_formset = TimeZeroInlineFormSet(instance=new_project)
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=new_project)
+        location_formset = LocationInlineFormSet(request.POST, instance=new_project)
         target_formset = TargetInlineFormSet(request.POST, instance=new_project)
         timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project)
         if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
@@ -946,7 +946,10 @@ def upload_template(request, project_pk):
                                'message': "There was an error uploading the file. The error was: "
                                           "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
 
-    messages.success(request, "Queued the template file '{}' for uploading.".format(data_file.name))
+    messages.success(request, "Queued the template file '{}' for uploading. Note: This will create any missing "
+                              "locations and targets, setting their names, but you will need to edit targets to add " \
+                              "all other fields, esp. is_date, is_step_ahead, and step_ahead_increment."
+                     .format(data_file.name))
     return redirect('upload-file-job-detail', pk=upload_file_job.pk)
 
 
