@@ -639,7 +639,6 @@ class UserListView(ListView):
 # ---- Detail views ----
 #
 
-
 class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     Authorization: private projects can only be accessed by the project's owner or any of its model_owners
@@ -664,7 +663,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
         context['config_dict_pretty'] = config_dict_pretty
-        context['location_names'] = project.locations.all().order_by('name').values_list('name', flat=True)
+        context['locations'] = project.locations.all().order_by('name')
+        context['targets'] = project.targets.all().order_by('name')
         return context
 
 
