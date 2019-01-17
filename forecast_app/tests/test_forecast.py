@@ -110,16 +110,6 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-locations-dont-match-2017-01-17.csv'),
-                                              self.time_zero)
-        self.assertIn("location_name not found", str(context.exception))  # turns out this is the first failure
-
-        with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-targets-dont-match-2017-01-17.csv'),
-                                              self.time_zero)
-        self.assertIn("Targets did not match template", str(context.exception))
-
-        with self.assertRaises(RuntimeError) as context:
             self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad-bin-subset-2017-01-17.csv'),
                                               self.time_zero)
         self.assertIn("Bins did not match template", str(context.exception))

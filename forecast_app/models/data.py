@@ -63,14 +63,40 @@ class ModelWithCDCData(models.Model):
 
 
     def _load_csv_data(self, cdc_csv_file_fp, skip_zero_bins):
-        # insert the data using direct SQL. we use psycopg2 extensions to the DB API if we're connected to a Postgres
-        # server. otherwise we use execute_many() as a fallback. the reason we don't simply use the latter for Postgres
-        # is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
+        """
+        Inserts the data using direct SQL. Dynamically creates Locations and Targets if they're not found.
+
+        We use psycopg2 extensions to the DB API if we're connected to a Postgres server. otherwise we use
+        execute_many() as a fallback. the reason we don't simply use the latter for Postgres is because its
+        implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
+        """
         with connection.cursor() as cursor:
             # add self.pk to end of each row. is_append_model_with_cdcdata_pk, skip_zero_bins:
-            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, True, skip_zero_bins)
+            location_names, target_names, rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, True, skip_zero_bins)
             if not rows:
                 return
+
+            # create missing Locations and Targets, then patch rows to replace names with PKs. note that unlike
+            # Locations, which only have a name, Targets have additional fields that need filling out by users. but here
+            # all we can set are names
+            from forecast_app.models import Project, Location, Target  # avoid circular imports
+
+
+            project = self if isinstance(self, Project) else self.forecast_model.project
+
+            location_name_to_pk = {location.name: location.id for location in self.locations_qs().all()}
+            for location_name in location_names:
+                if location_name not in location_name_to_pk:
+                    location_name_to_pk[location_name] = Location.objects.create(project=project, name=location_name).pk
+
+            target_name_to_pk = {target.name: target.id for target in self.targets_qs().all()}
+            for target_name in target_names:
+                if target_name not in target_name_to_pk:
+                    target_name_to_pk[target_name] = Target.objects.create(project=project, name=target_name).pk
+
+            for row in rows:  # location_name, target_name, row_type, bin_start_incl, bin_end_notincl, value, self_pk
+                row[0] = location_name_to_pk[row[0]]
+                row[1] = target_name_to_pk[row[1]]
 
             # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
             table_name = self.cdc_data_class._meta.db_table
@@ -104,13 +130,16 @@ class ModelWithCDCData(models.Model):
 
     def read_cdc_csv_file_rows(self, cdc_csv_file_fp, is_append_model_with_cdcdata_pk, skip_zero_bins):
         """
-        Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list.
+        Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
+        but does not check locations and targets against the template. This is b/c Locations and Targets might not yet
+        exist (if they're dynamically created by this method's callers).
 
         :param cdc_csv_file_fp: the *.cdc.csv data file to load - either a data file or a template one
         :param is_append_model_with_cdcdata_pk: true if my PK should be included at the end of every row (will result
             in eight rows), or None (7 rows)
         :param skip_zero_bins: True if bin rows with a value of zero should be skipped
-        :return: list of rows: Location.pk, Target.pk, row_type, bin_start_incl, bin_end_notincl, value,
+        :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
+            rows: location_name, target_name, row_type, bin_start_incl, bin_end_notincl, value,
             [, model_with_cdcdata_pk]  <- only if model_with_cdcdata_pk. NB: does not include unit
         """
         csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
@@ -131,8 +160,8 @@ class ModelWithCDCData(models.Model):
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
-        location_names_to_pks = {location.name: location.id for location in self.locations_qs().all()}
-        target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
+        locations = set()
+        targets = set()
         rows = []
         for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
             if (len(row) == 8) and (row[7] == ''):
@@ -150,17 +179,8 @@ class ModelWithCDCData(models.Model):
                                    .format(CDCData.POINT_ROW_TYPE, CDCData.BIN_ROW_TYPE))
             is_point_row = (row_type == CDCData.POINT_ROW_TYPE)
 
-            # validate location
-            if location_name not in location_names_to_pks:
-                raise RuntimeError("location_name not found. check that the Project has all locations defined. "
-                                   "location_name={!r}, location_names_to_pks={}"
-                                   .format(location_name, location_names_to_pks))
-
-            # validate target
-            if target_name not in target_names_to_pks:
-                raise RuntimeError("target_name not found in targets_qs. check that Project has all Targets "
-                                   "defined. target_name={!r}, targets_qs={}"
-                                   .format(target_name, target_names_to_pks))
+            locations.add(location_name)
+            targets.add(target_name)
 
             # use parse_value() to handle non-numeric cases like 'NA' and 'none'
             bin_start_incl = parse_value(bin_start_incl)
@@ -178,14 +198,11 @@ class ModelWithCDCData(models.Model):
 
             # todo it's likely more efficient to instead put self.pk into the query itself, but not sure how to use '%s' with executemany outside of VALUES. could do it with a separate UPDATE query, I suppose. both queries would need to be in one transaction
             if is_append_model_with_cdcdata_pk:
-                rows.append((location_names_to_pks[location_name], target_names_to_pks[target_name], is_point_row,
-                             bin_start_incl, bin_end_notincl, value, self.id))
+                rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value, self.id])
             else:
-                rows.append(
-                    (location_names_to_pks[location_name], target_names_to_pks[target_name], is_point_row,
-                     bin_start_incl, bin_end_notincl, value))
+                rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
 
-        return rows
+        return locations, targets, rows
 
 
     @classmethod
@@ -346,7 +363,7 @@ class ModelWithCDCData(models.Model):
         """
         with open(str(cdc_csv_file)) as cdc_csv_file_fp:
             # no self.pk at end of each row. is_append_model_with_cdcdata_pk, skip_zero_bins:
-            rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, False, False)
+            location_names, target_names, rows = self.read_cdc_csv_file_rows(cdc_csv_file_fp, False, False)
 
 
             # sort so groupby() will work
@@ -359,6 +376,7 @@ class ModelWithCDCData(models.Model):
 
             rows.sort(key=key)
 
+            # NB: we are passing location and target strings, not PKs:
             return self._get_location_dicts_internal_format_for_rows(rows)
 
 
@@ -370,12 +388,12 @@ class ModelWithCDCData(models.Model):
 
         :return: my data in hierarchical format as a dict of the form:
 
-            {location1: target_dict_1, location2: target_dict_2, ...}
+            {location1_name: target_dict_1, location2: target_dict_2, ...}
 
             where each target_dict is of the form:
 
-            {target1: {'point': point_val1, 'bins': bin_list1},
-             target2: {'point': point_val2, 'bins': bin_list2},
+            {target1_name: {'point': point_val1, 'bins': bin_list1},
+             target2_name: {'point': point_val2, 'bins': bin_list2},
              ...
             }
 
@@ -389,29 +407,35 @@ class ModelWithCDCData(models.Model):
         NB: For performance, instead of using data accessors like self.get_location_names() and self.get_target_bins(), we
         load all rows into memory and then iterate over them there.
         """
-        row_qs = self._get_data_row_qs_for_location_dicts()
-        return self._get_location_dicts_internal_format_for_rows(row_qs)
+        # NB: we are passing location and target PKs, not strings:
+        return self._get_location_dicts_internal_format_for_rows(self._get_data_row_qs_for_location_dicts())
 
 
     def _get_location_dicts_internal_format_for_rows(self, rows):
-        location_pks_to_names = {location.id: location.name for location in self.locations_qs().all()}
-        target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
+        # NB: rows can be one of two formats: a QuerySet (containing tuples) or a list of lists. depending on that, the
+        # first two items (location and target) are either PKs (for QuerySets) or strings (for lists)
+        location_pk_to_name = {location.id: location.name for location in self.locations_qs().all()}
+        target_pk_to_name = {target.id: target.name for target in self.targets_qs().all()}
         location_target_dict = {}
-        for location_id, location_grouper in groupby(rows, key=lambda _: _[0]):
+        for location_id_or_string, location_grouper in groupby(rows, key=lambda _: _[0]):
+            location_name = location_pk_to_name[location_id_or_string] if isinstance(location_id_or_string, int) \
+                else location_id_or_string
             target_dict = {}
-            for target_id, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
+            for target_id_or_string, target_grouper in groupby(location_grouper, key=lambda _: _[1]):
                 # NB: this assumes that the first row is always the CDCData.POINT_ROW_TYPE point value, thanks to
                 # ORDER BY, which is not true when, for example, a target has no point row. and since this method is
                 # called by Project.validate_template_data(), we need to check it here
 
-                # location__id, target__id, is_point_row, target__unit, bin_start_incl, bin_end_notincl, value:
+                # location__id (or name), target__id (or name), is_point_row, target__unit, bin_start_incl, bin_end_notincl, value:
                 point_row = next(target_grouper)
                 if not point_row[2]:  # is_point_row
                     raise RuntimeError("First row was not the point row: {}".format(point_row))
 
-                target_dict[target_pks_to_names[target_id]] = {'point': point_row[-1],
-                                                               'bins': [bin_list[-3:] for bin_list in target_grouper]}
-            location_target_dict[location_pks_to_names[location_id]] = target_dict
+                target_name = target_pk_to_name[target_id_or_string] if isinstance(target_id_or_string, int) \
+                    else target_id_or_string
+                bins = [tuple(bin_list[-3:]) for bin_list in target_grouper]
+                target_dict[target_name] = {'point': point_row[-1], 'bins': bins}
+            location_target_dict[location_name] = target_dict
         return location_target_dict
 
 

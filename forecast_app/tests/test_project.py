@@ -706,6 +706,30 @@ class ProjectTestCase(TestCase):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
+    def test_extract_locations_and_targets(self):
+        # case: pre-define Locations and Targets, load template, verify they're not changed
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        make_cdc_locations_and_targets(project2)
+        locations = list(project2.locations.all())
+        targets = list(project2.targets.all())
+        self.assertEqual(11, len(locations))
+        self.assertEqual(7, len(targets))
+
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        self.assertEqual(locations, list(project2.locations.all()))
+        self.assertEqual(targets, list(project2.targets.all()))
+
+        # case: no existing Locations and Targets, load template, verify they're created
+        project2.delete()
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        self.assertEqual(0, len(project2.locations.all()))
+        self.assertEqual(0, len(project2.targets.all()))
+
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        self.assertEqual(11, len(project2.locations.all()))
+        self.assertEqual(7, len(project2.targets.all()))
+
+
 # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns
 def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):
     for location, target_tz_dict in loc_target_tz_date_to_truth.items():
