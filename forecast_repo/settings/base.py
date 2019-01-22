@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'debug_toolbar',
     'django_rq',
+    "anymail",
 ]
 
 REST_FRAMEWORK = {
@@ -186,3 +187,18 @@ S3_UPLOAD_BUCKET_NAME = os.environ.get('S3_UPLOAD_BUCKET_NAME')
 
 if not S3_UPLOAD_BUCKET_NAME:
     raise RuntimeError('base.py: S3_UPLOAD_BUCKET_NAME not configured!')
+
+
+#
+# support for sending emails via https://www.sendinblue.com/ by way of https://github.com/anymail/django-anymail
+#
+
+# todo
+# DEFAULT_FROM_EMAIL = 'webmaster@localhost'
+
+EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
+
+ANYMAIL = {
+    'SENDINBLUE_API_KEY': os.environ.get('SENDINBLUE_API_KEY'),
+}
+

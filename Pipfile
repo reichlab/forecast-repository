@@ -20,12 +20,13 @@ pyyaml = "*"
 djangorestframework-csv = "*"
 newrelic = "*"
 django-debug-toolbar = "*"
-redis = "<3"
+redis = "*"
 rq = "*"
 django-rq = "*"
 "boto3" = "*"
 djangorestframework-jwt = "*"
 more-itertools = "*"
+django-anymail = {version = "*", extras = ["sendinblue", "sendgrid"]}
 
 [dev-packages]
 

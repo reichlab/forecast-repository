@@ -6,6 +6,20 @@ for a more detailed description. The internal [reichlab Slack](https://reichlab.
 https://github.com/reichlab/forecast-repository .
 
 
+# Email-based notification requirements
+Zoltar uses [Anymail](https://github.com/anymail/django-anymail) to abstract access to the transactional email server
+that's used for notifications. (Currently we only have notifications about file uploads.) Anymail can be used for a
+number of [services](https://anymail.readthedocs.io/en/stable/esps/#supported-esps), as configured in settings.
+Currently we use [SendinBlue](https://www.sendinblue.com/).
+
+Configuration: The environment variable _SENDINBLUE_API_KEY_ must be set, e.g., for Heroku:
+
+```bash
+heroku config:set \
+  SENDINBLUE_API_KEY=<YOUR_SENDINBLUE_API_KEY>
+```
+
+
 # AWS S3 configuration
 Zoltar uses S3 for temporary storage of uploaded files (forecasts, truth, and templates). You'll need to set three 
 S3-related environment variables, either locally or, for Heroku:
@@ -86,6 +100,7 @@ pipenv install django-rq
 pipenv install boto3
 pipenv install djangorestframework-jwt
 pipenv install more-itertools
+pipenv install django-anymail[sendgrid,sendinblue]
 ```
 
 
