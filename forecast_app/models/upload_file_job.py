@@ -8,9 +8,10 @@ import boto3
 import django_rq
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models.signals import pre_delete
+from django.db.models.signals import pre_delete, post_save
 from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
+from django.template import Template, Context
 from jsonfield import JSONField
 
 from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
@@ -196,3 +197,45 @@ def upload_file_job_s3_file(upload_file_job_pk):
 def delete_s3_obj_for_upload_file_job(sender, instance, using, **kwargs):
     instance.cancel_rq_job()  # in case it's still in the queue
     instance.delete_s3_object()
+
+
+#
+# set up a signal to try notifying the user of SUCCESS or FAILURE
+#
+
+@receiver(post_save, sender=UploadFileJob)
+def send_notification_for_upload_file_job(sender, instance, using, **kwargs):
+    # imported here so that test_email_notification() can patch send_notification_email():
+    from forecast_app.notifications import send_notification_email
+
+
+    if (instance.status == UploadFileJob.SUCCESS) or (instance.status == UploadFileJob.FAILED):
+        address, subject, message = address_subject_message_for_upload_file_job(instance)
+        send_notification_email(address, subject, message)
+
+
+def address_subject_message_for_upload_file_job(upload_file_job):
+    """
+    An email notification helper function that constructs an email subject line and body for the passed upload_file_job.
+
+    :param upload_file_job: an UploadFileJob
+    :return: email_address, subject, message
+    """
+    subject = "UploadFileJob #{} result: {}".format(upload_file_job.pk, upload_file_job.status_as_str())
+    message_template_str = """A <a href="zoltardata.com">Zoltar</a> user with your email address uploaded a file with this result:
+<ul>
+    <li>UploadFileJob ID: {{upload_file_job.pk}}</li>
+    <li>Status: {{upload_file_job.status_as_str}}</li>
+    <li>User: {{upload_file_job.user}}</li>
+    <li>Filename: {% if upload_file_job.filename %}{{ project.filename }}{% else %}(No filename){% endif %}</li>
+    <li>Created_at: {{upload_file_job.created_at}}</li>
+    <li>Updated_at: {{upload_file_job.updated_at}}</li>
+    <li>Failure_message: {% if upload_file_job.failure_message %}{{ upload_file_job.failure_message }}{% else %}(No message){% endif %}</li>
+    <li>Input_json: {{upload_file_job.input_json}}</li>
+    <li>Output_json: {{upload_file_job.output_json}}</li>
+</ul>
+
+Thanks! -- Zoltar"""
+    message_template = Template(message_template_str)
+    message = message_template.render(Context({'upload_file_job': upload_file_job}))
+    return upload_file_job.user.email, subject, message
