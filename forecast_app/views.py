@@ -19,7 +19,7 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
-from forecast_app.forms import ProjectForm, ForecastModelForm
+from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
 from forecast_app.models.project import Target, Location
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_s3_file
@@ -556,6 +556,33 @@ def delete_project(request, project_pk):
     return redirect('user-detail', pk=user.pk)
 
 
+def edit_user(request, user_pk):
+    """
+    Shows a form to edit a User's basic information. Authorization: The logged-in user must be a superuser or the
+    passed user_pk.
+    """
+    detail_user = get_object_or_404(User, pk=user_pk)  # user page being edited
+    # if not request.user.is_superuser or (detail_user != request.user):  # similar to UserDetail.test_func()
+    if not is_user_ok_edit_user(request, detail_user):
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        user_model_form = UserModelForm(request.POST, instance=detail_user)
+        if user_model_form.is_valid():
+            user_model_form.save()
+
+            messages.success(request, "Edited user '{}'".format(detail_user))
+            return redirect('user-detail', pk=detail_user.pk)
+
+    else:  # GET
+        user_model_form = UserModelForm(instance=detail_user)
+
+    return render(request, 'show_form.html',
+                  context={'title': 'Edit User',
+                           'button_name': 'Save',
+                           'form': user_model_form})
+
+
 def create_model(request, project_pk):
     """
     Shows a form to add a new ForecastModel for the passed User. Authorization: The logged-in user must be a superuser,
@@ -720,7 +747,7 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
-        return self.request.user.is_superuser or (detail_user == self.request.user)
+        return is_user_ok_edit_user(self.request, detail_user)
 
 
     def get_context_data(self, **kwargs):
@@ -729,11 +756,12 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         # pass a list of Projects. we have two cases: 1) projects owned by this user, and 2) projects where this user is
         # in model_owners. thus this list is of 2-tuples: (Project, user_role), where user_role is "Project Owner" or
         # "Model Owner"
-        user = self.get_object()
-        projects_and_roles = projects_and_roles_for_user(user)
-        owned_models = forecast_models_owned_by_user(user)
+        detail_user = self.get_object()
+        projects_and_roles = projects_and_roles_for_user(detail_user)
+        owned_models = forecast_models_owned_by_user(detail_user)
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
+        context['is_user_ok_edit_user'] = is_user_ok_edit_user(self.request, detail_user)
         context['owned_models'] = owned_models
         return context
 
@@ -1309,3 +1337,7 @@ def is_user_ok_create_model(user, project):
 def is_user_ok_edit_model(user, forecast_model):
     # applies to delete too
     return user.is_superuser or (user == forecast_model.project.owner) or (user == forecast_model.owner)
+
+
+def is_user_ok_edit_user(request, detail_user):
+    return request.user.is_superuser or (detail_user == request.user)

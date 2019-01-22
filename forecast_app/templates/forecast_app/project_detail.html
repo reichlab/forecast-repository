@@ -12,7 +12,6 @@
         <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
         {% if is_user_ok_edit_project %}
             {# Edit Project: a simple link to an edit form #}
-            &nbsp;
             <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
                 <i class="fas fa-edit"></i>
             </a>

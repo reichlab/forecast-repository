@@ -58,6 +58,9 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/edit/$', views.edit_project, name='edit-project'),
     url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project, name='delete-project'),
 
+    # User
+    url(r'^user/(?P<user_pk>\d+)/edit/$', views.edit_user, name='edit-user'),
+
     # ForecastModel
     url(r'^project/(?P<project_pk>\d+)/models/create/$', views.create_model, name='create-model'),
     url(r'^model/(?P<model_pk>\d+)/edit/$', views.edit_model, name='edit-model'),

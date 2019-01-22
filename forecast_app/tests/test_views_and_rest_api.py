@@ -317,6 +317,13 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, False),
                      (self.superuser, True)],
             },
+            # user detail - public_project (has template and truth)
+            reverse('user-detail', args=[str(self.po_user.pk)]): {
+                reverse('edit-user', args=[str(self.po_user.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True)],
+            },
         }
         for url, url_to_user_access_pairs in url_to_exp_content.items():
             for exp_url, user_access_pairs in url_to_user_access_pairs.items():

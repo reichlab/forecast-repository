@@ -7,4 +7,11 @@
             <p class="text-muted">{{ field.help_text }} </p>
         </div>
     </fieldset>
+
+    {% for error in field.errors %}
+        <div class="alert alert-danger">
+            <strong>{{ error|escape }}</strong>
+        </div>
+    {% endfor %}
+
 {% endfor %}
