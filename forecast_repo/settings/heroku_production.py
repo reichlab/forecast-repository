@@ -88,3 +88,10 @@ STATICFILES_DIRS = (
 # Simplified static file serving.
 # https://warehouse.python.org/project/whitenoise/
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+
+#
+# todo xx temporary setting to help debug why this isn't being set from base.py on Heroku
+#
+
+DEFAULT_FROM_EMAIL = 'admin2@zoltardata.com'
