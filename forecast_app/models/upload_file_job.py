@@ -209,7 +209,7 @@ def send_notification_for_upload_file_job(sender, instance, using, **kwargs):
     from forecast_app.notifications import send_notification_email
 
 
-    if (instance.status == UploadFileJob.SUCCESS) or (instance.status == UploadFileJob.FAILED):
+    if instance.status == UploadFileJob.FAILED:
         address, subject, message = address_subject_message_for_upload_file_job(instance)
         send_notification_email(address, subject, message)
 
