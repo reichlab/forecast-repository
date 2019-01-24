@@ -193,8 +193,7 @@ if not S3_UPLOAD_BUCKET_NAME:
 # support for sending emails via https://www.sendinblue.com/ by way of https://github.com/anymail/django-anymail
 #
 
-# todo
-# DEFAULT_FROM_EMAIL = 'webmaster@localhost'
+DEFAULT_FROM_EMAIL = 'admin@zoltardata.com'  # default: 'webmaster@localhost'
 
 EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
 
