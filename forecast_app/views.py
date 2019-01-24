@@ -1220,9 +1220,9 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job = UploadFileJob.objects.create(user=user, filename=data_file.name)  # status = PENDING
         upload_file_job.input_json = kwargs
         upload_file_job.save()
-        logger.debug("__upload_file(): 1/3 Created the UploadFileJob: {}".format(upload_file_job))
+        logger.debug("_upload_file(): 1/3 Created the UploadFileJob: {}".format(upload_file_job))
     except Exception as exc:
-        logger.debug("__upload_file(): Error creating the UploadFileJob: {}".format(exc))
+        logger.debug("_upload_file(): Error creating the UploadFileJob: {}".format(exc))
         return "Error creating the UploadFileJob: {}".format(exc), None
 
     # upload the file to S3

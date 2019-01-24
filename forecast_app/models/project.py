@@ -763,7 +763,7 @@ class Project(ModelWithCDCData):
         """
         if not self.is_template_loaded():
             raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
-                               "forecast={}".format(forecast.csv_filename, self, forecast))
+                               "forecast={}, csv_filename={}".format(self, forecast, forecast.csv_filename))
 
         # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
         # lookup b/c get_target_bins() was slow. this has the added benefit of enabling us to easily override my

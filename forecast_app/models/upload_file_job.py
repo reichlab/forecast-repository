@@ -227,7 +227,7 @@ def address_subject_message_for_upload_file_job(upload_file_job):
     <li>UploadFileJob ID: {{upload_file_job.pk}}</li>
     <li>Status: {{upload_file_job.status_as_str}}</li>
     <li>User: {{upload_file_job.user}}</li>
-    <li>Filename: {% if upload_file_job.filename %}{{ project.filename }}{% else %}(No filename){% endif %}</li>
+    <li>Filename: {% if upload_file_job.filename %}{{ upload_file_job.filename }}{% else %}(No filename){% endif %}</li>
     <li>Created_at: {{upload_file_job.created_at}}</li>
     <li>Updated_at: {{upload_file_job.updated_at}}</li>
     <li>Failure_message: {% if upload_file_job.failure_message %}{{ upload_file_job.failure_message }}{% else %}(No message){% endif %}</li>
