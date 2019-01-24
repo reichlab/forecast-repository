@@ -13,8 +13,7 @@ def send_notification_email(address, subject, message):
     the sending.
     """
     try:
-        # todo xx pass None instead of hard-coded from_email so that Django will use DEFAULT_FROM_EMAIL
-        send_mail(subject, message, "Zoltar <zoltar@example.com>", [address])
+        send_mail(subject, message, None, [address])  # from_email = DEFAULT_FROM_EMAIL
         logger.info("send_notification_email(): sent a message to: {}, subject: '{}'".format(address, subject))
     except AnymailError as ae:
         logger.error("send_notification_email(): failed to send message: {}".format(ae))
