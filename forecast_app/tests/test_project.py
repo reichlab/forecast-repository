@@ -156,7 +156,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_project_template_data_accessors(self):
-        data_rows = self.project.get_data_rows()
+        data_rows = self.project.get_data_rows(is_order_by_pk=True)
         self.assertEqual(8019, len(data_rows))  # individual rows via SQL
         self.assertEqual(['US National', 'Season onset', 'point', 'week', None, None, 51.0], data_rows[0])
         self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 0.029411765], data_rows[1])

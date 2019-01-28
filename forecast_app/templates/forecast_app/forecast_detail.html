@@ -36,6 +36,10 @@
                     <th>Data Filename:</th>
                     <td>{{ forecast.csv_filename }}</td>
                 </tr>
+                <tr>
+                    <th>Upload Date:</th>
+                    <td>{{ forecast.created_at|date:"Y-m-d" }}</td>
+                </tr>
                 </tbody>
             </table>
         </div>

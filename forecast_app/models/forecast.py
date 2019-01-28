@@ -20,6 +20,9 @@ class Forecast(ModelWithCDCData):
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE,
                                   help_text="TimeZero that this forecast is in relation to.")
 
+    # when this instance was created. basically the post-validation save date:
+    created_at = models.DateTimeField(auto_now_add=True)
+
 
     def __repr__(self):
         return str((self.pk, self.time_zero, self.csv_filename))

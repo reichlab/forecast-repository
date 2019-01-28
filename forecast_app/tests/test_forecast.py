@@ -33,6 +33,17 @@ class ForecastTestCase(TestCase):
             Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
+    def test_load_forecast_created_at_field(self):
+        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        make_cdc_locations_and_targets(project2)
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                                  time_zero)
+        self.assertIsNotNone(forecast2.created_at)
+
+
     def test_load_forecast(self):
         self.assertEqual(1, len(self.forecast_model.forecasts.all()))
 
@@ -140,7 +151,7 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_data_accessors(self):  # (via ModelWithCDCData)
         # test get_data_rows()
-        data_rows = self.forecast.get_data_rows()
+        data_rows = self.forecast.get_data_rows(is_order_by_pk=True)
         self.assertEqual(8019, len(data_rows))
         self.assertEqual(['US National', 'Season onset', 'point', 'week', None, None, 50.0012056690978], data_rows[0])
         self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 1.95984004521967e-05], data_rows[1])

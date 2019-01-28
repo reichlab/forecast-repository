@@ -216,12 +216,12 @@ class ModelWithCDCData(models.Model):
         return [location, target, row_type, unit, bin_start_incl, bin_end_notincl, value]
 
 
-    def get_data_rows(self, is_order_by_pk=None):
+    def get_data_rows(self, is_order_by_pk=False):
         """
         Returns all of my data as a a list of rows, excluding any PKs and FKs columns. Target names are returned.
 
-        :param is_order_by_pk: flag that controls whether the result is ordered by pk or not. default is no ordering
-            (which is faster than ordering)
+        :param is_order_by_pk: flag that controls whether the result is ordered by pk or not. default is no ordering,
+            which is faster than ordering but nondeterministic
         """
         query_set = self.cdcdata_set.order_by('id') if is_order_by_pk else self.cdcdata_set.all()
         return [ModelWithCDCData.transform_row_to_output_format(row)

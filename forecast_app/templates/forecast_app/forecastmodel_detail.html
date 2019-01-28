@@ -81,6 +81,7 @@
             <tr>
                 <th>Time zero</th>
                 <th>Data Filename</th>
+                <th>Upload Date</th>
                 {% if is_user_ok_edit_model %}
                     <th>Action</th>
                 {% endif %}
@@ -98,6 +99,9 @@
                         {% else %}
                             <small class="text-muted">(No data)</small>
                         {% endif %}
+                    </td>
+                    <td>
+                        {{ forecast.created_at|date:"Y-m-d" }}
                     </td>
                     {% if is_user_ok_edit_model %}
                         <td>
