@@ -57,7 +57,7 @@ def clear(score_pk):
     A subcommand that clears score values and last update dates, controlled by the args. Runs in the calling thread, and
     therefore blocks.
 
-    :param score_pk: if a valid Score pk then only that score is cleared. o/w all scores are
+    :param score_pk: if a valid Score pk then only that score is cleared. o/w all scores are cleared
     """
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     for score in scores:
@@ -75,8 +75,8 @@ def update(score_pk, model_pk, no_enqueue):
     A subcommand that enqueues updating model scores, controlled by the args. Runs in the calling thread, and therefore
     blocks.
 
-    :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are
-    :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are
+    :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are updated
+    :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are updated
     """
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
