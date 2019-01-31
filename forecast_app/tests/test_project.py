@@ -2,12 +2,15 @@ import datetime
 import logging
 from collections import defaultdict
 from pathlib import Path
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Target
+from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
+from forecast_app.models.row_count_cache import update_row_count_cache
+from forecast_app.models.score_csv_file_cache import update_score_csv_file_cache
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.make_thai_moph_project import create_thai_locations_and_targets, THAI_CONFIG_DICT
@@ -28,7 +31,7 @@ class ProjectTestCase(TestCase):
         make_cdc_locations_and_targets(cls.project)
         cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project)
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
         cls.forecast = cls.forecast_model.load_forecast(
             Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
@@ -216,13 +219,38 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts
 
 
+    def test_score_csv_file_cache(self):
+        # verify post_save worked
+        self.assertIsNotNone(self.project.score_csv_file_cache)
+
+        # test CSV file gets created
+        self.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        Score.ensure_all_scores_exist()
+        score = Score.objects.filter(abbreviation='abs_error').first()
+        score.update_score_for_model(self.forecast_model)
+
+        # NB: this test assumes delete was called before upload
+        with patch('utils.cloud_file.delete_file') as delete_file_mock, \
+                patch('utils.cloud_file.upload_file') as upload_file_mock:
+            update_score_csv_file_cache(self.project)
+
+            args = delete_file_mock.call_args[0]  # delete_file(the_object)
+            delete_file_mock.assert_called_once()
+            self.assertEqual(self.project.score_csv_file_cache, args[0])
+
+            args = upload_file_mock.call_args[0]  # upload_file(the_object, data_file)
+            upload_file_mock.assert_called_once()
+            self.assertEqual(self.project.score_csv_file_cache, args[0])
+            self.assertGreater(len(args[1].content), 0)
+
+
     def test_row_count_cache(self):
         self.assertIsNotNone(self.project.row_count_cache)  # verify post_save worked
         # assume last_update default works
         self.assertIsNone(self.project.row_count_cache.row_count)
 
-        self.project.update_row_count_cache()
-        # assume last_update default works
+        update_row_count_cache(self.project)
+        # NB: we assume last_update default works
         self.assertEqual(self.project.get_num_forecast_rows(), self.project.row_count_cache.row_count)
 
 

@@ -3,7 +3,6 @@ import json
 import logging
 import time
 
-import boto3
 import django_rq
 import redis
 from PIL import Image, ImageDraw
@@ -22,8 +21,9 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
 from forecast_app.models.project import Target, Location
-from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_s3_file
-from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
+from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
+from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
+from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
@@ -116,7 +116,7 @@ def delete_upload_file_jobs(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
-    # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding S3 object (the uploaded
+    # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding cloud file (the uploaded
     # file)
     UploadFileJob.objects.all().delete()
     messages.success(request, "Deleted all UploadFileJobs.")
@@ -176,19 +176,6 @@ def update_row_count_caches(request):
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, "Error updating row count caches: {}.".format(ce))
     return redirect('zadmin')  # hard-coded
-
-
-def enqueue_row_count_updates_all_projs():
-    for project in Project.objects.all():
-        django_rq.enqueue(_update_project_row_count_cache, project.pk)
-
-
-def _update_project_row_count_cache(project_pk):
-    """
-    Enqueue helper function.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    project.update_row_count_cache()
 
 
 #
@@ -443,7 +430,7 @@ def create_project(request):
     Shows a form to add a new Project with the owner being request.user. Authorization: The logged-in user must be a
     superuser, or must be in the group PROJECT_OWNER_GROUP_NAME.
 
-    :param: user_pk: the on-behalf-of user. may not be the same as the authenticated user
+    :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
@@ -964,7 +951,7 @@ def upload_template(request, project_pk):
     if is_error:
         return is_error
 
-    # upload to S3 and enqueue a job to process a new UploadFileJob. NB: if multiple files, just uses the first one
+    # upload to cloud and enqueue a job to process a new UploadFileJob. NB: if multiple files, just uses the first one
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__template,
                                              project_pk=project_pk)
@@ -990,10 +977,10 @@ def process_upload_file_job__template(upload_file_job_pk):
 
     :param upload_file_job_pk: the UploadFileJob's pk
     """
-    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
         project_pk = upload_file_job.input_json['project_pk']
         project = get_object_or_404(Project, pk=project_pk)
-        project.load_template(s3_file_fp, upload_file_job.filename)
+        project.load_template(cloud_file_fp, upload_file_job.filename)
 
 
 #
@@ -1049,7 +1036,7 @@ def upload_truth(request, project_pk):
     if is_error:
         return is_error
 
-    # upload to S3 and enqueue a job to process a new UploadFileJob
+    # upload to cloud and enqueue a job to process a new UploadFileJob
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__truth,
                                              project_pk=project_pk)
@@ -1072,10 +1059,10 @@ def process_upload_file_job__truth(upload_file_job_pk):
 
     :param upload_file_job_pk: the UploadFileJob's pk
     """
-    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
         project_pk = upload_file_job.input_json['project_pk']
         project = get_object_or_404(Project, pk=project_pk)
-        project.load_truth_data(s3_file_fp, upload_file_job.filename)
+        project.load_truth_data(cloud_file_fp, upload_file_job.filename)
 
 
 def download_truth(request, project_pk):
@@ -1128,7 +1115,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "existing data and then upload again. You may need to refresh the page to "
                                           "see the delete button.".format(time_zero.timezero_date, data_file.name)})
 
-    # upload to S3 and enqueue a job to process a new UploadFileJob
+    # upload to cloud and enqueue a job to process a new UploadFileJob
     is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
                                              forecast_model_pk=forecast_model_pk,
                                              timezero_pk=timezero_pk)
@@ -1151,12 +1138,12 @@ def process_upload_file_job__forecast(upload_file_job_pk):
 
     :param upload_file_job_pk: the UploadFileJob's pk
     """
-    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
         forecast_model_pk = upload_file_job.input_json['forecast_model_pk']
         forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
         timezero_pk = upload_file_job.input_json['timezero_pk']
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-        new_forecast = forecast_model.load_forecast(s3_file_fp, time_zero, file_name=upload_file_job.filename)
+        new_forecast = forecast_model.load_forecast(cloud_file_fp, time_zero, file_name=upload_file_job.filename)
         upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
         upload_file_job.save()
 
@@ -1195,16 +1182,16 @@ MAX_UPLOAD_FILE_SIZE = 5E+06
 
 def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
     """
-    Accepts a file uploaded to this app by the user. Creates a UploadFileJob to track the job, saves data_file in an
-    S3 bucket, then enqueues process_upload_file_job_fcn to process the file by an RQ worker.
+    Accepts a file uploaded to this app by the user. Creates a UploadFileJob to track the job, saves data_file in cloud
+    storage, then enqueues process_upload_file_job_fcn to process the file by an RQ worker.
 
     :param user: the User from request.User
     :param data_file: the data file to use as found in request.FILES . it is an UploadedFile (e.g.,
         InMemoryUploadedFile or TemporaryUploadedFile)
     :param process_upload_file_job_fcn: a function of one arg (upload_file_job_pk) that is passed to
-        django_rq.enqueue(). NB: It MUST use the upload_file_job_s3_file context to have access to the file that was
-        uploaded to S3, e.g.,
-            with upload_file_job_s3_file() as s3_file_fp: ...
+        django_rq.enqueue(). NB: It MUST use the upload_file_job_cloud_file context to have access to the file that was
+        uploaded to cloud, e.g.,
+            with upload_file_job_cloud_file() as cloud_file_fp: ...
         NB: If it needs to save upload_file_job.output_json, make sure to call save(), e.g.,
             upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
             upload_file_job.save()
@@ -1225,27 +1212,20 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         logger.debug("_upload_file(): Error creating the UploadFileJob: {}".format(exc))
         return "Error creating the UploadFileJob: {}".format(exc), None
 
-    # upload the file to S3
+    # upload the file to cloud storage
     try:
-        s3 = boto3.resource('s3')
-        bucket = s3.Bucket(S3_UPLOAD_BUCKET_NAME)
-        # todo use chunks? for chunk in data_file.chunks(): print(chunk):
-
-        # bucket.put_object(Key=upload_file_job.s3_key(), Body=data_file, ContentType='text/csv')  # todo xx nope
-        bucket.put_object(Key=upload_file_job.s3_key(), Body=data_file)
-
-        upload_file_job.status = UploadFileJob.S3_FILE_UPLOADED
+        upload_file(upload_file_job, data_file)
+        upload_file_job.status = UploadFileJob.CLOUD_FILE_UPLOADED
         upload_file_job.save()
-        logger.debug("_upload_file(): 2/3 Uploaded the file to S3: {}, {}. upload_file_job={}"
-                     .format(S3_UPLOAD_BUCKET_NAME, upload_file_job.s3_key(), upload_file_job))
+        logger.debug("_upload_file(): 2/3 Uploaded the file to cloud. upload_file_job={}".format(upload_file_job))
     except Exception as exc:
-        failure_message = "_upload_file(): FAILED_S3_FILE_UPLOAD: Error uploading file to S3: {}. upload_file_job={}" \
+        failure_message = "_upload_file(): Error uploading file to cloud: {}. upload_file_job={}"\
             .format(exc, upload_file_job)
         upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
         logger.debug(failure_message)
-        return "Error uploading file to S3: {}. upload_file_job={}".format(exc, upload_file_job), None
+        return "Error uploading file to cloud: {}. upload_file_job={}".format(exc, upload_file_job), None
 
     # enqueue a worker
     try:
@@ -1260,7 +1240,7 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
-        upload_file_job.delete_s3_object()  # NB: in current thread
+        delete_file(upload_file_job)  # NB: in current thread
         logger.debug(failure_message)
         return "Error enqueuing the job: {}. upload_file_job={}".format(exc, upload_file_job), None
 
@@ -1275,15 +1255,15 @@ def process_upload_file_job__noop(upload_file_job_pk):
     :param upload_file_job_pk: the UploadFileJob's pk
     """
     logger.debug("process_upload_file_job__noop(): entered. upload_file_job_pk={}".format(upload_file_job_pk))
-    with upload_file_job_s3_file(upload_file_job_pk) as (upload_file_job, s3_file_fp):
+    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
         # show that we can access the file's data
-        file_size = s3_file_fp.seek(0, io.SEEK_END)
-        s3_file_fp.seek(0)
-        lines = s3_file_fp.readlines()
-        s3_file_fp.seek(0)
+        file_size = cloud_file_fp.seek(0, io.SEEK_END)
+        cloud_file_fp.seek(0)
+        lines = cloud_file_fp.readlines()
+        cloud_file_fp.seek(0)
         logger.debug(
-            "process_upload_file_job__noop(): upload_file_job={}, s3_file_fp={}.\n\t-> from s3_file_fp: {}, {}, {}"
-                .format(upload_file_job, s3_file_fp, file_size, len(lines), repr(lines[0:2])))
+            "process_upload_file_job__noop(): upload_file_job={}, cloud_file_fp={}.\n\t-> from cloud_file_fp: {}, {}, {}"
+                .format(upload_file_job, cloud_file_fp, file_size, len(lines), repr(lines[0:2])))
 
         # simulate a long-running operation
         time.sleep(5)

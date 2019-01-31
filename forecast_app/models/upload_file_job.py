@@ -4,7 +4,6 @@ import tempfile
 import traceback
 from contextlib import contextmanager
 
-import boto3
 import django_rq
 from django.contrib.auth.models import User
 from django.db import models
@@ -14,7 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from jsonfield import JSONField
 
-from forecast_repo.settings.base import S3_UPLOAD_BUCKET_NAME
+from utils.cloud_file import delete_file, download_file
 from utils.utilities import basic_str
 
 
@@ -27,36 +26,40 @@ class UploadFileJob(models.Model):
     """
 
     PENDING = 0
-    S3_FILE_UPLOADED = 1
+    CLOUD_FILE_UPLOADED = 1
     QUEUED = 2
-    S3_FILE_DOWNLOADED = 3
+    CLOUD_FILE_DOWNLOADED = 3
     SUCCESS = 4
     FAILED = 5
 
     STATUS_CHOICES = (
         (PENDING, 'PENDING'),
-        (S3_FILE_UPLOADED, 'S3_FILE_UPLOADED'),
+        (CLOUD_FILE_UPLOADED, 'CLOUD_FILE_UPLOADED'),
         (QUEUED, 'QUEUED'),
-        (S3_FILE_DOWNLOADED, 'S3_FILE_DOWNLOADED'),
+        (CLOUD_FILE_DOWNLOADED, 'CLOUD_FILE_DOWNLOADED'),
         (SUCCESS, 'SUCCESS'),
         (FAILED, 'FAILED'),
     )
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
+
     # User who submitted the job:
     user = models.ForeignKey(User, related_name='upload_file_jobs', on_delete=models.SET_NULL, blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)  # when this instance was created. basically the submit date
     updated_at = models.DateTimeField(auto_now=True)  # time of last save(). basically last time status changed
     failure_message = models.CharField(max_length=2000)  # non-empty message if status == FAILED
     filename = models.CharField(max_length=200)  # original name of the uploaded file
+
     # app-specific data passed to the UploadFileJob from the request. ex: 'model_pk':
     input_json = JSONField(null=True, blank=True)
+
     # app-specific results from a successful completion of the upload. ex: 'forecast_pk':
     output_json = JSONField(null=True, blank=True)
 
 
     def __repr__(self):
         return str((self.pk, self.user,
-                    self.status_as_str(), self.filename,
+                    UploadFileJob.status_as_str(self.status), self.filename,
                     self.is_failed(), self.failure_message[:30],
                     self.created_at, self.updated_at,
                     self.input_json, self.output_json))
@@ -70,9 +73,10 @@ class UploadFileJob(models.Model):
         return self.status == UploadFileJob.FAILED
 
 
-    def status_as_str(self):
-        for status_int, status_name in self.STATUS_CHOICES:
-            if self.status == status_int:
+    @classmethod
+    def status_as_str(cls, the_status_int):
+        for status_int, status_name in cls.STATUS_CHOICES:
+            if status_int == the_status_int:
                 return status_name
 
         return '!?'
@@ -83,17 +87,8 @@ class UploadFileJob(models.Model):
 
 
     #
-    # S3 and RQ service-specific keys/ids
+    # RQ service-specific functions
     #
-
-    # todo should UploadFileJob know about RQ and S3 at all? maybe some kind of adapter to separate concerns
-
-    def s3_key(self):
-        """
-        :return: the S3 key in S3_UPLOAD_BUCKET_NAME corresponding to me
-        """
-        return str(self.pk)
-
 
     def rq_job_id(self):
         """
@@ -116,77 +111,59 @@ class UploadFileJob(models.Model):
             logger.debug("cancel_rq_job(): Failed: {}, {}".format(exc, self))
 
 
-    def delete_s3_object(self):
-        """
-        Deletes the S3 object corresponding to me. note that we do not log delete failures in the instance. This is b/c
-        failing to delete a temporary file is not a failure to process an uploaded file. Though it's not clear when
-        delete would fail but everything preceding it would succeed...
-
-        Apps can infer this condition by looking for non-deleted S3 objects whose status != SUCCESS .
-        """
-        try:
-            logger.debug("delete_s3_object(): started: {}".format(self))
-            s3 = boto3.resource('s3')
-            s3.Object(S3_UPLOAD_BUCKET_NAME, self.s3_key()).delete()
-            logger.debug("delete_s3_object(): done: {}".format(self))
-        except Exception as exc:
-            logger.debug("delete_s3_object(): failed: {}, {}".format(exc, self))
-
-
 #
 # the context manager for use by django_rq.enqueue() calls by views._upload_file()
 #
 
 @contextmanager
-def upload_file_job_s3_file(upload_file_job_pk):
+def upload_file_job_cloud_file(upload_file_job_pk):
     """
     A context manager for use by django_rq.enqueue() calls by views._upload_file().
 
     Does the following setup:
     - get the UploadFileJob for upload_file_job_pk
-    - download the corresponding S3 object/file data into a temporary file, setting the UploadFileJob's status to
-      S3_FILE_DOWNLOADED
+    - download the corresponding cloud file data into a temporary file, setting the UploadFileJob's status to
+      CLOUD_FILE_DOWNLOADED
     - pass the temporary file's fp to this context's caller
     - set the UploadFileJob's status to SUCCESS
 
     Does this cleanup:
-    - delete the S3 object, regardless of success or failure
+    - delete the cloud object, regardless of success or failure
 
     :param upload_file_job_pk: PK of the corresponding UploadFileJob instance
     """
     # __enter__()
     upload_file_job = get_object_or_404(UploadFileJob, pk=upload_file_job_pk)
-    logger.debug("upload_file_job_s3_file(): Started. upload_file_job={}".format(upload_file_job))
-    with tempfile.TemporaryFile() as s3_file_fp:  # <class '_io.BufferedRandom'>
+    logger.debug("upload_file_job_cloud_file(): Started. upload_file_job={}".format(upload_file_job))
+    with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:
-            logger.debug("upload_file_job_s3_file(): Downloading from S3: {}, {}. upload_file_job={}"
-                         .format(S3_UPLOAD_BUCKET_NAME, upload_file_job.s3_key(), upload_file_job))
-            s3 = boto3.client('s3')  # using client here instead of higher-level resource b/c want to save to a fp
-            s3.download_fileobj(S3_UPLOAD_BUCKET_NAME, upload_file_job.s3_key(), s3_file_fp)
-            s3_file_fp.seek(0)  # yes you have to do this!
-            upload_file_job.status = UploadFileJob.S3_FILE_DOWNLOADED
+            logger.debug("upload_file_job_cloud_file(): Downloading from cloud. upload_file_job={}"
+                         .format(upload_file_job))
+            download_file(upload_file_job, cloud_file_fp)
+            cloud_file_fp.seek(0)  # yes you have to do this!
+            upload_file_job.status = UploadFileJob.CLOUD_FILE_DOWNLOADED
             upload_file_job.save()
 
             # make the context call. we need TextIOWrapper ('a buffered text stream over a BufferedIOBase binary
-            # stream') b/c s3_file_fp is a <class '_io.BufferedRandom'>. o/w csv ->
+            # stream') b/c cloud_file_fp is a <class '_io.BufferedRandom'>. o/w csv ->
             # 'iterator should return strings, not bytes'
-            logger.debug("upload_file_job_s3_file(): Calling context. upload_file_job={}".format(upload_file_job))
-            s3_file_fp = io.TextIOWrapper(s3_file_fp, 'utf-8')
-            yield upload_file_job, s3_file_fp
+            logger.debug("upload_file_job_cloud_file(): Calling context. upload_file_job={}".format(upload_file_job))
+            cloud_file_fp = io.TextIOWrapper(cloud_file_fp, 'utf-8')
+            yield upload_file_job, cloud_file_fp
 
             # __exit__()
             upload_file_job.status = UploadFileJob.SUCCESS  # yay!
             upload_file_job.save()
-            logger.debug("upload_file_job_s3_file(): Done. upload_file_job={}".format(upload_file_job))
+            logger.debug("upload_file_job_cloud_file(): Done. upload_file_job={}".format(upload_file_job))
         except Exception as exc:
             upload_file_job.status = UploadFileJob.FAILED
             upload_file_job.failure_message = "FAILED_PROCESS_FILE: exc={}, traceback={}" \
                 .format(exc, traceback.format_exc())
             upload_file_job.save()
-            logger.debug("upload_file_job_s3_file(): FAILED_PROCESS_FILE: Error: {}. upload_file_job={}"
+            logger.debug("upload_file_job_cloud_file(): FAILED_PROCESS_FILE: Error: {}. upload_file_job={}"
                          .format(exc, upload_file_job))
         finally:
-            upload_file_job.delete_s3_object()  # NB: in current thread
+            delete_file(upload_file_job)  # NB: in current thread
 
 
 #
@@ -194,9 +171,9 @@ def upload_file_job_s3_file(upload_file_job_pk):
 #
 
 @receiver(pre_delete, sender=UploadFileJob)
-def delete_s3_obj_for_upload_file_job(sender, instance, using, **kwargs):
+def delete_file_for_upload_file_job(sender, instance, using, **kwargs):
     instance.cancel_rq_job()  # in case it's still in the queue
-    instance.delete_s3_object()
+    delete_file(instance)
 
 
 #
@@ -205,7 +182,7 @@ def delete_s3_obj_for_upload_file_job(sender, instance, using, **kwargs):
 
 @receiver(post_save, sender=UploadFileJob)
 def send_notification_for_upload_file_job(sender, instance, using, **kwargs):
-    # imported here so that test_email_notification() can patch send_notification_email():
+    # imported here so that test_email_notification() can patch via mock:
     from forecast_app.notifications import send_notification_email
 
 
@@ -221,7 +198,8 @@ def address_subject_message_for_upload_file_job(upload_file_job):
     :param upload_file_job: an UploadFileJob
     :return: email_address, subject, message
     """
-    subject = "UploadFileJob #{} result: {}".format(upload_file_job.pk, upload_file_job.status_as_str())
+    subject = "UploadFileJob #{} result: {}" \
+        .format(upload_file_job.pk, UploadFileJob.status_as_str(upload_file_job.status))
     message_template_str = """A <a href="zoltardata.com">Zoltar</a> user with your email address uploaded a file with this result:
 <ul>
     <li>UploadFileJob ID: {{upload_file_job.pk}}</li>

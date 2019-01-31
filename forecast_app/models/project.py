@@ -346,28 +346,6 @@ class Project(ModelWithCDCData):
 
 
     #
-    # row count cache-related functions
-    #
-
-    def update_row_count_cache(self):
-        """
-        Updates the RowCountCache related to me. Assumes one exists - see note at create_row_count_cache_for_project().
-        Blocks the current thread until done - which can take a while due to Project.get_num_forecast_rows() being a
-        time-consuming operation. Does not need to be @transaction.atomic b/c we have only one transaction here. Note
-        this does not preclude race conditions if called simultaneously by different threads. In that case, the most
-        recent call wins, which is not terrible if we assume that one used the latest data.
-
-        :return the row count
-        """
-        logger.debug("update_row_count_cache(): calling: get_num_forecast_rows(). project={}".format(self))
-        num_forecast_rows = self.get_num_forecast_rows()
-        self.row_count_cache.row_count = num_forecast_rows  # recall last_update is auto_now
-        self.row_count_cache.save()
-        logger.debug("update_row_count_cache(): done: {}. project={}".format(num_forecast_rows, self))
-        return num_forecast_rows
-
-
-    #
     # visualization-related functions
     #
 

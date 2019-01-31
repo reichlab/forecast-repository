@@ -137,8 +137,9 @@ class ForecastModelForecastList(ListCreateAPIView):
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
+        # imported here so that test_api_upload_forecast() can patch via mock:
         from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_file_job__forecast, \
-            is_user_ok_upload_forecast  # imported here so that test_api_upload_forecast() can patch _upload_file()
+            is_user_ok_upload_forecast
 
         # check authorization
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
@@ -183,7 +184,7 @@ class ForecastModelForecastList(ListCreateAPIView):
                                 .format(time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), data_file.name)},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        # upload to S3 and enqueue a job to process a new UploadFileJob
+        # upload to cloud and enqueue a job to process a new UploadFileJob
         is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
                                                  forecast_model_pk=forecast_model.pk,
                                                  timezero_pk=time_zero.pk)

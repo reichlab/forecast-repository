@@ -26,13 +26,14 @@ S3-related environment variables, either locally or, for Heroku:
 
 ```bash
 heroku config:set \
-  S3_UPLOAD_BUCKET_NAME=<bucket name with below access keys> \
+  S3_BUCKET_PREFIX=<reichlab_bucket_prefix> \
   AWS_ACCESS_KEY_ID=<YOUR_ACCESS_KEY> \
   AWS_SECRET_ACCESS_KEY=<YOUR_SECRET_KEY>
 ```
 
-These keys must enable read, write, and list operations on a bucket named S3_UPLOAD_BUCKET_NAME in that account. For
-development that account was configured thus:
+These keys must enable read, write, and list operations on a bucket named S3_BUCKET_PREFIX + object type in that
+account. (See cloud_file.py for details re: our bucket naming convention.) For development that account was configured
+thus:
 
 - (IAM) Zoltar app user:
   - no groups

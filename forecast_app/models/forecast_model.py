@@ -17,7 +17,7 @@ class ForecastModel(models.Model):
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. Please see "
-                                                              "documentation forwhat should be included here - "
+                                                              "documentation for what should be included here - "
                                                               "information on reproducing the model’s results, etc.")
     home_url = models.URLField(help_text="The model's home site.")
     aux_data_url = models.URLField(

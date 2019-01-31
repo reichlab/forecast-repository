@@ -179,14 +179,15 @@ MESSAGE_TAGS = {
     message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
 }
 
+
 #
-# support for upload_file_job.py
+# S3 support - used by cloud_file.py
 #
 
-S3_UPLOAD_BUCKET_NAME = os.environ.get('S3_UPLOAD_BUCKET_NAME')
+S3_BUCKET_PREFIX = os.environ.get('S3_BUCKET_PREFIX')
 
-if not S3_UPLOAD_BUCKET_NAME:
-    raise RuntimeError('base.py: S3_UPLOAD_BUCKET_NAME not configured!')
+if not S3_BUCKET_PREFIX:
+    raise RuntimeError('base.py: S3_BUCKET_PREFIX not configured!')
 
 
 #
@@ -200,4 +201,3 @@ ANYMAIL = {
 EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
 
 DEFAULT_FROM_EMAIL = 'admin@zoltardata.com'
-

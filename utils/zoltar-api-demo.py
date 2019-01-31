@@ -4,13 +4,14 @@ import time
 import click
 import requests
 
+# ZOLTAR_HOST = 'http://127.0.0.1:8000'
+from forecast_app.models.upload_file_job import UploadFileJob
+
 
 # ---- Variables ----
 
-# ZOLTAR_HOST = 'http://127.0.0.1:8000'
-ZOLTAR_HOST = 'https://reichlab-forecast-repository.herokuapp.com'
 
-STATUS_INT_TO_NAME = {0: 'PENDING', 1: 'S3_FILE_UPLOADED', 2: 'QUEUED', 3: 'S3_FILE_DOWNLOADED', 4: 'SUCCESS'}
+ZOLTAR_HOST = 'https://reichlab-forecast-repository.herokuapp.com'
 
 
 # ---- the app ----
@@ -114,7 +115,7 @@ def demo_zoltar_api_app(forecast_csv_file):
     #
     # from UploadFileJob:
     upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
-    print('- upload_file_job 1', STATUS_INT_TO_NAME[upload_file_job['status']], upload_file_job)
+    print('- upload_file_job 1', UploadFileJob.status_as_str([upload_file_job['status']]), upload_file_job)
     # example:
     # {'id': 50,
     #  'url': 'http://localhost:8000/api/uploadfilejob/50/',
@@ -163,7 +164,7 @@ def demo_zoltar_api_app(forecast_csv_file):
     # todo delete_resource(timezero_uri, mo1_token)
 
     upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
-    print('- upload_file_job 2', STATUS_INT_TO_NAME[upload_file_job['status']], upload_file_job)
+    print('- upload_file_job 2', UploadFileJob.status_as_str([upload_file_job['status']]), upload_file_job)
     do_busy_poll(mo1_token, upload_file_job)
 
     # done
@@ -181,7 +182,7 @@ def do_busy_poll(token, upload_file_job):
     print('- polling for status change. upload_file_job pk:', upload_file_job['id'])
     while True:
         upload_file_job = get_upload_file_job(ZOLTAR_HOST, token, upload_file_job['id'])
-        status = STATUS_INT_TO_NAME[upload_file_job['status']]
+        status = UploadFileJob.status_as_str([upload_file_job['status']])
         print('  =', status)
         if status == 'FAILED':
             print('  x failed')

@@ -5,7 +5,7 @@ import django
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from forecast_app.views import enqueue_row_count_updates_all_projs
+from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 
 from forecast_app.models import Project
 
