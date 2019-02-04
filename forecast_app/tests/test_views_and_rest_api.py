@@ -150,6 +150,8 @@ class ViewsTestCase(TestCase):
             reverse('empty-rq'): self.ONLY_SU_302,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
             reverse('update-row-count-caches'): self.ONLY_SU_302,
+            reverse('clear-score-csv-file-caches'): self.ONLY_SU_302,
+            reverse('update-score-csv-file-caches'): self.ONLY_SU_302,
             reverse('update-all-scores'): self.ONLY_SU_302,
             reverse('delete-file-jobs'): self.ONLY_SU_302,
             reverse('clear-all-scores'): self.ONLY_SU_302,

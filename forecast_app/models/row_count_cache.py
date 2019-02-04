@@ -39,6 +39,21 @@ class RowCountCache(models.Model):
         return basic_str(self)
 
 
+    def update_row_count_cache(self):
+        """
+        Updates the RowCountCache related to project. Assumes one exists - see note at create_project_caches().
+        Blocks the current thread until done - which can take a while due to Project.get_num_forecast_rows() being a
+        time-consuming operation. Does not need to be @transaction.atomic b/c we have only one transaction here. Note
+        this does not preclude race conditions if called simultaneously by different threads. In that case, the most
+        recent call wins, which is not terrible if we assume that one used the latest data.
+        """
+        logger.debug("update_row_count_cache(): calling: get_num_forecast_rows(). project={}".format(self.project))
+        num_forecast_rows = self.project.get_num_forecast_rows()
+        self.row_count = num_forecast_rows  # recall last_update is auto_now
+        self.save()
+        logger.debug("update_row_count_cache(): done: {}. project={}".format(num_forecast_rows, self.project))
+
+
 #
 # utility functions
 #
@@ -53,22 +68,7 @@ def _update_project_row_count_cache(project_pk):
     Enqueue helper function.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    update_row_count_cache(project)
-
-
-def update_row_count_cache(project):
-    """
-    Updates the RowCountCache related to project. Assumes one exists - see note at create_project_caches().
-    Blocks the current thread until done - which can take a while due to Project.get_num_forecast_rows() being a
-    time-consuming operation. Does not need to be @transaction.atomic b/c we have only one transaction here. Note
-    this does not preclude race conditions if called simultaneously by different threads. In that case, the most
-    recent call wins, which is not terrible if we assume that one used the latest data.
-    """
-    logger.debug("update_row_count_cache(): calling: get_num_forecast_rows(). project={}".format(project))
-    num_forecast_rows = project.get_num_forecast_rows()
-    project.row_count_cache.row_count = num_forecast_rows  # recall last_update is auto_now
-    project.row_count_cache.save()
-    logger.debug("update_row_count_cache(): done: {}. project={}".format(num_forecast_rows, project))
+    project.row_count_cache.update_row_count_cache()
 
 
 #

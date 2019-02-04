@@ -16,8 +16,8 @@ def cli():
     pass
 
 
-@cli.command()
-def print():
+@cli.command(name="print")
+def print_counts():
     """
     A subcommand that prints all projects' RowCountCaches. Runs in the calling thread and therefore blocks.
     """

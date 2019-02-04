@@ -22,6 +22,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
 from forecast_app.models.project import Target, Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
+from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
@@ -75,13 +76,13 @@ def zadmin(request):
     projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
     return render(
         request, 'zadmin.html',
-        context={'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
-                 'projects_sort_pk': projects_sort_pk,
+        context={'django_db_name': django_db_name,
+                 'django_conn': connection,
                  'rq_conn': rq_conn,
                  'rq_queue': rq_queue,
                  'rq_jobs': rq_jobs,
-                 'django_db_name': django_db_name,
-                 'django_conn': connection,
+                 'projects_sort_pk': projects_sort_pk,
+                 'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
                  'upload_file_jobs': UploadFileJob.objects.all().order_by('updated_at'),
                  'score_last_update_rows': score_last_update_rows,
                  'scores_sort_name': Score.objects.all().order_by('name'),
@@ -145,21 +146,6 @@ def clear_row_count_caches(request):
     return redirect('zadmin')  # hard-coded
 
 
-def update_all_scores(request):
-    """
-    View function that enqueues updates of all scores for all projects.
-    """
-    if not is_user_ok_admin(request.user):
-        raise PermissionDenied
-
-    try:
-        Score.enqueue_update_scores_for_all_projects()
-        messages.success(request, "Scheduled score updating for all projects.")
-    except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, "Error updating scores: {}.".format(ce))
-    return redirect('zadmin')  # hard-coded
-
-
 def update_row_count_caches(request):
     """
     View function that enqueues updates of all projects' RowCountCaches and then returns. Users are not notified when
@@ -175,6 +161,54 @@ def update_row_count_caches(request):
         messages.success(request, "Scheduled updating row count caches for all projects.")
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, "Error updating row count caches: {}.".format(ce))
+    return redirect('zadmin')  # hard-coded
+
+
+def clear_score_csv_file_caches(request):
+    """
+    View function that resets all projects' ScoreCsvFileCaches. Runs in the calling thread and therefore blocks.
+    However, this operation is relatively fast, but does depend on S3 access.
+    """
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    for project in Project.objects.all():
+        project.score_csv_file_cache.delete_score_csv_file_cache()
+
+    messages.success(request, "All score csv file caches were cleared.")
+    return redirect('zadmin')  # hard-coded
+
+
+def update_score_csv_file_caches(request):
+    """
+    View function that enqueues updates of all projects' ScoreCsvFileCaches and then returns. Users are not notified
+    when the updates are done, and so must refresh, etc. Note that we choose to enqueue each project's update
+    separately, rather than a single enqueue that updates them all in a loop, b/c each one might take a while, and
+    we're trying to limit each job's duration.
+    """
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    try:
+        enqueue_score_csv_file_cache_all_projs()
+        messages.success(request, "Scheduled updating score csv file caches for all projects.")
+    except redis.exceptions.ConnectionError as ce:
+        messages.warning(request, "Error updating score csv file caches: {}.".format(ce))
+    return redirect('zadmin')  # hard-coded
+
+
+def update_all_scores(request):
+    """
+    View function that enqueues updates of all scores for all projects.
+    """
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    try:
+        Score.enqueue_update_scores_for_all_projects()
+        messages.success(request, "Scheduled score updating for all projects.")
+    except redis.exceptions.ConnectionError as ce:
+        messages.warning(request, "Error updating scores: {}.".format(ce))
     return redirect('zadmin')  # hard-coded
 
 
@@ -1219,7 +1253,7 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.save()
         logger.debug("_upload_file(): 2/3 Uploaded the file to cloud. upload_file_job={}".format(upload_file_job))
     except Exception as exc:
-        failure_message = "_upload_file(): Error uploading file to cloud: {}. upload_file_job={}"\
+        failure_message = "_upload_file(): Error uploading file to cloud: {}. upload_file_job={}" \
             .format(exc, upload_file_job)
         upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message

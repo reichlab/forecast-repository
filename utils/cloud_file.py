@@ -114,15 +114,15 @@ def download_file(the_object, data_file):
 def is_file_exists(the_object):
     """
     :param the_object: a Model
-    :return: True if exists in S3. False o/w
+    :return: 2-tuple: (is_exists, size). size is unused if not is_exists
     """
     s3_resource = boto3.resource('s3')
     object_summary = s3_resource.ObjectSummary(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object))
     try:
         object_summary.last_modified  # access an arbitrary property to initiate check as side effect
-        return True
+        return True, object_summary.size
     except botocore.exceptions.ClientError as ce:
         if ce.response['Error']['Code'] == "404":  # object does not exist
-            return False
+            return False, None
         else:  # something else has gone wrong
             raise ce

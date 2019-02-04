@@ -9,8 +9,6 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.models.row_count_cache import update_row_count_cache
-from forecast_app.models.score_csv_file_cache import update_score_csv_file_cache
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.make_thai_moph_project import create_thai_locations_and_targets, THAI_CONFIG_DICT
@@ -232,7 +230,7 @@ class ProjectTestCase(TestCase):
         # NB: this test assumes delete was called before upload
         with patch('utils.cloud_file.delete_file') as delete_file_mock, \
                 patch('utils.cloud_file.upload_file') as upload_file_mock:
-            update_score_csv_file_cache(self.project)
+            self.project.score_csv_file_cache.update_score_csv_file_cache()
 
             args = delete_file_mock.call_args[0]  # delete_file(the_object)
             delete_file_mock.assert_called_once()
@@ -249,7 +247,7 @@ class ProjectTestCase(TestCase):
         # assume last_update default works
         self.assertIsNone(self.project.row_count_cache.row_count)
 
-        update_row_count_cache(self.project)
+        self.project.row_count_cache.update_row_count_cache()
         # NB: we assume last_update default works
         self.assertEqual(self.project.get_num_forecast_rows(), self.project.row_count_cache.row_count)
 

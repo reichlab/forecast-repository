@@ -9,7 +9,7 @@ django.setup()
 
 from utils.cloud_file import is_file_exists
 from forecast_app.models import Project
-from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs, delete_score_csv_file_cache
+from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 
 
 logging.getLogger().setLevel(logging.INFO)
@@ -20,8 +20,8 @@ def cli():
     pass
 
 
-@cli.command()
-def print():
+@cli.command(name="print")
+def print_caches():
     """
     A subcommand that prints all projects' ScoreCsvFileCache. Runs in the calling thread and therefore blocks.
     """
@@ -40,7 +40,7 @@ def clear():
     click.echo("clearing all projects' ScoreCsvFileCaches")
     for project in Project.objects.all():
         click.echo("- clearing {}".format(project))
-        delete_score_csv_file_cache(project)
+        project.score_csv_file_cache.delete_score_csv_file_cache()
     click.echo("clear done")
 
 

@@ -56,7 +56,7 @@ class Score(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.abbreviation, self.name, self.description))
+        return str((self.pk, self.abbreviation, self.name))
 
 
     def __str__(self):  # todo

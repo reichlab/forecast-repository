@@ -27,7 +27,11 @@ def _calculate_pit_score_values(score, forecast_model):
         _timezero_loc_target_pks_to_template_bin  # avoid circular imports
 
 
-    targets = _validate_score_targets_and_data(forecast_model)  # raises RuntimeError if invalid
+    try:
+        targets = _validate_score_targets_and_data(forecast_model)
+    except RuntimeError as rte:
+        logger.warning(rte)
+        return
 
     # cache truth values
     tz_loc_targ_pks_to_templ_bin = _timezero_loc_target_pks_to_template_bin(forecast_model.project)

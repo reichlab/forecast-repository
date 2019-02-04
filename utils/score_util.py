@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from forecast_app.models.score import _update_model_scores, ScoreLastUpdate
+from forecast_app.models.score import _update_model_scores
 
 from forecast_app.models import Score, ScoreValue, Project, ForecastModel
 
@@ -26,8 +26,8 @@ def cli(ctx):
     click.echo('cli: {} {}'.format(ctx.invoked_subcommand, ' '.join(args)))
 
 
-@cli.command()
-def print():
+@cli.command(name="print")
+def print_scores():
     """
     A subcommand that prints all projects' scores. Runs in the calling thread and therefore blocks.
     """
@@ -81,7 +81,9 @@ def update(score_pk, model_pk, no_enqueue):
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
     for score in scores:
+        print(score)
         for forecast_model in models:
+            print('  ', forecast_model)
             if no_enqueue:
                 click.echo("(no enqueue) calculating score={}, forecast_model={}".format(score, forecast_model))
                 _update_model_scores(score.pk, forecast_model.pk)

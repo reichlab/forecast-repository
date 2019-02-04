@@ -29,6 +29,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         targets = _validate_score_targets_and_data(forecast_model)
     except RuntimeError as rte:
         logger.warning(rte)
+        return
 
     # cache truth values: [location_name][target_name][timezero_date]:
     from forecast_app.scores.definitions import _timezero_loc_target_pks_to_truth_values  # avoid circular imports
@@ -67,5 +68,6 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     # print errors
     for (forecast_pk, timezero_pk, location_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
         logger.warning("_calculate_error_score_values(): truth validation error: {!r}: "
-                       "forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
-                       .format(error_string, forecast_pk, timezero_pk, location_pk, target_pk))
+                       "score_pk={}, forecast_model_pk={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
+                       .format(error_string, score.pk, forecast_model.pk, forecast_pk, timezero_pk, location_pk,
+                               target_pk))

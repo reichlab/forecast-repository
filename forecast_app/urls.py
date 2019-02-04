@@ -12,6 +12,8 @@ urlpatterns = [
     url(r'^empty_rq/$', views.empty_rq, name='empty-rq'),
     url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),
+    url(r'^clear_score_csv_file_caches', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
+    url(r'^update_score_csv_file_caches', views.update_score_csv_file_caches, name='update-score-csv-file-caches'),
     url(r'^delete_upload_file_jobs/$', views.delete_upload_file_jobs, name='delete-file-jobs'),
 
     url(r'^update_all_scores', views.update_all_scores, name='update-all-scores'),

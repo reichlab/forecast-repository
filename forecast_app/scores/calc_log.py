@@ -35,6 +35,7 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
         targets = _validate_score_targets_and_data(forecast_model)
     except RuntimeError as rte:
         logger.warning(rte)
+        return
 
     # cache truth values: [location_name][target_name][timezero_date]:
     tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
@@ -81,8 +82,9 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     # print errors
     for (forecast_pk, timezero_pk, location_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
         logger.warning("_calc_log_bin_score_values(): truth validation error: {!r}: "
-                       "forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
-                       .format(error_string, forecast_pk, timezero_pk, location_pk, target_pk))
+                       "score_pk={}, forecast_model_pk={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
+                       .format(error_string, score.pk, forecast_model.pk, forecast_pk, timezero_pk, location_pk,
+                               target_pk))
 
 
 #
