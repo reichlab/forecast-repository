@@ -1,6 +1,7 @@
 import logging
 
 import boto3
+import botocore
 
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
 
@@ -39,25 +40,16 @@ logger = logging.getLogger(__name__)
 #
 
 
-#
-# todo:
-#   export S3_BUCKET_PREFIX=reichlab.zoltarapp
-# - 'rename' S3 buckets:
-#   = reichlab.zoltarapp.uploads       -> reichlab.zoltarapp.uploadfilejob
-#   = reichlab.zoltarapp.cached-scores -> reichlab.zoltarapp.scorecsvfilecache
-#
-
-
-def folder_name_for_object(the_object):
+def _folder_name_for_object(the_object):
     """
     Implements the above naming conventions.
 
     :param the_object: a Model
     """
-    return the_object.__class__.__name__
+    return the_object.__class__.__name__.lower()
 
 
-def file_name_for_object(the_object):
+def _file_name_for_object(the_object):
     """
     Implements the above naming conventions.
 
@@ -67,7 +59,7 @@ def file_name_for_object(the_object):
 
 
 def _s3_bucket_name_for_object(the_object):
-    return S3_BUCKET_PREFIX + '.' + folder_name_for_object(the_object)
+    return S3_BUCKET_PREFIX + '.' + _folder_name_for_object(the_object)
 
 
 def upload_file(the_object, data_file):
@@ -78,12 +70,12 @@ def upload_file(the_object, data_file):
     :param the_object: a Model
     :raises: S3 exceptions
     """
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(_s3_bucket_name_for_object(the_object))
+    s3_resource = boto3.resource('s3')
+    bucket = s3_resource.Bucket(_s3_bucket_name_for_object(the_object))
     # todo use chunks? for chunk in data_file.chunks(): print(chunk):
 
     # bucket.put_object(Key=upload_file_job.s3_key(), Body=data_file, ContentType='text/csv')  # todo xx nope
-    bucket.put_object(Key=file_name_for_object(the_object), Body=data_file)
+    bucket.put_object(Key=_file_name_for_object(the_object), Body=data_file)
 
 
 def delete_file(the_object):
@@ -100,8 +92,8 @@ def delete_file(the_object):
     """
     try:
         logger.debug("delete_file(): started: {}".format(the_object))
-        s3 = boto3.resource('s3')
-        s3.Object(_s3_bucket_name_for_object(the_object), file_name_for_object(the_object)).delete()
+        s3_resource = boto3.resource('s3')
+        s3_resource.Object(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object)).delete()
         logger.debug("delete_file(): done: {}".format(the_object))
     except Exception as exc:
         logger.debug("delete_file(): failed: {}, {}".format(exc, the_object))
@@ -115,5 +107,22 @@ def download_file(the_object, data_file):
     :param data_file: a file-like object
     :raises: S3 exceptions
     """
-    s3 = boto3.client('s3')  # using client here instead of higher-level resource b/c want to save to a fp
-    s3.download_fileobj(_s3_bucket_name_for_object(the_object), file_name_for_object(the_object), data_file)
+    s3_client = boto3.client('s3')  # using client here instead of higher-level resource b/c want to save to a fp
+    s3_client.download_fileobj(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object), data_file)
+
+
+def is_file_exists(the_object):
+    """
+    :param the_object: a Model
+    :return: True if exists in S3. False o/w
+    """
+    s3_resource = boto3.resource('s3')
+    object_summary = s3_resource.ObjectSummary(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object))
+    try:
+        object_summary.last_modified  # access an arbitrary property to initiate check as side effect
+        return True
+    except botocore.exceptions.ClientError as ce:
+        if ce.response['Error']['Code'] == "404":  # object does not exist
+            return False
+        else:  # something else has gone wrong
+            raise ce

@@ -1,3 +1,5 @@
+import logging
+
 import django_rq
 from django.db import models
 from django.db.models.signals import post_save
@@ -6,6 +8,9 @@ from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Project
 from utils.utilities import basic_str
+
+
+logger = logging.getLogger(__name__)
 
 
 class ScoreCsvFileCache(models.Model):
@@ -48,19 +53,38 @@ def _update_project_score_csv_file_cache(project_pk):
     update_score_csv_file_cache(project)
 
 
+def delete_score_csv_file_cache(project):
+    """
+    Updates the ScoreCsvFileCache file related to project. Runs in the calling thread and therefore blocks.
+    """
+    # imported here so that test_score_csv_file_cache() can patch via mock:
+    from utils.cloud_file import delete_file
+
+
+    delete_file(project.score_csv_file_cache)
+    project.score_csv_file_cache.save()  # updates updated_at
+
+
 def update_score_csv_file_cache(project):
     """
     Updates the ScoreCsvFileCache file related to project. Runs in the calling thread and therefore blocks.
     """
     # imported here so that test_score_csv_file_cache() can patch via mock:
-    from utils.cloud_file import delete_file, upload_file
+    from utils.cloud_file import upload_file
 
     # avoid circular imports. also, caused manage.py to hang:
     from forecast_app.api_views import csv_response_for_project_score_data
 
-    delete_file(project.score_csv_file_cache)
+
+    score_csv_file_cache = project.score_csv_file_cache
+    logger.debug("update_score_csv_file_cache(): deleting: {}".format(score_csv_file_cache))
+    delete_score_csv_file_cache(project)
+
     response = csv_response_for_project_score_data(project)
-    upload_file(project.score_csv_file_cache, response)
+    logger.debug("update_score_csv_file_cache(): uploading")
+    upload_file(score_csv_file_cache, response.content)
+    score_csv_file_cache.save()  # updates updated_at
+    logger.debug("update_score_csv_file_cache(): done")
 
 
 #

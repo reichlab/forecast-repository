@@ -241,7 +241,7 @@ class ProjectTestCase(TestCase):
             args = upload_file_mock.call_args[0]  # upload_file(the_object, data_file)
             upload_file_mock.assert_called_once()
             self.assertEqual(self.project.score_csv_file_cache, args[0])
-            self.assertGreater(len(args[1].content), 0)
+            self.assertGreater(len(args[1]), 0)
 
 
     def test_row_count_cache(self):

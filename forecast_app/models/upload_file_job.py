@@ -59,7 +59,7 @@ class UploadFileJob(models.Model):
 
     def __repr__(self):
         return str((self.pk, self.user,
-                    UploadFileJob.status_as_str(self.status), self.filename,
+                    self.status_as_str(), self.filename,
                     self.is_failed(), self.failure_message[:30],
                     self.created_at, self.updated_at,
                     self.input_json, self.output_json))
@@ -73,8 +73,12 @@ class UploadFileJob(models.Model):
         return self.status == UploadFileJob.FAILED
 
 
+    def status_as_str(self):
+        return UploadFileJob.status_int_as_str(self.status)
+
+
     @classmethod
-    def status_as_str(cls, the_status_int):
+    def status_int_as_str(cls, the_status_int):
         for status_int, status_name in cls.STATUS_CHOICES:
             if status_int == the_status_int:
                 return status_name
@@ -198,8 +202,7 @@ def address_subject_message_for_upload_file_job(upload_file_job):
     :param upload_file_job: an UploadFileJob
     :return: email_address, subject, message
     """
-    subject = "UploadFileJob #{} result: {}" \
-        .format(upload_file_job.pk, UploadFileJob.status_as_str(upload_file_job.status))
+    subject = "UploadFileJob #{} result: {}".format(upload_file_job.pk, upload_file_job.status_as_str())
     message_template_str = """A <a href="zoltardata.com">Zoltar</a> user with your email address uploaded a file with this result:
 <ul>
     <li>UploadFileJob ID: {{upload_file_job.pk}}</li>
