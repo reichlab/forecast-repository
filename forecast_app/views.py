@@ -450,9 +450,13 @@ def download_scores(request, project_pk):
         raise PermissionDenied
 
     from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
+    from forecast_app.api_views import csv_response_for_cached_project_score_data  # ""
 
 
-    return csv_response_for_project_score_data(project)
+    if project.score_csv_file_cache.is_file_exists():
+        return csv_response_for_cached_project_score_data(project)
+    else:
+        return csv_response_for_project_score_data(project)
 
 
 #

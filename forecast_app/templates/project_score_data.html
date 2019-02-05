@@ -48,6 +48,11 @@
     <form id="download_form" class="form-inline" method="POST" action="{% url 'download-scores' project.pk %}">
         {% csrf_token %}
         <button type="submit" class="btn btn-primary">Download CSV</button>
+        {% if project.score_csv_file_cache.is_file_exists %}
+            <span class="text-muted">(Cached file updated {{ project.score_csv_file_cache.updated_at|date:"Y-m-d h:i:s" }})</span>
+        {% else %}
+            <span class="text-muted">(No cached file - download may be slow.)</span>
+        {% endif %}
     </form>
 
 

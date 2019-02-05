@@ -1,8 +1,10 @@
 import csv
 import datetime
 import logging
+import tempfile
 from itertools import groupby
 from pathlib import Path
+from wsgiref.util import FileWrapper
 
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
@@ -23,6 +25,7 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TemplateSerializer, TruthSerializer, UploadFileJobSerializer
+from utils.cloud_file import download_file
 from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
 
 
@@ -140,6 +143,7 @@ class ForecastModelForecastList(ListCreateAPIView):
         # imported here so that test_api_upload_forecast() can patch via mock:
         from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_file_job__forecast, \
             is_user_ok_upload_forecast
+
 
         # check authorization
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
@@ -272,7 +276,10 @@ def score_data(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
-    return csv_response_for_project_score_data(project)
+    if project.score_csv_file_cache.is_file_exists():
+        return csv_response_for_cached_project_score_data(project)
+    else:
+        return csv_response_for_project_score_data(project)
 
 
 #
@@ -334,8 +341,7 @@ def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
     location_dicts = model_with_cdc_data.get_location_dicts_download_format()
     response = JsonResponse({'metadata': metadata_dict,
                              'locations': location_dicts})  # defaults to 'content_type' 'application/json'
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}.json"' \
-        .format(csv_filename=model_with_cdc_data.csv_filename)
+    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(model_with_cdc_data.csv_filename)
     return response
 
 
@@ -345,8 +351,7 @@ def csv_response_for_model_with_cdc_data(model_with_cdc_data):
     as CSV.
     """
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"' \
-        .format(csv_filename=model_with_cdc_data.csv_filename)
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(model_with_cdc_data.csv_filename)
 
     writer = csv.writer(response)
     writer.writerow(CDC_CSV_HEADER)
@@ -373,7 +378,7 @@ def csv_response_for_project_truth_data(project):
         csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
     else:
         csv_filename = csv_filename_path.name + '-validated.csv'
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"'.format(csv_filename=str(csv_filename))
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
 
 
     def transform_row(row):
@@ -395,14 +400,41 @@ def csv_response_for_project_truth_data(project):
 score_csv_header_prefix = ['model', 'timezero', 'season', 'location', 'target']
 
 
+def _csv_filename_for_project_scores(project):
+    return get_valid_filename(project.name + '-scores.csv')
+
+
+def csv_response_for_cached_project_score_data(project):
+    """
+    Similar to csv_response_for_project_score_data(), but returns a response that's loaded from an existing S3 file.
+
+    :param project:
+    :return:
+    """
+    with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
+        try:
+            download_file(project.score_csv_file_cache, cloud_file_fp)
+            cloud_file_fp.seek(0)  # yes you have to do this!
+
+            # https://stackoverflow.com/questions/16538210/downloading-files-from-amazon-s3-using-django
+            csv_filename = _csv_filename_for_project_scores(project)
+            wrapper = FileWrapper(cloud_file_fp)
+            response = HttpResponse(wrapper, content_type='text/csv')
+            # response['Content-Length'] = os.path.getsize('/tmp/'+fname)
+            response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+            return response
+        except Exception as exc:
+            logger.debug("csv_response_for_cached_project_score_data(): Error: {}. project={}".format(exc, project))
+
+
 def csv_response_for_project_score_data(project):
     """
     Similar to csv_response_for_project_truth_data(), but returns a response with project's truth data formatted as
     CSV.
     """
     response = HttpResponse(content_type='text/csv')
-    csv_filename = get_valid_filename(project.name + '-scores.csv')
-    response['Content-Disposition'] = 'attachment; filename="{csv_filename}"'.format(csv_filename=str(csv_filename))
+    csv_filename = _csv_filename_for_project_scores(project)
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
 
     # recall https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/scores.csv:
     #   Model,Year,Epiweek,Season,Model Week,Location,Target,Score,Multi bin score
