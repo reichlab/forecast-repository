@@ -65,6 +65,8 @@ def zadmin(request):
 
     Score.ensure_all_scores_exist()
     score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
+
+    # todo xx this takes a long time
     for score_last_update in ScoreLastUpdate.objects \
             .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
         score_last_update_rows.append(

@@ -27,15 +27,15 @@
             <tr>
                 <th>Name</th>
                 <th>Description</th>
-                <th># Score Values</th>
                 <th>Last Update</th>
+                <th># Score Values</th>
             </tr>
             {% for score, num_score_values, last_update in score_summaries %}
                 <tr>
                     <td>{{ score.name }}</td>
                     <td>{{ score.description }}</td>
-                    <td>{{ num_score_values }}</td>
                     <td>{{ last_update.updated_at }}</td>
+                    <td>{{ num_score_values }}</td>
                 </tr>
             {% endfor %}
         </table>
