@@ -4,7 +4,7 @@
 {{ proj_summary_counts.0|apnumber|capfirst }} model{{ proj_summary_counts.0|pluralize }},
 {{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
 {% if use_intword %}{{ proj_summary_counts.2|intword|intcomma }}{% else %}{{ proj_summary_counts.2|intcomma }}{% endif %}
-(estimated){% if project.row_count_cache.row_count != None %},
+row{{ proj_summary_counts.2|pluralize }} (estimated){% if project.row_count_cache.row_count != None %},
     {% if use_intword %}{{ project.row_count_cache.row_count|intword|intcomma }}{% else %}{{ project.row_count_cache.row_count|intcomma }}{% endif %}
     row{{ project.row_count_cache.row_count|pluralize }} (actual) as of
     {{ project.row_count_cache.updated_at|date:"Y-m-d" }}{% endif %}

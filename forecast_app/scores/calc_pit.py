@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 def _calculate_pit_score_values(score, forecast_model):
     """
     Implements the 'Probability Integral Transform (PIT)' score, defined for each predictive distribution (i.e., each
-    new target in a forecast) as `(s1 + s2)/2` where s1 is the sum of all bin rows _up to_ the true bin, and s2 is that
-    same sum but also including the true bin.
+    new target in a forecast) as `(s1 + s2)/2` where s1 is the sum of all bin row values _up to_ the true bin, and s2
+    is that same sum but also including the true bin.
 
     We use a state machine formalism to represent and implement this program. The diagram is located at
     pit-score-state-machine.png .
@@ -46,10 +46,12 @@ def _calculate_pit_score_values(score, forecast_model):
                      'bin_start_incl', 'bin_end_notincl', 'value')
 
     # Calculate scores for all combinations of location and target. Note that b/c we need to account for missing bin
-    # rows whose values are zero, we have some logic to test three cases: a) we passed the missing bin (we test
+    # rows whose values are zero, we have some logic to test two cases: a) we passed the missing bin (we test
     # bin_start_incl), or b) the true bin comes after the last forecast bin (we test is_start_new_distribution).
-    #
     # Re: iterator() memory usage: see comment in _calc_log_bin_score_values()
+
+    # collect errors so we don't log thousands of duplicate messages. dict format:
+    #   {(forecast_pk, timezero_pk, location_pk, target_pk): count, ...}:
     forec_tz_loc_targ_pk_to_error_str = defaultdict(int)  # helps eliminate duplicate warnings
     line_processing_machine = PitLineProcessingMachine(score)
     input_tuple_prev = None  # for tracking distribution transitions (when target changes)

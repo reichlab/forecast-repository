@@ -23,6 +23,9 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     We use a state machine formalism to represent and implement this program. The diagram is located at
     multi-bin-score-state-machine.png .
 
+    Note that correctly calculating this score can depend on missing bin rows whose values are zero, and therefore are
+    not in the database - see [Consider not storing bin rows with zero values #84](https://github.com/reichlab/forecast-repository/issues/84) .
+
     :param num_bins_one_side: (AKA the 'window' per above link) is number of bins rows *on one side* of the matching bin
         row to sum when calculating the score. thus the total number of bins in the 'window' centered on the matching
         bin row is: (2 * num_bins) + 1 . pass zero to get single bin behavior.
@@ -49,26 +52,29 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
                      'bin_start_incl', 'bin_end_notincl', 'value')
 
-    # calculate scores for all combinations of location and target. keep a list of errors so we don't log thousands of
-    # duplicate messages. dict format: {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
-    #
+    # calculate scores for all combinations of location and target
     # Re: iterator() memory usage: django 1.1 uses django.db.models.sql.constants.GET_ITERATOR_CHUNK_SIZE, which is
     # hard-coded to 100. django 2 allows passing in: def iterator(self, chunk_size=2000). note that iterator() takes
     # care of making postgres use server-side cursors for iteration without our having to deal with the backend database.
+
+    # collect errors so we don't log thousands of duplicate messages. dict format:
+    #   {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
     forec_tz_loc_targ_pk_to_error_str = {}  # helps eliminate duplicate warnings
     line_processing_machine = LogLineProcessingMachine(score, num_bins_one_side)
     for forecast_pk, timezero_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl, predicted_value \
             in forecast_data_qs.iterator():
+        # NB: we do NOT check true_value is None here, unlike _calculate_error_score_values(), b/c that condition is
+        # used by LogLineProcessingMachine.save_score() and LineProcessingMachine.is_match()
+        if predicted_value is None:
+            # note: future validation might ensure no bin values are None
+            continue  # skip this forecast's contribution to the score
+
         true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals,
                                                    timezero_pk, location_pk, target_pk)
         if error_string:
             error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
             if error_key not in forec_tz_loc_targ_pk_to_error_str:
                 forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
-            continue  # skip this forecast's contribution to the score
-
-        if predicted_value is None:
-            # note: future validation might ensure no bin values are None
             continue  # skip this forecast's contribution to the score
 
         input_tuple = InputTuple(forecast_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl,
@@ -237,9 +243,8 @@ class LogLineProcessingMachine(LineProcessingMachine):
         from forecast_app.scores.definitions import LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports
 
 
+        matching_input_tuple = self.values_tuples_post_match[0]  # the matching one is first b/c we append
         try:
-            # self.values_tuples_post_match
-            matching_input_tuple = self.values_tuples_post_match[0]  # the matching one is first b/c we append
             if matching_input_tuple.true_value is None:
                 # in this case, the score should degenerate to the num_bins_one_side=0 'Log score (single bin)'
                 # calculation

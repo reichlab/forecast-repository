@@ -56,7 +56,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
                 forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
             continue  # skip this forecast's contribution to the score
 
-        if true_value is None or predicted_value is None:
+        if (true_value is None) or (predicted_value is None):
             # note: future validation might ensure no bin values are None
             continue  # skip this forecast's contribution to the score
 
