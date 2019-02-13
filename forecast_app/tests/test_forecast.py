@@ -36,7 +36,7 @@ class ForecastTestCase(TestCase):
     def test_load_forecast_created_at_field(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
         forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
@@ -213,7 +213,7 @@ class ForecastTestCase(TestCase):
     def test_get_location_dicts_download_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
@@ -235,7 +235,7 @@ class ForecastTestCase(TestCase):
     def test_get_location_dicts_internal_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
@@ -288,7 +288,7 @@ class ForecastTestCase(TestCase):
     def test_get_loc_dicts_int_format_for_csv_file(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)

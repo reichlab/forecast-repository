@@ -20,7 +20,7 @@ class TruthData(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.location, self.target, self.value))
+        return str((self.pk, self.time_zero.pk, self.location.pk, self.target.pk, self.value))
 
 
     def __str__(self):  # todo

@@ -57,7 +57,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
             continue  # skip this forecast's contribution to the score
 
         if (true_value is None) or (predicted_value is None):
-            # note: future validation might ensure no bin values are None
+            # note: future validation might ensure no bin values are None. only valid case: season onset point rows
             continue  # skip this forecast's contribution to the score
 
         ScoreValue.objects.create(forecast_id=forecast_pk, location_id=location_pk,

@@ -94,7 +94,7 @@ def fill_project(project, mo_user):
                             data_version_date=None)
 
     # load the template
-    template_path = Path('forecast_app/tests/2016-2017_submission_template-small.csv')
+    template_path = Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv')
     click.echo("* loading template into project={}, template_path={}".format(project, template_path))
     start_time = timeit.default_timer()
     project.load_template(template_path)

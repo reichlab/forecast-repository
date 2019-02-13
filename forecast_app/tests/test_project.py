@@ -741,7 +741,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual(11, len(locations))
         self.assertEqual(7, len(targets))
 
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         self.assertEqual(locations, list(project2.locations.all()))
         self.assertEqual(targets, list(project2.targets.all()))
 
@@ -751,7 +751,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual(0, len(project2.locations.all()))
         self.assertEqual(0, len(project2.targets.all()))
 
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         self.assertEqual(11, len(project2.locations.all()))
         self.assertEqual(7, len(project2.targets.all()))
 

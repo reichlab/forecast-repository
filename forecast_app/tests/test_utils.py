@@ -143,7 +143,7 @@ class UtilitiesTestCase(TestCase):
 
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-small.csv'))
+        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}:
         time_zero_21 = TimeZero.objects.create(project=project2,
                                                timezero_date=datetime.date(2016, 10, 23), data_version_date=None,

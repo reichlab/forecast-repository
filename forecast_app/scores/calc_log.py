@@ -4,8 +4,8 @@ import logging
 import math
 from enum import Enum
 
-from forecast_app.models import ForecastData, ScoreValue
-from forecast_app.scores.state_machine import LineProcessingMachine, InputTuple
+from forecast_app.models import ScoreValue
+from forecast_app.scores.state_machine import LineProcessingMachine, _calculate_bin_score_values
 
 
 logger = logging.getLogger(__name__)
@@ -30,67 +30,9 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
         row to sum when calculating the score. thus the total number of bins in the 'window' centered on the matching
         bin row is: (2 * num_bins) + 1 . pass zero to get single bin behavior.
     """
-    from forecast_app.scores.definitions import _validate_score_targets_and_data, \
-        _timezero_loc_target_pks_to_truth_values, _validate_truth  # avoid circular imports
 
-
-    try:
-        targets = _validate_score_targets_and_data(forecast_model)
-    except RuntimeError as rte:
-        logger.warning(rte)
-        return
-
-    # cache truth values: [location_name][target_name][timezero_date]:
-    tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
-
-    # calculate scores for all combinations of location and target
-    forecast_data_qs = ForecastData.objects \
-        .filter(forecast__forecast_model=forecast_model,
-                is_point_row=False,
-                target__in=targets) \
-        .order_by('forecast__id', 'location__id', 'target__id', 'bin_start_incl') \
-        .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
-                     'bin_start_incl', 'bin_end_notincl', 'value')
-
-    # calculate scores for all combinations of location and target
-    # Re: iterator() memory usage: django 1.1 uses django.db.models.sql.constants.GET_ITERATOR_CHUNK_SIZE, which is
-    # hard-coded to 100. django 2 allows passing in: def iterator(self, chunk_size=2000). note that iterator() takes
-    # care of making postgres use server-side cursors for iteration without our having to deal with the backend database.
-
-    # collect errors so we don't log thousands of duplicate messages. dict format:
-    #   {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
-    forec_tz_loc_targ_pk_to_error_str = {}  # helps eliminate duplicate warnings
     line_processing_machine = LogLineProcessingMachine(score, num_bins_one_side)
-    for forecast_pk, timezero_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl, predicted_value \
-            in forecast_data_qs.iterator():
-        # NB: we do NOT check true_value is None here, unlike _calculate_error_score_values(), b/c that condition is
-        # used by LogLineProcessingMachine.save_score() and LineProcessingMachine.is_match()
-        if predicted_value is None:
-            # note: future validation might ensure no bin values are None
-            continue  # skip this forecast's contribution to the score
-
-        true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals,
-                                                   timezero_pk, location_pk, target_pk)
-        if error_string:
-            error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
-            if error_key not in forec_tz_loc_targ_pk_to_error_str:
-                forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
-            continue  # skip this forecast's contribution to the score
-
-        input_tuple = InputTuple(forecast_pk, location_pk, target_pk, bin_start_incl, bin_end_notincl,
-                                 predicted_value, true_value)
-        line_processing_machine.set_input_tuple(input_tuple)
-        line_processing_machine.advance()
-
-    # handle the case where we fall off the end and haven't saved the score yet
-    line_processing_machine.handle_post_to_eof()
-
-    # print errors
-    for (forecast_pk, timezero_pk, location_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
-        logger.warning("_calc_log_bin_score_values(): truth validation error: {!r}: "
-                       "score_pk={}, forecast_model_pk={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
-                       .format(error_string, score.pk, forecast_model.pk, forecast_pk, timezero_pk, location_pk,
-                               target_pk))
+    _calculate_bin_score_values(forecast_model, line_processing_machine)
 
 
 #
