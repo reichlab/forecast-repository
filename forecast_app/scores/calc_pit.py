@@ -46,13 +46,13 @@ class PitLineProcessingMachine(LineProcessingMachine):
     described in _calculate_pit_score_values(), and then finally skip the remaining post-truth bins until the next
     target/predictive distribution. We use one extended state variable:
 
-    - values_pre_match: a list of values up to the true bin
+    - values_sum_pre_match: running sum of predicted values (floats) seen up to a match
     """
 
 
     def __init__(self, score):
         super().__init__(score)
-        self.values_pre_match = []  # values (floats) seen up to a match
+        self.values_sum_pre_match = 0.0
         self.transition_to_state(PitMachineState.distribution_start)  # initial state
 
 
@@ -124,20 +124,19 @@ class PitLineProcessingMachine(LineProcessingMachine):
 
     def clear_state_vars(self):
         # logger.debug('clear_state_vars()')
-        self.values_pre_match = []
+        self.values_sum_pre_match = 0
 
 
     def add_value_to_pre(self):
-        self.values_pre_match.append(self.input_tuple_current.predicted_value)
-        # logger.debug('add_value_to_pre(): {} -> {}'.format(self.input_tuple_current.predicted_value, self.values_pre_match))
+        self.values_sum_pre_match = self.values_sum_pre_match + self.input_tuple_current.predicted_value
+        # logger.debug('add_value_to_pre(): {} -> {}'.format(self.input_tuple_current.predicted_value, self.values_sum_pre_match))
 
 
     def save_score(self):
         matching_input_tuple = self.input_tuple_current
-        values_pre_match_sum = sum(self.values_pre_match)
-        score_value = ((values_pre_match_sum * 2) + matching_input_tuple.predicted_value) / 2
+        score_value = ((self.values_sum_pre_match * 2) + matching_input_tuple.predicted_value) / 2
 
-        # logger.debug('save_score: {}'.format( [matching_input_tuple, self.values_pre_match, '.', values_pre_match_sum, score_value]))
+        # logger.debug('save_score: {}'.format( [matching_input_tuple, self.values_sum_pre_match, '.', score_value]))
         ScoreValue.objects.create(forecast_id=matching_input_tuple.forecast_pk,
                                   location_id=matching_input_tuple.location_pk,
                                   target_id=matching_input_tuple.target_pk,
