@@ -21,10 +21,11 @@ def _calculate_pit_score_values(score, forecast_model):
     _calc_bin_score(score, forecast_model, save_pit_score)
 
 
-def save_pit_score(score, forecast_pk, templ_st_ends, forec_st_end_to_pred_val,
-                   true_bin_key, true_bin_idx, truth_data):
+def save_pit_score(score, time_zero_pk, forecast_pk, location_pk, target_pk, truth_value,
+                   templ_st_ends, forec_st_end_to_pred_val,
+                   true_bin_key, true_bin_idx):
     template_bin_keys_pre_truth = templ_st_ends[:true_bin_idx]  # excluding true bin
-    if truth_data.value is None:  # score degenerates to using only the predicted true value
+    if truth_value is None:  # score degenerates to using only the predicted true value
         pred_vals_pre_truth = []
     else:
         pred_vals_pre_truth = [forec_st_end_to_pred_val[key] if key in forec_st_end_to_pred_val else 0
@@ -34,6 +35,6 @@ def save_pit_score(score, forecast_pk, templ_st_ends, forec_st_end_to_pred_val,
     pit_score_value = ((pred_vals_pre_truth_sum * 2) + true_bin_pred_val) / 2  # 0 b/c ""
     # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
     ScoreValue.objects.create(forecast_id=forecast_pk,
-                              location_id=truth_data.location.pk,
-                              target_id=truth_data.target.pk,
+                              location_id=location_pk,
+                              target_id=target_pk,
                               score=score, value=pit_score_value)

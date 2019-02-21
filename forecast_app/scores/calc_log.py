@@ -29,12 +29,13 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     _calc_bin_score(score, forecast_model, save_log_score, num_bins_one_side=num_bins_one_side)
 
 
-def save_log_score(score, forecast_pk, templ_st_ends, forec_st_end_to_pred_val,
-                   true_bin_key, true_bin_idx, truth_data, num_bins_one_side):
+def save_log_score(score, time_zero_pk, forecast_pk, location_pk, target_pk, truth_value,
+                   templ_st_ends, forec_st_end_to_pred_val,
+                   true_bin_key, true_bin_idx, num_bins_one_side):
     from forecast_app.scores.definitions import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
 
-    if truth_data.value is None:  # score degenerates to the num_bins_one_side=0 'Log score (single bin)' calculation
+    if truth_value is None:  # score degenerates to the num_bins_one_side=0 'Log score (single bin)' calculation
         num_bins_one_side = 0
 
     start_idx = max(0, true_bin_idx - num_bins_one_side)  # max() in case window is before first bin
@@ -53,6 +54,6 @@ def save_log_score(score, forecast_pk, templ_st_ends, forec_st_end_to_pred_val,
 
     # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
     ScoreValue.objects.create(forecast_id=forecast_pk,
-                              location_id=truth_data.location.pk,
-                              target_id=truth_data.target.pk,
+                              location_id=location_pk,
+                              target_id=target_pk,
                               score=score, value=log_multi_bin_score_value)

@@ -3,7 +3,7 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, ForecastData
+from forecast_app.models import TruthData, ForecastData, TimeZero, Forecast
 from forecast_app.models.data import ProjectTemplateData
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
@@ -37,30 +37,30 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     tzltpk_to_forec_st_end_to_pred_val = _tzltpk_to_forec_st_end_to_pred_val(forecast_model)
 
     # it is convenient to iterate over truths to get all timezero/location/target combinations. this will omit forecasts
-    # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score
-    for truth_data in forecast_model.project.truth_data_qs():  # truth_data: time_zero, location, target, value
+    # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score. we use direct SQL
+    # to work with PKs and avoid ORM object lookup overhead, mainly for TruthData -> TimeZero -> Forecast -> PK
+    for time_zero_pk, forecast_pk, location_pk, target_pk, truth_value in \
+            _truth_data_pks_for_project(forecast_model.project):
         # get template bins for this forecast
-        templ_st_ends = ltpk_to_templ_st_ends[truth_data.location.pk][truth_data.target.pk]
+        templ_st_ends = ltpk_to_templ_st_ends[location_pk][target_pk]
 
         # get and validate truth for this forecast
         try:
-            truth_st_end_val = tzltpk_to_truth_st_end_val[truth_data.time_zero.pk][truth_data.location.pk][
-                truth_data.target.pk]
+            truth_st_end_val = tzltpk_to_truth_st_end_val[time_zero_pk][location_pk][target_pk]
             true_bin_key = truth_st_end_val[0], truth_st_end_val[1]
             true_bin_idx = templ_st_ends.index(true_bin_key)  # NB: non-deterministic for (None, None) true bin keys!
         except KeyError:
-            error_key = (truth_data.time_zero.pk, truth_data.location.pk, truth_data.target.pk)
+            error_key = (time_zero_pk, location_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
             continue  # skip this forecast's contribution to the score
 
         # get forecast bins and predicted values for this forecast
-        forec_st_end_to_pred_val = tzltpk_to_forec_st_end_to_pred_val[truth_data.time_zero.pk][truth_data.location.pk][
-            truth_data.target.pk]
+        forec_st_end_to_pred_val = tzltpk_to_forec_st_end_to_pred_val[time_zero_pk][location_pk][target_pk]
 
         # dispatch to scoring function
-        forecast = forecast_model.forecast_for_time_zero(truth_data.time_zero)  # slow - should probably do in SQL
-        save_score_fcn(score, forecast.pk, templ_st_ends, forec_st_end_to_pred_val,
-                       true_bin_key, true_bin_idx, truth_data, **kwargs)
+        save_score_fcn(score, time_zero_pk, forecast_pk, location_pk, target_pk, truth_value,
+                       templ_st_ends, forec_st_end_to_pred_val,
+                       true_bin_key, true_bin_idx, **kwargs)
 
     # print errors
     for (timezero_pk, location_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
@@ -68,6 +68,21 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
         logger.warning("_calculate_pit_score_values(): missing {} truth value(s): "
                        "timezero_pk={}, location_pk={}, target_pk={}"
                        .format(count, timezero_pk, location_pk, target_pk))
+
+
+def _truth_data_pks_for_project(project):
+    sql = """
+        SELECT td.time_zero_id, f.id, td.location_id, td.target_id, td.value
+        FROM {truth_data_table_name} AS td
+               LEFT OUTER JOIN {timezero_table_name} AS tz ON td.time_zero_id = tz.id
+               LEFT OUTER JOIN {forecast_table_name} AS f ON tz.id = f.time_zero_id
+        WHERE tz.project_id = %s;
+    """.format(truth_data_table_name=TruthData._meta.db_table,
+               timezero_table_name=TimeZero._meta.db_table,
+               forecast_table_name=Forecast._meta.db_table)
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        return cursor.fetchall()
 
 
 #
