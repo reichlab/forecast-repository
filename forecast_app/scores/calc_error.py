@@ -1,4 +1,6 @@
 import logging
+from collections import defaultdict
+from itertools import groupby
 
 from forecast_app.models import ForecastData
 
@@ -32,9 +34,6 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         return
 
     # cache truth values: [location_name][target_name][timezero_date]:
-    from forecast_app.scores.definitions import _timezero_loc_target_pks_to_truth_values  # avoid circular imports
-
-
     tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
 
     # get predicted point values
@@ -71,3 +70,25 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
                        "score_pk={}, forecast_model_pk={}, forecast_pk={}, timezero_pk={}, location_pk={}, target_pk={}"
                        .format(error_string, score.pk, forecast_model.pk, forecast_pk, timezero_pk, location_pk,
                                target_pk))
+
+
+def _timezero_loc_target_pks_to_truth_values(forecast_model):
+    """
+    Similar to Project.location_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
+    that's organized for easy access using these keys: [timezero_pk][location_pk][target_id] -> truth_values (a list).
+    """
+    truth_data_qs = forecast_model.project.truth_data_qs() \
+        .order_by('time_zero__id', 'location__id', 'target__id') \
+        .values_list('time_zero__id', 'location__id', 'target__id', 'value')
+
+    tz_loc_targ_pks_to_truth_vals = {}  # {timezero_pk: {location_pk: {target_id: truth_value}}}
+    for time_zero_id, loc_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+        loc_targ_pks_to_truth = {}  # {location_pk: {target_id: truth_value}}
+        tz_loc_targ_pks_to_truth_vals[time_zero_id] = loc_targ_pks_to_truth
+        for location_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+            target_pk_to_truth = defaultdict(list)  # {target_id: truth_value}
+            loc_targ_pks_to_truth[location_id] = target_pk_to_truth
+            for _, _, target_id, value in target_val_grouper:
+                target_pk_to_truth[target_id].append(value)
+
+    return tz_loc_targ_pks_to_truth_vals

@@ -15,13 +15,13 @@ def _calculate_pit_score_values(score, forecast_model):
     Note that correctly calculating this score can depend on missing bin rows whose values are zero, and therefore are
     not in the database - see [Consider not storing bin rows with zero values #84](https://github.com/reichlab/forecast-repository/issues/84) .
     """
-    from forecast_app.scores.definitions import _calc_bin_score  # avoid circular imports
+    from forecast_app.scores.bin_utils import _calc_bin_score
 
 
-    _calc_bin_score(score, forecast_model, False, None)
+    _calc_bin_score(score, forecast_model, save_pit_score)
 
 
-def save_pit_score(score, forecast_model, templ_st_ends, forec_st_end_to_pred_val,
+def save_pit_score(score, forecast_pk, templ_st_ends, forec_st_end_to_pred_val,
                    true_bin_key, true_bin_idx, truth_data):
     template_bin_keys_pre_truth = templ_st_ends[:true_bin_idx]  # excluding true bin
     if truth_data.value is None:  # score degenerates to using only the predicted true value
@@ -32,9 +32,8 @@ def save_pit_score(score, forecast_model, templ_st_ends, forec_st_end_to_pred_va
     pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
     true_bin_pred_val = forec_st_end_to_pred_val[true_bin_key] if true_bin_key in forec_st_end_to_pred_val else 0
     pit_score_value = ((pred_vals_pre_truth_sum * 2) + true_bin_pred_val) / 2  # 0 b/c ""
-    forecast = forecast_model.forecast_for_time_zero(truth_data.time_zero)  # todo xx slow!
     # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
-    ScoreValue.objects.create(forecast_id=forecast.pk,
+    ScoreValue.objects.create(forecast_id=forecast_pk,
                               location_id=truth_data.location.pk,
                               target_id=truth_data.target.pk,
                               score=score, value=pit_score_value)

@@ -23,13 +23,13 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
         row to sum when calculating the score. thus the total number of bins in the 'window' centered on the matching
         bin row is: (2 * num_bins) + 1 . pass zero to get single bin behavior.
     """
-    from forecast_app.scores.definitions import _calc_bin_score  # avoid circular imports
+    from forecast_app.scores.bin_utils import _calc_bin_score
 
 
-    _calc_bin_score(score, forecast_model, True, num_bins_one_side)
+    _calc_bin_score(score, forecast_model, save_log_score, num_bins_one_side=num_bins_one_side)
 
 
-def save_log_score(score, forecast_model, templ_st_ends, forec_st_end_to_pred_val,
+def save_log_score(score, forecast_pk, templ_st_ends, forec_st_end_to_pred_val,
                    true_bin_key, true_bin_idx, truth_data, num_bins_one_side):
     from forecast_app.scores.definitions import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
@@ -51,35 +51,8 @@ def save_log_score(score, forecast_model, templ_st_ends, forec_st_end_to_pred_va
         # from: https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
         log_multi_bin_score_value = LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
-    forecast = forecast_model.forecast_for_time_zero(truth_data.time_zero)  # todo xx slow!
     # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
-    ScoreValue.objects.create(forecast_id=forecast.pk,
+    ScoreValue.objects.create(forecast_id=forecast_pk,
                               location_id=truth_data.location.pk,
                               target_id=truth_data.target.pk,
                               score=score, value=log_multi_bin_score_value)
-
-# def save_pit_score(self):
-#     from forecast_app.scores.definitions import LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports
-#
-#
-#     matching_input_tuple = self.values_tuples_post_match[0]  # the matching one is first b/c we append
-#     try:
-#         if matching_input_tuple.true_value is None:
-#             # in this case, the score should degenerate to the num_bins_one_side=0 'Log score (single bin)'
-#             # calculation
-#             value_sum = matching_input_tuple.predicted_value
-#         else:
-#             value_sum = sum(list(self.values_pre_match_dq) +
-#                             [input_tuple.predicted_value for input_tuple in self.values_tuples_post_match])
-#         score_value = math.log(value_sum)
-#     except ValueError:  # math.log(0) -> ValueError: math domain error
-#         # implements the logic: "clip Math.log(0) to -999 instead of its real value (-Infinity)"
-#         # from: https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
-#         score_value = LOG_SINGLE_BIN_NEGATIVE_INFINITY
-#
-#     # logger.debug('save_pit_score: {}'.format([self.values_pre_match_dq, self.values_tuples_post_match, '.', value_sum, score_value]))
-#     ScoreValue.objects.create(forecast_id=matching_input_tuple.forecast_pk,
-#                               location_id=matching_input_tuple.location_pk,
-#                               target_id=matching_input_tuple.target_pk,
-#                               score=self.score, value=score_value)
-#
