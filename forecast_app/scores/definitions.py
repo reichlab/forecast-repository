@@ -5,7 +5,7 @@ from itertools import groupby
 from django.db import connection
 
 from forecast_app.models import Forecast, ScoreValue, TruthData
-from forecast_app.models.data import ProjectTemplateData
+from forecast_app.models.data import ProjectTemplateData, ForecastData
 from forecast_app.scores.calc_error import _calculate_error_score_values
 from forecast_app.scores.calc_log import _calc_log_bin_score_values
 from forecast_app.scores.calc_pit import _calculate_pit_score_values
@@ -101,7 +101,7 @@ def calc_log_multi_bin(score, forecast_model):
 
 
 #
-# ---- 'error' and 'abs_error' calculation functions ----
+# ---- 'pit' calculation functions ----
 #
 
 def calc_pit(score, forecast_model):
@@ -112,14 +112,96 @@ def calc_pit(score, forecast_model):
 
 
 #
-# ---- utility functions ----
+# ---- log and 'pit' helper functions ----
 #
 
-def _timezero_loc_target_pks_to_template_bin(project):
+def _calc_bin_score(score, forecast_model, is_log_score, num_bins_one_side):
     """
-    Used by scores that need to find truth values that are missing from forecast data when bin values are zero, returns
-    project's truth data joined with its template data as a nested dict that's organized for easy access using these
-    keys: [timezero_pk][location_pk][target_pk] -> a 3-tuple: (bin_start_incl, bin_end_notincl, true_value)
+    Function shared by log and pit scores. is_log_score controls which score calculation function is called - either
+    log or pit. num_bins_one_side is used if is_log_score.
+    """
+    try:
+        _validate_score_targets_and_data(forecast_model)
+    except RuntimeError as rte:
+        logger.warning(rte)
+        return
+
+    # collect errors so we don't log thousands of duplicate messages. dict format:
+    #   {(timezero_pk, location_pk, target_pk): count, ...}:
+    tz_loc_targ_pks_to_error_count = defaultdict(int)  # helps eliminate duplicate warnings
+
+    # cache the three necessary bins and values - template, truth, and forecasts
+    # 1/3 template: [location_pk][target_pk] -> [(bin_start_incl_1, bin_end_notincl_1), ...]:
+    ltpk_to_templ_st_ends = _ltpk_to_templ_st_ends(forecast_model.project)
+
+    # 2/3 truth: [timezero_pk][location_pk][target_pk] -> (bin_start_incl, bin_end_notincl, true_value):
+    tzltpk_to_truth_st_end_val = _tzltpk_to_truth_st_end_val(forecast_model.project)
+
+    # 3/3 forecast: [timezero_pk][location_pk][target_pk] -> {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}:
+    tzltpk_to_forec_st_end_to_pred_val = _tzltpk_to_forec_st_end_to_pred_val(forecast_model)
+
+    # it is convenient to iterate over truths to get all timezero/location/target combinations. this will omit forecasts
+    # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score
+    for truth_data in forecast_model.project.truth_data_qs():  # truth_data: time_zero, location, target, value
+        # get template bins for this forecast
+        templ_st_ends = ltpk_to_templ_st_ends[truth_data.location.pk][truth_data.target.pk]
+
+        # get and validate truth for this forecast
+        try:
+            truth_st_end_val = tzltpk_to_truth_st_end_val[truth_data.time_zero.pk][truth_data.location.pk][
+                truth_data.target.pk]
+            true_bin_key = truth_st_end_val[0], truth_st_end_val[1]
+            true_bin_idx = templ_st_ends.index(true_bin_key)  # NB: non-deterministic for (None, None) true bin keys!
+        except KeyError:
+            error_key = (truth_data.time_zero.pk, truth_data.location.pk, truth_data.target.pk)
+            tz_loc_targ_pks_to_error_count[error_key] += 1
+            continue  # skip this forecast's contribution to the score
+
+        # get forecast bins and predicted values for this forecast
+        forec_st_end_to_pred_val = tzltpk_to_forec_st_end_to_pred_val[truth_data.time_zero.pk][truth_data.location.pk][
+            truth_data.target.pk]
+
+        # dispatch to scoring function
+        if is_log_score:
+            from forecast_app.scores.calc_log import save_log_score  # avoid circular imports
+
+
+            save_log_score(score, forecast_model, templ_st_ends, forec_st_end_to_pred_val,
+                           true_bin_key, true_bin_idx, truth_data, num_bins_one_side)
+        else:
+            from forecast_app.scores.calc_pit import save_pit_score  # avoid circular imports
+
+
+            save_pit_score(score, forecast_model, templ_st_ends, forec_st_end_to_pred_val,
+                           true_bin_key, true_bin_idx, truth_data)
+
+    # print errors
+    for (timezero_pk, location_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
+        count = tz_loc_targ_pks_to_error_count[timezero_pk, location_pk, target_pk]
+        logger.warning("_calculate_pit_score_values(): missing {} truth value(s): "
+                       "timezero_pk={}, location_pk={}, target_pk={}"
+                       .format(count, timezero_pk, location_pk, target_pk))
+
+
+#
+# ---- predictive distribution (aka 'bin') lookup functions ----
+#
+# notes:
+# - all of these return nested dicts mapping [timezero_pk][location_pk][target_pk] -> something related to the
+#   distribution, either a tuple, list, or a dict
+# - the naming convention is to start each function with the prefix '_tzltpk_to_', which reads as:
+#   '_timezero_pk_location_pk_target_pk_to_'
+# - we abbreviate 'start' and 'end' to 'st_end'
+# - we sometimes refer to a (bin_start_incl, bin_end_notincl) 2-tuple as a 'bin key'
+#
+
+
+def _tzltpk_to_truth_st_end_val(project):
+    """
+    Returns project's truth data merged with the template as a single 3-tuple:
+        [timezero_pk][location_pk][target_pk] -> (bin_start_incl, bin_end_notincl, true_value)
+
+    We need the template to get bin_start_incl and bin_end_notincl for the truth.
     """
     sql = """
         SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id,
@@ -153,6 +235,63 @@ def _timezero_loc_target_pks_to_template_bin(project):
     return tz_loc_targ_pks_to_templ_truth_vals
 
 
+def _ltpk_to_templ_st_ends(project):
+    """
+    Returns project's template data as a list of 2-tuples (bin_start_incl, bin_end_notincl):
+        [location_pk][target_pk] -> [(bin_start_incl_1, bin_end_notincl_1), ...]
+
+    The are ordered by bin_start_incl. Only returns rows whose targets match non_date_targets().
+    """
+    targets = project.non_date_targets()
+    template_data_qs = project.cdcdata_set \
+        .filter(is_point_row=False,
+                target__in=targets) \
+        .order_by('location__id', 'target__id', 'bin_start_incl') \
+        .values_list('location__id', 'target__id', 'bin_start_incl', 'bin_end_notincl')
+
+    # build the dict
+    ltpk_to_templ_st_ends = {}  # {location_pk: {target_id: [(bin_start_incl_1, bin_end_notincl_1), ...]}}
+    for location_id, target_val_grouper in groupby(template_data_qs, key=lambda _: _[0]):
+        tpk_to_templ_st_ends = defaultdict(list)  # {target_id: [(bin_start_incl_1, bin_end_notincl_1), ...]}
+        ltpk_to_templ_st_ends[location_id] = tpk_to_templ_st_ends
+        for _, target_id, bin_start_incl, bin_end_notincl in target_val_grouper:
+            tpk_to_templ_st_ends[target_id].append((bin_start_incl, bin_end_notincl))
+
+    return ltpk_to_templ_st_ends
+
+
+def _tzltpk_to_forec_st_end_to_pred_val(forecast_model):
+    """
+    Returns forecast's prediction data as a dict that maps 2-tuples (bin_start_incl, bin_end_notincl) to predicted
+    values:
+        [timezero_pk][location_pk][target_pk] -> {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}
+
+    Only returns rows whose targets match non_date_targets().
+    """
+    targets = forecast_model.project.non_date_targets()
+    forecast_data_qs = ForecastData.objects \
+        .filter(forecast__forecast_model=forecast_model,
+                is_point_row=False,
+                target__in=targets) \
+        .order_by('forecast__time_zero__id', 'location__id', 'target__id') \
+        .values_list('forecast__time_zero__id', 'location__id', 'target__id',
+                     'bin_start_incl', 'bin_end_notincl', 'value')
+
+    # build the dict
+    tzltpk_to_forec_st_end_to_pred_val = {}  # {timezero_pk: {location_pk: {target_id: {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}}}}
+    for time_zero_id, loc_target_val_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
+        ltpk_to_forec_st_end_to_pred_val = {}  # {location_pk: {target_id: {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}}}
+        tzltpk_to_forec_st_end_to_pred_val[time_zero_id] = ltpk_to_forec_st_end_to_pred_val
+        for location_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+            tpk_to_forec_st_end_to_pred_val = defaultdict(
+                dict)  # {target_id: {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}}
+            ltpk_to_forec_st_end_to_pred_val[location_id] = tpk_to_forec_st_end_to_pred_val
+            for _, _, target_id, bin_start_incl, bin_end_notincl, pred_value in target_val_grouper:
+                tpk_to_forec_st_end_to_pred_val[target_id][(bin_start_incl, bin_end_notincl)] = pred_value
+
+    return tzltpk_to_forec_st_end_to_pred_val
+
+
 def _timezero_loc_target_pks_to_truth_values(forecast_model):
     """
     Similar to Project.location_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
@@ -174,6 +313,10 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
 
     return tz_loc_targ_pks_to_truth_vals
 
+
+#
+# validation functions
+#
 
 def _validate_score_targets_and_data(forecast_model):
     # validate targets
