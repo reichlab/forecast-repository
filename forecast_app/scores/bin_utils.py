@@ -24,6 +24,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
     # collect errors so we don't log thousands of duplicate messages. dict format:
     #   {(timezero_pk, location_pk, target_pk): count, ...}:
+    # note that the granularity is poor - there are multiple possible errors related to a particular 3-tuple
     tz_loc_targ_pks_to_error_count = defaultdict(int)  # helps eliminate duplicate warnings
 
     # cache the three necessary bins and values - template, truth, and forecasts
@@ -42,20 +43,30 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     for time_zero_pk, forecast_pk, location_pk, target_pk, truth_value in \
             _truth_data_pks_for_project(forecast_model.project):
         # get template bins for this forecast
-        templ_st_ends = ltpk_to_templ_st_ends[location_pk][target_pk]
+        try:
+            templ_st_ends = ltpk_to_templ_st_ends[location_pk][target_pk]
+        except KeyError:
+            error_key = (time_zero_pk, location_pk, target_pk)
+            tz_loc_targ_pks_to_error_count[error_key] += 1
+            continue  # skip this forecast's contribution to the score
 
         # get and validate truth for this forecast
         try:
             truth_st_end_val = tzltpk_to_truth_st_end_val[time_zero_pk][location_pk][target_pk]
             true_bin_key = truth_st_end_val[0], truth_st_end_val[1]
             true_bin_idx = templ_st_ends.index(true_bin_key)  # NB: non-deterministic for (None, None) true bin keys!
-        except KeyError:
+        except (KeyError, ValueError):
             error_key = (time_zero_pk, location_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
             continue  # skip this forecast's contribution to the score
 
         # get forecast bins and predicted values for this forecast
-        forec_st_end_to_pred_val = tzltpk_to_forec_st_end_to_pred_val[time_zero_pk][location_pk][target_pk]
+        try:
+            forec_st_end_to_pred_val = tzltpk_to_forec_st_end_to_pred_val[time_zero_pk][location_pk][target_pk]
+        except KeyError:
+            error_key = (time_zero_pk, location_pk, target_pk)
+            tz_loc_targ_pks_to_error_count[error_key] += 1
+            continue  # skip this forecast's contribution to the score
 
         # dispatch to scoring function
         save_score_fcn(score, time_zero_pk, forecast_pk, location_pk, target_pk, truth_value,
