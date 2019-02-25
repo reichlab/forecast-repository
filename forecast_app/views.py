@@ -24,6 +24,7 @@ from forecast_app.models.project import Target, Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
+from forecast_repo.settings.base import S3_BUCKET_PREFIX
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
@@ -80,6 +81,7 @@ def zadmin(request):
         request, 'zadmin.html',
         context={'django_db_name': django_db_name,
                  'django_conn': connection,
+                 's3_bucket_prefix': S3_BUCKET_PREFIX,
                  'rq_conn': rq_conn,
                  'rq_queue': rq_queue,
                  'rq_jobs': rq_jobs,
