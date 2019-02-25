@@ -429,8 +429,8 @@ def _model_score_count_rows_for_project(project):
     sql = """
         SELECT fm.id, sv.score_id, count(fm.id)
         FROM {scorevalue_table_name} AS sv
-                    LEFT OUTER JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
-                    LEFT OUTER JOIN {forecastmodel_forecast_table_name} AS fm ON f.forecast_model_id = fm.id
+                    LEFT JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
+                    LEFT JOIN {forecastmodel_forecast_table_name} AS fm ON f.forecast_model_id = fm.id
         WHERE fm.project_id = %s
         GROUP BY sv.score_id, fm.id;
     """.format(scorevalue_table_name=ScoreValue._meta.db_table,

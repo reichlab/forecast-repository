@@ -3,7 +3,7 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, ForecastData, TimeZero, Forecast
+from forecast_app.models import TruthData, ForecastData, TimeZero, Forecast, ForecastModel
 from forecast_app.models.data import ProjectTemplateData
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
@@ -41,7 +41,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score. we use direct SQL
     # to work with PKs and avoid ORM object lookup overhead, mainly for TruthData -> TimeZero -> Forecast -> PK
     for time_zero_pk, forecast_pk, location_pk, target_pk, truth_value in \
-            _truth_data_pks_for_project(forecast_model.project):
+            _truth_data_pks_for_forecast_model(forecast_model):
         # get template bins for this forecast
         try:
             templ_st_ends = ltpk_to_templ_st_ends[location_pk][target_pk]
@@ -81,18 +81,20 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
                        .format(count, timezero_pk, location_pk, target_pk))
 
 
-def _truth_data_pks_for_project(project):
+def _truth_data_pks_for_forecast_model(forecast_model):
     sql = """
         SELECT td.time_zero_id, f.id, td.location_id, td.target_id, td.value
         FROM {truth_data_table_name} AS td
-               LEFT OUTER JOIN {timezero_table_name} AS tz ON td.time_zero_id = tz.id
-               LEFT OUTER JOIN {forecast_table_name} AS f ON tz.id = f.time_zero_id
-        WHERE tz.project_id = %s;
+               LEFT JOIN {timezero_table_name} AS tz ON td.time_zero_id = tz.id
+               LEFT JOIN {forecast_table_name} AS f ON tz.id = f.time_zero_id
+               LEFT JOIN {forecastmodel_table_name} AS fm ON f.forecast_model_id = fm.id
+        WHERE fm.id = %s;
     """.format(truth_data_table_name=TruthData._meta.db_table,
                timezero_table_name=TimeZero._meta.db_table,
-               forecast_table_name=Forecast._meta.db_table)
+               forecast_table_name=Forecast._meta.db_table,
+               forecastmodel_table_name=ForecastModel._meta.db_table)
     with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk,))
+        cursor.execute(sql, (forecast_model.pk,))
         return cursor.fetchall()
 
 
