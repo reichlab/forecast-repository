@@ -185,6 +185,7 @@ def make_model(project, model_owner, data_dir):
         owner=model_owner,
         project=project,
         name='gam_lag1_tops3',
+        team_name='Impetus',
         description=description,
         home_url='http://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0004761',
         aux_data_url=None)

@@ -55,7 +55,7 @@ def fix_owners_app():
         click.echo("** setting project owner: {}".format(owner_name))
         project_owner = User.objects.filter(username=owner_name).first()
         if not project_owner:
-            click.echo("  x couldn't find project owner '{}'".format(project_owner))
+            click.echo("  x couldn't find project owner. owner_name={}'".format(owner_name))
             continue
 
         old_project_owner = project.owner

@@ -107,6 +107,7 @@ def fill_project(project, mo_user):
     click.echo("creating ForecastModel")
     forecast_model1 = ForecastModel.objects.create(project=project,
                                                    name='Test ForecastModel1',
+                                                   team_name='ForecastModel1 team',
                                                    description="a ForecastModel for testing",
                                                    home_url='http://example.com',
                                                    owner=mo_user)
@@ -121,6 +122,7 @@ def fill_project(project, mo_user):
 
     ForecastModel.objects.create(project=project,
                                  name='Test ForecastModel2',
+                                 # team_name='ForecastModel2 team',  # leave default ('')
                                  description="a second ForecastModel for testing",
                                  home_url='http://example.com',
                                  owner=mo_user)

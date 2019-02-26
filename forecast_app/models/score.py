@@ -129,7 +129,7 @@ class Score(models.Model):
             score, is_created = Score.objects.get_or_create(abbreviation=abbreviation,
                                                             name=name, description=description)
             if is_created:
-                logger.info("ensure_all_scores_exist(): created Score: {}".format(score))
+                logger.info("ensure_all_scores_exist(): created: {}".format(score))
 
 
     def update_score_for_model(self, forecast_model):

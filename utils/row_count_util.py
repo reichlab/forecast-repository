@@ -7,8 +7,7 @@ django.setup()
 
 from forecast_app.models import Project
 
-from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
-
+from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs, _update_project_row_count_cache
 
 
 @click.group()
@@ -41,12 +40,21 @@ def clear():
 
 
 @cli.command()
-def update():
+@click.option('--no-enqueue', is_flag=True, default=False)
+def update(no_enqueue):
     """
-    A subcommand that enqueues updating all projects' RowCountCaches.
+    A subcommand that enqueues or (executes immediately) updating all projects' RowCountCaches.
+
+    :param no_enqueue: controls whether the update will be immediate in the calling thread, or enqueued for RQ
     """
     click.echo("enqueuing all projects' RowCountCaches")
-    enqueue_row_count_updates_all_projs()
+    if no_enqueue:
+        for project in Project.objects.all():
+            click.echo("(no enqueue) updating RowCountCache for project={}".format(project))
+            _update_project_row_count_cache(project.pk)
+    else:
+        click.echo("enqueuing RowCountCache updates for all projects")
+        enqueue_row_count_updates_all_projs()
     click.echo("enqueuing done")
 
 

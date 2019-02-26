@@ -16,6 +16,7 @@ class ForecastModel(models.Model):
     owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.", on_delete=models.SET_NULL)
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
+    team_name = models.CharField(max_length=200)
     description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. Please see "
                                                               "documentation for what should be included here - "
                                                               "information on reproducing the model’s results, etc.")

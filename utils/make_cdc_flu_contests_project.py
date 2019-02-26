@@ -56,7 +56,8 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     # create the project. error if already exists
     project = Project.objects.filter(name=CDC_PROJECT_NAME).first()  # None if doesn't exist
     if project:
-        logger.warning("make_cdc_flu_contests_project_app(): found existing project. deleting project={}".format(project))
+        logger.warning(
+            "make_cdc_flu_contests_project_app(): found existing project. deleting project={}".format(project))
         project.delete()
 
     # make and fill the Project, Targets, and TimeZeros
@@ -242,6 +243,7 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
         # get model name and description from metadata.txt
         metadata_dict = metadata_dict_for_file(model_dir / 'metadata.txt')
         model_name = metadata_dict['model_name']
+        team_name = metadata_dict['team_name']
         found_model = ForecastModel.objects.filter(name=model_name).first()
         if found_model:
             click.echo("Warning: using existing model with same name: {}".format(found_model))
@@ -255,7 +257,7 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
         """
         description_template = Template(description_template_str)
         description = description_template.render(
-            Context({'team_name': metadata_dict['team_name'],
+            Context({'team_name': team_name,
                      'team_members': metadata_dict['team_members'],
                      'data_source1': metadata_dict['data_source1'] if 'data_source1' in metadata_dict else None,
                      'data_source2': metadata_dict['data_source2'] if 'data_source2' in metadata_dict else None,
@@ -265,7 +267,7 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
         home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models' \
                    + '/' + model_dir.name
         forecast_model = ForecastModel.objects.create(owner=model_owner, project=project, name=model_name,
-                                                      description=description, home_url=home_url)
+                                                      team_name=team_name, description=description, home_url=home_url)
         models.append(forecast_model)
     return models
 

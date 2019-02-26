@@ -59,6 +59,8 @@ def clear(score_pk):
 
     :param score_pk: if a valid Score pk then only that score is cleared. o/w all scores are cleared
     """
+    Score.ensure_all_scores_exist()
+
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     for score in scores:
         click.echo("clearing {}".format(score))
@@ -72,12 +74,14 @@ def clear(score_pk):
 @click.option('--no-enqueue', is_flag=True, default=False)
 def update(score_pk, model_pk, no_enqueue):
     """
-    A subcommand that enqueues updating model scores, controlled by the args. Runs in the calling thread, and therefore
-    blocks.
+    A subcommand that enqueues or (executes immediately) updating model scores, controlled by the args.
 
     :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are updated
     :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are updated
+    :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
+    Score.ensure_all_scores_exist()
+
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
     for score in scores:
