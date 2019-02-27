@@ -43,7 +43,7 @@ class ForecastModelForm(forms.ModelForm):
     class Meta:
         model = ForecastModel
 
-        fields = ('name', 'description', 'home_url', 'aux_data_url')
+        fields = ('name', 'team_name', 'description', 'home_url', 'aux_data_url')
 
 
     def __init__(self, *args, **kwargs):
