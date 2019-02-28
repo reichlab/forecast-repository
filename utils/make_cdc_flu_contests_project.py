@@ -34,22 +34,19 @@ CDC_CONFIG_DICT = {
 
 
 @click.command()
-@click.argument('kot_data_dir', type=click.Path(file_okay=False, exists=True))  # 2016/17
-@click.argument('component_models_dir_2017', type=click.Path(file_okay=False, exists=True))  # 2017/18
-@click.argument('component_models_dir_ensemble', type=click.Path(file_okay=False, exists=True))  # ensemble
-def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, component_models_dir_ensemble):
+@click.argument('component_models_dir_ensemble', type=click.Path(file_okay=False, exists=True))
+@click.argument('truths_csv_file', type=click.Path(file_okay=True, exists=True))
+def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_file):
     """
-    This application creates a single large CDC flu contest project from three model directories:
-    - 2016-2017 Reichlab submission - https://github.com/reichlab/2016-2017-flu-contest-ensembles
-      (Note: This app actually runs on split_kot_models_from_submissions, which is a processed version that implements
-       Zoltar's naming and layout scheme for model directories and file names.)
-    - 2017-2018 Reichlab submission - https://github.com/reichlab/2017-2018-cdc-flu-contest
-    - FluSightNetwork models - https://github.com/FluSightNetwork/cdc-flusight-ensemble
+    This application creates a CDC flu contest project from the FluSightNetwork models project's component models:
+    https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models . It uses
+    truth data from a file in this project: utils/ensemble-truth-table-script/truths-2010-through-2018.csv (see the
+    readme for details). Thus it depends on both of these inputs being up-to-date.
 
     Notes:
     - DELETES any existing project without prompting
     - uses the model's 'metadata.txt' file's 'model_name' to find an existing model, if any
-    - takes b/w 30 and 90 minutes to run (sqlite3 vs. postgres)
+    - on Mac laptop takes b/w 30 and 90 minutes to run (sqlite3 vs. postgres)
     """
     start_time = timeit.default_timer()
 
@@ -61,8 +58,6 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
         project.delete()
 
     # make and fill the Project, Targets, and TimeZeros
-    kot_data_dir = Path(kot_data_dir)
-    component_models_dir_2017 = Path(component_models_dir_2017)
     component_models_dir_ensemble = Path(component_models_dir_ensemble)
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
 
@@ -76,9 +71,7 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     logger.info("- created {} Targets: {}".format(len(targets), targets))
 
     logger.info("* Creating TimeZeros...")
-    time_zeros = make_timezeros(project, [first_model_subdirectory(kot_data_dir),
-                                          first_model_subdirectory(component_models_dir_2017),
-                                          first_model_subdirectory(component_models_dir_ensemble)])
+    time_zeros = make_timezeros(project, [first_model_subdirectory(component_models_dir_ensemble)])
     logger.info("- created {} TimeZeros: {}"
                 .format(len(time_zeros), sorted(time_zeros, key=lambda time_zero: time_zero.timezero_date)))
 
@@ -89,14 +82,14 @@ def make_cdc_flu_contests_project_app(kot_data_dir, component_models_dir_2017, c
     logger.info("- Loaded template")
 
     # load the truth data
-    truth_file_path = Path('utils/ensemble-truth-table-script/truths-2010-through-2017.csv')
+    truth_file_path = Path(truths_csv_file)
     logger.info("* Loading truth values: {}".format(truth_file_path))
     project.load_truth_data(truth_file_path)
     logger.info("- loaded truth values")
 
     # create the models
     model_dirs_to_load = []
-    for component_models_dir in [kot_data_dir, component_models_dir_2017, component_models_dir_ensemble]:
+    for component_models_dir in [component_models_dir_ensemble]:
         model_dirs_to_load.extend(get_model_dirs_to_load(component_models_dir))
 
     click.echo("* Creating models. {} model_dirs_to_load={}"
@@ -263,6 +256,11 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
                      'data_source2': metadata_dict['data_source2'] if 'data_source2' in metadata_dict else None,
                      'methods': metadata_dict['methods'],
                      }))
+        descr_max_length = ForecastModel._meta.get_field('description').max_length
+        if len(description) > descr_max_length:
+            click.echo("Warning: trimming long description. model_dir={}, descr_max_length={}"
+                       .format(model_dir, descr_max_length))
+            description = description[:descr_max_length]
 
         home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models' \
                    + '/' + model_dir.name

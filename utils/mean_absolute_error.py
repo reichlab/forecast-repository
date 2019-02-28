@@ -14,7 +14,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     Called by the project_scores() view function, returns a dict containing a table of mean absolute errors for all
     models and all locations in project for season_name, or for all timezeros if season_name=None. The dict maps:
 
-        {location.name: (mean_abs_error_rows, target_to_min_mae)}
+        {location_name: (mean_abs_error_rows, target_to_min_mae), ...}
 
     where the 2-tuples are detailed next. Returns {} if no truth data or no appropriate target_names in project.
 
@@ -37,7 +37,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     The second tuple - `target_to_min_mae` - is a dict that maps: {target: minimum_mae). It is ([], {}) if the project
     does not have appropriate target_names defined in its configuration. NB: assumes all of project's models have the
-    same target_names - something is validated by ForecastModel.load_forecast()
+    same target_names - something that is validated by ForecastModel.load_forecast()
     """
     targets = project.non_date_targets()  # order_by('name')
     if not targets:
@@ -51,11 +51,9 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     # first build loc_to_model_to_target_to_mae
     score_value_rows = _score_value_rows_for_season(project, season_name)
-
     location_id_to_obj = {location.pk: location for location in project.locations.all()}
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
-
     loc_to_model_to_target_to_mae = {}
     for location_pk, model_target_avg_grouper in groupby(score_value_rows, key=lambda _: _[0]):
         model_to_target_to_mae = {}

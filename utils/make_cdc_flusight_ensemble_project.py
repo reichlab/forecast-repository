@@ -43,7 +43,7 @@ def make_cdc_flusight_ensemble_project_app(component_models_dir, make_project, l
     core_data = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
     _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,
                                home_url, None, core_data,
-                               Path('utils/ensemble-truth-table-script/truths-2010-through-2017.csv'))
+                               Path('utils/ensemble-truth-table-script/truths-2010-through-2018.csv'))
 
 
 def _make_cdc_flusight_project(component_models_dir, make_project, load_data, project_name, project_description,

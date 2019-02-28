@@ -90,9 +90,6 @@ class MAETestCase(TestCase):
 
         # test location_to_mean_abs_error_rows_for_project(), since we have a nice fixture
         loc_to_mae_rows_no_season = location_to_mean_abs_error_rows_for_project(project2, None)
-        act_rows = loc_to_mae_rows_no_season[hhs1_loc.name][0]
-        act_loc_to_min = loc_to_mae_rows_no_season[hhs1_loc.name][1]
-
         self.assertEqual(loc_to_mae_rows_no_season,
                          location_to_mean_abs_error_rows_for_project(project2, 's1'))  # season_name shouldn't matter
         self.assertEqual(set(project2.locations.values_list('name', flat=True)),
@@ -101,6 +98,7 @@ class MAETestCase(TestCase):
         exp_rows = [['Model', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season peak percentage'],
                     [forecast_model2.pk, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,
                      0.15125133156909953, 0.1830079332082548]]
+        act_rows = loc_to_mae_rows_no_season[hhs1_loc.name][0]
         self.assertEqual(exp_rows[0], act_rows[0])  # header
         self.assertEqual(exp_rows[1][0], act_rows[1][0])  # model
         self.assertAlmostEqual(exp_rows[1][1], act_rows[1][1])  # 1 wk ahead
@@ -121,6 +119,7 @@ class MAETestCase(TestCase):
             target_3wk: 0.09119562794624952,
             target_4wk: 0.15125133156909953
         }
+        act_loc_to_min = loc_to_mae_rows_no_season[hhs1_loc.name][1]
         self.assertAlmostEqual(exp_loc_to_min[target_spp], act_loc_to_min[target_spp.name])
         self.assertAlmostEqual(exp_loc_to_min[target_1wk], act_loc_to_min[target_1wk.name])
         self.assertAlmostEqual(exp_loc_to_min[target_2wk], act_loc_to_min[target_2wk.name])
