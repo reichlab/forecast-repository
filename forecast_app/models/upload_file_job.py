@@ -47,8 +47,8 @@ class UploadFileJob(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)  # when this instance was created. basically the submit date
     updated_at = models.DateTimeField(auto_now=True)  # time of last save(). basically last time status changed
-    failure_message = models.CharField(max_length=2000)  # non-empty message if status == FAILED
-    filename = models.CharField(max_length=200)  # original name of the uploaded file
+    failure_message = models.TextField()  # non-empty message if status == FAILED
+    filename = models.TextField()  # original name of the uploaded file
 
     # app-specific data passed to the UploadFileJob from the request. ex: 'model_pk':
     input_json = JSONField(null=True, blank=True)

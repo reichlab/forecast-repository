@@ -23,7 +23,7 @@ class ModelWithCDCData(models.Model):
     # todo validate: a subclass of CDCData
     cdc_data_class = None
 
-    csv_filename = models.CharField(max_length=200, help_text="<overridden by subclasses>")
+    csv_filename = models.TextField(help_text="<overridden by subclasses>")
 
 
     class Meta:
@@ -388,7 +388,7 @@ class ModelWithCDCData(models.Model):
 
         :return: my data in hierarchical format as a dict of the form:
 
-            {location1_name: target_dict_1, location2: target_dict_2, ...}
+            {location1_name: target_dict_1, location2_name: target_dict_2, ...}
 
             where each target_dict is of the form:
 

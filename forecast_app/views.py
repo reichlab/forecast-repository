@@ -7,13 +7,13 @@ import django_rq
 import redis
 from PIL import Image, ImageDraw
 from django import db
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.models import Count
-from django.forms import inlineformset_factory
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
@@ -232,6 +232,7 @@ def project_visualizations(request, project_pk):
     season_name = _param_val_from_request(request, 'season_name', seasons)
 
     # None if no targets in project:
+    logger.debug("project_visualizations(): 1/3 calling flusight_location_to_data_dict(): {}".format(project))
     location_to_flusight_data_dict = flusight_location_to_data_dict(project, season_name, request)
 
     time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
@@ -239,6 +240,7 @@ def project_visualizations(request, project_pk):
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
     loc_tz_date_to_actual_vals = project.location_timezero_date_to_actual_vals(season_name)
     location_to_actual_points = _location_to_actual_points(loc_tz_date_to_actual_vals)
+    logger.debug("project_visualizations(): 2/3 calling location_to_max_val(): {}".format(project))
     location_to_max_val = project.location_to_max_val(season_name, project.step_ahead_targets())
 
     # correct location_to_max_val to account for max actual values
@@ -250,6 +252,7 @@ def project_visualizations(request, project_pk):
             location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])
 
     location_names = sorted(project.locations.all().values_list('name', flat=True))
+    logger.debug("project_visualizations(): 3/3 rendering: {}".format(project))
     return render(
         request,
         'project_visualizations.html',
@@ -478,12 +481,16 @@ def create_project(request):
         raise PermissionDenied
 
     # set up inline formsets using a new (unsaved) Project
-    LocationInlineFormSet = inlineformset_factory(
-        Project, Location, fields=('name',), extra=3)
-    TargetInlineFormSet = inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3)
-    TimeZeroInlineFormSet = inlineformset_factory(
-        Project, TimeZero, fields=('timezero_date', 'data_version_date'), extra=3)
+    LocationInlineFormSet = forms.inlineformset_factory(
+        Project, Location, fields=('name',), extra=3,
+        widgets={'name': forms.TextInput()})
+    TargetInlineFormSet = forms.inlineformset_factory(
+        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3,
+        widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
+    TimeZeroInlineFormSet = forms.inlineformset_factory(
+        Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,
+        widgets={'timezero_date': forms.TextInput(), 'data_version_date': forms.TextInput(),
+                 'season_name': forms.TextInput()})
 
     new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
 
@@ -531,13 +538,16 @@ def edit_project(request, project_pk):
         raise PermissionDenied
 
     # set up inline formsets
-    LocationInlineFormSet = inlineformset_factory(
-        Project, Location, fields=('name',), extra=3)
-    TargetInlineFormSet = inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3)
-    TimeZeroInlineFormSet = inlineformset_factory(
-        Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3
-    )
+    LocationInlineFormSet = forms.inlineformset_factory(
+        Project, Location, fields=('name',), extra=3,
+        widgets={'name': forms.TextInput()})
+    TargetInlineFormSet = forms.inlineformset_factory(
+        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'), extra=3,
+        widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
+    TimeZeroInlineFormSet = forms.inlineformset_factory(
+        Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,
+        widgets={'timezero_date': forms.TextInput(), 'data_version_date': forms.TextInput(),
+                 'season_name': forms.TextInput()})
     location_formset = LocationInlineFormSet(instance=project)
     target_formset = TargetInlineFormSet(instance=project)
     timezero_formset = TimeZeroInlineFormSet(instance=project)

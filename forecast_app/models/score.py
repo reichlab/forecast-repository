@@ -48,11 +48,11 @@ class Score(models.Model):
     - Newly-created scores will require restarting the web and any worker processes so they have the definitions
       available to them.
     """
-    abbreviation = models.CharField(max_length=200, help_text="Short name used as a column header for this score in "
-                                                              "downloaded CSV score files. Also used to look up the "
-                                                              "Score's calculation function name.")
-    name = models.CharField(max_length=200, help_text="The score's name, e.g., 'Absolute Error'.")
-    description = models.CharField(max_length=2000, help_text="A paragraph describing the score.")
+    abbreviation = models.TextField(help_text="Short name used as a column header for this score in downloaded CSV " \
+                                              "score files. Also used to look up the Score's calculation function " \
+                                              "name.")
+    name = models.TextField(help_text="The score's name, e.g., 'Absolute Error'.")
+    description = models.TextField(help_text="A paragraph describing the score.")
 
 
     def __repr__(self):
@@ -176,7 +176,7 @@ class Score(models.Model):
             for project in Project.objects.all():
                 for forecast_model in project.models.all():
                     logger.info("enqueuing update project scores. score={}, forecast_model={}"
-                                 .format(score, forecast_model))
+                                .format(score, forecast_model))
                     django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
 
 

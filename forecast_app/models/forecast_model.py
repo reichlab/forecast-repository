@@ -15,11 +15,11 @@ class ForecastModel(models.Model):
     """
     owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.", on_delete=models.SET_NULL)
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
-    name = models.CharField(max_length=200)
-    team_name = models.CharField(max_length=200)
-    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the model. Please see "
-                                                              "documentation for what should be included here - "
-                                                              "information on reproducing the model’s results, etc.")
+    name = models.TextField()
+    team_name = models.TextField()
+    description = models.TextField(help_text="A few paragraphs describing the model. Please see documentation for " \
+                                             "what should be included here - information on reproducing the model’s " \
+                                             "results, etc.")
     home_url = models.URLField(help_text="The model's home site.")
     aux_data_url = models.URLField(
         null=True, blank=True,
@@ -84,7 +84,8 @@ class ForecastModel(models.Model):
         return new_forecast
 
 
-    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None, forecast_bin_map_fcn=None):
+    def load_forecasts_from_dir(self, data_dir, time_zero_to_template=None, is_load_file=None,
+                                forecast_bin_map_fcn=None):
         """
         Adds Forecast objects to me using the cdc csv files under data_dir. Assumes TimeZeros match those in my Project.
         Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.

@@ -256,12 +256,6 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
                      'data_source2': metadata_dict['data_source2'] if 'data_source2' in metadata_dict else None,
                      'methods': metadata_dict['methods'],
                      }))
-        descr_max_length = ForecastModel._meta.get_field('description').max_length
-        if len(description) > descr_max_length:
-            click.echo("Warning: trimming long description. model_dir={}, descr_max_length={}"
-                       .format(model_dir, descr_max_length))
-            description = description[:descr_max_length]
-
         home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models' \
                    + '/' + model_dir.name
         forecast_model = ForecastModel.objects.create(owner=model_owner, project=project, name=model_name,

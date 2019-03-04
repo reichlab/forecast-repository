@@ -67,15 +67,17 @@ class ScoreCsvFileCache(models.Model):
         from forecast_app.api_views import csv_response_for_project_score_data
 
 
-        logger.debug("update_score_csv_file_cache(): entered. deleting: {}".format(self))
+        logger.debug("update_score_csv_file_cache(): 1/4 entered. deleting: {}".format(self))
         self.delete_score_csv_file_cache()
 
+        logger.debug("update_score_csv_file_cache(): 2/4 entered. getting csv response: {}".format(self))
         response = csv_response_for_project_score_data(self.project)
-        logger.debug("update_score_csv_file_cache(): uploading. size={}. {}".format(len(response.content), self))
+
+        logger.debug("update_score_csv_file_cache(): 3/4 uploading. size={}. {}".format(len(response.content), self))
         upload_file(self, response.content)
         self.save()  # updates updated_at
 
-        logger.debug("update_score_csv_file_cache(): done: {}".format(self))
+        logger.debug("update_score_csv_file_cache(): 4/4 done: {}".format(self))
 
 
 #

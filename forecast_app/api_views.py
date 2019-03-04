@@ -429,8 +429,7 @@ def csv_response_for_cached_project_score_data(project):
 
 def csv_response_for_project_score_data(project):
     """
-    Similar to csv_response_for_project_truth_data(), but returns a response with project's truth data formatted as
-    CSV.
+    Similar to csv_response_for_project_truth_data(), but returns a response with project's score data formatted as CSV.
     """
     response = HttpResponse(content_type='text/csv')
     csv_filename = _csv_filename_for_project_scores(project)

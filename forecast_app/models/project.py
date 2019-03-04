@@ -54,7 +54,7 @@ class Project(ModelWithCDCData):
 
     cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 
-    name = models.CharField(max_length=200)
+    name = models.TextField()
 
     WEEK_TIME_INTERVAL_TYPE = 'w'
     BIWEEK_TIME_INTERVAL_TYPE = 'b'
@@ -65,10 +65,9 @@ class Project(ModelWithCDCData):
     time_interval_type = models.CharField(max_length=1,
                                           choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE)
 
-    truth_csv_filename = models.CharField(max_length=200, help_text="Name of the truth csv file that was uploaded.")
+    truth_csv_filename = models.TextField(help_text="Name of the truth csv file that was uploaded.")
 
-    description = models.CharField(max_length=2000,
-                                   help_text="A few paragraphs describing the project. Please see documentation for"
+    description = models.TextField(help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
 
     home_url = models.URLField(help_text="The project's home site.")
@@ -488,7 +487,8 @@ class Project(ModelWithCDCData):
                 target_tz_date_to_truth[target_pks_to_names[target_id]] = tz_date_to_truth
                 for _, _, tz_date, value in target_tz_grouper:
                     tz_date_to_truth[tz_date].append(value)
-        logger.debug("location_target_name_tz_date_to_truth(): done ({})".format(len(loc_target_tz_date_to_truth)))
+        logger.debug("location_target_name_tz_date_to_truth(): done ({}). project={}, season_name={}"
+                     .format(len(loc_target_tz_date_to_truth), self, season_name))
         return loc_target_tz_date_to_truth
 
 
@@ -779,10 +779,9 @@ class Project(ModelWithCDCData):
                     forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
 
                 if forecast_point_val is None:  # parse_value() returns None if non-numeric
-                    raise RuntimeError("Point value was non-numeric. csv_filename={}, template_location={}, " \
-                                       "template_target={}, # forecast_point_val={}"
-                                       .format(forecast.csv_filename, template_location, template_target,
-                                               forecast_point_val))
+                    raise RuntimeError("Point value was non-numeric. csv_filename={}, template_location={}, "
+                                       "template_target={}"
+                                       .format(forecast.csv_filename, template_location, template_target))
 
                 # https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
                 template_bins_sorted = sorted([b[:2] for b in template_bins],
@@ -867,7 +866,7 @@ class Location(models.Model):
     Represents one of a project's locations - just a string naming the target.
     """
     project = models.ForeignKey(Project, related_name='locations', on_delete=models.CASCADE)
-    name = models.CharField(max_length=200)
+    name = models.TextField()
 
 
     def __repr__(self):
@@ -887,9 +886,9 @@ class Target(models.Model):
     Represents one of a project's targets - a description of the desired data in the each forecast's data file.
     """
     project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
-    name = models.CharField(max_length=200)
-    description = models.CharField(max_length=2000, help_text="A few paragraphs describing the target.")
-    unit = models.CharField(max_length=200, help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.",
+    name = models.TextField()
+    description = models.TextField(help_text="A few paragraphs describing the target.")
+    unit = models.TextField(help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.",
                             blank=True)
     is_date = BooleanField(help_text="Flag that's True if this Target is relative to dates. Default is False.",
                            default=False)
@@ -954,7 +953,7 @@ class TimeZero(models.Model):
     is_season_start = models.BooleanField(
         default=False,
         help_text="True if this TimeZero starts a season.")
-    season_name = models.CharField(
+    season_name = models.TextField(
         null=True, blank=True,
         max_length=50, help_text="The name of the season this TimeZero starts, if is_season_start.")  # nullable
 

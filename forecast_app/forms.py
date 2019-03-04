@@ -21,7 +21,7 @@ class ProjectForm(forms.ModelForm):
 
             field.widget.attrs['class'] = 'form-control'
 
-        self.fields['description'].widget = forms.Textarea(attrs={'class': 'form-control'})
+        self.fields['name'].widget = forms.TextInput(attrs={'class': 'form-control'})
 
 
 class UserModelForm(forms.ModelForm):
@@ -36,8 +36,6 @@ class UserModelForm(forms.ModelForm):
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
 
-        # self.fields['description'].widget = forms.Textarea(attrs={'class': 'form-control'})
-
 
 class ForecastModelForm(forms.ModelForm):
     class Meta:
@@ -51,4 +49,5 @@ class ForecastModelForm(forms.ModelForm):
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
 
-        self.fields['description'].widget = forms.Textarea(attrs={'class': 'form-control'})
+        self.fields['name'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['team_name'].widget = forms.TextInput(attrs={'class': 'form-control'})
