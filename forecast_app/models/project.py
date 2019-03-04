@@ -774,8 +774,15 @@ class Project(ModelWithCDCData):
             for template_target in template_targets:
                 template_bins = template_target_dicts[template_target]['bins']
                 forecast_bins = forecast_target_dicts[template_target]['bins']
+                forecast_point_val = forecast_target_dicts[template_target]['point']
                 if forecast_bin_map_fcn:
                     forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
+
+                if forecast_point_val is None:  # parse_value() returns None if non-numeric
+                    raise RuntimeError("Point value was non-numeric. csv_filename={}, template_location={}, " \
+                                       "template_target={}, # forecast_point_val={}"
+                                       .format(forecast.csv_filename, template_location, template_target,
+                                               forecast_point_val))
 
                 # https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
                 template_bins_sorted = sorted([b[:2] for b in template_bins],

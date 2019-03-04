@@ -130,6 +130,11 @@ class ForecastTestCase(TestCase):
                                               self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
+        with self.assertRaises(RuntimeError) as context:
+            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'),
+                                              self.time_zero)
+        self.assertIn("Point value was non-numeric", str(context.exception))
+
 
     @unittest.skip
     def test_forecast_data_validation_additional(self):
