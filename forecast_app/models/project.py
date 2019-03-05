@@ -744,14 +744,16 @@ class Project(ModelWithCDCData):
                                "forecast={}, csv_filename={}".format(self, forecast, forecast.csv_filename))
 
         # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
-        # lookup b/c get_target_bins() was slow. this has the added benefit of enabling us to easily override my
-        # template if validation_template is passed
+        # lookup b/c get_target_bins() was slow. this new approach has the added benefit of enabling us to easily
+        # override my template if validation_template is passed. however, to lookup Target.is_date, we must make a map
+        # from target_name to is_date
+        target_name_to_is_date = {target.name: target.is_date for target in
+                                  forecast.forecast_model.project.targets_qs().all()}
         if validation_template:
             template_location_dicts = self.get_loc_dicts_int_format_for_csv_file(validation_template)
         else:
             template_location_dicts = self.get_location_dicts_internal_format()
         forecast_location_dicts = forecast.get_location_dicts_internal_format()
-
         template_name = validation_template.name if validation_template else self.csv_filename
         template_locations = list(template_location_dicts.keys())
         forecast_locations = list(forecast_location_dicts.keys())
@@ -778,7 +780,8 @@ class Project(ModelWithCDCData):
                 if forecast_bin_map_fcn:
                     forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
 
-                if forecast_point_val is None:  # parse_value() returns None if non-numeric
+                if (not target_name_to_is_date[template_target]) and (forecast_point_val is None):
+                    # recall parse_value() returns None if non-numeric
                     raise RuntimeError("Point value was non-numeric. csv_filename={}, template_location={}, "
                                        "template_target={}"
                                        .format(forecast.csv_filename, template_location, template_target))

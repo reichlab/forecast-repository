@@ -135,6 +135,16 @@ class ForecastTestCase(TestCase):
                                               self.time_zero)
         self.assertIn("Point value was non-numeric", str(context.exception))
 
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
+        with self.assertRaises(Exception):
+            try:
+                self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv'),
+                                                  self.time_zero)  # date-based Point row w/NA value is OK
+            except:
+                pass
+            else:
+                raise Exception
+
 
     @unittest.skip
     def test_forecast_data_validation_additional(self):
