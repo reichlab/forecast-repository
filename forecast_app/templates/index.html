@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load static %}
+
 {% load humanize %}
 
 {% block title %}Welcome!{% endblock %}
@@ -15,7 +17,7 @@
 
     <h1>Zoltar Home <a href="{% url 'api-root' %}" class="btn btn-info btn-xs" role="button">API</a></h1>
 
-    <p><img width="50%" src="http://reichlab.io/images/blog/flusight-wide.png" class="pull-right">
+    <p><img width="50%" src="{% static 'flusight-wide.png' %}" class="pull-right">
         Welcome to the Zoltar forecast archive, a web application to demonstrate ideas for a repository of model
         forecast
         results along with tools to compare, etc. The main ideas are outlined on the
