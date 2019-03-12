@@ -474,7 +474,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     # re: scores order: it is crucial that order matches query ORDER BY ... sv.score_id so that columns match values
     scores = Score.objects.all().order_by('pk')
 
-    # write headder
+    # write header
     score_csv_header = score_csv_header_prefix + [score.csv_column_name() for score in scores]
     csv_writer.writerow(score_csv_header)
 

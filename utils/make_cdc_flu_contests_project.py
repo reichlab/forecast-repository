@@ -71,7 +71,12 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     logger.info("- created {} Targets: {}".format(len(targets), targets))
 
     logger.info("* Creating TimeZeros...")
-    time_zeros = make_timezeros(project, [first_model_subdirectory(component_models_dir_ensemble)])
+    model_subdir = first_model_subdirectory(component_models_dir_ensemble)
+    if not model_subdir:
+        raise RuntimeError("first_model_subdirectory was None. component_models_dir_ensemble={}"
+                           .format(component_models_dir_ensemble))
+
+    time_zeros = make_timezeros(project, [model_subdir])
     logger.info("- created {} TimeZeros: {}"
                 .format(len(time_zeros), sorted(time_zeros, key=lambda time_zero: time_zero.timezero_date)))
 

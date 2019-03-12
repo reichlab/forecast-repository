@@ -68,7 +68,7 @@ CDC_CSV_FILENAME_RE_PAT = re.compile(r"""
 ^
 (\d{4})(\d{2})(\d{2})    # time_zero YYYYMMDD
 -                        # dash
-([a-zA-Z0-9_]+)          # model_name
+([a-zA-Z0-9_\-]+)          # model_name
 (?:                      # non-repeating group so that '-20170516' doesn't get included
   -                      # optional dash and dvd
   (\d{4})(\d{2})(\d{2})  # data_version_date YYYYMMDD
