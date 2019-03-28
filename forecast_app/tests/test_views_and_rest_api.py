@@ -633,6 +633,15 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
+            call_dict = upload_file_mock.call_args[1]
+            self.assertIn('forecast_model_pk', call_dict)
+            self.assertIn('timezero_pk', call_dict)
+            self.assertEqual(self.public_model.pk, call_dict['forecast_model_pk'])
+            self.assertEqual(self.public_tz2.pk, call_dict['timezero_pk'])
+
+            act_time_zero = TimeZero.objects.get(pk=call_dict['timezero_pk'])
+            self.assertEqual(self.public_tz2.timezero_date, act_time_zero.timezero_date)
+
             # case: _upload_file() -> is_error
             upload_file_mock.return_value = True, None  # is_error, upload_file_job
             json_response = self.client.post(upload_forecast_url, {
@@ -642,11 +651,41 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
-            # case: auto-creates time_zero if not found
+            # case: blue sky: auto-creates time_zero if not found. no data_version_date
+            upload_file_mock.return_value = False, UploadFileJob.objects.create()  # is_error, upload_file_job
+            new_timezero_date = '19621022'
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': 'JWT {}'.format(jwt_token),
-                'timezero_date': '19621022',  # doesn't exist
+                'timezero_date': new_timezero_date,  # doesn't exist
+            }, format='multipart')
+            self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+            call_dict = upload_file_mock.call_args[1]
+            act_time_zero = TimeZero.objects.get(pk=call_dict['timezero_pk'])
+            self.assertEqual(new_timezero_date, act_time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT))
+
+            # case: blue sky: auto-creates time_zero if not found. valid data_version_date
+            act_time_zero.delete()
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': new_timezero_date,  # doesn't exist
+                'data_version_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
+            }, format='multipart')
+            self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+            call_dict = upload_file_mock.call_args[1]
+            act_time_zero = TimeZero.objects.get(pk=call_dict['timezero_pk'])
+            self.assertEqual(self.public_tz2.timezero_date, act_time_zero.data_version_date)
+
+            # case: blue sky: auto-creates time_zero if not found. invalid data_version_date
+            act_time_zero.delete()
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': 'JWT {}'.format(jwt_token),
+                'timezero_date': new_timezero_date,  # doesn't exist
+                'data_version_date': 'x20171202',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 

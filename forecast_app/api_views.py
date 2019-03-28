@@ -135,8 +135,10 @@ class ForecastModelForecastList(ListCreateAPIView):
         - 'data_file' (required): The data file to upload. NB: 'data_file'is our naming convention. it's used here and
             in views.upload_template(). it could be renamed. if multiple files, just uses the first one.
         - 'timezero_date' (required): The TimeZero.timezero_date to use to look up the TimeZero to associate with the
-            upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. it is an error if the corresponding
-            TimeZero isn't found.
+            upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. The TimeZero will be created if one
+            corresponding to 'timezero_date' isn't found.
+        - data_version_date (optional): To be used for the newly-created TimeZero corresponding to 'timezero_date', if
+          it didn't exist
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
@@ -175,8 +177,22 @@ class ForecastModelForecastList(ListCreateAPIView):
                                 status=status.HTTP_400_BAD_REQUEST)
 
         time_zero = forecast_model.project.time_zero_for_timezero_date(timezero_date_obj)
+        is_created_timezero = False
         if not time_zero:
             time_zero = TimeZero.objects.create(project=forecast_model.project, timezero_date=timezero_date_obj)
+            is_created_timezero = True
+
+        # validate optional 'data_version_date'
+        if is_created_timezero and ('data_version_date' in request.POST):
+            data_version_date_str = request.POST['data_version_date']
+            try:
+                data_version_date_obj = datetime.datetime.strptime(data_version_date_str, YYYYMMDD_DATE_FORMAT)
+                time_zero.data_version_date = data_version_date_obj
+                time_zero.save()
+            except ValueError as ve:
+                return JsonResponse({'error': "Badly formatted 'data_version_date' form field: '{}'".format(ve)},
+                                    status=status.HTTP_400_BAD_REQUEST)
+        if is_created_timezero:
             logger.info("post(): created time_zero: {}".format(time_zero))
 
         # check for existing forecast
