@@ -665,7 +665,7 @@ def edit_model(request, model_pk):
         if forecast_model_form.is_valid():
             forecast_model_form.save()
 
-            messages.success(request, "Edited model '{}'".format(forecast_model))
+            messages.success(request, "Edited model '{}'".format(forecast_model.name))
             return redirect('model-detail', pk=forecast_model.pk)
 
     else:  # GET

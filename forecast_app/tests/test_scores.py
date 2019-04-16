@@ -12,10 +12,10 @@ from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero, Location, Target
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
-from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.bin_utils import _tzltpk_to_truth_st_end_val, _ltpk_to_templ_st_ends, \
     _tzltpk_to_forec_st_end_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
+from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.make_thai_moph_project import THAI_CONFIG_DICT, create_thai_locations_and_targets
 
@@ -40,6 +40,7 @@ class ScoresTestCase(TestCase):
                                                 is_season_start=True, season_name='season1')
         cls.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
+        # use default abbreviation (""):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
         cls.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), cls.time_zero)
 
@@ -208,7 +209,8 @@ class ScoresTestCase(TestCase):
         self.assertEqual(1.39332920335022e-07, act_forec_st_end_to_pred_val[(13, 100)])
 
         # get the true bin 'key' (bin_start_incl, bin_end_notincl) from tzltpk_to_truth_st_end_val
-        truth_st_end_val = tzltpk_to_truth_st_end_val[time_zero2.pk][loc_us_nat.pk][target_1wk.pk]  # [1.5, 1.6, 1.55838]
+        truth_st_end_val = tzltpk_to_truth_st_end_val[time_zero2.pk][loc_us_nat.pk][
+            target_1wk.pk]  # [1.5, 1.6, 1.55838]
         true_bin_key = truth_st_end_val[0], truth_st_end_val[1]
 
         templ_st_ends = act_templ_st_ends
@@ -540,7 +542,20 @@ class ScoresTestCase(TestCase):
     # other tests
     #
 
-    def test_download_scores(self):
+    def test_download_scores_empty_abbrev(self):
+        # the abbreviation for self.forecast_model is the default (""). in this case the model name is used for the
+        # 'model' column value
+        self.download_scores_internal_test(self.forecast_model.name)
+
+
+    def test_download_scores_non_empty_abbrev(self):
+        self.forecast_model.abbreviation = 'model_abbrev'
+        self.forecast_model.save()
+        # since there is a non-empty abbreviation, it should be used instead of the model name
+        self.download_scores_internal_test(self.forecast_model.abbreviation)
+
+
+    def download_scores_internal_test(self, exp_model_column_value):
         Score.ensure_all_scores_exist()
         _update_scores_for_all_projects()
         string_io = io.StringIO()
@@ -561,7 +576,7 @@ class ScoresTestCase(TestCase):
                     continue
 
                 # test non-numeric columns
-                self.assertEqual(exp_row[0], act_row[0])  # model
+                self.assertEqual(exp_model_column_value, act_row[0])  # model
                 self.assertEqual(exp_row[1], act_row[1])  # timezero. format: YYYYMMDD_DATE_FORMAT
                 self.assertEqual(exp_row[2], act_row[2])  # season
                 self.assertEqual(exp_row[3], act_row[3])  # location

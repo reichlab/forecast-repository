@@ -473,7 +473,8 @@ class ViewsTestCase(TestCase):
         # 'api-model-detail'
         # a rest_framework.response.Response
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
-        exp_keys = ['id', 'url', 'project', 'owner', 'name', 'description', 'home_url', 'aux_data_url', 'forecasts']
+        exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
+                    'forecasts']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
         # 'api-forecast-list'

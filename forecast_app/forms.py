@@ -41,7 +41,7 @@ class ForecastModelForm(forms.ModelForm):
     class Meta:
         model = ForecastModel
 
-        fields = ('name', 'team_name', 'description', 'home_url', 'aux_data_url')
+        fields = ('name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url')
 
 
     def __init__(self, *args, **kwargs):
@@ -50,4 +50,5 @@ class ForecastModelForm(forms.ModelForm):
             field.widget.attrs['class'] = 'form-control'
 
         self.fields['name'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['abbreviation'].widget = forms.TextInput(attrs={'class': 'form-control'})
         self.fields['team_name'].widget = forms.TextInput(attrs={'class': 'form-control'})

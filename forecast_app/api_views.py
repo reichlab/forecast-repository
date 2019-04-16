@@ -463,7 +463,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     Writes all ScoreValue data for project into csv_writer. There is one column per ScoreValue BUT: all Scores are on
     one line. Thus, the row 'key' is the (fixed) first five columns:
 
-        `ForecastModel.name, TimeZero.timezero_date, season, Location.name, Target.name`
+        `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Location.name, Target.name`
 
     Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
     the header. An example header and first few rows:
@@ -483,6 +483,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
 
     Notes:
     - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
+    -  for the model column we use the model's abbreviation if it's not empty, otherwise we use its name
     - NB: we were using get_valid_filename() to ensure values are CSV-compliant, i.e., no commas, returns, tabs, etc.
       (a function that was as good as any), but we removed it to help performance in the loop
     - we use groupby to group row 'keys' so that all score values are together
@@ -533,7 +534,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_groups = list(score_id_value_grouper)
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
-        csv_writer.writerow([forecast_model.name, timezero.timezero_date, timezero_to_season_name[timezero],
-                             location.name, target.name]
+        csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
+                             timezero.timezero_date, timezero_to_season_name[timezero], location.name, target.name]
                             + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")

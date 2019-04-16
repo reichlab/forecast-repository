@@ -16,6 +16,8 @@ class ForecastModel(models.Model):
     owner = models.ForeignKey(User, blank=True, null=True, help_text="The model's owner.", on_delete=models.SET_NULL)
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE)
     name = models.TextField()
+    abbreviation = models.TextField(help_text="Short name for the model. Used in the 'model' column in downloaded " \
+                                              "CSV score files.")
     team_name = models.TextField()
     description = models.TextField(help_text="A few paragraphs describing the model. Please see documentation for " \
                                              "what should be included here - information on reproducing the model’s " \

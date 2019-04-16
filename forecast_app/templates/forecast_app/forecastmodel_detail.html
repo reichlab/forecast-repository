@@ -31,6 +31,20 @@
             <table class="table table-bordered">
                 <tbody>
                 <tr>
+                    <th>Name:</th>
+                    <td>{{ forecastmodel.name }}</td>
+                </tr>
+                <tr>
+                    <th>Abbreviation:</th>
+                    <td>
+                        {% if forecastmodel.abbreviation %}
+                            {{ forecastmodel.abbreviation }}
+                        {% else %}
+                            <small class="text-muted">(No abbreviation)</small>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
                     <th>Owner:</th>
                     <td>
                         {% if forecastmodel.owner %}
