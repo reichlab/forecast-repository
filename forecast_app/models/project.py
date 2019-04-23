@@ -512,7 +512,7 @@ class Project(ModelWithCDCData):
           generate placeholder values for missing dates.)
         - Non-numeric values: Some targets will have no value, such as season onset when a baseline is not met. In those
           cases, the value should be “NA”, per
-          https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx .
+          https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx.
         - For date-based onset or peak targets, values must be dates in the same format as timezeros, rather than
             project-specific time intervals such as an epidemic week.
         - Validation:

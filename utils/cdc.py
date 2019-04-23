@@ -10,7 +10,7 @@ def epi_week_filename_components_2016_2017_flu_contest(filename):
         standard format as defined in [1]. The tuple format is: (ew_week_number, team_name, submission_datetime) .
         Note that "ew_week_number" is AKA the forecast's "time zero".
 
-    [1] https://webcache.googleusercontent.com/search?q=cache:KQEkQw99egAJ:https://predict.phiresearchlab.org/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx+&cd=1&hl=en&ct=clnk&gl=us
+    [1] https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
         From that document:
 
         For submission, the filename should be modified to the following standard naming convention: a forecast
