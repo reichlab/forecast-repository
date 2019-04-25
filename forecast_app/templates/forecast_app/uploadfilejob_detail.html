@@ -31,9 +31,9 @@
                     <td>{{ upload_file_job.filename }}</td>
                 </tr>
                 <tr>
-                    <th>Failed?</th>
+                    <th>Failure</th>
                     <td>{% if upload_file_job.is_failed %}{{ upload_file_job.failure_message }}{% else %}
-                        No{% endif %}</td>
+                        None{% endif %}</td>
                 </tr>
                 <tr>
                     <th>&Delta;T:</th>
