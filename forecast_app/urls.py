@@ -3,12 +3,15 @@ from django.conf.urls import url, include
 from . import views
 
 
+# todo xx should probably terminate all of the following with '$'. should also think about necessity of trailing '/'
 urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^about$', views.about, name='about'),
     url(r'^docs', views.documentation, name='docs'),
 
-    url(r'^zadmin', views.zadmin, name='zadmin'),
+    url(r'^zadmin$', views.zadmin, name='zadmin'),
+    url(r'^zadmin/upload_file_jobs$', views.zadmin_upload_file_jobs, name='zadmin-upload-file-jobs'),
+    url(r'^zadmin/score_last_updates$', views.zadmin_score_last_updates, name='zadmin-score-last-updates'),
     url(r'^empty_rq/$', views.empty_rq, name='empty-rq'),
     url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),

@@ -55,19 +55,17 @@ def documentation(request):
 # ---- admin-related view functions ----
 #
 
-def zadmin(request):
-    if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+def zadmin_upload_file_jobs(request):
+    return render(
+        request, 'zadmin_upload_file_jobs.html',
+        context={'upload_file_jobs': UploadFileJob.objects.all().order_by('updated_at')})
 
-    rq_queue = django_rq.get_queue()  # name='default'
-    rq_conn = django_rq.get_connection()  # name='default'
-    rq_jobs = _rq_jobs_for_queue(rq_queue)
-    django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
+def zadmin_score_last_updates(request):
     Score.ensure_all_scores_exist()
-    score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
 
-    # todo xx this takes a long time
+    # build score_last_update_rows. NB: this takes a long time
+    score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
     for score_last_update in ScoreLastUpdate.objects \
             .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
         score_last_update_rows.append(
@@ -75,6 +73,22 @@ def zadmin(request):
              score_last_update.score,
              score_last_update.score.num_score_values_for_model(score_last_update.forecast_model),
              score_last_update.updated_at))
+
+    return render(
+        request, 'zadmin_score_last_updates.html',
+        context={'score_last_update_rows': score_last_update_rows})
+
+
+def zadmin(request):
+    if not is_user_ok_admin(request.user):
+        raise PermissionDenied
+
+    Score.ensure_all_scores_exist()
+
+    rq_queue = django_rq.get_queue()  # name='default'
+    rq_conn = django_rq.get_connection()  # name='default'
+    rq_jobs = _rq_jobs_for_queue(rq_queue)
+    django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
     projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
     return render(
@@ -87,8 +101,6 @@ def zadmin(request):
                  'rq_jobs': rq_jobs,
                  'projects_sort_pk': projects_sort_pk,
                  'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
-                 'upload_file_jobs': UploadFileJob.objects.all().order_by('updated_at'),
-                 'score_last_update_rows': score_last_update_rows,
                  'scores_sort_name': Score.objects.all().order_by('name'),
                  'scores_sort_pk': Score.objects.all().order_by('pk'),
                  })
