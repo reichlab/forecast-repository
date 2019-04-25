@@ -4,20 +4,22 @@
 
 {% block content %}
 
-    <h1>Zoltar User Guide<a name="zoltar-user-guide"></a></h1>
+    <h1>Zoltar User Guide<a id="zoltar-user-guide"></a></h1>
 
     <p><em>This is draft documentation of how to use Zoltar.</em></p>
 
 
-    <h1>Table of contents<a name="table-of-contents"></a></h1>
+    <h1>Table of contents<a id="table-of-contents"></a></h1>
 
     <ul>
         <li><a href="#introduction">Introduction</a></li>
-        <li><a href="#home-page">Home page</a></li>
+        <li><a href="#home-page">Zoltar Home page</a></li>
         <li><a href="#project-detail-page">Project detail page</a>
             <ul>
                 <li><a href="#project-details-table">Project details table</a></li>
                 <li><a href="#forecast-models">Forecast models</a></li>
+                <li><a href="#forecast-models">Forecast models</a></li>
+                <li><a href="#locations">Locations</a></li>
                 <li><a href="#targets">Targets</a></li>
                 <li><a href="#time-zeros">Time zeros</a></li>
             </ul>
@@ -43,7 +45,7 @@
     </ul>
 
 
-    <h1>Introduction<a name="introduction"></a></h1>
+    <h1>Introduction<a id="introduction"></a></h1>
 
     <p>The Zoltar forecast archive is a web application to develop ideas for a repository of model forecast results.
         Until now, predictions made by models have been stored in differing formats and locations. This complicates
@@ -57,7 +59,7 @@
         <a href="http://reichlab.io/">Reich Lab</a>.</p>
 
 
-    <h1>Home page<a name="home-page"></a></h1>
+    <h1>Zoltar Home page<a id="home-page"></a></h1>
 
     <p>The home page lists all of the projects in the archive. A <strong>project</strong> is a collection of
         <strong>forecast models</strong> and their <strong>forecasts</strong>, and is described in more detail below.
@@ -77,7 +79,7 @@
         take you to a form where you can fill in the details described below.</p>
 
 
-    <h1>Project detail page<a name="project-detail-page"></a></h1>
+    <h1>Project detail page<a id="project-detail-page"></a></h1>
 
     <p>A <strong>project</strong> is the main element for representing a forecasting challenge. It has an
         <strong>owner</strong> (a registered user in the system), and zero or more <strong>model owners</strong> (also
@@ -88,7 +90,8 @@
     <p>Each project's detail page is divided into four vertical sections, described next: Details table, forecast
         models, targets, and time zeros.</p>
 
-    <h2>Project details table<a name="project-details-table"></a></h2>
+
+    <h2>Project details table<a id="project-details-table"></a></h2>
 
     <p>At the top of the page is a table showing non-model information related to the project:</p>
 
@@ -163,31 +166,61 @@
         </li>
     </ul>
 
-    <h2>Forecast models<a name="forecast-models"></a></h2>
+
+    <h2>Forecast models<a id="forecast-models"></a></h2>
 
     <p>The <strong>Models</strong> section lists the project's forecast models by name, with links to model detail pages
         (see details below). If you're a project owner or model owner then a "New" button is shown that takes you to a
         form for creating a model.</p>
 
-    <h2>Locations<a name="locations"></a></h2>
 
-    <p>This section lists information about project forecast locations as defined by project owners.</p>
+    <h2>Locations<a id="locations"></a></h2>
 
-    <h2>Targets<a name="targets"></a></h2>
-
-    <p>This section lists information about project forecast targets as defined by project owners, including the
-        target's name, description, and whether it is a <em>step ahead</em> target. Targets are used to validate
-        templates and forecast data. Step ahead targets are special ones with an integer value indicating how many steps
-        ahead (or behind, for negative values) the target is relative to a time zero. (Time zeros are defined below.)
-        Zoltar uses these targets to determine what to plot in the D3 Foresight component's TimeChart, and to extract
-        'actual' values from the truth data (see above).
+    <p>This section lists names of the locations in the project. These were either defined by project owner when
+        creating the project, or were created automatically when the project template was loaded and a referenced
+        location was not found.
     </p>
 
-    <h2>Time zeros<a name="time-zeros"></a></h2>
+
+    <h2>Targets<a id="targets"></a></h2>
+
+    <p>This section lists information about project forecast targets. Like locations, these were either created
+        explicitly by the project owner, or automatically when the template was loaded. The information includes the
+        following fields.
+    </p>
+    <p>(A note regarding auto-created targets. Auto-created targets require further, careful editing to be complete. In
+        particular, users must fill in the <em>description</em> and <em>unit</em> fields, identify the date-related
+        ones by checking <em>Is date</em>, and check <em>Is step ahead</em> and fill in the
+        <em>Step ahead increment</em> integer value. <u>Importantly</u>: You will get unwanted results if
+        <em>Is date</em> or <em>Is step ahead</em> is incorrect.)
+    </p>
+
+    <ul>
+        <li><em>Name</em>: Self-explanatory.</li>
+        <li><em>Description</em>: "". For auto-created targets, this field must be filled in.</li>
+        <li><em>Unit</em>: E.g., "percent" or "week". Unit is used when previewing data, and when downloading it. For
+            auto-created targets, ensure that you've entered a unit. Otherwise it will be blank in previews and
+            downloads.
+        </li>
+        <li><em>Date?</em>: This identifies whether the target is date-related or not. Examples of date-related targets
+            might include "Season onset" or "Season peak week". For auto-created targets, the consequences of not
+            checking off this field include forecasts being rejected as invalid if they have no point value.
+        </li>
+        <li><em>Step Ahead?</em>: Shows two pieces of information: 1) Whether the target is a "step ahead" one, and
+            (if so) 2) what the "step ahead increment" is. (Step ahead targets are used to predict values in the
+            future, and are used by some analysis tools.)
+        </li>
+    </ul>
+
+
+    <h2>Time zeros<a id="time-zeros"></a></h2>
 
     <p>This section details the project's <strong>time zeros</strong>. About time zeros and <strong>data version
-        dates</strong>: Because the forecasting
-        field does not have standard terminology, we have settled on the following two concepts for this application.
+        dates</strong>: Because the forecasting field does not have standard terminology, we have settled on the
+        following two concepts for this application. Note that some time zeros are tagged as starting a season,
+        specifying the season's name, which helps to segment the time zeros. Zoltar uses season information in the
+        visualization and score pages, where the user can select which season to show data for. This also helps to keep
+        performance up.
     </p>
 
     <ul>
@@ -199,20 +232,20 @@
             should be considered. If present, it can be used externally by system users to recreate model results by
             "rolling back" the core data to a particular state.
         </li>
+        <li><em>Starts Season</em>: Shows two pieces of information: 1) Whether the time zero is starts a season (it is
+            blank if it does not start a season), and 2) the season name itself (which indicates the time zero does
+            start a season.)
+        </li>
     </ul>
 
-    <p>Some time zeros are tagged as starting a season, specifying the season's name, which helps to segment the time
-        zeros. Zoltar uses season information in the visualization and score pages, where the user can select which
-        season to show data for. This also helps to keep performance up.</p>
 
-
-    <h1>Model detail page<a name="model-detail-page"></a></h1>
+    <h1>Model detail page<a id="model-detail-page"></a></h1>
 
     <p>A model is the represention of code that generates forecasts. Clicking on a model link takes you to its detail
         page. The detail page is divided into two vertical sections, described next: Details table and forecasts
         list.</p>
 
-    <h2>Model details table<a name="model-details-table"></a></h2>
+    <h2>Model details table<a id="model-details-table"></a></h2>
 
     <p>At the top of the page is a table showing information related to the model:
         - <em>Owner</em>: The model's owner. The owner is the user that created the model (which is done on the home
@@ -224,7 +257,7 @@
         - <em>Auxiliary data</em>: An optional link to model-specific data files that were used by the model beyond the
         project's core data. This is not used directly by Zoltar.</p>
 
-    <h2>Forecasts<a name="forecasts"></a></h2>
+    <h2>Forecasts<a id="forecasts"></a></h2>
 
     <p>The <strong>Forecasts</strong> section lists the model's forecasts, with links to forecast detail pages (see
         details below). Each forecast is data associated with a particular time zero in the project. The data is loaded
@@ -244,7 +277,8 @@
             <ul>
                 <li><code>Location</code>: Location of forecast - either entire country or a particular region</li>
                 <li><code>Target</code>: Forecast target</li>
-                <li><code>Type</code>: Forecast type - either "Point" for point forecast or "Bin" for probabilistic bin</li>
+                <li><code>Type</code>: Forecast type - either "Point" for point forecast or "Bin" for probabilistic bin
+                </li>
                 <li><code>Unit</code>: Unit of forecast, e.g., "week" or "percent"</li>
                 <li><code>Bin_start_incl</code>: Inclusive starting value for probabilistic forecast bin</li>
                 <li><code>Bin_end_notincl</code>: Exclusive ending value for probabilistic forecast bin</li>
@@ -262,11 +296,11 @@
     </ul>
 
 
-    <h1>Data analysis<a name="data-analysis"></a></h1>
+    <h1>Data analysis<a id="data-analysis"></a></h1>
     <p>Zoltar provides two fledgling project analysis tools: visualizations and scores. You will find links to them on
         project detail pages on the Analysis line in the project details section at the top of the page.</p>
 
-    <h2>Visualizations<a name="visualizations"></a></h2>
+    <h2>Visualizations<a id="visualizations"></a></h2>
     <p>This page uses the <a href="https://github.com/reichlab/d3-foresight">D3 Foresight
         component</a>'s TimeChart to display the project's models' forecasts for each step ahead target. Currently we
         only use the basic plot feature along with the <strong>actual</strong> component. We plan to add baseline,
@@ -281,15 +315,15 @@
         - Click the left and right arrows to the right of the legend to move the current time zero.
         - Click the 'hamburger' icon to toggle the legend.</p>
 
-    <h2>Scores<a name="scores"></a></h2>
+    <h2>Scores<a id="scores"></a></h2>
     <p>This page shows the mean absolute error values for all models in the project. (This can take a long time to load
         for large projects.) The location and season drop downs work like those on the visualization page. The smallest
         errors are shown in inverse text.</p>
 
 
-    <h1>For technical users<a name="for-technical-users"></a></h1>
+    <h1>For technical users<a id="for-technical-users"></a></h1>
 
-    <h2>API<a name="api"></a></h2>
+    <h2>API<a id="api"></a></h2>
 
     <p>We provide the following REST endpoints. All results are JSON. The API is browsable from the root URI on the home
         page (look for <strong>API</strong> buttons), and is a great starting point for developers. Note that all
@@ -312,7 +346,7 @@
         <li><code>api/forecast/[forecast_id]/data/</code> # forecast data as JSON - see above</li>
     </ul>
 
-    <h2>Forecast data format<a name="forecast-data-format"></a></h2>
+    <h2>Forecast data format<a id="forecast-data-format"></a></h2>
 
     <p>Forecast data can be downloaded in either CSV or JSON format. The CSV matches the input file CDC format, but
         the JSON is our own and is structured like this:</p>
