@@ -58,7 +58,7 @@ def documentation(request):
 def zadmin_upload_file_jobs(request):
     return render(
         request, 'zadmin_upload_file_jobs.html',
-        context={'upload_file_jobs': UploadFileJob.objects.all().order_by('updated_at')})
+        context={'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at')})
 
 
 def zadmin_score_last_updates(request):
@@ -827,7 +827,7 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
-        context['upload_file_jobs'] = detail_user.upload_file_jobs.all().order_by('updated_at')
+        context['upload_file_jobs'] = detail_user.upload_file_jobs.all().order_by('-updated_at')
         return context
 
 
