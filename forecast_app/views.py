@@ -701,6 +701,19 @@ class UserListView(ListView):
     model = User
 
 
+    def get_context_data(self, **kwargs):
+        # collect user info
+        user_projs_models = []  # 3-tuples: User, num_projs, num_models
+        for user in self.get_queryset().all():
+            num_projs = len(projects_and_roles_for_user(user))
+            num_models = len(forecast_models_owned_by_user(user))
+            user_projs_models.append((user, num_projs, num_models))
+
+        context = super().get_context_data(**kwargs)
+        context['user_projs_models'] = user_projs_models
+        return context
+
+
 #
 # ---- Detail views ----
 #
@@ -798,11 +811,11 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         detail_user = self.get_object()
         projects_and_roles = projects_and_roles_for_user(detail_user)
         owned_models = forecast_models_owned_by_user(detail_user)
-        context['upload_file_jobs'] = detail_user.upload_file_jobs.all().order_by('updated_at')
+        context['is_user_ok_edit_user'] = is_user_ok_edit_user(self.request, detail_user)
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
-        context['is_user_ok_edit_user'] = is_user_ok_edit_user(self.request, detail_user)
         context['owned_models'] = owned_models
+        context['upload_file_jobs'] = detail_user.upload_file_jobs.all().order_by('updated_at')
         return context
 
 
