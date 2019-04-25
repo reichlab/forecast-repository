@@ -796,10 +796,14 @@ class Project(ModelWithCDCData):
                 # some forecasts do not generate bins with values of zero
                 if not (set(forecast_bins_sorted) <= set(template_bins_sorted)):
                     raise RuntimeError("Bins did not match template. template={}, csv_filename={}, "
-                                       "template_location={}, template_target={}, # template_bins={}, forecast_bins={}"
-                                       .format(template_name,
-                                               forecast.csv_filename, template_location,
-                                               template_target, len(template_bins), len(forecast_bins)))
+                                       "template_location={}, template_target={}, # template_bins={}, "
+                                       "# forecast_bins={}, bin difference={}, forecast bins not in template={}, "
+                                       "template bins not in forecast={}".format(template_name,
+                                                            forecast.csv_filename, template_location,
+                                                            template_target, len(template_bins), len(forecast_bins),
+                                                            set(template_bins_sorted) ^ set(forecast_bins_sorted),
+                                                            set(template_bins_sorted) - set(forecast_bins_sorted),
+                                                            set(forecast_bins_sorted) - set(template_bins_sorted)))
 
                 # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
                 # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
