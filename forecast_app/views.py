@@ -508,12 +508,14 @@ def create_project(request):
 
     location_formset = LocationInlineFormSet(instance=new_project)
     target_formset = TargetInlineFormSet(instance=new_project)
-    timezero_formset = TimeZeroInlineFormSet(instance=new_project)
+    timezero_formset = TimeZeroInlineFormSet(instance=new_project,
+                                             queryset=new_project.timezeros.order_by("timezero_date"))
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=new_project)
         location_formset = LocationInlineFormSet(request.POST, instance=new_project)
         target_formset = TargetInlineFormSet(request.POST, instance=new_project)
-        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project)
+        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project,
+                                                 queryset=new_project.timezeros.order_by("timezero_date"))
         if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
                 and timezero_formset.is_valid():
             new_project = project_form.save(commit=False)
@@ -562,12 +564,14 @@ def edit_project(request, project_pk):
                  'season_name': forms.TextInput()})
     location_formset = LocationInlineFormSet(instance=project)
     target_formset = TargetInlineFormSet(instance=project)
-    timezero_formset = TimeZeroInlineFormSet(instance=project)
+    timezero_formset = TimeZeroInlineFormSet(instance=project,
+                                             queryset=project.timezeros.order_by("timezero_date"))
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=project)
         location_formset = LocationInlineFormSet(request.POST, instance=project)
         target_formset = TargetInlineFormSet(request.POST, instance=project)
-        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=project)
+        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=project,
+                                                 queryset=project.timezeros.order_by("timezero_date"))
         if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
                 and timezero_formset.is_valid():
             project_form.save()
