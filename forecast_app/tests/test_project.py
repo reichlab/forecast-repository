@@ -7,6 +7,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
@@ -79,6 +80,22 @@ class ProjectTestCase(TestCase):
             (datetime.date(2017, 1, 1), 'US National', 'Season onset', 201747.0)
         ]
         self.assertEqual(exp_truth_preview, project2.get_truth_data_preview())
+
+
+    def test_truth_date_format(self):
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        response = csv_response_for_project_truth_data(self.project)
+        exp_content = ['timezero,location,target,value',
+                       '20170101,US National,1 wk ahead,0.73102',
+                       '20170101,US National,2 wk ahead,0.688338',
+                       '20170101,US National,3 wk ahead,0.732049',
+                       '20170101,US National,4 wk ahead,0.911641',
+                       '20170101,US National,Season peak percentage,',
+                       '20170101,US National,Season peak week,',
+                       '20170101,US National,Season onset,201747.0',
+                       '']
+        act_content = response.content.decode("utf-8").split('\r\n')
+        self.assertEqual(exp_content, act_content)
 
 
     def test_load_template(self):

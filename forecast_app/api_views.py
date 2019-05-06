@@ -199,8 +199,7 @@ class ForecastModelForecastList(ListCreateAPIView):
         existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
         if existing_forecast_for_time_zero:
             return JsonResponse({'error': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
-                                          "existing data and then upload again. You may need to refresh the page to "
-                                          "see the delete button."
+                                          "existing data and then upload again."
                                 .format(time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), data_file.name)},
                                 status=status.HTTP_400_BAD_REQUEST)
 
@@ -396,15 +395,11 @@ def csv_response_for_project_truth_data(project):
         csv_filename = csv_filename_path.name + '-validated.csv'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
 
-
-    def transform_row(row):
-        return row  # todo xx replace '', etc.
-
-
     writer = csv.writer(response)
     writer.writerow(TRUTH_CSV_HEADER)
-    for row in project.get_truth_data_rows():
-        writer.writerow(transform_row(row))
+    for timezero_date, location_name, target_name, value in project.get_truth_data_rows():
+        timezero_date = timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
+        writer.writerow([timezero_date, location_name, target_name, value])
 
     return response
 
@@ -413,7 +408,7 @@ def csv_response_for_project_truth_data(project):
 # Score data-related functions
 #
 
-score_csv_header_prefix = ['model', 'timezero', 'season', 'location', 'target']
+SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'location', 'target']
 
 
 def _csv_filename_for_project_scores(project):
@@ -468,18 +463,18 @@ def _write_csv_score_data_for_project(csv_writer, project):
     Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
     the header. An example header and first few rows:
 
-        model,           timezero,    season,    location,  target,          constant score,  Absolute Error
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      3_biweek_ahead,  <blank>          9
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      4_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      5_biweek_ahead,  <blank>          8
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      1_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      2_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
+        model,           timezero,  season,    location,  target,          constant score,  Absolute Error
+        gam_lag1_tops3,  20170423,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
+        gam_lag1_tops3,  20170423,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
+        gam_lag1_tops3,  20170423,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
+        gam_lag1_tops3,  20170423,  2017-2018  TH01,      3_biweek_ahead,  <blank>          9
+        gam_lag1_tops3,  20170423,  2017-2018  TH01,      4_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  20170423,  2017-2018  TH01,      5_biweek_ahead,  <blank>          8
+        gam_lag1_tops3,  20170423,  2017-2018  TH02,      1_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  20170423,  2017-2018  TH02,      2_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  20170423,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
+        gam_lag1_tops3,  20170423,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
+        gam_lag1_tops3,  20170423,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
 
     Notes:
     - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
@@ -492,7 +487,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     scores = Score.objects.all().order_by('pk')
 
     # write header
-    score_csv_header = score_csv_header_prefix + [score.csv_column_name() for score in scores]
+    score_csv_header = SCORE_CSV_HEADER_PREFIX + [score.csv_column_name() for score in scores]
     csv_writer.writerow(score_csv_header)
 
     # get the raw rows - sorted so groupby() will work
@@ -535,6 +530,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                             timezero.timezero_date, timezero_to_season_name[timezero], location.name, target.name]
+                             timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), timezero_to_season_name[timezero],
+                             location.name, target.name]
                             + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")
