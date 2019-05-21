@@ -27,9 +27,9 @@ RQ_QUEUES = {
 # ---- djangorestframework-jwt config ----
 #
 
-JWT_AUTH = {
-    'JWT_VERIFY_EXPIRATION': False,  # dangerous
-}
+# JWT_AUTH = {
+#     'JWT_VERIFY_EXPIRATION': False,  # dangerous
+# }
 
 #
 # ---- disable debug toolbar due to executemany() error when using sqlite3 ----
