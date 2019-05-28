@@ -1,19 +1,29 @@
-import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
-
-from .base import *
+import os
 
 
 #
 # ---- DEBUG and SECRET_KEY ----
 #
 
+# NB: must set the following before importing from base
+
 DEBUG = False
 
 if 'SECRET_KEY' not in os.environ:
+    from django.core.exceptions import ImproperlyConfigured
+
+
     raise ImproperlyConfigured("The 'SECRET_KEY' environment variable was not set.")
 
 SECRET_KEY = os.environ['SECRET_KEY']
+
+#
+# ---- imports ----
+#
+
+import dj_database_url
+
+from .base import *
 
 
 #
@@ -25,8 +35,7 @@ MIDDLEWARE.extend([
     # https://warehouse.python.org/project/whitenoise/
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
-]
-)
+])
 
 #
 # ---- database config ----

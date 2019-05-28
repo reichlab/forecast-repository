@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os
 
+from django.conf import settings
+
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -123,6 +125,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+if not settings.DEBUG:  # NB: requires "children" settings to set DEBUG before importing
+    SECURE_SSL_REDIRECT = True
+
 #
 # set up logging - https://stackoverflow.com/questions/5137042/how-can-i-get-django-to-print-the-debug-information-to-the-console
 # note: According to docs, I should not have to specify this - default should be to log everything INFO and higher to
@@ -179,7 +184,6 @@ MESSAGE_TAGS = {
     message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
 }
 
-
 #
 # S3 support - used by cloud_file.py
 #
@@ -188,7 +192,6 @@ S3_BUCKET_PREFIX = os.environ.get('S3_BUCKET_PREFIX')
 
 if not S3_BUCKET_PREFIX:
     raise RuntimeError('base.py: S3_BUCKET_PREFIX not configured!')
-
 
 #
 # support for sending emails via https://www.sendinblue.com/ by way of https://github.com/anymail/django-anymail

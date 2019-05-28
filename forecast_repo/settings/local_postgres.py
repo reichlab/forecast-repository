@@ -1,9 +1,11 @@
-from .base import *
-
+# NB: must set the following before importing from base
 
 DEBUG = True
 
 SECRET_KEY = '&6kqgmf2fi3==##07k$!ns_#sd1%v4e4%$lbgft9(c7ar9itbh'
+
+from .base import *
+
 
 DATABASES = {
     'default': {
