@@ -49,13 +49,11 @@ def api_root(request, format=None):
 
 # was ListCreateAPIView -> def perform_create(self, serializer): serializer.save(owner=self.request.user)
 class ProjectList(generics.ListAPIView):
-    """
-    View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
-    Note that this means API users have more limited access than the web home page, which lists all projects regardless
-    of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
-    it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
-    me and won.
-    """
+    # View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
+    # Note that this means API users have more limited access than the web home page, which lists all projects regardless
+    # of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
+    # it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
+    # me and won.
     serializer_class = ProjectSerializer
 
 
