@@ -442,7 +442,7 @@ def _model_score_count_rows_for_project(project):
     """
     :return list of rows summarizing score information for project
     """
-    # todo xx use meta for column names, e.g., self.cdc_data_class._meta.get_field('location').column
+    # todo xx use meta for column names
     sql = """
         SELECT fm.id, sv.score_id, count(fm.id)
         FROM {scorevalue_table_name} AS sv
@@ -980,89 +980,6 @@ def plot_sparkline(normalized_values):
         draw.line((i, image.size[1] - r / 10 - 4, i, (image.size[1] - r / 10)), fill=color)
     del draw
     return image
-
-
-#
-# ---- Template-related views ----
-#
-
-def template_detail(request, project_pk):
-    """
-    View function to render a preview of a Project's template.
-    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
-        raise PermissionDenied
-
-    return render(
-        request,
-        'template_data_detail.html',
-        context={'project': project,
-                 'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
-
-
-def delete_template(request, project_pk):
-    """
-    Does the actual deletion of template data. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be a superuser or the Project's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
-
-    project.delete_template()
-    return redirect('project-detail', pk=project_pk)
-
-
-def upload_template(request, project_pk):
-    """
-    Uploads the passed data into a the project's template.
-    Authorization: The logged-in user must be a superuser or the Project's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
-
-    if project.is_template_loaded():
-        return render(request, 'message.html',
-                      context={'title': "Template already exists.",
-                               'message': "The project already has a template. Please delete it and then upload again."})
-
-    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
-    if is_error:
-        return is_error
-
-    # upload to cloud and enqueue a job to process a new UploadFileJob. NB: if multiple files, just uses the first one
-    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__template,
-                                             project_pk=project_pk)
-    if is_error:
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': "There was an error uploading the file. The error was: "
-                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
-
-    messages.success(request, "Queued the template file '{}' for uploading. Note: This will create any missing "
-                              "locations and targets, setting their names, but you will need to edit targets to add " \
-                              "all other fields, esp. is_date, is_step_ahead, and step_ahead_increment."
-                     .format(data_file.name))
-    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
-
-
-def process_upload_file_job__template(upload_file_job_pk):
-    """
-    An _upload_file() enqueue() function that loads a template file. Called by upload_forecast().
-
-    - Expected UploadFileJob.input_json key(s): 'project_pk' - passed to _upload_file()
-    - Saves UploadFileJob.output_json key(s): None
-
-    :param upload_file_job_pk: the UploadFileJob's pk
-    """
-    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
-        project_pk = upload_file_job.input_json['project_pk']
-        project = get_object_or_404(Project, pk=project_pk)
-        project.load_template(cloud_file_fp, upload_file_job.filename)
 
 
 #

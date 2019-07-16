@@ -7,6 +7,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
+from utils.cdc import load_cdc_csv_forecast_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 
@@ -19,7 +20,6 @@ class FlusightTestCase(TestCase):
     def test_d3_foresight(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project)
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 10, 23),
                                             # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}
@@ -29,7 +29,8 @@ class FlusightTestCase(TestCase):
                                 # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}
                                 data_version_date=datetime.date(2016, 10, 29))
         forecast_model1 = ForecastModel.objects.create(project=project)
-        forecast_model1.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
+        load_cdc_csv_forecast_file(forecast_model1, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                   time_zero)
 
         # we treat the json file as a Django's template b/c mode lIDs are hard-coded, but can vary depending on the
         # RDBMS
@@ -45,7 +46,6 @@ class FlusightTestCase(TestCase):
     def test_d3_foresight_out_of_season(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project)
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17):
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 7, 17),  # 29 < SEASON_START_EW_NUMBER
@@ -57,7 +57,8 @@ class FlusightTestCase(TestCase):
                                 data_version_date=None,
                                 is_season_start=True, season_name='2017')  # season has no forecast data
         forecast_model = ForecastModel.objects.create(project=project)
-        forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
+        load_cdc_csv_forecast_file(forecast_model, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                   time_zero)
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-no-points.json', 'r') as fp:
             exp_json_template_str = fp.read()
             exp_json_template = Template(exp_json_template_str)
@@ -71,7 +72,6 @@ class FlusightTestCase(TestCase):
     def test_d3_foresight_larger(self):
         project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project)
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 23),
                                 # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}

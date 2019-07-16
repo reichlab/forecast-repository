@@ -11,8 +11,9 @@ from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
+from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.make_thai_moph_project import create_thai_locations_and_targets, THAI_CONFIG_DICT
+from utils.make_thai_moph_project import create_thai_locations_and_targets
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -28,15 +29,14 @@ class ProjectTestCase(TestCase):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
         make_cdc_locations_and_targets(cls.project)
-        cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
-        cls.forecast = cls.forecast_model.load_forecast(
-            Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
+        cls.forecast = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
     def test_load_truth_data(self):
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
         self.assertEqual(7, self.project.truth_data_qs().count())
         self.assertTrue(self.project.is_truth_data_loaded())
         self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
@@ -46,27 +46,24 @@ class ProjectTestCase(TestCase):
         self.assertFalse(self.project.truth_csv_filename)
 
         # csv references non-existent TimeZero in Project: should not raise error
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'))
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
+                                     'truths-bad-timezero.csv')
 
         # csv references non-existent location in Project: should not raise error
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-location.csv'))
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
+                                     'truths-bad-location.csv')
 
         # csv references non-existent target in Project: should not raise error
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'))
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
+                                     'truths-bad-target.csv')
 
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
         self.assertEqual(0, project2.truth_data_qs().count())
         self.assertFalse(project2.is_truth_data_loaded())
 
-        # no template
-        with self.assertRaises(RuntimeError) as context:
-            project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
-        self.assertIn('Template not loaded', str(context.exception))
-
         TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
         self.assertEqual(7, project2.truth_data_qs().count())
 
         # test get_truth_data_preview()
@@ -83,7 +80,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_truth_date_format(self):
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
         response = csv_response_for_project_truth_data(self.project)
         exp_content = ['timezero,location,target,value',
                        '20170101,US National,1 wk ahead,0.73102',
@@ -96,113 +93,6 @@ class ProjectTestCase(TestCase):
                        '']
         act_content = response.content.decode("utf-8").split('\r\n')
         self.assertEqual(exp_content, act_content)
-
-
-    def test_load_template(self):
-        # load a template -> verify csv_filename and is_template_loaded()
-        self.assertTrue(self.project.is_template_loaded())
-        self.assertEqual('2016-2017_submission_template.csv', self.project.csv_filename)
-
-        # create a project, don't load a template, verify csv_filename and is_template_loaded()
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_locations_and_targets(project2)
-
-        time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
-        self.assertFalse(project2.is_template_loaded())
-        self.assertFalse(project2.csv_filename)
-        self.assertEqual(0, project2.cdcdata_set.count())
-
-        # verify load_forecast() fails
-        new_forecast_model = ForecastModel.objects.create(project=project2)
-        with self.assertRaises(RuntimeError) as context:
-            new_forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), time_zero2)
-        self.assertIn("Cannot validate forecast data", str(context.exception))
-
-
-    def test_delete_template(self):
-        # create a project, don't load a template, verify csv_filename and is_template_loaded()
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        project2.delete_template()
-        self.assertFalse(project2.is_template_loaded())
-        self.assertFalse(project2.csv_filename)
-        self.assertEqual(0, project2.cdcdata_set.count())
-
-
-    def test_validate_template(self):
-        # header incorrect or has no lines: already checked by load_csv_data()
-
-        new_project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_locations_and_targets(new_project)
-
-        # no locations
-        with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('forecast_app/tests/EW1-no-locations-2017-01-17.csv'))
-        self.assertIn("Template has no locations", str(context.exception))
-
-        # a target without a point value
-        with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('forecast_app/tests/EW1-target-no-point-2017-01-17.csv'))
-        self.assertIn("First row was not the point row", str(context.exception))
-
-        # a target without a bin
-        with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('forecast_app/tests/EW1-target-no-bins-2017-01-17.csv'))
-        self.assertIn("Target has no bins", str(context.exception))
-
-        # a target that's not in every location
-        with self.assertRaises(RuntimeError) as context:
-            new_project.load_template(Path('forecast_app/tests/EW1-target-missing-from-location-2017-01-17.csv'))
-        self.assertIn("Target(s) was not found in every location", str(context.exception))
-
-        # expose a bug in ModelWithCDCData.insert_data() that depended on the 'type' column's case (tested for
-        # 'Point') - should *not* raise "Target has no point value" b/c it *does* have a point row:
-        #     TH01,1_biweek_ahead,point,cases,NA,NA,NA
-        new_project2 = Project.objects.create(config_dict=THAI_CONFIG_DICT)
-        create_thai_locations_and_targets(new_project2)
-        new_project2.load_template(Path('forecast_app/tests/thai-template-lowercase-type.csv'))
-
-        # bad row type - neither 'point' nor 'bin'
-        with self.assertRaises(RuntimeError) as context:
-            new_project2.load_template(Path('forecast_app/tests/thai-template-bad-row-type-point.csv'))
-        self.assertIn("row_type was neither 'point' nor 'bin'", str(context.exception))
-
-        with self.assertRaises(RuntimeError) as context:
-            new_project2.load_template(Path('forecast_app/tests/thai-template-bad-row-type-bin.csv'))
-        self.assertIn("row_type was neither 'point' nor 'bin'", str(context.exception))
-
-
-    def test_project_template_data_accessors(self):
-        data_rows = self.project.get_data_rows(is_order_by_pk=True)
-        self.assertEqual(8019, len(data_rows))  # individual rows via SQL
-        self.assertEqual(['US National', 'Season onset', 'point', 'week', None, None, 51.0], data_rows[0])
-        self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 0.029411765], data_rows[1])
-
-        self.assertEqual(8019, self.project.cdcdata_set.count())  # individual rows as CDCData instances
-
-        # test Project template accessors (via ModelWithCDCData) - the twin to test_forecast_data_accessors()
-        exp_location_names = {'HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
-                              'US National'}
-        self.assertEqual(exp_location_names, self.project.get_location_names())  # query
-
-        exp_target_names = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset',
-                            'Season peak percentage', 'Season peak week']
-        self.assertEqual(exp_target_names, sorted(self.project.get_target_names_for_location('US National')))
-        self.assertEqual(51.0, self.project.get_target_point_value('US National', 'Season onset'))
-        self.assertEqual(1.5, self.project.get_target_point_value('US National', 'Season peak percentage'))
-
-        act_bins = self.project.get_target_bins('US National', 'Season onset')
-        self.assertEqual(34, len(act_bins))
-
-        # spot-check bin boundaries
-        start_end_val_tuples = [(1.0, 2.0, 0.029411765),
-                                (20.0, 21.0, 0.029411765),
-                                (40.0, 41.0, 0.029411765),
-                                (52.0, 53.0, 0.029411765)]
-        for start_end_val_tuple in start_end_val_tuples:
-            self.assertIn(start_end_val_tuple, act_bins)
 
 
     def test_project_config_dict_validation(self):
@@ -227,9 +117,9 @@ class ProjectTestCase(TestCase):
 
     def test_get_num_rows(self):
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date='2017-01-02')
-        self.forecast_model.load_forecast(Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                          time_zero2)
-        self.assertEqual(self.project.get_num_rows(), 8019)  # template
+        load_cdc_csv_forecast_file(self.forecast_model,
+                                   Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+                                   time_zero2)
         self.assertEqual(self.project.get_num_forecast_rows(), 8019 * 2)
         self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts
 
@@ -239,7 +129,8 @@ class ProjectTestCase(TestCase):
         self.assertIsNotNone(self.project.score_csv_file_cache)
 
         # test CSV file gets created
-        self.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        self.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'),
+                                     'truths-2016-2017-reichlab.csv')
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score_for_model(self.forecast_model)
@@ -274,13 +165,13 @@ class ProjectTestCase(TestCase):
         make_cdc_locations_and_targets(project2)
 
         Target.objects.create(project=project2, name="1 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=1)
+                              is_step_ahead=True, step_ahead_increment=1, value_type=Target.FLOAT)
         Target.objects.create(project=project2, name="2 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3)
+                              is_step_ahead=True, step_ahead_increment=3, value_type=Target.FLOAT)
         Target.objects.create(project=project2, name="3 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3)
+                              is_step_ahead=True, step_ahead_increment=3, value_type=Target.FLOAT)
         Target.objects.create(project=project2, name="4 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=4)
+                              is_step_ahead=True, step_ahead_increment=4, value_type=Target.FLOAT)
 
         # 2015-01-01 <no season>  time_zero1    not within
         # 2015-02-01 <no season>  time_zero2    not within
@@ -358,9 +249,9 @@ class ProjectTestCase(TestCase):
 
         # test location_to_max_val()
         forecast_model = ForecastModel.objects.create(project=project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        forecast_model.load_forecast(Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                     time_zero3)
+        load_cdc_csv_forecast_file(forecast_model,
+                                   Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+                                   time_zero3)
         exp_location_to_max_val = {'HHS Region 1': 2.06145600601835, 'HHS Region 10': 2.89940153907353,
                                    'HHS Region 2': 4.99776594895244, 'HHS Region 3': 2.99944727598047,
                                    'HHS Region 4': 2.62168214634388, 'HHS Region 5': 2.19233072084465,
@@ -403,12 +294,12 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
 
         # no is_step_ahead, no step_ahead_increment: valid
-        target = Target.objects.create(project=project2, name="Test target", description="d")
+        target = Target.objects.create(project=project2, name="Test target", description="d", value_type=Target.FLOAT)
         self.assertFalse(target.is_step_ahead)
 
         # yes is_step_ahead, yes step_ahead_increment: valid
         target = Target.objects.create(project=project2, name="Test target", description="d",
-                                       is_step_ahead=True, step_ahead_increment=1)
+                                       is_step_ahead=True, step_ahead_increment=1, value_type=Target.FLOAT)
         self.assertTrue(target.is_step_ahead)
         self.assertEqual(1, target.step_ahead_increment)
 
@@ -421,14 +312,17 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
 
         # yes is_date, no is_step_ahead: valid
-        Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False)
+        Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False,
+                              value_type=Target.FLOAT)
 
         # no is_date, yes is_step_ahead: valid
-        Target.objects.create(project=project2, name="t", description="d", is_date=False, is_step_ahead=True)
+        Target.objects.create(project=project2, name="t", description="d", is_date=False, is_step_ahead=True,
+                              value_type=Target.FLOAT)
 
         # yes is_date, yes is_step_ahead: invalid
         with self.assertRaises(ValidationError) as context:
-            Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=True)
+            Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=True,
+                                  value_type=Target.FLOAT)
         self.assertIn('passed is_date and is_step_ahead', str(context.exception))
 
 
@@ -465,8 +359,8 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
+                                'truths-2017-2018-reichlab.csv')
         exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
@@ -607,7 +501,8 @@ class ProjectTestCase(TestCase):
         # we omit 20170108
 
         self.project.delete_truth_data()
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'),
+                                     'mean-abs-error-truths-dups.csv')
 
         exp_loc_target_tz_date_to_truth = {
             'HHS Region 1': {
@@ -673,8 +568,8 @@ class ProjectTestCase(TestCase):
                                 is_season_start=True, season_name='season2')
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 13))
 
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
+                                'truths-2017-2018-reichlab.csv')
 
         # test location_target_name_tz_date_to_truth() with above multiple seasons - done in this method b/c we've
         # set up some seasons :-)
@@ -697,8 +592,8 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
+                                'truths-2017-2018-reichlab.csv')
 
         # change '1 wk ahead' to '0 wk ahead' in Target and truth data. also tests that target names are not used
         # (ids or step_ahead_increment should be used)
@@ -747,30 +642,6 @@ class ProjectTestCase(TestCase):
 
     def test_timezeros_num_forecasts(self):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
-
-
-    def test_extract_locations_and_targets(self):
-        # case: pre-define Locations and Targets, load template, verify they're not changed
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_locations_and_targets(project2)
-        locations = list(project2.locations.all())
-        targets = list(project2.targets.all())
-        self.assertEqual(11, len(locations))
-        self.assertEqual(7, len(targets))
-
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
-        self.assertEqual(locations, list(project2.locations.all()))
-        self.assertEqual(targets, list(project2.targets.all()))
-
-        # case: no existing Locations and Targets, load template, verify they're created
-        project2.delete()
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        self.assertEqual(0, len(project2.locations.all()))
-        self.assertEqual(0, len(project2.targets.all()))
-
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
-        self.assertEqual(11, len(project2.locations.all()))
-        self.assertEqual(7, len(project2.targets.all()))
 
 
 # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns

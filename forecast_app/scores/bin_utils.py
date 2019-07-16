@@ -3,8 +3,7 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, ForecastData, TimeZero, Forecast, ForecastModel
-from forecast_app.models.data import ProjectTemplateData
+from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
 

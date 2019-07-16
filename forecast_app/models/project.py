@@ -2,9 +2,8 @@ import csv
 import datetime
 import io
 import logging
-import math
 from collections import defaultdict
-from itertools import groupby, product
+from itertools import groupby
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -13,7 +12,6 @@ from django.db.models import ManyToManyField, Max, BooleanField, IntegerField
 from django.urls import reverse
 from jsonfield import JSONField
 
-from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData, POSTGRES_NULL_VALUE
 from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
 
 
@@ -23,10 +21,12 @@ logger = logging.getLogger(__name__)
 # ---- Project class ----
 #
 
+POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files
+
 TRUTH_CSV_HEADER = ['timezero', 'location', 'target', 'value']
 
 
-class Project(ModelWithCDCData):
+class Project(models.Model):
     """
     The make_cdc_flu_contests_project_app class representing a forecast challenge, including metadata, core data, targets, and model entries.
     NB: The inherited 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
@@ -51,8 +51,6 @@ class Project(ModelWithCDCData):
                                              "in this project. Or: non-editing users who simply need access "
                                              "to a private project. Use control/command click to add/remove from "
                                              "the list. ")
-
-    cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
 
     name = models.TextField()
 
@@ -137,14 +135,6 @@ class Project(ModelWithCDCData):
         :return: view utility that returns a unique HTML id for this object. used by delete_modal_snippet.html
         """
         return self.__class__.__name__ + '_' + str(self.pk)
-
-
-    def locations_qs(self):  # concrete method
-        return self.locations
-
-
-    def targets_qs(self):  # concrete method
-        return self.targets
 
 
     #
@@ -471,8 +461,8 @@ class Project(ModelWithCDCData):
             truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
                                                  time_zero__timezero_date__lte=season_end_date)
 
-        location_pks_to_names = {location.id: location.name for location in self.locations_qs().all()}
-        target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
+        location_pks_to_names = {location.id: location.name for location in self.locations.all()}
+        target_pks_to_names = {target.id: target.name for target in self.targets.all()}
         for location_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
             if location_id not in location_pks_to_names:
                 continue
@@ -493,17 +483,13 @@ class Project(ModelWithCDCData):
 
 
     @transaction.atomic
-    def load_truth_data(self, truth_file_path_or_fp, file_name=None):
+    def load_truth_data(self, truth_file_path_or_fp, file_name):
         """
-        Similar to load_template(), loads the data in truth_file_path (see below for file format docs). Like
-        load_csv_data(), uses direct SQL for performance, using a fast Postgres-specific routine if connected to it.
-        Note that this method should be called after all TimeZeros are created b/c truth data is validated against
-        them. Notes:
+        Loads the data in truth_file_path (see below for file format docs). Like load_csv_data(), uses direct SQL for
+        performance, using a fast Postgres-specific routine if connected to it. Note that this method should be called
+        after all TimeZeros are created b/c truth data is validated against them. Notes:
 
-        - A template needs to be loaded b/c _load_truth_data_rows() validates truth data against template locations and
-          targets
         - TimeZeros "" b/c truth timezeros are validated against project ones
-        - Validates against the Project's template, which is therefore required to be set before this call.
         - One csv file/project, which includes timezeros across all seasons.
         - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
           formatted “yyyymmdd”. A header must be included.
@@ -523,12 +509,8 @@ class Project(ModelWithCDCData):
 
         :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
             combination, OR an already-open file-like object
-        :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
-            files have random template_path file names, so original ones must be extracted and passed separately
+        :param file_name: name to use for the file
         """
-        if not self.is_template_loaded():
-            raise RuntimeError("Template not loaded")
-
         if not self.pk:
             raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
 
@@ -595,8 +577,8 @@ class Project(ModelWithCDCData):
             raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
-        location_names_to_pks = {location.name: location.id for location in self.locations_qs().all()}
-        target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
+        location_names_to_pks = {location.name: location.id for location in self.locations.all()}
+        target_names_to_pks = {target.name: target.id for target in self.targets.all()}
         rows = []
         timezero_to_missing_count = defaultdict(int)  # to minimize warnings
         location_to_missing_count = defaultdict(int)
@@ -696,174 +678,6 @@ class Project(ModelWithCDCData):
         return loc_tz_date_to_actual_vals
 
 
-    #
-    # template and data-related functions
-    #
-
-    def is_template_loaded(self):
-        return self.csv_filename != ''
-
-
-    @transaction.atomic
-    def load_template(self, template_path_or_fp, file_name=None):
-        """
-        Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
-        Project's template.
-
-        :param template_path_or_fp: Path to a CDC CSV template file, OR an already-open file-like object
-        :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
-            files have random template_path file names, so original ones must be extracted and passed separately
-        """
-        self.csv_filename = file_name or template_path_or_fp.name
-        self.load_csv_data(template_path_or_fp, False)  # skip_zero_bins
-        self.validate_template_data()
-        self.save()
-
-
-    def delete_template(self):
-        """
-        Clears my csv_filename and deletes my template data.
-        """
-        self.csv_filename = ''
-        self.save()
-        ProjectTemplateData.objects.filter(project=self).delete()
-
-
-    def validate_forecast_data(self, forecast, validation_template=None, forecast_bin_map_fcn=None):
-        """
-        Validates forecast's data against my template. Raises if invalid.
-
-        :param forecast: a Forecast
-        :param validation_template: optional validation template (a Path) to override mine. useful in cases
-            (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
-        :param forecast_bin_map_fcn: a function of one arg (forecast_bin) that returns a modified version of the bin to use
-            in the validation against the template. forecast_bin is a 3-tuple: bin_start_incl, bin_end_notincl, value
-        """
-        if not self.is_template_loaded():
-            raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
-                               "forecast={}, csv_filename={}".format(self, forecast, forecast.csv_filename))
-
-        # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
-        # lookup b/c get_target_bins() was slow. this new approach has the added benefit of enabling us to easily
-        # override my template if validation_template is passed. however, to lookup Target.is_date, we must make a map
-        # from target_name to is_date
-        target_name_to_is_date = {target.name: target.is_date for target in
-                                  forecast.forecast_model.project.targets_qs().all()}
-        if validation_template:
-            template_location_dicts = self.get_loc_dicts_int_format_for_csv_file(validation_template)
-        else:
-            template_location_dicts = self.get_location_dicts_internal_format()
-        forecast_location_dicts = forecast.get_location_dicts_internal_format()
-        template_name = validation_template.name if validation_template else self.csv_filename
-        template_locations = list(template_location_dicts.keys())
-        forecast_locations = list(forecast_location_dicts.keys())
-        if template_locations != forecast_locations:
-            raise RuntimeError("Locations did not match template. csv_filename={}, template_locations={}, "
-                               "forecast_locations={}"
-                               .format(forecast.csv_filename, template_locations, forecast_locations))
-
-        for template_location in template_locations:
-            template_target_dicts = template_location_dicts[template_location]
-            forecast_target_dicts = forecast_location_dicts[template_location]
-            template_targets = list(template_target_dicts.keys())
-            forecast_targets = list(forecast_target_dicts.keys())
-            if template_targets != forecast_targets:
-                raise RuntimeError("Targets did not match template. csv_filename={}, template_location={},"
-                                   " template_targets={}, forecast_targets={}"
-                                   .format(forecast.csv_filename, template_location, template_targets,
-                                           forecast_targets))
-
-            for template_target in template_targets:
-                template_bins = template_target_dicts[template_target]['bins']
-                forecast_bins = forecast_target_dicts[template_target]['bins']
-                forecast_point_val = forecast_target_dicts[template_target]['point']
-                if forecast_bin_map_fcn:
-                    forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
-
-                if (not target_name_to_is_date[template_target]) and (forecast_point_val is None):
-                    # recall parse_value() returns None if non-numeric
-                    raise RuntimeError("Point value was non-numeric. csv_filename={}, template_location={}, "
-                                       "template_target={}"
-                                       .format(forecast.csv_filename, template_location, template_target))
-
-                # https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
-                template_bins_sorted = sorted([b[:2] for b in template_bins],
-                                              key=lambda x: (x[0] is None or x[1] is None, x))
-                forecast_bins_sorted = sorted([b[:2] for b in forecast_bins],
-                                              key=lambda x: (x[0] is None or x[1] is None, x))
-
-                # compare bins (bin_start_incl and bin_end_notincl). note that we test subsets and not lists b/c
-                # some forecasts do not generate bins with values of zero
-                if not (set(forecast_bins_sorted) <= set(template_bins_sorted)):
-                    raise RuntimeError("Bins did not match template. template={}, csv_filename={}, "
-                                       "template_location={}, template_target={}, # template_bins={}, "
-                                       "# forecast_bins={}, bin difference={}, forecast bins not in template={}, "
-                                       "template bins not in forecast={}"
-                                       .format(template_name, forecast.csv_filename, template_location, template_target,
-                                               len(template_bins), len(forecast_bins),
-                                               set(template_bins_sorted) ^ set(forecast_bins_sorted),
-                                               set(template_bins_sorted) - set(forecast_bins_sorted),
-                                               set(forecast_bins_sorted) - set(template_bins_sorted)))
-
-                # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
-                # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
-                # (0.9300285798758262 -> 0.07 fixed it)
-                forecast_bin_sum = sum([b[-1] if b[-1] is not None else 0 for b in forecast_bins])
-                if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):  # todo hard-coded magic number
-                    raise RuntimeError("Bin did not sum to 1.0. template={}, csv_filename={}, "
-                                       "template_location={}, template_target={}, forecast_bin_sum={}"
-                                       .format(template_name, forecast.csv_filename, template_location, template_target,
-                                               forecast_bin_sum))
-
-
-    def validate_template_data(self):
-        """
-        Validates my template's structure. Raises RuntimeError if any tests fail. Note that basic structure is tested in
-        load_csv_data(). Also note that validate_forecast_data() does not test the following because it compares against
-        a validated template, thus 'inheriting' these validations due to equality testing.
-        """
-        # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
-        # lookup b/c get_target_bins() was slow
-        template_location_dicts = self.get_location_dicts_internal_format()
-        template_locations = list(template_location_dicts.keys())
-        if not template_locations:
-            raise RuntimeError("Template has no locations. csv_filename={}".format(self.csv_filename))
-
-        location_template_pairs = set()  # 2-tuples used for testing targets existing in every location
-        found_targets = set()  # also used for ""
-        for template_location in template_locations:
-            template_target_dicts = template_location_dicts[template_location]
-            template_targets = list(template_target_dicts.keys())
-            for template_target in template_targets:
-                location_template_pairs.add((template_location, template_target))
-                found_targets.add(template_target)
-
-                # note that we do not have to test for a missing point value:
-                # 'template_target_dicts[template_target]['point']' b/c get_location_dicts_internal_format() verifies a point
-                # row exists, which is all we care about in templates.
-
-                # also note that we do not validate that template_bins sum to ~1.0 b/c specifying actual values in
-                # templates is not required, partly b/c there is no standard for what values to use. however, do note
-                # that validate_forecast_data() does check bin sums
-
-                template_bins = template_target_dicts[template_target]['bins']
-                if not template_bins:
-                    raise RuntimeError("Target has no bins. csv_filename={}, template_location={}, "
-                                       "template_target={}"
-                                       .format(self.csv_filename, template_location, template_target))
-
-        # test that every target exists in every location
-        expected_location_template_pairs = set(product(template_locations, found_targets))
-        if location_template_pairs != expected_location_template_pairs:
-            raise RuntimeError("Target(s) was not found in every location. csv_filename={}, "
-                               "missing location, target: {}"
-                               .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
-
-
-# NB: only works for abstract superclasses. via https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
-Project._meta.get_field('csv_filename').help_text = "CSV file name of this project's template file."
-
-
 #
 # ---- Location class ----
 #
@@ -908,6 +722,17 @@ class Target(models.Model):
                                                   "is True, is an integer specifing how many time steps "
                                                   "ahead the Target is. Can be negative, zero, or positive.",
                                         default=0)
+
+    # value_type determines which PointPrediction.value_* field is used for loading data from csv files
+    INTEGER = 0  # PointPrediction.value_i
+    FLOAT = 1  # PointPrediction.value_f
+    TEXT = 2  # PointPrediction.value_t
+    VALUE_TYPE_CHOICES = (
+        (INTEGER, 'INTEGER'),
+        (FLOAT, 'FLOAT'),
+        (TEXT, 'TEXT'),
+    )
+    value_type = models.IntegerField(choices=VALUE_TYPE_CHOICES)
 
 
     def __repr__(self):

@@ -80,12 +80,6 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     logger.info("- created {} TimeZeros: {}"
                 .format(len(time_zeros), sorted(time_zeros, key=lambda time_zero: time_zero.timezero_date)))
 
-    # load the template
-    template = Path('forecast_app/tests/2016-2017_submission_template-plus-bin-53.csv')
-    logger.info("* Loading template...: {}".format(template))
-    project.load_template(template)
-    logger.info("- Loaded template")
-
     # load the truth data
     truth_file_path = Path(truths_csv_file)
     logger.info("* Loading truth values: {}".format(truth_file_path))
@@ -155,7 +149,7 @@ def make_cdc_targets(project):
     """
     targets = []
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
-    for target_name, description, unit, is_date, is_step_ahead, step_ahead_increment in (
+    for target_name, description, unit, is_date, is_step_ahead, step_ahead_increment, value_type in (
             ('Season onset',
              "The onset of the season is defined as the MMWR surveillance week "
              "(http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like "
@@ -163,22 +157,22 @@ def make_cdc_targets(project):
              "(updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at "
              "http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values "
              "should be for the first week of that three week period.",
-             'week', True, False, 0),
+             'week', True, False, 0, Target.TEXT),
             ('Season peak week',
              "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the "
              "highest for the 2016-2017 influenza season.",
-             'week', True, False, 0),
+             'week', True, False, 0, Target.TEXT),
             ('Season peak percentage',
              "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches "
              "during the 2016-2017 influenza season.",
-             'percent', False, False, 0),
-            ('1 wk ahead', week_ahead_descr, 'percent', False, True, 1),
-            ('2 wk ahead', week_ahead_descr, 'percent', False, True, 2),
-            ('3 wk ahead', week_ahead_descr, 'percent', False, True, 3),
-            ('4 wk ahead', week_ahead_descr, 'percent', False, True, 4)):
+             'percent', False, False, 0, Target.FLOAT),
+            ('1 wk ahead', week_ahead_descr, 'percent', False, True, 1, Target.FLOAT),
+            ('2 wk ahead', week_ahead_descr, 'percent', False, True, 2, Target.FLOAT),
+            ('3 wk ahead', week_ahead_descr, 'percent', False, True, 3, Target.FLOAT),
+            ('4 wk ahead', week_ahead_descr, 'percent', False, True, 4, Target.FLOAT)):
         targets.append(Target.objects.create(project=project, name=target_name, description=description, unit=unit,
                                              is_date=is_date, is_step_ahead=is_step_ahead,
-                                             step_ahead_increment=step_ahead_increment))
+                                             step_ahead_increment=step_ahead_increment, value_type=value_type))
     return targets
 
 

@@ -130,9 +130,6 @@ def make_thai_moph_project(project_name, template_path):
     click.echo("  creating targets")
     create_thai_locations_and_targets(project)
 
-    click.echo("  loading template")
-    project.load_template(template_path)
-
     # done
     return project
 
@@ -151,26 +148,26 @@ def create_thai_locations_and_targets(project):
         Location.objects.create(project=project, name=location_name)
 
     targets = []
-    for target_name, description, is_step_ahead, step_ahead_increment in (
+    for target_name, description, step_ahead_increment in (
             ('1_biweek_ahead',
              'forecasted case counts for 1 biweek subsequent to the timezero biweek (1-step ahead forecast)',
-             True, 1),
+             1),
             ('2_biweek_ahead',
              'forecasted case counts for 2 biweeks subsequent to the timezero biweek (2-step ahead forecast)',
-             True, 2),
+             2),
             ('3_biweek_ahead',
              'forecasted case counts for 3 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
-             True, 3),
+             3),
             ('4_biweek_ahead',
              'forecasted case counts for 4 biweeks subsequent to the timezero biweek (4-step ahead forecast)',
-             True, 4),
+             4),
             ('5_biweek_ahead',
              'forecasted case counts for 5 biweeks subsequent to the timezero biweek (3-step ahead forecast)',
-             True, 5),
+             5),
     ):
         targets.append(Target.objects.create(project=project, name=target_name, description=description, unit='cases',
-                                             is_date=False, is_step_ahead=is_step_ahead,
-                                             step_ahead_increment=step_ahead_increment))
+                                             is_date=False, is_step_ahead=True,
+                                             step_ahead_increment=step_ahead_increment, value_type=Target.FLOAT))
 
 
 def make_model(project, model_owner, data_dir):

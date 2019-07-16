@@ -13,6 +13,7 @@ from rest_framework.test import APIClient
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
+from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
     CDC_CONFIG_DICT
 from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
@@ -45,10 +46,9 @@ class ViewsTestCase(TestCase):
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
         make_cdc_locations_and_targets(cls.public_project)
-        cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
-        cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
 
         cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 1),
                                                  data_version_date=None)
@@ -63,7 +63,6 @@ class ViewsTestCase(TestCase):
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
         make_cdc_locations_and_targets(cls.private_project)
-        cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.private_tz1 = TimeZero.objects.create(project=cls.private_project,
                                                   timezero_date=datetime.date(2017, 12, 3),
                                                   data_version_date=None)
@@ -82,13 +81,13 @@ class ViewsTestCase(TestCase):
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
                                                         description='', home_url='http://example.com',
                                                         owner=cls.mo_user)
-        cls.public_forecast = cls.public_model.load_forecast(cls.csv_file_path, cls.public_tz1)
+        cls.public_forecast = load_cdc_csv_forecast_file(cls.public_model, cls.csv_file_path, cls.public_tz1)
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          description='', home_url='http://example.com',
                                                          owner=cls.mo_user)
-        cls.private_forecast = cls.private_model.load_forecast(cls.csv_file_path, cls.private_tz1)
+        cls.private_forecast = load_cdc_csv_forecast_file(cls.private_model, cls.csv_file_path, cls.private_tz1)
 
         # user/response pairs for testing authorization
         cls.OK_ALL = [(None, status.HTTP_200_OK),
@@ -130,7 +129,7 @@ class ViewsTestCase(TestCase):
 
 
     @patch('forecast_app.models.forecast.Forecast.delete')  # 'delete-forecast'
-    @patch('forecast_app.models.forecast_model.ForecastModel.load_forecast')  # 'upload_forecast'
+    @patch('forecast_app.models.forecast_model.ForecastModel.load_forecast')  # 'upload_forecast'. todo xx
     # 'create-project' -> form
     # 'edit-project' -> form
     @patch('forecast_app.models.project.Project.delete')  # 'delete-project'
@@ -522,7 +521,7 @@ class ViewsTestCase(TestCase):
         self.authenticate_jwt_user(self.mo_user)
         self.assertEqual(1, self.private_model.forecasts.count())
 
-        private_forecast2 = self.private_model.load_forecast(self.csv_file_path, self.private_tz1)
+        private_forecast2 = load_cdc_csv_forecast_file(self.private_model, self.csv_file_path, self.private_tz1)
         private_forecast2_pk = private_forecast2.pk
         self.assertEqual(2, self.private_model.forecasts.count())
 

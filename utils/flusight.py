@@ -1,6 +1,6 @@
 from itertools import groupby
 
-from forecast_app.models import ForecastData, ForecastModel
+from forecast_app.models import ForecastModel
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 

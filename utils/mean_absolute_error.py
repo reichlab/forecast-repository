@@ -108,7 +108,7 @@ def _score_value_rows_for_season(project, season_name):
         raise RuntimeError('no score values for project')
 
     # rows are ordered so we can groupby()
-    # todo xx use meta for column names, e.g., self.cdc_data_class._meta.get_field('location').column
+    # todo xx use meta for column names
     sql_select = """
         SELECT sv.location_id, model.id, sv.target_id, avg(sv.value)
         FROM {scorevalue_table_name} as sv

@@ -36,19 +36,6 @@ def parse_value(value):
         return None
 
 
-# from https://stats.stackexchange.com/questions/25894/changing-the-scale-of-a-variable-to-0-100/95174
-def rescale(values, new_min=0, new_max=100):
-    try:
-        output = []
-        old_min, old_max = min(values), max(values)
-        for v in values:
-            new_v = (new_max - new_min) / (old_max - old_min) * (v - old_min) + new_min
-            output.append(new_v)
-        return output
-    except Exception as ex:
-        raise ValueError("invalid argument. values={}, exception='{}'".format(values, ex))
-
-
 #
 # *.cdc.csv file functions
 #
@@ -59,6 +46,9 @@ def rescale(values, new_min=0, new_max=100):
 # - '20161023-KoTstable-20161109.cdc.csv'
 # - '20170504-gam_lag1_tops3.cdc.csv'
 #
+
+CDC_POINT_ROW_TYPE = 'point'
+CDC_BIN_ROW_TYPE = 'bin'
 
 CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
 

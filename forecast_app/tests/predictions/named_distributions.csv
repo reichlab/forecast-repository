@@ -1,0 +1,10 @@
+location,target,family,param1,param2,param3
+US National,Season onset,norm,1.1,2.2,
+HHS Region 1,Season peak week,lnorm,3.3,4.4,
+HHS Region 2,Season peak percentage,gamma,5.5,6.6,
+HHS Region 3,1 wk ahead,beta,7.7,8.8,
+HHS Region 4,2 wk ahead,bern,9.9,,
+HHS Region 5,3 wk ahead,binom,10,11.11,
+HHS Region 6,4 wk ahead,pois,12.12,13.13,
+HHS Region 7,not-a-cdc-target,nbinom,14.14,15.15,
+HHS Region 8,Season peak week,nbinom2,16.16,17.17,

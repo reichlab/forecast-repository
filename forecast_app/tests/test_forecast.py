@@ -9,11 +9,11 @@ from django.test import TestCase
 
 from forecast_app.api_views import csv_response_for_model_with_cdc_data
 from forecast_app.models import Project, TimeZero
-from forecast_app.models.data import CDCData
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
+from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.utilities import rescale, CDC_CSV_HEADER
+from utils.utilities import rescale, CDC_CSV_HEADER, CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE
 
 
 class ForecastTestCase(TestCase):
@@ -25,18 +25,16 @@ class ForecastTestCase(TestCase):
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(cls.project)
-        cls.project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
-        cls.forecast = cls.forecast_model.load_forecast(
-            Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
+        cls.forecast = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
     def test_load_forecast_created_at_field(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
         forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
@@ -77,7 +75,6 @@ class ForecastTestCase(TestCase):
         # test load_forecast() with timezero not in the project
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
@@ -89,7 +86,6 @@ class ForecastTestCase(TestCase):
     def test_load_forecasts_from_dir(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
                                 data_version_date=None)
@@ -121,8 +117,8 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad-bin-subset-2017-01-17.csv'),
-                                              self.time_zero)
+            load_cdc_csv_forecast_file(self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad-bin-subset-2017-01-17.csv'), self.time_zero)
         self.assertIn("Bins did not match template", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
@@ -172,16 +168,16 @@ class ForecastTestCase(TestCase):
         self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 1.95984004521967e-05], data_rows[1])
 
         # test get_data_preview()
-        exp_preview = [['US National', 'Season onset', CDCData.POINT_ROW_TYPE, 'week', None, None, 50.0012056690978],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 40, 41, 1.95984004521967e-05],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 41, 42, 1.46988003391476e-05],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 42, 43, 6.98193016109509e-06],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 43, 44, 3.79719008761312e-06],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 44, 45, 4.28715009891804e-06],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 45, 46, 1.59237003674098e-05],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 46, 47, 3.0989970715036e-05],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 47, 48, 5.3895601243541e-05],
-                       ['US National', 'Season onset', CDCData.BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05]]
+        exp_preview = [['US National', 'Season onset', CDC_POINT_ROW_TYPE, 'week', None, None, 50.0012056690978],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 40, 41, 1.95984004521967e-05],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 41, 42, 1.46988003391476e-05],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 42, 43, 6.98193016109509e-06],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 43, 44, 3.79719008761312e-06],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 44, 45, 4.28715009891804e-06],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 45, 46, 1.59237003674098e-05],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 46, 47, 3.0989970715036e-05],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 47, 48, 5.3895601243541e-05],
+                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05]]
         self.assertEqual(exp_preview, self.forecast.get_data_preview())
 
         exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
@@ -228,7 +224,6 @@ class ForecastTestCase(TestCase):
     def test_get_location_dicts_download_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
@@ -250,7 +245,6 @@ class ForecastTestCase(TestCase):
     def test_get_location_dicts_internal_format_small_forecast(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
@@ -303,7 +297,6 @@ class ForecastTestCase(TestCase):
     def test_get_loc_dicts_int_format_for_csv_file(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
-        project2.load_template(Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv'))
         time_zero = TimeZero.objects.create(project=project2,
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
@@ -321,8 +314,8 @@ class ForecastTestCase(TestCase):
                                             data_version_date=None)
         self.assertEqual(None, self.forecast_model.forecast_for_time_zero(time_zero))
 
-        forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
-                                                      time_zero)
+        forecast2 = load_cdc_csv_forecast_file(self.forecast_model,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), time_zero)
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
@@ -337,50 +330,3 @@ class ForecastTestCase(TestCase):
         # relies on order, which is OK - see get_data_rows(): `order_by('id')`:
         self.assertEqual(split_content[1], 'US National,Season onset,point,week,,,50.0012056690978')
         self.assertEqual(split_content[2], 'US National,Season onset,bin,week,40.0,41.0,1.95984004521967e-05')
-
-
-    def test_sparkline_data(self):
-        with self.assertRaises(ValueError) as context:
-            rescale([])
-        self.assertIn('invalid argument', str(context.exception))
-
-        with self.assertRaises(ValueError) as context:
-            rescale([1])
-        self.assertIn('invalid argument', str(context.exception))
-
-        with self.assertRaises(ValueError) as context:
-            rescale([1, 1])
-        self.assertIn('invalid argument', str(context.exception))
-
-        self.assertEqual([0.0, 25.0, 50.0, 75.0, 100.0], rescale([1, 2, 3, 4, 5]))
-        self.assertEqual([0.0, 50.0, 100.0], rescale([-1, 0, 1]))
-
-        # values for EW1-KoTstable-2017-01-17.csv, 'US National', 'Season peak week'
-        values_from_db = [0.0000388312283001796, 0.0000432690829630572, 0.0000427143511301975, 0.0000482616694587946,
-                          0.0000366123009687408, 0.0000316197144730033, 0.0000249629324786868, 0.0000499258649573737,
-                          0.0000848739704275352, 0.000148113399373542, 0.000217454878481005, 0.000290124748585627,
-                          0.183889955515593, 0.000328955976885807, 0.0813603183066327, 0.113514362560564,
-                          0.0918622520724573, 0.0636838880421198, 0.0985233865781112, 0.104099128806362,
-                          0.0403122043568698, 0.0641961804893339, 0.0951013531890285, 0.025085879433318,
-                          0.0182445605042546, 0.0103074209280581, 0.00205822405270794, 0.0018802440369379,
-                          0.00102908781284421, 0.000848733083646314, 0.00133599391065648, 0.000699739274163662,
-                          0.000581366927856728]
-        rescaled_values_from_db = rescale(values_from_db)
-        rescaled_vals_from_xl = [0.00754265160901892, 0.00995630012390493, 0.00965459405954418, 0.01267165470315170,
-                                 0.00633582735157593, 0.00362047277232906, 0.00000000000000000, 0.01357677289623400,
-                                 0.03258425495096150, 0.06697874628808760, 0.10469200433318200, 0.14421549876444100,
-                                 100.00000000000000000, 0.16533492326969400, 44.23645536405590000, 61.72431088358680000,
-                                 49.94821898924800000, 34.62264578770470000, 53.57105899379260000, 56.60357875185930000,
-                                 21.91131702582250000, 34.90127003260140000, 51.70989263416820000, 13.63006418392060000,
-                                 9.90922595748613000, 5.59239573075953000, 1.10584461547792000, 1.00904532091423000,
-                                 0.54612075211197100, 0.44802990476572100, 0.71304001907005500, 0.36699555048792100,
-                                 0.30261551563521500]
-        rescaled_vals_from_forecast = self.forecast.rescaled_bin_for_loc_and_target('US National', 'Season peak week')
-
-        # double check that manually-computed rescale from Excel matches Python. use assertAlmostEqual() b/c
-        # self.assertEqual(rescaled_values_from_db, rescaled_vals_from_xl) fails (different precision b/w Excel and
-        # Python):
-        for v1, v2 in zip(rescaled_values_from_db, rescaled_vals_from_xl):
-            self.assertAlmostEqual(v1, v2)
-
-        self.assertEqual(rescaled_values_from_db, rescaled_vals_from_forecast)

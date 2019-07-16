@@ -32,12 +32,6 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/score_data', views.project_score_data, name='project-score-data'),
     url(r'^project/(?P<project_pk>\d+)/download_score_data', views.download_scores, name='download-scores'),
 
-    url(r'^project/(?P<project_pk>\d+)/template$', views.template_detail, name='template-data-detail'),
-    url(r'^project/(?P<project_pk>\d+)/template/delete$', views.delete_template, name='delete-template'),
-    url(r'^project/(?P<project_pk>\d+)/template/upload/$', views.upload_template, name='upload-template'),
-    url(r'^project/(?P<model_with_cdc_data_pk>\d+)/download', views.download_file_for_model_with_cdc_data,
-        {'type': 'project'}, name='download-template'),
-
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/truth/delete$', views.delete_truth, name='delete-truth'),
     url(r'^project/(?P<project_pk>\d+)/truth/upload/$', views.upload_truth, name='upload-truth'),

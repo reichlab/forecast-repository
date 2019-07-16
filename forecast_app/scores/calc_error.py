@@ -2,8 +2,6 @@ import logging
 from collections import defaultdict
 from itertools import groupby
 
-from forecast_app.models import ForecastData
-
 
 logger = logging.getLogger(__name__)
 

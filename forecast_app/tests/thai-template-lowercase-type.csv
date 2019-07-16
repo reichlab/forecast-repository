@@ -1,3 +1,0 @@
-location,target,type,unit,bin_start_incl,bin_end_notincl,value
-TH01,1_biweek_ahead,point,cases,NA,NA,NA
-TH01,1_biweek_ahead,bin,cases,0,1,NA

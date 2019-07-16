@@ -93,13 +93,6 @@ def fill_project(project, mo_user):
                             timezero_date=datetime.date(2017, 1, 24),
                             data_version_date=None)
 
-    # load the template
-    template_path = Path('forecast_app/tests/2016-2017_submission_template-single-bin-rows.csv')
-    click.echo("* loading template into project={}, template_path={}".format(project, template_path))
-    start_time = timeit.default_timer()
-    project.load_template(template_path)
-    click.echo("  loaded template: {}. {}".format(project.csv_filename, timeit.default_timer() - start_time))
-
     # load the truth data
     project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
 
