@@ -167,7 +167,8 @@ def create_thai_locations_and_targets(project):
     ):
         targets.append(Target.objects.create(project=project, name=target_name, description=description, unit='cases',
                                              is_date=False, is_step_ahead=True,
-                                             step_ahead_increment=step_ahead_increment, value_type=Target.FLOAT))
+                                             step_ahead_increment=step_ahead_increment,
+                                             point_value_type=Target.POINT_FLOAT))
 
 
 def make_model(project, model_owner, data_dir):

@@ -52,7 +52,8 @@ class MAETestCase(TestCase):
                                  '2 wk ahead': 0.458186984,
                                  '3 wk ahead': 0.950515864,
                                  '4 wk ahead': 1.482010693}
-        cls.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths.csv'))
+        cls.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths.csv'),
+                                    'mean-abs-error-truths.csv')
 
         # score needed for MAE calculation
         Score.ensure_all_scores_exist()

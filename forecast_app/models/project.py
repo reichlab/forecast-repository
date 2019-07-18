@@ -297,9 +297,14 @@ class Project(models.Model):
 
     def get_num_forecast_rows(self):
         """
-        :return: the total number of data rows across all my models' forecasts. can be expensive for large databases
+        :return: the total number of data rows across all my models' forecasts, for all types of Predictions. can be
+        expensive for large databases
         """
-        return ForecastData.objects.filter(forecast__forecast_model__project=self).count()
+        from forecast_app.models import Prediction  # avoid circular imports
+
+
+        return sum(concrete_prediction_class.objects.filter(forecast__forecast_model__project=self).count()
+                   for concrete_prediction_class in Prediction.concrete_subclasses())
 
 
     def get_num_forecast_rows_estimated(self):
@@ -318,20 +323,30 @@ class Project(models.Model):
 
     def location_to_max_val(self, season_name, targets):
         """
-        :return: a dict mapping each location_name to the maximum value across all my forecasts for season_name and
-            targets
+        :return: a dict mapping each location_name to the maximum point value across all my forecasts for season_name
+            and targets
         """
+        from forecast_app.models import PointPrediction  # avoid circular imports
+
+
+        # NB: we retrieve and max() only the two numeric value fields (value_i and value_f), excluding value_t (which
+        # has no meaningful max() semantics). a concern is that some targets in the results might have a
+        # point_value_type of POINT_INTEGER while others are POINT_FLOAT, but this shouldn't matter to our callers, who
+        # are simply trying to get the maximum across /all/ targets. I think.
         season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-        loc_max_val_qs = ForecastData.objects \
+        loc_max_val_qs = PointPrediction.objects \
             .filter(forecast__forecast_model__project=self,
-                    is_point_row=True,
                     target__in=targets,
                     forecast__time_zero__timezero_date__gte=season_start_date,
                     forecast__time_zero__timezero_date__lte=season_end_date) \
             .values('location__name') \
-            .annotate(max_val=Max('value'))
-        # [{'location__name': 'HHS Region 1', 'max_val': 2.06145600601835}, ...]
-        return {location_max_val['location__name']: location_max_val['max_val'] for location_max_val in loc_max_val_qs}
+            .annotate(Max('value_i'), Max('value_f'))  # values() -> annotate() is a GROUP BY
+        # [{'location__name': 'HHS Region 1', 'value_i__max': None, 'value_f__max': 2.06145600601835}, ...]
+
+        # https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python
+        return {loc_max_val_dict['location__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
+                                                                      loc_max_val_dict['value_f__max']]))
+                for loc_max_val_dict in loc_max_val_qs}
 
 
     #
@@ -723,20 +738,32 @@ class Target(models.Model):
                                                   "ahead the Target is. Can be negative, zero, or positive.",
                                         default=0)
 
-    # value_type determines which PointPrediction.value_* field is used for loading data from csv files
-    INTEGER = 0  # PointPrediction.value_i
-    FLOAT = 1  # PointPrediction.value_f
-    TEXT = 2  # PointPrediction.value_t
-    VALUE_TYPE_CHOICES = (
-        (INTEGER, 'INTEGER'),
-        (FLOAT, 'FLOAT'),
-        (TEXT, 'TEXT'),
+    # point_value_type determines which PointPrediction.value_* field is used for loading data from csv files
+    POINT_INTEGER = 0  # PointPrediction.value_i
+    POINT_FLOAT = 1  # PointPrediction.value_f
+    POINT_TEXT = 2  # PointPrediction.value_t
+    POINT_VALUE_TYPE_CHOICES = (
+        (POINT_INTEGER, 'INTEGER'),
+        (POINT_FLOAT, 'POINT_FLOAT'),
+        (POINT_TEXT, 'TEXT'),
     )
-    value_type = models.IntegerField(choices=VALUE_TYPE_CHOICES)
+    point_value_type = models.IntegerField(choices=POINT_VALUE_TYPE_CHOICES)
+
+    # these fields collectively indicate which prediction data types are allowed for this Target:
+    ok_point_prediction = BooleanField(default=False, help_text="True if allows PointPredictions")
+    ok_named_distribution = BooleanField(default=False, help_text="True if allows NamedDistribution")
+    ok_binlwr_distribution = BooleanField(default=False, help_text="True if allows BinLwrDistributions")
+    ok_sample_distribution = BooleanField(default=False, help_text="True if allows SampleDistributions")
+    ok_bincat_distribution = BooleanField(default=False, help_text="True if allows BinCatDistributions")
+    ok_samplecat_distribution = BooleanField(default=False, help_text="True if allows SampleCatDistributions")
+    ok_binary_distribution = BooleanField(default=False, help_text="True if allows BinaryDistributions")
 
 
     def __repr__(self):
-        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment))
+        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment, '.',
+                    self.ok_point_prediction, self.ok_named_distribution, self.ok_binlwr_distribution,
+                    self.ok_sample_distribution, self.ok_bincat_distribution, self.ok_samplecat_distribution,
+                    self.ok_binary_distribution))
 
 
     def __str__(self):  # todo

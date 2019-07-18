@@ -82,6 +82,19 @@ class PredictionsTestCase(TestCase):
             self.assertEqual(exp_usnat_points, act_usnat_points)
 
 
+    # this test makes sure the current set of concrete Prediction subclasses hasn't changed since the last time this
+    # test was updated. it's here as a kind of sanity check to catch the case where the Prediction class hierarchy has
+    # changed, but not code that depends on the seven (as of this writing) specific subclasses
+    def test_concrete_subclasses(self):
+        from forecast_app.models import Prediction
+
+
+        concrete_subclasses = Prediction.concrete_subclasses()
+        exp_subclasses = {'NamedDistribution', 'SampleDistribution', 'SampleCatDistribution', 'BinCatDistribution',
+                          'BinLwrDistribution', 'PointPrediction', 'BinaryDistribution'}
+        self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
+
+
     def test_load_named_distribution_csv_file(self):
         # NB: named_distributions.csv has the non-CDC target 'not-a-cdc-target', which does *not* cause an error when
         # loading b/c all dispatched-to _load_*() methods call _create_missing_locations_and_targets_rows()
@@ -213,7 +226,7 @@ class PredictionsTestCase(TestCase):
 
 
     def test_forecast_prediction_accessors(self):
-        # load all 7 types of files, call Forecast.*_qs() functions
+        # load all 7 types of Predictions, call Forecast.*_qs() functions
         prediction_file_names = [  # in 'forecast_app/tests/predictions'
             'exp-points.csv',
             'named_distributions.csv',

@@ -33,6 +33,23 @@ class Prediction(models.Model):
         return basic_str(self)
 
 
+    @classmethod
+    def concrete_subclasses(cls):
+        """
+        Utility that returns a set of Prediction subclasses where Meta.abstract is not True.
+        """
+
+
+        # https://stackoverflow.com/questions/3862310/how-to-find-all-the-subclasses-of-a-class-given-its-name
+        def all_subclasses(cls):
+            return set(cls.__subclasses__()).union(
+                [s for c in cls.__subclasses__() for s in all_subclasses(c)])
+
+
+        # https://stackoverflow.com/questions/1772841/django-how-to-determine-if-model-class-is-abstract
+        return {subclass for subclass in (all_subclasses(cls)) if not subclass._meta.abstract}
+
+
 #
 # ---- PointPrediction ----
 #
@@ -40,8 +57,8 @@ class Prediction(models.Model):
 class PointPrediction(Prediction):
     """
     Concrete class representing point predictions. Note that point values can be integers, floats, or text, depending on
-    the Target associated with the prediction. We chose to implement this as a sparse table where two of the three
-    columns is NULL in every row.
+    the Target.point_value_type associated with the prediction. We chose to implement this as a sparse table where two
+    of the three columns is NULL in every row.
     """
 
     value_i = models.IntegerField(null=True)

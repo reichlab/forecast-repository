@@ -160,18 +160,22 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows(), self.project.row_count_cache.row_count)
 
 
+    def test_summary_counts(self):
+        self.assertEqual((1, 1, 8019), self.project.get_summary_counts())  # num_models, num_forecasts, num_rows
+
+
     def test_timezero_seasons(self):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
         make_cdc_locations_and_targets(project2)
 
         Target.objects.create(project=project2, name="1 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=1, value_type=Target.FLOAT)
+                              is_step_ahead=True, step_ahead_increment=1, point_value_type=Target.POINT_FLOAT)
         Target.objects.create(project=project2, name="2 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3, value_type=Target.FLOAT)
+                              is_step_ahead=True, step_ahead_increment=3, point_value_type=Target.POINT_FLOAT)
         Target.objects.create(project=project2, name="3 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3, value_type=Target.FLOAT)
+                              is_step_ahead=True, step_ahead_increment=3, point_value_type=Target.POINT_FLOAT)
         Target.objects.create(project=project2, name="4 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=4, value_type=Target.FLOAT)
+                              is_step_ahead=True, step_ahead_increment=4, point_value_type=Target.POINT_FLOAT)
 
         # 2015-01-01 <no season>  time_zero1    not within
         # 2015-02-01 <no season>  time_zero2    not within
@@ -294,12 +298,13 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
 
         # no is_step_ahead, no step_ahead_increment: valid
-        target = Target.objects.create(project=project2, name="Test target", description="d", value_type=Target.FLOAT)
+        target = Target.objects.create(project=project2, name="Test target", description="d",
+                                       point_value_type=Target.POINT_FLOAT)
         self.assertFalse(target.is_step_ahead)
 
         # yes is_step_ahead, yes step_ahead_increment: valid
         target = Target.objects.create(project=project2, name="Test target", description="d",
-                                       is_step_ahead=True, step_ahead_increment=1, value_type=Target.FLOAT)
+                                       is_step_ahead=True, step_ahead_increment=1, point_value_type=Target.POINT_FLOAT)
         self.assertTrue(target.is_step_ahead)
         self.assertEqual(1, target.step_ahead_increment)
 
@@ -313,16 +318,16 @@ class ProjectTestCase(TestCase):
 
         # yes is_date, no is_step_ahead: valid
         Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False,
-                              value_type=Target.FLOAT)
+                              point_value_type=Target.POINT_FLOAT)
 
         # no is_date, yes is_step_ahead: valid
         Target.objects.create(project=project2, name="t", description="d", is_date=False, is_step_ahead=True,
-                              value_type=Target.FLOAT)
+                              point_value_type=Target.POINT_FLOAT)
 
         # yes is_date, yes is_step_ahead: invalid
         with self.assertRaises(ValidationError) as context:
             Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=True,
-                                  value_type=Target.FLOAT)
+                                  point_value_type=Target.POINT_FLOAT)
         self.assertIn('passed is_date and is_step_ahead', str(context.exception))
 
 

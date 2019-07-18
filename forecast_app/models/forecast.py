@@ -78,38 +78,63 @@ class Forecast(models.Model):
     # prediction-specific accessors
     #
 
+    def get_num_rows(self):
+        """
+        :return: the total of number of data rows in me, for all types of Predictions
+        """
+        from forecast_app.models import Prediction  # avoid circular imports
+
+
+        return sum(concrete_prediction_class.objects.filter(forecast=self).count()
+                   for concrete_prediction_class in Prediction.concrete_subclasses())
+
+
     def point_prediction_qs(self):
         from forecast_app.models import PointPrediction
+
+
         return self._predictions_qs(PointPrediction)
 
 
     def named_distribution_qs(self):
         from forecast_app.models import NamedDistribution
+
+
         return self._predictions_qs(NamedDistribution)
 
 
     def binlwr_distribution_qs(self):
         from forecast_app.models import BinLwrDistribution
+
+
         return self._predictions_qs(BinLwrDistribution)
 
 
     def sample_distribution_qs(self):
         from forecast_app.models import SampleDistribution
+
+
         return self._predictions_qs(SampleDistribution)
 
 
     def bincat_distribution_qs(self):
         from forecast_app.models import BinCatDistribution
+
+
         return self._predictions_qs(BinCatDistribution)
 
 
     def samplecat_distribution_qs(self):
         from forecast_app.models import SampleCatDistribution
+
+
         return self._predictions_qs(SampleCatDistribution)
 
 
     def binary_distribution_qs(self):
         from forecast_app.models import BinaryDistribution
+
+
         return self._predictions_qs(BinaryDistribution)
 
 
@@ -441,7 +466,7 @@ class Forecast(models.Model):
         for target_name in target_names:
             if target_name not in target_name_to_pk:
                 target_name_to_pk[target_name] = Target.objects.create(project=project, name=target_name,
-                                                                       value_type=Target.FLOAT).pk  # todo value_type?
+                                                                       point_value_type=Target.POINT_FLOAT).pk  # todo point_value_type?
 
         for row in rows:  # location_name, target_name, value, self_pk
             row[0] = location_name_to_pk[row[0]]
@@ -457,13 +482,14 @@ class Forecast(models.Model):
         from forecast_app.models import Target  # avoid circular imports
 
 
-        target_pk_to_value_type = {target.pk: target.value_type for target in self.forecast_model.project.targets.all()}
+        target_pk_to_point_value_type = {target.pk: target.point_value_type for target in
+                                         self.forecast_model.project.targets.all()}
         for row in rows:
             target_pk = row[1]
             value = row[2]
-            value_i = parse_value(value) if target_pk_to_value_type[target_pk] == Target.INTEGER else None
-            value_f = parse_value(value) if target_pk_to_value_type[target_pk] == Target.FLOAT else None
-            value_t = value if target_pk_to_value_type[target_pk] == Target.TEXT else None
+            value_i = parse_value(value) if target_pk_to_point_value_type[target_pk] == Target.POINT_INTEGER else None
+            value_f = parse_value(value) if target_pk_to_point_value_type[target_pk] == Target.POINT_FLOAT else None
+            value_t = value if target_pk_to_point_value_type[target_pk] == Target.POINT_TEXT else None
             row[2:] = [value_i, value_f, value_t]
 
 

@@ -98,7 +98,7 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
 
     # load the forecasts
     click.echo("* Loading forecasts")
-    model_name_to_forecasts = load_forecasts(project, model_dirs_to_load, template)
+    model_name_to_forecasts = load_forecasts(project, model_dirs_to_load)
     click.echo("- Loading forecasts: loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     # done!
@@ -148,8 +148,28 @@ def make_cdc_targets(project):
     Creates CDC standard Targets for project. Returns a list of them.
     """
     targets = []
+    week_ahead_ok_types = {  # makes it convenient to pass all in as a unit
+        'ok_point_prediction': True,
+        'ok_named_distribution': True,
+        'ok_binlwr_distribution': True,
+        'ok_sample_distribution': True,
+        # 'ok_bincat_distribution': False,
+        # 'ok_samplecat_distribution': False,
+        # 'ok_binary_distribution': False,
+    }
+    season_onset_ok_types = {
+        # 'ok_point_prediction': False,
+        # 'ok_named_distribution': False,
+        # 'ok_binlwr_distribution': False,
+        # 'ok_sample_distribution': False,
+        'ok_bincat_distribution': True,
+        'ok_samplecat_distribution': True,
+        'ok_binary_distribution': True,
+    }
+
     week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
-    for target_name, description, unit, is_date, is_step_ahead, step_ahead_increment, value_type in (
+    for target_name, description, unit, is_date, is_step_ahead, step_ahead_increment, point_value_type, is_week_ahead_ok_type \
+            in (
             ('Season onset',
              "The onset of the season is defined as the MMWR surveillance week "
              "(http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like "
@@ -157,22 +177,24 @@ def make_cdc_targets(project):
              "(updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at "
              "http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values "
              "should be for the first week of that three week period.",
-             'week', True, False, 0, Target.TEXT),
+             'week', True, False, 0, Target.POINT_TEXT, False),
             ('Season peak week',
              "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the "
              "highest for the 2016-2017 influenza season.",
-             'week', True, False, 0, Target.TEXT),
+             'week', True, False, 0, Target.POINT_TEXT, True),
             ('Season peak percentage',
              "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches "
              "during the 2016-2017 influenza season.",
-             'percent', False, False, 0, Target.FLOAT),
-            ('1 wk ahead', week_ahead_descr, 'percent', False, True, 1, Target.FLOAT),
-            ('2 wk ahead', week_ahead_descr, 'percent', False, True, 2, Target.FLOAT),
-            ('3 wk ahead', week_ahead_descr, 'percent', False, True, 3, Target.FLOAT),
-            ('4 wk ahead', week_ahead_descr, 'percent', False, True, 4, Target.FLOAT)):
+             'percent', False, False, 0, Target.POINT_FLOAT, True),
+            ('1 wk ahead', week_ahead_descr, 'percent', False, True, 1, Target.POINT_FLOAT, True),
+            ('2 wk ahead', week_ahead_descr, 'percent', False, True, 2, Target.POINT_FLOAT, True),
+            ('3 wk ahead', week_ahead_descr, 'percent', False, True, 3, Target.POINT_FLOAT, True),
+            ('4 wk ahead', week_ahead_descr, 'percent', False, True, 4, Target.POINT_FLOAT, True)):
+        ok_types_dict = week_ahead_ok_types if is_week_ahead_ok_type else season_onset_ok_types
         targets.append(Target.objects.create(project=project, name=target_name, description=description, unit=unit,
                                              is_date=is_date, is_step_ahead=is_step_ahead,
-                                             step_ahead_increment=step_ahead_increment, value_type=value_type))
+                                             step_ahead_increment=step_ahead_increment,
+                                             point_value_type=point_value_type, **ok_types_dict))
     return targets
 
 
@@ -187,13 +209,15 @@ def make_timezeros(project, model_dirs):
     for model_dir in model_dirs:
         for cdc_csv_file, timezero_date, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
             if not is_cdc_file_ew43_through_ew18(cdc_csv_file):
-                logger.info("s (not in range)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+                logger.info(
+                    "s (not in range)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
                 continue
 
             # NB: we skip existing TimeZeros in case we are loading new forecasts
             found_time_zero = project.time_zero_for_timezero_date(timezero_date)
             if found_time_zero:
-                logger.info("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+                logger.info(
+                    "s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
                 continue
 
             season_start_year = season_start_year_for_date(timezero_date)
@@ -243,10 +267,10 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
 
         # build description
         description_template_str = """<em>Team name</em>: {{ team_name }}.
-        <em>Team members</em>: {{ team_members }}.
-        <em>Data source(s)</em>: {% if data_source1 %}{{ data_source1 }}{% if data_source2 %}, {{ data_source2 }}{% endif %}{% else %}None specified{% endif %}.
-        <em>Methods</em>: {{ methods }}
-        """
+    <em>Team members</em>: {{ team_members }}.
+    <em>Data source(s)</em>: {% if data_source1 %}{{ data_source1 }}{% if data_source2 %}, {{ data_source2 }}{% endif %}{% else %}None specified{% endif %}.
+    <em>Methods</em>: {{ methods }}
+    """
         description_template = Template(description_template_str)
         description = description_template.render(
             Context({'team_name': team_name,
@@ -258,15 +282,16 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
         home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models' \
                    + '/' + model_dir.name
         forecast_model = ForecastModel.objects.create(owner=model_owner, project=project, name=model_name,
-                                                      team_name=team_name, description=description, home_url=home_url)
+                                                      team_name=team_name, description=description,
+                                                      home_url=home_url)
         models.append(forecast_model)
     return models
 
 
-def load_forecasts(project, model_dirs_to_load, template):
+def load_forecasts(project, model_dirs_to_load):
     """
     Loads forecast data for models in model_dirs_to_load. Assumes model names in each directory's metadata.txt matches
-    those in project, as done by make_cdc_flusight_ensemble_models(). see above note re: the two templates.
+    those in project, as done by make_cdc_flusight_ensemble_models().
 
     :return model_name_to_forecasts, which maps model_name -> list of its Forecasts
     """

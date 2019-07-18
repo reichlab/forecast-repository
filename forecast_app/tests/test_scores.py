@@ -367,7 +367,7 @@ class ScoresTestCase(TestCase):
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero2)
 
-        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
 
         # test the scores - only ones with truth are created. see log-score-multi-bin-hand-calc.xlsx for how expected
         # values were verified
@@ -724,7 +724,8 @@ def _make_cdc_log_score_project():
     make_cdc_locations_and_targets(project2)
 
     time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
-    project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
+    project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'),
+                             'truths-2016-2017-reichlab-small.csv')
 
     forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
     forecast2 = load_cdc_csv_forecast_file(forecast_model2,
