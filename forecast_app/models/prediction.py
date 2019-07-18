@@ -51,28 +51,57 @@ class Prediction(models.Model):
 
 
 #
-# ---- PointPrediction ----
+# ---- EmpiricalDistribution ----
 #
 
-class PointPrediction(Prediction):
+class EmpiricalDistribution(Prediction):
     """
-    Concrete class representing point predictions. Note that point values can be integers, floats, or text, depending on
-    the Target.point_value_type associated with the prediction. We chose to implement this as a sparse table where two
-    of the three columns is NULL in every row.
+    Abstract base class representing empirical distributions like bins and samples. This class has no instance
+    variables.
     """
 
-    value_i = models.IntegerField(null=True)
-    value_f = models.FloatField(null=True)
-    value_t = models.TextField(null=True)
+
+    class Meta:
+        abstract = True
 
 
-    def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk,
-                    self.value_i, self.value_f, self.value_t))
+#
+# ---- BinCatDistribution ----
+#
+
+class BinCatDistribution(EmpiricalDistribution):
+    """
+    Concrete class representing binned distribution with a category for each bin.
+    """
+
+    cat = models.TextField()
+    prob = models.FloatField()
 
 
-    def __str__(self):  # todo
-        return basic_str(self)
+#
+# ---- BinLwrDistribution ----
+#
+
+class BinLwrDistribution(EmpiricalDistribution):
+    """
+    Concrete class representing binned distribution defined by inclusive lower bounds for each bin.
+    """
+
+    lwr = models.FloatField()
+    prob = models.FloatField()
+
+
+#
+# ---- BinaryDistribution ----
+#
+
+class BinaryDistribution(EmpiricalDistribution):
+    """
+    Concrete class representing binary distributions.
+    Validation: The arg cannot be null.
+    """
+
+    prob = models.FloatField()
 
 
 #
@@ -178,31 +207,28 @@ def calc_named_distribution(abbreviation, param1, param2, param3):
 
 
 #
-# ---- EmpiricalDistribution ----
+# ---- PointPrediction ----
 #
 
-class EmpiricalDistribution(Prediction):
+class PointPrediction(Prediction):
     """
-    Abstract base class representing empirical distributions like bins and samples. This class has no instance
-    variables.
-    """
-
-
-    class Meta:
-        abstract = True
-
-
-#
-# ---- BinLwrDistribution ----
-#
-
-class BinLwrDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing binned distribution defined by inclusive lower bounds for each bin.
+    Concrete class representing point predictions. Note that point values can be integers, floats, or text, depending on
+    the Target.point_value_type associated with the prediction. We chose to implement this as a sparse table where two
+    of the three columns is NULL in every row.
     """
 
-    lwr = models.FloatField()
-    prob = models.FloatField()
+    value_i = models.IntegerField(null=True)
+    value_f = models.FloatField(null=True)
+    value_t = models.TextField(null=True)
+
+
+    def __repr__(self):
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk,
+                    self.value_i, self.value_f, self.value_t))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 #
@@ -218,19 +244,6 @@ class SampleDistribution(EmpiricalDistribution):
 
 
 #
-# ---- BinCatDistribution ----
-#
-
-class BinCatDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing binned distribution with a category for each bin.
-    """
-
-    cat = models.TextField()
-    prob = models.FloatField()
-
-
-#
 # ---- SampleCatDistribution ----
 #
 
@@ -241,16 +254,3 @@ class SampleCatDistribution(EmpiricalDistribution):
 
     cat = models.TextField()
     sample = models.TextField()
-
-
-#
-# ---- BinaryDistribution ----
-#
-
-class BinaryDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing binary distributions.
-    Validation: The arg cannot be null.
-    """
-
-    prob = models.FloatField()

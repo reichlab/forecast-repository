@@ -301,13 +301,6 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, False),
                      (self.superuser, True)],
             },
-            # template data detail - public_project (has template and truth)
-            reverse('template-data-detail', args=[str(self.public_project.pk)]): {
-                reverse('delete-template', args=[str(self.public_project.pk)]):
-                    [(self.po_user, True),
-                     (self.mo_user, False),
-                     (self.superuser, True)],
-            },
             reverse('truth-data-detail', args=[str(self.public_project.pk)]): {
                 reverse('delete-truth', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
