@@ -190,7 +190,7 @@ class Project(models.Model):
         if season_name:
             season_tz = season_timezeros_qs.filter(season_name=season_name).first()
             if not season_tz:
-                raise RuntimeError("Invalid season_name. season_name={}, seasons={}"
+                raise RuntimeError("invalid season_name. season_name={}, seasons={}"
                                    .format(season_name, self.seasons()))
 
             season_timezeros_qs = season_timezeros_qs.filter(timezero_date__gte=season_tz.timezero_date)
@@ -527,7 +527,7 @@ class Project(models.Model):
         :param file_name: name to use for the file
         """
         if not self.pk:
-            raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
+            raise RuntimeError("instance is not saved the the database, so can't insert data: {!r}".format(self))
 
         self.delete_truth_data()
 
@@ -584,7 +584,7 @@ class Project(models.Model):
         try:
             orig_header = next(csv_reader)
         except StopIteration:
-            raise RuntimeError("Empty file")
+            raise RuntimeError("empty file")
 
         header = orig_header
         header = [h.lower() for h in [i.replace('"', '') for i in header]]

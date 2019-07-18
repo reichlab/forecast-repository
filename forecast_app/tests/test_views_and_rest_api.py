@@ -296,10 +296,6 @@ class ViewsTestCase(TestCase):
             },
             # project detail - public_project2 (no template or truth)
             reverse('project-detail', args=[str(self.public_project2.pk)]): {
-                reverse('upload-template', args=[str(self.public_project2.pk)]):  # no template -> upload link
-                    [(self.po_user, True),
-                     (self.mo_user, False),
-                     (self.superuser, True)],
                 reverse('upload-truth', args=[str(self.public_project2.pk)]):  # no truth -> upload link
                     [(self.po_user, True),
                      (self.mo_user, False),

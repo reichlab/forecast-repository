@@ -34,20 +34,21 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     # cache truth values: [location_name][target_name][timezero_date]:
     tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
 
-    # get predicted point values. NB: b/c PointPrediction has three value types (only one of which is non-None), we
-    # will get an error below when predicted_value is text (Target.POINT_TEXT)
+    # get predicted point values. NB: b/c PointPrediction has three value types (only one of which is non-None), we will
+    # get an error below when predicted_value is text (Target.POINT_TEXT). NB: we retrieve and max() only the two
+    # numeric value fields (value_i and value_f), excluding value_t (which has no meaningful numeric semantics)
     forecast_point_predictions_qs = PointPrediction.objects \
         .filter(target__in=targets,
                 forecast__forecast_model=forecast_model) \
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
-                     'value_i', 'value_f', 'value_t')  # only one of value_* is non-None
+                     'value_i', 'value_f')  # only one of value_* is non-None
 
     # calculate scores for all combinations of location and target. keep a list of errors so we don't log thousands of
     # duplicate messages. dict format: {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
     forec_tz_loc_targ_pk_to_error_str = {}
-    for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value_i, predicted_value_f, predicted_value_t \
+    for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value_i, predicted_value_f \
             in forecast_point_predictions_qs:
-        predicted_value = predicted_value_i or predicted_value_f or predicted_value_t
+        predicted_value = predicted_value_i or predicted_value_f
         true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals,
                                                    timezero_pk, location_pk, target_pk)
         if error_string:

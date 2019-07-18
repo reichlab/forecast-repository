@@ -124,6 +124,20 @@ class NamedDistribution(Prediction):
     param2 = models.FloatField(null=True)  # second
     param3 = models.FloatField(null=True)  # third
 
+    # maps named distribution abbreviations to their FAMILY_CHOICES value. note that csv files use abbreviations for the
+    # 'family' column
+    FAMILY_ABBREVIATION_TO_FAMILY_ID = {
+        'norm': NORM_DIST,
+        'lnorm': LNORM_DIST,
+        'gamma': GAMMA_DIST,
+        'beta': BETA_DIST,
+        'bern': BERN_DIST,
+        'binom': BINOM_DIST,
+        'pois': POIS_DIST,
+        'nbinom': NBINOM_DIST,
+        'nbinom2': NBINOM2_DIST,
+    }
+
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk,
@@ -134,29 +148,14 @@ class NamedDistribution(Prediction):
         return basic_str(self)
 
 
-# maps named distribution abbreviations to their FAMILY_CHOICES value. note that csv files use abbreviations for the
-# 'family' column
-FAMILY_ABBREVIATION_TO_FAMILY_ID = {
-    'norm': NamedDistribution.NORM_DIST,
-    'lnorm': NamedDistribution.LNORM_DIST,
-    'gamma': NamedDistribution.GAMMA_DIST,
-    'beta': NamedDistribution.BETA_DIST,
-    'bern': NamedDistribution.BERN_DIST,
-    'binom': NamedDistribution.BINOM_DIST,
-    'pois': NamedDistribution.POIS_DIST,
-    'nbinom': NamedDistribution.NBINOM_DIST,
-    'nbinom2': NamedDistribution.NBINOM2_DIST,
-}
-
-
 def calc_named_distribution(abbreviation, param1, param2, param3):
     """
     Does the actual NamedDistribution function calculation based on abbreviation and the passed parameters.
-    abbreviation must be a FAMILY_DEFINITIONS key.
+    abbreviation must be a FAMILY_DEFINI4TIONS key.
     """
-    if abbreviation not in FAMILY_ABBREVIATION_TO_FAMILY_ID:
-        raise RuntimeError(f"Invalid abbreviation '{abbreviation}' - wasn't one of: "
-                           f"{FAMILY_ABBREVIATION_TO_FAMILY_ID.keys()}")
+    if abbreviation not in NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID:
+        raise RuntimeError(f"invalid abbreviation '{abbreviation}' - wasn't one of: "
+                           f"{NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID.keys()}")
 
     if abbreviation == 'norm':
         raise NotImplementedError()  # todo xx

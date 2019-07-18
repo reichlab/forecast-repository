@@ -233,7 +233,7 @@ class ProjectTestCase(TestCase):
         # test timezeros_in_season()
         with self.assertRaises(RuntimeError) as context:
             project2.timezeros_in_season('not a valid season')
-        self.assertIn('Invalid season_name', str(context.exception))
+        self.assertIn('invalid season_name', str(context.exception))
 
         self.assertEqual([time_zero3, time_zero4], project2.timezeros_in_season('season1'))
         self.assertEqual([time_zero5], project2.timezeros_in_season('season2'))

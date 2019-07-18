@@ -905,7 +905,7 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
     elif kwargs['type'] == 'forecast':
         model_with_cdc_data_class = Forecast
     else:
-        raise RuntimeError("Invalid kwargs: {}".format(kwargs))
+        raise RuntimeError("invalid kwargs: {}".format(kwargs))
 
     model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
     project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project

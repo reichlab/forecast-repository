@@ -66,7 +66,7 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
         forecast_model = make_model(project, mo_user, data_dir)
         click.echo("* created model: {}".format(forecast_model))
     elif not project:  # not make_project, but couldn't find existing
-        raise RuntimeError("Could not find existing project named '{}'".format(THAI_PROJECT_NAME))
+        raise RuntimeError("could not find existing project named '{}'".format(THAI_PROJECT_NAME))
 
     # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts. for is_season_start and
     # season_name we use year transitions: the first 2017 we encounter -> start of that year, etc.

@@ -13,7 +13,7 @@ from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.utilities import rescale, CDC_CSV_HEADER, CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE
+from utils.utilities import CDC_CSV_HEADER, CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE
 
 
 class ForecastTestCase(TestCase):

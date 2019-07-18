@@ -306,7 +306,7 @@ def load_forecasts(project, model_dirs_to_load):
         model_name = metadata_dict['model_name']
         forecast_model = project.models.filter(name=model_name).first()
         if not forecast_model:
-            raise RuntimeError("Couldn't find model named '{}' in project {}".format(model_name, project))
+            raise RuntimeError("couldn't find model named '{}' in project {}".format(model_name, project))
 
 
         def forecast_bin_map_fcn(forecast_bin):

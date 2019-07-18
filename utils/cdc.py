@@ -164,9 +164,9 @@ def read_cdc_csv_file_rows(cdc_csv_file_fp):
     try:
         orig_header = next(csv_reader)
     except StopIteration:  # a kind of Exception, so much come first
-        raise RuntimeError("Empty file.")
+        raise RuntimeError("empty file.")
     except Exception as exc:
-        raise RuntimeError("Error reading from cdc_csv_file_fp={}. exc={}".format(cdc_csv_file_fp, exc))
+        raise RuntimeError("error reading from cdc_csv_file_fp={}. exc={}".format(cdc_csv_file_fp, exc))
 
     header = orig_header
     if (len(header) == 8) and (header[7] == ''):

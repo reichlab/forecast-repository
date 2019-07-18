@@ -89,18 +89,11 @@ class Forecast(models.Model):
                    for concrete_prediction_class in Prediction.concrete_subclasses())
 
 
-    def point_prediction_qs(self):
-        from forecast_app.models import PointPrediction
+    def bincat_distribution_qs(self):
+        from forecast_app.models import BinCatDistribution
 
 
-        return self._predictions_qs(PointPrediction)
-
-
-    def named_distribution_qs(self):
-        from forecast_app.models import NamedDistribution
-
-
-        return self._predictions_qs(NamedDistribution)
+        return self._predictions_qs(BinCatDistribution)
 
 
     def binlwr_distribution_qs(self):
@@ -110,6 +103,27 @@ class Forecast(models.Model):
         return self._predictions_qs(BinLwrDistribution)
 
 
+    def binary_distribution_qs(self):
+        from forecast_app.models import BinaryDistribution
+
+
+        return self._predictions_qs(BinaryDistribution)
+
+
+    def named_distribution_qs(self):
+        from forecast_app.models import NamedDistribution
+
+
+        return self._predictions_qs(NamedDistribution)
+
+
+    def point_prediction_qs(self):
+        from forecast_app.models import PointPrediction
+
+
+        return self._predictions_qs(PointPrediction)
+
+
     def sample_distribution_qs(self):
         from forecast_app.models import SampleDistribution
 
@@ -117,25 +131,11 @@ class Forecast(models.Model):
         return self._predictions_qs(SampleDistribution)
 
 
-    def bincat_distribution_qs(self):
-        from forecast_app.models import BinCatDistribution
-
-
-        return self._predictions_qs(BinCatDistribution)
-
-
     def samplecat_distribution_qs(self):
         from forecast_app.models import SampleCatDistribution
 
 
         return self._predictions_qs(SampleCatDistribution)
-
-
-    def binary_distribution_qs(self):
-        from forecast_app.models import BinaryDistribution
-
-
-        return self._predictions_qs(BinaryDistribution)
 
 
     def _predictions_qs(self, prediction_subclass):
@@ -154,18 +154,18 @@ class Forecast(models.Model):
         :return: a Prediction subclass to use for loading that kind of file
         """
         # avoid circular imports
-        from forecast_app.models import PointPrediction, NamedDistribution, \
-            BinLwrDistribution, SampleDistribution, BinCatDistribution, SampleCatDistribution, BinaryDistribution
+        from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
+            PointPrediction, SampleDistribution, SampleCatDistribution
 
 
         header_to_class = {
-            cls.POINT_PREDICTION_HEADER: PointPrediction,
-            cls.NAMED_DISTRIBUTION_HEADER: NamedDistribution,
-            cls.BINLWR_DISTRIBUTION_HEADER: BinLwrDistribution,
-            cls.SAMPLE_DISTRIBUTION_HEADER: SampleDistribution,
             cls.BINCAT_DISTRIBUTION_HEADER: BinCatDistribution,
+            cls.BINLWR_DISTRIBUTION_HEADER: BinLwrDistribution,
+            cls.BINARY_DISTRIBUTION_HEADER: BinaryDistribution,
+            cls.NAMED_DISTRIBUTION_HEADER: NamedDistribution,
+            cls.POINT_PREDICTION_HEADER: PointPrediction,
+            cls.SAMPLE_DISTRIBUTION_HEADER: SampleDistribution,
             cls.SAMPLECAT_DISTRIBUTION_HEADER: SampleCatDistribution,
-            cls.BINARY_DISTRIBUTION_HEADER: BinaryDistribution
         }
         if csv_header in header_to_class:
             return header_to_class[csv_header]
@@ -190,19 +190,19 @@ class Forecast(models.Model):
         try:
             csv_header = next(csv_reader)
         except StopIteration:  # a kind of Exception, so much come first
-            raise RuntimeError("Empty file.")
+            raise RuntimeError("empty file.")
         except Exception as exc:
-            raise RuntimeError(f"Error reading from predictions_file={predictions_file}. exc={exc}")
+            raise RuntimeError(f"error reading from predictions_file={predictions_file}. exc={exc}")
 
         prediction_class = self.prediction_class_for_csv_header(tuple(csv_header))  # raises
         prediction_class_to_load_fcn = {
-            PointPrediction: self._load_point_predictions,
-            NamedDistribution: self._load_named_distribution_predictions,
-            BinLwrDistribution: self._load_binlwr_predictions,
-            SampleDistribution: self._load_sample_predictions,
             BinCatDistribution: self._load_bincat_predictions,
-            SampleCatDistribution: self._load_samplecat_predictions,
+            BinLwrDistribution: self._load_binlwr_predictions,
             BinaryDistribution: self._load_binary_predictions,
+            NamedDistribution: self._load_named_distribution_predictions,
+            PointPrediction: self._load_point_predictions,
+            SampleDistribution: self._load_sample_predictions,
+            SampleCatDistribution: self._load_samplecat_predictions,
         }
         if prediction_class in prediction_class_to_load_fcn:
             prediction_class_to_load_fcn[prediction_class](csv_reader)
@@ -210,34 +210,88 @@ class Forecast(models.Model):
             raise NotImplementedError(f"no {prediction_class.__name__} loading yet")
 
 
-    def _load_point_predictions(self, csv_reader):
+    def _load_bincat_predictions(self, csv_reader):
         """
-        Loads the rows in csv_reader as PointPredictions. See POINT_PREDICTION_HEADER.
+        Loads the rows in csv_reader as BinCatDistributions. See BINCAT_DISTRIBUTION_HEADER.
         """
-        from forecast_app.models import PointPrediction  # avoid circular imports
+        from forecast_app.models import BinCatDistribution  # avoid circular imports
 
 
-        # after this, rows will be: [location, target, value]:
-        location_names, target_names, rows = self._read_csv_file_rows(csv_reader, len(Forecast.POINT_PREDICTION_HEADER))
+        # after this, rows will be: [location, target, cat, prob]:
+        location_names, target_names, rows = self._read_csv_file_rows(csv_reader,
+                                                                      len(Forecast.BINCAT_DISTRIBUTION_HEADER))
         if not rows:
             return
 
-        # after this, rows will be: [location_id, target_id, value]:
+        # after this, rows will be: [location, target, cat, prob]:
         self._create_missing_locations_and_targets_rows(location_names, target_names, rows)
-
-        # after this, rows will be: [location_id, target_id, value_i, value_f, value_t]:
-        self._replace_value_with_three_types_rows(rows)
 
         # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
         self._add_self_pk_rows(rows)
 
         # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        prediction_class = PointPrediction
+        prediction_class = BinCatDistribution
         columns_names = [prediction_class._meta.get_field('location').column,
                          prediction_class._meta.get_field('target').column,
-                         prediction_class._meta.get_field('value_i').column,
-                         prediction_class._meta.get_field('value_f').column,
-                         prediction_class._meta.get_field('value_t').column,
+                         prediction_class._meta.get_field('cat').column,
+                         prediction_class._meta.get_field('prob').column,
+                         Forecast._meta.model_name + '_id']
+        self._insert_rows(prediction_class, columns_names, rows)
+
+
+    def _load_binlwr_predictions(self, csv_reader):
+        """
+        Loads the rows in csv_reader as BinLwrDistributions. See BINLWR_DISTRIBUTION_HEADER.
+        """
+        from forecast_app.models import BinLwrDistribution  # avoid circular imports
+
+
+        # after this, rows will be: [location, target, lwr, prob]:
+        location_names, target_names, rows = self._read_csv_file_rows(csv_reader,
+                                                                      len(Forecast.BINLWR_DISTRIBUTION_HEADER))
+        if not rows:
+            return
+
+        # after this, rows will be: [location_id, target_id, lwr, prob]:
+        self._create_missing_locations_and_targets_rows(location_names, target_names, rows)
+
+        # after this, rows will be: [location_id, target_id, lwr, prob, self_pk]:
+        self._add_self_pk_rows(rows)
+
+        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
+        prediction_class = BinLwrDistribution
+        columns_names = [prediction_class._meta.get_field('location').column,
+                         prediction_class._meta.get_field('target').column,
+                         prediction_class._meta.get_field('lwr').column,
+                         prediction_class._meta.get_field('prob').column,
+                         Forecast._meta.model_name + '_id']
+        self._insert_rows(prediction_class, columns_names, rows)
+
+
+    def _load_binary_predictions(self, csv_reader):
+        """
+        Loads the rows in csv_reader as BinaryDistributions. See BINARY_DISTRIBUTION_HEADER.
+        """
+        from forecast_app.models import BinaryDistribution  # avoid circular imports
+
+
+        # after this, rows will be: [location, target, prob]:
+        location_names, target_names, rows = self._read_csv_file_rows(csv_reader,
+                                                                      len(Forecast.BINARY_DISTRIBUTION_HEADER))
+        if not rows:
+            return
+
+        # after this, rows will be: [location, target, prob]:
+        self._create_missing_locations_and_targets_rows(location_names, target_names, rows)
+
+        # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
+        self._add_self_pk_rows(rows)
+
+        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
+        prediction_class = BinaryDistribution
+        columns_names = [prediction_class._meta.get_field('location').column,
+                         prediction_class._meta.get_field('target').column,
+                         prediction_class._meta.get_field('prob').column,
                          Forecast._meta.model_name + '_id']
         self._insert_rows(prediction_class, columns_names, rows)
 
@@ -281,31 +335,34 @@ class Forecast(models.Model):
         self._insert_rows(prediction_class, columns_names, rows)
 
 
-    def _load_binlwr_predictions(self, csv_reader):
+    def _load_point_predictions(self, csv_reader):
         """
-        Loads the rows in csv_reader as BinLwrDistributions. See BINLWR_DISTRIBUTION_HEADER.
+        Loads the rows in csv_reader as PointPredictions. See POINT_PREDICTION_HEADER.
         """
-        from forecast_app.models import BinLwrDistribution  # avoid circular imports
+        from forecast_app.models import PointPrediction  # avoid circular imports
 
 
-        # after this, rows will be: [location, target, lwr, prob]:
-        location_names, target_names, rows = self._read_csv_file_rows(csv_reader,
-                                                                      len(Forecast.BINLWR_DISTRIBUTION_HEADER))
+        # after this, rows will be: [location, target, value]:
+        location_names, target_names, rows = self._read_csv_file_rows(csv_reader, len(Forecast.POINT_PREDICTION_HEADER))
         if not rows:
             return
 
-        # after this, rows will be: [location_id, target_id, lwr, prob]:
+        # after this, rows will be: [location_id, target_id, value]:
         self._create_missing_locations_and_targets_rows(location_names, target_names, rows)
 
-        # after this, rows will be: [location_id, target_id, lwr, prob, self_pk]:
+        # after this, rows will be: [location_id, target_id, value_i, value_f, value_t]:
+        self._replace_value_with_three_types_rows(rows)
+
+        # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
         self._add_self_pk_rows(rows)
 
         # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        prediction_class = BinLwrDistribution
+        prediction_class = PointPrediction
         columns_names = [prediction_class._meta.get_field('location').column,
                          prediction_class._meta.get_field('target').column,
-                         prediction_class._meta.get_field('lwr').column,
-                         prediction_class._meta.get_field('prob').column,
+                         prediction_class._meta.get_field('value_i').column,
+                         prediction_class._meta.get_field('value_f').column,
+                         prediction_class._meta.get_field('value_t').column,
                          Forecast._meta.model_name + '_id']
         self._insert_rows(prediction_class, columns_names, rows)
 
@@ -338,35 +395,6 @@ class Forecast(models.Model):
         self._insert_rows(prediction_class, columns_names, rows)
 
 
-    def _load_bincat_predictions(self, csv_reader):
-        """
-        Loads the rows in csv_reader as BinCatDistributions. See BINCAT_DISTRIBUTION_HEADER.
-        """
-        from forecast_app.models import BinCatDistribution  # avoid circular imports
-
-
-        # after this, rows will be: [location, target, cat, prob]:
-        location_names, target_names, rows = self._read_csv_file_rows(csv_reader,
-                                                                      len(Forecast.BINCAT_DISTRIBUTION_HEADER))
-        if not rows:
-            return
-
-        # after this, rows will be: [location, target, cat, prob]:
-        self._create_missing_locations_and_targets_rows(location_names, target_names, rows)
-
-        # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
-        self._add_self_pk_rows(rows)
-
-        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        prediction_class = BinCatDistribution
-        columns_names = [prediction_class._meta.get_field('location').column,
-                         prediction_class._meta.get_field('target').column,
-                         prediction_class._meta.get_field('cat').column,
-                         prediction_class._meta.get_field('prob').column,
-                         Forecast._meta.model_name + '_id']
-        self._insert_rows(prediction_class, columns_names, rows)
-
-
     def _load_samplecat_predictions(self, csv_reader):
         """
         Loads the rows in csv_reader as SampleCatDistributions. See SAMPLECAT_DISTRIBUTION_HEADER.
@@ -392,34 +420,6 @@ class Forecast(models.Model):
                          prediction_class._meta.get_field('target').column,
                          prediction_class._meta.get_field('cat').column,
                          prediction_class._meta.get_field('sample').column,
-                         Forecast._meta.model_name + '_id']
-        self._insert_rows(prediction_class, columns_names, rows)
-
-
-    def _load_binary_predictions(self, csv_reader):
-        """
-        Loads the rows in csv_reader as BinaryDistributions. See BINARY_DISTRIBUTION_HEADER.
-        """
-        from forecast_app.models import BinaryDistribution  # avoid circular imports
-
-
-        # after this, rows will be: [location, target, prob]:
-        location_names, target_names, rows = self._read_csv_file_rows(csv_reader,
-                                                                      len(Forecast.BINARY_DISTRIBUTION_HEADER))
-        if not rows:
-            return
-
-        # after this, rows will be: [location, target, prob]:
-        self._create_missing_locations_and_targets_rows(location_names, target_names, rows)
-
-        # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
-        self._add_self_pk_rows(rows)
-
-        # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-        prediction_class = BinaryDistribution
-        columns_names = [prediction_class._meta.get_field('location').column,
-                         prediction_class._meta.get_field('target').column,
-                         prediction_class._meta.get_field('prob').column,
                          Forecast._meta.model_name + '_id']
         self._insert_rows(prediction_class, columns_names, rows)
 
@@ -497,16 +497,16 @@ class Forecast(models.Model):
         """
         Does an in-place rows replacement of family abbreviations with ids in NamedDistribution.FAMILY_CHOICES (ints).
         """
-        from forecast_app.models.prediction import FAMILY_ABBREVIATION_TO_FAMILY_ID  # avoid circular imports
+        from forecast_app.models.prediction import NamedDistribution  # avoid circular imports
 
 
         for row in rows:
             family = row[2]
-            if family in FAMILY_ABBREVIATION_TO_FAMILY_ID:
-                row[2] = FAMILY_ABBREVIATION_TO_FAMILY_ID[family]
+            if family in NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID:
+                row[2] = NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID[family]
             else:
                 raise RuntimeError(f"invalid family. family='{family}', "
-                                   f"families={FAMILY_ABBREVIATION_TO_FAMILY_ID.keys()}")
+                                   f"families={NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID.keys()}")
 
 
     def _replace_null_params_with_zeros_rows(self, rows):

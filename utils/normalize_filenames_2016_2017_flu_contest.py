@@ -56,7 +56,7 @@ def normalize_cdc_flu_challenge_filenames_app(cdc_data_parent_dir):
 
             filename_components = epi_week_filename_components_2016_2017_flu_contest(csv_file.name)
             if not filename_components:
-                raise RuntimeError("CSV file name did not match expected. csv_file={}".format(csv_file))
+                raise RuntimeError("csv file name did not match expected. csv_file={}".format(csv_file))
 
             ew_week_number, team_name, submission_datetime = filename_components  # ex: 1, KoTstable, 2017-01-17
             mmwr_year = season_start_year if ew_week_number >= SEASON_START_EW_NUMBER else season_start_year + 1
