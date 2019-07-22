@@ -4,13 +4,16 @@ import re
 import tempfile
 from pathlib import Path
 
+import click
 from django.db import transaction
 
 from forecast_app.models.forecast import Forecast
-from utils.utilities import CDC_CSV_HEADER, CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE, parse_value
+from utils.utilities import parse_value
 
 
-BINLWR_TARGETS = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead']
+# todo xx these are project-specific: CDC ensemble and Impetus
+BINLWR_TARGETS = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
+                  '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead', '5_biweek_ahead']
 BINCAT_TARGETS = ['Season onset', 'Season peak week']
 
 
@@ -103,6 +106,44 @@ def load_cdc_csv_forecast_file(forecast_model, csv_file_path_or_fp, time_zero, f
     return new_forecast
 
 
+def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None):
+    """
+    Adds Forecast objects to forecast_model using the cdc csv files under data_dir. Assumes TimeZeros match those in my
+    Project. Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.
+
+    :param forecast_model: a ForecastModel to load the data into
+    :param data_dir: Path of the directory that contains cdc csv files
+    :param is_load_file: a boolean function of one arg (cdc_csv_file) that returns True if that file should be
+        loaded. cdc_csv_file is a Path
+    :return list of loaded Forecasts
+    """
+    forecasts = []
+    for cdc_csv_file, timezero_date, _, _ in cdc_csv_components_from_data_dir(data_dir):
+        if is_load_file and not is_load_file(cdc_csv_file):
+            click.echo("s (!is_load_file)\t{}\t".format(cdc_csv_file.name))
+            continue
+
+        timezero_date = forecast_model.project.time_zero_for_timezero_date(timezero_date)
+        if not timezero_date:
+            click.echo("x (no TimeZero found)\t{}\t".format(cdc_csv_file.name))
+            continue
+
+        found_forecast_for_time_zero = forecast_model.forecast_for_time_zero(timezero_date)
+        if found_forecast_for_time_zero:
+            click.echo("s (found forecast)\t{}\t".format(cdc_csv_file.name))
+            continue
+
+        try:
+            forecast = load_cdc_csv_forecast_file(forecast_model, cdc_csv_file, timezero_date)
+            forecasts.append(forecast)
+            click.echo("o\t{}\t".format(cdc_csv_file.name))
+        except RuntimeError as rte:
+            click.echo("f\t{}\t{}".format(cdc_csv_file.name, rte))
+    if not forecasts:
+        click.echo("Warning: no valid forecast files found in directory: {}".format(data_dir))
+    return forecasts
+
+
 def convert_cdc_csv_to_predictions_files(cdc_csv_file, out_points_fp, out_binlwr_fp, out_bincat_fp):
     """
     Utility that extracts the three types of predictions found in cdc csv files, saving them into the three passed
@@ -144,15 +185,11 @@ def convert_cdc_csv_to_predictions_files(cdc_csv_file, out_points_fp, out_binlwr
         out_bincat_fp.seek(0)
 
 
-#
-# read_cdc_csv_file_rows()
-#
-
 def read_cdc_csv_file_rows(cdc_csv_file_fp):
     """
     Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
-    but does not check locations and targets against the template. This is b/c Locations and Targets might not yet
-    exist (if they're dynamically created by this method's callers). Skips bin rows where the value is 0.
+    but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
+    dynamically created by this method's callers). Skips bin rows where the value is 0.
 
     :param cdc_csv_file_fp: the *.cdc.csv data file to load
     :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
@@ -173,7 +210,7 @@ def read_cdc_csv_file_rows(cdc_csv_file_fp):
         header = header[:7]
     header = [h.lower() for h in [i.replace('"', '') for i in header]]
     if header != CDC_CSV_HEADER:
-        raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
+        raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
     locations = set()
@@ -215,3 +252,88 @@ def read_cdc_csv_file_rows(cdc_csv_file_fp):
         rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
 
     return locations, targets, rows
+
+
+#
+# *.cdc.csv file functions
+#
+# The following functions implement this project's file naming standard, and defined in 'Forecast data file names' in
+# documentation.html, e.g., '<time_zero>-<model_name>[-<data_version_date>].cdc.csv' . For example:
+#
+# - '20170419-gam_lag1_tops3-20170516.cdc.csv'
+# - '20161023-KoTstable-20161109.cdc.csv'
+# - '20170504-gam_lag1_tops3.cdc.csv'
+#
+
+CDC_POINT_ROW_TYPE = 'point'
+CDC_BIN_ROW_TYPE = 'bin'
+CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
+CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
+CDC_CSV_FILENAME_RE_PAT = re.compile(r"""
+^
+(\d{4})(\d{2})(\d{2})    # time_zero YYYYMMDD
+-                        # dash
+([a-zA-Z0-9_]+)          # model_name
+(?:                      # non-repeating group so that '-20170516' doesn't get included
+  -                      # optional dash and dvd
+  (\d{4})(\d{2})(\d{2})  # data_version_date YYYYMMDD
+  )?                     #
+\.cdc.csv$
+""", re.VERBOSE)
+
+
+def cdc_csv_components_from_data_dir(cdc_csv_dir):
+    """
+    A utility that helps process a directory containing cdc cvs files.
+
+    :return a list of 4-tuples for each *.cdc.csv file in cdc_csv_dir, with the last three in the form returned by
+        cdc_csv_filename_components(): (cdc_csv_file, timezero_date, model_name, data_version_date). cdc_csv_file is a
+        Path. the list is sorted by timezero_date. Returns [] if no
+    """
+    cdc_csv_components = []
+    for cdc_csv_file in cdc_csv_dir.glob('*.' + CDC_CSV_FILENAME_EXTENSION):
+        filename_components = cdc_csv_filename_components(cdc_csv_file.name)
+        if not filename_components:
+            continue
+
+        timezero_date, model_name, data_version_date = filename_components
+        cdc_csv_components.append((cdc_csv_file, timezero_date, model_name, data_version_date))
+    return sorted(cdc_csv_components, key=lambda _: _[1])
+
+
+def cdc_csv_filename_components(cdc_csv_filename):
+    """
+    :param cdc_csv_filename: a *.cdc.csv file name, e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'
+    :return: a 3-tuple of components from cdc_csv_file: (timezero_date, model_name, data_version_date), where dates are
+        datetime.date objects. data_version_date is None if not found in the file name. returns None if the file name
+        is invalid, i.e., does not conform to our standard.
+    """
+    match = CDC_CSV_FILENAME_RE_PAT.match(cdc_csv_filename)
+    if not match:
+        return None
+
+    # groups has our two cases: with and without data_version_date, e.g.,
+    # ('2017', '04', '19', 'gam_lag1_tops3', '2017', '05', '16')
+    # ('2017', '04', '19', 'gam_lag1_tops3', None, None, None)
+    groups = match.groups()
+    timezero_date = datetime.date(int(groups[0]), int(int(groups[1])), int(int(groups[2])))
+    model_name = groups[3]
+    data_version_date = datetime.date(int(groups[4]), int(int(groups[5])), int(int(groups[6]))) if groups[4] else None
+    return timezero_date, model_name, data_version_date
+
+
+def first_model_subdirectory(directory):
+    """
+    :param directory: a Path of a directory that contains one or more model subdirectories, i.e., directories with
+        *.cdc.csv files
+    :return: the first one of those. returns None if directory contains no model subdirectories.
+    """
+    for subdir in directory.iterdir():
+        if not subdir.is_dir():
+            continue
+
+        cdc_csv_components = cdc_csv_components_from_data_dir(subdir)
+        if cdc_csv_components:
+            return subdir
+
+    return None

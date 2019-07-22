@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class RowCountCache(models.Model):
     """
-    Stores a cached value of Project.get_num_forecast_rows(), which can be a time-consuming operation.
+    Stores a cached value of Project.get_num_forecast_rows_all_models(), which can be a time-consuming operation.
     """
 
     project = models.OneToOneField(
@@ -42,12 +42,12 @@ class RowCountCache(models.Model):
     def update_row_count_cache(self):
         """
         Updates the RowCountCache related to project. Assumes one exists - see note at create_project_caches().
-        Blocks the current thread until done - which can take a while due to Project.get_num_forecast_rows() being a
+        Blocks the current thread until done - which can take a while due to Project.get_num_forecast_rows_all_models() being a
         time-consuming operation. Does not need to be @transaction.atomic b/c we have only one transaction here. Note
         this does not preclude race conditions if called simultaneously by different threads. In that case, the most
         recent call wins, which is not terrible if we assume that one used the latest data.
         """
-        logger.debug("update_row_count_cache(): calling: get_num_forecast_rows(). project={}".format(self.project))
+        logger.debug("update_row_count_cache(): calling: get_num_forecast_rows_all_models(). project={}".format(self.project))
         num_forecast_rows = self.project.get_num_forecast_rows()
         self.row_count = num_forecast_rows  # recall last_update is auto_now
         self.save()

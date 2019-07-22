@@ -5,8 +5,10 @@ from pathlib import Path
 import click
 import django
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from utils.cdc import load_cdc_csv_forecast_file
+
+
 django.setup()
 
 from forecast_app.models import Project, TimeZero, ForecastModel
@@ -68,7 +70,8 @@ def make_minimal_projects_app():
     # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
     TimeZero.objects.create(project=public_project, timezero_date='2017-01-01')
 
-    private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False, config_dict=CDC_CONFIG_DICT)
+    private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False,
+                                             config_dict=CDC_CONFIG_DICT)
     private_project.owner = po_user
     private_project.model_owners.add(mo_user)
     private_project.save()
@@ -83,7 +86,7 @@ def fill_project(project, mo_user):
     # make the Locations and Targets
     make_cdc_locations_and_targets(project)
 
-    # make a few TimeZeros that match the small template, truth, and forecast data
+    # make a few TimeZeros that match the truth and forecast data
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))
     #   -> {'year': 2017, 'week': 3, 'day': 3}
     time_zero1 = TimeZero.objects.create(project=project,
@@ -110,7 +113,7 @@ def fill_project(project, mo_user):
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
-    forecast1 = forecast_model1.load_forecast(csv_file_path, time_zero1)
+    forecast1 = load_cdc_csv_forecast_file(csv_file_path, time_zero1)
     click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
 
     ForecastModel.objects.create(project=project,

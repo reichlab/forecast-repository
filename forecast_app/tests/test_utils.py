@@ -10,10 +10,9 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
-    load_cdc_csv_forecast_file
+    load_cdc_csv_forecast_file, cdc_csv_filename_components, first_model_subdirectory
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date, \
     CDC_CONFIG_DICT
-from utils.utilities import cdc_csv_filename_components, first_model_subdirectory
 
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
@@ -182,10 +181,9 @@ def _model_id_to_point_values_dict(project, target_names, season_name=None):
         Use is like: the_dict[forecast_model_id][forecast_id][location_name][target_name]
     """
     # get the rows, ordered so we can groupby()
-    forecast_data_qs = ForecastData.objects \
-        .filter(is_point_row=True,
-                target__name__in=target_names,
-                forecast__forecast_model__project=project)
+    forecast_data_qs = ForecastData.objects.filter(is_point_row=True,
+                                                   target__name__in=target_names,
+                                                   forecast__forecast_model__project=project)
     if season_name:
         season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
         forecast_data_qs = forecast_data_qs \

@@ -2,6 +2,8 @@ import logging
 from collections import defaultdict
 from itertools import groupby
 
+from forecast_app.models import PointPrediction, ScoreValue
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +20,6 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     :param forecast_model: a ForecastModel
     :param is_absolute_error: True if abs() should be called
     """
-    from forecast_app.models import PointPrediction, ScoreValue  # avoid circular imports
-
-
     try:
         from forecast_app.scores.definitions import _validate_score_targets_and_data, \
             _validate_truth, LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports

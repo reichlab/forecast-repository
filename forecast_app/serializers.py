@@ -35,7 +35,6 @@ class TimeZeroSerializer(serializers.ModelSerializer):
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     config_dict = serializers.SerializerMethodField()
-    template = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
     score_data = serializers.SerializerMethodField()
 
@@ -48,7 +47,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                  'template', 'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros')
+                  'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},
@@ -60,11 +59,6 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         return project.config_dict
 
 
-    def get_template(self, project):
-        request = self.context['request']
-        return reverse('api-template-detail', args=[project.pk], request=request)
-
-
     def get_truth(self, project):
         request = self.context['request']
         return reverse('api-truth-detail', args=[project.pk], request=request)
@@ -73,29 +67,6 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     def get_score_data(self, project):
         request = self.context['request']
         return reverse('api-score-data', args=[project.pk], request=request)
-
-
-class TemplateSerializer(serializers.ModelSerializer):
-    project = serializers.SerializerMethodField()
-    template_data = serializers.SerializerMethodField()
-
-
-    class Meta:
-        model = Project
-        fields = ('id', 'url', 'project', 'csv_filename', 'template_data')
-        extra_kwargs = {
-            'url': {'view_name': 'api-template-detail'},
-        }
-
-
-    def get_project(self, project):
-        request = self.context['request']
-        return reverse('api-project-detail', args=[project.pk], request=request)
-
-
-    def get_template_data(self, project):
-        request = self.context['request']
-        return reverse('api-template-data', args=[project.pk], request=request)
 
 
 class TruthSerializer(serializers.ModelSerializer):

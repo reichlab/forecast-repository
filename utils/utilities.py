@@ -1,11 +1,10 @@
-import datetime
-import re
 from ast import literal_eval
 
 
 #
 # __str__()-related functions
 #
+
 
 def basic_str(obj):
     """
@@ -34,91 +33,3 @@ def parse_value(value):
         return literal_eval(value)
     except ValueError:
         return None
-
-
-#
-# *.cdc.csv file functions
-#
-# The following functions implement this project's file naming standard, and defined in 'Forecast data file names' in
-# documentation.html, e.g., '<time_zero>-<model_name>[-<data_version_date>].cdc.csv' . For example:
-#
-# - '20170419-gam_lag1_tops3-20170516.cdc.csv'
-# - '20161023-KoTstable-20161109.cdc.csv'
-# - '20170504-gam_lag1_tops3.cdc.csv'
-#
-
-CDC_POINT_ROW_TYPE = 'point'
-CDC_BIN_ROW_TYPE = 'bin'
-
-CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
-
-CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
-
-CDC_CSV_FILENAME_RE_PAT = re.compile(r"""
-^
-(\d{4})(\d{2})(\d{2})    # time_zero YYYYMMDD
--                        # dash
-([a-zA-Z0-9_]+)          # model_name
-(?:                      # non-repeating group so that '-20170516' doesn't get included
-  -                      # optional dash and dvd
-  (\d{4})(\d{2})(\d{2})  # data_version_date YYYYMMDD
-  )?                     #
-\.cdc.csv$
-""", re.VERBOSE)
-
-
-def cdc_csv_components_from_data_dir(cdc_csv_dir):
-    """
-    A utility that helps process a directory containing cdc cvs files.
-
-    :return a list of 4-tuples for each *.cdc.csv file in cdc_csv_dir, with the last three in the form returned by
-        cdc_csv_filename_components(): (cdc_csv_file, timezero_date, model_name, data_version_date). cdc_csv_file is a
-        Path. the list is sorted by timezero_date. Returns [] if no
-    """
-    cdc_csv_components = []
-    for cdc_csv_file in cdc_csv_dir.glob('*.' + CDC_CSV_FILENAME_EXTENSION):
-        filename_components = cdc_csv_filename_components(cdc_csv_file.name)
-        if not filename_components:
-            continue
-
-        timezero_date, model_name, data_version_date = filename_components
-        cdc_csv_components.append((cdc_csv_file, timezero_date, model_name, data_version_date))
-    return sorted(cdc_csv_components, key=lambda _: _[1])
-
-
-def cdc_csv_filename_components(cdc_csv_filename):
-    """
-    :param cdc_csv_filename: a *.cdc.csv file name, e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'
-    :return: a 3-tuple of components from cdc_csv_file: (timezero_date, model_name, data_version_date), where dates are
-        datetime.date objects. data_version_date is None if not found in the file name. returns None if the file name
-        is invalid, i.e., does not conform to our standard.
-    """
-    match = CDC_CSV_FILENAME_RE_PAT.match(cdc_csv_filename)
-    if not match:
-        return None
-
-    # groups has our two cases: with and without data_version_date, e.g.,
-    # ('2017', '04', '19', 'gam_lag1_tops3', '2017', '05', '16')
-    # ('2017', '04', '19', 'gam_lag1_tops3', None, None, None)
-    groups = match.groups()
-    timezero_date = datetime.date(int(groups[0]), int(int(groups[1])), int(int(groups[2])))
-    model_name = groups[3]
-    data_version_date = datetime.date(int(groups[4]), int(int(groups[5])), int(int(groups[6]))) if groups[4] else None
-    return timezero_date, model_name, data_version_date
-
-
-def first_model_subdirectory(directory):
-    """
-    :param directory: a Path of a directory that contains one or more model subdirectories, i.e., directories with
-        *.cdc.csv files
-    :return: the first one of those. returns None if directory contains no model subdirectories.
-    """
-    for subdir in directory.iterdir():
-        if not subdir.is_dir():
-            continue
-
-        cdc_csv_components = cdc_csv_components_from_data_dir(subdir)
-        if cdc_csv_components:
-            return subdir
-
-    return None

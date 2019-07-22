@@ -37,7 +37,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     The second tuple - `target_to_min_mae` - is a dict that maps: {target: minimum_mae). It is ([], {}) if the project
     does not have appropriate target_names defined in its configuration. NB: assumes all of project's models have the
-    same target_names - something that is validated by ForecastModel.load_forecast()
+    same target_names
     """
     targets = project.non_date_targets()  # order_by('name')
     if not targets:

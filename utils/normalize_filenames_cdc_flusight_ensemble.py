@@ -10,8 +10,8 @@ import pymmwr
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.cdc import epi_week_filename_components_ensemble
-from utils.utilities import cdc_csv_filename_components, YYYYMMDD_DATE_FORMAT
+from utils.cdc import epi_week_filename_components_ensemble, cdc_csv_filename_components
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 @click.command()

@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file
+from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
 
@@ -69,8 +69,9 @@ class MAETestCase(TestCase):
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 11, 6))
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast_model2.load_forecasts_from_dir(Path('forecast_app/tests/load_forecasts'))
-        project2.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        load_cdc_csv_forecasts_from_dir(forecast_model2, Path('forecast_app/tests/load_forecasts'))
+        # todo xx file_name arg
+        project2.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'), None)
 
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name

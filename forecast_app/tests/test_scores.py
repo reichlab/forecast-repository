@@ -12,8 +12,7 @@ from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero, Location, Target
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
-from forecast_app.scores.bin_utils import _tzltpk_to_truth_st_end_val, _ltpk_to_templ_st_ends, \
-    _tzltpk_to_forec_st_end_to_pred_val
+from forecast_app.scores.bin_utils import _tzltpk_to_truth_st_end_val, _tzltpk_to_forec_st_end_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from utils.cdc import load_cdc_csv_forecast_file
@@ -162,8 +161,8 @@ class ScoresTestCase(TestCase):
         #   US National	1 wk ahead	Bin	percent	2	2.1	0.0196988816334531
         # the row after it is:
         #   US National	1 wk ahead	Bin	percent	2.1	2.2	0.000162775167244309
-        forecast2.cdcdata_set \
-            .filter(location__name='US National', target__name='1 wk ahead', is_point_row=False, bin_start_incl=2) \
+        forecast2.binlwr_distribution_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead') \
             .first() \
             .delete()
 
@@ -317,18 +316,10 @@ class ScoresTestCase(TestCase):
 
         # case: truth = None, but no forecast bin start/end that's None -> no matching bin -> use zero for predicted
         # value (rather than not generating a ScoreValue at all). this test also tests the
-        # LOG_SINGLE_BIN_NEGATIVE_INFINITY case. requires template start and ends be None as well, or won't match
-        # _tzltpk_to_truth_st_end_val() query
+        # LOG_SINGLE_BIN_NEGATIVE_INFINITY case
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
         truth_data.value = None  # -> no matching bin
         truth_data.save()
-
-        template_data = project2.cdcdata_set \
-            .filter(location__name='US National', target__name='1 wk ahead', is_point_row=False, bin_start_incl=0) \
-            .first()
-        template_data.bin_start_incl = None
-        template_data.bin_end_notincl = None
-        template_data.save()
 
         log_multi_bin_score = Score.objects.filter(abbreviation='log_multi_bin').first()
         log_multi_bin_score.update_score_for_model(forecast_model2)
@@ -665,7 +656,8 @@ class ScoresTestCase(TestCase):
                                    Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
                                    time_zero2)
 
-        project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
+        # # todo xx file_name arg:
+        project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'), None)
 
         log_single_bin_score = Score.objects.filter(abbreviation='log_single_bin').first()
         log_single_bin_score.update_score_for_model(forecast_model2)
@@ -744,5 +736,5 @@ def _make_thai_log_score_project():
     forecast2 = load_cdc_csv_forecast_file(forecast_model2, Path(
         'forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'), time_zero2)
 
-    project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
+    project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'), None)  # todo xx file_name arg
     return project2, forecast_model2, forecast2, time_zero2

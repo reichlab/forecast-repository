@@ -11,9 +11,9 @@ from forecast_app.api_views import csv_response_for_model_with_cdc_data
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file
+from utils.cdc import load_cdc_csv_forecast_file, CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE, CDC_CSV_HEADER, \
+    load_cdc_csv_forecasts_from_dir
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.utilities import CDC_CSV_HEADER, CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE
 
 
 class ForecastTestCase(TestCase):
@@ -37,8 +37,9 @@ class ForecastTestCase(TestCase):
         make_cdc_locations_and_targets(project2)
         time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                                  time_zero)
+        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                               time_zero)
         self.assertIsNotNone(forecast2.created_at)
 
 
@@ -47,30 +48,35 @@ class ForecastTestCase(TestCase):
 
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.csv_filename)
+        self.assertEqual(8019, self.forecast.get_num_rows())  # excluding header
 
-        forecast_cdcdata_set = self.forecast.cdcdata_set
-        self.assertEqual(8019, forecast_cdcdata_set.count())  # excluding header
-
-        # spot-check a few rows
-        act_qs = forecast_cdcdata_set.filter(location__name='US National', is_point_row=True) \
-            .order_by('id') \
-            .values_list('value', flat=True)
-        self.assertEqual(
-            [50.0012056690978, 4.96302456525203, 3.30854920241938, 3.00101461253164, 2.72809349594878, 2.5332588357381,
-             2.42985946508278],
-            list(act_qs))
+        # spot-check a few point rows
+        act_points_qs = list(self.forecast.point_prediction_qs() \
+                             .filter(location__name='US National') \
+                             .order_by('id') \
+                             .values_list('value_i', 'value_f', 'value_t'))
+        exp_points = [(None, None, '50.0012056690978'),  # Season onset is value_t
+                      (None, None, '4.96302456525203'),  # Season peak week ""
+                      (None, 3.30854920241938, None),
+                      (None, 3.00101461253164, None),
+                      (None, 2.72809349594878, None),
+                      (None, 2.5332588357381, None),
+                      (None, 2.42985946508278, None)]
+        self.assertEqual(exp_points, list(act_points_qs))
 
         # test empty file
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad_file_no_header-2017-01-17.csv'),
-                                              self.time_zero)
-        self.assertIn('Empty file', str(context.exception))
+            load_cdc_csv_forecast_file(self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad_file_no_header-2017-01-17.csv'),
+                                       self.time_zero)
+        self.assertIn('empty file', str(context.exception))
 
         # test a bad data file header
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'),
-                                              self.time_zero)
-        self.assertIn('Invalid header', str(context.exception))
+            load_cdc_csv_forecast_file(self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'),
+                                       self.time_zero)
+        self.assertIn('invalid header', str(context.exception))
 
         # test load_forecast() with timezero not in the project
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
@@ -78,7 +84,8 @@ class ForecastTestCase(TestCase):
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
-            forecast_model2.load_forecast(  # TimeZero doesn't matter b/c project has none
+            load_cdc_csv_forecast_file(  # TimeZero doesn't matter b/c project has none
+                forecast_model2,
                 Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), self.time_zero)
         self.assertIn("time_zero was not in project", str(context.exception))
 
@@ -105,32 +112,35 @@ class ForecastTestCase(TestCase):
             shutil.copy(str(test_file_dir / '20161023-KoTstable-20161109.cdc.csv'), str(temp_dir))
             shutil.copy(str(test_file_dir / '20161030-KoTstable-20161114.cdc.csv'), str(temp_dir))
 
-            forecasts = forecast_model2.load_forecasts_from_dir(temp_dir)
+            forecasts = load_cdc_csv_forecasts_from_dir(forecast_model2, temp_dir)
             self.assertEqual(2, len(forecasts))
             self.assertEqual(2, len(forecast_model2.forecasts.all()))
 
             # copy third file and test only new loaded
             shutil.copy(str(test_file_dir / 'third-file/20161106-KoTstable-20161121.cdc.csv'), str(temp_dir))
-            forecasts = forecast_model2.load_forecasts_from_dir(temp_dir)
+            forecasts = load_cdc_csv_forecasts_from_dir(forecast_model2, temp_dir)
             self.assertEqual(1, len(forecasts))
 
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
-                                              self.time_zero)
+            load_cdc_csv_forecast_file(self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
+                                       self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'),
-                                              self.time_zero)
+            load_cdc_csv_forecast_file(self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'),
+                                       self.time_zero)
         self.assertIn("Point value was non-numeric", str(context.exception))
 
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
         with self.assertRaises(Exception):
             try:
-                self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv'),
-                                                  self.time_zero)  # date-based Point row w/NA value is OK
+                load_cdc_csv_forecast_file(self.forecast_model,
+                                           Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv'),
+                                           self.time_zero)  # date-based Point row w/NA value is OK
             except:
                 pass
             else:
@@ -204,16 +214,17 @@ class ForecastTestCase(TestCase):
         # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
         # deleted (via CASCADE)
         self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
-        self.assertEqual(8019, self.forecast.cdcdata_set.count())  # ""
+        self.assertEqual(8019, self.forecast.get_num_rows())  # ""
 
-        forecast2 = self.forecast_model.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
-                                                      self.time_zero)
+        forecast2 = load_cdc_csv_forecast_file(self.forecast_model,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
+                                               self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(5237, forecast2.cdcdata_set.count())  # 8019 rows - 2782 bin=0 rows 5237
-        self.assertEqual(8019, self.forecast.cdcdata_set.count())  # didn't change
+        self.assertEqual(5237, forecast2.get_num_rows())  # 8019 rows - 2782 bin=0 rows 5237
+        self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
 
         forecast2.delete()
-        self.assertEqual(0, forecast2.cdcdata_set.count())
+        self.assertEqual(0, forecast2.get_num_rows())
 
 
     def test_get_location_dicts_download_format_small_forecast(self):
@@ -223,8 +234,9 @@ class ForecastTestCase(TestCase):
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                                  time_zero)
+        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                               time_zero)
 
         # act_list has tuples for bins, but loaded json has lists, so we do in-place conversion of tuples to lists
         act_list = forecast2.get_location_dicts_download_format()
@@ -244,8 +256,9 @@ class ForecastTestCase(TestCase):
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast2 = forecast_model2.load_forecast(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                                  time_zero)
+        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                               time_zero)
         # act_location_dicts has tuples for bins, but loaded json has lists, so we do in-place conversion of tuples to lists
         act_location_dicts = forecast2.get_location_dicts_internal_format()
         for location_name, location_dict in act_location_dicts.items():
@@ -296,10 +309,12 @@ class ForecastTestCase(TestCase):
                                             timezero_date=datetime.date.today(),
                                             data_version_date=None)
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        template = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
-        forecast2 = forecast_model2.load_forecast(template, time_zero)
+        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                               time_zero)
         exp_location_dicts = forecast2.get_location_dicts_internal_format()  # tested elsewhere
-        act_location_dicts = forecast2.get_loc_dicts_int_format_for_csv_file(template)
+        act_location_dicts = forecast2.get_loc_dicts_int_format_for_csv_file(
+            Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'))
         self.assertEqual(exp_location_dicts, act_location_dicts)
 
 

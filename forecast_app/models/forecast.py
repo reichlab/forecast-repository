@@ -427,8 +427,8 @@ class Forecast(models.Model):
     def _read_csv_file_rows(self, csv_reader, exp_num_rows):
         """
         Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Validates exp_num_rows, but
-        does not check locations and targets against the template. This is b/c Locations and Targets might not yet exist
-        (if they're dynamically created by this method's callers).
+        does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
+        dynamically created by this method's callers).
 
         :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
             rows: location_name, target_name, parsed_value]

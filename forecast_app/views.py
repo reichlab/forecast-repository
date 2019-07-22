@@ -25,6 +25,7 @@ from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_pr
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
+from utils.cdc import load_cdc_csv_forecast_file
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
@@ -922,64 +923,6 @@ def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwa
 
     return csv_response_for_model_with_cdc_data(model_with_cdc_data) if request.POST['format'] == 'csv' \
         else json_response_for_model_with_cdc_data(request, model_with_cdc_data)
-
-
-#
-# ---- Sparkline-related functions ----
-#
-
-def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
-    """
-    :param request: A GET that must contain two query parameters: 'location': a valid location in forecast_pk's data,
-        and 'target', a valid target ""
-    :param forecast_pk
-    :return: a small image that is a sparkline for the passed bin
-    """
-    forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    project = forecast.forecast_model.project
-    if not project.is_user_ok_to_view(request.user):
-        raise PermissionDenied
-
-    # validate query parameters
-    location = request.GET['location'] if 'location' in request.GET else None
-    target = request.GET['target'] if 'target' in request.GET else None
-    if (not location) or (not target):
-        return HttpResponseBadRequest("one or both of the two required query parameters was not passed. location={}, "
-                                      "target={}".format(location, target))
-
-    # validate location and target
-    location_names = project.locations.all().values_list('name', flat=True)
-    targets = project.get_target_names_for_location(location)
-    if (location not in location_names) or (target not in targets):
-        return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
-                                      "target={}, targets={}"
-                                      .format(project, location, location_names, target, targets))
-
-    rescaled_vals_from_forecast = forecast.rescaled_bin_for_loc_and_target(location, target)
-
-    # limit the length so the image is not too wide - 30 is magic. NB: first items may not be characteristic at all:
-    image = plot_sparkline(rescaled_vals_from_forecast[:30])
-
-    response = HttpResponse(content_type='image/png')
-    image.save(response, 'png')
-    return response
-
-
-def plot_sparkline(normalized_values):
-    """
-    from: https://bitworking.org/news/2005/04/Sparklines_in_data_URIs_in_Python
-
-    :param normalized_values: a list of numbers scaled to between 0 and 100
-    :return a sparkline .png image for the passed data. Values greater than 95 are displayed in red, otherwise they are
-        displayed in green
-    """
-    image = Image.new("RGB", (len(normalized_values) * 2, 15), 'white')
-    draw = ImageDraw.Draw(image)
-    for (r, i) in zip(normalized_values, range(0, len(normalized_values) * 2, 2)):
-        color = (r > 50) and "red" or "gray"
-        draw.line((i, image.size[1] - r / 10 - 4, i, (image.size[1] - r / 10)), fill=color)
-    del draw
-    return image
 
 
 #

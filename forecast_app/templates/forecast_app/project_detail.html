@@ -96,36 +96,6 @@
                     <td><a href="{{ project.core_data }}">{{ project.core_data }}</a></td>
                 </tr>
                 <tr>
-                    <th title="A data file used to validate uploaded forecasts">Data Template:</th>
-                    <td>
-                        {% if project.is_template_loaded %}
-                            {# show a link to the template detail #}
-                            <a href="{% url 'template-data-detail' project.pk %}">{{ project.csv_filename }}</a>
-                            <small class="text-muted">({{ project.get_num_rows|intword|intcomma }} rows)</small>
-                        {% else %}
-                            {# show that there's no template, optionally with upload button #}
-                            {% if is_user_ok_edit_project %}
-                                {# show a button for uploading a file #}
-                                <form class="form-inline" method="POST" enctype="multipart/form-data"
-                                      action="{% url 'upload-template' project.pk %}">
-                                    {% csrf_token %}
-                                    <small class="text-muted">(No template)&nbsp;</small>
-                                    <div class="form-group">
-                                        <button class="form-control btn btn-success" type="submit">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                        </button>
-                                    </div>
-                                    <div class="form-group">
-                                        <input type="file" name="data_file">
-                                    </div>
-                                </form>
-                            {% else %}
-                                <small class="text-muted">(No template)</small>
-                            {% endif %}
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
                     <th title="A data file containing observed target values for time zeros and locations. Used to calculate scores, and extract the 'actual' data used in plots">
                         Truth Data:
                     </th>

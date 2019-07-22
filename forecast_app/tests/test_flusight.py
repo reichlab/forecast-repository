@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file
+from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
 from utils.flusight import flusight_location_to_data_dict
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 
@@ -87,8 +87,8 @@ class FlusightTestCase(TestCase):
         forecast_model1 = ForecastModel.objects.create(name='forecast_model1', project=project)
         forecast_model2 = ForecastModel.objects.create(name='forecast_model2', project=project)
         forecast_dir = Path('forecast_app/tests/load_forecasts')
-        forecast_model1.load_forecasts_from_dir(forecast_dir)
-        forecast_model2.load_forecasts_from_dir(forecast_dir / 'third-file')
+        load_cdc_csv_forecasts_from_dir(forecast_model1, forecast_dir)
+        load_cdc_csv_forecasts_from_dir(forecast_model2, forecast_dir / 'third-file')
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-data.json', 'r') as fp:
             exp_json_template_str = fp.read()
             exp_json_template = Template(exp_json_template_str)

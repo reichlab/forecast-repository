@@ -120,8 +120,8 @@ class ProjectTestCase(TestCase):
         load_cdc_csv_forecast_file(self.forecast_model,
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero2)
-        self.assertEqual(self.project.get_num_forecast_rows(), 8019 * 2)
-        self.assertEqual(self.project.get_num_forecast_rows_estimated(), 8019 * 2)  # exact b/c uniform forecasts
+        self.assertEqual(self.project.get_num_forecast_rows_all_models(), 8019 * 2)
+        self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(), 8019 * 2)  # exact b/c uniform forecasts
 
 
     def test_score_csv_file_cache(self):
@@ -157,7 +157,7 @@ class ProjectTestCase(TestCase):
 
         self.project.row_count_cache.update_row_count_cache()
         # NB: we assume last_update default works
-        self.assertEqual(self.project.get_num_forecast_rows(), self.project.row_count_cache.row_count)
+        self.assertEqual(self.project.get_num_forecast_rows_all_models(), self.project.row_count_cache.row_count)
 
 
     def test_summary_counts(self):

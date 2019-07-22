@@ -26,14 +26,11 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     # note that the granularity is poor - there are multiple possible errors related to a particular 3-tuple
     tz_loc_targ_pks_to_error_count = defaultdict(int)  # helps eliminate duplicate warnings
 
-    # cache the three necessary bins and values - template, truth, and forecasts
-    # 1/3 template: [location_pk][target_pk] -> [(bin_start_incl_1, bin_end_notincl_1), ...]:
-    ltpk_to_templ_st_ends = _ltpk_to_templ_st_ends(forecast_model.project)
-
-    # 2/3 truth: [timezero_pk][location_pk][target_pk] -> (bin_start_incl, bin_end_notincl, true_value):
+    # cache the three necessary bins and values - truth, and forecasts
+    # 1/2 truth: [timezero_pk][location_pk][target_pk] -> (bin_start_incl, bin_end_notincl, true_value):
     tzltpk_to_truth_st_end_val = _tzltpk_to_truth_st_end_val(forecast_model.project)
 
-    # 3/3 forecast: [timezero_pk][location_pk][target_pk] -> {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}:
+    # 2/2 forecast: [timezero_pk][location_pk][target_pk] -> {(bin_start_incl_1, bin_end_notincl_1) -> predicted_value_1, ...}:
     tzltpk_to_forec_st_end_to_pred_val = _tzltpk_to_forec_st_end_to_pred_val(forecast_model)
 
     # it is convenient to iterate over truths to get all timezero/location/target combinations. this will omit forecasts
@@ -146,31 +143,6 @@ def _tzltpk_to_truth_st_end_val(project):
                 target_pk_to_truth[target_id] = [bin_start_incl, bin_end_notincl, true_value]
 
     return tz_loc_targ_pks_to_templ_truth_vals
-
-
-def _ltpk_to_templ_st_ends(project):
-    """
-    Returns project's template data as a list of 2-tuples (bin_start_incl, bin_end_notincl):
-        [location_pk][target_pk] -> [(bin_start_incl_1, bin_end_notincl_1), ...]
-
-    The are ordered by bin_start_incl. Only returns rows whose targets match non_date_targets().
-    """
-    targets = project.non_date_targets()
-    template_data_qs = project.cdcdata_set \
-        .filter(is_point_row=False,
-                target__in=targets) \
-        .order_by('location__id', 'target__id', 'bin_start_incl') \
-        .values_list('location__id', 'target__id', 'bin_start_incl', 'bin_end_notincl')
-
-    # build the dict
-    ltpk_to_templ_st_ends = {}  # {location_pk: {target_id: [(bin_start_incl_1, bin_end_notincl_1), ...]}}
-    for location_id, target_val_grouper in groupby(template_data_qs, key=lambda _: _[0]):
-        tpk_to_templ_st_ends = defaultdict(list)  # {target_id: [(bin_start_incl_1, bin_end_notincl_1), ...]}
-        ltpk_to_templ_st_ends[location_id] = tpk_to_templ_st_ends
-        for _, target_id, bin_start_incl, bin_end_notincl in target_val_grouper:
-            tpk_to_templ_st_ends[target_id].append((bin_start_incl, bin_end_notincl))
-
-    return ltpk_to_templ_st_ends
 
 
 def _tzltpk_to_forec_st_end_to_pred_val(forecast_model):

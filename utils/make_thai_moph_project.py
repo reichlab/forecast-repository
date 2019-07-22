@@ -9,7 +9,7 @@ import django
 django.setup()
 
 from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
-from utils.utilities import cdc_csv_components_from_data_dir
+from utils.cdc import cdc_csv_components_from_data_dir, load_cdc_csv_forecasts_from_dir
 from forecast_app.models.project import Target, TimeZero, Location
 from forecast_app.models import Project, ForecastModel
 
@@ -55,8 +55,7 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
 
         # create the Project (and Users if necessary), including loading the template and creating Targets
         po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
-        template_path = data_dir / 'thai-moph-forecasting-template.csv'
-        project = make_thai_moph_project(THAI_PROJECT_NAME, template_path)
+        project = make_thai_moph_project(THAI_PROJECT_NAME)
         project.owner = po_user
         project.model_owners.add(mo_user)
         project.save()
@@ -79,7 +78,7 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
 
         found_time_zero = project.time_zero_for_timezero_date(timezero_date)
         if found_time_zero:
-            click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+            click.echo("s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_cdc_csv_forecasts_from_dir()
             continue
 
         TimeZero.objects.create(project=project,
@@ -98,14 +97,14 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
     if load_data:
         click.echo("* Loading forecasts")
         forecast_model = project.models.first()
-        forecasts = forecast_model.load_forecasts_from_dir(data_dir)
+        forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, data_dir)
         click.echo("- Loading forecasts: loaded {} forecast(s)".format(len(forecasts)))
 
     # done
     click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
 
 
-def make_thai_moph_project(project_name, template_path):
+def make_thai_moph_project(project_name):
     project = Project.objects.create(
         name=project_name,
         is_public=False,

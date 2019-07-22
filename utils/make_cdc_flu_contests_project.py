@@ -20,7 +20,8 @@ from forecast_app.models.project import Location
 from forecast_app.models import Project, Target, TimeZero, ForecastModel
 from django.contrib.auth.models import User
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
-from utils.utilities import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory
+from utils.cdc import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory, \
+    load_cdc_csv_forecasts_from_dir
 
 
 #
@@ -210,14 +211,14 @@ def make_timezeros(project, model_dirs):
         for cdc_csv_file, timezero_date, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
             if not is_cdc_file_ew43_through_ew18(cdc_csv_file):
                 logger.info(
-                    "s (not in range)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+                    "s (not in range)\t{}\t".format(cdc_csv_file.name))  # 's' from load_cdc_csv_forecasts_from_dir()
                 continue
 
             # NB: we skip existing TimeZeros in case we are loading new forecasts
             found_time_zero = project.time_zero_for_timezero_date(timezero_date)
             if found_time_zero:
                 logger.info(
-                    "s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_forecasts_from_dir()
+                    "s (TimeZero exists)\t{}\t".format(cdc_csv_file.name))  # 's' from load_cdc_csv_forecasts_from_dir()
                 continue
 
             season_start_year = season_start_year_for_date(timezero_date)
@@ -318,10 +319,8 @@ def load_forecasts(project, model_dirs_to_load):
             return bin_start_incl, bin_end_notincl, value
 
 
-        forecasts = forecast_model.load_forecasts_from_dir(
-            model_dir,
-            is_load_file=is_cdc_file_ew43_through_ew18,
-            forecast_bin_map_fcn=forecast_bin_map_fcn)
+        forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, model_dir, is_load_file=is_cdc_file_ew43_through_ew18,
+                                                    forecast_bin_map_fcn=forecast_bin_map_fcn)
         model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts

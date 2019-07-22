@@ -28,9 +28,8 @@ TRUTH_CSV_HEADER = ['timezero', 'location', 'target', 'value']
 
 class Project(models.Model):
     """
-    The make_cdc_flu_contests_project_app class representing a forecast challenge, including metadata, core data, targets, and model entries.
-    NB: The inherited 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
-    was loaded - see is_template_loaded().
+    The make_cdc_flu_contests_project_app class representing a forecast challenge, including metadata, core data,
+    targets, and model entries.
     """
 
     # w/out related_name we get: forecast_app.Project.model_owners:
@@ -292,10 +291,10 @@ class Project(models.Model):
 
         return self.models.filter(project=self).count(), \
                Forecast.objects.filter(forecast_model__project=self).count(), \
-               self.get_num_forecast_rows_estimated()
+               self.get_num_forecast_rows_all_models_estimated()
 
 
-    def get_num_forecast_rows(self):
+    def get_num_forecast_rows_all_models(self):
         """
         :return: the total number of data rows across all my models' forecasts, for all types of Predictions. can be
         expensive for large databases
@@ -307,9 +306,9 @@ class Project(models.Model):
                    for concrete_prediction_class in Prediction.concrete_subclasses())
 
 
-    def get_num_forecast_rows_estimated(self):
+    def get_num_forecast_rows_all_models_estimated(self):
         """
-        :return: like get_num_forecast_rows(), but returns an estimate that is much faster to calculate. the estimate
+        :return: like get_num_forecast_rows_all_models(), but returns an estimate that is much faster to calculate. the estimate
             is based on getting the number of rows for an arbitrary Forecast and then multiplying by the number of
             forecasts times the number of models in me. it will be exact for projects whose models all have the same
             number of rows
@@ -589,7 +588,7 @@ class Project(models.Model):
         header = orig_header
         header = [h.lower() for h in [i.replace('"', '') for i in header]]
         if header != TRUTH_CSV_HEADER:
-            raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
+            raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
         location_names_to_pks = {location.name: location.id for location in self.locations.all()}

@@ -9,8 +9,8 @@ import pymmwr
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.cdc import epi_week_filename_components_2016_2017_flu_contest
-from utils.utilities import cdc_csv_filename_components, YYYYMMDD_DATE_FORMAT
+from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, cdc_csv_filename_components
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 # This number is the internal reichlab standard: "We used week 30. I don't think this is a standardized concept outside
