@@ -389,9 +389,6 @@ class Project(models.Model):
 
 
     def get_num_truth_rows(self):
-        """
-        :return: the total of number of truth rows in me
-        """
         return self.truth_data_qs().count()
 
 
@@ -415,9 +412,6 @@ class Project(models.Model):
 
 
     def delete_truth_data(self):
-        """
-        Deletes all of my truth data.
-        """
         self.truth_data_qs().delete()
         self.truth_csv_filename = ''
         self.save()

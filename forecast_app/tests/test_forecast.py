@@ -165,26 +165,30 @@ class ForecastTestCase(TestCase):
         self.fail()  # todo
 
 
-    def test_forecast_data_accessors(self):  # (via ModelWithCDCData)
-        # test get_data_rows()
-        data_rows = self.forecast.get_data_rows(is_order_by_pk=True)
-        self.assertEqual(8019, len(data_rows))
-        self.assertEqual(['US National', 'Season onset', 'point', 'week', None, None, 50.0012056690978], data_rows[0])
-        self.assertEqual(['US National', 'Season onset', 'bin', 'week', 40.0, 41.0, 1.95984004521967e-05], data_rows[1])
+    def test_forecast_data_accessors(self):
+        # test points
+        point_prediction_qs = self.forecast.point_prediction_qs() \
+            .order_by('location__id', 'target__id') \
+            .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t')
+        self.assertEqual(77, point_prediction_qs.count())
+        self.assertEqual(('HHS Region 1', 'Season onset', None, None, '0.000637588946744927'), point_prediction_qs[0])
 
-        # test get_data_preview()
-        exp_preview = [['US National', 'Season onset', CDC_POINT_ROW_TYPE, 'week', None, None, 50.0012056690978],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 40, 41, 1.95984004521967e-05],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 41, 42, 1.46988003391476e-05],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 42, 43, 6.98193016109509e-06],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 43, 44, 3.79719008761312e-06],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 44, 45, 4.28715009891804e-06],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 45, 46, 1.59237003674098e-05],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 46, 47, 3.0989970715036e-05],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 47, 48, 5.3895601243541e-05],
-                       ['US National', 'Season onset', CDC_BIN_ROW_TYPE, 'week', 48, 49, 7.49638817296525e-05]]
-        self.assertEqual(exp_preview, self.forecast.get_data_preview())
+        # test binlwr
+        binlwr_distribution_qs = self.forecast.binlwr_distribution_qs() \
+            .order_by('location__id', 'target__id', 'lwr') \
+            .values_list('location__name', 'target__name', 'lwr', 'prob')
+        self.assertEqual(7205, binlwr_distribution_qs.count())
+        self.assertEqual(('HHS Region 1', 'Season peak percentage', 0.0, 2.77466929119912e-05),
+                         binlwr_distribution_qs[0])
 
+        #  test bincat
+        bincat_distribution_qs = self.forecast.bincat_distribution_qs() \
+            .order_by('location__id', 'target__id', 'cat') \
+            .values_list('location__name', 'target__name', 'cat', 'prob')
+        self.assertEqual(737, bincat_distribution_qs.count())
+        self.assertEqual(('HHS Region 1', 'Season onset', '', 0.0227300694570138), bincat_distribution_qs[0])
+
+        # xx
         exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
                               'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
                               'US National']

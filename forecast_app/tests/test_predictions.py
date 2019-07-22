@@ -8,6 +8,7 @@ from forecast_app.models import Project, ForecastModel, TimeZero, PointPredictio
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.prediction import calc_named_distribution
 from utils.cdc import convert_cdc_csv_to_predictions_files
+from utils.forecast import _prediction_class_for_csv_header, load_predictions
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 
 
@@ -70,7 +71,7 @@ class PredictionsTestCase(TestCase):
             ('location', 'target', 'cat', 'sample'): SampleCatDistribution,
         }
         for csv_header, exp_prediction_class in exp_header_to_class.items():
-            self.assertEqual(exp_prediction_class, Forecast.prediction_class_for_csv_header(csv_header))
+            self.assertEqual(exp_prediction_class, _prediction_class_for_csv_header(csv_header))
 
 
     def test_load_bincat_csv_file(self):
@@ -78,7 +79,7 @@ class PredictionsTestCase(TestCase):
                 tempfile.NamedTemporaryFile(mode='r+') as binlwr_fp, \
                 tempfile.NamedTemporaryFile(mode='r+') as bincat_fp:
             convert_cdc_csv_to_predictions_files(self.cdc_csv_path, points_fp, binlwr_fp, bincat_fp)
-            self.forecast.load_predictions(bincat_fp)
+            load_predictions(self.forecast, bincat_fp)
 
             bincat_qs = BinCatDistribution.objects.filter()
             self.assertEqual(22, bincat_qs.count())
@@ -98,7 +99,7 @@ class PredictionsTestCase(TestCase):
                 tempfile.NamedTemporaryFile(mode='r+') as binlwr_fp, \
                 tempfile.NamedTemporaryFile(mode='r+') as bincat_fp:
             convert_cdc_csv_to_predictions_files(self.cdc_csv_path, points_fp, binlwr_fp, bincat_fp)
-            self.forecast.load_predictions(binlwr_fp)
+            load_predictions(self.forecast, binlwr_fp)
 
             binlwr_qs = BinLwrDistribution.objects.filter()
             self.assertEqual(55, binlwr_qs.count())
@@ -118,7 +119,7 @@ class PredictionsTestCase(TestCase):
 
     def test_load_binary_csv_file(self):
         with open('forecast_app/tests/predictions/binary-predictions.csv') as binary_fp:
-            self.forecast.load_predictions(binary_fp)
+            load_predictions(self.forecast, binary_fp)
 
             binary_qs = BinaryDistribution.objects.filter()
             self.assertEqual(7, binary_qs.count())
@@ -140,7 +141,7 @@ class PredictionsTestCase(TestCase):
         # NB: named_distributions.csv has the non-CDC target 'not-a-cdc-target', which does *not* cause an error when
         # loading b/c all dispatched-to _load_*() methods call _create_missing_locations_and_targets_rows()
         with open('forecast_app/tests/predictions/named_distributions.csv') as named_dists_fp:
-            self.forecast.load_predictions(named_dists_fp)
+            load_predictions(self.forecast, named_dists_fp)
 
             named_dists_qs = NamedDistribution.objects.filter()
             self.assertEqual(9, named_dists_qs.count())
@@ -168,7 +169,7 @@ class PredictionsTestCase(TestCase):
                 tempfile.NamedTemporaryFile(mode='r+') as binlwr_fp, \
                 tempfile.NamedTemporaryFile(mode='r+') as bincat_fp:
             convert_cdc_csv_to_predictions_files(self.cdc_csv_path, points_fp, binlwr_fp, bincat_fp)
-            self.forecast.load_predictions(points_fp)
+            load_predictions(self.forecast, points_fp)
 
             points_qs = PointPrediction.objects.filter()
             self.assertEqual(77, points_qs.count())
@@ -190,7 +191,7 @@ class PredictionsTestCase(TestCase):
 
     def test_load_sample_csv_file(self):
         with open('forecast_app/tests/predictions/sample-predictions.csv') as samples_fp:
-            self.forecast.load_predictions(samples_fp)
+            load_predictions(self.forecast, samples_fp)
 
             samples_qs = SampleDistribution.objects.filter()
             self.assertEqual(7, samples_qs.count())
@@ -210,7 +211,7 @@ class PredictionsTestCase(TestCase):
 
     def test_load_sample_cat_csv_file(self):
         with open('forecast_app/tests/predictions/samplecat-predictions.csv') as samplecats_fp:
-            self.forecast.load_predictions(samplecats_fp)
+            load_predictions(self.forecast, samplecats_fp)
 
             samplecats_qs = SampleCatDistribution.objects.filter()
             self.assertEqual(7, samplecats_qs.count())
@@ -241,7 +242,7 @@ class PredictionsTestCase(TestCase):
         ]
         for prediction_file_name in prediction_file_names:
             with open('forecast_app/tests/predictions/' + prediction_file_name) as prediction_fp:
-                self.forecast.load_predictions(prediction_fp)
+                load_predictions(self.forecast, prediction_fp)
         self.assertEqual(22, self.forecast.bincat_distribution_qs().count())
         self.assertEqual(55, self.forecast.binlwr_distribution_qs().count())
         self.assertEqual(7, self.forecast.binary_distribution_qs().count())
@@ -256,7 +257,7 @@ class PredictionsTestCase(TestCase):
         # of a bad header
         with open(self.cdc_csv_path) as bad_header_fp:
             with self.assertRaises(RuntimeError) as context:
-                self.forecast.load_predictions(bad_header_fp)
+                load_predictions(self.forecast, bad_header_fp)
             self.assertIn('csv_header did not match expected types', str(context.exception))
 
 

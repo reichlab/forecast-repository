@@ -8,6 +8,8 @@ import click
 from django.db import transaction
 
 from forecast_app.models.forecast import Forecast
+from utils.forecast import POINT_PREDICTION_HEADER, BINLWR_DISTRIBUTION_HEADER, BINCAT_DISTRIBUTION_HEADER, \
+    load_predictions
 from utils.utilities import parse_value
 
 
@@ -100,9 +102,9 @@ def load_cdc_csv_forecast_file(forecast_model, csv_file_path_or_fp, time_zero, f
             tempfile.NamedTemporaryFile(mode='r+') as binlwr_fp, \
             tempfile.NamedTemporaryFile(mode='r+') as bincat_fp:
         convert_cdc_csv_to_predictions_files(csv_file_path_or_fp, points_fp, binlwr_fp, bincat_fp)
-        new_forecast.load_predictions(points_fp)
-        new_forecast.load_predictions(binlwr_fp)
-        new_forecast.load_predictions(bincat_fp)
+        load_predictions(new_forecast, points_fp)
+        load_predictions(new_forecast, binlwr_fp)
+        load_predictions(new_forecast, bincat_fp)
     return new_forecast
 
 
@@ -160,9 +162,9 @@ def convert_cdc_csv_to_predictions_files(cdc_csv_file, out_points_fp, out_binlwr
         binlwr_file_csv_writer = csv.writer(out_binlwr_fp, delimiter=',')
         bincat_file_csv_writer = csv.writer(out_bincat_fp, delimiter=',')
 
-        points_file_csv_writer.writerow(Forecast.POINT_PREDICTION_HEADER)
-        binlwr_file_csv_writer.writerow(Forecast.BINLWR_DISTRIBUTION_HEADER)
-        bincat_file_csv_writer.writerow(Forecast.BINCAT_DISTRIBUTION_HEADER)
+        points_file_csv_writer.writerow(POINT_PREDICTION_HEADER)
+        binlwr_file_csv_writer.writerow(BINLWR_DISTRIBUTION_HEADER)
+        bincat_file_csv_writer.writerow(BINCAT_DISTRIBUTION_HEADER)
 
         location_names, target_names, rows = read_cdc_csv_file_rows(cdc_csv_file_fp)
         for row in rows:
