@@ -5,12 +5,11 @@ from pathlib import Path
 import click
 import django
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-from utils.cdc import load_cdc_csv_forecast_file
-
-
 django.setup()
 
+from utils.cdc import load_cdc_csv_forecast_file
 from forecast_app.models import Project, TimeZero, ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
     CDC_CONFIG_DICT
@@ -96,8 +95,8 @@ def fill_project(project, mo_user):
                             timezero_date=datetime.date(2017, 1, 24),
                             data_version_date=None)
 
-    # load the truth data
-    project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
+    # load the truth data. todo xx file_name arg:
+    project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'), None)
 
     # create the models
     click.echo("creating ForecastModel")
@@ -113,7 +112,7 @@ def fill_project(project, mo_user):
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
-    forecast1 = load_cdc_csv_forecast_file(csv_file_path, time_zero1)
+    forecast1 = load_cdc_csv_forecast_file(forecast_model1, csv_file_path, time_zero1)
     click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
 
     ForecastModel.objects.create(project=project,

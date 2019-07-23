@@ -29,21 +29,21 @@ def main(verbosity):
 
 def print_project_info(project, verbosity):
     # verbosity == 1
-    click.echo("\n* {} {!r} {}. {} {}. {}".format(project, project.csv_filename, project.truth_data_qs().count(),
-                                            project.owner, project.model_owners.all(), project.get_summary_counts()))
+    click.echo("\n\n* {} {}. {} {}. {}".format(project, project.truth_data_qs().count(), project.owner,
+                                             project.model_owners.all(), project.get_summary_counts()))
     if verbosity == 1:
         return
 
     # verbosity == 2
-    click.echo("** Targets ({})".format(project.targets.count()))
+    click.echo("\n** Targets ({})".format(project.targets.count()))
     for target in project.targets.all():
         click.echo("- {}".format(target))
 
-    click.echo("** Locations ({})".format(project.locations.count()))
+    click.echo("\n** Locations ({})".format(project.locations.count()))
     for location in project.locations.all().order_by('name'):
         click.echo("- {}".format(location))
 
-    click.echo("** TimeZeros ({})".format(project.timezeros.count()))
+    click.echo("\n** TimeZeros ({})".format(project.timezeros.count()))
     for timezero in project.timezeros.all():
         click.echo("- {}".format(timezero))
 
@@ -51,7 +51,7 @@ def print_project_info(project, verbosity):
         return
 
     # verbosity == 3
-    click.echo("** ForecastModels ({})".format(project.models.count()))
+    click.echo("\n** ForecastModels ({})".format(project.models.count()))
     for forecast_model in project.models.all():
         if verbosity == 3:
             click.echo("- {}".format(forecast_model))
@@ -59,7 +59,7 @@ def print_project_info(project, verbosity):
             click.echo("*** {} ({} forecasts)".format(forecast_model, forecast_model.forecasts.count()))
         if verbosity == 4:
             for forecast in forecast_model.forecasts.order_by('time_zero'):
-                click.echo("  {}".format(forecast))
+                click.echo("- {}: {} rows".format(forecast, forecast.get_num_rows()))
 
 
 if __name__ == '__main__':
