@@ -97,8 +97,8 @@ class BinLwrDistribution(EmpiricalDistribution):
 
 class BinaryDistribution(EmpiricalDistribution):
     """
-    Concrete class representing binary distributions.
-    Validation: The arg cannot be null.
+    Concrete class representing binary distributions. Unlike other EmpiricalDistributions, this class is more like
+    PointPrediction and NamedDistribution in that it has only a single entry per Forecast.
     """
 
     prob = models.FloatField()

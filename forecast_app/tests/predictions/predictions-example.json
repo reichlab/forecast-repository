@@ -1,0 +1,168 @@
+{
+  "forecast": {
+    "id": 3,
+    "forecast_model_id": 5,
+    "csv_filename": "20170423-gam_lag1_tops3-20170525.cdc.csv",
+    "created_at": "2018-09-05T09:18:21.346093-04:00",
+    "time_zero": {
+      "timezero_date": "20170423",
+      "data_version_date": "20170525"
+    }
+  },
+  "locations": [
+    "US National",
+    "HHS Region 1",
+    "HHS Region 2",
+    "HHS Region 3",
+    "HHS Region 4",
+    "HHS Region 5",
+    "HHS Region 6",
+    "HHS Region 7",
+    "HHS Region 8",
+    "HHS Region 9",
+    "HHS Region 10"
+  ],
+  "targets": [
+    {
+      "name": "1 wk ahead",
+      "description": "One- to four-week ahead forecasts...",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 1
+    },
+    {
+      "name": "2 wk ahead",
+      "description": "One- to four-week ahead forecasts...",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 2
+    },
+    {
+      "name": "3 wk ahead",
+      "description": "One- to four-week ahead forecasts...",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 3
+    },
+    {
+      "name": "4 wk ahead",
+      "description": "One- to four-week ahead forecasts...",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 4
+    },
+    {
+      "name": "Season onset",
+      "description": "The onset of the season is defined as...",
+      "unit": "week",
+      "is_date": true,
+      "is_step_ahead": false,
+      "step_ahead_increment": 0
+    },
+    {
+      "name": "Season peak percentage",
+      "description": "The intensity will be defined as...",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": false,
+      "step_ahead_increment": 0
+    },
+    {
+      "name": "Season peak week",
+      "description": "The peak week will be defined as...",
+      "unit": "week",
+      "is_date": true,
+      "is_step_ahead": false,
+      "step_ahead_increment": 0
+    }
+  ],
+  "predictions": [
+    {
+      "location": "US National",
+      "target": "1 wk ahead",
+      "class": "BinCat",
+      "prediction": {
+        "cat": [
+          "cat1",
+          "cat2"
+        ],
+        "prob": [
+          0.1,
+          0.9
+        ]
+      }
+    },
+    {
+      "location": "HHS Region 1",
+      "target": "2 wk ahead",
+      "class": "BinLwr",
+      "prediction": {
+        "lwr": [
+          0.0,
+          0.1
+        ],
+        "prob": [
+          0.1,
+          0.9
+        ]
+      }
+    },
+    {
+      "location": "HHS Region 2",
+      "target": "3 wk ahead",
+      "class": "Binary",
+      "prediction": {
+        "prob": 0.5
+      }
+    },
+    {
+      "location": "HHS Region 3",
+      "target": "4 wk ahead",
+      "class": "Named",
+      "prediction": {
+        "family": "gamma",
+        "param1": 1.1,
+        "param2": 2.2,
+        "param3": 3.3
+      }
+    },
+    {
+      "location": "HHS Region 4",
+      "target": "Season onset",
+      "class": "Point",
+      "prediction": {
+        "value": 1
+      }
+    },
+    {
+      "location": "HHS Region 5",
+      "target": "Season peak percentage",
+      "class": "Sample",
+      "prediction": {
+        "sample": [
+          1.1,
+          2.2
+        ]
+      }
+    },
+    {
+      "location": "HHS Region 6",
+      "target": "Season peak week",
+      "class": "SampleCat",
+      "prediction": {
+        "cat": [
+          "cat1",
+          "cat2"
+        ],
+        "sample": [
+          "cat1 sample",
+          "cat2 sample"
+        ]
+      }
+    }
+  ]
+}

@@ -1,22 +1,21 @@
 import csv
 import datetime
 import re
-import tempfile
-from pathlib import Path
+from itertools import groupby
 
 import click
 from django.db import transaction
 
+from forecast_app.models import Target
 from forecast_app.models.forecast import Forecast
-from utils.forecast import POINT_PREDICTION_HEADER, BINLWR_DISTRIBUTION_HEADER, BINCAT_DISTRIBUTION_HEADER, \
-    load_predictions
+from utils.forecast import load_predictions
 from utils.utilities import parse_value
 
 
 # todo xx these are project-specific: CDC ensemble and Impetus
-BINLWR_TARGETS = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
-                  '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead', '5_biweek_ahead']
-BINCAT_TARGETS = ['Season onset', 'Season peak week']
+BINLWR_TARGET_NAMES = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
+                       '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead', '5_biweek_ahead']
+BINCAT_TARGET_NAMES = ['Season onset', 'Season peak week']
 
 
 def epi_week_filename_components_2016_2017_flu_contest(filename):
@@ -85,6 +84,7 @@ def load_cdc_csv_forecast_file(forecast_model, csv_file_path_or_fp, time_zero, f
     Loads the passed cdc csv file into a new forecast_model Forecast for time_zero. NB: does not check if a Forecast
     already exists for time_zero and file_name. Is atomic so that an invalid forecast's data is not saved.
 
+    :param forecast_model: the ForecastModel to create the new Forecast in
     :param csv_file_path_or_fp: Path to a CDC CSV forecast file, OR an already-open file-like object
     :param time_zero: the TimeZero this forecast applies to
     :param file_name: optional name to use for the file. if None (default), uses csv_file_path_or_fp. helpful b/c uploaded
@@ -98,13 +98,8 @@ def load_cdc_csv_forecast_file(forecast_model, csv_file_path_or_fp, time_zero, f
 
     file_name = file_name or csv_file_path_or_fp.name
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
-    with tempfile.NamedTemporaryFile(mode='r+') as points_fp, \
-            tempfile.NamedTemporaryFile(mode='r+') as binlwr_fp, \
-            tempfile.NamedTemporaryFile(mode='r+') as bincat_fp:
-        convert_cdc_csv_to_predictions_files(csv_file_path_or_fp, points_fp, binlwr_fp, bincat_fp)
-        load_predictions(new_forecast, points_fp)
-        load_predictions(new_forecast, binlwr_fp)
-        load_predictions(new_forecast, bincat_fp)
+    top_level_dict = convert_cdc_csv_file_to_dict(new_forecast, csv_file_path_or_fp)
+    load_predictions(new_forecast, top_level_dict)
     return new_forecast
 
 
@@ -146,48 +141,119 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None)
     return forecasts
 
 
-def convert_cdc_csv_to_predictions_files(cdc_csv_file, out_points_fp, out_binlwr_fp, out_bincat_fp):
+def convert_cdc_csv_file_to_dict(forecast, cdc_csv_file_fp):
     """
-    Utility that extracts the three types of predictions found in cdc csv files, saving them into the three passed
-    separate csv file paths, one per prediction type: PointPredictions, BinLwrDistributions, BinCatDistribution. Seeks
-    each file to its start.
+    Utility that extracts the three types of predictions found in cdc csv files (PointPredictions, BinLwrDistributions,
+    and BinCatDistributions), returning them as a dict suitable for export to a json file. Note that it requires all
+    target names mentioned in the file to exist in forecast's forecast_model's project. This is b/c we need to coerce
+    point values to the proper type based on Target.point_value_type.
 
-    :param cdc_csv_file: a cdc csv file (string or Path). todo xx pointer to docs
-    :param out_points_fp: file to save PointPredictions to
-    :param out_binlwr_fp: "" BinLwrDistributions ""
-    :param out_bincat_fp: "" BinCatDistribution ""
+    :param cdc_csv_file_fp: an open cdc csv file-like object. todo xx pointer to docs
+    :param forecast: Forecast used to create the 'forecast' and 'targets' (via its Project) sections
     """
-    with open(Path(cdc_csv_file)) as cdc_csv_file_fp:
-        points_file_csv_writer = csv.writer(out_points_fp, delimiter=',')
-        binlwr_file_csv_writer = csv.writer(out_binlwr_fp, delimiter=',')
-        bincat_file_csv_writer = csv.writer(out_bincat_fp, delimiter=',')
-
-        points_file_csv_writer.writerow(POINT_PREDICTION_HEADER)
-        binlwr_file_csv_writer.writerow(BINLWR_DISTRIBUTION_HEADER)
-        bincat_file_csv_writer.writerow(BINCAT_DISTRIBUTION_HEADER)
-
-        location_names, target_names, rows = read_cdc_csv_file_rows(cdc_csv_file_fp)
-        for row in rows:
-            location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value = row
-            if is_point_row:
-                points_file_csv_writer.writerow([location_name, target_name, value])
-            elif target_name in BINLWR_TARGETS:
-                binlwr_file_csv_writer.writerow(
-                    [location_name, target_name, bin_start_incl, value])  # todo xx lwr == bin_start_incl !?
-            elif target_name in BINCAT_TARGETS:
-                bincat_file_csv_writer.writerow(
-                    [location_name, target_name, bin_start_incl, value])  # todo xx cat == bin_start_incl !?
-            else:
-                raise RuntimeError("unexpected bin target. target_name={!r}, BINLWR_TARGETS={}, BINCAT_TARGETS={}"
-                                   .format(target_name, BINLWR_TARGETS, BINCAT_TARGETS))
-
-        # done
-        out_points_fp.seek(0)
-        out_binlwr_fp.seek(0)
-        out_bincat_fp.seek(0)
+    location_names, target_names, rows = _read_cdc_csv_file_rows(cdc_csv_file_fp)
+    return {'forecast': _forecast_dict_for_forecast(forecast),
+            'locations': [location.name for location in forecast.forecast_model.project.locations.all()],
+            'targets': _target_dicts_for_project(forecast.forecast_model.project, target_names),
+            'predictions': _prediction_dicts_for_csv_rows(forecast.forecast_model.project, rows)}
 
 
-def read_cdc_csv_file_rows(cdc_csv_file_fp):
+def _forecast_dict_for_forecast(forecast):
+    """
+    convert_cdc_csv_file_to_dict() helper that returns a dict for the 'forecast' section of the exported json.
+    See predictions-example.json for an example.
+    """
+    return {"id": forecast.pk,
+            "forecast_model_id": forecast.forecast_model.pk,
+            "csv_filename": forecast.csv_filename,
+            "created_at": forecast.created_at,
+            "time_zero": {
+                "timezero_date": forecast.time_zero.timezero_date,
+                "data_version_date": forecast.time_zero.data_version_date
+            }}
+
+
+def _target_dicts_for_project(project, target_names):
+    """
+    convert_cdc_csv_file_to_dict() helper that returns a list of target dicts for the 'targets' section of the exported
+    json. See predictions-example.json for an example. only those in target_names are included
+    """
+    return [{"name": target.name,
+             "description": target.description,
+             "unit": target.unit,
+             "is_date": target.is_date,
+             "is_step_ahead": target.is_step_ahead,
+             "step_ahead_increment": target.step_ahead_increment}
+            for target in project.targets.all() if target.name in target_names]
+
+
+def _prediction_dicts_for_csv_rows(project, rows):
+    """
+    convert_cdc_csv_file_to_dict() helper that returns a list of prediction dicts for the 'predictions' section of the
+    exported json. Each dict corresponds to either a PointPrediction, BinLwrDistribution, or BinCatDistribution
+    depending on each row in rows. See predictions-example.json for an example.
+    """
+    target_name_to_target = {target.name: target for target in project.targets.all()}
+    predictions_dicts = []  # return value
+    rows.sort(key=lambda _: (_[0], _[1], _[2], _[3]))  # 0 & 1 required by groupby. 2 & 3 sorted bins
+    for location_name, target_grouper in groupby(rows, key=lambda _: _[0]):
+        for target_name, row_type_grouper in groupby(target_grouper, key=lambda _: _[1]):
+            target = target_name_to_target[target_name]
+            point_value = None  # set when we encounter the point row
+            bincat_cats = []  # text. appended to when we encounter bincat rows
+            bincat_probs = []  # float. ""
+            binlwr_lwrs = []  # float. "" binlwr rows
+            binlwr_probs = []  # float. ""
+            for _, _, is_point_row, bin_start_incl, bin_end_notincl, value in row_type_grouper:
+                try:
+                    if is_point_row:
+                        if target.point_value_type == Target.POINT_INTEGER:
+                            point_value = int(value)
+                        elif target.point_value_type == Target.POINT_FLOAT:
+                            point_value = float(value)
+                        else:  # POINT_TEXT
+                            point_value = str(value)
+                    elif target_name in BINCAT_TARGET_NAMES:
+                        bincat_cats.append(str(bin_start_incl))
+                        bincat_probs.append(float(value))
+                    elif target_name in BINLWR_TARGET_NAMES:
+                        binlwr_lwrs.append(float(bin_start_incl))
+                        binlwr_probs.append(float(value))
+                    else:
+                        raise RuntimeError(
+                            f"unexpected bin target_name. target_name={target_name!r}, "
+                            f"BINLWR_TARGET_NAMES={BINLWR_TARGET_NAMES}, "
+                            f"BINCAT_TARGET_NAMES={BINCAT_TARGET_NAMES}")
+                except ValueError as ve:
+                    row = [location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value]
+                    raise RuntimeError(f"could not coerce either bin_start_incl or value to float. bin_start_incl="
+                                       f"{bin_start_incl}, value={value}, row={row}, error={ve}")
+
+            # add the actual prediction dicts
+            if bincat_cats:
+                predictions_dicts.append({"location": location_name,
+                                          "target": target_name,
+                                          "class": "BinCat",
+                                          "prediction": {
+                                              "cat": bincat_cats,
+                                              "prob": bincat_probs}})
+            if binlwr_lwrs:
+                predictions_dicts.append({"location": location_name,
+                                          "target": target_name,
+                                          "class": "BinLwr",
+                                          "prediction": {
+                                              "lwr": binlwr_lwrs,
+                                              "prob": binlwr_probs}})
+            if point_value is not None:
+                predictions_dicts.append({"location": location_name,
+                                          "target": target_name,
+                                          'class': 'Point',
+                                          'prediction': {
+                                              'value': point_value}})
+    return predictions_dicts
+
+
+def _read_cdc_csv_file_rows(cdc_csv_file_fp):
     """
     Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
     but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
@@ -215,8 +281,8 @@ def read_cdc_csv_file_rows(cdc_csv_file_fp):
         raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
-    locations = set()
-    targets = set()
+    location_names = set()
+    target_names = set()
     rows = []
     for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
         if (len(row) == 8) and (row[7] == ''):
@@ -234,8 +300,8 @@ def read_cdc_csv_file_rows(cdc_csv_file_fp):
                                .format(CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE))
         is_point_row = (row_type == CDC_POINT_ROW_TYPE)
 
-        locations.add(location_name)
-        targets.add(target_name)
+        location_names.add(location_name)
+        target_names.add(target_name)
 
         # use parse_value() to handle non-numeric cases like 'NA' and 'none'
         bin_start_incl = parse_value(bin_start_incl)
@@ -253,7 +319,7 @@ def read_cdc_csv_file_rows(cdc_csv_file_fp):
 
         rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
 
-    return locations, targets, rows
+    return location_names, target_names, rows
 
 
 #

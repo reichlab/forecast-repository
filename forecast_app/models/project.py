@@ -569,7 +569,7 @@ class Project(models.Model):
 
     def _load_truth_data_rows(self, csv_file_fp):
         """
-        Similar to ModelWithCDCData.read_cdc_csv_file_rows(), loads, validates, and cleans the rows in csv_file_fp.
+        Similar to ModelWithCDCData._read_cdc_csv_file_rows(), loads, validates, and cleans the rows in csv_file_fp.
         """
         csv_reader = csv.reader(csv_file_fp, delimiter=',')
 
@@ -743,13 +743,13 @@ class Target(models.Model):
     point_value_type = models.IntegerField(choices=POINT_VALUE_TYPE_CHOICES)
 
     # these fields collectively indicate which prediction data types are allowed for this Target:
-    ok_point_prediction = BooleanField(default=False, help_text="True if allows PointPredictions")
-    ok_named_distribution = BooleanField(default=False, help_text="True if allows NamedDistribution")
-    ok_binlwr_distribution = BooleanField(default=False, help_text="True if allows BinLwrDistributions")
-    ok_sample_distribution = BooleanField(default=False, help_text="True if allows SampleDistributions")
     ok_bincat_distribution = BooleanField(default=False, help_text="True if allows BinCatDistributions")
-    ok_samplecat_distribution = BooleanField(default=False, help_text="True if allows SampleCatDistributions")
+    ok_binlwr_distribution = BooleanField(default=False, help_text="True if allows BinLwrDistributions")
     ok_binary_distribution = BooleanField(default=False, help_text="True if allows BinaryDistributions")
+    ok_named_distribution = BooleanField(default=False, help_text="True if allows NamedDistribution")
+    ok_point_prediction = BooleanField(default=False, help_text="True if allows PointPredictions")
+    ok_sample_distribution = BooleanField(default=False, help_text="True if allows SampleDistributions")
+    ok_samplecat_distribution = BooleanField(default=False, help_text="True if allows SampleCatDistributions")
 
 
     def __repr__(self):

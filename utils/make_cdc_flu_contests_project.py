@@ -149,7 +149,7 @@ def make_cdc_targets(project):
     Creates CDC standard Targets for project. Returns a list of them.
     """
     targets = []
-    week_ahead_ok_types = {  # makes it convenient to pass all in as a unit
+    week_prediction_ok_types = {  # makes it convenient to pass all in as a unit
         'ok_point_prediction': True,
         'ok_named_distribution': True,
         'ok_binlwr_distribution': True,
@@ -191,11 +191,11 @@ def make_cdc_targets(project):
             ('2 wk ahead', week_ahead_descr, 'percent', False, True, 2, Target.POINT_FLOAT, True),
             ('3 wk ahead', week_ahead_descr, 'percent', False, True, 3, Target.POINT_FLOAT, True),
             ('4 wk ahead', week_ahead_descr, 'percent', False, True, 4, Target.POINT_FLOAT, True)):
-        ok_types_dict = week_ahead_ok_types if is_week_ahead_ok_type else season_onset_ok_types
+        prediction_ok_types_dict = week_prediction_ok_types if is_week_ahead_ok_type else season_onset_ok_types
         targets.append(Target.objects.create(project=project, name=target_name, description=description, unit=unit,
                                              is_date=is_date, is_step_ahead=is_step_ahead,
                                              step_ahead_increment=step_ahead_increment,
-                                             point_value_type=point_value_type, **ok_types_dict))
+                                             point_value_type=point_value_type, **prediction_ok_types_dict))
     return targets
 
 
@@ -319,7 +319,8 @@ def load_forecasts(project, model_dirs_to_load):
             return bin_start_incl, bin_end_notincl, value
 
 
-        forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, model_dir, is_load_file=is_cdc_file_ew43_through_ew18,
+        forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, model_dir,
+                                                    is_load_file=is_cdc_file_ew43_through_ew18,
                                                     forecast_bin_map_fcn=forecast_bin_map_fcn)
         model_name_to_forecasts[model_name].extend(forecasts)
 

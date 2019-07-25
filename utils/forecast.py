@@ -10,84 +10,82 @@ from utils.utilities import parse_value
 
 
 #
-# prediction-loading functions
+# load_predictions()
 #
 
-BINCAT_DISTRIBUTION_HEADER = 'location', 'target', 'cat', 'prob'
-BINLWR_DISTRIBUTION_HEADER = 'location', 'target', 'lwr', 'prob'
-BINARY_DISTRIBUTION_HEADER = 'location', 'target', 'prob'
-NAMED_DISTRIBUTION_HEADER = 'location', 'target', 'family', 'param1', 'param2', 'param3'
-POINT_PREDICTION_HEADER = 'location', 'target', 'value'
-SAMPLE_DISTRIBUTION_HEADER = 'location', 'target', 'sample'
-SAMPLECAT_DISTRIBUTION_HEADER = 'location', 'target', 'cat', 'sample'
-
-
-def load_predictions(forecast, predictions_file):
+def load_predictions(forecast, top_level_dict):
     """
-    Loads the prediction data into forecast from predictions_file. The type of predictions loaded are based on the
-    file's headers.
+    Loads the prediction data into forecast from top_level_dict. See predictions-example.json for an example.
     """
-    csv_reader = csv.reader(predictions_file, delimiter=',')
-    try:
-        csv_header = next(csv_reader)
-    except StopIteration:  # a kind of Exception, so much come first
-        raise RuntimeError("empty file.")
-    except Exception as exc:
-        raise RuntimeError(f"error reading from predictions_file={predictions_file}. exc={exc}")
-
-    prediction_class = _prediction_class_for_csv_header(tuple(csv_header))  # raises
-    prediction_class_to_load_fcn = {
-        BinCatDistribution: _load_bincat_predictions,
-        BinLwrDistribution: _load_binlwr_predictions,
-        BinaryDistribution: _load_binary_predictions,
-        NamedDistribution: _load_named_distribution_predictions,
-        PointPrediction: _load_point_predictions,
-        SampleDistribution: _load_sample_predictions,
-        SampleCatDistribution: _load_samplecat_predictions,
-    }
-    if prediction_class in prediction_class_to_load_fcn:
-        prediction_class_to_load_fcn[prediction_class](forecast, csv_reader)
-    else:
-        raise NotImplementedError(f"no {prediction_class.__name__} loading yet")
+    # forecast = top_level_dict['forecast']
+    location_names = top_level_dict['locations']
+    target_names = [target_dict['name'] for target_dict in top_level_dict['targets']]
+    predictions = top_level_dict['predictions']
+    bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
+        _prediction_dicts_to_db_rows(predictions)
+    _load_bincat_rows(forecast, location_names, target_names, bincat_rows)
+    _load_binlwr_rows(forecast, location_names, target_names, binlwr_rows)
+    _load_binary_rows(forecast, location_names, target_names, binary_rows)
+    _load_named_rows(forecast, location_names, target_names, named_rows)
+    _load_point_rows(forecast, location_names, target_names, point_rows)
+    _load_sample_rows(forecast, location_names, target_names, sample_rows)
+    _load_samplecat_rows(forecast, location_names, target_names, samplecat_rows)
 
 
-def _prediction_class_for_csv_header(csv_header):
+def _prediction_dicts_to_db_rows(prediction_dicts):
     """
-    :param csv_header: a sequence of strings representing a csv file's headers
-    :return: a Prediction subclass to use for loading that kind of file
+    Returns a 7-tuple of rows suitable for bulk-loading into a database:
+
+        bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
+
+    Each row is Prediction class-specific.
+
+    :param prediction_dicts: the 'predictions' portion of as returned by convert_cdc_csv_file_to_dict()
     """
-    header_to_class = {
-        BINCAT_DISTRIBUTION_HEADER: BinCatDistribution,
-        BINLWR_DISTRIBUTION_HEADER: BinLwrDistribution,
-        BINARY_DISTRIBUTION_HEADER: BinaryDistribution,
-        NAMED_DISTRIBUTION_HEADER: NamedDistribution,
-        POINT_PREDICTION_HEADER: PointPrediction,
-        SAMPLE_DISTRIBUTION_HEADER: SampleDistribution,
-        SAMPLECAT_DISTRIBUTION_HEADER: SampleCatDistribution,
-    }
-    if csv_header in header_to_class:
-        return header_to_class[csv_header]
-    else:
-        all_headers = [BINCAT_DISTRIBUTION_HEADER, BINLWR_DISTRIBUTION_HEADER, BINARY_DISTRIBUTION_HEADER,
-                       NAMED_DISTRIBUTION_HEADER, POINT_PREDICTION_HEADER, SAMPLE_DISTRIBUTION_HEADER,
-                       SAMPLECAT_DISTRIBUTION_HEADER]
-        raise RuntimeError(f"csv_header did not match expected types. csv_header={csv_header!r}, "
-                           f"valid headers: {all_headers}")
+    bincat_rows = []  # return value. filled next
+    binlwr_rows = []
+    binary_rows = []
+    named_rows = []
+    point_rows = []
+    sample_rows = []
+    samplecat_rows = []
+    for prediction_dict in prediction_dicts:
+        location_name = prediction_dict['location']
+        target_name = prediction_dict['target']
+        prediction_class = prediction_dict['class']
+        prediction_data = prediction_dict['prediction']
+        if prediction_class == 'BinCat':
+            for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
+                bincat_rows.append([location_name, target_name, cat, prob])
+        elif prediction_class == 'BinLwr':
+            for lwr, prob in zip(prediction_data['lwr'], prediction_data['prob']):
+                binlwr_rows.append([location_name, target_name, lwr, prob])
+        elif prediction_class == 'Binary':
+            binary_rows.append([location_name, target_name, prediction_data['prob']])
+        elif prediction_class == 'Named':
+            named_rows.append([location_name, target_name, prediction_data['family'],
+                               prediction_data['param1'], prediction_data['param2'], prediction_data['param3']])
+        elif prediction_class == 'Point':
+            point_rows.append([location_name, target_name, prediction_data['value']])
+        elif prediction_class == 'Sample':
+            for sample in prediction_data['sample']:
+                sample_rows.append([location_name, target_name, sample])
+        elif prediction_class == 'SampleCat':
+            for cat, sample in zip(prediction_data['cat'], prediction_data['sample']):
+                samplecat_rows.append([location_name, target_name, cat, sample])
+    return bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
 
 
-def _load_bincat_predictions(forecast, csv_reader):
+def _load_bincat_rows(forecast, location_names, target_names, rows):
     """
-    Loads the rows in csv_reader as BinCatDistributions. See BINCAT_DISTRIBUTION_HEADER.
+    Loads the rows in prediction_data_dict as BinCatDistributions.
     """
-    # after this, rows will be: [location, target, cat, prob]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(BINCAT_DISTRIBUTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, cat, prob]
 
-    # after this, rows will be: [location, target, cat, prob]:
+    # after this, rows will be: [location_id, target_id, cat, prob]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
 
-    # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
+    # after this, rows will be: [location_id, target_id, cat, prob, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
@@ -100,14 +98,11 @@ def _load_bincat_predictions(forecast, csv_reader):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_binlwr_predictions(forecast, csv_reader):
+def _load_binlwr_rows(forecast, location_names, target_names, rows):
     """
-    Loads the rows in csv_reader as BinLwrDistributions. See BINLWR_DISTRIBUTION_HEADER.
+    Loads the rows in csv_reader as BinLwrDistributions.
     """
-    # after this, rows will be: [location, target, lwr, prob]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(BINLWR_DISTRIBUTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, lwr, prob]
 
     # after this, rows will be: [location_id, target_id, lwr, prob]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
@@ -125,19 +120,16 @@ def _load_binlwr_predictions(forecast, csv_reader):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_binary_predictions(forecast, csv_reader):
+def _load_binary_rows(forecast, location_names, target_names, rows):
     """
-    Loads the rows in csv_reader as BinaryDistributions. See BINARY_DISTRIBUTION_HEADER.
+    Loads the rows in csv_reader as BinaryDistributions.
     """
-    # after this, rows will be: [location, target, prob]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(BINARY_DISTRIBUTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, prob]
 
-    # after this, rows will be: [location, target, prob]:
+    # after this, rows will be: [location_id, target_id, prob]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
 
-    # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
+    # after this, rows will be: [location_id, target_id, prob, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
@@ -149,16 +141,12 @@ def _load_binary_predictions(forecast, csv_reader):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_named_distribution_predictions(forecast, csv_reader):
+def _load_named_rows(forecast, location_names, target_names, rows):
     """
-    Loads the rows in csv_reader as NamedDistribution concrete subclasses. See NAMED_DISTRIBUTION_HEADER.
-    Recall that each subclass has different IVs, so we use a hard-coded mapping to decide the subclass based on the
-    `family` column.
+    Loads the rows in csv_reader as NamedDistribution concrete subclasses. Recall that each subclass has different IVs,
+    so we use a hard-coded mapping to decide the subclass based on the `family` column.
     """
-    # after this, rows will be: [location, target, family, param1, param2, param3]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(NAMED_DISTRIBUTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, family, param1, param2, param3]
 
     # after this, rows will be: [location_id, target_id, family, param1, param2, param3]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
@@ -184,14 +172,11 @@ def _load_named_distribution_predictions(forecast, csv_reader):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_point_predictions(forecast, csv_reader):
+def _load_point_rows(forecast, location_names, target_names, rows):
     """
-    Loads the rows in csv_reader as PointPredictions. See POINT_PREDICTION_HEADER.
+    Loads the rows in csv_reader as PointPredictions.
     """
-    # after this, rows will be: [location, target, value]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(POINT_PREDICTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, value]
 
     # after this, rows will be: [location_id, target_id, value]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
@@ -213,14 +198,11 @@ def _load_point_predictions(forecast, csv_reader):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_sample_predictions(forecast, csv_reader):
+def _load_sample_rows(forecast, location_names, target_names, rows):
     """
     Loads the rows in csv_reader as SampleDistribution. See SAMPLE_DISTRIBUTION_HEADER.
     """
-    # after this, rows will be: [location, target, sample]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(SAMPLE_DISTRIBUTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, sample]
 
     # after this, rows will be: [location_id, target_id, sample]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
@@ -237,16 +219,13 @@ def _load_sample_predictions(forecast, csv_reader):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_samplecat_predictions(forecast, csv_reader):
+def _load_samplecat_rows(forecast, location_names, target_names, rows):
     """
-    Loads the rows in csv_reader as SampleCatDistributions. See SAMPLECAT_DISTRIBUTION_HEADER.
+    Loads the rows in csv_reader as SampleCatDistributions.
     """
-    # after this, rows will be: [location, target, cat, sample]:
-    location_names, target_names, rows = _read_csv_file_rows(csv_reader, len(SAMPLECAT_DISTRIBUTION_HEADER))
-    if not rows:
-        return
+    # incoming rows: [location_name, target_name, cat, sample]
 
-    # after this, rows will be: [location, target, cat, sample]:
+    # after this, rows will be: [location_id, target_id, cat, sample]:
     _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
 
     # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
@@ -260,29 +239,6 @@ def _load_samplecat_predictions(forecast, csv_reader):
                      prediction_class._meta.get_field('sample').column,
                      Forecast._meta.model_name + '_id']
     _insert_rows(prediction_class, columns_names, rows)
-
-
-def _read_csv_file_rows(csv_reader, exp_num_rows):
-    """
-    Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Validates exp_num_rows, but
-    does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
-    dynamically created by this method's callers).
-
-    :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
-        rows: location_name, target_name, parsed_value]
-    """
-    locations = set()
-    targets = set()
-    rows = []
-    for row in csv_reader:
-        if len(row) != exp_num_rows:
-            raise RuntimeError(f"Invalid row (wasn't {exp_num_rows} columns): {row!r}")
-
-        location_name, target_name = row[0], row[1]
-        locations.add(location_name)
-        targets.add(target_name)
-        rows.append(row)
-    return locations, targets, rows
 
 
 def _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows):
