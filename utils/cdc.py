@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 from django.db import transaction
 
-from forecast_app.models import Target
+from forecast_app.models import Target, PointPrediction
 from forecast_app.models.forecast import Forecast
 from utils.forecast import load_predictions
 from utils.utilities import parse_value
@@ -200,10 +200,10 @@ def _prediction_dicts_for_csv_rows(project, rows):
     exported json. Each dict corresponds to either a PointPrediction, BinLwrDistribution, or BinCatDistribution
     depending on each row in rows. See predictions-example.json for an example.
     """
-    print('xx', rows)
+    # recall rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     target_name_to_target = {target.name: target for target in project.targets.all()}
     predictions_dicts = []  # return value
-    rows.sort(key=lambda _: (_[0], _[1], _[2], _[3]))  # 0 & 1 required by groupby. 2 & 3 sorted bins
+    rows.sort(key=lambda _: (_[0], _[1]))  # sorted so groupby() will work
     for location_name, target_grouper in groupby(rows, key=lambda _: _[0]):
         for target_name, row_type_grouper in groupby(target_grouper, key=lambda _: _[1]):
             target = target_name_to_target[target_name]
@@ -269,7 +269,7 @@ def _read_cdc_csv_file_rows(cdc_csv_file_fp):
 
     :param cdc_csv_file_fp: the *.cdc.csv data file to load
     :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
-        rows: location_name, target_name, row_type, bin_start_incl, bin_end_notincl, value
+        rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     """
     csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
 

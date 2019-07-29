@@ -275,8 +275,8 @@ def _replace_value_with_three_types_rows(forecast, rows):
     for row in rows:
         target_pk = row[1]
         value = row[2]
-        value_i = parse_value(value) if target_pk_to_point_value_type[target_pk] == Target.POINT_INTEGER else None
-        value_f = parse_value(value) if target_pk_to_point_value_type[target_pk] == Target.POINT_FLOAT else None
+        value_i = value if target_pk_to_point_value_type[target_pk] == Target.POINT_INTEGER else None
+        value_f = value if target_pk_to_point_value_type[target_pk] == Target.POINT_FLOAT else None
         value_t = value if target_pk_to_point_value_type[target_pk] == Target.POINT_TEXT else None
         row[2:] = [value_i, value_f, value_t]
 

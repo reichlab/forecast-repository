@@ -48,7 +48,7 @@ class RowCountCache(models.Model):
         recent call wins, which is not terrible if we assume that one used the latest data.
         """
         logger.debug("update_row_count_cache(): calling: get_num_forecast_rows_all_models(). project={}".format(self.project))
-        num_forecast_rows = self.project.get_num_forecast_rows()
+        num_forecast_rows = self.project.get_num_forecast_rows_all_models()
         self.row_count = num_forecast_rows  # recall last_update is auto_now
         self.save()
         logger.debug("update_row_count_cache(): done: {}. project={}".format(num_forecast_rows, self.project))
