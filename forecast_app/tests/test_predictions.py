@@ -85,6 +85,14 @@ class PredictionsTestCase(TestCase):
             self.assertEqual(2, self.forecast.samplecat_distribution_qs().count())
 
 
+    def test_unexpected_bin_target_name(self):
+        self.fail()  # todo xx
+
+
+    def test_could_not_coerce_bin_start_incl_or_value_to_float(self):
+        self.fail()  # todo xx
+
+
     def test_forecast_prediction_accessors_cdc(self):
         # load the three types of predictions that come from cdc.csv files, call Forecast.*_qs() functions
         with open(self.cdc_csv_path) as cdc_csv_fp:
@@ -125,7 +133,11 @@ class PredictionsTestCase(TestCase):
 
 
     def test_bad_csv_file(self):
+        # empty file
+        # invalid header
+        # Invalid row (wasn't 7 columns)
         # can't coerce, etc.
+        # row_type was neither
         self.fail()  # todo xx
 
 
@@ -133,12 +145,12 @@ class PredictionsTestCase(TestCase):
         self.fail()  # todo xx
 
 
-    def test_all_types_of_validations(self):
-        # see [Zoltar2 Prediction Validation](https://docs.google.com/document/d/1WtYdjhVSKkdlU6mHe_qYBdyIUnPSNBa0QCg1WgnN2qQ/edit)
+    def test_validations(self):
+        # many of them. see [Zoltar2 Prediction Validation](https://docs.google.com/document/d/1WtYdjhVSKkdlU6mHe_qYBdyIUnPSNBa0QCg1WgnN2qQ/edit)
         self.fail()  # todo xx
 
 
-    def test_target_acceptable_foreast_data_formats(self):
+    def test_target_acceptable_forecast_data_formats(self):
         # BooleanFields for each of the seven possibilities:
         #   - ok_point_prediction
         #   - ok_named_distribution

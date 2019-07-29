@@ -15,7 +15,8 @@ from utils.utilities import parse_value
 
 def load_predictions(forecast, top_level_dict):
     """
-    Loads the prediction data into forecast from top_level_dict. See predictions-example.json for an example.
+    Loads the prediction data into forecast from top_level_dict as returned by convert_cdc_csv_file_to_dict(). See
+    predictions-example.json for an example.
     """
     # forecast = top_level_dict['forecast']
     location_names = [location_dict['name'] for location_dict in top_level_dict['locations']]

@@ -2,6 +2,7 @@ import csv
 import datetime
 import re
 from itertools import groupby
+from pathlib import Path
 
 import click
 from django.db import transaction
@@ -79,13 +80,14 @@ def epi_week_filename_components_ensemble(filename):
 
 
 @transaction.atomic
-def load_cdc_csv_forecast_file(forecast_model, csv_file_path_or_fp, time_zero, file_name=None):
+def load_cdc_csv_forecast_file(forecast_model, cdc_csv_file_path, time_zero, file_name=None):
     """
     Loads the passed cdc csv file into a new forecast_model Forecast for time_zero. NB: does not check if a Forecast
     already exists for time_zero and file_name. Is atomic so that an invalid forecast's data is not saved.
 
     :param forecast_model: the ForecastModel to create the new Forecast in
-    :param csv_file_path_or_fp: Path to a CDC CSV forecast file, OR an already-open file-like object
+    :param cdc_csv_file_path: string or Path to a CDC CSV forecast file. the CDC CSV file format is documented at
+        https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
     :param time_zero: the TimeZero this forecast applies to
     :param file_name: optional name to use for the file. if None (default), uses csv_file_path_or_fp. helpful b/c uploaded
         files have random csv_file_path_or_fp file names, so original ones must be extracted and passed separately
@@ -96,9 +98,11 @@ def load_cdc_csv_forecast_file(forecast_model, csv_file_path_or_fp, time_zero, f
         raise RuntimeError(f"time_zero was not in project. time_zero={time_zero}, "
                            f"project timezeros={forecast_model.project.timezeros.all()}")
 
-    file_name = file_name or csv_file_path_or_fp.name
+    cdc_csv_file_path = Path(cdc_csv_file_path)
+    file_name = file_name or cdc_csv_file_path.name
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
-    top_level_dict = convert_cdc_csv_file_to_dict(new_forecast, csv_file_path_or_fp)
+    with open(cdc_csv_file_path) as cdc_csv_file_fp:
+        top_level_dict = convert_cdc_csv_file_to_dict(new_forecast, cdc_csv_file_fp)
     load_predictions(new_forecast, top_level_dict)
     return new_forecast
 
@@ -148,8 +152,11 @@ def convert_cdc_csv_file_to_dict(forecast, cdc_csv_file_fp):
     file. Note that it requires all target names mentioned in the file to exist in forecast's forecast_model's project.
     This is b/c we need to coerce point values to the proper type based on Target.point_value_type.
 
-    :param cdc_csv_file_fp: an open cdc csv file-like object. todo xx pointer to docs
     :param forecast: Forecast used to create the 'forecast' and 'targets' (via its Project) sections
+    :param cdc_csv_file_fp: an open cdc csv file-like object. the CDC CSV file format is documented at
+        https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
+    :return a dict (aka 'top_level_dict' by callers) that contains the three types of predictions.
+        See predictions-example.json for an example.
     """
     location_names, target_names, rows = _read_cdc_csv_file_rows(cdc_csv_file_fp)
     return {'forecast': _forecast_dict_for_forecast(forecast),
@@ -193,6 +200,7 @@ def _prediction_dicts_for_csv_rows(project, rows):
     exported json. Each dict corresponds to either a PointPrediction, BinLwrDistribution, or BinCatDistribution
     depending on each row in rows. See predictions-example.json for an example.
     """
+    print('xx', rows)
     target_name_to_target = {target.name: target for target in project.targets.all()}
     predictions_dicts = []  # return value
     rows.sort(key=lambda _: (_[0], _[1], _[2], _[3]))  # 0 & 1 required by groupby. 2 & 3 sorted bins
