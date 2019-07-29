@@ -54,7 +54,8 @@ class PredictionsTestCase(TestCase):
             act_dict = convert_cdc_csv_file_to_dict(self.forecast, cdc_csv_fp)
             # test the three top-level components separately for TDD
             self.assertEqual(list(exp_dict.keys()), list(act_dict.keys()))
-            self.assertEqual(set(exp_dict['locations']), set(act_dict['locations']))
+            self.assertEqual(sorted(exp_dict['locations'], key=lambda _: _['name']),
+                             sorted(act_dict['locations'], key=lambda _: _['name']))
             self.assertEqual(exp_dict['predictions'], act_dict['predictions'])
             self.assertEqual(sorted(exp_dict['targets'], key=lambda _: _['name']),
                              sorted(act_dict['targets'], key=lambda _: _['name']))

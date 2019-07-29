@@ -18,7 +18,7 @@ def load_predictions(forecast, top_level_dict):
     Loads the prediction data into forecast from top_level_dict. See predictions-example.json for an example.
     """
     # forecast = top_level_dict['forecast']
-    location_names = top_level_dict['locations']
+    location_names = [location_dict['name'] for location_dict in top_level_dict['locations']]
     target_names = [target_dict['name'] for target_dict in top_level_dict['targets']]
     predictions = top_level_dict['predictions']
     bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \

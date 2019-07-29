@@ -144,16 +144,16 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None)
 def convert_cdc_csv_file_to_dict(forecast, cdc_csv_file_fp):
     """
     Utility that extracts the three types of predictions found in cdc csv files (PointPredictions, BinLwrDistributions,
-    and BinCatDistributions), returning them as a dict suitable for export to a json file. Note that it requires all
-    target names mentioned in the file to exist in forecast's forecast_model's project. This is b/c we need to coerce
-    point values to the proper type based on Target.point_value_type.
+    and BinCatDistributions), returning them as a dict suitable for loading into the database or exporting to a json
+    file. Note that it requires all target names mentioned in the file to exist in forecast's forecast_model's project.
+    This is b/c we need to coerce point values to the proper type based on Target.point_value_type.
 
     :param cdc_csv_file_fp: an open cdc csv file-like object. todo xx pointer to docs
     :param forecast: Forecast used to create the 'forecast' and 'targets' (via its Project) sections
     """
     location_names, target_names, rows = _read_cdc_csv_file_rows(cdc_csv_file_fp)
     return {'forecast': _forecast_dict_for_forecast(forecast),
-            'locations': [location.name for location in forecast.forecast_model.project.locations.all()],
+            'locations': [{'name': location.name} for location in forecast.forecast_model.project.locations.all()],
             'targets': _target_dicts_for_project(forecast.forecast_model.project, target_names),
             'predictions': _prediction_dicts_for_csv_rows(forecast.forecast_model.project, rows)}
 
