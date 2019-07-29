@@ -137,25 +137,6 @@ class Project(models.Model):
 
 
     #
-    # distribution-related utilities
-    #
-
-    def get_distribution_preview(self):
-        """
-        :return: returns an arbitrary Forecast bin for this project as a 3-tuple: (Forecast, location, target). returns
-            None if I have no targets, locations, models, or forecasts
-        """
-        first_model = self.models.first()
-        first_forecast = first_model.forecasts.first() if first_model else None
-        location_names = self.get_location_names()
-        first_location = next(iter(sorted(location_names))) if location_names else None  # sort to make deterministic
-        targets = self.get_target_names_for_location(first_location)
-        first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
-        return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
-            else None
-
-
-    #
     # season-related utilities
     #
 

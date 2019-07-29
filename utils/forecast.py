@@ -1,22 +1,22 @@
 import csv
 import io
 
-from django.db import connection
+from django.db import connection, transaction
 
 from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
     PointPrediction, SampleDistribution, SampleCatDistribution, Forecast, Location, Target
 from forecast_app.models.project import POSTGRES_NULL_VALUE
-from utils.utilities import parse_value
 
 
 #
 # load_predictions()
 #
 
+@transaction.atomic
 def load_predictions(forecast, top_level_dict):
     """
     Loads the prediction data into forecast from top_level_dict as returned by convert_cdc_csv_file_to_dict(). See
-    predictions-example.json for an example.
+    predictions-example.json for an example. Once loaded then validates the forecast data.
     """
     # forecast = top_level_dict['forecast']
     location_names = [location_dict['name'] for location_dict in top_level_dict['locations']]

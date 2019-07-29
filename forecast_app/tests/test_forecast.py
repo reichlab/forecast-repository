@@ -144,6 +144,14 @@ class ForecastTestCase(TestCase):
             else:
                 raise Exception
 
+        # todo xx test other validations ala old Forecast.validate_forecast_data():
+        #   v raise RuntimeError("Bin did not sum to 1.0.
+        #   v raise RuntimeError("Point value was non-numeric
+        #   - raise RuntimeError("Locations did not match template
+        #   - raise RuntimeError("Targets did not match template
+        #   ? raise RuntimeError("Bins did not match template
+        self.fail()  # todo xx
+
 
     @unittest.skip
     def test_forecast_data_validation_additional(self):
@@ -193,30 +201,6 @@ class ForecastTestCase(TestCase):
         self.assertEqual(737, bincat_distribution_qs.count())
         self.assertEqual(('HHS Region 1', 'Season onset', '1', 2.37797107673309e-05), bincat_distribution_qs[0])
         self.assertEqual(('HHS Region 1', 'Season onset', 'None', 0.0227300694570138), bincat_distribution_qs[33])
-
-        exp_location_names = ['HHS Region 1', 'HHS Region 10', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4',
-                              'HHS Region 5', 'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9',
-                              'US National']
-        self.assertEqual(exp_location_names, sorted(self.forecast.get_location_names()))
-
-        exp_target_names = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season onset',
-                            'Season peak percentage', 'Season peak week']
-        self.assertEqual(exp_target_names, sorted(self.forecast.get_target_names_for_location('US National')))
-        self.assertEqual(exp_target_names, sorted(self.forecast.get_target_names()))
-        self.assertEqual(50.0012056690978, self.forecast.get_target_point_value('US National', 'Season onset'))
-        self.assertEqual(3.30854920241938,
-                         self.forecast.get_target_point_value('US National', 'Season peak percentage'))
-
-        act_bins = self.forecast.get_target_bins('US National', 'Season onset')
-        self.assertEqual(34, len(act_bins))
-
-        # spot-check bin boundaries
-        start_end_val_tuples = [(1, 2, 9.7624532252505e-05),
-                                (20, 21, 1.22490002826229e-07),
-                                (40, 41, 1.95984004521967e-05),
-                                (52, 53, 0.000147110493394302)]
-        for start_end_val_tuple in start_end_val_tuples:
-            self.assertIn(start_end_val_tuple, act_bins)
 
 
     def test_forecast_delete(self):
