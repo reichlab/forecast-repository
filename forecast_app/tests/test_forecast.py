@@ -230,14 +230,3 @@ class ForecastTestCase(TestCase):
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
-
-
-    def test_download_forecast_data(self):
-        response = csv_response_for_model_with_cdc_data(self.forecast)
-        split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(len(split_content), 8021)  # 8019 data rows + 1 header + 1 EOF
-        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
-
-        # relies on order, which is OK - see get_data_rows(): `order_by('id')`:
-        self.assertEqual(split_content[1], 'US National,Season onset,point,week,,,50.0012056690978')
-        self.assertEqual(split_content[2], 'US National,Season onset,bin,week,40.0,41.0,1.95984004521967e-05')

@@ -26,6 +26,7 @@ from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer
 from utils.cloud_file import download_file
+from utils.forecast import json_io_dict_from_forecast
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -311,15 +312,7 @@ def json_response_for_forecast(request, forecast):
     # but when I tried this, returned a delimited string instead of JSON:
     #   return Response(JSONRenderer().render(location_dicts))
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
-    from forecast_app.serializers import ForecastSerializer  # avoid circular imports
-
-
-    detail_serializer = ForecastSerializer(forecast, context={'request': request})
-    xx  # todo xx
-    metadata_dict = detail_serializer.data
-    location_dicts = forecast.get_location_dicts_download_format()
-    response = JsonResponse({'metadata': metadata_dict,
-                             'locations': location_dicts})  # defaults to 'content_type' 'application/json'
+    response = JsonResponse(json_io_dict_from_forecast(forecast))  # defaults to 'content_type' 'application/json'
     response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(forecast.csv_filename)
     return response
 

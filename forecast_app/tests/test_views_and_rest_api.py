@@ -93,10 +93,6 @@ class ViewsTestCase(TestCase):
                       (cls.po_user, status.HTTP_200_OK),
                       (cls.mo_user, status.HTTP_200_OK),
                       (cls.superuser, status.HTTP_200_OK)]
-        cls.BAD_REQ_400_ALL = [(None, status.HTTP_400_BAD_REQUEST),
-                               (cls.po_user, status.HTTP_400_BAD_REQUEST),
-                               (cls.mo_user, status.HTTP_400_BAD_REQUEST),
-                               (cls.superuser, status.HTTP_400_BAD_REQUEST)]
         cls.ONLY_PO_MO = [(None, status.HTTP_403_FORBIDDEN),
                           (cls.po_user, status.HTTP_200_OK),
                           (cls.mo_user, status.HTTP_200_OK),
@@ -105,10 +101,6 @@ class ViewsTestCase(TestCase):
                               (cls.po_user, status.HTTP_302_FOUND),
                               (cls.mo_user, status.HTTP_302_FOUND),
                               (cls.superuser, status.HTTP_302_FOUND)]
-        cls.ONLY_PO_MO_400 = [(None, status.HTTP_403_FORBIDDEN),
-                              (cls.po_user, status.HTTP_400_BAD_REQUEST),
-                              (cls.mo_user, status.HTTP_400_BAD_REQUEST),
-                              (cls.superuser, status.HTTP_400_BAD_REQUEST)]
         cls.ONLY_PO = [(None, status.HTTP_403_FORBIDDEN),
                        (cls.po_user, status.HTTP_200_OK),
                        (cls.mo_user, status.HTTP_403_FORBIDDEN),
@@ -196,8 +188,8 @@ class ViewsTestCase(TestCase):
             reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
             reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
             reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
-            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
-            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
+            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.OK_ALL,
+            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
         }
 
         # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
@@ -385,72 +377,54 @@ class ViewsTestCase(TestCase):
         """
         Tests returned value keys as a content sanity check.
         """
-        # 'api-root'
-        # a rest_framework.response.Response:
+        # 'api-root' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-root'), format='json')
         self.assertEqual(['projects'], list(response.data.keys()))
 
-        # 'api-project-list' - per-user authorization tested in test_api_project_list_authorization()
-        # a rest_framework.utils.serializer_helpers.ReturnList:
+        # 'api-project-list' - a rest_framework.utils.serializer_helpers.ReturnList:
+        #  (per-user authorization tested in test_api_project_list_authorization())
         response = self.client.get(reverse('api-project-list'), format='json')
         self.assertEqual(2, len(response.data))
 
-        # 'api-project-detail'
-        # a rest_framework.utils.serializer_helpers.ReturnDict:
+        # 'api-project-detail' - a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
                     'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
-        # 'api-user-detail'
-        # a rest_framework.response.Response:
-        # o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data':
+        # 'api-user-detail' - a rest_framework.response.Response:
+        # (o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data')
         self.client.login(username=self.po_user.username, password=self.po_user_password)
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
         exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
         self.client.logout()  # AnonymousUser
         self.assertEqual(exp_keys, list(response.data.keys()))
 
-        # 'api-model-detail'
-        # a rest_framework.response.Response
+        # 'api-model-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
                     'forecasts']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
-        # 'api-forecast-list'
-        # a rest_framework.response.Response:
+        # 'api-forecast-list' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
         exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
         self.assertEqual(1, len(response_dicts))
         self.assertEqual(exp_keys, list(response_dicts[0].keys()))
 
-        # 'api-forecast-detail'
-        # a rest_framework.response.Response:
+        # 'api-forecast-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
         exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
         self.assertEqual(exp_keys, list(response.data.keys()))
 
-        # 'api-forecast-data'
-        # a django.http.response.JsonResponse:
+        # 'api-forecast-data' - a django.http.response.JsonResponse:
+        # (note that we only check top-level keys b/c we know json_response_for_forecast() uses
+        # json_io_dict_from_forecast(), which is tested separately)
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]), format='json')
         response_dict = json.loads(response.content)
-
-        # check top-level keys
-        exp_keys = ['metadata', 'locations']
+        exp_keys = ['forecast', 'locations', 'targets', 'predictions']
         self.assertEqual(exp_keys, list(response_dict.keys()))
-
-        # check metadata
-        forecast_detail_resp = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]),
-                                               format='json')
-        forecast_detail_dict = json.loads(forecast_detail_resp.content)
-        self.assertEqual(forecast_detail_dict, response_dict['metadata'])
-
-        # check data keys
-        exp_locations = ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
-                         'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National']
-        self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
 
 
     def test_api_delete_endpoints(self):
@@ -483,7 +457,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
-        self.assertEqual(list(response_dict), ['metadata', 'locations'])
+        self.assertEqual(list(response_dict), ['forecast', 'locations', 'targets', 'predictions'])
         self.assertEqual(len(response_dict['locations']), 11)
 
         # score data as CSV. a django.http.response.HttpResponse
