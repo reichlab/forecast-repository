@@ -1,5 +1,6 @@
 import csv
 import io
+from itertools import groupby
 
 from django.db import connection, transaction
 
@@ -9,19 +10,233 @@ from forecast_app.models.project import POSTGRES_NULL_VALUE
 
 
 #
-# load_predictions()
+# JSON input/output format documentation
+# - todo xx move these docs elsewhere!
+#
+# For prediction input and output we use a dictionary structure suitable for JSON I/O. The dict is called a
+# "JSON IO dict" in code documentation. See predictions-example.json for an example. Functions accept a json_io_dict
+# include: load_predictions_from_json_io_dict(). Functions that return a json_io_dict include:
+# json_io_dict_from_forecast() and json_io_dict_from_cdc_csv_file(). This format is closely inspired by
+# https://github.com/cdcepi/predx/blob/master/predx_classes.md
+#
+# Briefly, the dict has four top level keys:
+#
+# - forecast: a metadata dict about the file's forecast. has these keys: 'id', 'forecast_model_id', 'csv_filename',
+#   'created_at', and 'time_zero'. Some or all of these keys might be ignored by functions that accept a JSON IO dict.
+#
+# - locations: a list of "location dicts", each of which has just a 'name' key whose value is the name of a location
+#   in the below 'predictions' section.
+#
+# - targets: a list of "target dicts", each of which has the following fields. The fields are: 'name', 'description',
+#   'unit', 'is_date', 'is_step_ahead', and 'step_ahead_increment'.
+#
+# - predictions: a list of "prediction dicts" that contains the prediction data. Each dict has these fields:
+#   = 'location': name of the Location
+#   = 'target': "" the Target
+#   = 'class': the type of prediction this is. it is an abbreviation of the corresponding Prediction subclass - see
+#     PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS for the names
+#   = 'prediction': a class-specific dict containing the prediction data itself. the format varies according to class.
+#     See https://github.com/cdcepi/predx/blob/master/predx_classes.md for details. Here is a summary:
+#     + 'BinCat': Binned distribution with a category for each bin. is a two-column table represented by two keys, one
+#                 per column: 'cat' and 'prob'. They are paired, i.e., have the same number of rows
+#     + 'BinLwr': Binned distribution defined by inclusive lower bounds for each bin. Similar to 'BinCat', but has these
+#                 two keys: 'lwr' and 'prob'.
+#     + 'Binary': Binary distribution with a single 'prob' key.
+#     + 'Named': A named distribution with four fields: 'family' and 'param1' through 'param3'. family must be listed in
+#                FAMILY_CHOICE_TO_ABBREVIATION.
+#     + 'Point': A numeric point prediction with a single 'value' key.
+#     + 'Sample': Numeric samples represented as a table with one column that is found in the 'sample' key.
+#     + 'SampleCat': Character string samples from categories. Similar to 'BinCat', but has these two keys: 'cat' and
+#                    'sample'.
+#
+
+PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
+    BinCatDistribution: 'BinCat',
+    BinLwrDistribution: 'BinLwr',
+    BinaryDistribution: 'Binary',
+    NamedDistribution: 'Named',
+    PointPrediction: 'Point',
+    SampleDistribution: 'Sample',
+    SampleCatDistribution: 'SampleCat',
+}
+
+
+#
+# json_io_dict_from_forecast
+#
+
+def json_io_dict_from_forecast(forecast):
+    """
+    The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for the 'predictions' section
+    of the exported json. See predictions-example.json for an example. Does not reuse that function's helper methods b/c
+    the latter is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of predictions
+    in CDC CSV files.
+
+    :param forecast: a Forecast whose predictions are to be outputted
+    :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. see docs for details
+    """
+    from utils.cdc import _forecast_dict_for_forecast, _target_dicts_for_project  # avoid circular imports
+
+
+    location_names, target_names, prediction_dicts = _locations_targets_pred_dicts_from_cdc_csv_file(forecast)
+    return {'forecast': _forecast_dict_for_forecast(forecast),
+            'locations': [{'name': location_names} for location_names in location_names],
+            'targets': _target_dicts_for_project(forecast.forecast_model.project, target_names),
+            'predictions': prediction_dicts}
+
+
+def _locations_targets_pred_dicts_from_cdc_csv_file(forecast):
+    """
+    json_io_dict_from_forecast() helper that returns
+
+    :param forecast: the Forecast to read predictions from
+    :return: a 3-tuple: (location_names, target_names, prediction_dicts) where the first two are sets of the Location
+        names and Target names in forecast's Predictions, and the last is list of "prediction dicts" as documented
+        elsewhere
+    """
+    # recall Django's limitations in handling abstract classes and polymorphic models - asking for all of a Forecast's
+    # Predictions returns base Prediction instances (forecast, location, and target) without subclass fields (e.g.,
+    # PointPrediction.value). so we have to handle each Prediction subclass individually. this implementation loads
+    # all instances of each concrete subclass into memory, ordered by (location, target) for groupby(). note: b/c the
+    # code for each class is so similar, I implemented an abstraction, but it turned out to be longer and more
+    # complicated, and didn't warrant eliminating the duplication
+
+    location_names = set()
+    target_names = set()
+    prediction_dicts = []  # filled next for each Prediction subclass
+
+    # BinCatDistribution
+    bincat_qs = forecast.bincat_distribution_qs() \
+        .order_by('location__id', 'target__id') \
+        .values_list('location__name', 'target__name', 'cat', 'prob')
+    for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            bincat_cats, bincat_probs = [], []
+            for _, _, cat, prob in cat_prob_grouper:
+                bincat_cats.append(cat)
+                bincat_probs.append(prob)
+            prediction_dicts.append({"location": location_name, "target": target_name,
+                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinCatDistribution],
+                                     "prediction": {"cat": bincat_cats, "prob": bincat_probs}})
+
+    # BinLwrDistribution
+    binlwr_qs = forecast.binlwr_distribution_qs() \
+        .order_by('location__id', 'target__id', 'lwr') \
+        .values_list('location__name', 'target__name', 'lwr', 'prob')  # ordering by 'lwr'
+    for location_name, target_lwr_prob_grouper in groupby(binlwr_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, lwr_prob_grouper in groupby(target_lwr_prob_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            binlwr_lwrs, binlwr_probs = [], []
+            for _, _, lwr, prob in lwr_prob_grouper:
+                binlwr_lwrs.append(lwr)
+                binlwr_probs.append(prob)
+            prediction_dicts.append({"location": location_name, "target": target_name,
+                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinLwrDistribution],
+                                     "prediction": {"lwr": binlwr_lwrs, "prob": binlwr_probs}})
+
+    # BinaryDistribution
+    binary_qs = forecast.binary_distribution_qs() \
+        .order_by('location__id', 'target__id') \
+        .values_list('location__name', 'target__name', 'prob')
+    for location_name, target_prob_grouper in groupby(binary_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, prob_grouper in groupby(target_prob_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            for _, _, prob in prob_grouper:
+                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1
+                # BinaryDistributions per Forecast. validation should take care of enforcing this, but this code here is
+                # general
+                prediction_dicts.append({"location": location_name, "target": target_name,
+                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinaryDistribution],
+                                         "prediction": {"prob": prob}})
+
+    # NamedDistribution
+    named_qs = forecast.named_distribution_qs() \
+        .order_by('location__id', 'target__id') \
+        .values_list('location__name', 'target__name', 'family', 'param1', 'param2', 'param3')
+    for location_name, target_family_params_grouper in groupby(named_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, family_params_grouper in groupby(target_family_params_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            for _, _, family, param1, param2, param3 in family_params_grouper:
+                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 NamedDistributions
+                # per Forecast. validation should take care of enforcing this, but this code here is general
+                famil_abbrev = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
+                prediction_dicts.append({"location": location_name, "target": target_name,
+                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
+                                         "prediction": {"family": famil_abbrev,
+                                                        "param1": param1, "param2": param2, "param3": param3}})
+
+    # PointPrediction
+    point_qs = forecast.point_prediction_qs() \
+        .order_by('location__id', 'target__id') \
+        .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t')
+    for location_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            for _, _, value_i, value_f, value_t in values_grouper:  # recall that exactly one will be non-NULL
+                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
+                # per Forecast. validation should take care of enforcing this, but this code here is general
+                prediction_dicts.append({"location": location_name, "target": target_name,
+                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
+                                         "prediction": {"value": value_i or value_f or value_t}})
+
+    # SampleDistribution
+    sample_qs = forecast.sample_distribution_qs() \
+        .order_by('location__id', 'target__id') \
+        .values_list('location__name', 'target__name', 'sample')
+    for location_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, sample_grouper in groupby(target_sample_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            samples = []
+            for _, _, sample in sample_grouper:
+                samples.append(sample)
+            prediction_dicts.append({"location": location_name, "target": target_name,
+                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
+                                     "prediction": {"sample": samples}})
+
+    # SampleCatDistribution
+    samplecat_qs = forecast.samplecat_distribution_qs() \
+        .order_by('location__id', 'target__id') \
+        .values_list('location__name', 'target__name', 'cat', 'sample')
+    for location_name, target_cat_sample_grouper in groupby(samplecat_qs, key=lambda _: _[0]):
+        location_names.add(location_name)
+        for target_name, cat_sample_grouper in groupby(target_cat_sample_grouper, key=lambda _: _[1]):
+            target_names.add(target_name)
+            samplecat_cats, samplecat_samples = [], []
+            for _, _, cat, sample in cat_sample_grouper:
+                samplecat_cats.append(cat)
+                samplecat_samples.append(sample)
+            prediction_dicts.append({"location": location_name, "target": target_name,
+                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleCatDistribution],
+                                     "prediction": {"cat": samplecat_cats, "sample": samplecat_samples}})
+
+    return location_names, target_names, prediction_dicts
+
+
+#
+# load_predictions_from_json_io_dict()
 #
 
 @transaction.atomic
-def load_predictions(forecast, top_level_dict):
+def load_predictions_from_json_io_dict(forecast, json_io_dict):
     """
-    Loads the prediction data into forecast from top_level_dict as returned by convert_cdc_csv_file_to_dict(). See
-    predictions-example.json for an example. Once loaded then validates the forecast data.
+    Loads the prediction data into forecast from json_io_dict. Once loaded then validates the forecast data. Note that
+    we ignore the metadata portion of json_io_dict (json_io_dict['forecast']), including: 'id', 'forecast_model_id',
+    'csv_filename', 'created_at', and 'time_zero'. However, the "locations" and "targets" /are/ used to call
+    _create_missing_locations_and_targets_rows().
+
+    :param forecast a Forecast to load json_io_dict's predictions into
+    :param json_io_dict a "JSON IO dict" to load from. see docs for details
     """
-    # forecast = top_level_dict['forecast']
-    location_names = [location_dict['name'] for location_dict in top_level_dict['locations']]
-    target_names = [target_dict['name'] for target_dict in top_level_dict['targets']]
-    predictions = top_level_dict['predictions']
+    location_names = [location_dict['name'] for location_dict in json_io_dict['locations']]
+    target_names = [target_dict['name'] for target_dict in json_io_dict['targets']]
+    predictions = json_io_dict['predictions']
     bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
         _prediction_dicts_to_db_rows(predictions)
     _load_bincat_rows(forecast, location_names, target_names, bincat_rows)
@@ -41,15 +256,15 @@ def _prediction_dicts_to_db_rows(prediction_dicts):
 
     Each row is Prediction class-specific.
 
-    :param prediction_dicts: the 'predictions' portion of as returned by convert_cdc_csv_file_to_dict()
+    :param prediction_dicts: the 'predictions' portion of as returned by json_io_dict_from_cdc_csv_file()
     """
     bincat_rows = []  # return value. filled next
-    binlwr_rows = []
-    binary_rows = []
-    named_rows = []
-    point_rows = []
-    sample_rows = []
-    samplecat_rows = []
+    binlwr_rows = []  # ""
+    binary_rows = []  # ""
+    named_rows = []  # ""
+    point_rows = []  # ""
+    sample_rows = []  # ""
+    samplecat_rows = []  # ""
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
         target_name = prediction_dict['target']
@@ -74,6 +289,9 @@ def _prediction_dicts_to_db_rows(prediction_dicts):
         elif prediction_class == 'SampleCat':
             for cat, sample in zip(prediction_data['cat'], prediction_data['sample']):
                 samplecat_rows.append([location_name, target_name, cat, sample])
+        else:
+            raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
+                               f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}")
     return bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
 
 
@@ -286,12 +504,13 @@ def _replace_family_abbrev_with_id_rows(forecast, rows):
     Does an in-place rows replacement of family abbreviations with ids in NamedDistribution.FAMILY_CHOICES (ints).
     """
     for row in rows:
-        family = row[2]
-        if family in NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID:
-            row[2] = NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID[family]
+        abbreviation = row[2]
+        if abbreviation in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values():
+            row[2] = [choice for choice, abbrev in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()
+                      if abbrev == abbreviation][0]
         else:
-            raise RuntimeError(f"invalid family. family='{family}', "
-                               f"families={NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID.keys()}")
+            raise RuntimeError(f"invalid family. abbreviation='{abbreviation}', "
+                               f"abbreviations={NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()}")
 
 
 def _replace_null_params_with_zeros_rows(forecast, rows):

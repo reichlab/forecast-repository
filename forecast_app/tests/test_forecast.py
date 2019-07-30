@@ -6,7 +6,6 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.api_views import csv_response_for_model_with_cdc_data
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
@@ -25,7 +24,7 @@ class ForecastTestCase(TestCase):
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         cls.forecast = load_cdc_csv_forecast_file(cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 

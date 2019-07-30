@@ -155,16 +155,16 @@ class NamedDistribution(Prediction):
 
     # maps named distribution abbreviations to their FAMILY_CHOICES value. note that csv files use abbreviations for the
     # 'family' column
-    FAMILY_ABBREVIATION_TO_FAMILY_ID = {
-        'norm': NORM_DIST,
-        'lnorm': LNORM_DIST,
-        'gamma': GAMMA_DIST,
-        'beta': BETA_DIST,
-        'bern': BERN_DIST,
-        'binom': BINOM_DIST,
-        'pois': POIS_DIST,
-        'nbinom': NBINOM_DIST,
-        'nbinom2': NBINOM2_DIST,
+    FAMILY_CHOICE_TO_ABBREVIATION = {
+        NORM_DIST: 'norm',
+        LNORM_DIST: 'lnorm',
+        GAMMA_DIST: 'gamma',
+        BETA_DIST: 'beta',
+        BERN_DIST: 'bern',
+        BINOM_DIST: 'binom',
+        POIS_DIST: 'pois',
+        NBINOM_DIST: 'nbinom',
+        NBINOM2_DIST: 'nbinom2',
     }
 
 
@@ -182,9 +182,9 @@ def calc_named_distribution(abbreviation, param1, param2, param3):
     Does the actual NamedDistribution function calculation based on abbreviation and the passed parameters.
     abbreviation must be a FAMILY_DEFINI4TIONS key.
     """
-    if abbreviation not in NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID:
-        raise RuntimeError(f"invalid abbreviation '{abbreviation}' - wasn't one of: "
-                           f"{NamedDistribution.FAMILY_ABBREVIATION_TO_FAMILY_ID.keys()}")
+    if abbreviation not in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values():
+        raise RuntimeError(f"invalid family. abbreviation='{abbreviation}', "
+                           f"abbreviations={NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()}")
 
     if abbreviation == 'norm':
         raise NotImplementedError()  # todo xx

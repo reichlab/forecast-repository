@@ -25,7 +25,6 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer
-from utils.cdc import CDC_CSV_HEADER
 from utils.cloud_file import download_file
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
@@ -290,25 +289,21 @@ def score_data(request, project_pk):
 #
 
 @api_view(['GET'])
-@renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
+@renderer_classes((JSONRenderer, BrowsableAPIRenderer))
 def forecast_data(request, forecast_pk):
     """
-    :return: a Forecast's data as JSON or CSV. note that the actual data is wrapped by metadata
+    :return: a Forecast's data as JSON - see load_predictions_from_json_io_dict() for the format
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
-    # dispatch based on requested format. see note in template_data() re: getting this via a 'format' param
-    if ('format' in request.query_params) and (request.query_params['format'] == 'csv'):
-        return csv_response_for_model_with_cdc_data(forecast)
-    else:
-        return json_response_for_model_with_cdc_data(request, forecast)
+    return json_response_for_forecast(request, forecast)
 
 
-def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
+def json_response_for_forecast(request, forecast):
     """
-    :return: a JsonResponse for model_with_cdc_data
+    :return: a JsonResponse for forecast
     """
     # note: I tried to use a rest_framework.response.Response, which is supposed to support pretty printing on the
     # client side via something like:
@@ -316,38 +311,22 @@ def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
     # but when I tried this, returned a delimited string instead of JSON:
     #   return Response(JSONRenderer().render(location_dicts))
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
-    from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
+    from forecast_app.serializers import ForecastSerializer  # avoid circular imports
 
 
-    detail_serializer_class = ProjectSerializer if isinstance(model_with_cdc_data, Project) else ForecastSerializer
-    detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
+    detail_serializer = ForecastSerializer(forecast, context={'request': request})
+    xx  # todo xx
     metadata_dict = detail_serializer.data
-    location_dicts = model_with_cdc_data.get_location_dicts_download_format()
+    location_dicts = forecast.get_location_dicts_download_format()
     response = JsonResponse({'metadata': metadata_dict,
                              'locations': location_dicts})  # defaults to 'content_type' 'application/json'
-    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(model_with_cdc_data.csv_filename)
-    return response
-
-
-def csv_response_for_model_with_cdc_data(model_with_cdc_data):
-    """
-    Similar to json_response_for_model_with_cdc_data(), but returns a response with model_with_cdc_data's data formatted
-    as CSV.
-    """
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(model_with_cdc_data.csv_filename)
-
-    writer = csv.writer(response)
-    writer.writerow(CDC_CSV_HEADER)
-    for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):  # calls transform_row_to_output_format()
-        writer.writerow(row)
-
+    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(forecast.csv_filename)
     return response
 
 
 def csv_response_for_project_truth_data(project):
     """
-    Similar to json_response_for_model_with_cdc_data(), but returns a response with project's truth data formatted as
+    Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
     CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
     to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
     filename to hopefully hint at what's going on.

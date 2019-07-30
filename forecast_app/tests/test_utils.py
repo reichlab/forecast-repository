@@ -1,10 +1,7 @@
 import datetime
-import json
-from itertools import groupby
 from pathlib import Path
 
 import pymmwr
-from django.template import Template, Context
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
@@ -125,84 +122,3 @@ class UtilitiesTestCase(TestCase):
         ]
         for date, exp_season_start_year in date_exp_season_start_year:
             self.assertEqual(exp_season_start_year, season_start_year_for_date(date))
-
-
-    def test__model_id_to_point_values_dict(self):
-        project1 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_locations_and_targets(project1)
-
-        time_zero_11 = TimeZero.objects.create(project=project1, timezero_date='2017-01-01',
-                                               is_season_start=True, season_name='season p1')
-        TimeZero.objects.create(project=project1, timezero_date='2017-01-02')  # 2nd TZ ensures start AND end dates
-        forecast_model_11 = ForecastModel.objects.create(project=project1)
-        forecast_11 = load_cdc_csv_forecast_file(forecast_model_11, Path(
-            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), time_zero_11)
-
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        make_cdc_locations_and_targets(project2)
-        # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}:
-        time_zero_21 = TimeZero.objects.create(project=project2,
-                                               timezero_date=datetime.date(2016, 10, 23), data_version_date=None,
-                                               is_season_start=True, season_name='season p2')
-        # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}:
-        TimeZero.objects.create(project=project2,
-                                timezero_date=datetime.date(2016, 10, 30),
-                                data_version_date=None)
-        forecast_model_21 = ForecastModel.objects.create(project=project2)
-        forecast_21 = load_cdc_csv_forecast_file(forecast_model_21,
-                                                 Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                                 time_zero_21)
-
-        targets = ['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead']
-        with open('forecast_app/tests/exp-models-to-point-values.json', 'r') as fp:
-            exp_json_template_str = fp.read()
-            exp_json_template = Template(exp_json_template_str)
-            exp_json_str = exp_json_template.render(Context({'forecast_model1_id': forecast_model_11.id,
-                                                             'forecast1_id': forecast_11.id,
-                                                             'forecast_model2_id': forecast_model_21.id,
-                                                             'forecast2_id': forecast_21.id}))
-
-            # note: we must wire up exp_dict_loaded to replace keys with actual int IDs, not just strings
-            exp_dict_loaded = json.loads(exp_json_str)
-            exp_dict_p1 = {forecast_model_11.pk:
-                               {forecast_11.pk: exp_dict_loaded[str(forecast_model_11.id)][str(forecast_11.id)]}}
-            act_point_values_dict = _model_id_to_point_values_dict(project1, targets, 'season p1')
-            self.assertEqual(exp_dict_p1, act_point_values_dict)
-
-            exp_dict_p2 = {forecast_model_21.pk:
-                               {forecast_21.pk: exp_dict_loaded[str(forecast_model_21.id)][str(forecast_21.id)]}}
-            act_point_values_dict = _model_id_to_point_values_dict(project2, targets, 'season p2')
-            self.assertEqual(exp_dict_p2, act_point_values_dict)
-
-
-def _model_id_to_point_values_dict(project, target_names, season_name=None):
-    """
-    :return: a dict that provides predicted point values for all of project's models, season_name, and target_names.
-        Use is like: the_dict[forecast_model_id][forecast_id][location_name][target_name]
-    """
-    # get the rows, ordered so we can groupby()
-    forecast_data_qs = ForecastData.objects.filter(is_point_row=True,
-                                                   target__name__in=target_names,
-                                                   forecast__forecast_model__project=project)
-    if season_name:
-        season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-        forecast_data_qs = forecast_data_qs \
-            .filter(forecast__time_zero__timezero_date__gte=season_start_date,
-                    forecast__time_zero__timezero_date__lte=season_end_date)
-    forecast_data_qs = forecast_data_qs \
-        .order_by('forecast__forecast_model__id', 'forecast__id', 'location__id') \
-        .values_list('forecast__forecast_model__id', 'forecast__id', 'location__name', 'target__name', 'value')
-
-    # build the dict
-    models_to_point_values_dicts = {}  # return value. filled next
-    for model_pk, forecast_loc_target_val_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
-        forecast_to_point_dicts = {}
-        for forecast_pk, loc_target_val_grouper in groupby(forecast_loc_target_val_grouper, key=lambda _: _[1]):
-            location_to_point_dicts = {}
-            for location, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[2]):
-                grouper_rows = list(target_val_grouper)
-                location_to_point_dicts[location] = {grouper_row[3]: grouper_row[4] for grouper_row in grouper_rows}
-            forecast_to_point_dicts[forecast_pk] = location_to_point_dicts
-        models_to_point_values_dicts[model_pk] = forecast_to_point_dicts
-
-    return models_to_point_values_dicts

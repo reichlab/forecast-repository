@@ -67,7 +67,7 @@ def make_minimal_projects_app():
 
     # create a TimeZero so that this truth file can be loaded:
     # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
-    TimeZero.objects.create(project=public_project, timezero_date='2017-01-01')
+    TimeZero.objects.create(project=public_project, timezero_date=datetime.date(2017, 1, 1))
 
     private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False,
                                              config_dict=CDC_CONFIG_DICT)

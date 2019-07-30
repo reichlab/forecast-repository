@@ -44,8 +44,7 @@ urlpatterns = [
     url(r'^uploadfilejob/(?P<pk>\d+)$', views.UploadFileJobDetailView.as_view(), name='upload-file-job-detail'),
 
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
-    url(r'^forecast/(?P<model_with_cdc_data_pk>\d+)/download', views.download_file_for_model_with_cdc_data,
-        {'type': 'forecast'}, name='download-forecast'),
+    url(r'^forecast/(?P<forecast_pk>\d+)/download', views.download_forecast, name='download-forecast'),
 
 
     # ---- CRUD-related form URLs ----

@@ -5,7 +5,6 @@ import time
 
 import django_rq
 import redis
-from PIL import Image, ImageDraw
 from django import db
 from django import forms
 from django.contrib import messages
@@ -14,7 +13,6 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.db.models import Count
-from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
@@ -25,7 +23,6 @@ from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_pr
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
-from utils.cdc import load_cdc_csv_forecast_file
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
@@ -888,41 +885,23 @@ class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
 # ---- download-related functions ----
 #
 
-def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
+def download_forecast(request, forecast_pk):
     """
     Returns a response containing a CSV or JSON file for a ModelWithCDCData's (Project or Forecast) data.
     Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
         model's owner.
 
-    :param request: must be a POST with a 'format' key that's either 'csv' or 'json' - see the calling forms
-    :param model_with_cdc_data_pk: pk of either a Project or Forecast - disambiguated by kwargs['type']
-    :param kwargs: has a single 'type' key that's either 'project' or 'forecast', which determines what
-        model_with_cdc_data_pk refers to
-    :return: response for the CSV or JSON format of the passed ModelWithCDCData's data
+    :return: response for the JSON format of the passed Forecast's data
     """
-    is_project = kwargs['type'] == 'project'
-    if is_project:
-        model_with_cdc_data_class = Project
-    elif kwargs['type'] == 'forecast':
-        model_with_cdc_data_class = Forecast
-    else:
-        raise RuntimeError("invalid kwargs: {}".format(kwargs))
-
-    model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
-    project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project
+    forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    project = forecast.forecast_model.project
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    # validate download format
-    if ('format' not in request.POST) or (request.POST['format'] not in ['csv', 'json']):
-        return HttpResponseBadRequest()
-
-    # set the HttpResponse based on download type. avoid circular imports:
-    from forecast_app.api_views import csv_response_for_model_with_cdc_data, json_response_for_model_with_cdc_data
+    from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
 
-    return csv_response_for_model_with_cdc_data(model_with_cdc_data) if request.POST['format'] == 'csv' \
-        else json_response_for_model_with_cdc_data(request, model_with_cdc_data)
+    return json_response_for_forecast(request, forecast)
 
 
 #

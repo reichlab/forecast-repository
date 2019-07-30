@@ -350,7 +350,7 @@ class ScoresTestCase(TestCase):
 
         # a larger case with more than one loc+target
         project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        time_zero2 = TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
         make_cdc_locations_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)

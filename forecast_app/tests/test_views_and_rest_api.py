@@ -322,8 +322,7 @@ class ViewsTestCase(TestCase):
         jwt_auth_url = reverse('auth-jwt-get')
 
         # test invalid user
-        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': 'badpass'},
-                                format='json')
+        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': 'badpass'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
         # test valid user: self.po_user, self.po_user_password
@@ -478,19 +477,8 @@ class ViewsTestCase(TestCase):
         """
         Test forecast_data().
         """
-        # forecast data as CSV. a django.http.response.HttpResponse:
-        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
-                                   data={'format': 'csv'})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv"')
-        split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
-        self.assertEqual(len(split_content), 5239)  # 8021 rows - 2782 bin=0 rows 5239
-
         # forecast data as JSON. a django.http.response.JsonResponse:
-        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
-                                   data={'format': 'json'})
+        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
         response_dict = json.loads(response.content)  # will fail if not JSON
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
@@ -617,8 +605,7 @@ class ViewsTestCase(TestCase):
             else self.mo_user_password if user == self.mo_user \
             else self.superuser_password
         jwt_auth_url = reverse('auth-jwt-get')
-        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password},
-                                         format='json')
+        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password}, format='json')
         jwt_token = jwt_auth_resp.data['token']
         self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
         return jwt_token

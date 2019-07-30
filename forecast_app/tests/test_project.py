@@ -27,7 +27,7 @@ class ProjectTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
-        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date='2017-01-01')
+        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
@@ -62,7 +62,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual(0, project2.truth_data_qs().count())
         self.assertFalse(project2.is_truth_data_loaded())
 
-        TimeZero.objects.create(project=project2, timezero_date='2017-01-01')
+        TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
         project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
         self.assertEqual(7, project2.truth_data_qs().count())
 
@@ -108,15 +108,15 @@ class ProjectTestCase(TestCase):
     def test_timezeros_unique(self):
         project = Project.objects.create()
         with self.assertRaises(ValidationError) as context:
-            timezeros = [TimeZero.objects.create(project=project, timezero_date='2017-01-01'),
-                         TimeZero.objects.create(project=project, timezero_date='2017-01-01')]
+            timezeros = [TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1)),
+                         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))]
             project.timezeros.add(*timezeros)
             project.save()
         self.assertIn("found duplicate TimeZero.timezero_date", str(context.exception))
 
 
     def test_get_num_rows(self):
-        time_zero2 = TimeZero.objects.create(project=self.project, timezero_date='2017-01-02')
+        time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
         load_cdc_csv_forecast_file(self.forecast_model,
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero2)
@@ -205,17 +205,17 @@ class ProjectTestCase(TestCase):
 
         # test invalid TimeZero season values
         with self.assertRaises(ValidationError) as context:
-            TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
+            TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1),
                                     is_season_start=True, season_name=None)  # season start, no season name (passed)
         self.assertIn('passed is_season_start with no season_name', str(context.exception))
 
         with self.assertRaises(ValidationError) as context:
-            TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
+            TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1),
                                     is_season_start=True)  # season start, no season name (default)
         self.assertIn('passed is_season_start with no season_name', str(context.exception))
 
         with self.assertRaises(ValidationError) as context:
-            TimeZero.objects.create(project=project2, timezero_date='2017-01-01',
+            TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1),
                                     is_season_start=False, season_name='season4')  # no season start, season name
         self.assertIn('passed season_name but not is_season_start', str(context.exception))
 
@@ -501,8 +501,8 @@ class ProjectTestCase(TestCase):
     def test_loc_target_tz_date_to_truth(self):
         # at this point self.project.timezeros.all() = <QuerySet [(1, datetime.date(2017, 1, 1), None, False, None)]>,
         # so add remaining TimeZeros so that truths are not skipped when loading mean-abs-error-truths-dups.csv
-        TimeZero.objects.create(project=self.project, timezero_date='2016-12-18')
-        TimeZero.objects.create(project=self.project, timezero_date='2016-12-25')
+        TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2016, 12, 18))
+        TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2016, 12, 25))
         # we omit 20170108
 
         self.project.delete_truth_data()
