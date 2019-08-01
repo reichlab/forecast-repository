@@ -107,8 +107,8 @@ def _locations_targets_pred_dicts_from_cdc_csv_file(forecast):
 
     # BinCatDistribution
     bincat_qs = forecast.bincat_distribution_qs() \
-        .order_by('location__id', 'target__id') \
-        .values_list('location__name', 'target__name', 'cat', 'prob')
+        .order_by('location__id', 'target__id', 'cat') \
+        .values_list('location__name', 'target__name', 'cat', 'prob')  # ordering by 'cat' for testing. todo NB: slower
     for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
