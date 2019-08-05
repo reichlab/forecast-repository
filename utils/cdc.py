@@ -230,7 +230,7 @@ def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
     """
     Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
     but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
-    dynamically created by this method's callers). Skips bin rows where the value is 0.
+    dynamically created by this method's callers). Does *not* skip bin rows where the value is 0.
 
     :param cdc_csv_file_fp: the *.cdc.csv data file to load
     :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
@@ -280,16 +280,6 @@ def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
         bin_start_incl = parse_value(bin_start_incl)
         bin_end_notincl = parse_value(bin_end_notincl)
         value = parse_value(value)
-
-        # skip bin rows with a value of zero - a storage (and thus performance) optimization that does not affect
-        # score calculation, etc. see [Consider not storing bin rows with zero values #84](https://github.com/reichlab/forecast-repository/issues/84)
-        # Note however from that issue:
-        #   Point 3 means Zoltar's export features (CSV and JSON formats) will not include those skipped rows. Thus,
-        #   the exported CSV files will not be identical to the imported ones. This represents the first change in
-        #   Zoltar in which data is lost.
-        if (row_type == CDC_BIN_ROW_TYPE) and (value == 0):
-            continue
-
         rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
 
     return location_names, target_names, rows
