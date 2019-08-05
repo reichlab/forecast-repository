@@ -17,7 +17,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
-from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
+from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
+    Prediction
 from forecast_app.models.project import Target, Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
@@ -25,7 +26,7 @@ from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_c
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
-from utils.forecast import load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
@@ -870,6 +871,17 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        forecast = self.get_object()
+        pred_type_count_pairs = [
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[concrete_prediction_class],
+             concrete_prediction_class.objects.filter(forecast=forecast).count())
+            for concrete_prediction_class in Prediction.concrete_subclasses()]
+        context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
+        return context
+
+
 class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
     model = UploadFileJob
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -1078,6 +1090,7 @@ def load_forecast_from_cloud_file(forecast_model, cloud_file_fp, time_zero, file
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
     json_io_dict = json.load(cloud_file_fp)
     load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+    return new_forecast
 
 
 def delete_forecast(request, forecast_pk):

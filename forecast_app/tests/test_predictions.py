@@ -4,17 +4,19 @@ from pathlib import Path
 
 from django.test import TestCase
 
+from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
+    PointPrediction, SampleDistribution, SampleCatDistribution, Forecast
 from forecast_app.models import Project, ForecastModel, TimeZero
-from forecast_app.models.forecast import Forecast
 from forecast_app.models.prediction import calc_named_distribution
 from utils.cdc import json_io_dict_from_cdc_csv_file
 from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_db_rows, json_io_dict_from_forecast
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.utilities import YYYYMMDD_DATE_FORMAT
+
+
 #
 # initial single file for driving zoltar2 development. todo xx will be split into separate ones as the code develops
 #
-from utils.utilities import YYYYMMDD_DATE_FORMAT
-
 
 class PredictionsTestCase(TestCase):
     """
@@ -61,6 +63,7 @@ class PredictionsTestCase(TestCase):
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             json_io_dict = json.load(fp)
             load_predictions_from_json_io_dict(self.forecast, json_io_dict)
+            self.assertEqual(11, self.forecast.get_num_rows())
             self.assertEqual(2, self.forecast.bincat_distribution_qs().count())
             self.assertEqual(2, self.forecast.binlwr_distribution_qs().count())
             self.assertEqual(1, self.forecast.binary_distribution_qs().count())

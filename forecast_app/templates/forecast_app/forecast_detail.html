@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load humanize %}
+
 {% block title %}Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}{% endblock %}
 
 {% block content %}
@@ -46,22 +48,16 @@
     </div>
 
 
-    {% include 'csv_data_snippet.html' with model_with_cdc_data=forecast %}
+    <h2>Forecast has {{ forecast.get_num_rows|intword|intcomma }} prediction{{ forecast.get_num_rows|pluralize }}:</h2>
+    {% for pred_type, count in pred_type_count_pairs %}
+        <ul>
+            <li><code>{{ pred_type }}</code>: {{ count|intword|intcomma }} row{{ count|pluralize }}</li>
+        </ul>
+    {% endfor %}
 
-    {# show the file download form with a button dropdown for the download formats #}
     <form id="download_form" class="form-inline" method="POST" action="{% url 'download-forecast' forecast.pk %}">
         {% csrf_token %}
-        <input id="download_format" type="text" name="format" value="csv" hidden>
-        <div class="btn-group">
-            <button type="submit" class="btn btn-primary dropdown-toggle" data-toggle="dropdown"
-                    aria-haspopup="true"
-                    aria-expanded="false">Download <span class="caret"></span>
-            </button>
-            <ul class="dropdown-menu">
-                <li><a onclick="$('#download_format').val('csv'); $('#download_form').submit()">CSV</a></li>
-                <li><a onclick="$('#download_format').val('json'); $('#download_form').submit()">JSON</a></li>
-            </ul>
-        </div>
+        <button type="submit" class="btn btn-primary">Download JSON</button>
     </form>
 
 {% endblock %}

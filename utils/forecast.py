@@ -77,17 +77,19 @@ def json_io_dict_from_forecast(forecast):
     :param forecast: a Forecast whose predictions are to be outputted
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. see docs for details
     """
-    location_names, target_names, prediction_dicts = _locations_targets_pred_dicts_from_cdc_csv_file(forecast)
+    location_names, target_names, prediction_dicts = _locations_targets_pred_dicts_from_forecast(forecast)
     return {
         'meta': {
             'forecast': _forecast_dict_for_forecast(forecast),
-            'locations': [{'name': location_names} for location_names in location_names],
-            'targets': _target_dicts_for_project(forecast.forecast_model.project, target_names),
+            'locations': sorted([{'name': location_names} for location_names in location_names],
+                                key=lambda _: (_['name'])),
+            'targets': sorted(_target_dicts_for_project(forecast.forecast_model.project, target_names),
+                              key=lambda _: (_['name'])),
         },
-        'predictions': prediction_dicts}
+        'predictions': sorted(prediction_dicts, key=lambda _: (_['location'], _['target']))}
 
 
-def _locations_targets_pred_dicts_from_cdc_csv_file(forecast):
+def _locations_targets_pred_dicts_from_forecast(forecast):
     """
     json_io_dict_from_forecast() helper that returns
 

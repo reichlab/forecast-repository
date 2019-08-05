@@ -5,7 +5,7 @@ from pathlib import Path
 from django.template import Template, Context
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Location
+from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
 from utils.flusight import flusight_location_to_data_dict
