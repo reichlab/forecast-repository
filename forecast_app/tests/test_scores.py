@@ -50,7 +50,7 @@ class ScoresTestCase(TestCase):
 
         # test creation of the current Scores/types
         self.assertEqual(5, Score.objects.count())
-        self.assertEqual(set(SCORE_ABBREV_TO_NAME_AND_DESCR.keys()),
+        self.assertEqual(set(SCORE_ABBREV_TO_NAME_AND_DESCR),
                          set([score.abbreviation for score in Score.objects.all()]))
 
 

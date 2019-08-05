@@ -7,10 +7,9 @@ from pathlib import Path
 import click
 from django.db import transaction
 
-from forecast_app.models import Target
 from forecast_app.models.forecast import Forecast
 from utils.forecast import load_predictions_from_json_io_dict
-from utils.utilities import parse_value, YYYYMMDD_DATE_FORMAT
+from utils.utilities import parse_value
 
 
 # todo xx these are project-specific: CDC ensemble and Impetus
@@ -106,7 +105,7 @@ def load_cdc_csv_forecast_file(forecast_model, cdc_csv_file_path, time_zero, fil
     file_name = file_name or cdc_csv_file_path.name
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
     with open(cdc_csv_file_path) as cdc_csv_file_fp:
-        json_io_dict = json_io_dict_from_cdc_csv_file(new_forecast, cdc_csv_file_fp)
+        json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_file_fp)
     load_predictions_from_json_io_dict(new_forecast, json_io_dict)
     return new_forecast
 
@@ -149,70 +148,33 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None)
     return forecasts
 
 
-def json_io_dict_from_cdc_csv_file(forecast, cdc_csv_file_fp):
+def json_io_dict_from_cdc_csv_file(cdc_csv_file_fp):
     """
     Utility that extracts the three types of predictions found in CDC CSV files (PointPredictions, BinLwrDistributions,
     and BinCatDistributions), returning them as a "JSON IO dict" suitable for loading into the database (see
-    load_predictions_from_json_io_dict()). Note that it requires all target names mentioned in the file to exist in
-    forecast's forecast_model's project. This is b/c we need to coerce point values to the proper type based on
-    Target.point_value_type.
+    load_predictions_from_json_io_dict()). Note that the returned dict's "meta" section is empty.
 
-    :param forecast: Forecast used to create the 'forecast' and 'targets' (via its Project) sections
     :param cdc_csv_file_fp: an open cdc csv file-like object. the CDC CSV file format is documented at
         https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains the three types of predictions. see docs for
         details
     """
     location_names, target_names, rows = _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp)
-    return {'forecast': _forecast_dict_for_forecast(forecast),
-            'locations': [{'name': location.name} for location in forecast.forecast_model.project.locations.all()],
-            'targets': _target_dicts_for_project(forecast.forecast_model.project, target_names),
-            'predictions': _prediction_dicts_for_csv_rows(forecast.forecast_model.project, rows)}
+    return {'meta': {},
+            'predictions': _prediction_dicts_for_csv_rows(rows)}
 
 
-def _forecast_dict_for_forecast(forecast):
-    """
-    json_io_dict_from_cdc_csv_file() helper that returns a dict for the 'forecast' section of the exported json.
-    See predictions-example.json for an example.
-    """
-    return {"id": forecast.pk,
-            "forecast_model_id": forecast.forecast_model.pk,
-            "csv_filename": forecast.csv_filename,
-            "created_at": forecast.created_at.isoformat(),
-            "time_zero": {
-                "timezero_date": forecast.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
-                "data_version_date": forecast.time_zero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
-                if forecast.time_zero.data_version_date else None
-            }}
-
-
-def _target_dicts_for_project(project, target_names):
-    """
-    json_io_dict_from_cdc_csv_file() helper that returns a list of target dicts for the 'targets' section of the exported
-    json. See predictions-example.json for an example. only those in target_names are included
-    """
-    return [{"name": target.name,
-             "description": target.description,
-             "unit": target.unit,
-             "is_date": target.is_date,
-             "is_step_ahead": target.is_step_ahead,
-             "step_ahead_increment": target.step_ahead_increment}
-            for target in project.targets.all() if target.name in target_names]
-
-
-def _prediction_dicts_for_csv_rows(project, rows):
+def _prediction_dicts_for_csv_rows(rows):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a list of prediction dicts for the 'predictions' section of the
     exported json. Each dict corresponds to either a PointPrediction, BinLwrDistribution, or BinCatDistribution
     depending on each row in rows. See predictions-example.json for an example.
     """
     # recall rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
-    target_name_to_target = {target.name: target for target in project.targets.all()}
     prediction_dicts = []  # return value
     rows.sort(key=lambda _: (_[0], _[1]))  # sorted so groupby() will work
     for location_name, target_grouper in groupby(rows, key=lambda _: _[0]):
         for target_name, row_type_grouper in groupby(target_grouper, key=lambda _: _[1]):
-            target = target_name_to_target[target_name]
             point_value = None  # set when we encounter the point row
             bincat_cats = []  # text. appended to when we encounter bincat rows
             bincat_probs = []  # float. ""
@@ -221,12 +183,9 @@ def _prediction_dicts_for_csv_rows(project, rows):
             for _, _, is_point_row, bin_start_incl, bin_end_notincl, value in row_type_grouper:
                 try:
                     if is_point_row:
-                        if target.point_value_type == Target.POINT_INTEGER:
-                            point_value = int(value)
-                        elif target.point_value_type == Target.POINT_FLOAT:
-                            point_value = float(value)
-                        else:  # POINT_TEXT
-                            point_value = str(value)
+                        # NB: point comes in as a number (see parse_value() below), but should be a string
+                        # for Target whose point_value_type is Target.POINT_TEXT
+                        point_value = str(value) if target_name in BINCAT_TARGET_NAMES else value
                     elif target_name in BINCAT_TARGET_NAMES:
                         bincat_cats.append(str(bin_start_incl))
                         bincat_probs.append(float(value))

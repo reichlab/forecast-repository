@@ -94,7 +94,7 @@ class Project(models.Model):
         Validates my config_dict if provided, and my TimeZero.timezero_dates for uniqueness.
         """
         config_dict_keys = {'visualization-y-label'}  # definitive list
-        if self.config_dict and (set(self.config_dict.keys()) != config_dict_keys):
+        if self.config_dict and (set(self.config_dict) != config_dict_keys):
             raise ValidationError("config_dict did not contain the required keys. expected keys: {}, actual keys: {}"
                                   .format(config_dict_keys, self.config_dict.keys()))
 

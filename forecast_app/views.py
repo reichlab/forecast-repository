@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Count
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
@@ -25,6 +25,7 @@ from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_c
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
+from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
@@ -1014,7 +1015,7 @@ def is_user_ok_upload_forecast(request, forecast_model):
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
-    owner, or the model's owner.
+    owner, or the model's owner. The data file must be in the format supported by load_predictions_from_json_io_dict().
 
     :return: redirect to the new forecast's detail page
     """
@@ -1064,9 +1065,19 @@ def process_upload_file_job__forecast(upload_file_job_pk):
         forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
         timezero_pk = upload_file_job.input_json['timezero_pk']
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-        new_forecast = forecast_model.load_forecast(cloud_file_fp, time_zero, file_name=upload_file_job.filename)
+        new_forecast = load_forecast_from_cloud_file(forecast_model, cloud_file_fp, time_zero, upload_file_job.filename)
         upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
         upload_file_job.save()
+
+
+@transaction.atomic
+def load_forecast_from_cloud_file(forecast_model, cloud_file_fp, time_zero, file_name):
+    """
+    Atomic process_upload_file_job__forecast() helper.
+    """
+    new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
+    json_io_dict = json.load(cloud_file_fp)
+    load_predictions_from_json_io_dict(new_forecast, json_io_dict)
 
 
 def delete_forecast(request, forecast_pk):

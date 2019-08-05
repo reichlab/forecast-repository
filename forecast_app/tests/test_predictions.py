@@ -43,35 +43,17 @@ class PredictionsTestCase(TestCase):
 
 
         concrete_subclasses = Prediction.concrete_subclasses()
-        exp_subclasses = {'NamedDistribution', 'SampleDistribution', 'SampleCatDistribution', 'BinCatDistribution',
-                          'BinLwrDistribution', 'PointPrediction', 'BinaryDistribution'}
+        exp_subclasses = {'BinCatDistribution', 'BinLwrDistribution', 'BinaryDistribution', 'NamedDistribution',
+                          'PointPrediction', 'SampleDistribution', 'SampleCatDistribution'}
         self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
 
 
     def test_convert_cdc_csv_to_predictions_files(self):
         with open(self.cdc_csv_path) as cdc_csv_fp, \
                 open('forecast_app/tests/predictions/exp-predictions.json') as exp_json_fp:
-            exp_json_io_dict = json.load(exp_json_fp)
-            act_json_io_dict = json_io_dict_from_cdc_csv_file(self.forecast, cdc_csv_fp)
-
-            # test three top-level components separately for TDD
-            self.assertEqual(list(exp_json_io_dict.keys()), list(act_json_io_dict.keys()))
-            self.assertEqual(sorted(exp_json_io_dict['locations'], key=lambda _: _['name']),
-                             sorted(act_json_io_dict['locations'], key=lambda _: _['name']))
-            self.assertEqual(sorted(exp_json_io_dict['targets'], key=lambda _: _['name']),
-                             sorted(act_json_io_dict['targets'], key=lambda _: _['name']))
-            self.assertEqual(exp_json_io_dict['predictions'], act_json_io_dict['predictions'])
-
-            # test 'forecast' separately to account for runtime differences (forecast.id, created_at, etc.) Do so by
-            # 'patching' the runtime-specific differences. note: we could have used Django templates as in
-            # test_flusight.py, but this was simpler
-            exp_json_io_dict['forecast']['id'] = self.forecast.id
-            exp_json_io_dict['forecast']['forecast_model_id'] = self.forecast.forecast_model.id
-            exp_json_io_dict['forecast']['created_at'] = self.forecast.created_at.isoformat()
-            exp_json_io_dict['forecast']['time_zero']['timezero_date'] = \
-                self.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
-            exp_json_io_dict['forecast']['time_zero']['data_version_date'] = self.time_zero.data_version_date
-            self.assertEqual(exp_json_io_dict['forecast'], act_json_io_dict['forecast'])
+            exp_json_io_dict = json.load(exp_json_fp)  # converted from EW1-KoTsarima-2017-01-17-small.csv
+            act_json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
+            self.assertEqual(exp_json_io_dict, act_json_io_dict)
 
 
     def test_load_predictions_from_json_io_dict(self):
@@ -91,7 +73,7 @@ class PredictionsTestCase(TestCase):
     def test_load_predictions_from_cdc_csv_file(self):
         # load the three types of predictions that come from cdc.csv files, call Forecast.*_qs() functions
         with open(self.cdc_csv_path) as cdc_csv_fp:
-            json_io_dict = json_io_dict_from_cdc_csv_file(self.forecast, cdc_csv_fp)
+            json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
             load_predictions_from_json_io_dict(self.forecast, json_io_dict)
             self.assertEqual(22, self.forecast.bincat_distribution_qs().count())
             self.assertEqual(55, self.forecast.binlwr_distribution_qs().count())
@@ -110,23 +92,23 @@ class PredictionsTestCase(TestCase):
             act_json_io_dict = json_io_dict_from_forecast(self.forecast)
 
             # test three top-level components separately for TDD
-            self.assertEqual(list(exp_json_io_dict.keys()), list(act_json_io_dict.keys()))
-            self.assertEqual(sorted(exp_json_io_dict['locations'], key=lambda _: _['name']),
-                             sorted(act_json_io_dict['locations'], key=lambda _: _['name']))
-            self.assertEqual(sorted(exp_json_io_dict['targets'], key=lambda _: _['name']),
-                             sorted(act_json_io_dict['targets'], key=lambda _: _['name']))
+            self.assertEqual(list(exp_json_io_dict), list(act_json_io_dict))
+            self.assertEqual(sorted(exp_json_io_dict['meta']['locations'], key=lambda _: _['name']),
+                             sorted(act_json_io_dict['meta']['locations'], key=lambda _: _['name']))
+            self.assertEqual(sorted(exp_json_io_dict['meta']['targets'], key=lambda _: _['name']),
+                             sorted(act_json_io_dict['meta']['targets'], key=lambda _: _['name']))
             self.assertEqual(exp_json_io_dict['predictions'], act_json_io_dict['predictions'])
 
             # test 'forecast' separately to account for runtime differences (forecast.id, created_at, etc.) Do so by
             # 'patching' the runtime-specific differences. note: we could have used Django templates as in
             # test_flusight.py, but this was simpler
-            exp_json_io_dict['forecast']['id'] = self.forecast.id
-            exp_json_io_dict['forecast']['forecast_model_id'] = self.forecast.forecast_model.id
-            exp_json_io_dict['forecast']['created_at'] = self.forecast.created_at.isoformat()
-            exp_json_io_dict['forecast']['time_zero']['timezero_date'] = \
+            exp_json_io_dict['meta']['forecast']['id'] = self.forecast.id
+            exp_json_io_dict['meta']['forecast']['forecast_model_id'] = self.forecast.forecast_model.id
+            exp_json_io_dict['meta']['forecast']['created_at'] = self.forecast.created_at.isoformat()
+            exp_json_io_dict['meta']['forecast']['time_zero']['timezero_date'] = \
                 self.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
-            exp_json_io_dict['forecast']['time_zero']['data_version_date'] = self.time_zero.data_version_date
-            self.assertEqual(exp_json_io_dict['forecast'], act_json_io_dict['forecast'])
+            exp_json_io_dict['meta']['forecast']['time_zero']['data_version_date'] = self.time_zero.data_version_date
+            self.assertEqual(exp_json_io_dict['meta']['forecast'], act_json_io_dict['meta']['forecast'])
 
 
     def test_unexpected_bin_target_name(self):

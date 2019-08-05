@@ -7,6 +7,7 @@ from django.db import connection, transaction
 from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
     PointPrediction, SampleDistribution, SampleCatDistribution, Forecast, Location, Target
 from forecast_app.models.project import POSTGRES_NULL_VALUE
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 #
@@ -50,6 +51,7 @@ from forecast_app.models.project import POSTGRES_NULL_VALUE
 #                    'sample'.
 #
 
+
 PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
     BinCatDistribution: 'BinCat',
     BinLwrDistribution: 'BinLwr',
@@ -67,22 +69,22 @@ PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
 
 def json_io_dict_from_forecast(forecast):
     """
-    The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for the 'predictions' section
-    of the exported json. See predictions-example.json for an example. Does not reuse that function's helper methods b/c
-    the latter is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of predictions
-    in CDC CSV files.
+    The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for exporting json (for
+    example). See predictions-example.json for an example. Does not reuse that function's helper methods b/c the latter
+    is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of predictions in CDC CSV
+    files. Does include the 'meta' section in the returned dict.
 
     :param forecast: a Forecast whose predictions are to be outputted
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. see docs for details
     """
-    from utils.cdc import _forecast_dict_for_forecast, _target_dicts_for_project  # avoid circular imports
-
-
     location_names, target_names, prediction_dicts = _locations_targets_pred_dicts_from_cdc_csv_file(forecast)
-    return {'forecast': _forecast_dict_for_forecast(forecast),
+    return {
+        'meta': {
+            'forecast': _forecast_dict_for_forecast(forecast),
             'locations': [{'name': location_names} for location_names in location_names],
             'targets': _target_dicts_for_project(forecast.forecast_model.project, target_names),
-            'predictions': prediction_dicts}
+        },
+        'predictions': prediction_dicts}
 
 
 def _locations_targets_pred_dicts_from_cdc_csv_file(forecast):
@@ -219,6 +221,36 @@ def _locations_targets_pred_dicts_from_cdc_csv_file(forecast):
     return location_names, target_names, prediction_dicts
 
 
+def _forecast_dict_for_forecast(forecast):
+    """
+    json_io_dict_from_cdc_csv_file() helper that returns a dict for the 'forecast' section of the exported json.
+    See predictions-example.json for an example.
+    """
+    return {"id": forecast.pk,
+            "forecast_model_id": forecast.forecast_model.pk,
+            "csv_filename": forecast.csv_filename,
+            "created_at": forecast.created_at.isoformat(),
+            "time_zero": {
+                "timezero_date": forecast.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                "data_version_date": forecast.time_zero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+                if forecast.time_zero.data_version_date else None
+            }}
+
+
+def _target_dicts_for_project(project, target_names):
+    """
+    json_io_dict_from_cdc_csv_file() helper that returns a list of target dicts for the 'targets' section of the exported
+    json. See predictions-example.json for an example. only those in target_names are included
+    """
+    return [{"name": target.name,
+             "description": target.description,
+             "unit": target.unit,
+             "is_date": target.is_date,
+             "is_step_ahead": target.is_step_ahead,
+             "step_ahead_increment": target.step_ahead_increment}
+            for target in project.targets.all() if target.name in target_names]
+
+
 #
 # load_predictions_from_json_io_dict()
 #
@@ -227,15 +259,16 @@ def _locations_targets_pred_dicts_from_cdc_csv_file(forecast):
 def load_predictions_from_json_io_dict(forecast, json_io_dict):
     """
     Loads the prediction data into forecast from json_io_dict. Once loaded then validates the forecast data. Note that
-    we ignore the metadata portion of json_io_dict (json_io_dict['forecast']), including: 'id', 'forecast_model_id',
-    'csv_filename', 'created_at', and 'time_zero'. However, the "locations" and "targets" /are/ used to call
-    _create_missing_locations_and_targets_rows().
+    we ignore the 'meta' portion of json_io_dict.
 
     :param forecast a Forecast to load json_io_dict's predictions into
     :param json_io_dict a "JSON IO dict" to load from. see docs for details
     """
-    location_names = [location_dict['name'] for location_dict in json_io_dict['locations']]
-    target_names = [target_dict['name'] for target_dict in json_io_dict['targets']]
+    location_names, target_names = set(), set()
+    for prediction_dict in json_io_dict['predictions']:
+        location_names.add(prediction_dict['location'])
+        target_names.add(prediction_dict['target'])
+
     predictions = json_io_dict['predictions']
     bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
         _prediction_dicts_to_db_rows(predictions)

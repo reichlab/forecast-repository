@@ -93,8 +93,7 @@ class MAETestCase(TestCase):
         loc_to_mae_rows_no_season = location_to_mean_abs_error_rows_for_project(project2, None)
         self.assertEqual(loc_to_mae_rows_no_season,
                          location_to_mean_abs_error_rows_for_project(project2, 's1'))  # season_name shouldn't matter
-        self.assertEqual(set(project2.locations.values_list('name', flat=True)),
-                         set(loc_to_mae_rows_no_season.keys()))
+        self.assertEqual(set(project2.locations.values_list('name', flat=True)), set(loc_to_mae_rows_no_season))
 
         exp_rows = [['Model', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season peak percentage'],
                     [forecast_model2.pk, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,

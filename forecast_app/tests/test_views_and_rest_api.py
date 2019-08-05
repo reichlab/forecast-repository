@@ -379,7 +379,7 @@ class ViewsTestCase(TestCase):
         """
         # 'api-root' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-root'), format='json')
-        self.assertEqual(['projects'], list(response.data.keys()))
+        self.assertEqual(['projects'], list(response.data))
 
         # 'api-project-list' - a rest_framework.utils.serializer_helpers.ReturnList:
         #  (per-user authorization tested in test_api_project_list_authorization())
@@ -390,7 +390,7 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
                     'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        self.assertEqual(exp_keys, list(response.data))
 
         # 'api-user-detail' - a rest_framework.response.Response:
         # (o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data')
@@ -398,33 +398,33 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
         exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
         self.client.logout()  # AnonymousUser
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        self.assertEqual(exp_keys, list(response.data))
 
         # 'api-model-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
                     'forecasts']
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        self.assertEqual(exp_keys, list(response.data))
 
         # 'api-forecast-list' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
         exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
         self.assertEqual(1, len(response_dicts))
-        self.assertEqual(exp_keys, list(response_dicts[0].keys()))
+        self.assertEqual(exp_keys, list(response_dicts[0]))
 
         # 'api-forecast-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
         exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        self.assertEqual(exp_keys, list(response.data))
 
         # 'api-forecast-data' - a django.http.response.JsonResponse:
         # (note that we only check top-level keys b/c we know json_response_for_forecast() uses
         # json_io_dict_from_forecast(), which is tested separately)
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]), format='json')
         response_dict = json.loads(response.content)
-        exp_keys = ['forecast', 'locations', 'targets', 'predictions']
-        self.assertEqual(exp_keys, list(response_dict.keys()))
+        self.assertEqual({'meta', 'predictions'}, set(response_dict))
+        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
 
 
     def test_api_delete_endpoints(self):
@@ -457,8 +457,9 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
-        self.assertEqual(list(response_dict), ['forecast', 'locations', 'targets', 'predictions'])
-        self.assertEqual(len(response_dict['locations']), 11)
+        self.assertEqual({'meta', 'predictions'}, set(response_dict))
+        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
+        self.assertEqual(11, len(response_dict['meta']['locations']))
 
         # score data as CSV. a django.http.response.HttpResponse
         response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
