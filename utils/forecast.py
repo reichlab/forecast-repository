@@ -1,11 +1,12 @@
 import csv
 import io
+import math
 from itertools import groupby
 
 from django.db import connection, transaction
 
 from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
-    PointPrediction, SampleDistribution, SampleCatDistribution, Forecast, Location, Target
+    PointPrediction, SampleDistribution, SampleCatDistribution, Forecast, Target
 from forecast_app.models.project import POSTGRES_NULL_VALUE
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
@@ -262,68 +263,87 @@ def _target_dicts_for_project(project, target_names):
 @transaction.atomic
 def load_predictions_from_json_io_dict(forecast, json_io_dict):
     """
-    Loads the prediction data into forecast from json_io_dict. Once loaded then validates the forecast data. Note that
-    we ignore the 'meta' portion of json_io_dict.
+    Loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note that we ignore the
+    'meta' portion of json_io_dict. Errors if any referenced Locations and Targets do not exist in forecast's Project.
 
     :param forecast a Forecast to load json_io_dict's predictions into
     :param json_io_dict a "JSON IO dict" to load from. see docs for details
     """
-    location_names, target_names = set(), set()
-    for prediction_dict in json_io_dict['predictions']:
-        location_names.add(prediction_dict['location'])
-        target_names.add(prediction_dict['target'])
-
-    predictions = json_io_dict['predictions']
+    # validate predictions, convert them to class-specific quickly-loadable rows, and then load them by class
+    prediction_dicts = json_io_dict['predictions']
     bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
-        _prediction_dicts_to_db_rows(predictions)
-    _load_bincat_rows(forecast, location_names, target_names, bincat_rows)
-    _load_binlwr_rows(forecast, location_names, target_names, binlwr_rows)
-    _load_binary_rows(forecast, location_names, target_names, binary_rows)
-    _load_named_rows(forecast, location_names, target_names, named_rows)
-    _load_point_rows(forecast, location_names, target_names, point_rows)
-    _load_sample_rows(forecast, location_names, target_names, sample_rows)
-    _load_samplecat_rows(forecast, location_names, target_names, samplecat_rows)
+        _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
+    _load_bincat_rows(forecast, bincat_rows)
+    _load_binlwr_rows(forecast, binlwr_rows)
+    _load_binary_rows(forecast, binary_rows)
+    _load_named_rows(forecast, named_rows)
+    _load_point_rows(forecast, point_rows)
+    _load_sample_rows(forecast, sample_rows)
+    _load_samplecat_rows(forecast, samplecat_rows)
 
 
-def _prediction_dicts_to_db_rows(prediction_dicts):
+def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
     """
-    Returns a 7-tuple of rows suitable for bulk-loading into a database:
-
+    Validates prediction_dicts and returns a 7-tuple of rows suitable for bulk-loading into a database:
         bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
-
     Each row is Prediction class-specific.
 
-    :param prediction_dicts: the 'predictions' portion of as returned by json_io_dict_from_cdc_csv_file()
+    :param forecast: a Forecast that's used to validate against
+    :param prediction_dicts: the 'predictions' portion of a "JSON IO dict" as returned by
+        json_io_dict_from_cdc_csv_file()
     """
-    bincat_rows = []  # return value. filled next
-    binlwr_rows = []  # ""
-    binary_rows = []  # ""
-    named_rows = []  # ""
-    point_rows = []  # ""
-    sample_rows = []  # ""
-    samplecat_rows = []  # ""
+    location_name_to_obj = {location.name: location for location in forecast.forecast_model.project.locations.all()}
+    target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
+    bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
+        [], [], [], [], [], [], []  # return values. filled next
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
         target_name = prediction_dict['target']
         prediction_class = prediction_dict['class']
         prediction_data = prediction_dict['prediction']
+
+        # validate location and target names (applies to all prediction classes)
+        if location_name not in location_name_to_obj:
+            raise RuntimeError(f"prediction_dict referred to an undefined Location. location_name={location_name}. "
+                               f"existing_location_names={location_name_to_obj.keys()}")
+
+        if target_name not in target_name_to_obj:
+            raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name}. "
+                               f"existing_target_names={target_name_to_obj.keys()}")
+
+        # do class-specific validation and row collection
+        target = target_name_to_obj[target_name]
+        location = location_name_to_obj[location_name]
         if prediction_class == 'BinCat':
+            # validation: xx
+            _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 bincat_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == 'BinLwr':
+            # validation: xx
+            _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for lwr, prob in zip(prediction_data['lwr'], prediction_data['prob']):
                 binlwr_rows.append([location_name, target_name, lwr, prob])
         elif prediction_class == 'Binary':
+            # validation: xx
             binary_rows.append([location_name, target_name, prediction_data['prob']])
         elif prediction_class == 'Named':
+            # family name validated in _replace_family_abbrev_with_id_rows()
             named_rows.append([location_name, target_name, prediction_data['family'],
                                prediction_data['param1'], prediction_data['param2'], prediction_data['param3']])
         elif prediction_class == 'Point':
-            point_rows.append([location_name, target_name, prediction_data['value']])
+            value = prediction_data['value']
+            if (not target.is_date) and (value is None):
+                raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, location={location}, "
+                                   f"target={target}")
+
+            point_rows.append([location_name, target_name, value])
         elif prediction_class == 'Sample':
+            # validation: xx
             for sample in prediction_data['sample']:
                 sample_rows.append([location_name, target_name, sample])
         elif prediction_class == 'SampleCat':
+            # validation: xx
             for cat, sample in zip(prediction_data['cat'], prediction_data['sample']):
                 samplecat_rows.append([location_name, target_name, cat, sample])
         else:
@@ -332,14 +352,27 @@ def _prediction_dicts_to_db_rows(prediction_dicts):
     return bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
 
 
-def _load_bincat_rows(forecast, location_names, target_names, rows):
+def _validate_bin_prob(forecast, location, target, bin_probs):
+    # todo xx validate: [0, 1]. No NAs
+
+    # validate probs sum to 1.0
+    # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
+    # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
+    # (0.9300285798758262 -> 0.07 fixed it)
+    forecast_bin_sum = sum([prob if prob is not None else 0 for prob in bin_probs])
+    if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):  # todo hard-coded magic number
+        raise RuntimeError(f"Bin did not sum to 1.0. bin_probs={bin_probs}, forecast_bin_sum={forecast_bin_sum}, "
+                           f"forecast={forecast}, location={location}, target={target}")
+
+
+def _load_bincat_rows(forecast, rows):
     """
     Loads the rows in prediction_data_dict as BinCatDistributions.
     """
     # incoming rows: [location_name, target_name, cat, prob]
 
     # after this, rows will be: [location_id, target_id, cat, prob]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, cat, prob, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
@@ -354,14 +387,14 @@ def _load_bincat_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_binlwr_rows(forecast, location_names, target_names, rows):
+def _load_binlwr_rows(forecast, rows):
     """
-    Loads the rows in csv_reader as BinLwrDistributions.
+    Loads the rows in rows as BinLwrDistributions.
     """
     # incoming rows: [location_name, target_name, lwr, prob]
 
     # after this, rows will be: [location_id, target_id, lwr, prob]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, lwr, prob, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
@@ -376,14 +409,14 @@ def _load_binlwr_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_binary_rows(forecast, location_names, target_names, rows):
+def _load_binary_rows(forecast, rows):
     """
-    Loads the rows in csv_reader as BinaryDistributions.
+    Loads the rows in rows as BinaryDistributions.
     """
     # incoming rows: [location_name, target_name, prob]
 
     # after this, rows will be: [location_id, target_id, prob]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, prob, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
@@ -397,18 +430,18 @@ def _load_binary_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_named_rows(forecast, location_names, target_names, rows):
+def _load_named_rows(forecast, rows):
     """
-    Loads the rows in csv_reader as NamedDistribution concrete subclasses. Recall that each subclass has different IVs,
+    Loads the rows in rows as NamedDistribution concrete subclasses. Recall that each subclass has different IVs,
     so we use a hard-coded mapping to decide the subclass based on the `family` column.
     """
     # incoming rows: [location_name, target_name, family, param1, param2, param3]
 
     # after this, rows will be: [location_id, target_id, family, param1, param2, param3]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, family_id, param1, param2, param3]:
-    _replace_family_abbrev_with_id_rows(forecast, rows)
+    _replace_family_abbrev_with_id_rows(rows)
 
     # after this, rows will be: [location_id, target_id, family_id, param1_or_0, param2_or_0, param3_or_0]:
     _replace_null_params_with_zeros_rows(forecast, rows)
@@ -428,14 +461,23 @@ def _load_named_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_point_rows(forecast, location_names, target_names, rows):
+def _load_point_rows(forecast, rows):
     """
-    Loads the rows in csv_reader as PointPredictions.
+    Validates and loads the rows in rows as PointPredictions.
     """
     # incoming rows: [location_name, target_name, value]
 
     # after this, rows will be: [location_id, target_id, value]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
+
+    # # validate rows
+    # location_id_to_obj = {location.pk: location for location in forecast.forecast_model.project.locations.all()}
+    # target_id_to_obj = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
+    # for location_id, target_id, value in rows:
+    #     target = target_id_to_obj[target_id]
+    #     if (not target.is_date) and (value is None):
+    #         raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, "
+    #                            f"location={location_id_to_obj[location_id]}, target={target}")
 
     # after this, rows will be: [location_id, target_id, value_i, value_f, value_t]:
     _replace_value_with_three_types_rows(forecast, rows)
@@ -454,14 +496,14 @@ def _load_point_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_sample_rows(forecast, location_names, target_names, rows):
+def _load_sample_rows(forecast, rows):
     """
-    Loads the rows in csv_reader as SampleDistribution. See SAMPLE_DISTRIBUTION_HEADER.
+    Loads the rows in rows as SampleDistribution. See SAMPLE_DISTRIBUTION_HEADER.
     """
     # incoming rows: [location_name, target_name, sample]
 
     # after this, rows will be: [location_id, target_id, sample]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, sample, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
@@ -475,14 +517,14 @@ def _load_sample_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _load_samplecat_rows(forecast, location_names, target_names, rows):
+def _load_samplecat_rows(forecast, rows):
     """
-    Loads the rows in csv_reader as SampleCatDistributions.
+    Loads the rows in rows as SampleCatDistributions.
     """
     # incoming rows: [location_name, target_name, cat, sample]
 
     # after this, rows will be: [location_id, target_id, cat, sample]:
-    _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows)
+    _replace_location_target_names_with_pks_rows(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
     _add_forecast_pk_rows(forecast, rows)
@@ -497,24 +539,16 @@ def _load_samplecat_rows(forecast, location_names, target_names, rows):
     _insert_rows(prediction_class, columns_names, rows)
 
 
-def _create_missing_locations_and_targets_rows(forecast, location_names, target_names, rows):
+def _replace_location_target_names_with_pks_rows(forecast, rows):
     """
-    Creates missing Locations and Targets in my Project, then does an in-place rows replacement of target and
-    location names with PKs. note that unlike Locations, which only have a name, Targets have additional fields
-    that need filling out by users. But here all we can set are names.
+    Does an in-place rows replacement of target and location names with PKs.
     """
     project = forecast.forecast_model.project
+
+    # todo xx pass in:
     location_name_to_pk = {location.name: location.id for location in project.locations.all()}
-    for location_name in location_names:
-        if location_name not in location_name_to_pk:
-            location_name_to_pk[location_name] = Location.objects.create(project=project, name=location_name).pk
 
     target_name_to_pk = {target.name: target.id for target in project.targets.all()}
-    for target_name in target_names:
-        if target_name not in target_name_to_pk:
-            target_name_to_pk[target_name] = Target.objects.create(project=project, name=target_name,
-                                                                   point_value_type=Target.POINT_FLOAT).pk  # todo point_value_type?
-
     for row in rows:  # location_name, target_name, value, self_pk
         row[0] = location_name_to_pk[row[0]]
         row[1] = target_name_to_pk[row[1]]
@@ -536,7 +570,7 @@ def _replace_value_with_three_types_rows(forecast, rows):
         row[2:] = [value_i, value_f, value_t]
 
 
-def _replace_family_abbrev_with_id_rows(forecast, rows):
+def _replace_family_abbrev_with_id_rows(rows):
     """
     Does an in-place rows replacement of family abbreviations with ids in NamedDistribution.FAMILY_CHOICES (ints).
     """

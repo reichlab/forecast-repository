@@ -133,15 +133,15 @@ class ForecastTestCase(TestCase):
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
             load_cdc_csv_forecast_file(self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
-                                       self.time_zero)
-        self.assertIn("Bin did not sum to 1.0", str(context.exception))
-
-        with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(self.forecast_model,
                                        Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'),
                                        self.time_zero)
         self.assertIn("Point value was non-numeric", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_cdc_csv_forecast_file(self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
+                                       self.time_zero)
+        self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
         with self.assertRaises(Exception):
@@ -154,9 +154,10 @@ class ForecastTestCase(TestCase):
             else:
                 raise Exception
 
+        # todo xx move to test_predictions.py? since we are validating prediction_dicts and not rows, etc.
         # todo xx test other validations ala old Forecast.validate_forecast_data():
-        #   v raise RuntimeError("Bin did not sum to 1.0.
         #   v raise RuntimeError("Point value was non-numeric
+        #   v raise RuntimeError("Bin did not sum to 1.0.
         #   - raise RuntimeError("Locations did not match template
         #   - raise RuntimeError("Targets did not match template
         #   ? raise RuntimeError("Bins did not match template

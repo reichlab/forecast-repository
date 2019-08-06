@@ -142,7 +142,7 @@ def load_cdc_csv_forecast_file(forecast_model, cdc_csv_file_path, time_zero):
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
     with open(cdc_csv_file_path) as cdc_csv_file_fp:
         json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_file_fp)
-    load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+        load_predictions_from_json_io_dict(new_forecast, json_io_dict)
     return new_forecast
 
 
@@ -173,17 +173,18 @@ def _prediction_dicts_for_csv_rows(rows):
     rows.sort(key=lambda _: (_[0], _[1]))  # sorted so groupby() will work
     for location_name, target_grouper in groupby(rows, key=lambda _: _[0]):
         for target_name, row_type_grouper in groupby(target_grouper, key=lambda _: _[1]):
-            point_value = None  # set when we encounter the point row
-            bincat_cats = []  # text. appended to when we encounter bincat rows
-            bincat_probs = []  # float. ""
-            binlwr_lwrs = []  # float. "" binlwr rows
-            binlwr_probs = []  # float. ""
+            point_values = []  # NB: should only be one point row, but collect all (but don't validate here)
+            bincat_cats = []
+            bincat_probs = []
+            binlwr_lwrs = []
+            binlwr_probs = []
             for _, _, is_point_row, bin_start_incl, bin_end_notincl, value in row_type_grouper:
                 try:
                     if is_point_row:
                         # NB: point comes in as a number (see parse_value() below), but should be a string
-                        # for Target whose point_value_type is Target.POINT_TEXT
+                        # for Targets whose point_value_type is Target.POINT_TEXT
                         point_value = str(value) if target_name in BINCAT_TARGET_NAMES else value
+                        point_values.append(point_value)
                     elif target_name in BINCAT_TARGET_NAMES:
                         bincat_cats.append(str(bin_start_incl))
                         bincat_probs.append(float(value))
@@ -215,12 +216,13 @@ def _prediction_dicts_for_csv_rows(rows):
                                          "prediction": {
                                              "lwr": binlwr_lwrs,
                                              "prob": binlwr_probs}})
-            if point_value is not None:
-                prediction_dicts.append({"location": location_name,
-                                         "target": target_name,
-                                         'class': 'Point',
-                                         'prediction': {
-                                             'value': point_value}})
+            if point_values:
+                for point_value in point_values:
+                    prediction_dicts.append({"location": location_name,
+                                             "target": target_name,
+                                             'class': 'Point',
+                                             'prediction': {
+                                                 'value': point_value}})
     return prediction_dicts
 
 

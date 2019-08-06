@@ -655,9 +655,7 @@ class ScoresTestCase(TestCase):
         load_cdc_csv_forecast_file(forecast_model2,
                                    Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
                                    time_zero2)
-
-        # # todo xx file_name arg:
-        project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'), None)
+        project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
 
         log_single_bin_score = Score.objects.filter(abbreviation='log_single_bin').first()
         log_single_bin_score.update_score_for_model(forecast_model2)

@@ -4,12 +4,12 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
-    PointPrediction, SampleDistribution, SampleCatDistribution, Forecast
+from forecast_app.models import Forecast
 from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.prediction import calc_named_distribution
 from utils.cdc import json_io_dict_from_cdc_csv_file
-from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_db_rows, json_io_dict_from_forecast
+from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows, \
+    json_io_dict_from_forecast
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
@@ -127,7 +127,7 @@ class PredictionsTestCase(TestCase):
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'locations', and 'targets'
             bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
-                _prediction_dicts_to_db_rows(prediction_dicts)
+                _prediction_dicts_to_validated_db_rows(self.forecast, prediction_dicts)
             self.assertEqual([['US National', '1 wk ahead', 'cat1', 0.1],
                               ['US National', '1 wk ahead', 'cat2', 0.9]],
                              bincat_rows)
@@ -147,13 +147,28 @@ class PredictionsTestCase(TestCase):
                               ['HHS Region 6', 'Season peak week', 'cat2', 'cat2 sample']],
                              samplecat_rows)
 
+        # test for invalid location
+        with self.assertRaises(RuntimeError) as context:
+            bad_prediction_dicts = [
+                {"location": "bad location", "target": "1 wk ahead", "class": "BinCat", "prediction": {}}
+            ]
+            _prediction_dicts_to_validated_db_rows(self.forecast, bad_prediction_dicts)
+        self.assertIn('prediction_dict referred to an undefined Location', str(context.exception))
+
+        # test for invalid target
+        with self.assertRaises(RuntimeError) as context:
+            bad_prediction_dicts = [
+                {"location": "HHS Region 1", "target": "bad target", "class": "bad class", "prediction": {}}
+            ]
+            _prediction_dicts_to_validated_db_rows(self.forecast, bad_prediction_dicts)
+        self.assertIn('prediction_dict referred to an undefined Target', str(context.exception))
+
         # test for invalid prediction_class
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                # {"location": "HHS Region 1", "target": "1 wk ahead", "class": "bad class", "prediction": {}},
-                {"location": "", "target": "", "class": "bad class", "prediction": {}},
+                {"location": "HHS Region 1", "target": "1 wk ahead", "class": "bad class", "prediction": {}}
             ]
-            _prediction_dicts_to_db_rows(bad_prediction_dicts)
+            _prediction_dicts_to_validated_db_rows(self.forecast, bad_prediction_dicts)
         self.assertIn('invalid prediction_class', str(context.exception))
 
 
