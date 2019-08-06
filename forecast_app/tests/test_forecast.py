@@ -9,7 +9,9 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, CDC_CSV_HEADER, load_cdc_csv_forecasts_from_dir
+from forecast_app.tests.test_scores import _make_thai_log_score_project
+from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
+from utils.forecast import json_io_dict_from_forecast
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
 
 
@@ -85,6 +87,15 @@ class ForecastTestCase(TestCase):
                 forecast_model2,
                 Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), self.time_zero)
         self.assertIn("time_zero was not in project", str(context.exception))
+
+
+    def test_load_forecast_thai_point_json_type(self):
+        # exposes a bug where 0-valued bin points are loaded as null
+        project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
+        act_json_io_dict = json_io_dict_from_forecast(forecast2)  # recall json predictions are sorted by location, type
+        exp_point = {'location': 'TH01', 'target': '1_biweek_ahead', 'class': 'Point', 'prediction': {'value': 0}}
+        act_point = act_json_io_dict['predictions'][1]
+        self.assertEqual(exp_point, act_point)
 
 
     def test_load_forecasts_from_dir(self):
@@ -203,8 +214,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_forecast_delete(self):
-        # add a second forecast, check its associated ForecastData rows were added, delete it, and test that the data was
-        # deleted (via CASCADE)
+        # add a second forecast, check its rows were added, delete it, and test that the data was deleted (via CASCADE)
         self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
         self.assertEqual(8019, self.forecast.get_num_rows())  # ""
 
@@ -212,11 +222,12 @@ class ForecastTestCase(TestCase):
                                                Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
                                                self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(5237, forecast2.get_num_rows())  # 8019 rows - 2782 bin=0 rows 5237
+        self.assertEqual(8019, forecast2.get_num_rows())
         self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
 
         forecast2.delete()
-        self.assertEqual(0, forecast2.get_num_rows())
+        self.assertEqual(1, self.forecast_model.forecasts.count())  # back to one
+        self.assertEqual(0, forecast2.get_num_rows())  # cascaded DELETE
 
 
     def test_forecast_for_time_zero(self):

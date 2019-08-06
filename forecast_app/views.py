@@ -1077,20 +1077,13 @@ def process_upload_file_job__forecast(upload_file_job_pk):
         forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
         timezero_pk = upload_file_job.input_json['timezero_pk']
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-        new_forecast = load_forecast_from_cloud_file(forecast_model, cloud_file_fp, time_zero, upload_file_job.filename)
-        upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
-        upload_file_job.save()
-
-
-@transaction.atomic
-def load_forecast_from_cloud_file(forecast_model, cloud_file_fp, time_zero, file_name):
-    """
-    Atomic process_upload_file_job__forecast() helper.
-    """
-    new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
-    json_io_dict = json.load(cloud_file_fp)
-    load_predictions_from_json_io_dict(new_forecast, json_io_dict)
-    return new_forecast
+        with transaction.atomic():
+            new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
+                                                   csv_filename=upload_file_job.filename)
+            json_io_dict = json.load(cloud_file_fp)
+            load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+            upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
+            upload_file_job.save()
 
 
 def delete_forecast(request, forecast_pk):

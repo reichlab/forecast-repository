@@ -82,34 +82,6 @@ def epi_week_filename_components_ensemble(filename):
 # load_cdc_csv_forecast_file() and friends
 #
 
-@transaction.atomic
-def load_cdc_csv_forecast_file(forecast_model, cdc_csv_file_path, time_zero, file_name=None):
-    """
-    Loads the passed cdc csv file into a new forecast_model Forecast for time_zero. NB: does not check if a Forecast
-    already exists for time_zero and file_name. Is atomic so that an invalid forecast's data is not saved.
-
-    :param forecast_model: the ForecastModel to create the new Forecast in
-    :param cdc_csv_file_path: string or Path to a CDC CSV forecast file. the CDC CSV file format is documented at
-        https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
-    :param time_zero: the TimeZero this forecast applies to
-    :param file_name: optional name to use for the file. if None (default), uses csv_file_path_or_fp. helpful b/c uploaded
-        files have random csv_file_path_or_fp file names, so original ones must be extracted and passed separately
-    :return returns a new Forecast for it
-    :raises RuntimeError if the data could not be loaded
-    """
-    if time_zero not in forecast_model.project.timezeros.all():
-        raise RuntimeError(f"time_zero was not in project. time_zero={time_zero}, "
-                           f"project timezeros={forecast_model.project.timezeros.all()}")
-
-    cdc_csv_file_path = Path(cdc_csv_file_path)
-    file_name = file_name or cdc_csv_file_path.name
-    new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
-    with open(cdc_csv_file_path) as cdc_csv_file_fp:
-        json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_file_fp)
-    load_predictions_from_json_io_dict(new_forecast, json_io_dict)
-    return new_forecast
-
-
 def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None):
     """
     Adds Forecast objects to forecast_model using the cdc csv files under data_dir. Assumes TimeZeros match those in my
@@ -146,6 +118,34 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None)
     if not forecasts:
         click.echo("Warning: no valid forecast files found in directory: {}".format(data_dir))
     return forecasts
+
+
+@transaction.atomic
+def load_cdc_csv_forecast_file(forecast_model, cdc_csv_file_path, time_zero, file_name=None):
+    """
+    Loads the passed cdc csv file into a new forecast_model Forecast for time_zero. NB: does not check if a Forecast
+    already exists for time_zero and file_name. Is atomic so that an invalid forecast's data is not saved.
+
+    :param forecast_model: the ForecastModel to create the new Forecast in
+    :param cdc_csv_file_path: string or Path to a CDC CSV forecast file. the CDC CSV file format is documented at
+        https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
+    :param time_zero: the TimeZero this forecast applies to
+    :param file_name: optional name to use for the file. if None (default), uses csv_file_path_or_fp. helpful b/c uploaded
+        files have random csv_file_path_or_fp file names, so original ones must be extracted and passed separately
+    :return returns a new Forecast for it
+    :raises RuntimeError if the data could not be loaded
+    """
+    if time_zero not in forecast_model.project.timezeros.all():
+        raise RuntimeError(f"time_zero was not in project. time_zero={time_zero}, "
+                           f"project timezeros={forecast_model.project.timezeros.all()}")
+
+    cdc_csv_file_path = Path(cdc_csv_file_path)
+    file_name = file_name or cdc_csv_file_path.name
+    new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
+    with open(cdc_csv_file_path) as cdc_csv_file_fp:
+        json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_file_fp)
+    load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+    return new_forecast
 
 
 def json_io_dict_from_cdc_csv_file(cdc_csv_file_fp):

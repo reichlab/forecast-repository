@@ -472,7 +472,7 @@ class Project(models.Model):
 
 
     @transaction.atomic
-    def load_truth_data(self, truth_file_path_or_fp, file_name):
+    def load_truth_data(self, truth_file_path_or_fp, file_name=None):
         """
         Loads the data in truth_file_path (see below for file format docs). Like load_csv_data(), uses direct SQL for
         performance, using a fast Postgres-specific routine if connected to it. Note that this method should be called
