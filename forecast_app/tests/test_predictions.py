@@ -100,7 +100,8 @@ class PredictionsTestCase(TestCase):
                              sorted(act_json_io_dict['meta']['locations'], key=lambda _: _['name']))
             self.assertEqual(sorted(exp_json_io_dict['meta']['targets'], key=lambda _: _['name']),
                              sorted(act_json_io_dict['meta']['targets'], key=lambda _: _['name']))
-            self.assertEqual(exp_json_io_dict['predictions'], act_json_io_dict['predictions'])
+            self.assertEqual(sorted(exp_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])),
+                             sorted(act_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])))
 
             # test 'forecast' separately to account for runtime differences (forecast.id, created_at, etc.) Do so by
             # 'patching' the runtime-specific differences. note: we could have used Django templates as in

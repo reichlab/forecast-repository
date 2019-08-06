@@ -75,7 +75,8 @@ def json_io_dict_from_forecast(forecast):
     files. Does include the 'meta' section in the returned dict.
 
     :param forecast: a Forecast whose predictions are to be outputted
-    :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. see docs for details
+    :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by location
+        and target for visibility. see docs for details
     """
     location_names, target_names, prediction_dicts = _locations_targets_pred_dicts_from_forecast(forecast)
     return {
@@ -112,7 +113,7 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
     # BinCatDistribution
     bincat_qs = forecast.bincat_distribution_qs() \
         .order_by('location__id', 'target__id', 'cat') \
-        .values_list('location__name', 'target__name', 'cat', 'prob')  # ordering by 'cat' for testing. todo NB: slower
+        .values_list('location__name', 'target__name', 'cat', 'prob')  # ordering by 'cat' for testing - slower query
     for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
@@ -207,8 +208,8 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
 
     # SampleCatDistribution
     samplecat_qs = forecast.samplecat_distribution_qs() \
-        .order_by('location__id', 'target__id') \
-        .values_list('location__name', 'target__name', 'cat', 'sample')
+        .order_by('location__id', 'target__id', 'cat') \
+        .values_list('location__name', 'target__name', 'cat', 'sample')  # ordering by 'cat' for testing - slower query
     for location_name, target_cat_sample_grouper in groupby(samplecat_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, cat_sample_grouper in groupby(target_cat_sample_grouper, key=lambda _: _[1]):
