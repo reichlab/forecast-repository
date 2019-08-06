@@ -47,15 +47,13 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     Notes:
     - DELETES any existing project without prompting
     - uses the model's 'metadata.txt' file's 'model_name' to find an existing model, if any
-    - on Mac laptop takes b/w 30 and 90 minutes to run (sqlite3 vs. postgres)
     """
     start_time = timeit.default_timer()
 
     # create the project. error if already exists
     project = Project.objects.filter(name=CDC_PROJECT_NAME).first()  # None if doesn't exist
     if project:
-        logger.warning(
-            "make_cdc_flu_contests_project_app(): found existing project. deleting project={}".format(project))
+        logger.warning(f"make_cdc_flu_contests_project_app(): found existing project. deleting project={project}")
         project.delete()
 
     # make and fill the Project, Targets, and TimeZeros
@@ -74,8 +72,9 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     logger.info("* Creating TimeZeros...")
     model_subdir = first_model_subdirectory(component_models_dir_ensemble)
     if not model_subdir:
-        raise RuntimeError("first_model_subdirectory was None. component_models_dir_ensemble={}"
-                           .format(component_models_dir_ensemble))
+        raise RuntimeError(f"first_model_subdirectory was None. component_models_dir_ensemble="
+                           f"{component_models_dir_ensemble}. did you run "
+                           f"normalize_filenames_cdc_flusight_ensemble.py?")
 
     time_zeros = make_timezeros(project, [model_subdir])
     logger.info("- created {} TimeZeros: {}"
@@ -309,19 +308,8 @@ def load_forecasts(project, model_dirs_to_load):
         if not forecast_model:
             raise RuntimeError("couldn't find model named '{}' in project {}".format(model_name, project))
 
-
-        def forecast_bin_map_fcn(forecast_bin):
-            # handle the cases of 52,1 and 53,1 -> changing them to 52,53 and 53,54 respectively
-            # (52.0, 1.0, 0.0881763527054108)
-            bin_start_incl, bin_end_notincl, value = forecast_bin
-            if ((bin_start_incl == 52) or (bin_start_incl == 53)) and (bin_end_notincl == 1):
-                bin_end_notincl = bin_start_incl + 1
-            return bin_start_incl, bin_end_notincl, value
-
-
         forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, model_dir,
-                                                    is_load_file=is_cdc_file_ew43_through_ew18,
-                                                    forecast_bin_map_fcn=forecast_bin_map_fcn)
+                                                    is_load_file=is_cdc_file_ew43_through_ew18)
         model_name_to_forecasts[model_name].extend(forecasts)
 
     return model_name_to_forecasts
