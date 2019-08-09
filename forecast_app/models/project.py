@@ -443,7 +443,7 @@ class Project(models.Model):
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
         truth_data_qs = self.truth_data_qs() \
-            .order_by('location__id', 'target__id') \
+            .order_by('location__name', 'target__name') \
             .values_list('location__id', 'target__id', 'time_zero__timezero_date', 'value')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
@@ -719,7 +719,7 @@ class Target(models.Model):
     POINT_TEXT = 2  # PointPrediction.value_t
     POINT_VALUE_TYPE_CHOICES = (
         (POINT_INTEGER, 'INTEGER'),
-        (POINT_FLOAT, 'POINT_FLOAT'),
+        (POINT_FLOAT, 'FLOAT'),
         (POINT_TEXT, 'TEXT'),
     )
     point_value_type = models.IntegerField(choices=POINT_VALUE_TYPE_CHOICES)

@@ -1,0 +1,133 @@
+{
+  "name": "CDC Flu challenge",
+  "is_public": true,
+  "description": "Guidelines and forecasts for a collaborative U.S. influenza forecasting project.",
+  "home_url": "https://github.com/FluSightNetwork/cdc-flusight-ensemble",
+  "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
+  "core_data": "https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models",
+  "time_interval_type": "Week",
+  "visualization_y_label": "Weighted ILI (%)",
+  "locations": [
+    {"name": "HHS Region 1"},
+    {"name": "HHS Region 2"},
+    {"name": "HHS Region 3"},
+    {"name": "HHS Region 4"},
+    {"name": "HHS Region 5"},
+    {"name": "HHS Region 6"},
+    {"name": "HHS Region 7"},
+    {"name": "HHS Region 8"},
+    {"name": "HHS Region 9"},
+    {"name": "HHS Region 10"},
+    {"name": "US National"}
+  ],
+  "targets": [
+    {
+      "name": "Season onset",
+      "description": "The onset of the season is defined as the MMWR surveillance week (http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) reported through ILINet reaches or exceeds the baseline value for three consecutive weeks (updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should be for the first week of that three week period.",
+      "unit": "week",
+      "is_date": true,
+      "is_step_ahead": false,
+      "step_ahead_increment": 0,
+      "point_value_type": "text",
+      "prediction_types": [
+        "BinCat",
+        "Binary",
+        "SampleCat"
+      ]
+    },
+    {
+      "name": "Season peak week",
+      "description": "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the highest for the 2016-2017 influenza season.",
+      "unit": "week",
+      "is_date": true,
+      "is_step_ahead": false,
+      "step_ahead_increment": 0,
+      "point_value_type": "text",
+      "prediction_types": [
+        "BinCat",
+        "Binary",
+        "SampleCat"
+      ]
+    },
+    {
+      "name": "Season peak percentage",
+      "description": "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches during the 2016-2017 influenza season.",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": false,
+      "step_ahead_increment": 0,
+      "point_value_type": "float",
+      "prediction_types": [
+        "BinLwr",
+        "Named",
+        "Point",
+        "Sample"
+      ],
+      "lwr": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 13]
+    },
+    {
+      "name": "1 wk ahead",
+      "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 1,
+      "point_value_type": "float",
+      "prediction_types": [
+        "BinLwr",
+        "Named",
+        "Point",
+        "Sample"
+      ],
+      "lwr": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 13]
+    },
+    {
+      "name": "2 wk ahead",
+      "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 2,
+      "point_value_type": "float",
+      "prediction_types": [
+        "BinLwr",
+        "Named",
+        "Point",
+        "Sample"
+      ],
+      "lwr": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 13]
+    },
+    {
+      "name": "3 wk ahead",
+      "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 3,
+      "point_value_type": "float",
+      "prediction_types": [
+        "BinLwr",
+        "Named",
+        "Point",
+        "Sample"
+      ],
+      "lwr": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 13]
+    },
+    {
+      "name": "4 wk ahead",
+      "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+      "unit": "percent",
+      "is_date": false,
+      "is_step_ahead": true,
+      "step_ahead_increment": 4,
+      "point_value_type": "float",
+      "prediction_types": [
+        "BinLwr",
+        "Named",
+        "Point",
+        "Sample"
+      ],
+      "lwr": [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9, 4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 6, 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 6.9, 7, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8, 8.9, 9, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.8, 9.9, 10, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 11, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, 11.9, 12, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8, 12.9, 13]
+    }
+  ]
+}

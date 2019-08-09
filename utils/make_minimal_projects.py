@@ -57,7 +57,7 @@ def make_minimal_projects_app():
             click.echo("* deleting previous project: {}".format(found_project))
             found_project.delete()
 
-    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
+    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
     click.echo("* creating Projects")
     public_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[0], is_public=True, config_dict=CDC_CONFIG_DICT)
@@ -96,7 +96,7 @@ def fill_project(project, mo_user):
                             data_version_date=None)
 
     # load the truth data. todo xx file_name arg:
-    project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'), None)
+    project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
 
     # create the models
     click.echo("creating ForecastModel")

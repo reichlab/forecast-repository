@@ -12,8 +12,10 @@ from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.cdc import load_cdc_csv_forecast_file
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT, \
+    get_or_create_super_po_mo_users
 from utils.make_thai_moph_project import create_thai_locations_and_targets
+from utils.project import create_project_from_json
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -36,7 +38,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_load_truth_data(self):
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
         self.assertEqual(7, self.project.truth_data_qs().count())
         self.assertTrue(self.project.is_truth_data_loaded())
         self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
@@ -63,7 +65,7 @@ class ProjectTestCase(TestCase):
         self.assertFalse(project2.is_truth_data_loaded())
 
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
-        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
+        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
         self.assertEqual(7, project2.truth_data_qs().count())
 
         # test get_truth_data_preview()
@@ -80,7 +82,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_truth_date_format(self):
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
         response = csv_response_for_project_truth_data(self.project)
         exp_content = ['timezero,location,target,value',
                        '20170101,US National,1 wk ahead,0.73102',
@@ -121,7 +123,8 @@ class ProjectTestCase(TestCase):
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero2)
         self.assertEqual(self.project.get_num_forecast_rows_all_models(), 8019 * 2)
-        self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(), 8019 * 2)  # exact b/c uniform forecasts
+        self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
+                         8019 * 2)  # exact b/c uniform forecasts
 
 
     def test_score_csv_file_cache(self):
@@ -129,8 +132,7 @@ class ProjectTestCase(TestCase):
         self.assertIsNotNone(self.project.score_csv_file_cache)
 
         # test CSV file gets created
-        self.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'),
-                                     'truths-2016-2017-reichlab.csv')
+        self.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score_for_model(self.forecast_model)
@@ -364,8 +366,7 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
-                                'truths-2017-2018-reichlab.csv')
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
         exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
@@ -506,8 +507,7 @@ class ProjectTestCase(TestCase):
         # we omit 20170108
 
         self.project.delete_truth_data()
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'),
-                                     'mean-abs-error-truths-dups.csv')
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
 
         exp_loc_target_tz_date_to_truth = {
             'HHS Region 1': {
@@ -572,9 +572,7 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6),
                                 is_season_start=True, season_name='season2')
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 13))
-
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
-                                'truths-2017-2018-reichlab.csv')
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
 
         # test location_target_name_tz_date_to_truth() with above multiple seasons - done in this method b/c we've
         # set up some seasons :-)
@@ -597,8 +595,7 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
-                                'truths-2017-2018-reichlab.csv')
+        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
 
         # change '1 wk ahead' to '0 wk ahead' in Target and truth data. also tests that target names are not used
         # (ids or step_ahead_increment should be used)
@@ -647,6 +644,45 @@ class ProjectTestCase(TestCase):
 
     def test_timezeros_num_forecasts(self):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
+
+
+    def test_create_project_from_json_spec(self):
+        superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password \
+            = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+
+        # spot-check some fields
+        self.assertEqual(po_user, project.owner)
+        self.assertTrue(project.is_public)
+        self.assertEqual('CDC Flu challenge', project.name)
+        self.assertEqual(Project.WEEK_TIME_INTERVAL_TYPE, project.time_interval_type)
+        self.assertEqual(11, project.locations.count())
+        self.assertEqual(7, project.targets.count())
+
+        # spot-check a Location
+        location = project.locations.filter(name='US National').first()
+        self.assertIsNotNone(location)
+
+        # spot-check a Target
+        target = project.targets.filter(name='1 wk ahead').first()
+        self.assertEqual('percent', target.unit)
+        self.assertTrue(target.is_step_ahead)
+        self.assertEqual(Target.POINT_FLOAT, target.point_value_type)
+
+        self.assertFalse(target.ok_bincat_distribution)
+        self.assertTrue(target.ok_binlwr_distribution)  # BinLwr
+        self.assertFalse(target.ok_binary_distribution)
+        self.assertTrue(target.ok_named_distribution)  # Named
+        self.assertTrue(target.ok_point_prediction)  # Point
+        self.assertTrue(target.ok_sample_distribution)  # Sample
+        self.assertFalse(target.ok_samplecat_distribution)
+
+        # todo xx replace: config_dict=CDC_CONFIG_DICT with: visualization_y_label = project_dict['visualization_y_label']
+        # self.assertEqual('Weighted ILI (%)', project.visualization_y_label)
+        self.fail()  # todo xx
+
+        # todo xx "lwr"
+        self.fail()  # todo xx
 
 
 # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns

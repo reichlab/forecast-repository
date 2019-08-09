@@ -50,16 +50,16 @@ class ForecastTestCase(TestCase):
         self.assertEqual(8019, self.forecast.get_num_rows())  # excluding header
 
         # spot-check a few point rows
-        exp_points = [('US National', 'Season onset', None, None, '50.0012056690978'),  # value_t
-                      ('US National', 'Season peak week', None, None, '4.96302456525203'),
-                      ('US National', 'Season peak percentage', None, 3.30854920241938, None),  # value_f
-                      ('US National', '1 wk ahead', None, 3.00101461253164, None),
+        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None),
                       ('US National', '2 wk ahead', None, 2.72809349594878, None),
                       ('US National', '3 wk ahead', None, 2.5332588357381, None),
-                      ('US National', '4 wk ahead', None, 2.42985946508278, None)]
+                      ('US National', '4 wk ahead', None, 2.42985946508278, None),
+                      ('US National', 'Season onset', None, None, '50.0012056690978'),  # value_t
+                      ('US National', 'Season peak percentage', None, 3.30854920241938, None),  # value_f
+                      ('US National', 'Season peak week', None, None, '4.96302456525203')]
         act_points_qs = self.forecast.point_prediction_qs() \
             .filter(location__name='US National') \
-            .order_by('location__id', 'target__id') \
+            .order_by('location__name', 'target__name') \
             .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t')
         self.assertEqual(exp_points, list(act_points_qs))
 
@@ -185,29 +185,28 @@ class ForecastTestCase(TestCase):
     def test_forecast_data_and_accessors(self):
         # test points
         point_prediction_qs = self.forecast.point_prediction_qs() \
-            .order_by('location__id', 'target__id') \
+            .order_by('location__name', 'target__name') \
             .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t')
         self.assertEqual(77, point_prediction_qs.count())
-        exp_points = [('US National', 'Season onset', None, None, '50.0012056690978'),  # value_t
-                      ('US National', 'Season peak week', None, None, '4.96302456525203'),
-                      ('US National', 'Season peak percentage', None, 3.30854920241938, None),  # value_f
-                      ('US National', '1 wk ahead', None, 3.00101461253164, None),
+        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None),
                       ('US National', '2 wk ahead', None, 2.72809349594878, None),
                       ('US National', '3 wk ahead', None, 2.5332588357381, None),
-                      ('US National', '4 wk ahead', None, 2.42985946508278, None)]
+                      ('US National', '4 wk ahead', None, 2.42985946508278, None),
+                      ('US National', 'Season onset', None, None, '50.0012056690978'),  # value_t
+                      ('US National', 'Season peak percentage', None, 3.30854920241938, None),  # value_f
+                      ('US National', 'Season peak week', None, None, '4.96302456525203')]
         self.assertEqual(exp_points, list(point_prediction_qs.filter(location__name='US National')))
 
         # test binlwr
         binlwr_distribution_qs = self.forecast.binlwr_distribution_qs() \
-            .order_by('location__id', 'target__id', 'lwr') \
+            .order_by('location__name', 'target__name', 'lwr') \
             .values_list('location__name', 'target__name', 'lwr', 'prob')
         self.assertEqual(7205, binlwr_distribution_qs.count())
-        self.assertEqual(('HHS Region 1', 'Season peak percentage', 0.0, 2.77466929119912e-05),
-                         binlwr_distribution_qs[0])
+        self.assertEqual(('HHS Region 1', '1 wk ahead', 0.0, 3.30894085342807e-07), binlwr_distribution_qs[0])
 
         #  test bincat
         bincat_distribution_qs = self.forecast.bincat_distribution_qs() \
-            .order_by('location__id', 'target__id', 'cat') \
+            .order_by('location__name', 'target__name', 'cat') \
             .values_list('location__name', 'target__name', 'cat', 'prob')
         self.assertEqual(737, bincat_distribution_qs.count())
         self.assertEqual(('HHS Region 1', 'Season onset', '1', 2.37797107673309e-05), bincat_distribution_qs[0])

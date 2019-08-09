@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 import timeit
 from collections import defaultdict
@@ -16,9 +17,9 @@ logger = logging.getLogger(__name__)
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from forecast_app.models.project import Location
-from forecast_app.models import Project, Target, TimeZero, ForecastModel
+from forecast_app.models import TimeZero, ForecastModel, Project
 from django.contrib.auth.models import User
+from utils.project import create_project_from_json, create_locations, create_targets
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.cdc import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory, \
     load_cdc_csv_forecasts_from_dir
@@ -49,27 +50,23 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     - uses the model's 'metadata.txt' file's 'model_name' to find an existing model, if any
     """
     start_time = timeit.default_timer()
+    click.echo(f"* make_cdc_flu_contests_project_app(): component_models_dir_ensemble={component_models_dir_ensemble}, "
+               f"truths_csv_file={truths_csv_file}")
 
     # create the project. error if already exists
     project = Project.objects.filter(name=CDC_PROJECT_NAME).first()  # None if doesn't exist
     if project:
         logger.warning(f"make_cdc_flu_contests_project_app(): found existing project. deleting project={project}")
         project.delete()
-
-    # make and fill the Project, Targets, and TimeZeros
-    component_models_dir_ensemble = Path(component_models_dir_ensemble)
-    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
+    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
     logger.info("* Creating Project...")
-    project = make_project(CDC_PROJECT_NAME, po_user, mo_user)
-    logger.info("- created Project: {}".format(project))
-
-    logger.info("* Creating Locations and Targets...")
-    locations, targets = make_cdc_locations_and_targets(project)
-    logger.info("- created {} Locations: {}".format(len(locations), locations))
-    logger.info("- created {} Targets: {}".format(len(targets), targets))
+    project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+    project.model_owners.add(mo_user)
+    logger.info(f"- created Project: {project}")
 
     logger.info("* Creating TimeZeros...")
+    component_models_dir_ensemble = Path(component_models_dir_ensemble)
     model_subdir = first_model_subdirectory(component_models_dir_ensemble)
     if not model_subdir:
         raise RuntimeError(f"first_model_subdirectory was None. component_models_dir_ensemble="
@@ -102,100 +99,7 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     click.echo("- Loading forecasts: loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     # done!
-    logger.info("* Done. time: {}".format(timeit.default_timer() - start_time))
-
-
-def make_project(project_name, po_user, mo_user):
-    project_description = "Guidelines and forecasts for a collaborative U.S. influenza forecasting project."
-    home_url = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble'
-    logo_url = 'http://reichlab.io/assets/images/logo/nav-logo.png'
-    core_data = 'https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models'
-    project = Project.objects.create(
-        owner=po_user,
-        is_public=True,
-        name=project_name,
-        description=project_description,
-        home_url=home_url,
-        logo_url=logo_url,
-        core_data=core_data,
-        config_dict=CDC_CONFIG_DICT)
-    project.model_owners.add(mo_user)
-    project.save()
-    return project
-
-
-def make_cdc_locations_and_targets(project):
-    """
-    Creates CDC standard Targets for project. Returns 2-tuple listing the new ones: (new_locations, new_targets)
-    """
-    return make_cdc_locations(project), make_cdc_targets(project)
-
-
-def make_cdc_locations(project):
-    """
-    Creates CDC standard Locations for project. Returns a list of them.
-    """
-    locations = []
-    for location_name in ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5',
-                          'HHS Region 6', 'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10',
-                          'US National']:
-        locations.append(Location.objects.create(project=project, name=location_name))
-    return locations
-
-
-def make_cdc_targets(project):
-    """
-    Creates CDC standard Targets for project. Returns a list of them.
-    """
-    targets = []
-    week_prediction_ok_types = {  # makes it convenient to pass all in as a unit
-        'ok_point_prediction': True,
-        'ok_named_distribution': True,
-        'ok_binlwr_distribution': True,
-        'ok_sample_distribution': True,
-        # 'ok_bincat_distribution': False,
-        # 'ok_samplecat_distribution': False,
-        # 'ok_binary_distribution': False,
-    }
-    season_onset_ok_types = {
-        # 'ok_point_prediction': False,
-        # 'ok_named_distribution': False,
-        # 'ok_binlwr_distribution': False,
-        # 'ok_sample_distribution': False,
-        'ok_bincat_distribution': True,
-        'ok_samplecat_distribution': True,
-        'ok_binary_distribution': True,
-    }
-
-    week_ahead_descr = "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week."
-    for target_name, description, unit, is_date, is_step_ahead, step_ahead_increment, point_value_type, is_week_ahead_ok_type \
-            in (
-            ('Season onset',
-             "The onset of the season is defined as the MMWR surveillance week "
-             "(http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like "
-             "illness (ILI) reported through ILINet reaches or exceeds the baseline value for three consecutive weeks "
-             "(updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at "
-             "http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values "
-             "should be for the first week of that three week period.",
-             'week', True, False, 0, Target.POINT_TEXT, False),
-            ('Season peak week',
-             "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the "
-             "highest for the 2016-2017 influenza season.",
-             'week', True, False, 0, Target.POINT_TEXT, True),
-            ('Season peak percentage',
-             "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches "
-             "during the 2016-2017 influenza season.",
-             'percent', False, False, 0, Target.POINT_FLOAT, True),
-            ('1 wk ahead', week_ahead_descr, 'percent', False, True, 1, Target.POINT_FLOAT, True),
-            ('2 wk ahead', week_ahead_descr, 'percent', False, True, 2, Target.POINT_FLOAT, True),
-            ('3 wk ahead', week_ahead_descr, 'percent', False, True, 3, Target.POINT_FLOAT, True),
-            ('4 wk ahead', week_ahead_descr, 'percent', False, True, 4, Target.POINT_FLOAT, True)):
-        prediction_ok_types_dict = week_prediction_ok_types if is_week_ahead_ok_type else season_onset_ok_types
-        targets.append(Target.objects.create(project=project, name=target_name, description=description, unit=unit,
-                                             is_date=is_date, is_step_ahead=is_step_ahead,
-                                             step_ahead_increment=step_ahead_increment,
-                                             point_value_type=point_value_type, **prediction_ok_types_dict))
-    return targets
+    click.echo(f"* Done. time: {timeit.default_timer() - start_time}")
 
 
 def make_timezeros(project, model_dirs):
@@ -329,12 +233,12 @@ def metadata_dict_for_file(metadata_file):
 # ---- User utilities ----
 #
 
-def get_or_create_super_po_mo_users(create_super):
+def get_or_create_super_po_mo_users(is_create_super):
     """
     A utility that creates (as necessary) three users - 'project_owner1', 'model_owner1', and a superuser. Should
     probably only be used for testing.
 
-    :param create_super: boolean that controls whether a superuser is created. used only for testing b/c password is
+    :param is_create_super: boolean that controls whether a superuser is created. used only for testing b/c password is
         shown
     :return: a 4-tuple (if not create_super) or 6-tuple (if create_super) of Users and passwords:
         (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password)
@@ -356,13 +260,27 @@ def get_or_create_super_po_mo_users(create_super):
     super_username = 'superuser1'
     superuser_password = 'su1-asdf'
     superuser = User.objects.filter(username=super_username).first()
-    if create_super and not superuser:
+    if is_create_super and not superuser:
         logger.info("* creating supersuser")
         superuser = User.objects.create_superuser(username=super_username, password=superuser_password,
                                                   email='test@example.com')
 
-    return (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password) if create_super \
+    return (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password) if is_create_super \
         else (po_user, po_user_password, mo_user, mo_user_password)
+
+
+#
+# ---- test utilities ----
+#
+
+def make_cdc_locations_and_targets(project):
+    """
+    Creates CDC standard Targets for project.
+    """
+    with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
+        project_dict = json.load(fp)
+    create_locations(project, project_dict)
+    create_targets(project, project_dict)
 
 
 #

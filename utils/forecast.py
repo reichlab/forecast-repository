@@ -304,11 +304,11 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
 
         # validate location and target names (applies to all prediction classes)
         if location_name not in location_name_to_obj:
-            raise RuntimeError(f"prediction_dict referred to an undefined Location. location_name={location_name}. "
+            raise RuntimeError(f"prediction_dict referred to an undefined Location. location_name={location_name!r}. "
                                f"existing_location_names={location_name_to_obj.keys()}")
 
         if target_name not in target_name_to_obj:
-            raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name}. "
+            raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name!r}. "
                                f"existing_target_names={target_name_to_obj.keys()}")
 
         # do class-specific validation and row collection

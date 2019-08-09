@@ -38,7 +38,7 @@ class ViewsTestCase(TestCase):
     def setUpTestData(cls):
         # users
         cls.superuser, cls.superuser_password, cls.po_user, cls.po_user_password, cls.mo_user, cls.mo_user_password \
-            = get_or_create_super_po_mo_users(create_super=True)
+            = get_or_create_super_po_mo_users(is_create_super=True)
 
         # public_project
         cls.public_project = Project.objects.create(name='public project name', is_public=True,
@@ -48,7 +48,7 @@ class ViewsTestCase(TestCase):
         make_cdc_locations_and_targets(cls.public_project)
 
         TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
-        cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'), 'truths-ok.csv')
+        cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
 
         cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 1),
                                                  data_version_date=None)
