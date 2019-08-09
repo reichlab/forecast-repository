@@ -23,9 +23,6 @@ from utils.cdc import cdc_csv_components_from_data_dir, load_cdc_csv_forecasts_f
 #
 
 THAI_PROJECT_NAME = 'Impetus Province Forecasts'
-THAI_CONFIG_DICT = {
-    "visualization-y-label": "DHF cases"
-}
 
 
 @click.command()

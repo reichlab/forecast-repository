@@ -8,7 +8,7 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
 
 
@@ -22,7 +22,7 @@ class MAETestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.project = Project.objects.create()
         make_cdc_locations_and_targets(cls.project)
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 
@@ -61,7 +61,7 @@ class MAETestCase(TestCase):
 
 
     def test_mae(self):
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23), is_season_start=True, season_name='s1')

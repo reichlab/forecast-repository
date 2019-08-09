@@ -10,7 +10,7 @@ from forecast_app.models.prediction import calc_named_distribution
 from utils.cdc import json_io_dict_from_cdc_csv_file
 from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows, \
     json_io_dict_from_forecast
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -25,7 +25,7 @@ class PredictionsTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.project = Project.objects.create()
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)

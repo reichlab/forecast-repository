@@ -9,7 +9,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
 from utils.flusight import flusight_location_to_data_dict
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 
 
 class FlusightTestCase(TestCase):
@@ -18,7 +18,7 @@ class FlusightTestCase(TestCase):
 
 
     def test_d3_foresight(self):
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 10, 23),
@@ -44,7 +44,7 @@ class FlusightTestCase(TestCase):
 
 
     def test_d3_foresight_out_of_season(self):
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
         # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17):
         time_zero = TimeZero.objects.create(project=project,
@@ -70,7 +70,7 @@ class FlusightTestCase(TestCase):
 
     # straight from test_load_forecasts_from_dir():
     def test_d3_foresight_larger(self):
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 23),

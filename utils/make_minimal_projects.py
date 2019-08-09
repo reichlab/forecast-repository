@@ -11,8 +11,7 @@ django.setup()
 
 from utils.cdc import load_cdc_csv_forecast_file
 from forecast_app.models import Project, TimeZero, ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
-    CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
 
 
 #
@@ -60,7 +59,7 @@ def make_minimal_projects_app():
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
     click.echo("* creating Projects")
-    public_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[0], is_public=True, config_dict=CDC_CONFIG_DICT)
+    public_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[0], is_public=True)
     public_project.owner = po_user
     public_project.model_owners.add(mo_user)
     public_project.save()
@@ -69,8 +68,7 @@ def make_minimal_projects_app():
     # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
     TimeZero.objects.create(project=public_project, timezero_date=datetime.date(2017, 1, 1))
 
-    private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False,
-                                             config_dict=CDC_CONFIG_DICT)
+    private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False)
     private_project.owner = po_user
     private_project.model_owners.add(mo_user)
     private_project.save()

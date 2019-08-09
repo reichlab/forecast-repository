@@ -27,7 +27,6 @@ from forecast_repo.settings.base import S3_BUCKET_PREFIX
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
 
@@ -277,7 +276,7 @@ def project_visualizations(request, project_pk):
                  'location_to_actual_points': json.dumps(location_to_actual_points),
                  'location_to_max_val': json.dumps(location_to_max_val),
                  'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
-                 'y_axis_label': project.visualization_y_label()})
+                 'y_axis_label': project.visualization_y_label})
 
 
 def _location_to_actual_points(loc_tz_date_to_actual_vals):
@@ -504,7 +503,7 @@ def create_project(request):
         widgets={'timezero_date': forms.TextInput(), 'data_version_date': forms.TextInput(),
                  'season_name': forms.TextInput()})
 
-    new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
+    new_project = Project(owner=request.user)
 
     location_formset = LocationInlineFormSet(instance=new_project)
     target_formset = TargetInlineFormSet(instance=new_project)
@@ -750,14 +749,10 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     def get_context_data(self, **kwargs):
         project = self.get_object()
 
-        config_dict_pretty = json.dumps(project.config_dict, indent=1)
-        config_dict_pretty.replace('\n', '<br>')
-
         context = super().get_context_data(**kwargs)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
-        context['config_dict_pretty'] = config_dict_pretty
         context['locations'] = project.locations.all().order_by('name')
         context['targets'] = project.targets.all().order_by('name')
         return context

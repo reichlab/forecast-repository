@@ -16,8 +16,8 @@ from forecast_app.scores.bin_utils import _tzltpk_to_truth_st_end_val, _tzltpk_t
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from utils.cdc import load_cdc_csv_forecast_file
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
-from utils.make_thai_moph_project import THAI_CONFIG_DICT, create_thai_locations_and_targets
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
+from utils.make_thai_moph_project import create_thai_locations_and_targets
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -30,7 +30,7 @@ class ScoresTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.project = Project.objects.create()
         make_cdc_locations_and_targets(cls.project)
 
         # load truth only for the TimeZero in truths-2016-2017-reichlab.csv we're testing against
@@ -348,7 +348,7 @@ class ScoresTestCase(TestCase):
         Score.ensure_all_scores_exist()
 
         # a larger case with more than one loc+target
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
         make_cdc_locations_and_targets(project2)
 
@@ -646,7 +646,7 @@ class ScoresTestCase(TestCase):
     def test_impetus_log_single_bin_bug(self):
         Score.ensure_all_scores_exist()
 
-        project2 = Project.objects.create(config_dict=THAI_CONFIG_DICT)
+        project2 = Project.objects.create()
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 4, 23))
         create_thai_locations_and_targets(project2)
 
@@ -709,7 +709,7 @@ def _update_scores_for_all_projects():
 
 
 def _make_cdc_log_score_project():
-    project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+    project2 = Project.objects.create()
     make_cdc_locations_and_targets(project2)
 
     time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
@@ -724,7 +724,7 @@ def _make_cdc_log_score_project():
 
 
 def _make_thai_log_score_project():
-    project2 = Project.objects.create(config_dict=THAI_CONFIG_DICT)
+    project2 = Project.objects.create()
     time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 4, 23))
     create_thai_locations_and_targets(project2)
 

@@ -8,8 +8,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
     load_cdc_csv_forecast_file, cdc_csv_filename_components, first_model_subdirectory
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date, \
-    CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date
 
 
 EPI_YR_WK_TO_ACTUAL_WILI = {
@@ -31,7 +30,7 @@ class UtilitiesTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.project = Project.objects.create()
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)

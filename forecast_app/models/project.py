@@ -10,7 +10,6 @@ from django.core.exceptions import ValidationError
 from django.db import models, transaction, connection
 from django.db.models import ManyToManyField, Max, BooleanField, IntegerField
 from django.urls import reverse
-from jsonfield import JSONField
 
 from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
 
@@ -60,7 +59,9 @@ class Project(models.Model):
                                   (BIWEEK_TIME_INTERVAL_TYPE, 'Biweek'),
                                   (MONTH_TIME_INTERVAL_TYPE, 'Month'))
     time_interval_type = models.CharField(max_length=1,
-                                          choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE)
+                                          choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE,
+                                          help_text="Used when visualizing the x axis label.")
+    visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
 
     truth_csv_filename = models.TextField(help_text="Name of the truth csv file that was uploaded.")
 
@@ -75,11 +76,6 @@ class Project(models.Model):
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
                   "the challenge, including supplemental data like Google queries or weather.")
 
-    # config_dict: specifies project-specific information
-    config_dict = JSONField(null=True, blank=True,
-                            help_text="JSON dict containing these keys: 'visualization-y-label'. "
-                                      "Please see documentation for details.")
-
 
     def __repr__(self):
         return str((self.pk, self.name))
@@ -91,14 +87,8 @@ class Project(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Validates my config_dict if provided, and my TimeZero.timezero_dates for uniqueness.
+        Validates my TimeZero.timezero_dates for uniqueness.
         """
-        config_dict_keys = {'visualization-y-label'}  # definitive list
-        if self.config_dict and (set(self.config_dict) != config_dict_keys):
-            raise ValidationError("config_dict did not contain the required keys. expected keys: {}, actual keys: {}"
-                                  .format(config_dict_keys, self.config_dict.keys()))
-
-        # validate my TimeZero.timezero_dates
         found_timezero_dates = []
         for timezero in self.timezeros.all():
             if timezero.timezero_date not in found_timezero_dates:
@@ -339,13 +329,6 @@ class Project(models.Model):
 
     def non_date_targets(self):
         return self.targets.filter(is_date=False).order_by('name')
-
-
-    def visualization_y_label(self):
-        """
-        :return: Y axis label used by flusight_location_to_data_dict(). returns None if no config_dict
-        """
-        return self.config_dict and self.config_dict['visualization-y-label']
 
 
     #

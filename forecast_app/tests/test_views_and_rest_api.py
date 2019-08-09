@@ -14,8 +14,7 @@ from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import load_cdc_csv_forecast_file, CDC_CSV_HEADER
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
-    CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -41,8 +40,7 @@ class ViewsTestCase(TestCase):
             = get_or_create_super_po_mo_users(is_create_super=True)
 
         # public_project
-        cls.public_project = Project.objects.create(name='public project name', is_public=True,
-                                                    owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
+        cls.public_project = Project.objects.create(name='public project name', is_public=True, owner=cls.po_user)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
         make_cdc_locations_and_targets(cls.public_project)
@@ -58,8 +56,7 @@ class ViewsTestCase(TestCase):
         cls.upload_file_job = UploadFileJob.objects.create(user=cls.po_user)
 
         # private_project
-        cls.private_project = Project.objects.create(name='private project name', is_public=False,
-                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
+        cls.private_project = Project.objects.create(name='private project name', is_public=False, owner=cls.po_user)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
         make_cdc_locations_and_targets(cls.private_project)
@@ -70,8 +67,7 @@ class ViewsTestCase(TestCase):
                                                   timezero_date=datetime.date(2017, 12, 4),
                                                   data_version_date=None)
 
-        cls.public_project2 = Project.objects.create(name='public project 2', is_public=True,
-                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
+        cls.public_project2 = Project.objects.create(name='public project 2', is_public=True, owner=cls.po_user)
         cls.public_project2.model_owners.add(cls.mo_user)
         cls.public_project2.save()
 
@@ -388,8 +384,8 @@ class ViewsTestCase(TestCase):
 
         # 'api-project-detail' - a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
-        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                    'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
+        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
+                    'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data))
 
         # 'api-user-detail' - a rest_framework.response.Response:

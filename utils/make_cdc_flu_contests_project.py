@@ -30,9 +30,6 @@ from utils.cdc import cdc_csv_components_from_data_dir, cdc_csv_filename_compone
 #
 
 CDC_PROJECT_NAME = 'CDC Flu challenge'
-CDC_CONFIG_DICT = {
-    "visualization-y-label": "Weighted ILI (%)"
-}
 
 
 @click.command()

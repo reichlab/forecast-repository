@@ -10,7 +10,7 @@ class ProjectForm(forms.ModelForm):
         model = Project
 
         fields = ('name', 'is_public', 'time_interval_type', 'description', 'home_url', 'core_data', 'logo_url',
-                  'config_dict', 'model_owners')
+                  'model_owners')
 
 
     def __init__(self, *args, **kwargs):

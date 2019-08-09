@@ -108,14 +108,12 @@ def create_project(project_dict, owner):
         raise RuntimeError(f"invalid 'time_interval_type': {time_interval_type_input}. must be one of: "
                            f"{time_interval_type_choices}")
 
-    visualization_y_label = project_dict['visualization_y_label']
-    # todo xx replace: config_dict=CDC_CONFIG_DICT with: visualization_y_label = project_dict['visualization_y_label']
-
     project = Project.objects.create(
         owner=owner,
         is_public=project_dict['is_public'],
         name=project_dict['name'],
         time_interval_type=time_interval_type,
+        visualization_y_label=(project_dict['visualization_y_label']),
         description=project_dict['description'],
         home_url=project_dict['home_url'],  # required
         logo_url=project_dict['logo_url'] if 'logo_url' in project_dict else None,

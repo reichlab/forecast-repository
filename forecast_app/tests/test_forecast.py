@@ -12,7 +12,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
 from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
 from utils.forecast import json_io_dict_from_forecast
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 
 
 class ForecastTestCase(TestCase):
@@ -22,7 +22,7 @@ class ForecastTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.project = Project.objects.create()
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
@@ -32,7 +32,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_load_forecast_created_at_field(self):
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
         time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
@@ -78,7 +78,7 @@ class ForecastTestCase(TestCase):
         self.assertIn('invalid header', str(context.exception))
 
         # test load_forecast() with timezero not in the project
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no TimeZeros
+        project2 = Project.objects.create()  # no TimeZeros
         make_cdc_locations_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
@@ -99,7 +99,7 @@ class ForecastTestCase(TestCase):
 
 
     def test_load_forecasts_from_dir(self):
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv

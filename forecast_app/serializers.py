@@ -34,7 +34,6 @@ class TimeZeroSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
-    config_dict = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
     score_data = serializers.SerializerMethodField()
 
@@ -46,17 +45,13 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                  'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros')
+        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
+                  'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},
             'model_owners': {'view_name': 'api-user-detail'},
         }
-
-
-    def get_config_dict(self, project):
-        return project.config_dict
 
 
     def get_truth(self, project):

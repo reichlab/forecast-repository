@@ -12,8 +12,7 @@ from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.cdc import load_cdc_csv_forecast_file
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, CDC_CONFIG_DICT, \
-    get_or_create_super_po_mo_users
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
 from utils.make_thai_moph_project import create_thai_locations_and_targets
 from utils.project import create_project_from_json
 
@@ -28,7 +27,7 @@ class ProjectTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        cls.project = Project.objects.create()
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         make_cdc_locations_and_targets(cls.project)
 
@@ -59,7 +58,7 @@ class ProjectTestCase(TestCase):
         self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
                                      'truths-bad-target.csv')
 
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
         self.assertEqual(0, project2.truth_data_qs().count())
         self.assertFalse(project2.is_truth_data_loaded())
@@ -95,16 +94,6 @@ class ProjectTestCase(TestCase):
                        '']
         act_content = response.content.decode("utf-8").split('\r\n')
         self.assertEqual(exp_content, act_content)
-
-
-    def test_project_config_dict_validation(self):
-        config_dict = {
-            "foo": "bar"
-            # "visualization-y-label": "y-label!"
-        }
-        with self.assertRaises(ValidationError) as context:
-            Project.objects.create(config_dict=config_dict)
-        self.assertIn("config_dict did not contain the required keys", str(context.exception))
 
 
     def test_timezeros_unique(self):
@@ -167,7 +156,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_timezero_seasons(self):
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
 
         Target.objects.create(project=project2, name="1 wk ahead", description="d",
@@ -245,7 +234,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual([time_zero1, time_zero2], project2.timezeros_in_season(None))
 
         # test timezeros_in_season() w/no season, followed by no seasons, i.e., no seasons at all in the project
-        project3 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project3 = Project.objects.create()
         time_zero7 = TimeZero.objects.create(project=project3, timezero_date=datetime.date(2015, 1, 1))
         self.assertEqual([time_zero7], project3.timezeros_in_season(None))
 
@@ -297,7 +286,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_target_step_ahead_validation(self):
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
 
         # no is_step_ahead, no step_ahead_increment: valid
         target = Target.objects.create(project=project2, name="Test target", description="d",
@@ -316,7 +305,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_target_date_validation(self):
-        project2 = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project2 = Project.objects.create()
 
         # yes is_date, no is_step_ahead: valid
         Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False,
@@ -342,23 +331,23 @@ class ProjectTestCase(TestCase):
         self.assertEqual(Target.objects.filter(project=self.project, name='1 wk ahead').first(),
                          self.project.reference_target_for_actual_values())
 
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
         Target.objects.filter(project=project, name='1 wk ahead').delete()
         self.assertEqual(Target.objects.filter(project=project, name='2 wk ahead').first(),
                          project.reference_target_for_actual_values())
 
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         create_thai_locations_and_targets(project)
         self.assertEqual(Target.objects.filter(project=project, name='1_biweek_ahead').first(),
                          project.reference_target_for_actual_values())
 
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)  # no Targets
+        project = Project.objects.create()  # no Targets
         self.assertIsNone(project.reference_target_for_actual_values())
 
 
     def test_actual_values(self):
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
 
         # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped)
@@ -561,7 +550,7 @@ class ProjectTestCase(TestCase):
 
     def test_location_timezero_date_to_actual_vals_multi_season(self):
         # test multiple seasons
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
 
         # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped),
@@ -587,7 +576,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_0_step_target(self):
-        project = Project.objects.create(config_dict=CDC_CONFIG_DICT)
+        project = Project.objects.create()
         make_cdc_locations_and_targets(project)
 
         # create TimeZeros only for the first few in truths-2017-2018-reichlab.csv (other truth will be skipped)
@@ -656,6 +645,8 @@ class ProjectTestCase(TestCase):
         self.assertTrue(project.is_public)
         self.assertEqual('CDC Flu challenge', project.name)
         self.assertEqual(Project.WEEK_TIME_INTERVAL_TYPE, project.time_interval_type)
+        self.assertEqual('Weighted ILI (%)', project.visualization_y_label)
+
         self.assertEqual(11, project.locations.count())
         self.assertEqual(7, project.targets.count())
 
@@ -676,10 +667,6 @@ class ProjectTestCase(TestCase):
         self.assertTrue(target.ok_point_prediction)  # Point
         self.assertTrue(target.ok_sample_distribution)  # Sample
         self.assertFalse(target.ok_samplecat_distribution)
-
-        # todo xx replace: config_dict=CDC_CONFIG_DICT with: visualization_y_label = project_dict['visualization_y_label']
-        # self.assertEqual('Weighted ILI (%)', project.visualization_y_label)
-        self.fail()  # todo xx
 
         # todo xx "lwr"
         self.fail()  # todo xx

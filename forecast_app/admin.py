@@ -69,8 +69,7 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = ('name', 'owner', 'is_public', 'truncated_description', 'num_model_owners', 'num_models',
                     'num_forecasts')
 
-    fields = ('owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict', 'model_owners',
-              'csv_filename')
+    fields = ('owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'model_owners', 'csv_filename')
 
 
     def csv_filename(self, project):
