@@ -157,17 +157,8 @@ class ProjectTestCase(TestCase):
 
 
     def test_timezero_seasons(self):
-        project2 = Project.objects.create()
-        make_cdc_locations_and_targets(project2)
-
-        Target.objects.create(project=project2, name="1 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=1, point_value_type=Target.POINT_FLOAT)
-        Target.objects.create(project=project2, name="2 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3, point_value_type=Target.POINT_FLOAT)
-        Target.objects.create(project=project2, name="3 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=3, point_value_type=Target.POINT_FLOAT)
-        Target.objects.create(project=project2, name="4 wk ahead", description="d",
-                              is_step_ahead=True, step_ahead_increment=4, point_value_type=Target.POINT_FLOAT)
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project2 = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
 
         # 2015-01-01 <no season>  time_zero1    not within
         # 2015-02-01 <no season>  time_zero2    not within
@@ -637,8 +628,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_create_project_from_json_spec(self):
-        superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password \
-            = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
 
         # spot-check some fields

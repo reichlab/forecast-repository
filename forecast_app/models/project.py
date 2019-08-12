@@ -672,7 +672,7 @@ class Location(models.Model):
 
 
 #
-# ---- Target class ----
+# ---- Target and TargetBinLwr classes ----
 #
 
 class Target(models.Model):
@@ -718,10 +718,23 @@ class Target(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment, '.',
-                    self.ok_point_prediction, self.ok_named_distribution, self.ok_binlwr_distribution,
-                    self.ok_sample_distribution, self.ok_bincat_distribution, self.ok_samplecat_distribution,
-                    self.ok_binary_distribution))
+        ok_classes = []
+        if self.ok_bincat_distribution:
+            ok_classes.append('BC')
+        if self.ok_binlwr_distribution:
+            ok_classes.append('BL')
+        if self.ok_binary_distribution:
+            ok_classes.append('BI')
+        if self.ok_named_distribution:
+            ok_classes.append('NM')
+        if self.ok_point_prediction:
+            ok_classes.append('PT')
+        if self.ok_sample_distribution:
+            ok_classes.append('SA')
+        if self.ok_samplecat_distribution:
+            ok_classes.append('SC')
+        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment,
+                    '|'.join(ok_classes)))
 
 
     def __str__(self):  # todo
@@ -746,6 +759,15 @@ class Target(models.Model):
 
         # done
         return super().save(*args, **kwargs)
+
+
+class TargetBinLwr(models.Model):
+    """
+    Associates BinLwr.lwr values with a Target. These act as a "template" against which forecast BinLwr predictions can
+    be validated against.
+    """
+    target = models.ForeignKey('Target', blank=True, null=True, related_name='binlwrs', on_delete=models.CASCADE)
+    lwr = models.FloatField()
 
 
 #

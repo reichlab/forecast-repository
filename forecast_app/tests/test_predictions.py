@@ -62,15 +62,15 @@ class PredictionsTestCase(TestCase):
         # load all seven types of Predictions, call Forecast.*_qs() functions
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(self.forecast, json_io_dict)
-            self.assertEqual(11, self.forecast.get_num_rows())
-            self.assertEqual(2, self.forecast.bincat_distribution_qs().count())
-            self.assertEqual(2, self.forecast.binlwr_distribution_qs().count())
-            self.assertEqual(1, self.forecast.binary_distribution_qs().count())
-            self.assertEqual(1, self.forecast.named_distribution_qs().count())
-            self.assertEqual(1, self.forecast.point_prediction_qs().count())
-            self.assertEqual(2, self.forecast.sample_distribution_qs().count())
-            self.assertEqual(2, self.forecast.samplecat_distribution_qs().count())
+        load_predictions_from_json_io_dict(self.forecast, json_io_dict)
+        self.assertEqual(11, self.forecast.get_num_rows())
+        self.assertEqual(2, self.forecast.bincat_distribution_qs().count())
+        self.assertEqual(2, self.forecast.binlwr_distribution_qs().count())
+        self.assertEqual(1, self.forecast.binary_distribution_qs().count())
+        self.assertEqual(1, self.forecast.named_distribution_qs().count())
+        self.assertEqual(1, self.forecast.point_prediction_qs().count())
+        self.assertEqual(2, self.forecast.sample_distribution_qs().count())
+        self.assertEqual(2, self.forecast.samplecat_distribution_qs().count())
 
 
     def test_load_predictions_from_cdc_csv_file(self):

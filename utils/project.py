@@ -1,10 +1,12 @@
 import json
-import numbers
 import logging
+import math
+import numbers
 
 from django.db import transaction
 
 from forecast_app.models import Project, Location, Target
+from forecast_app.models.project import TargetBinLwr
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 
 
@@ -26,14 +28,6 @@ def create_project_from_json(proj_config_file_path_or_dict, owner):
     :param owner: the new Project's owner (a User)
     :return: the new Project
     """
-
-    # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
-    # if isinstance(truth_file_path_or_fp, io.IOBase):
-    #     self._load_truth_data(truth_file_path_or_fp)
-    # else:
-    #     with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
-    #         self._load_truth_data(cdc_csv_file_fp)
-
     logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
                 f"{proj_config_file_path_or_dict}, owner={owner}")
     if isinstance(proj_config_file_path_or_dict, dict):
@@ -66,7 +60,7 @@ def create_locations(project, project_dict):
             for location_dict in project_dict['locations']]
 
 
-def validate_and_create_targets(project, project_dict):
+def validate_and_create_targets(project, project_dict, is_validate=True):
     targets = []
     for target_dict in project_dict['targets']:
         # validate point_value_type and convert to db choice - one of: 'integer', 'float', or 'text'
@@ -76,7 +70,7 @@ def validate_and_create_targets(project, project_dict):
             if human_readable_value.lower() == point_value_type_input:
                 point_value_type = db_value
 
-        if point_value_type is None:
+        if is_validate and (point_value_type is None):
             point_value_type_choices = [choice[1] for choice in Target.POINT_VALUE_TYPE_CHOICES]
             raise RuntimeError(f"invalid 'point_value_type': {point_value_type_input}. must be one of: "
                                f"{point_value_type_choices}")
@@ -90,24 +84,41 @@ def validate_and_create_targets(project, project_dict):
                                          'Point': 'ok_point_prediction',
                                          'Sample': 'ok_sample_distribution',
                                          'SampleCat': 'ok_samplecat_distribution', }
-        for prediction_type in target_dict['prediction_types']:
-            if prediction_type not in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values():
+        prediction_types = target_dict['prediction_types']
+        for prediction_type in prediction_types:
+            if is_validate and (prediction_type not in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values()):
                 prediction_type_choices = [choice[1] for choice in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS]
                 raise RuntimeError(f"invalid prediction_type: {prediction_type}. must be one of: "
                                    f"{prediction_type_choices}")
-            elif (prediction_type == 'BinLwr') and (('lwr' not in target_dict) or not target_dict['lwr']):
+            elif is_validate and (prediction_type == 'BinLwr') and \
+                    (('lwr' not in target_dict) or not target_dict['lwr']):
                 raise RuntimeError(f"required lwr entry is missing for BinLwr prediction type")
-            elif (prediction_type == 'BinLwr') and (not all(isinstance(_, numbers.Number) for _ in target_dict['lwr'])):
+            elif is_validate and (prediction_type == 'BinLwr') \
+                    and (not all(isinstance(_, numbers.Number) for _ in target_dict['lwr'])):
                 raise RuntimeError(f"found a non-numeric BinLwr lwr: {target_dict['lwr']}")
 
             prediction_ok_types_dict[prediction_type_to_field_name[prediction_type]] = True
+        with transaction.atomic():  # so that Targets and TargetBinLwr both succeed
+            target = Target.objects.create(project=project, name=target_dict['name'],
+                                           description=target_dict['description'], unit=target_dict['unit'],
+                                           is_date=target_dict['is_date'], is_step_ahead=target_dict['is_step_ahead'],
+                                           step_ahead_increment=target_dict['step_ahead_increment'],
+                                           point_value_type=point_value_type, **prediction_ok_types_dict)
 
-        target = Target.objects.create(project=project, name=target_dict['name'],
-                                       description=target_dict['description'], unit=target_dict['unit'],
-                                       is_date=target_dict['is_date'], is_step_ahead=target_dict['is_step_ahead'],
-                                       step_ahead_increment=target_dict['step_ahead_increment'],
-                                       point_value_type=point_value_type, **prediction_ok_types_dict)
-        targets.append(target)
+            # create TargetBinLwrs. we do this one-by-one, which will be slow if very many of them. first, validate
+            # ascending order, and uniform bin sizes
+            if 'BinLwr' in prediction_types:
+                lwrs = target_dict['lwr']
+                lwr_diffs = [b - a for a, b in zip(lwrs[:-1], lwrs[1:])]
+                if is_validate and (sorted(lwrs) != lwrs):
+                    raise RuntimeError(f"lwrs were not sorted: {lwrs}")
+                elif is_validate and not math.isclose(min(lwr_diffs), max(lwr_diffs)):
+                    raise RuntimeError(f"lwrs had non-uniform bin sizes. intervals={lwr_diffs}, lwrs={lwrs}")
+
+                for lwr in lwrs:
+                    TargetBinLwr.objects.create(target=target, lwr=lwr)
+
+            targets.append(target)
     return targets
 
 

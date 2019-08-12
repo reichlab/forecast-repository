@@ -13,7 +13,8 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
 from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.project import create_project_from_json
 
 
 class ForecastTestCase(TestCase):
@@ -94,9 +95,9 @@ class ForecastTestCase(TestCase):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict)
-            self.assertEqual(2, forecast2.bincat_distribution_qs().count())
-            self.assertEqual(2, forecast2.binlwr_distribution_qs().count())
+        load_predictions_from_json_io_dict(forecast2, json_io_dict)
+        self.assertEqual(2, forecast2.bincat_distribution_qs().count())
+        self.assertEqual(2, forecast2.binlwr_distribution_qs().count())
 
 
     def test_load_forecast_thai_point_json_type(self):
@@ -166,12 +167,58 @@ class ForecastTestCase(TestCase):
 
         # todo xx move to test_predictions.py? since we are validating prediction_dicts and not rows, etc.
         # todo xx test other validations ala old Forecast.validate_forecast_data():
-        #   v raise RuntimeError("Point value was non-numeric
-        #   v raise RuntimeError("Bin did not sum to 1.0.
-        #   - raise RuntimeError("Locations did not match template
-        #   - raise RuntimeError("Targets did not match template
-        #   ? raise RuntimeError("Bins did not match template
+        #   v Point value was non-numeric
+        #   v Bin did not sum to 1.0
+        #   - Locations did not match template
+        #   - Targets did not match template
+        #   ? Bins did not match template
+        #   ...
         self.fail()  # todo xx
+
+
+    def test_forecast_data_binlwr_validation(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+
+        # test that BinLwr lwrs are loaded into Target 'template'
+        target = project.targets.filter(name='2 wk ahead').first()
+        self.assertEqual(131, target.binlwrs.count())  # cdc-project.json: [0, 0.1, ..., 13]
+
+        # test lwr validation: predictions-example.json /is/ valid.
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
+        with open('forecast_app/tests/predictions/predictions-example.json') as fp:
+            json_io_dict = json.load(fp)
+        with self.assertRaises(Exception):
+            try:
+                load_predictions_from_json_io_dict(forecast2, json_io_dict)
+            except:
+                pass
+            else:
+                raise Exception
+
+        # 'patch' predictions-example.json to be invalid
+        json_io_dict['predictions'][1]['prediction']['lwr'][0] = 14  # BinLwr.lwr: 0.0 -> 14 (max is 13)
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(forecast2, json_io_dict)
+        self.assertIn("BinLwr lwrs did not match Target", str(context.exception))
+
+        # test Target 'template' lwrs
+        project.delete()
+        with open('forecast_app/tests/projects/cdc-project.json') as fp:
+            cdc_project_json = json.load(fp)
+        cdc_project_json['targets'][2]['lwr'][0] = 0.1  # Season peak percentage: unsorted
+        cdc_project_json['targets'][2]['lwr'][1] = 0  # ""
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(cdc_project_json, po_user)
+        self.assertIn("lwrs were not sorted", str(context.exception))
+
+        with open('forecast_app/tests/projects/cdc-project.json') as fp:
+            cdc_project_json = json.load(fp)
+        cdc_project_json['targets'][2]['lwr'][0] = 0.05  # Season peak percentage: different first interval
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(cdc_project_json, po_user)
+        self.assertIn("lwrs had non-uniform bin sizes", str(context.exception))
 
 
     @unittest.skip
@@ -232,7 +279,7 @@ class ForecastTestCase(TestCase):
                                                Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
                                                self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(5237, forecast2.get_num_rows()) # 8019 total rows - 2782 zero-valued bin rows = 5237 non-zero
+        self.assertEqual(5237, forecast2.get_num_rows())  # 8019 total rows - 2782 zero-valued bin rows = 5237 non-zero
         self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
 
         forecast2.delete()
