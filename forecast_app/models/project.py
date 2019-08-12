@@ -718,6 +718,19 @@ class Target(models.Model):
 
 
     def __repr__(self):
+        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment,
+                    self.ok_distributions_str()))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
+
+
+    def ok_distributions_str(self):
+        """
+        :return: a string that includes abbreviations for all acceptable ("OK") distribution classes based on my
+            ok_*_distribution values.
+        """
         ok_classes = []
         if self.ok_bincat_distribution:
             ok_classes.append('BC')
@@ -733,12 +746,7 @@ class Target(models.Model):
             ok_classes.append('SA')
         if self.ok_samplecat_distribution:
             ok_classes.append('SC')
-        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment,
-                    '|'.join(ok_classes)))
-
-
-    def __str__(self):  # todo
-        return basic_str(self)
+        return '|'.join(ok_classes)
 
 
     def save(self, *args, **kwargs):

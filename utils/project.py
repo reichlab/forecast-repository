@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 #
 
 @transaction.atomic
-def create_project_from_json(proj_config_file_path_or_dict, owner):
+def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=True):
     """
     Creates a Project based on the json configuration file at json_file_path. Errors if one with that name already
     exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or load forecasts.
@@ -26,6 +26,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner):
     :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
         see cdc-project.json for an example
     :param owner: the new Project's owner (a User)
+    :param is_validate: True if the input json should be validated
     :return: the new Project
     """
     logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
@@ -48,7 +49,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner):
     locations = create_locations(project, project_dict)
     logger.info(f"- created {len(locations)} Locations: {locations}")
 
-    targets = validate_and_create_targets(project, project_dict)
+    targets = validate_and_create_targets(project, project_dict, is_validate)
     logger.info(f"- created {len(targets)} Targets: {targets}")
 
     logger.info(f"* create_project_from_json(): done!")
