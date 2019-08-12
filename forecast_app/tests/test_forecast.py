@@ -1,4 +1,5 @@
 import datetime
+import json
 import shutil
 import tempfile
 import unittest
@@ -11,7 +12,7 @@ from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
 from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
-from utils.forecast import json_io_dict_from_forecast
+from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 
 
@@ -87,6 +88,15 @@ class ForecastTestCase(TestCase):
                 forecast_model2,
                 Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), self.time_zero)
         self.assertIn("time_zero was not in project", str(context.exception))
+
+
+    def test_load_forecast_skips_bin_cat_and_lwr_zero_prob_bins(self):
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
+        with open('forecast_app/tests/predictions/predictions-example.json') as fp:
+            json_io_dict = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict)
+            self.assertEqual(2, forecast2.bincat_distribution_qs().count())
+            self.assertEqual(2, forecast2.binlwr_distribution_qs().count())
 
 
     def test_load_forecast_thai_point_json_type(self):
@@ -222,7 +232,7 @@ class ForecastTestCase(TestCase):
                                                Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
                                                self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(8019, forecast2.get_num_rows())
+        self.assertEqual(5237, forecast2.get_num_rows()) # 8019 total rows - 2782 zero-valued bin rows = 5237 non-zero
         self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
 
         forecast2.delete()

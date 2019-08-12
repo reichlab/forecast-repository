@@ -286,7 +286,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
     """
     Validates prediction_dicts and returns a 7-tuple of rows suitable for bulk-loading into a database:
         bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
-    Each row is Prediction class-specific.
+    Each row is Prediction class-specific. Skips zero-prob BinCat and BinLwr rows.
 
     :param forecast: a Forecast that's used to validate against
     :param prediction_dicts: the 'predictions' portion of a "JSON IO dict" as returned by
@@ -318,12 +318,14 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
             # validation: xx
             _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
-                bincat_rows.append([location_name, target_name, cat, prob])
+                if prob != 0:
+                    bincat_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == 'BinLwr':
             # validation: xx
             _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for lwr, prob in zip(prediction_data['lwr'], prediction_data['prob']):
-                binlwr_rows.append([location_name, target_name, lwr, prob])
+                if prob != 0:
+                    binlwr_rows.append([location_name, target_name, lwr, prob])
         elif prediction_class == 'Binary':
             # validation: xx
             binary_rows.append([location_name, target_name, prediction_data['prob']])
@@ -353,7 +355,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
 
 
 def _validate_bin_prob(forecast, location, target, bin_probs):
-    # todo xx validate: [0, 1]. No NAs
+    # todo other validations!
 
     # validate probs sum to 1.0
     # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv

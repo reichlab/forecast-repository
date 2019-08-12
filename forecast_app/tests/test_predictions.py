@@ -94,12 +94,18 @@ class PredictionsTestCase(TestCase):
 
             act_json_io_dict = json_io_dict_from_forecast(self.forecast)
 
-            # test three top-level components separately for TDD
+            # test three top-level components separately for TDD. note that we 'patch' expected values by removing the
+            # zero-valued bins that load_predictions_from_json_io_dict() skips
             self.assertEqual(list(exp_json_io_dict), list(act_json_io_dict))
             self.assertEqual(sorted(exp_json_io_dict['meta']['locations'], key=lambda _: _['name']),
                              sorted(act_json_io_dict['meta']['locations'], key=lambda _: _['name']))
             self.assertEqual(sorted(exp_json_io_dict['meta']['targets'], key=lambda _: _['name']),
                              sorted(act_json_io_dict['meta']['targets'], key=lambda _: _['name']))
+
+            del(exp_json_io_dict['predictions'][0]['prediction']['cat'][0])  # BinCat
+            del(exp_json_io_dict['predictions'][0]['prediction']['prob'][0])  # ""
+            del(exp_json_io_dict['predictions'][1]['prediction']['lwr'][0])  # BinLwr
+            del(exp_json_io_dict['predictions'][1]['prediction']['prob'][0])  # ""
             self.assertEqual(sorted(exp_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])),
                              sorted(act_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])))
 
@@ -128,11 +134,11 @@ class PredictionsTestCase(TestCase):
             prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'locations', and 'targets'
             bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
                 _prediction_dicts_to_validated_db_rows(self.forecast, prediction_dicts)
-            self.assertEqual([['US National', '1 wk ahead', 'cat1', 0.1],
-                              ['US National', '1 wk ahead', 'cat2', 0.9]],
+            self.assertEqual([['US National', '1 wk ahead', 'cat2', 0.1],
+                              ['US National', '1 wk ahead', 'cat3', 0.9]],
                              bincat_rows)
-            self.assertEqual([['HHS Region 1', '2 wk ahead', 0.0, 0.1],
-                              ['HHS Region 1', '2 wk ahead', 0.1, 0.9]],
+            self.assertEqual([['HHS Region 1', '2 wk ahead', 0.1, 0.1],
+                              ['HHS Region 1', '2 wk ahead', 0.2, 0.9]],
                              binlwr_rows)
             self.assertEqual([['HHS Region 2', '3 wk ahead', 0.5]],
                              binary_rows)
@@ -187,6 +193,7 @@ class PredictionsTestCase(TestCase):
 
     def test_validations(self):
         # many of them. see [Zoltar2 Prediction Validation](https://docs.google.com/document/d/1WtYdjhVSKkdlU6mHe_qYBdyIUnPSNBa0QCg1WgnN2qQ/edit)
+        # NB: "prob (f): [0, 1]. No NAs." -> must also be numbers.Number!
         self.fail()  # todo xx
 
 

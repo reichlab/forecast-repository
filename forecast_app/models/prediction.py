@@ -78,6 +78,10 @@ class BinCatDistribution(EmpiricalDistribution):
     prob = models.FloatField()
 
 
+    def __repr__(self):
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.', self.cat, self.prob))
+
+
 #
 # ---- BinLwrDistribution ----
 #
@@ -89,6 +93,10 @@ class BinLwrDistribution(EmpiricalDistribution):
 
     lwr = models.FloatField()
     prob = models.FloatField()
+
+
+    def __repr__(self):
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.', self.lwr, self.prob))
 
 
 #
