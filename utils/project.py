@@ -15,18 +15,31 @@ logger = logging.getLogger(__name__)
 #
 
 @transaction.atomic
-def create_project_from_json(json_file_path, owner):
+def create_project_from_json(proj_config_file_path_or_dict, owner):
     """
     Creates a Project based on the json configuration file at json_file_path. Errors if one with that name already
     exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or load forecasts.
 
-    :param json_file_path: a Path to the json spec file. see cdc-project.json for an example
+    :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
+        see cdc-project.json for an example
     :param owner: the new Project's owner (a User)
     :return: the new Project
     """
-    logger.info(f"* create_project_from_json(): started. json_file_path={json_file_path}, owner={owner}")
-    with open(json_file_path) as fp:
-        project_dict = json.load(fp)
+
+    # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
+    # if isinstance(truth_file_path_or_fp, io.IOBase):
+    #     self._load_truth_data(truth_file_path_or_fp)
+    # else:
+    #     with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
+    #         self._load_truth_data(cdc_csv_file_fp)
+
+    logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
+                f"{proj_config_file_path_or_dict}, owner={owner}")
+    if isinstance(proj_config_file_path_or_dict, dict):
+        project_dict = proj_config_file_path_or_dict
+    else:
+        with open(proj_config_file_path_or_dict) as fp:
+            project_dict = json.load(fp)
 
     # error if project already exists
     name = project_dict['name']
@@ -40,7 +53,7 @@ def create_project_from_json(json_file_path, owner):
     locations = create_locations(project, project_dict)
     logger.info(f"- created {len(locations)} Locations: {locations}")
 
-    targets = create_targets(project, project_dict)
+    targets = validate_and_create_targets(project, project_dict)
     logger.info(f"- created {len(targets)} Targets: {targets}")
 
     logger.info(f"* create_project_from_json(): done!")
@@ -52,10 +65,10 @@ def create_locations(project, project_dict):
             for location_dict in project_dict['locations']]
 
 
-def create_targets(project, project_dict):
+def validate_and_create_targets(project, project_dict):
     targets = []
     for target_dict in project_dict['targets']:
-        # validate point_value_type - one of: 'integer', 'float', or 'text'
+        # validate point_value_type and convert to db choice - one of: 'integer', 'float', or 'text'
         point_value_type_input = target_dict['point_value_type'].lower()
         point_value_type = None
         for db_value, human_readable_value in Target.POINT_VALUE_TYPE_CHOICES:
@@ -67,7 +80,7 @@ def create_targets(project, project_dict):
             raise RuntimeError(f"invalid 'point_value_type': {point_value_type_input}. must be one of: "
                                f"{point_value_type_choices}")
 
-        # translate 'prediction_types' to a convenience dict that is passed Target's constructor via **
+        # validate and translate 'prediction_types' to a convenience dict that is passed Target's constructor via **
         prediction_ok_types_dict = {}
         prediction_type_to_field_name = {'BinCat': 'ok_bincat_distribution',
                                          'BinLwr': 'ok_binlwr_distribution',
@@ -82,9 +95,10 @@ def create_targets(project, project_dict):
                 raise RuntimeError(f"invalid prediction_type: {prediction_type}. must be one of: "
                                    f"{prediction_type_choices}")
 
-            prediction_ok_types_dict[prediction_type_to_field_name[prediction_type]] = True
+            if (prediction_type == 'BinLwr') and (('lwr' not in target_dict) or not target_dict['lwr']):
+                raise RuntimeError(f"required lwr entry is missing for BinLwr prediction type")
 
-        # todo xx "lwr": [0, 0.1, 0.2, ..., 13]
+            prediction_ok_types_dict[prediction_type_to_field_name[prediction_type]] = True
 
         target = Target.objects.create(project=project, name=target_dict['name'],
                                        description=target_dict['description'], unit=target_dict['unit'],

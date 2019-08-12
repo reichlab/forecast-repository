@@ -13,7 +13,7 @@ django.setup()
 
 from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
-from utils.project import create_project_from_json, create_locations, create_targets
+from utils.project import create_project_from_json, create_locations, validate_and_create_targets
 from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
 from utils.cdc import cdc_csv_components_from_data_dir, load_cdc_csv_forecasts_from_dir
 
@@ -125,7 +125,7 @@ def create_thai_locations_and_targets(project):
     with open(Path('forecast_app/tests/projects/thai-project.json')) as fp:
         project_dict = json.load(fp)
     create_locations(project, project_dict)
-    create_targets(project, project_dict)
+    validate_and_create_targets(project, project_dict)
 
 
 if __name__ == '__main__':

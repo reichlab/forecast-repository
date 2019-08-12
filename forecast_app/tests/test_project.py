@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 from collections import defaultdict
 from pathlib import Path
@@ -668,8 +669,20 @@ class ProjectTestCase(TestCase):
         self.assertTrue(target.ok_sample_distribution)  # Sample
         self.assertFalse(target.ok_samplecat_distribution)
 
-        # todo xx "lwr"
-        self.fail()  # todo xx
+        # test "lwr" validation
+        project.delete()
+        with open('forecast_app/tests/projects/cdc-project.json') as fp:
+            cdc_project_json = json.load(fp)
+        peak_percentage_target = cdc_project_json['targets'][2]
+        del (peak_percentage_target['lwr'])  # no lwr
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(cdc_project_json, po_user)
+        self.assertIn("required lwr entry is missing for BinLwr prediction type", str(context.exception))
+
+        peak_percentage_target['lwr'] = []  # empty lwr
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(cdc_project_json, po_user)
+        self.assertIn("required lwr entry is missing for BinLwr prediction type", str(context.exception))
 
 
 # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns

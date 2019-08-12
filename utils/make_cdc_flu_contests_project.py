@@ -19,7 +19,7 @@ django.setup()
 
 from forecast_app.models import TimeZero, ForecastModel, Project
 from django.contrib.auth.models import User
-from utils.project import create_project_from_json, create_locations, create_targets
+from utils.project import create_project_from_json, create_locations, validate_and_create_targets
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.cdc import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory, \
     load_cdc_csv_forecasts_from_dir
@@ -277,7 +277,7 @@ def make_cdc_locations_and_targets(project):
     with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
         project_dict = json.load(fp)
     create_locations(project, project_dict)
-    create_targets(project, project_dict)
+    validate_and_create_targets(project, project_dict)
 
 
 #
