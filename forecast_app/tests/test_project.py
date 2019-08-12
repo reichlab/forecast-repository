@@ -684,6 +684,11 @@ class ProjectTestCase(TestCase):
             create_project_from_json(cdc_project_json, po_user)
         self.assertIn("required lwr entry is missing for BinLwr prediction type", str(context.exception))
 
+        peak_percentage_target['lwr'] = [1, 'what!? this is not a number!', 2.0]  # non-numeric lwr
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(cdc_project_json, po_user)
+        self.assertIn("found a non-numeric BinLwr lwr", str(context.exception))
+
 
 # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns
 def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):

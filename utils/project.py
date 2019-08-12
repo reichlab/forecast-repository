@@ -1,4 +1,5 @@
 import json
+import numbers
 import logging
 
 from django.db import transaction
@@ -94,9 +95,10 @@ def validate_and_create_targets(project, project_dict):
                 prediction_type_choices = [choice[1] for choice in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS]
                 raise RuntimeError(f"invalid prediction_type: {prediction_type}. must be one of: "
                                    f"{prediction_type_choices}")
-
-            if (prediction_type == 'BinLwr') and (('lwr' not in target_dict) or not target_dict['lwr']):
+            elif (prediction_type == 'BinLwr') and (('lwr' not in target_dict) or not target_dict['lwr']):
                 raise RuntimeError(f"required lwr entry is missing for BinLwr prediction type")
+            elif (prediction_type == 'BinLwr') and (not all(isinstance(_, numbers.Number) for _ in target_dict['lwr'])):
+                raise RuntimeError(f"found a non-numeric BinLwr lwr: {target_dict['lwr']}")
 
             prediction_ok_types_dict[prediction_type_to_field_name[prediction_type]] = True
 
