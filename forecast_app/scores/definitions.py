@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # corresponding function in the `forecast_app.scores.functions` (this) module - see `calc_<abbreviation>` documentation
 # in Score. in that sense, these abbreviations are the official names to use when looking up a particular score
 SCORE_ABBREV_TO_NAME_AND_DESCR = {
-    # 'const': ('Constant Value', "A debugging score that scores 1.0 only for first location and first target."),
+    # 'const': ('Constant Value', "A debugging score that's 1.0 - only for first location and first target."),
     'error': ('Error', "The the truth value minus the model's point estimate."),
     'abs_error': ('Absolute Error', "The absolute value of the truth value minus the model's point estimate. "
                                     "Lower is better."),
@@ -122,24 +122,3 @@ def _validate_score_targets_and_data(forecast_model):
                            "no data: {}".format(forecast_model))
 
     return targets
-
-
-def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, location_pk, target_pk):
-    """
-    :return: 2-tuple of the form: (truth_value, error_string) where error_string is non-None if the inputs were invalid.
-        in that case, truth_value is None. o/w truth_value is valid
-    """
-    if timezero_pk not in timezero_loc_target_pks_to_truth_values:
-        return None, 'timezero_pk not in truth'
-    elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
-        return None, 'location_pk not in truth'
-    elif target_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
-        return None, 'target_pk not in truth'
-
-    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_pk]
-    if len(truth_values) == 0:  # truth not available
-        return None, 'truth value not found'
-    elif len(truth_values) > 1:
-        return None, '>1 truth values found'
-
-    return truth_values[0], None

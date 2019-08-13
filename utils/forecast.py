@@ -187,7 +187,7 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
             for _, _, value_i, value_f, value_t in values_grouper:  # recall that exactly one will be non-NULL
                 # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
                 # per Forecast. validation should take care of enforcing this, but this code here is general
-                point_value = [_ for _ in [value_i, value_f, value_t] if _ is not None][0]
+                point_value = PointPrediction.first_non_none_value(value_i, value_f, value_t)
                 prediction_dicts.append({"location": location_name, "target": target_name,
                                          "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
                                          "prediction": {"value": point_value}})

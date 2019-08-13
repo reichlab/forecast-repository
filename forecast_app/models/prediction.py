@@ -239,6 +239,15 @@ class PointPrediction(Prediction):
         return basic_str(self)
 
 
+    @staticmethod
+    def first_non_none_value(value_i, value_f, value_t):
+        """
+        Simple utility that returns the first of the passed value_* args that is not None. NB: you cannot simply use
+        'or' b/c 0 values fail.
+        """
+        return [_ for _ in [value_i, value_f, value_t] if _ is not None][0]
+
+
 #
 # ---- SampleDistribution ----
 #

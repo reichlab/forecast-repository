@@ -119,9 +119,12 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
 
 def _model_id_to_location_timezero_points(project, season_name, step_ahead_targets):
     """
-    :return: a dict that maps: forecast_model -> location_dict. each location_dict maps: location ->
-        timezero_points_dict, which maps timezero_datetime -> point values. note that some project TimeZeros have no
-        predictions
+    Similar to Project.location_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
+    that's organized for easy access using these keys:
+
+        [forecast_model][location][timezero_date] -> point_values (a list)
+
+    Note that some project TimeZeros have no predictions.
     """
     # get the rows, ordered so we can groupby()
     # note that some project timezeros might not be returned by _flusight_point_value_rows_for_models():
@@ -148,7 +151,7 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
         for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
             timezero_to_points_dict = {}
             for timezero_date, values_grouper in groupby(timezero_values_grouper, key=lambda _: _[2]):
-                point_values = [_[3] or _[4] for _ in list(values_grouper)]
+                point_values = [PointPrediction.first_non_none_value(_[3], _[4], None) for _ in list(values_grouper)]
                 timezero_to_points_dict[timezero_date] = point_values
             location_to_timezero_points_dict[location] = timezero_to_points_dict
         forecast_model = ForecastModel.objects.get(pk=model_pk)

@@ -22,7 +22,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     """
     try:
         from forecast_app.scores.definitions import _validate_score_targets_and_data, \
-            _validate_truth, LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports
+            LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports
 
 
         targets = _validate_score_targets_and_data(forecast_model)
@@ -30,7 +30,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         logger.warning(rte)
         return
 
-    # cache truth values: [location_name][target_name][timezero_date]:
+    # cache truth values: [timezero_pk][location_pk][target_id] -> truth_values (a list):
     tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
 
     # get predicted point values. NB: b/c PointPrediction has three value types (only one of which is non-None), we will
@@ -47,9 +47,8 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     forec_tz_loc_targ_pk_to_error_str = {}
     for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value_i, predicted_value_f \
             in forecast_point_predictions_qs:
-        predicted_value = predicted_value_i or predicted_value_f
-        true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals,
-                                                   timezero_pk, location_pk, target_pk)
+        predicted_value = PointPrediction.first_non_none_value(predicted_value_i, predicted_value_f, None)
+        true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals, timezero_pk, location_pk, target_pk)
         if error_string:
             error_key = (forecast_pk, timezero_pk, location_pk, target_pk)
             if error_key not in forec_tz_loc_targ_pk_to_error_str:
@@ -93,3 +92,24 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
                 target_pk_to_truth[target_id].append(value)
 
     return tz_loc_targ_pks_to_truth_vals
+
+
+def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, location_pk, target_pk):
+    """
+    :return: 2-tuple of the form: (truth_value, error_string) where error_string is non-None if the inputs were invalid.
+        in that case, truth_value is None. o/w truth_value is valid
+    """
+    if timezero_pk not in timezero_loc_target_pks_to_truth_values:
+        return None, 'timezero_pk not in truth'
+    elif location_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
+        return None, 'location_pk not in truth'
+    elif target_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk]:
+        return None, 'target_pk not in truth'
+
+    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][location_pk][target_pk]
+    if len(truth_values) == 0:  # truth not available
+        return None, 'truth value not found'
+    elif len(truth_values) > 1:
+        return None, '>1 truth values found'
+
+    return truth_values[0], None
