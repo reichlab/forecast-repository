@@ -32,7 +32,6 @@ def save_pit_score(score, forecast_pk, location_pk, target_pk, truth_value, temp
     pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
     true_bin_pred_val = forec_bin_st_to_pred_val[true_bin_start] if true_bin_start in forec_bin_st_to_pred_val else 0
     pit_score_value = ((pred_vals_pre_truth_sum * 2) + true_bin_pred_val) / 2  # 0 b/c ""
-    # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
     ScoreValue.objects.create(forecast_id=forecast_pk,
                               location_id=location_pk,
                               target_id=target_pk,

@@ -470,9 +470,7 @@ class ScoresTestCase(TestCase):
         Score.ensure_all_scores_exist()
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
         pit_score = Score.objects.filter(abbreviation='pit').first()
-        print('xx1')
         pit_score.update_score_for_model(forecast_model2)
-        print('xx2')
         exp_loc_targ_val = [('TH01', '1_biweek_ahead', 0.7879999999999999),
                             ('TH01', '2_biweek_ahead', 0.166),
                             ('TH01', '3_biweek_ahead', 0.999),

@@ -51,7 +51,6 @@ def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, temp
         # from: https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
         log_multi_bin_score_value = LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
-    # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
     ScoreValue.objects.create(forecast_id=forecast_pk,
                               location_id=location_pk,
                               target_id=target_pk,
