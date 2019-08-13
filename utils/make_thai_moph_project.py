@@ -26,9 +26,7 @@ THAI_CONFIG_DICT = {
 
 @click.command()
 @click.argument('data_dir', type=click.Path(file_okay=False, exists=True))
-@click.option('--make_project', is_flag=True, default=False)
-@click.option('--load_data', is_flag=True, default=False)
-def make_thai_moph_project_app(data_dir, make_project, load_data):
+def make_thai_moph_project_app(data_dir):
     """
     Deletes and creates a database with one project, one group, and two classes of users. Hard-coded for 2017-2018
     season. Then loads models from the Impetus project. Note: The input files to this program are the output from a
@@ -44,29 +42,25 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
     """
     start_time = timeit.default_timer()
     data_dir = Path(data_dir)
-    click.echo("* make_thai_moph_project_app(): data_dir={}, make_project={}, load_data={}"
-               .format(data_dir, make_project, load_data))
+    click.echo("* make_thai_moph_project_app(): data_dir={}".format(data_dir))
 
     project = Project.objects.filter(name=THAI_PROJECT_NAME).first()
-    if make_project:
-        if project:
-            click.echo("* Deleting existing project: {}".format(project))
-            project.delete()
+    if project:
+        click.echo("* Deleting existing project: {}".format(project))
+        project.delete()
 
-        # create the Project (and Users if necessary), including loading the template and creating Targets
-        po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
-        template_path = data_dir / 'thai-moph-forecasting-template.csv'
-        project = make_thai_moph_project(THAI_PROJECT_NAME, template_path)
-        project.owner = po_user
-        project.model_owners.add(mo_user)
-        project.save()
-        click.echo("* Created project: {}".format(project))
+    # create the Project (and Users if necessary), including loading the template and creating Targets
+    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(create_super=False)
+    template_path = data_dir / 'thai-moph-forecasting-template.csv'
+    project = make_thai_moph_project(THAI_PROJECT_NAME, template_path)
+    project.owner = po_user
+    project.model_owners.add(mo_user)
+    project.save()
+    click.echo("* Created project: {}".format(project))
 
-        # make the model
-        forecast_model = make_model(project, mo_user, data_dir)
-        click.echo("* created model: {}".format(forecast_model))
-    elif not project:  # not make_project, but couldn't find existing
-        raise RuntimeError("Could not find existing project named '{}'".format(THAI_PROJECT_NAME))
+    # make the model
+    forecast_model = make_model(project, mo_user, data_dir)
+    click.echo("* created model: {}".format(forecast_model))
 
     # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts. for is_season_start and
     # season_name we use year transitions: the first 2017 we encounter -> start of that year, etc.
@@ -89,17 +83,15 @@ def make_thai_moph_project_app(data_dir, make_project, load_data):
                                 season_name=(str(timezero_year) if is_season_start else None))
     click.echo("- created TimeZeros: {}".format(project.timezeros.all()))
 
-    if make_project:
-        # load the truth
-        click.echo("- loading truth values")
-        project.load_truth_data(Path('utils/dengue-truth-table-script/truths.csv'))
+    # load the truth
+    click.echo("- loading truth values")
+    project.load_truth_data(Path('utils/dengue-truth-table-script/truths.csv'))
 
-    # load data if necessary
-    if load_data:
-        click.echo("* Loading forecasts")
-        forecast_model = project.models.first()
-        forecasts = forecast_model.load_forecasts_from_dir(data_dir)
-        click.echo("- Loading forecasts: loaded {} forecast(s)".format(len(forecasts)))
+    # load data
+    click.echo("* Loading forecasts")
+    forecast_model = project.models.first()
+    forecasts = forecast_model.load_forecasts_from_dir(data_dir)
+    click.echo("- Loading forecasts: loaded {} forecast(s)".format(len(forecasts)))
 
     # done
     click.echo("* Done. time: {}".format(timeit.default_timer() - start_time))
