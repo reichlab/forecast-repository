@@ -23,12 +23,14 @@ def _calculate_pit_score_values(score, forecast_model):
 
 def save_pit_score(score, forecast_pk, location_pk, target_pk, truth_value, templ_bin_starts, forec_bin_st_to_pred_val,
                    true_bin_start, true_bin_idx):
-    template_bin_keys_pre_truth = templ_bin_starts[:true_bin_idx]  # excluding true bin
+    template_bin_starts_pre_truth = templ_bin_starts[:true_bin_idx]  # excluding true bin
     if truth_value is None:  # score degenerates to using only the predicted true value
         pred_vals_pre_truth = []
     else:
-        pred_vals_pre_truth = [forec_bin_st_to_pred_val[key] if key in forec_bin_st_to_pred_val else 0
-                               for key in template_bin_keys_pre_truth]  # 0 b/c unforecasted bins are 0 value ones
+        # use 0 b/c unforecasted bins are 0 value ones:
+        pred_vals_pre_truth = [forec_bin_st_to_pred_val[template_bin_start]
+                               if template_bin_start in forec_bin_st_to_pred_val else 0
+                               for template_bin_start in template_bin_starts_pre_truth]
     pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
     true_bin_pred_val = forec_bin_st_to_pred_val[true_bin_start] if true_bin_start in forec_bin_st_to_pred_val else 0
     pit_score_value = ((pred_vals_pre_truth_sum * 2) + true_bin_pred_val) / 2  # 0 b/c ""

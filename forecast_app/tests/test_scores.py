@@ -12,7 +12,7 @@ from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero, Location, Target
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
-from forecast_app.scores.bin_utils import _tzltpk_to_truth_st_val, _ltpk_to_templ_bin_starts, \
+from forecast_app.scores.bin_utils import _tzltpk_to_truth_bin_start, _ltpk_to_templ_bin_starts, \
     _tzltpk_to_forec_bin_st_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, LOG_SINGLE_BIN_NEGATIVE_INFINITY
@@ -186,10 +186,10 @@ class ScoresTestCase(TestCase):
         loc_us_nat = project2.locations.filter(name='US National').first()
         target_1wk = project2.targets.filter(name='1 wk ahead').first()
 
-        # get _tzltpk_to_truth_st_val() - needed here, but tested more thoroughly below
-        tzltpk_to_truth_starts = _tzltpk_to_truth_st_val(project2)
+        # get _tzltpk_to_truth_bin_start() - needed here, but tested more thoroughly below
+        tzltpk_to_truth_starts = _tzltpk_to_truth_bin_start(project2)
         self.assertEqual(tzltpk_to_truth_starts,
-                         {time_zero2.pk: {loc_us_nat.pk: {target_1wk.pk: [1.5, 1.55838]}}})
+                         {time_zero2.pk: {loc_us_nat.pk: {target_1wk.pk: 1.5}}})
 
         # test _ltpk_to_templ_bin_starts()
         ltpk_to_templ_bin_starts = _ltpk_to_templ_bin_starts(project2)
@@ -210,24 +210,22 @@ class ScoresTestCase(TestCase):
 
         # get the true bin 'key' bin_start_incl from tzltpk_to_truth_starts
         truth_start_val = tzltpk_to_truth_starts[time_zero2.pk][loc_us_nat.pk][target_1wk.pk]  # 1.5
-        true_bin_key = truth_start_val[0]
-
         ltpk_to_templ_bin_starts = act_templ_bin_starts
         forec_st_to_pred_val = act_forec_st_to_pred_val
 
         # implement _calculate_pit_score_values(). get all the bin rows up to truth
-        true_bin_idx = ltpk_to_templ_bin_starts.index(true_bin_key)
+        true_bin_idx = ltpk_to_templ_bin_starts.index(truth_start_val)
         template_bin_keys_pre_truth = ltpk_to_templ_bin_starts[:true_bin_idx]  # excluding true bin
         pred_vals_pre_truth = [forec_st_to_pred_val[key] for key in template_bin_keys_pre_truth]
         pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
-        pred_val_true_bin = forec_st_to_pred_val[true_bin_key]
+        pred_val_true_bin = forec_st_to_pred_val[truth_start_val]
         pit_score_value = ((pred_vals_pre_truth_sum * 2) + pred_val_true_bin) / 2
         self.assertAlmostEqual(0.7406917921528041, pit_score_value)
 
         # implement _calc_log_bin_score_values(). get 5 bin rows on each side of truth, handling start and end
         # boundaries
         num_bins_one_side = 5
-        true_bin_idx = ltpk_to_templ_bin_starts.index(true_bin_key)
+        true_bin_idx = ltpk_to_templ_bin_starts.index(truth_start_val)
         start_idx = max(0, true_bin_idx - num_bins_one_side)  # max() in case goes before first bin
         end_idx = true_bin_idx + num_bins_one_side + 1  # don't care if it's after the last bin - slice ignores
         template_bin_keys_both_windows = ltpk_to_templ_bin_starts[start_idx:end_idx]  # todo xx incl!?
@@ -316,7 +314,7 @@ class ScoresTestCase(TestCase):
         # case: truth = None, but no forecast bin start/end that's None -> no matching bin -> use zero for predicted
         # value (rather than not generating a ScoreValue at all). this test also tests the
         # LOG_SINGLE_BIN_NEGATIVE_INFINITY case. requires template start and ends be None as well, or won't match
-        # _tzltpk_to_truth_st_val() query
+        # _tzltpk_to_truth_bin_start() query
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
         truth_data.value = None  # -> no matching bin
         truth_data.save()
@@ -414,26 +412,26 @@ class ScoresTestCase(TestCase):
         exp_vals = {
             time_zero2.pk: {
                 loc_TH01.pk: {
-                    targ_1bwk.pk: [1.0, 2.0],
-                    targ_2bwk.pk: [0.0, 0.0],
-                    targ_3bwk.pk: [10.0, 11.0],
-                    targ_4bwk.pk: [1.0, 8.0],
-                    targ_5bwk.pk: [10.0, 11.0],
+                    targ_1bwk.pk: 1.0,
+                    targ_2bwk.pk: 0.0,
+                    targ_3bwk.pk: 10.0,
+                    targ_4bwk.pk: 1.0,
+                    targ_5bwk.pk: 10.0,
                 },
                 loc_TH02.pk: {
-                    targ_1bwk.pk: [1.0, 9.0],
-                    targ_2bwk.pk: [10.0, 13.0],
-                    targ_3bwk.pk: [50.0, 50.0],
-                    targ_4bwk.pk: [40.0, 44.0],
-                    targ_5bwk.pk: [80.0, 86.0],
+                    targ_1bwk.pk: 1.0,
+                    targ_2bwk.pk: 10.0,
+                    targ_3bwk.pk: 50.0,
+                    targ_4bwk.pk: 40.0,
+                    targ_5bwk.pk: 80.0,
                 },
             }
         }
-        act_values = _tzltpk_to_truth_st_val(project2)
+        act_values = _tzltpk_to_truth_bin_start(project2)
         self.assertEqual(exp_vals, act_values)
 
         # test thai when truth value is None. requires template start and ends be None as well, or won't match
-        # _tzltpk_to_truth_st_val() query
+        # _tzltpk_to_truth_bin_start() query
         truth_data = project2.truth_data_qs().filter(location__name='TH01', target__name='1_biweek_ahead').first()
         truth_data.value = None
         truth_data.save()
@@ -445,8 +443,8 @@ class ScoresTestCase(TestCase):
         template_data.bin_end_notincl = None
         template_data.save()
 
-        act_values = _tzltpk_to_truth_st_val(project2)
-        exp_vals[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = [None, None]
+        act_values = _tzltpk_to_truth_bin_start(project2)
+        exp_vals[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = None
         self.assertEqual(exp_vals, act_values)
 
         # test CDC project
@@ -458,11 +456,11 @@ class ScoresTestCase(TestCase):
         exp_vals = {
             time_zero2.pk: {
                 loc_us.pk: {
-                    targ_1wk.pk: [1.5, 1.55838],
+                    targ_1wk.pk: 1.5,
                 },
             }
         }
-        act_values = _tzltpk_to_truth_st_val(project2)
+        act_values = _tzltpk_to_truth_bin_start(project2)
         self.assertEqual(exp_vals, act_values)
 
 
@@ -516,7 +514,7 @@ class ScoresTestCase(TestCase):
         # case: truth = None, with a bin start that's None -> matching bin -> should only use the predicted true value.
         # we'll change this bin row:
         #   TH01	1_biweek_ahead	Bin	cases	0	1	0.576  # 0	1 -> None	None
-        # requires template start and ends be None as well, or won't match _tzltpk_to_truth_st_val() query
+        # requires template start and ends be None as well, or won't match _tzltpk_to_truth_bin_start() query
         forecast_data = forecast2.cdcdata_set \
             .filter(location__name='TH01', target__name='1_biweek_ahead', is_point_row=False, bin_start_incl=0) \
             .first()

@@ -104,7 +104,7 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
 
     # load the forecasts
     click.echo("* Loading forecasts")
-    model_name_to_forecasts = load_forecasts(project, model_dirs_to_load, template)
+    model_name_to_forecasts = load_forecasts(project, model_dirs_to_load)
     click.echo("- Loading forecasts: loaded {} forecast(s)".format(sum(map(len, model_name_to_forecasts.values()))))
 
     # done!
@@ -269,7 +269,7 @@ def make_cdc_flusight_ensemble_models(project, model_dirs_to_load, model_owner):
     return models
 
 
-def load_forecasts(project, model_dirs_to_load, template):
+def load_forecasts(project, model_dirs_to_load):
     """
     Loads forecast data for models in model_dirs_to_load. Assumes model names in each directory's metadata.txt matches
     those in project, as done by make_cdc_flusight_ensemble_models(). see above note re: the two templates.

@@ -39,9 +39,11 @@ def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, temp
 
     start_idx = max(0, true_bin_idx - num_bins_one_side)  # max() in case window is before first bin
     end_idx = true_bin_idx + num_bins_one_side + 1  # don't care if it's after the last bin - slice ignores
-    templ_bin_keys_pre_post_truth = templ_bin_starts[start_idx:end_idx]
-    pred_vals_both_windows = [forec_bin_st_to_pred_val[key] if key in forec_bin_st_to_pred_val else 0
-                              for key in templ_bin_keys_pre_post_truth]  # 0 b/c unforecasted bins are 0 value ones
+    templ_bin_st_pre_post_truth = templ_bin_starts[start_idx:end_idx]
+    # use 0 b/c unforecasted bins are 0 value ones:
+    pred_vals_both_windows = [forec_bin_st_to_pred_val[template_bin_start]
+                              if template_bin_start in forec_bin_st_to_pred_val else 0
+                              for template_bin_start in templ_bin_st_pre_post_truth]
     pred_vals_both_windows_sum = sum(pred_vals_both_windows)
 
     try:

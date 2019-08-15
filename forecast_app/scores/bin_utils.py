@@ -30,8 +30,8 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     # 1/3 template: [location_pk][target_pk] -> [bin_start_incl_1, ...]:
     ltpk_to_templ_bin_starts = _ltpk_to_templ_bin_starts(forecast_model.project)
 
-    # 2/3 truth: [timezero_pk][location_pk][target_pk] -> (bin_start_incl, true_value):
-    tzltpk_to_truth_st_val = _tzltpk_to_truth_st_val(forecast_model.project)
+    # 2/3 truth: [timezero_pk][location_pk][target_pk] -> bin_start_incl:
+    tzltpk_to_truth_bin_start = _tzltpk_to_truth_bin_start(forecast_model.project)
 
     # 3/3 forecast: [timezero_pk][location_pk][target_pk] -> {bin_start_incl_1: predicted_value_1, ...}:
     tzltpk_to_forec_bin_st_to_pred_val = _tzltpk_to_forec_bin_st_to_pred_val(forecast_model)
@@ -51,9 +51,9 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
         # get and validate truth for this forecast
         try:
-            truth_start_val = tzltpk_to_truth_st_val[time_zero_pk][location_pk][target_pk]
-            true_bin_start = truth_start_val[0]
-            true_bin_idx = templ_bin_starts.index(true_bin_start)  # NB: non-deterministic for (None, None) true bin keys!
+            true_bin_start = tzltpk_to_truth_bin_start[time_zero_pk][location_pk][target_pk]
+            # NB: non-deterministic for (None, None) true bin keys!:
+            true_bin_idx = templ_bin_starts.index(true_bin_start)
         except (KeyError, ValueError):
             error_key = (time_zero_pk, location_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
@@ -107,17 +107,13 @@ def _truth_data_pks_for_forecast_model(forecast_model):
 # - we sometimes refer to a bin_start_incl as a 'bin key'
 #
 
-def _tzltpk_to_truth_st_val(project):
+def _tzltpk_to_truth_bin_start(project):
     """
-    Returns project's truth data merged with the template as a 2-tuple:
-
-        [timezero_pk][location_pk][target_pk] -> [bin_start_incl, true_value]
-
+    Returns project's truth data merged with the template: [timezero_pk][location_pk][target_pk] -> true_bin_start_incl
     We need the template to get bin_start_incl and bin_end_notincl for the truth.
     """
     sql = """
-        SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id,
-               templd.bin_start_incl, truthd.value as true_value
+        SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id, templd.bin_start_incl
         FROM {truthdata_table_name} as truthd
                LEFT JOIN {templatedata_table_name} as templd
                          ON truthd.location_id = templd.location_id
@@ -134,15 +130,15 @@ def _tzltpk_to_truth_st_val(project):
         rows = cursor.fetchall()
 
     # build the dict
-    tz_loc_targ_pks_to_templ_truth_vals = {}  # {timezero_pk: {location_pk: {target_id: (bin_start_incl, true_value)}}}
+    tz_loc_targ_pks_to_templ_truth_vals = {}  # {timezero_pk: {location_pk: {target_id: bin_start_incl}}}
     for time_zero_id, loc_target_val_grouper in groupby(rows, key=lambda _: _[0]):
-        loc_targ_pks_to_templ_truth = {}  # {location_pk: {target_id: (bin_start_incl, true_value)}}
+        loc_targ_pks_to_templ_truth = {}  # {location_pk: {target_id: bin_start_incl}}
         tz_loc_targ_pks_to_templ_truth_vals[time_zero_id] = loc_targ_pks_to_templ_truth
         for location_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
-            target_pk_to_truth = {}  # {target_id: (bin_start_incl, true_value)}
+            target_pk_to_truth = {}  # {target_id: bin_start_incl}
             loc_targ_pks_to_templ_truth[location_id] = target_pk_to_truth
-            for _, _, target_id, bin_start_incl, true_value in target_val_grouper:
-                target_pk_to_truth[target_id] = [bin_start_incl, true_value]
+            for _, _, target_id, bin_start_incl in target_val_grouper:
+                target_pk_to_truth[target_id] = bin_start_incl
 
     return tz_loc_targ_pks_to_templ_truth_vals
 
