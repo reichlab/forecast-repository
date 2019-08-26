@@ -66,9 +66,10 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
             tz_loc_targ_pks_to_error_count[error_key] += 1
             continue  # skip this forecast's contribution to the score
 
-        # dispatch to scoring function
-        save_score_fcn(score, forecast_pk, location_pk, target_pk, truth_value, bin_lwrs,
-                       bin_lwr_to_pred_val, true_bin_lwr, true_bin_idx, **kwargs)
+        # dispatch to scoring function if we have any predicted values to work with
+        if bin_lwr_to_pred_val:
+            save_score_fcn(score, forecast_pk, location_pk, target_pk, truth_value, bin_lwrs, bin_lwr_to_pred_val,
+                           true_bin_lwr, true_bin_idx, **kwargs)
 
     # print errors
     for (timezero_pk, location_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):

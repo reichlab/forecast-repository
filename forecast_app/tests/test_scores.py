@@ -107,7 +107,15 @@ class ScoresTestCase(TestCase):
 
         # calculate the score and test results
         log_single_bin_score.update_score_for_model(forecast_model2)
-        # only one location + target in the forecast -> only one bin:
+
+        # ex: sqlite3: list(log_single_bin_score.values.filter(forecast__forecast_model=forecast_model2).all()))
+        # ScoreValue: self.pk, self.score.pk, self.forecast.pk, self.location.pk, self.target.pk, self.value
+        # [(1, 3, 2, 22, 11, -1.596827947504047),  # forecast only has one Location|Target: US National|1 wk ahead
+        #  (2, 3, 2, 22, 12, -999.0),
+        #  (3, 3, 2, 22, 13, -999.0),
+        #  (4, 3, 2, 22, 14, -999.0),
+        #  (5, 3, 2, 22, 10, -999.0)]
+
         self.assertEqual(1, log_single_bin_score.values.count())
 
         score_value = log_single_bin_score.values.first()
@@ -164,7 +172,7 @@ class ScoresTestCase(TestCase):
         # the row after it is:
         #   US National	1 wk ahead	Bin	percent	2.1	2.2	0.000162775167244309
         forecast2.binlwr_distribution_qs() \
-            .filter(location__name='US National', target__name='1 wk ahead') \
+            .filter(location__name='US National', target__name='1 wk ahead', lwr=2.0) \
             .first() \
             .delete()
 
@@ -177,6 +185,7 @@ class ScoresTestCase(TestCase):
         bin_value_sum = 0.007070248 + 0.046217761 + 0.135104139 + 0.196651291 + 0.239931096 + \
                         0.202537961 + \
                         0.077075215 + 0.019657804 + 0.028873246 + 0.003120724 + 0
+        # AssertionError: -0.04474688998028026 != -0.024355842680506955 within 7 places
         self.assertAlmostEqual(math.log(bin_value_sum), score_value.value)
 
 
@@ -207,7 +216,6 @@ class ScoresTestCase(TestCase):
 
         # test _tz_loc_targ_pk_bin_lwr_to_pred_val()
         tzltpk_bin_lwr_to_pred_val = _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model2)
-        # {0.0: 1.39332920335022e-07, ...}:
         act_bin_lwr_to_pred_val = \
             tzltpk_bin_lwr_to_pred_val[time_zero2.pk][loc_us_nat.pk][target_name_to_pk['1 wk ahead']]
         self.assertEqual(131, len(act_bin_lwr_to_pred_val))  # same - no missing zero-value bins in this forecast
@@ -256,7 +264,15 @@ class ScoresTestCase(TestCase):
         # case 1: calculate the score and test results using actual truth:
         #   20161030,US National,1 wk ahead,1.55838  ->  bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
         log_multi_bin_score.update_score_for_model(forecast_model2)
-        # only one location + target in the forecast -> only one bin:
+
+        # ex: sqlite3: list(log_multi_bin_score.values.filter(forecast__forecast_model=forecast_model2).all())
+        # ScoreValue: self.pk, self.score.pk, self.forecast.pk, self.location.pk, self.target.pk, self.value
+        # [(1, 4, 2, 22, 11, -0.024355842680506955),  # forecast only has one Location|Target: US National|1 wk ahead
+        #  (2, 4, 2, 22, 12, -999.0),
+        #  (3, 4, 2, 22, 13, -999.0),
+        #  (4, 4, 2, 22, 14, -999.0),
+        #  (5, 4, 2, 22, 10, -999.0)]
+
         self.assertEqual(1, log_multi_bin_score.values.count())
 
         score_value = log_multi_bin_score.values.first()
