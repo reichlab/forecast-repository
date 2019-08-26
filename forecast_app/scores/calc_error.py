@@ -21,8 +21,8 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     :param is_absolute_error: True if abs() should be called
     """
     try:
-        from forecast_app.scores.definitions import _validate_score_targets_and_data, \
-            LOG_SINGLE_BIN_NEGATIVE_INFINITY  # avoid circular imports
+        from forecast_app.scores.definitions import _validate_score_targets_and_data  # avoid circular imports
+        from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
 
         targets = _validate_score_targets_and_data(forecast_model)

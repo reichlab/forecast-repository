@@ -16,7 +16,8 @@ from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_bin_lwrs, \
     _tz_loc_targ_pk_bin_lwr_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
-from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR, LOG_SINGLE_BIN_NEGATIVE_INFINITY
+from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
+from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 from utils.make_thai_moph_project import create_thai_locations_and_targets
@@ -452,9 +453,6 @@ class ScoresTestCase(TestCase):
                 },
             }
         }
-        # exp_tz_loc_targ_pk_to_true_bin_lwr,  _tz_loc_targ_pk_to_true_bin_lwr(project2):
-        # {3: {98: {           16: 1.5                               }}}
-        # {3: {98: { 15: 5.0,  16: 1.5,  17: 1.6,  18: 1.9,  19: 1.8 }}}
         self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
 
 

@@ -76,9 +76,6 @@ def calc_abs_error(score, forecast_model):
 # ---- 'log_single_bin' and 'log_multi_bin' calculation functions ----
 #
 
-LOG_SINGLE_BIN_NEGATIVE_INFINITY = -999  # see use below for docs
-
-
 def calc_log_single_bin(score, forecast_model):
     """
     Calculates 'Log score (single bin)' scores per

@@ -6,6 +6,8 @@ from forecast_app.models import ScoreValue
 
 logger = logging.getLogger(__name__)
 
+LOG_SINGLE_BIN_NEGATIVE_INFINITY = -999  # see use below for docs
+
 
 def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     """
@@ -31,9 +33,6 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
 
 def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, templ_bin_starts, bin_lwr_to_pred_val,
                    true_bin_lwr, true_bin_idx, num_bins_one_side):
-    from forecast_app.scores.definitions import LOG_SINGLE_BIN_NEGATIVE_INFINITY
-
-
     if truth_value is None:  # score degenerates to the num_bins_one_side=0 'Log score (single bin)' calculation
         num_bins_one_side = 0
 

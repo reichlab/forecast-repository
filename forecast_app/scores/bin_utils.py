@@ -3,7 +3,7 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel
+from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, BinLwrDistribution
 from forecast_app.models.project import TargetBinLwr, Target
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
@@ -161,12 +161,11 @@ def _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model):
     Only returns rows whose targets match non_date_targets().
     """
     targets = forecast_model.project.non_date_targets()
-    forecast_data_qs = ForecastData.objects \
+    forecast_data_qs = BinLwrDistribution.objects \
         .filter(forecast__forecast_model=forecast_model,
-                is_point_row=False,
                 target__in=targets) \
         .order_by('forecast__time_zero__id', 'location__id', 'target__id') \
-        .values_list('forecast__time_zero__id', 'location__id', 'target__id', 'bin_lwr', 'value')
+        .values_list('forecast__time_zero__id', 'location__id', 'target__id', 'lwr', 'prob')
 
     # build the dict: {timezero_pk: {location_pk: {target_id: {bin_lwr_1: predicted_value_1, ...}}}}:
     tzltpk_to_forec_st_to_pred_val = {}
