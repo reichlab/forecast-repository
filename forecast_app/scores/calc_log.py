@@ -29,9 +29,8 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     _calc_bin_score(score, forecast_model, save_log_score, num_bins_one_side=num_bins_one_side)
 
 
-def save_log_score(score, time_zero_pk, forecast_pk, location_pk, target_pk, truth_value,
-                   templ_st_ends, forec_st_end_to_pred_val,
-                   true_bin_key, true_bin_idx, num_bins_one_side):
+def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, templ_bin_starts, bin_lwr_to_pred_val,
+                   true_bin_lwr, true_bin_idx, num_bins_one_side):
     from forecast_app.scores.definitions import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
 
@@ -40,9 +39,11 @@ def save_log_score(score, time_zero_pk, forecast_pk, location_pk, target_pk, tru
 
     start_idx = max(0, true_bin_idx - num_bins_one_side)  # max() in case window is before first bin
     end_idx = true_bin_idx + num_bins_one_side + 1  # don't care if it's after the last bin - slice ignores
-    templ_bin_keys_pre_post_truth = templ_st_ends[start_idx:end_idx]
-    pred_vals_both_windows = [forec_st_end_to_pred_val[key] if key in forec_st_end_to_pred_val else 0
-                              for key in templ_bin_keys_pre_post_truth]  # 0 b/c unforecasted bins are 0 value ones
+    templ_bin_starts_pre_post_truth = templ_bin_starts[start_idx:end_idx]
+    # use 0 b/c unforecasted bins are 0 value ones:
+    pred_vals_both_windows = [bin_lwr_to_pred_val[template_bin_start]
+                              if template_bin_start in bin_lwr_to_pred_val else 0
+                              for template_bin_start in templ_bin_starts_pre_post_truth]
     pred_vals_both_windows_sum = sum(pred_vals_both_windows)
 
     try:
@@ -52,7 +53,6 @@ def save_log_score(score, time_zero_pk, forecast_pk, location_pk, target_pk, tru
         # from: https://github.com/reichlab/flusight/wiki/Scoring#2-log-score-single-bin
         log_multi_bin_score_value = LOG_SINGLE_BIN_NEGATIVE_INFINITY
 
-    # logger.debug('save_pit_score: {}'.format([score, forecast.pk, truth_data.location.pk, truth_data.target.pk, truth_data.target.pk, pit_score_value]))
     ScoreValue.objects.create(forecast_id=forecast_pk,
                               location_id=location_pk,
                               target_id=target_pk,

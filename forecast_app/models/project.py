@@ -772,10 +772,24 @@ class Target(models.Model):
 class TargetBinLwr(models.Model):
     """
     Associates BinLwr.lwr values with a Target. These act as a "template" against which forecast BinLwr predictions can
-    be validated against.
+    be validated against. Note that only lwr is typically passed by the user. upper is typically calculated from
+    lwr by the caller.
+
+    Regarding upper: It is currently used only for scoring, when the true bin is queried for. In that case we test
+    truth >= lwr AND truth < upper. Therefore it is currently calculated by utils.project.validate_and_create_targets()
+    based on lwr. That function has to infer the final bin's upper, and uses float('inf') for that
     """
     target = models.ForeignKey('Target', blank=True, null=True, related_name='binlwrs', on_delete=models.CASCADE)
-    lwr = models.FloatField()
+    lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
+    upper = models.FloatField(null=True)  # "". possibly float('inf')
+
+
+    def __repr__(self):
+        return str((self.pk, self.target.pk, self.lwr, self.upper))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 #

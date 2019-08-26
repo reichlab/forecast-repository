@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import math
@@ -106,8 +107,8 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
                                            step_ahead_increment=target_dict['step_ahead_increment'],
                                            point_value_type=point_value_type, **prediction_ok_types_dict)
 
-            # create TargetBinLwrs. we do this one-by-one, which will be slow if very many of them. first, validate
-            # ascending order, and uniform bin sizes
+            # create TargetBinLwrs. we do this one-by-one via ORM, which will be slow if very many of them. first,
+            # validate ascending order, and uniform bin sizes
             if 'BinLwr' in prediction_types:
                 lwrs = target_dict['lwr']
                 lwr_diffs = [b - a for a, b in zip(lwrs[:-1], lwrs[1:])]
@@ -116,8 +117,9 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
                 elif is_validate and not math.isclose(min(lwr_diffs), max(lwr_diffs)):
                     raise RuntimeError(f"lwrs had non-uniform bin sizes. intervals={lwr_diffs}, lwrs={lwrs}")
 
-                for lwr in lwrs:
-                    TargetBinLwr.objects.create(target=target, lwr=lwr)
+                # create TargetBinLwrs, calculating `upper` via zip(). NB: we use infinity for the last bin's upper!
+                for lwr, upper in itertools.zip_longest(lwrs, lwrs[1:], fillvalue=float('inf')):
+                    TargetBinLwr.objects.create(target=target, lwr=lwr, upper=upper)
 
             targets.append(target)
     return targets
