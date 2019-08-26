@@ -91,7 +91,7 @@ class BinLwrDistribution(EmpiricalDistribution):
     Concrete class representing binned distribution defined by inclusive lower bounds for each bin.
     """
 
-    lwr = models.FloatField()
+    lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
     prob = models.FloatField()
 
 

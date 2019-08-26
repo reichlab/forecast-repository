@@ -342,6 +342,12 @@ class ScoresTestCase(TestCase):
         truth_data.value = None  # -> no matching bin
         truth_data.save()
 
+        target_1wk = project2.targets.filter(name='1 wk ahead').first()
+        target_binlwr = target_1wk.binlwrs.filter(lwr=0).first()
+        target_binlwr.lwr = None
+        target_binlwr.upper = None
+        target_binlwr.save()
+
         log_multi_bin_score = Score.objects.filter(abbreviation='log_multi_bin').first()
         log_multi_bin_score.update_score_for_model(forecast_model2)
         score_value = log_multi_bin_score.values.first()
@@ -351,12 +357,11 @@ class ScoresTestCase(TestCase):
         # case: truth = None, with a matching forecast bin start/end that's None. we'll change the first bin row:
         #   US National,1 wk ahead,Bin,percent,None,0.1,1.39332920335022e-07  # set start = None
         # NB: in this case, the score should degenerate to the num_bins_one_side=0 'Log score (single bin)' calculation
-        forecast_data = forecast2.cdcdata_set \
-            .filter(location__name='US National', target__name='1 wk ahead', is_point_row=False, bin_start_incl=0) \
+        binlwr_dist = forecast2.binlwr_distribution_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead', lwr=0) \
             .first()
-        forecast_data.bin_start_incl = None
-        forecast_data.bin_end_notincl = None
-        forecast_data.save()
+        binlwr_dist.lwr = None
+        binlwr_dist.save()
 
         log_multi_bin_score.update_score_for_model(forecast_model2)
 
