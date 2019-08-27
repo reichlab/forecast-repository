@@ -1,10 +1,12 @@
+import csv
+import io
 from collections import defaultdict
 from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, BinLwrDistribution
-from forecast_app.models.project import TargetBinLwr, Target
+from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, BinLwrDistribution, ScoreValue
+from forecast_app.models.project import TargetBinLwr, Target, POSTGRES_NULL_VALUE
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
 
@@ -20,6 +22,10 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     except RuntimeError as rte:
         logger.warning(rte)
         return
+
+    # collect all ScoreValue rows and then bulk insert them as an optimization, rather than create separate ORM
+    # instances
+    score_values = []  # list of 5-tuples: (score.pk, forecast.pk, location.pk, target.pk, score_value)
 
     # collect errors so we don't log thousands of duplicate messages. dict format:
     #   {(timezero_pk, location_pk, target_pk): count, ...}:
@@ -68,13 +74,17 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
         # dispatch to scoring function if we have any predicted values to work with
         if bin_lwr_to_pred_val:
-            save_score_fcn(score, forecast_pk, location_pk, target_pk, truth_value, bin_lwrs, bin_lwr_to_pred_val,
-                           true_bin_lwr, true_bin_idx, **kwargs)
+            score_value = save_score_fcn(score, forecast_pk, location_pk, target_pk, truth_value, bin_lwrs,
+                                         bin_lwr_to_pred_val, true_bin_lwr, true_bin_idx, **kwargs)
+            score_values.append((score.pk, forecast_pk, location_pk, target_pk, score_value))
+
+    # insert the ScoreValues!
+    _insert_score_values(score_values)
 
     # print errors
     for (timezero_pk, location_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
         count = tz_loc_targ_pks_to_error_count[timezero_pk, location_pk, target_pk]
-        logger.warning(f"_calculate_pit_score_values(): missing {count} truth value(s): "
+        logger.warning(f"_calc_bin_score(): missing {count} truth value(s): "
                        "timezero_pk={timezero_pk}, location_pk={location_pk}, target_pk={target_pk}")
 
 
@@ -90,6 +100,38 @@ def _truth_data_pks_for_forecast_model(forecast_model):
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast_model.pk,))
         return cursor.fetchall()
+
+
+def _insert_score_values(score_values):
+    """
+    Called by _calc_bin_score(), does a bulk insert of score_values - creates ScoreValue instances. See docs in
+    _insert_prediction_rows() for postgres-specific rationale.
+
+    :param score_values: a list of 5-tuples: (score.pk, forecast.pk, location.pk, target.pk, score_value)
+    """
+    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
+    columns_names = [ScoreValue._meta.get_field('score').column,
+                     ScoreValue._meta.get_field('forecast').column,
+                     ScoreValue._meta.get_field('location').column,
+                     ScoreValue._meta.get_field('target').column,
+                     ScoreValue._meta.get_field('value').column]
+    scorevalue_table_name = ScoreValue._meta.db_table
+    with connection.cursor() as cursor:
+        if connection.vendor == 'postgresql':
+            string_io = io.StringIO()
+            csv_writer = csv.writer(string_io, delimiter=',')
+            for row in score_values:
+                csv_writer.writerow(row)
+            string_io.seek(0)
+            cursor.copy_from(string_io, scorevalue_table_name, columns=columns_names, sep=',', null=POSTGRES_NULL_VALUE)
+        else:
+            column_names = (', '.join(columns_names))
+            values_percent_s = ', '.join(['%s'] * len(columns_names))
+            sql = f"""
+                INSERT INTO {scorevalue_table_name} ({column_names})
+                VALUES ({values_percent_s});
+                """
+            cursor.executemany(sql, score_values)
 
 
 #

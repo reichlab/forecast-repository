@@ -396,7 +396,7 @@ def _load_bincat_rows(forecast, rows):
                      prediction_class._meta.get_field('cat').column,
                      prediction_class._meta.get_field('prob').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _load_binlwr_rows(forecast, rows):
@@ -418,7 +418,7 @@ def _load_binlwr_rows(forecast, rows):
                      prediction_class._meta.get_field('lwr').column,
                      prediction_class._meta.get_field('prob').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _load_binary_rows(forecast, rows):
@@ -439,7 +439,7 @@ def _load_binary_rows(forecast, rows):
                      prediction_class._meta.get_field('target').column,
                      prediction_class._meta.get_field('prob').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _load_named_rows(forecast, rows):
@@ -470,7 +470,7 @@ def _load_named_rows(forecast, rows):
                      prediction_class._meta.get_field('param2').column,
                      prediction_class._meta.get_field('param3').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _load_point_rows(forecast, rows):
@@ -505,7 +505,7 @@ def _load_point_rows(forecast, rows):
                      prediction_class._meta.get_field('value_f').column,
                      prediction_class._meta.get_field('value_t').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _load_sample_rows(forecast, rows):
@@ -526,7 +526,7 @@ def _load_sample_rows(forecast, rows):
                      prediction_class._meta.get_field('target').column,
                      prediction_class._meta.get_field('sample').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _load_samplecat_rows(forecast, rows):
@@ -548,7 +548,7 @@ def _load_samplecat_rows(forecast, rows):
                      prediction_class._meta.get_field('cat').column,
                      prediction_class._meta.get_field('sample').column,
                      Forecast._meta.model_name + '_id']
-    _insert_rows(prediction_class, columns_names, rows)
+    _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
 def _replace_location_target_names_with_pks_rows(forecast, rows):
@@ -614,7 +614,7 @@ def _add_forecast_pk_rows(forecast, rows):
         row.append(forecast.pk)
 
 
-def _insert_rows(prediction_class, columns_names, rows):
+def _insert_prediction_rows(prediction_class, columns_names, rows):
     """
     Does the actual INSERT of rows into the database table corresponding to prediction_class. For speed, we directly
     insert via SQL rather than the ORM. We use psycopg2 extensions to the DB API if we're connected to a Postgres

@@ -33,7 +33,4 @@ def save_pit_score(score, forecast_pk, location_pk, target_pk, truth_value, bin_
     pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
     true_bin_pred_val = bin_lwr_to_pred_val[true_bin_lwr] if true_bin_lwr in bin_lwr_to_pred_val else 0
     pit_score_value = ((pred_vals_pre_truth_sum * 2) + true_bin_pred_val) / 2  # 0 b/c ""
-    ScoreValue.objects.create(forecast_id=forecast_pk,
-                              location_id=location_pk,
-                              target_id=target_pk,
-                              score=score, value=pit_score_value)
+    return pit_score_value
