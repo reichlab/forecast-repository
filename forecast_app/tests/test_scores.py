@@ -107,15 +107,6 @@ class ScoresTestCase(TestCase):
 
         # calculate the score and test results
         log_single_bin_score.update_score_for_model(forecast_model2)
-
-        # ex: sqlite3: list(log_single_bin_score.values.filter(forecast__forecast_model=forecast_model2).all()))
-        # ScoreValue: self.pk, self.score.pk, self.forecast.pk, self.location.pk, self.target.pk, self.value
-        # [(1, 3, 2, 22, 11, -1.596827947504047),  # forecast only has one Location|Target: US National|1 wk ahead
-        #  (2, 3, 2, 22, 12, -999.0),
-        #  (3, 3, 2, 22, 13, -999.0),
-        #  (4, 3, 2, 22, 14, -999.0),
-        #  (5, 3, 2, 22, 10, -999.0)]
-
         self.assertEqual(1, log_single_bin_score.values.count())
 
         score_value = log_single_bin_score.values.first()
@@ -264,15 +255,7 @@ class ScoresTestCase(TestCase):
         # case 1: calculate the score and test results using actual truth:
         #   20161030,US National,1 wk ahead,1.55838  ->  bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
         log_multi_bin_score.update_score_for_model(forecast_model2)
-
-        # ex: sqlite3: list(log_multi_bin_score.values.filter(forecast__forecast_model=forecast_model2).all())
-        # ScoreValue: self.pk, self.score.pk, self.forecast.pk, self.location.pk, self.target.pk, self.value
-        # [(1, 4, 2, 22, 11, -0.024355842680506955),  # forecast only has one Location|Target: US National|1 wk ahead
-        #  (2, 4, 2, 22, 12, -999.0),
-        #  (3, 4, 2, 22, 13, -999.0),
-        #  (4, 4, 2, 22, 14, -999.0),
-        #  (5, 4, 2, 22, 10, -999.0)]
-
+        # only one location + target in the forecast -> only one bin:
         self.assertEqual(1, log_multi_bin_score.values.count())
 
         score_value = log_multi_bin_score.values.first()
