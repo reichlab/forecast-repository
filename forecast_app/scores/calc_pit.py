@@ -21,16 +21,15 @@ def _calculate_pit_score_values(score, forecast_model):
     _calc_bin_score(score, forecast_model, save_pit_score)
 
 
-def save_pit_score(score, forecast_pk, location_pk, target_pk, truth_value, templ_bin_starts, bin_lwr_to_pred_val,
+def save_pit_score(score, forecast_pk, location_pk, target_pk, truth_value, bin_lwrs, bin_lwr_to_pred_val,
                    true_bin_lwr, true_bin_idx):
-    template_bin_starts_pre_truth = templ_bin_starts[:true_bin_idx]  # excluding true bin
+    bin_lwrs_pre_truth = bin_lwrs[:true_bin_idx]  # excluding true bin
     if truth_value is None:  # score degenerates to using only the predicted true value
         pred_vals_pre_truth = []
     else:
         # use 0 b/c unforecasted bins are 0 value ones:
-        pred_vals_pre_truth = [bin_lwr_to_pred_val[template_bin_start]
-                               if template_bin_start in bin_lwr_to_pred_val else 0
-                               for template_bin_start in template_bin_starts_pre_truth]
+        pred_vals_pre_truth = [bin_lwr_to_pred_val[bin_lwr] if bin_lwr in bin_lwr_to_pred_val else 0
+                               for bin_lwr in bin_lwrs_pre_truth]
     pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
     true_bin_pred_val = bin_lwr_to_pred_val[true_bin_lwr] if true_bin_lwr in bin_lwr_to_pred_val else 0
     pit_score_value = ((pred_vals_pre_truth_sum * 2) + true_bin_pred_val) / 2  # 0 b/c ""

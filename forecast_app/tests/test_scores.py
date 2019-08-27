@@ -9,15 +9,15 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.api_views import _write_csv_score_data_for_project
-from forecast_app.models import Project, TimeZero, Location, Target
+from forecast_app.models import Project, TimeZero, Location, Target, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.project import TargetBinLwr
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_bin_lwrs, \
     _tz_loc_targ_pk_bin_lwr_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
-from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
+from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 from utils.make_thai_moph_project import create_thai_locations_and_targets
@@ -107,6 +107,7 @@ class ScoresTestCase(TestCase):
 
         # calculate the score and test results
         log_single_bin_score.update_score_for_model(forecast_model2)
+        # only one location + target in the forecast -> only one bin:
         self.assertEqual(1, log_single_bin_score.values.count())
 
         score_value = log_single_bin_score.values.first()
@@ -121,6 +122,7 @@ class ScoresTestCase(TestCase):
         #   -> math.log(0.0770752152650201) = -2.562973512284597
         truth_data.value = 1.6
         truth_data.save()
+
         log_single_bin_score.update_score_for_model(forecast_model2)
         score_value = log_single_bin_score.values.first()
         self.assertAlmostEqual(math.log(0.0770752152650201), score_value.value)
@@ -136,11 +138,11 @@ class ScoresTestCase(TestCase):
 
         # test "clip Math.log(0) to -999 instead of its real value (-Infinity)". do so by changing this bin to have a
         # value of zero: US National,1 wk ahead,Bin,percent,1.6,1.7,0.0770752152650201
-        forecast_data = forecast2.cdcdata_set \
-            .filter(location__name='US National', target__name='1 wk ahead', is_point_row=False, bin_start_incl=1.6) \
+        binlwr_dist = forecast2.binlwr_distribution_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead', lwr=1.6) \
             .first()
-        forecast_data.value = 0
-        forecast_data.save()
+        binlwr_dist.lwr = 0
+        binlwr_dist.save()
 
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
         truth_data.value = 1.65  # 1.65 -> bin: US National,1 wk ahead,Bin,percent,1.6,1.7,0  # NB: value is now 0
@@ -463,23 +465,6 @@ class ScoresTestCase(TestCase):
     def test_pit_score(self):
         Score.ensure_all_scores_exist()
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
-
-        # print relevant score tables: locations, targets, time_zeros, forecast_models, forecasts, binlrs, truths
-        # - thai-project.json: locations, targets, points & binlwrs
-        # - 20170423-gam_lag1_tops3-20170525-small.cdc.csv: TH01 (all targets), TH02 ("")
-        # - dengue-truths-small.csv: 20170423, TH01 (all targets), TH02 ("")
-        # for location in project2.locations.all().order_by('id'):
-        #     print(f"{location}")
-        # for target in project2.targets.all().order_by('id'):
-        #     print(f"{target}. {list(target.binlwrs.all())}")
-        # for timezero in project2.timezeros.all().order_by('id'):
-        #     print(f"{timezero}")
-        # for binlwr in forecast2.binlwr_distribution_qs().all().order_by('id'):
-        #     print(f"{binlwr}")
-        # for truth_data in TruthData.objects.filter(time_zero=time_zero2):
-        #     print(f"{truth_data}")
-
-
         pit_score = Score.objects.filter(abbreviation='pit').first()
         pit_score.update_score_for_model(forecast_model2)
         exp_loc_targ_val = [('TH01', '1_biweek_ahead', 0.7879999999999999),
@@ -528,19 +513,17 @@ class ScoresTestCase(TestCase):
         # we'll change this bin row:
         #   TH01	1_biweek_ahead	Bin	cases	0	1	0.576  # 0	1 -> None	None
         # requires template start and ends be None as well, or won't match _tz_loc_targ_pk_to_true_bin_lwr() query
-        forecast_data = forecast2.cdcdata_set \
-            .filter(location__name='TH01', target__name='1_biweek_ahead', is_point_row=False, bin_start_incl=0) \
+        binlwr_dist = forecast2.binlwr_distribution_qs() \
+            .filter(location__name='TH01', target__name='1_biweek_ahead', lwr=0) \
             .first()
-        forecast_data.bin_start_incl = None
-        forecast_data.bin_end_notincl = None
-        forecast_data.save()
+        binlwr_dist.lwr = None
+        binlwr_dist.save()
 
-        template_data = project2.cdcdata_set \
-            .filter(location__name='TH01', target__name='1_biweek_ahead', is_point_row=False, bin_start_incl=0) \
-            .first()
-        template_data.bin_start_incl = None
-        template_data.bin_end_notincl = None
-        template_data.save()
+        target_1bwk = project2.targets.filter(name='1_biweek_ahead').first()
+        target_binlwr = target_1bwk.binlwrs.filter(lwr=0).first()
+        target_binlwr.lwr = None
+        target_binlwr.upper = None
+        target_binlwr.save()
 
         pit_score.update_score_for_model(forecast_model2)
         score_value = pit_score.values.filter(location__name='TH01', target__name='1_biweek_ahead').first()
@@ -753,3 +736,20 @@ def _make_thai_log_score_project():
 
     project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
     return project2, forecast_model2, forecast2, time_zero2
+
+
+def _print_proj_data(project, forecast, time_zero):
+    print(f"* _print_proj_data():\n- {project}\n- {forecast}\n- {time_zero}")
+    for location in project.locations.all().order_by('id'):
+        print(f"{location}")
+    for target in project.targets.all().order_by('id'):
+        binlwrs = list(target.binlwrs.all())
+        binlwrs_first_last = binlwrs if len(binlwrs) < 2 else [binlwrs[0], '...', binlwrs[-1]]
+        print(f"{target}. {binlwrs_first_last}")
+    for timezero in project.timezeros.all().order_by('id'):
+        print(f"{timezero}")
+    for truth_data in TruthData.objects.filter(time_zero=time_zero):
+        print(f"{truth_data}")
+    for binlwr in forecast.binlwr_distribution_qs().all().order_by('id'):
+        print(f"{binlwr}")
+    print(f"_print_proj_data(): done")
