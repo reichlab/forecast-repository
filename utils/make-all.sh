@@ -5,9 +5,7 @@ python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_minimal_proje
 
 echo "#### make_thai_moph_project.py"
 time python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_thai_moph_project.py \
-    /Users/cornell/IdeaProjects/moph-forecast-files \
-    --make_project \
-    --load_data
+    /Users/cornell/IdeaProjects/moph-forecast-files
 
 echo "#### make_cdc_flu_contests_project.py"
 time python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_cdc_flu_contests_project.py \
