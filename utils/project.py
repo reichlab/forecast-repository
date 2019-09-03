@@ -27,7 +27,8 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=T
     :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
         see cdc-project.json for an example
     :param owner: the new Project's owner (a User)
-    :param is_validate: True if the input json should be validated
+    :param is_validate: True if the input json should be validated. passed in case a project requires less stringent
+        validation
     :return: the new Project
     """
     logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
@@ -108,14 +109,11 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
                                            point_value_type=point_value_type, **prediction_ok_types_dict)
 
             # create TargetBinLwrs. we do this one-by-one via ORM, which will be slow if very many of them. first,
-            # validate ascending order, and uniform bin sizes
+            # validate ascending order
             if 'BinLwr' in prediction_types:
                 lwrs = target_dict['lwr']
-                lwr_diffs = [b - a for a, b in zip(lwrs[:-1], lwrs[1:])]
                 if is_validate and (sorted(lwrs) != lwrs):
                     raise RuntimeError(f"lwrs were not sorted: {lwrs}")
-                elif is_validate and not math.isclose(min(lwr_diffs), max(lwr_diffs)):
-                    raise RuntimeError(f"lwrs had non-uniform bin sizes. intervals={lwr_diffs}, lwrs={lwrs}")
 
                 # create TargetBinLwrs, calculating `upper` via zip(). NB: we use infinity for the last bin's upper!
                 for lwr, upper in itertools.zip_longest(lwrs, lwrs[1:], fillvalue=float('inf')):

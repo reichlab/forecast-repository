@@ -216,9 +216,15 @@ class ForecastTestCase(TestCase):
         with open('forecast_app/tests/projects/cdc-project.json') as fp:
             cdc_project_json = json.load(fp)
         cdc_project_json['targets'][2]['lwr'][0] = 0.05  # Season peak percentage: different first interval
-        with self.assertRaises(RuntimeError) as context:
-            create_project_from_json(cdc_project_json, po_user)
-        self.assertIn("lwrs had non-uniform bin sizes", str(context.exception))
+
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
+        with self.assertRaises(Exception):
+            try:
+                create_project_from_json(cdc_project_json, po_user)  # formerly: "lwrs had non-uniform bin sizes"
+            except:
+                pass
+            else:
+                raise Exception
 
 
     @unittest.skip
