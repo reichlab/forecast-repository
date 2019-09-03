@@ -139,7 +139,7 @@ def load_cdc_csv_forecast_file(forecast_model, cdc_csv_file_path, time_zero):
 
     cdc_csv_file_path = Path(cdc_csv_file_path)
     file_name = cdc_csv_file_path.name
-    new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, csv_filename=file_name)
+    new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=file_name)
     with open(cdc_csv_file_path) as cdc_csv_file_fp:
         json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_file_fp)
         load_predictions_from_json_io_dict(new_forecast, json_io_dict)

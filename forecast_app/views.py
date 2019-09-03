@@ -496,7 +496,8 @@ def create_project(request):
         Project, Location, fields=('name',), extra=3,
         widgets={'name': forms.TextInput()})
     TargetInlineFormSet = forms.inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment'),
+        Project, Target, fields=('name', 'description', 'unit', 'point_value_type', 'is_date', 'is_step_ahead',
+                                 'step_ahead_increment'),
         extra=3, widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
     TimeZeroInlineFormSet = forms.inlineformset_factory(
         Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,
@@ -1037,7 +1038,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == data_file.name):
+    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.source == data_file.name):
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
                                'message': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
@@ -1074,7 +1075,7 @@ def process_upload_file_job__forecast(upload_file_job_pk):
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
         with transaction.atomic():
             new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
-                                                   csv_filename=upload_file_job.filename)
+                                                   source=upload_file_job.filename)
             json_io_dict = json.load(cloud_file_fp)
             load_predictions_from_json_io_dict(new_forecast, json_io_dict)
             upload_file_job.output_json = {'forecast_pk': new_forecast.pk}

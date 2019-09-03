@@ -726,6 +726,18 @@ class Target(models.Model):
         return basic_str(self)
 
 
+    def point_value_type_str(self):
+        """
+        :return: a human-readable string for my point_value_type
+        """
+        for db_value, human_readable_value in Target.POINT_VALUE_TYPE_CHOICES:
+            if db_value == self.point_value_type:
+                return human_readable_value
+
+        return f'(unknown point_value_type: {self.point_value_type}. ' \
+            f'Target.POINT_VALUE_TYPE_CHOICES={Target.POINT_VALUE_TYPE_CHOICES})'
+
+
     def ok_distributions_str(self):
         """
         :return: a string that includes abbreviations for all acceptable ("OK") distribution classes based on my

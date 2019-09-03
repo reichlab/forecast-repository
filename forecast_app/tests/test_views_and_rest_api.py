@@ -405,13 +405,13 @@ class ViewsTestCase(TestCase):
         # 'api-forecast-list' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
-        exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
         self.assertEqual(1, len(response_dicts))
         self.assertEqual(exp_keys, list(response_dicts[0]))
 
         # 'api-forecast-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
-        exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
         self.assertEqual(exp_keys, list(response.data))
 
         # 'api-forecast-data' - a django.http.response.JsonResponse:

@@ -13,7 +13,7 @@ class Forecast(models.Model):
 
     forecast_model = models.ForeignKey(ForecastModel, related_name='forecasts', on_delete=models.CASCADE)
 
-    csv_filename = models.TextField(help_text="file name of the source of this forecast's prediction data")
+    source = models.TextField(help_text="file name of the source of this forecast's prediction data")
 
     # NB: these TimeZeros must be the exact objects as the ones in my ForecastModel's Project, b/c there is no __eq__()
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE,
@@ -24,7 +24,7 @@ class Forecast(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.csv_filename))
+        return str((self.pk, self.time_zero, self.source))
 
 
     def __str__(self):  # todo
@@ -55,7 +55,7 @@ class Forecast(models.Model):
         We define the name property so that delete_modal_snippet.html can show something identifiable when asking to
         confirm deleting a Forecast. All other deletable models have 'name' fields (Project and ForecastModel).
         """
-        return self.csv_filename
+        return self.source
 
 
     def is_user_ok_to_delete(self, user):

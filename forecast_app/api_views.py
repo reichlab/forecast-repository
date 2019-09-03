@@ -341,7 +341,7 @@ def json_response_for_forecast(request, forecast):
     #   return Response(JSONRenderer().render(location_dicts))
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
     response = JsonResponse(json_io_dict_from_forecast(forecast))  # defaults to 'content_type' 'application/json'
-    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(forecast.csv_filename)
+    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(get_valid_filename(forecast.source))
     return response
 
 

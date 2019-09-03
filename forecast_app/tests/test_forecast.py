@@ -48,7 +48,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(1, len(self.forecast_model.forecasts.all()))
 
         self.assertIsInstance(self.forecast, Forecast)
-        self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.csv_filename)
+        self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.source)
         self.assertEqual(8019, self.forecast.get_num_rows())  # excluding header
 
         # spot-check a few point rows

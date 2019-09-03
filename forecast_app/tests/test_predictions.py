@@ -31,7 +31,7 @@ class PredictionsTestCase(TestCase):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         cls.cdc_csv_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
-        cls.forecast = Forecast.objects.create(forecast_model=cls.forecast_model, csv_filename=cls.cdc_csv_path.name,
+        cls.forecast = Forecast.objects.create(forecast_model=cls.forecast_model, source=cls.cdc_csv_path.name,
                                                time_zero=cls.time_zero)
 
 
@@ -59,6 +59,11 @@ class PredictionsTestCase(TestCase):
 
 
     def test_load_predictions_from_json_io_dict(self):
+        # test json with no 'predictions'
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {})
+        self.assertIn("json_io_dict had no 'predictions' key", str(context.exception))
+
         # load all seven types of Predictions, call Forecast.*_qs() functions
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             json_io_dict = json.load(fp)

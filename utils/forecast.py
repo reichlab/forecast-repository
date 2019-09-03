@@ -23,7 +23,7 @@ from utils.utilities import YYYYMMDD_DATE_FORMAT
 #
 # Briefly, the dict has four top level keys:
 #
-# - forecast: a metadata dict about the file's forecast. has these keys: 'id', 'forecast_model_id', 'csv_filename',
+# - forecast: a metadata dict about the file's forecast. has these keys: 'id', 'forecast_model_id', 'source',
 #   'created_at', and 'time_zero'. Some or all of these keys might be ignored by functions that accept a JSON IO dict.
 #
 # - locations: a list of "location dicts", each of which has just a 'name' key whose value is the name of a location
@@ -233,7 +233,7 @@ def _forecast_dict_for_forecast(forecast):
     """
     return {"id": forecast.pk,
             "forecast_model_id": forecast.forecast_model.pk,
-            "csv_filename": forecast.csv_filename,
+            "source": forecast.source,
             "created_at": forecast.created_at.isoformat(),
             "time_zero": {
                 "timezero_date": forecast.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
@@ -270,6 +270,9 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict):
     :param json_io_dict a "JSON IO dict" to load from. see docs for details
     """
     # validate predictions, convert them to class-specific quickly-loadable rows, and then load them by class
+    if 'predictions' not in json_io_dict:
+        raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
+
     prediction_dicts = json_io_dict['predictions']
     bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
         _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
