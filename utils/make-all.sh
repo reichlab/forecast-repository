@@ -5,7 +5,8 @@ python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_minimal_proje
 
 echo "#### make_thai_moph_project.py"
 time python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_thai_moph_project.py \
-    /Users/cornell/IdeaProjects/moph-forecast-files
+    /Users/cornell/IdeaProjects/moph-forecast-files \
+    /Users/cornell/IdeaProjects/forecast-repository/utils/dengue-truth-table-script/truths.csv
 
 echo "#### make_cdc_flu_contests_project.py"
 time python3 /Users/cornell/IdeaProjects/forecast-repository/utils/make_cdc_flu_contests_project.py \

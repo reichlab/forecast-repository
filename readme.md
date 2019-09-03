@@ -6,6 +6,10 @@ for a more detailed description. The internal [reichlab Slack](https://reichlab.
 https://github.com/reichlab/forecast-repository .
 
 
+# Python version
+Zoltar requires Python 3.6 or higher.
+
+
 # Email-based notification requirements
 Zoltar uses [Anymail](https://github.com/anymail/django-anymail) to abstract access to the transactional email server
 that's used for notifications. (Currently we only have notifications about file uploads.) Anymail can be used for a

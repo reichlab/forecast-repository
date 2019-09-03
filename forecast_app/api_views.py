@@ -24,9 +24,10 @@ from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreVa
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TemplateSerializer, TruthSerializer, UploadFileJobSerializer
+    TruthSerializer, UploadFileJobSerializer
 from utils.cloud_file import download_file
-from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
+from utils.forecast import json_io_dict_from_forecast
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -130,13 +131,13 @@ class ForecastModelForecastList(ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         """
         Handles uploading a new Forecast to this ForecastModel. POST form fields:
-        - 'data_file' (required): The data file to upload. NB: 'data_file'is our naming convention. it's used here and
-            in views.upload_template(). it could be renamed. if multiple files, just uses the first one.
+        - 'data_file' (required): The data file to upload. NB: 'data_file'is our naming convention. it could be renamed.
+            if multiple files, just uses the first one.
         - 'timezero_date' (required): The TimeZero.timezero_date to use to look up the TimeZero to associate with the
             upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. The TimeZero will be created if one
             corresponding to 'timezero_date' isn't found.
         - data_version_date (optional): To be used for the newly-created TimeZero corresponding to 'timezero_date', if
-          it didn't exist
+            it didn't exist
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
@@ -236,17 +237,6 @@ class ForecastDetail(RetrieveDestroyAPIView):
         return response
 
 
-class TemplateDetail(UserPassesTestMixin, generics.RetrieveAPIView):
-    queryset = Project.objects.all()
-    serializer_class = TemplateSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
-
-
-    def test_func(self):  # return True if the current user can access the view
-        project = self.get_object()
-        return project.is_user_ok_to_view(self.request.user)
-
-
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TruthSerializer
@@ -275,108 +265,9 @@ def truth_data(request, project_pk):
     return csv_response_for_project_truth_data(project)
 
 
-#
-# Score data-related views
-#
-
-@api_view(['GET'])
-@renderer_classes((BrowsableAPIRenderer, CSVRenderer))
-def score_data(request, project_pk):
-    """
-    :return: the Project's score data as CSV
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
-
-    if project.score_csv_file_cache.is_file_exists():
-        return csv_response_for_cached_project_score_data(project)
-    else:
-        return csv_response_for_project_score_data(project)
-
-
-#
-# Template and forecast data-related views
-#
-
-@api_view(['GET'])
-@renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
-def template_data(request, project_pk):
-    """
-    :return: the Project's template data as JSON or CSV. note that the actual data is wrapped by metadata
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
-
-    # dispatch based on requested format. I tried a number of things to get DRF to pass a 'format' param, but didn't
-    # succeed. What worked was to install the https://github.com/mjumbewu/django-rest-framework-csv custom CSV renderer
-    # http://www.django-rest-framework.org/api-guide/renderers/#csv , and then decorate these two view-based functions
-    if ('format' in request.query_params) and (request.query_params['format'] == 'csv'):
-        return csv_response_for_model_with_cdc_data(project)
-    else:
-        return json_response_for_model_with_cdc_data(request, project)
-
-
-@api_view(['GET'])
-@renderer_classes((JSONRenderer, BrowsableAPIRenderer, CSVRenderer))
-def forecast_data(request, forecast_pk):
-    """
-    :return: the Project's template data as JSON or CSV. note that the actual data is wrapped by metadata
-    """
-    forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
-        return HttpResponseForbidden()
-
-    # dispatch based on requested format. see note in template_data() re: getting this via a 'format' param
-    if ('format' in request.query_params) and (request.query_params['format'] == 'csv'):
-        return csv_response_for_model_with_cdc_data(forecast)
-    else:
-        return json_response_for_model_with_cdc_data(request, forecast)
-
-
-def json_response_for_model_with_cdc_data(request, model_with_cdc_data):
-    """
-    :return: a JsonResponse for model_with_cdc_data
-    """
-    # note: I tried to use a rest_framework.response.Response, which is supposed to support pretty printing on the
-    # client side via something like:
-    #   curl -H 'Accept: application/json; indent=4' http://127.0.0.p1:8000/api/project/1/template_data/
-    # but when I tried this, returned a delimited string instead of JSON:
-    #   return Response(JSONRenderer().render(location_dicts))
-    # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
-    from forecast_app.serializers import ProjectSerializer, ForecastSerializer  # avoid circular imports
-
-
-    detail_serializer_class = ProjectSerializer if isinstance(model_with_cdc_data, Project) else ForecastSerializer
-    detail_serializer = detail_serializer_class(model_with_cdc_data, context={'request': request})
-    metadata_dict = detail_serializer.data
-    location_dicts = model_with_cdc_data.get_location_dicts_download_format()
-    response = JsonResponse({'metadata': metadata_dict,
-                             'locations': location_dicts})  # defaults to 'content_type' 'application/json'
-    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(model_with_cdc_data.csv_filename)
-    return response
-
-
-def csv_response_for_model_with_cdc_data(model_with_cdc_data):
-    """
-    Similar to json_response_for_model_with_cdc_data(), but returns a response with model_with_cdc_data's data formatted
-    as CSV.
-    """
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(model_with_cdc_data.csv_filename)
-
-    writer = csv.writer(response)
-    writer.writerow(CDC_CSV_HEADER)
-    for row in model_with_cdc_data.get_data_rows(is_order_by_pk=True):  # calls transform_row_to_output_format()
-        writer.writerow(row)
-
-    return response
-
-
 def csv_response_for_project_truth_data(project):
     """
-    Similar to json_response_for_model_with_cdc_data(), but returns a response with project's truth data formatted as
+    Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
     CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
     to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
     filename to hopefully hint at what's going on.
@@ -399,6 +290,58 @@ def csv_response_for_project_truth_data(project):
         timezero_date = timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
         writer.writerow([timezero_date, location_name, target_name, value])
 
+    return response
+
+
+#
+# Score data-related views
+#
+
+@api_view(['GET'])
+@renderer_classes((BrowsableAPIRenderer, CSVRenderer))
+def score_data(request, project_pk):
+    """
+    :return: the Project's score data as CSV
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_ok_to_view(request.user):
+        return HttpResponseForbidden()
+
+    if project.score_csv_file_cache.is_file_exists():
+        return csv_response_for_cached_project_score_data(project)
+    else:
+        return csv_response_for_project_score_data(project)
+
+
+#
+# Forecast data-related views
+#
+
+@api_view(['GET'])
+@renderer_classes((JSONRenderer, BrowsableAPIRenderer))
+def forecast_data(request, forecast_pk):
+    """
+    :return: a Forecast's data as JSON - see load_predictions_from_json_io_dict() for the format
+    """
+    forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
+        return HttpResponseForbidden()
+
+    return json_response_for_forecast(request, forecast)
+
+
+def json_response_for_forecast(request, forecast):
+    """
+    :return: a JsonResponse for forecast
+    """
+    # note: I tried to use a rest_framework.response.Response, which is supposed to support pretty printing on the
+    # client side via something like:
+    #   curl -H 'Accept: application/json; indent=4' http://127.0.0.p1:8000/api/project/1/template_data/
+    # but when I tried this, returned a delimited string instead of JSON:
+    #   return Response(JSONRenderer().render(location_dicts))
+    # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
+    response = JsonResponse(json_io_dict_from_forecast(forecast))  # defaults to 'content_type' 'application/json'
+    response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(get_valid_filename(forecast.source))
     return response
 
 

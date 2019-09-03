@@ -13,9 +13,9 @@ from rest_framework.test import APIClient
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users, \
-    CDC_CONFIG_DICT
-from utils.utilities import CDC_CSV_HEADER, YYYYMMDD_DATE_FORMAT
+from utils.cdc import load_cdc_csv_forecast_file, CDC_CSV_HEADER
+from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 # todo has no affect on errors like:
@@ -37,15 +37,13 @@ class ViewsTestCase(TestCase):
     def setUpTestData(cls):
         # users
         cls.superuser, cls.superuser_password, cls.po_user, cls.po_user_password, cls.mo_user, cls.mo_user_password \
-            = get_or_create_super_po_mo_users(create_super=True)
+            = get_or_create_super_po_mo_users(is_create_super=True)
 
         # public_project
-        cls.public_project = Project.objects.create(name='public project name', is_public=True,
-                                                    owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
+        cls.public_project = Project.objects.create(name='public project name', is_public=True, owner=cls.po_user)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
         make_cdc_locations_and_targets(cls.public_project)
-        cls.public_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
 
         TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
         cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
@@ -58,12 +56,10 @@ class ViewsTestCase(TestCase):
         cls.upload_file_job = UploadFileJob.objects.create(user=cls.po_user)
 
         # private_project
-        cls.private_project = Project.objects.create(name='private project name', is_public=False,
-                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
+        cls.private_project = Project.objects.create(name='private project name', is_public=False, owner=cls.po_user)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
         make_cdc_locations_and_targets(cls.private_project)
-        cls.private_project.load_template(Path('forecast_app/tests/2016-2017_submission_template.csv'))
         cls.private_tz1 = TimeZero.objects.create(project=cls.private_project,
                                                   timezero_date=datetime.date(2017, 12, 3),
                                                   data_version_date=None)
@@ -71,9 +67,7 @@ class ViewsTestCase(TestCase):
                                                   timezero_date=datetime.date(2017, 12, 4),
                                                   data_version_date=None)
 
-        # public project with no template
-        cls.public_project2 = Project.objects.create(name='public project 2', is_public=True,
-                                                     owner=cls.po_user, config_dict=CDC_CONFIG_DICT)
+        cls.public_project2 = Project.objects.create(name='public project 2', is_public=True, owner=cls.po_user)
         cls.public_project2.model_owners.add(cls.mo_user)
         cls.public_project2.save()
 
@@ -82,23 +76,19 @@ class ViewsTestCase(TestCase):
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
                                                         description='', home_url='http://example.com',
                                                         owner=cls.mo_user)
-        cls.public_forecast = cls.public_model.load_forecast(cls.csv_file_path, cls.public_tz1)
+        cls.public_forecast = load_cdc_csv_forecast_file(cls.public_model, cls.csv_file_path, cls.public_tz1)
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          description='', home_url='http://example.com',
                                                          owner=cls.mo_user)
-        cls.private_forecast = cls.private_model.load_forecast(cls.csv_file_path, cls.private_tz1)
+        cls.private_forecast = load_cdc_csv_forecast_file(cls.private_model, cls.csv_file_path, cls.private_tz1)
 
         # user/response pairs for testing authorization
         cls.OK_ALL = [(None, status.HTTP_200_OK),
                       (cls.po_user, status.HTTP_200_OK),
                       (cls.mo_user, status.HTTP_200_OK),
                       (cls.superuser, status.HTTP_200_OK)]
-        cls.BAD_REQ_400_ALL = [(None, status.HTTP_400_BAD_REQUEST),
-                               (cls.po_user, status.HTTP_400_BAD_REQUEST),
-                               (cls.mo_user, status.HTTP_400_BAD_REQUEST),
-                               (cls.superuser, status.HTTP_400_BAD_REQUEST)]
         cls.ONLY_PO_MO = [(None, status.HTTP_403_FORBIDDEN),
                           (cls.po_user, status.HTTP_200_OK),
                           (cls.mo_user, status.HTTP_200_OK),
@@ -107,10 +97,6 @@ class ViewsTestCase(TestCase):
                               (cls.po_user, status.HTTP_302_FOUND),
                               (cls.mo_user, status.HTTP_302_FOUND),
                               (cls.superuser, status.HTTP_302_FOUND)]
-        cls.ONLY_PO_MO_400 = [(None, status.HTTP_403_FORBIDDEN),
-                              (cls.po_user, status.HTTP_400_BAD_REQUEST),
-                              (cls.mo_user, status.HTTP_400_BAD_REQUEST),
-                              (cls.superuser, status.HTTP_400_BAD_REQUEST)]
         cls.ONLY_PO = [(None, status.HTTP_403_FORBIDDEN),
                        (cls.po_user, status.HTTP_200_OK),
                        (cls.mo_user, status.HTTP_403_FORBIDDEN),
@@ -130,14 +116,13 @@ class ViewsTestCase(TestCase):
 
 
     @patch('forecast_app.models.forecast.Forecast.delete')  # 'delete-forecast'
-    @patch('forecast_app.models.forecast_model.ForecastModel.load_forecast')  # 'upload_forecast'
     # 'create-project' -> form
     # 'edit-project' -> form
     @patch('forecast_app.models.project.Project.delete')  # 'delete-project'
     # 'create-model' -> form
     # 'edit-model' -> form
     @patch('forecast_app.models.forecast_model.ForecastModel.delete')  # 'delete-model'
-    def test_url_access(self, mock_delete_model, mock_delete_project, mock_load_forecast, mock_delete_forecast):
+    def test_url_access(self, mock_delete_model, mock_delete_project, mock_delete_forecast):
         url_to_exp_user_status_code_pairs = {
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
@@ -175,15 +160,6 @@ class ViewsTestCase(TestCase):
             reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
             reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
 
-            reverse('template-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('template-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('delete-template', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
-            reverse('delete-template', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
-            reverse('upload-template', args=[str(self.public_project.pk)]): self.ONLY_PO,
-            reverse('upload-template', args=[str(self.private_project.pk)]): self.ONLY_PO,
-            reverse('download-template', args=[str(self.public_project.pk)]): self.BAD_REQ_400_ALL,
-            reverse('download-template', args=[str(self.private_project.pk)]): self.ONLY_PO_MO_400,
-
             reverse('truth-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('truth-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('delete-truth', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
@@ -208,18 +184,12 @@ class ViewsTestCase(TestCase):
             reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
             reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
             reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
-            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
-            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
-
-            reverse('forecast-sparkline', args=[str(self.public_forecast.pk)]): self.BAD_REQ_400_ALL,
-            reverse('forecast-sparkline', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_400,
+            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.OK_ALL,
+            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
         }
 
-        # NB: re: 'forecast-sparkline' URIs: 1) BAD_REQ_400 is expected b/c we don't pass the correct query params.
-        # however, 400 does indicate that the code passed the authorization portion. 2) the 'data' arg is only for the
-        # two 'forecast-sparkline' cases, but it doesn't hurt to pass it for all cases, so we do b/c it's simpler :-)
-        # Similarly, 'download-template' and 'download-forecast' also return BAD_REQ_400 b/c they expect a POST
-        # with a 'format' parameter.
+        # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
+        # the correct query params. however, 400 does indicate that the code passed the authorization portion
         for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
             for user, exp_status_code in user_exp_status_code_list:
                 self.client.logout()  # AnonymousUser
@@ -280,7 +250,7 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, True),
                      (self.superuser, True)],
             },
-            # project detail - public_project (has template and truth)
+            # project detail - public_project (has truth)
             reverse('project-detail', args=[str(self.public_project.pk)]): {
                 reverse('edit-project', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
@@ -295,20 +265,9 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, True),
                      (self.superuser, True)],
             },
-            # project detail - public_project2 (no template or truth)
+            # project detail - public_project2 (no truth)
             reverse('project-detail', args=[str(self.public_project2.pk)]): {
-                reverse('upload-template', args=[str(self.public_project2.pk)]):  # no template -> upload link
-                    [(self.po_user, True),
-                     (self.mo_user, False),
-                     (self.superuser, True)],
                 reverse('upload-truth', args=[str(self.public_project2.pk)]):  # no truth -> upload link
-                    [(self.po_user, True),
-                     (self.mo_user, False),
-                     (self.superuser, True)],
-            },
-            # template data detail - public_project (has template and truth)
-            reverse('template-data-detail', args=[str(self.public_project.pk)]): {
-                reverse('delete-template', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True)],
@@ -319,7 +278,7 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, False),
                      (self.superuser, True)],
             },
-            # user detail - public_project (has template and truth)
+            # user detail - public_project (has truth)
             reverse('user-detail', args=[str(self.po_user.pk)]): {
                 reverse('edit-user', args=[str(self.po_user.pk)]):
                     [(self.po_user, True),
@@ -351,8 +310,7 @@ class ViewsTestCase(TestCase):
         jwt_auth_url = reverse('auth-jwt-get')
 
         # test invalid user
-        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': 'badpass'},
-                                format='json')
+        resp = self.client.post(jwt_auth_url, {'username': self.po_user.username, 'password': 'badpass'}, format='json')
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
         # test valid user: self.po_user, self.po_user_password
@@ -370,10 +328,6 @@ class ViewsTestCase(TestCase):
             reverse('api-project-list'): self.OK_ALL,
             reverse('api-project-detail', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-template-detail', args=[self.public_project.pk]): self.OK_ALL,
-            reverse('api-template-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-template-data', args=[self.public_project.pk]): self.OK_ALL,
-            reverse('api-template-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-score-data', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
@@ -419,97 +373,54 @@ class ViewsTestCase(TestCase):
         """
         Tests returned value keys as a content sanity check.
         """
-        # 'api-root'
-        # a rest_framework.response.Response:
+        # 'api-root' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-root'), format='json')
-        self.assertEqual(['projects'], list(response.data.keys()))
+        self.assertEqual(['projects'], list(response.data))
 
-        # 'api-project-list' - per-user authorization tested in test_api_project_list_authorization()
-        # a rest_framework.utils.serializer_helpers.ReturnList:
+        # 'api-project-list' - a rest_framework.utils.serializer_helpers.ReturnList:
+        #  (per-user authorization tested in test_api_project_list_authorization())
         response = self.client.get(reverse('api-project-list'), format='json')
         self.assertEqual(2, len(response.data))
 
-        # 'api-project-detail'
-        # a rest_framework.utils.serializer_helpers.ReturnDict:
+        # 'api-project-detail' - a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
-        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'config_dict',
-                    'template', 'truth', 'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
+                    'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
+        self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-template-detail'
-        # a rest_framework.response.Response:
-        response = self.client.get(reverse('api-template-detail', args=[self.public_project.pk]), format='json')
-        exp_keys = ['id', 'url', 'project', 'csv_filename', 'template_data']
-        self.assertEqual(exp_keys, list(response.data.keys()))
-
-        # 'api-template-data'
-        # a django.http.response.JsonResponse:
-        response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]), format='json')
-        response_dict = json.loads(response.content)
-
-        # check top-level keys
-        exp_keys = ['metadata', 'locations']
-        self.assertEqual(exp_keys, list(response_dict.keys()))
-
-        # check metadata
-        proj_detail_resp = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
-        proj_detail_dict = json.loads(proj_detail_resp.content)
-        self.assertEqual(proj_detail_dict, response_dict['metadata'])
-
-        # check data keys
-        exp_locations = ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
-                         'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National']
-        self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
-
-        # 'api-user-detail'
-        # a rest_framework.response.Response:
-        # o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data':
+        # 'api-user-detail' - a rest_framework.response.Response:
+        # (o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data')
         self.client.login(username=self.po_user.username, password=self.po_user_password)
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
         exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
         self.client.logout()  # AnonymousUser
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-model-detail'
-        # a rest_framework.response.Response
+        # 'api-model-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
                     'forecasts']
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-forecast-list'
-        # a rest_framework.response.Response:
+        # 'api-forecast-list' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
-        exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
         self.assertEqual(1, len(response_dicts))
-        self.assertEqual(exp_keys, list(response_dicts[0].keys()))
+        self.assertEqual(exp_keys, list(response_dicts[0]))
 
-        # 'api-forecast-detail'
-        # a rest_framework.response.Response:
+        # 'api-forecast-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
-        exp_keys = ['id', 'url', 'forecast_model', 'csv_filename', 'time_zero', 'forecast_data']
-        self.assertEqual(exp_keys, list(response.data.keys()))
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
+        self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-forecast-data'
-        # a django.http.response.JsonResponse:
+        # 'api-forecast-data' - a django.http.response.JsonResponse:
+        # (note that we only check top-level keys b/c we know json_response_for_forecast() uses
+        # json_io_dict_from_forecast(), which is tested separately)
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]), format='json')
         response_dict = json.loads(response.content)
-
-        # check top-level keys
-        exp_keys = ['metadata', 'locations']
-        self.assertEqual(exp_keys, list(response_dict.keys()))
-
-        # check metadata
-        forecast_detail_resp = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]),
-                                               format='json')
-        forecast_detail_dict = json.loads(forecast_detail_resp.content)
-        self.assertEqual(forecast_detail_dict, response_dict['metadata'])
-
-        # check data keys
-        exp_locations = ['HHS Region 1', 'HHS Region 2', 'HHS Region 3', 'HHS Region 4', 'HHS Region 5', 'HHS Region 6',
-                         'HHS Region 7', 'HHS Region 8', 'HHS Region 9', 'HHS Region 10', 'US National']
-        self.assertEqual(exp_locations, [location['name'] for location in response_dict['locations']])
+        self.assertEqual({'meta', 'predictions'}, set(response_dict))
+        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
 
 
     def test_api_delete_endpoints(self):
@@ -522,7 +433,7 @@ class ViewsTestCase(TestCase):
         self.authenticate_jwt_user(self.mo_user)
         self.assertEqual(1, self.private_model.forecasts.count())
 
-        private_forecast2 = self.private_model.load_forecast(self.csv_file_path, self.private_tz1)
+        private_forecast2 = load_cdc_csv_forecast_file(self.private_model, self.csv_file_path, self.private_tz1)
         private_forecast2_pk = private_forecast2.pk
         self.assertEqual(2, self.private_model.forecasts.count())
 
@@ -534,48 +445,17 @@ class ViewsTestCase(TestCase):
 
     def test_data_download_formats(self):
         """
-        Test template_data() and forecast_data().
+        Test forecast_data().
         """
-        # template data as CSV. a django.http.response.HttpResponse:
-        response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]),
-                                   data={'format': 'csv'})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="2016-2017_submission_template.csv"')
-        split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
-        self.assertEqual(len(split_content), 8021)
-
-        # template data as JSON. a django.http.response.JsonResponse:
-        response = self.client.get(reverse('api-template-data', args=[self.public_project.pk]),
-                                   data={'format': 'json'})
-        response_dict = json.loads(response.content)  # will fail if not JSON. following are little sanity-checks
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "application/json")
-        self.assertEqual(response['Content-Disposition'],
-                         'attachment; filename="2016-2017_submission_template.csv.json"')
-        self.assertEqual(list(response_dict), ['metadata', 'locations'])
-        self.assertEqual(len(response_dict['locations']), 11)
-
-        # forecast data as CSV. a django.http.response.HttpResponse:
-        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
-                                   data={'format': 'csv'})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv"')
-        split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(split_content[0], ','.join(CDC_CSV_HEADER))
-        self.assertEqual(len(split_content), 5239)  # 8021 rows - 2782 bin=0 rows 5239
-
         # forecast data as JSON. a django.http.response.JsonResponse:
-        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]),
-                                   data={'format': 'json'})
+        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
         response_dict = json.loads(response.content)  # will fail if not JSON
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], "application/json")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
-        self.assertEqual(list(response_dict), ['metadata', 'locations'])
-        self.assertEqual(len(response_dict['locations']), 11)
+        self.assertEqual({'meta', 'predictions'}, set(response_dict))
+        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
+        self.assertEqual(11, len(response_dict['meta']['locations']))
 
         # score data as CSV. a django.http.response.HttpResponse
         response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
@@ -696,8 +576,7 @@ class ViewsTestCase(TestCase):
             else self.mo_user_password if user == self.mo_user \
             else self.superuser_password
         jwt_auth_url = reverse('auth-jwt-get')
-        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password},
-                                         format='json')
+        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password}, format='json')
         jwt_token = jwt_auth_resp.data['token']
         self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
         return jwt_token

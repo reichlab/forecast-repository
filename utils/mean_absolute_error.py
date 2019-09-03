@@ -37,7 +37,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     The second tuple - `target_to_min_mae` - is a dict that maps: {target: minimum_mae). It is ([], {}) if the project
     does not have appropriate target_names defined in its configuration. NB: assumes all of project's models have the
-    same target_names - something that is validated by ForecastModel.load_forecast()
+    same target_names
     """
     targets = project.non_date_targets()  # order_by('name')
     if not targets:
@@ -108,7 +108,7 @@ def _score_value_rows_for_season(project, season_name):
         raise RuntimeError('no score values for project')
 
     # rows are ordered so we can groupby()
-    # todo xx use meta for column names, e.g., self.cdc_data_class._meta.get_field('location').column
+    # todo xx use meta for column names
     sql_select = """
         SELECT sv.location_id, model.id, sv.target_id, avg(sv.value)
         FROM {scorevalue_table_name} as sv

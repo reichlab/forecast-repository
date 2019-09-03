@@ -5,21 +5,20 @@ import time
 
 import django_rq
 import redis
-from PIL import Image, ImageDraw
 from django import db
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models import Count
-from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
-from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate
+from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
+    Prediction
 from forecast_app.models.project import Target, Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
@@ -27,7 +26,7 @@ from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_c
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
-from utils.make_cdc_flu_contests_project import CDC_CONFIG_DICT
+from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 
 
@@ -277,7 +276,7 @@ def project_visualizations(request, project_pk):
                  'location_to_actual_points': json.dumps(location_to_actual_points),
                  'location_to_max_val': json.dumps(location_to_max_val),
                  'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
-                 'y_axis_label': project.visualization_y_label()})
+                 'y_axis_label': project.visualization_y_label})
 
 
 def _location_to_actual_points(loc_tz_date_to_actual_vals):
@@ -442,7 +441,7 @@ def _model_score_count_rows_for_project(project):
     """
     :return list of rows summarizing score information for project
     """
-    # todo xx use meta for column names, e.g., self.cdc_data_class._meta.get_field('location').column
+    # todo xx use meta for column names
     sql = """
         SELECT fm.id, sv.score_id, count(fm.id)
         FROM {scorevalue_table_name} AS sv
@@ -497,14 +496,15 @@ def create_project(request):
         Project, Location, fields=('name',), extra=3,
         widgets={'name': forms.TextInput()})
     TargetInlineFormSet = forms.inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment'),
+        Project, Target, fields=('name', 'description', 'unit', 'point_value_type', 'is_date', 'is_step_ahead',
+                                 'step_ahead_increment'),
         extra=3, widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
     TimeZeroInlineFormSet = forms.inlineformset_factory(
         Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,
         widgets={'timezero_date': forms.TextInput(), 'data_version_date': forms.TextInput(),
                  'season_name': forms.TextInput()})
 
-    new_project = Project(owner=request.user, config_dict=CDC_CONFIG_DICT)
+    new_project = Project(owner=request.user)
 
     location_formset = LocationInlineFormSet(instance=new_project)
     target_formset = TargetInlineFormSet(instance=new_project)
@@ -750,14 +750,10 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     def get_context_data(self, **kwargs):
         project = self.get_object()
 
-        config_dict_pretty = json.dumps(project.config_dict, indent=1)
-        config_dict_pretty.replace('\n', '<br>')
-
         context = super().get_context_data(**kwargs)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
-        context['config_dict_pretty'] = config_dict_pretty
         context['locations'] = project.locations.all().order_by('name')
         context['targets'] = project.targets.all().order_by('name')
         return context
@@ -871,6 +867,17 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        forecast = self.get_object()
+        pred_type_count_pairs = [
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[concrete_prediction_class],
+             concrete_prediction_class.objects.filter(forecast=forecast).count())
+            for concrete_prediction_class in Prediction.concrete_subclasses()]
+        context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
+        return context
+
+
 class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
     model = UploadFileJob
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -887,182 +894,23 @@ class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
 # ---- download-related functions ----
 #
 
-def download_file_for_model_with_cdc_data(request, model_with_cdc_data_pk, **kwargs):
+def download_forecast(request, forecast_pk):
     """
-    Returns a response containing a CSV or JSON file for a ModelWithCDCData's (Project or Forecast) data.
+    Returns a response containing a JSON file for a Forecast's data.
     Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
         model's owner.
 
-    :param request: must be a POST with a 'format' key that's either 'csv' or 'json' - see the calling forms
-    :param model_with_cdc_data_pk: pk of either a Project or Forecast - disambiguated by kwargs['type']
-    :param kwargs: has a single 'type' key that's either 'project' or 'forecast', which determines what
-        model_with_cdc_data_pk refers to
-    :return: response for the CSV or JSON format of the passed ModelWithCDCData's data
-    """
-    is_project = kwargs['type'] == 'project'
-    if is_project:
-        model_with_cdc_data_class = Project
-    elif kwargs['type'] == 'forecast':
-        model_with_cdc_data_class = Forecast
-    else:
-        raise RuntimeError("Invalid kwargs: {}".format(kwargs))
-
-    model_with_cdc_data = get_object_or_404(model_with_cdc_data_class, pk=model_with_cdc_data_pk)
-    project = model_with_cdc_data if is_project else model_with_cdc_data.forecast_model.project
-    if not project.is_user_ok_to_view(request.user):
-        raise PermissionDenied
-
-    # validate download format
-    if ('format' not in request.POST) or (request.POST['format'] not in ['csv', 'json']):
-        return HttpResponseBadRequest()
-
-    # set the HttpResponse based on download type. avoid circular imports:
-    from forecast_app.api_views import csv_response_for_model_with_cdc_data, json_response_for_model_with_cdc_data
-
-
-    return csv_response_for_model_with_cdc_data(model_with_cdc_data) if request.POST['format'] == 'csv' \
-        else json_response_for_model_with_cdc_data(request, model_with_cdc_data)
-
-
-#
-# ---- Sparkline-related functions ----
-#
-
-def forecast_sparkline_bin_for_loc_and_target(request, forecast_pk):
-    """
-    :param request: A GET that must contain two query parameters: 'location': a valid location in forecast_pk's data,
-        and 'target', a valid target ""
-    :param forecast_pk
-    :return: a small image that is a sparkline for the passed bin
+    :return: response for the JSON format of the passed Forecast's data
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     project = forecast.forecast_model.project
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    # validate query parameters
-    location = request.GET['location'] if 'location' in request.GET else None
-    target = request.GET['target'] if 'target' in request.GET else None
-    if (not location) or (not target):
-        return HttpResponseBadRequest("one or both of the two required query parameters was not passed. location={}, "
-                                      "target={}".format(location, target))
-
-    # validate location and target
-    location_names = project.locations.all().values_list('name', flat=True)
-    targets = project.get_target_names_for_location(location)
-    if (location not in location_names) or (target not in targets):
-        return HttpResponseBadRequest("invalid target or location for project. project={}, location={}, locations={}, "
-                                      "target={}, targets={}"
-                                      .format(project, location, location_names, target, targets))
-
-    rescaled_vals_from_forecast = forecast.rescaled_bin_for_loc_and_target(location, target)
-
-    # limit the length so the image is not too wide - 30 is magic. NB: first items may not be characteristic at all:
-    image = plot_sparkline(rescaled_vals_from_forecast[:30])
-
-    response = HttpResponse(content_type='image/png')
-    image.save(response, 'png')
-    return response
+    from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
 
-def plot_sparkline(normalized_values):
-    """
-    from: https://bitworking.org/news/2005/04/Sparklines_in_data_URIs_in_Python
-
-    :param normalized_values: a list of numbers scaled to between 0 and 100
-    :return a sparkline .png image for the passed data. Values greater than 95 are displayed in red, otherwise they are
-        displayed in green
-    """
-    image = Image.new("RGB", (len(normalized_values) * 2, 15), 'white')
-    draw = ImageDraw.Draw(image)
-    for (r, i) in zip(normalized_values, range(0, len(normalized_values) * 2, 2)):
-        color = (r > 50) and "red" or "gray"
-        draw.line((i, image.size[1] - r / 10 - 4, i, (image.size[1] - r / 10)), fill=color)
-    del draw
-    return image
-
-
-#
-# ---- Template-related views ----
-#
-
-def template_detail(request, project_pk):
-    """
-    View function to render a preview of a Project's template.
-    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
-        raise PermissionDenied
-
-    return render(
-        request,
-        'template_data_detail.html',
-        context={'project': project,
-                 'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
-
-
-def delete_template(request, project_pk):
-    """
-    Does the actual deletion of template data. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be a superuser or the Project's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
-
-    project.delete_template()
-    return redirect('project-detail', pk=project_pk)
-
-
-def upload_template(request, project_pk):
-    """
-    Uploads the passed data into a the project's template.
-    Authorization: The logged-in user must be a superuser or the Project's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
-
-    if project.is_template_loaded():
-        return render(request, 'message.html',
-                      context={'title': "Template already exists.",
-                               'message': "The project already has a template. Please delete it and then upload again."})
-
-    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
-    if is_error:
-        return is_error
-
-    # upload to cloud and enqueue a job to process a new UploadFileJob. NB: if multiple files, just uses the first one
-    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__template,
-                                             project_pk=project_pk)
-    if is_error:
-        return render(request, 'message.html',
-                      context={'title': "Error uploading file.",
-                               'message': "There was an error uploading the file. The error was: "
-                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
-
-    messages.success(request, "Queued the template file '{}' for uploading. Note: This will create any missing "
-                              "locations and targets, setting their names, but you will need to edit targets to add " \
-                              "all other fields, esp. is_date, is_step_ahead, and step_ahead_increment."
-                     .format(data_file.name))
-    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
-
-
-def process_upload_file_job__template(upload_file_job_pk):
-    """
-    An _upload_file() enqueue() function that loads a template file. Called by upload_forecast().
-
-    - Expected UploadFileJob.input_json key(s): 'project_pk' - passed to _upload_file()
-    - Saves UploadFileJob.output_json key(s): None
-
-    :param upload_file_job_pk: the UploadFileJob's pk
-    """
-    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
-        project_pk = upload_file_job.input_json['project_pk']
-        project = get_object_or_404(Project, pk=project_pk)
-        project.load_template(cloud_file_fp, upload_file_job.filename)
+    return json_response_for_forecast(request, forecast)
 
 
 #
@@ -1175,7 +1023,7 @@ def is_user_ok_upload_forecast(request, forecast_model):
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
-    owner, or the model's owner.
+    owner, or the model's owner. The data file must be in the format supported by load_predictions_from_json_io_dict().
 
     :return: redirect to the new forecast's detail page
     """
@@ -1190,7 +1038,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.csv_filename == data_file.name):
+    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.source == data_file.name):
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
                                'message': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
@@ -1225,9 +1073,13 @@ def process_upload_file_job__forecast(upload_file_job_pk):
         forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
         timezero_pk = upload_file_job.input_json['timezero_pk']
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-        new_forecast = forecast_model.load_forecast(cloud_file_fp, time_zero, file_name=upload_file_job.filename)
-        upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
-        upload_file_job.save()
+        with transaction.atomic():
+            new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
+                                                   source=upload_file_job.filename)
+            json_io_dict = json.load(cloud_file_fp)
+            load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+            upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
+            upload_file_job.save()
 
 
 def delete_forecast(request, forecast_pk):

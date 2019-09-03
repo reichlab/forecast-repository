@@ -1,6 +1,6 @@
 from itertools import groupby
 
-from forecast_app.models import ForecastData, ForecastModel
+from forecast_app.models import ForecastModel, PointPrediction
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -119,9 +119,12 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
 
 def _model_id_to_location_timezero_points(project, season_name, step_ahead_targets):
     """
-    :return: a dict that maps: forecast_model -> location_dict. each location_dict maps: location ->
-        timezero_points_dict, which maps timezero_datetime -> point values. note that some project TimeZeros have no
-        predictions
+    Similar to Project.location_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
+    that's organized for easy access using these keys:
+
+        [forecast_model][location][timezero_date] -> point_values (a list)
+
+    Note that some project TimeZeros have no predictions.
     """
     # get the rows, ordered so we can groupby()
     # note that some project timezeros might not be returned by _flusight_point_value_rows_for_models():
@@ -131,24 +134,24 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
     # - "" b/c targets are needed only for ordering
     # - ORDER BY target__step_ahead_increment ensures values are sorted by target deterministically
     season_start_date, season_end_date = project.start_end_dates_for_season(season_name)
-    rows = ForecastData.objects \
+    forecast_point_predictions_qs = PointPrediction.objects \
         .filter(forecast__forecast_model__project=project,
-                is_point_row=True,
                 target__in=step_ahead_targets,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \
         .order_by('forecast__forecast_model__id', 'location__id', 'forecast__time_zero__timezero_date',
                   'target__step_ahead_increment') \
-        .values_list('forecast__forecast_model__id', 'location__name', 'forecast__time_zero__timezero_date', 'value')
+        .values_list('forecast__forecast_model__id', 'location__name', 'forecast__time_zero__timezero_date',
+                     'value_i', 'value_f')  # only one of value_* is non-None
 
     # build the dict
     model_to_location_timezero_points = {}  # return value. filled next
-    for model_pk, loc_tz_val_grouper in groupby(rows, key=lambda _: _[0]):
+    for model_pk, loc_tz_val_grouper in groupby(forecast_point_predictions_qs, key=lambda _: _[0]):
         location_to_timezero_points_dict = {}
         for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
             timezero_to_points_dict = {}
             for timezero_date, values_grouper in groupby(timezero_values_grouper, key=lambda _: _[2]):
-                point_values = [_[3] for _ in list(values_grouper)]
+                point_values = [PointPrediction.first_non_none_value(_[3], _[4], None) for _ in list(values_grouper)]
                 timezero_to_points_dict[timezero_date] = point_values
             location_to_timezero_points_dict[location] = timezero_to_points_dict
         forecast_model = ForecastModel.objects.get(pk=model_pk)

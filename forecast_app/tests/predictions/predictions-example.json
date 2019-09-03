@@ -1,0 +1,184 @@
+{
+  "meta": {
+    "forecast": {
+      "id": 3,
+      "forecast_model_id": 5,
+      "source": "EW1-KoTsarima-2017-01-17-small.csv",
+      "created_at": "2018-09-05T09:18:21.346093-04:00",
+      "time_zero": {
+        "timezero_date": "20170423",
+        "data_version_date": null
+      }
+    },
+    "locations": [
+      {
+        "name": "US National"
+      },
+      {
+        "name": "HHS Region 1"
+      },
+      {
+        "name": "HHS Region 2"
+      },
+      {
+        "name": "HHS Region 3"
+      },
+      {
+        "name": "HHS Region 4"
+      },
+      {
+        "name": "HHS Region 5"
+      },
+      {
+        "name": "HHS Region 6"
+      }
+    ],
+    "targets": [
+      {
+        "name": "1 wk ahead",
+        "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+        "unit": "percent",
+        "is_date": false,
+        "is_step_ahead": true,
+        "step_ahead_increment": 1
+      },
+      {
+        "name": "2 wk ahead",
+        "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+        "unit": "percent",
+        "is_date": false,
+        "is_step_ahead": true,
+        "step_ahead_increment": 2
+      },
+      {
+        "name": "3 wk ahead",
+        "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+        "unit": "percent",
+        "is_date": false,
+        "is_step_ahead": true,
+        "step_ahead_increment": 3
+      },
+      {
+        "name": "4 wk ahead",
+        "description": "One- to four-week ahead forecasts will be defined as the weighted ILINet percentage for the target week.",
+        "unit": "percent",
+        "is_date": false,
+        "is_step_ahead": true,
+        "step_ahead_increment": 4
+      },
+      {
+        "name": "Season onset",
+        "description": "The onset of the season is defined as the MMWR surveillance week (http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) reported through ILINet reaches or exceeds the baseline value for three consecutive weeks (updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should be for the first week of that three week period.",
+        "unit": "week",
+        "is_date": true,
+        "is_step_ahead": false,
+        "step_ahead_increment": 0
+      },
+      {
+        "name": "Season peak percentage",
+        "description": "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches during the 2016-2017 influenza season.",
+        "unit": "percent",
+        "is_date": false,
+        "is_step_ahead": false,
+        "step_ahead_increment": 0
+      },
+      {
+        "name": "Season peak week",
+        "description": "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the highest for the 2016-2017 influenza season.",
+        "unit": "week",
+        "is_date": true,
+        "is_step_ahead": false,
+        "step_ahead_increment": 0
+      }
+    ]
+  },
+  "predictions": [
+    {
+      "location": "US National",
+      "target": "1 wk ahead",
+      "class": "BinCat",
+      "prediction": {
+        "cat": [
+          "cat1",
+          "cat2",
+          "cat3"
+        ],
+        "prob": [
+          0.0,
+          0.1,
+          0.9
+        ]
+      }
+    },
+    {
+      "location": "HHS Region 1",
+      "target": "2 wk ahead",
+      "class": "BinLwr",
+      "prediction": {
+        "lwr": [
+          0.0,
+          0.1,
+          0.2
+        ],
+        "prob": [
+          0.0,
+          0.1,
+          0.9
+        ]
+      }
+    },
+    {
+      "location": "HHS Region 2",
+      "target": "3 wk ahead",
+      "class": "Binary",
+      "prediction": {
+        "prob": 0.5
+      }
+    },
+    {
+      "location": "HHS Region 3",
+      "target": "4 wk ahead",
+      "class": "Named",
+      "prediction": {
+        "family": "gamma",
+        "param1": 1.1,
+        "param2": 2.2,
+        "param3": 3.3
+      }
+    },
+    {
+      "location": "HHS Region 4",
+      "target": "Season onset",
+      "class": "Point",
+      "prediction": {
+        "value": "1"
+      }
+    },
+    {
+      "location": "HHS Region 5",
+      "target": "Season peak percentage",
+      "class": "Sample",
+      "prediction": {
+        "sample": [
+          1.1,
+          2.2
+        ]
+      }
+    },
+    {
+      "location": "HHS Region 6",
+      "target": "Season peak week",
+      "class": "SampleCat",
+      "prediction": {
+        "cat": [
+          "cat1",
+          "cat2"
+        ],
+        "sample": [
+          "cat1 sample",
+          "cat2 sample"
+        ]
+      }
+    }
+  ]
+}

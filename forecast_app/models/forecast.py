@@ -1,20 +1,19 @@
 from django.db import models
 from django.urls import reverse
 
-from forecast_app.models.data import ForecastData, ModelWithCDCData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.project import TimeZero
-from utils.utilities import basic_str, rescale
+from utils.utilities import basic_str
 
 
-class Forecast(ModelWithCDCData):
+class Forecast(models.Model):
     """
     Represents a model's forecasted data. There is one Forecast for each of my ForecastModel's Project's TimeZeros.
     """
 
-    cdc_data_class = ForecastData  # the CDCData class I'm paired with. used by ModelWithCDCData
-
     forecast_model = models.ForeignKey(ForecastModel, related_name='forecasts', on_delete=models.CASCADE)
+
+    source = models.TextField(help_text="file name of the source of this forecast's prediction data")
 
     # NB: these TimeZeros must be the exact objects as the ones in my ForecastModel's Project, b/c there is no __eq__()
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE,
@@ -25,7 +24,7 @@ class Forecast(ModelWithCDCData):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.csv_filename))
+        return str((self.pk, self.time_zero, self.source))
 
 
     def __str__(self):  # todo
@@ -56,31 +55,77 @@ class Forecast(ModelWithCDCData):
         We define the name property so that delete_modal_snippet.html can show something identifiable when asking to
         confirm deleting a Forecast. All other deletable models have 'name' fields (Project and ForecastModel).
         """
-        return self.csv_filename
+        return self.source
 
 
     def is_user_ok_to_delete(self, user):
         return user.is_superuser or (user == self.forecast_model.project.owner) or (user == self.forecast_model.owner)
 
 
-    def rescaled_bin_for_loc_and_target(self, location_name, target_name):
+    #
+    # prediction-specific accessors
+    #
+
+    def get_num_rows(self):
         """
-        Used for sparkline calculations.
-
-        :return: list of scaled (0-100) values for the passed location and target
+        :return: the total of number of data rows in me, for all types of Predictions
         """
-        # bin_start_incl, bin_end_notincl, value:
-        values = [_[2] for _ in self.get_target_bins(location_name, target_name)]
-        return rescale(values)
+        from forecast_app.models import Prediction  # avoid circular imports
 
 
-    def locations_qs(self):  # concrete method
-        return self.forecast_model.project.locations_qs()
+        return sum(concrete_prediction_class.objects.filter(forecast=self).count()
+                   for concrete_prediction_class in Prediction.concrete_subclasses())
 
 
-    def targets_qs(self):  # concrete method
-        return self.forecast_model.project.targets_qs()
+    def bincat_distribution_qs(self):
+        from forecast_app.models import BinCatDistribution
 
 
-# NB: only works for abstract superclasses. via https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
-Forecast._meta.get_field('csv_filename').help_text = "CSV file name of this forecast's data source."
+        return self._predictions_qs(BinCatDistribution)
+
+
+    def binlwr_distribution_qs(self):
+        from forecast_app.models import BinLwrDistribution
+
+
+        return self._predictions_qs(BinLwrDistribution)
+
+
+    def binary_distribution_qs(self):
+        from forecast_app.models import BinaryDistribution
+
+
+        return self._predictions_qs(BinaryDistribution)
+
+
+    def named_distribution_qs(self):
+        from forecast_app.models import NamedDistribution
+
+
+        return self._predictions_qs(NamedDistribution)
+
+
+    def point_prediction_qs(self):
+        from forecast_app.models import PointPrediction
+
+
+        return self._predictions_qs(PointPrediction)
+
+
+    def sample_distribution_qs(self):
+        from forecast_app.models import SampleDistribution
+
+
+        return self._predictions_qs(SampleDistribution)
+
+
+    def samplecat_distribution_qs(self):
+        from forecast_app.models import SampleCatDistribution
+
+
+        return self._predictions_qs(SampleCatDistribution)
+
+
+    def _predictions_qs(self, prediction_subclass):
+        # *_prediction_qs() helper that returns a QuerySet for all of my Predictions of type prediction_subclass
+        return prediction_subclass.objects.filter(forecast=self)

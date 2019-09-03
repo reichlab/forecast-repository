@@ -2,18 +2,15 @@ import csv
 import datetime
 import io
 import logging
-import math
 from collections import defaultdict
-from itertools import groupby, product
+from itertools import groupby
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models, transaction, connection
 from django.db.models import ManyToManyField, Max, BooleanField, IntegerField
 from django.urls import reverse
-from jsonfield import JSONField
 
-from forecast_app.models.data import ProjectTemplateData, ModelWithCDCData, ForecastData, POSTGRES_NULL_VALUE
 from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
 
 
@@ -23,14 +20,15 @@ logger = logging.getLogger(__name__)
 # ---- Project class ----
 #
 
+POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files
+
 TRUTH_CSV_HEADER = ['timezero', 'location', 'target', 'value']
 
 
-class Project(ModelWithCDCData):
+class Project(models.Model):
     """
-    The make_cdc_flu_contests_project_app class representing a forecast challenge, including metadata, core data, targets, and model entries.
-    NB: The inherited 'csv_filename' field from ModelWithCDCData is used as a flag to indicate that a valid template
-    was loaded - see is_template_loaded().
+    The make_cdc_flu_contests_project_app class representing a forecast challenge, including metadata, core data,
+    targets, and model entries.
     """
 
     # w/out related_name we get: forecast_app.Project.model_owners:
@@ -52,8 +50,6 @@ class Project(ModelWithCDCData):
                                              "to a private project. Use control/command click to add/remove from "
                                              "the list. ")
 
-    cdc_data_class = ProjectTemplateData  # the CDCData class I'm paired with. used by ModelWithCDCData
-
     name = models.TextField()
 
     WEEK_TIME_INTERVAL_TYPE = 'w'
@@ -63,7 +59,9 @@ class Project(ModelWithCDCData):
                                   (BIWEEK_TIME_INTERVAL_TYPE, 'Biweek'),
                                   (MONTH_TIME_INTERVAL_TYPE, 'Month'))
     time_interval_type = models.CharField(max_length=1,
-                                          choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE)
+                                          choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE,
+                                          help_text="Used when visualizing the x axis label.")
+    visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
 
     truth_csv_filename = models.TextField(help_text="Name of the truth csv file that was uploaded.")
 
@@ -78,11 +76,6 @@ class Project(ModelWithCDCData):
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
                   "the challenge, including supplemental data like Google queries or weather.")
 
-    # config_dict: specifies project-specific information
-    config_dict = JSONField(null=True, blank=True,
-                            help_text="JSON dict containing these keys: 'visualization-y-label'. "
-                                      "Please see documentation for details.")
-
 
     def __repr__(self):
         return str((self.pk, self.name))
@@ -94,14 +87,8 @@ class Project(ModelWithCDCData):
 
     def save(self, *args, **kwargs):
         """
-        Validates my config_dict if provided, and my TimeZero.timezero_dates for uniqueness.
+        Validates my TimeZero.timezero_dates for uniqueness.
         """
-        config_dict_keys = {'visualization-y-label'}  # definitive list
-        if self.config_dict and (set(self.config_dict.keys()) != config_dict_keys):
-            raise ValidationError("config_dict did not contain the required keys. expected keys: {}, actual keys: {}"
-                                  .format(config_dict_keys, self.config_dict.keys()))
-
-        # validate my TimeZero.timezero_dates
         found_timezero_dates = []
         for timezero in self.timezeros.all():
             if timezero.timezero_date not in found_timezero_dates:
@@ -139,33 +126,6 @@ class Project(ModelWithCDCData):
         return self.__class__.__name__ + '_' + str(self.pk)
 
 
-    def locations_qs(self):  # concrete method
-        return self.locations
-
-
-    def targets_qs(self):  # concrete method
-        return self.targets
-
-
-    #
-    # distribution-related utilities
-    #
-
-    def get_distribution_preview(self):
-        """
-        :return: returns an arbitrary Forecast bin for this project as a 3-tuple: (Forecast, location, target). returns
-            None if I have no targets, locations, models, or forecasts
-        """
-        first_model = self.models.first()
-        first_forecast = first_model.forecasts.first() if first_model else None
-        location_names = self.get_location_names()
-        first_location = next(iter(sorted(location_names))) if location_names else None  # sort to make deterministic
-        targets = self.get_target_names_for_location(first_location)
-        first_target = next(iter(sorted(targets))) if targets else None  # sort to make deterministic
-        return (first_forecast, first_location, first_target) if (first_forecast and first_location and first_target) \
-            else None
-
-
     #
     # season-related utilities
     #
@@ -200,7 +160,7 @@ class Project(ModelWithCDCData):
         if season_name:
             season_tz = season_timezeros_qs.filter(season_name=season_name).first()
             if not season_tz:
-                raise RuntimeError("Invalid season_name. season_name={}, seasons={}"
+                raise RuntimeError("invalid season_name. season_name={}, seasons={}"
                                    .format(season_name, self.seasons()))
 
             season_timezeros_qs = season_timezeros_qs.filter(timezero_date__gte=season_tz.timezero_date)
@@ -302,19 +262,24 @@ class Project(ModelWithCDCData):
 
         return self.models.filter(project=self).count(), \
                Forecast.objects.filter(forecast_model__project=self).count(), \
-               self.get_num_forecast_rows_estimated()
+               self.get_num_forecast_rows_all_models_estimated()
 
 
-    def get_num_forecast_rows(self):
+    def get_num_forecast_rows_all_models(self):
         """
-        :return: the total number of data rows across all my models' forecasts. can be expensive for large databases
+        :return: the total number of data rows across all my models' forecasts, for all types of Predictions. can be
+        expensive for large databases
         """
-        return ForecastData.objects.filter(forecast__forecast_model__project=self).count()
+        from forecast_app.models import Prediction  # avoid circular imports
 
 
-    def get_num_forecast_rows_estimated(self):
+        return sum(concrete_prediction_class.objects.filter(forecast__forecast_model__project=self).count()
+                   for concrete_prediction_class in Prediction.concrete_subclasses())
+
+
+    def get_num_forecast_rows_all_models_estimated(self):
         """
-        :return: like get_num_forecast_rows(), but returns an estimate that is much faster to calculate. the estimate
+        :return: like get_num_forecast_rows_all_models(), but returns an estimate that is much faster to calculate. the estimate
             is based on getting the number of rows for an arbitrary Forecast and then multiplying by the number of
             forecasts times the number of models in me. it will be exact for projects whose models all have the same
             number of rows
@@ -328,20 +293,30 @@ class Project(ModelWithCDCData):
 
     def location_to_max_val(self, season_name, targets):
         """
-        :return: a dict mapping each location_name to the maximum value across all my forecasts for season_name and
-            targets
+        :return: a dict mapping each location_name to the maximum point value across all my forecasts for season_name
+            and targets
         """
+        from forecast_app.models import PointPrediction  # avoid circular imports
+
+
+        # NB: we retrieve and max() only the two numeric value fields (value_i and value_f), excluding value_t (which
+        # has no meaningful max() semantics). a concern is that some targets in the results might have a
+        # point_value_type of POINT_INTEGER while others are POINT_FLOAT, but this shouldn't matter to our callers, who
+        # are simply trying to get the maximum across /all/ targets. I think.
         season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-        loc_max_val_qs = ForecastData.objects \
+        loc_max_val_qs = PointPrediction.objects \
             .filter(forecast__forecast_model__project=self,
-                    is_point_row=True,
                     target__in=targets,
                     forecast__time_zero__timezero_date__gte=season_start_date,
                     forecast__time_zero__timezero_date__lte=season_end_date) \
             .values('location__name') \
-            .annotate(max_val=Max('value'))
-        # [{'location__name': 'HHS Region 1', 'max_val': 2.06145600601835}, ...]
-        return {location_max_val['location__name']: location_max_val['max_val'] for location_max_val in loc_max_val_qs}
+            .annotate(Max('value_i'), Max('value_f'))  # values() -> annotate() is a GROUP BY
+        # [{'location__name': 'HHS Region 1', 'value_i__max': None, 'value_f__max': 2.06145600601835}, ...]
+
+        # https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python
+        return {loc_max_val_dict['location__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
+                                                                      loc_max_val_dict['value_f__max']]))
+                for loc_max_val_dict in loc_max_val_qs}
 
 
     #
@@ -354,13 +329,6 @@ class Project(ModelWithCDCData):
 
     def non_date_targets(self):
         return self.targets.filter(is_date=False).order_by('name')
-
-
-    def visualization_y_label(self):
-        """
-        :return: Y axis label used by flusight_location_to_data_dict(). returns None if no config_dict
-        """
-        return self.config_dict and self.config_dict['visualization-y-label']
 
 
     #
@@ -385,9 +353,6 @@ class Project(ModelWithCDCData):
 
 
     def get_num_truth_rows(self):
-        """
-        :return: the total of number of truth rows in me
-        """
         return self.truth_data_qs().count()
 
 
@@ -411,9 +376,6 @@ class Project(ModelWithCDCData):
 
 
     def delete_truth_data(self):
-        """
-        Deletes all of my truth data.
-        """
         self.truth_data_qs().delete()
         self.truth_csv_filename = ''
         self.save()
@@ -464,15 +426,15 @@ class Project(ModelWithCDCData):
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
         truth_data_qs = self.truth_data_qs() \
-            .order_by('location__id', 'target__id') \
+            .order_by('location__name', 'target__name') \
             .values_list('location__id', 'target__id', 'time_zero__timezero_date', 'value')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
             truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
                                                  time_zero__timezero_date__lte=season_end_date)
 
-        location_pks_to_names = {location.id: location.name for location in self.locations_qs().all()}
-        target_pks_to_names = {target.id: target.name for target in self.targets_qs().all()}
+        location_pks_to_names = {location.id: location.name for location in self.locations.all()}
+        target_pks_to_names = {target.id: target.name for target in self.targets.all()}
         for location_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
             if location_id not in location_pks_to_names:
                 continue
@@ -495,15 +457,11 @@ class Project(ModelWithCDCData):
     @transaction.atomic
     def load_truth_data(self, truth_file_path_or_fp, file_name=None):
         """
-        Similar to load_template(), loads the data in truth_file_path (see below for file format docs). Like
-        load_csv_data(), uses direct SQL for performance, using a fast Postgres-specific routine if connected to it.
-        Note that this method should be called after all TimeZeros are created b/c truth data is validated against
-        them. Notes:
+        Loads the data in truth_file_path (see below for file format docs). Like load_csv_data(), uses direct SQL for
+        performance, using a fast Postgres-specific routine if connected to it. Note that this method should be called
+        after all TimeZeros are created b/c truth data is validated against them. Notes:
 
-        - A template needs to be loaded b/c _load_truth_data_rows() validates truth data against template locations and
-          targets
         - TimeZeros "" b/c truth timezeros are validated against project ones
-        - Validates against the Project's template, which is therefore required to be set before this call.
         - One csv file/project, which includes timezeros across all seasons.
         - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
           formatted “yyyymmdd”. A header must be included.
@@ -523,14 +481,10 @@ class Project(ModelWithCDCData):
 
         :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
             combination, OR an already-open file-like object
-        :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
-            files have random template_path file names, so original ones must be extracted and passed separately
+        :param file_name: name to use for the file
         """
-        if not self.is_template_loaded():
-            raise RuntimeError("Template not loaded")
-
         if not self.pk:
-            raise RuntimeError("Instance is not saved the the database, so can't insert data: {!r}".format(self))
+            raise RuntimeError("instance is not saved the the database, so can't insert data: {!r}".format(self))
 
         self.delete_truth_data()
 
@@ -579,7 +533,8 @@ class Project(ModelWithCDCData):
 
     def _load_truth_data_rows(self, csv_file_fp):
         """
-        Similar to ModelWithCDCData.read_cdc_csv_file_rows(), loads, validates, and cleans the rows in csv_file_fp.
+        Similar to ModelWithCDCData._locations_targets_rows_from_cdc_csv_file(), loads, validates, and cleans the rows
+        in csv_file_fp.
         """
         csv_reader = csv.reader(csv_file_fp, delimiter=',')
 
@@ -587,16 +542,16 @@ class Project(ModelWithCDCData):
         try:
             orig_header = next(csv_reader)
         except StopIteration:
-            raise RuntimeError("Empty file")
+            raise RuntimeError("empty file")
 
         header = orig_header
         header = [h.lower() for h in [i.replace('"', '') for i in header]]
         if header != TRUTH_CSV_HEADER:
-            raise RuntimeError("Invalid header: {}".format(', '.join(orig_header)))
+            raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
 
         # collect the rows. first we load them all into memory (processing and validating them as we go)
-        location_names_to_pks = {location.name: location.id for location in self.locations_qs().all()}
-        target_names_to_pks = {target.name: target.id for target in self.targets_qs().all()}
+        location_names_to_pks = {location.name: location.id for location in self.locations.all()}
+        target_names_to_pks = {target.name: target.id for target in self.targets.all()}
         rows = []
         timezero_to_missing_count = defaultdict(int)  # to minimize warnings
         location_to_missing_count = defaultdict(int)
@@ -696,174 +651,6 @@ class Project(ModelWithCDCData):
         return loc_tz_date_to_actual_vals
 
 
-    #
-    # template and data-related functions
-    #
-
-    def is_template_loaded(self):
-        return self.csv_filename != ''
-
-
-    @transaction.atomic
-    def load_template(self, template_path_or_fp, file_name=None):
-        """
-        Loads the data from the passed Path into my corresponding ForecastData. First validates the data against my
-        Project's template.
-
-        :param template_path_or_fp: Path to a CDC CSV template file, OR an already-open file-like object
-        :param file_name: optional name to use for the file. if None (default), uses template_path. helpful b/c uploaded
-            files have random template_path file names, so original ones must be extracted and passed separately
-        """
-        self.csv_filename = file_name or template_path_or_fp.name
-        self.load_csv_data(template_path_or_fp, False)  # skip_zero_bins
-        self.validate_template_data()
-        self.save()
-
-
-    def delete_template(self):
-        """
-        Clears my csv_filename and deletes my template data.
-        """
-        self.csv_filename = ''
-        self.save()
-        ProjectTemplateData.objects.filter(project=self).delete()
-
-
-    def validate_forecast_data(self, forecast, validation_template=None, forecast_bin_map_fcn=None):
-        """
-        Validates forecast's data against my template. Raises if invalid.
-
-        :param forecast: a Forecast
-        :param validation_template: optional validation template (a Path) to override mine. useful in cases
-            (like the CDC Flu Ensemble) where multiple templates could apply, depending on the year of the forecast
-        :param forecast_bin_map_fcn: a function of one arg (forecast_bin) that returns a modified version of the bin to use
-            in the validation against the template. forecast_bin is a 3-tuple: bin_start_incl, bin_end_notincl, value
-        """
-        if not self.is_template_loaded():
-            raise RuntimeError("Cannot validate forecast data because project has no template loaded. Project={}, "
-                               "forecast={}, csv_filename={}".format(self, forecast, forecast.csv_filename))
-
-        # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
-        # lookup b/c get_target_bins() was slow. this new approach has the added benefit of enabling us to easily
-        # override my template if validation_template is passed. however, to lookup Target.is_date, we must make a map
-        # from target_name to is_date
-        target_name_to_is_date = {target.name: target.is_date for target in
-                                  forecast.forecast_model.project.targets_qs().all()}
-        if validation_template:
-            template_location_dicts = self.get_loc_dicts_int_format_for_csv_file(validation_template)
-        else:
-            template_location_dicts = self.get_location_dicts_internal_format()
-        forecast_location_dicts = forecast.get_location_dicts_internal_format()
-        template_name = validation_template.name if validation_template else self.csv_filename
-        template_locations = list(template_location_dicts.keys())
-        forecast_locations = list(forecast_location_dicts.keys())
-        if template_locations != forecast_locations:
-            raise RuntimeError("Locations did not match template. csv_filename={}, template_locations={}, "
-                               "forecast_locations={}"
-                               .format(forecast.csv_filename, template_locations, forecast_locations))
-
-        for template_location in template_locations:
-            template_target_dicts = template_location_dicts[template_location]
-            forecast_target_dicts = forecast_location_dicts[template_location]
-            template_targets = list(template_target_dicts.keys())
-            forecast_targets = list(forecast_target_dicts.keys())
-            if template_targets != forecast_targets:
-                raise RuntimeError("Targets did not match template. csv_filename={}, template_location={},"
-                                   " template_targets={}, forecast_targets={}"
-                                   .format(forecast.csv_filename, template_location, template_targets,
-                                           forecast_targets))
-
-            for template_target in template_targets:
-                template_bins = template_target_dicts[template_target]['bins']
-                forecast_bins = forecast_target_dicts[template_target]['bins']
-                forecast_point_val = forecast_target_dicts[template_target]['point']
-                if forecast_bin_map_fcn:
-                    forecast_bins = list(map(forecast_bin_map_fcn, forecast_bins))
-
-                if (not target_name_to_is_date[template_target]) and (forecast_point_val is None):
-                    # recall parse_value() returns None if non-numeric
-                    raise RuntimeError("Point value was non-numeric. csv_filename={}, template_location={}, "
-                                       "template_target={}"
-                                       .format(forecast.csv_filename, template_location, template_target))
-
-                # https://stackoverflow.com/questions/18411560/python-sort-list-with-none-at-the-end
-                template_bins_sorted = sorted([b[:2] for b in template_bins],
-                                              key=lambda x: (x[0] is None or x[1] is None, x))
-                forecast_bins_sorted = sorted([b[:2] for b in forecast_bins],
-                                              key=lambda x: (x[0] is None or x[1] is None, x))
-
-                # compare bins (bin_start_incl and bin_end_notincl). note that we test subsets and not lists b/c
-                # some forecasts do not generate bins with values of zero
-                if not (set(forecast_bins_sorted) <= set(template_bins_sorted)):
-                    raise RuntimeError("Bins did not match template. template={}, csv_filename={}, "
-                                       "template_location={}, template_target={}, # template_bins={}, "
-                                       "# forecast_bins={}, bin difference={}, forecast bins not in template={}, "
-                                       "template bins not in forecast={}"
-                                       .format(template_name, forecast.csv_filename, template_location, template_target,
-                                               len(template_bins), len(forecast_bins),
-                                               set(template_bins_sorted) ^ set(forecast_bins_sorted),
-                                               set(template_bins_sorted) - set(forecast_bins_sorted),
-                                               set(forecast_bins_sorted) - set(template_bins_sorted)))
-
-                # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
-                # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
-                # (0.9300285798758262 -> 0.07 fixed it)
-                forecast_bin_sum = sum([b[-1] if b[-1] is not None else 0 for b in forecast_bins])
-                if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):  # todo hard-coded magic number
-                    raise RuntimeError("Bin did not sum to 1.0. template={}, csv_filename={}, "
-                                       "template_location={}, template_target={}, forecast_bin_sum={}"
-                                       .format(template_name, forecast.csv_filename, template_location, template_target,
-                                               forecast_bin_sum))
-
-
-    def validate_template_data(self):
-        """
-        Validates my template's structure. Raises RuntimeError if any tests fail. Note that basic structure is tested in
-        load_csv_data(). Also note that validate_forecast_data() does not test the following because it compares against
-        a validated template, thus 'inheriting' these validations due to equality testing.
-        """
-        # instead of working with ModelWithCDCData.get*() data access calls, we use these dicts as caches to speedup bin
-        # lookup b/c get_target_bins() was slow
-        template_location_dicts = self.get_location_dicts_internal_format()
-        template_locations = list(template_location_dicts.keys())
-        if not template_locations:
-            raise RuntimeError("Template has no locations. csv_filename={}".format(self.csv_filename))
-
-        location_template_pairs = set()  # 2-tuples used for testing targets existing in every location
-        found_targets = set()  # also used for ""
-        for template_location in template_locations:
-            template_target_dicts = template_location_dicts[template_location]
-            template_targets = list(template_target_dicts.keys())
-            for template_target in template_targets:
-                location_template_pairs.add((template_location, template_target))
-                found_targets.add(template_target)
-
-                # note that we do not have to test for a missing point value:
-                # 'template_target_dicts[template_target]['point']' b/c get_location_dicts_internal_format() verifies a point
-                # row exists, which is all we care about in templates.
-
-                # also note that we do not validate that template_bins sum to ~1.0 b/c specifying actual values in
-                # templates is not required, partly b/c there is no standard for what values to use. however, do note
-                # that validate_forecast_data() does check bin sums
-
-                template_bins = template_target_dicts[template_target]['bins']
-                if not template_bins:
-                    raise RuntimeError("Target has no bins. csv_filename={}, template_location={}, "
-                                       "template_target={}"
-                                       .format(self.csv_filename, template_location, template_target))
-
-        # test that every target exists in every location
-        expected_location_template_pairs = set(product(template_locations, found_targets))
-        if location_template_pairs != expected_location_template_pairs:
-            raise RuntimeError("Target(s) was not found in every location. csv_filename={}, "
-                               "missing location, target: {}"
-                               .format(self.csv_filename, location_template_pairs ^ expected_location_template_pairs))
-
-
-# NB: only works for abstract superclasses. via https://stackoverflow.com/questions/927729/how-to-override-the-verbose-name-of-a-superclass-model-field-in-django
-Project._meta.get_field('csv_filename').help_text = "CSV file name of this project's template file."
-
-
 #
 # ---- Location class ----
 #
@@ -885,7 +672,7 @@ class Location(models.Model):
 
 
 #
-# ---- Target class ----
+# ---- Target and TargetBinLwr classes ----
 #
 
 class Target(models.Model):
@@ -909,13 +696,69 @@ class Target(models.Model):
                                                   "ahead the Target is. Can be negative, zero, or positive.",
                                         default=0)
 
+    # point_value_type determines which PointPrediction.value_* field is used for loading data from csv files
+    POINT_INTEGER = 0  # PointPrediction.value_i
+    POINT_FLOAT = 1  # PointPrediction.value_f
+    POINT_TEXT = 2  # PointPrediction.value_t
+    POINT_VALUE_TYPE_CHOICES = (
+        (POINT_INTEGER, 'INTEGER'),
+        (POINT_FLOAT, 'FLOAT'),
+        (POINT_TEXT, 'TEXT'),
+    )
+    point_value_type = models.IntegerField(choices=POINT_VALUE_TYPE_CHOICES)
+
+    # these fields collectively indicate which prediction data types are allowed for this Target:
+    ok_bincat_distribution = BooleanField(default=False, help_text="True if allows BinCatDistributions")
+    ok_binlwr_distribution = BooleanField(default=False, help_text="True if allows BinLwrDistributions")
+    ok_binary_distribution = BooleanField(default=False, help_text="True if allows BinaryDistributions")
+    ok_named_distribution = BooleanField(default=False, help_text="True if allows NamedDistribution")
+    ok_point_prediction = BooleanField(default=False, help_text="True if allows PointPredictions")
+    ok_sample_distribution = BooleanField(default=False, help_text="True if allows SampleDistributions")
+    ok_samplecat_distribution = BooleanField(default=False, help_text="True if allows SampleCatDistributions")
+
 
     def __repr__(self):
-        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment))
+        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment,
+                    self.ok_distributions_str()))
 
 
     def __str__(self):  # todo
         return basic_str(self)
+
+
+    def point_value_type_str(self):
+        """
+        :return: a human-readable string for my point_value_type
+        """
+        for db_value, human_readable_value in Target.POINT_VALUE_TYPE_CHOICES:
+            if db_value == self.point_value_type:
+                return human_readable_value
+
+        return f'(unknown point_value_type: {self.point_value_type}. ' \
+            f'Target.POINT_VALUE_TYPE_CHOICES={Target.POINT_VALUE_TYPE_CHOICES})'
+
+
+    def ok_distributions_str(self):
+        """
+        :return: a string that includes abbreviations for all acceptable ("OK") distribution classes based on my
+            ok_*_distribution values.
+        """
+        ok_classes = []
+        if self.ok_bincat_distribution:
+            ok_classes.append('BC')
+        if self.ok_binlwr_distribution:
+            ok_classes.append('BL')
+        if self.ok_binary_distribution:
+            ok_classes.append('BI')
+        if self.ok_named_distribution:
+            ok_classes.append('NM')
+        if self.ok_point_prediction:
+            ok_classes.append('PT')
+        if self.ok_sample_distribution:
+            ok_classes.append('SA')
+        if self.ok_samplecat_distribution:
+            ok_classes.append('SC')
+        return '|'.join(ok_classes)
 
 
     def save(self, *args, **kwargs):
@@ -936,6 +779,29 @@ class Target(models.Model):
 
         # done
         return super().save(*args, **kwargs)
+
+
+class TargetBinLwr(models.Model):
+    """
+    Associates BinLwr.lwr values with a Target. These act as a "template" against which forecast BinLwr predictions can
+    be validated against. Note that only lwr is typically passed by the user. upper is typically calculated from
+    lwr by the caller.
+
+    Regarding upper: It is currently used only for scoring, when the true bin is queried for. In that case we test
+    truth >= lwr AND truth < upper. Therefore it is currently calculated by utils.project.validate_and_create_targets()
+    based on lwr. That function has to infer the final bin's upper, and uses float('inf') for that
+    """
+    target = models.ForeignKey('Target', blank=True, null=True, related_name='binlwrs', on_delete=models.CASCADE)
+    lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
+    upper = models.FloatField(null=True)  # "". possibly float('inf')
+
+
+    def __repr__(self):
+        return str((self.pk, self.target.pk, self.lwr, self.upper))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
 #

@@ -96,36 +96,6 @@
                     <td><a href="{{ project.core_data }}">{{ project.core_data }}</a></td>
                 </tr>
                 <tr>
-                    <th title="A data file used to validate uploaded forecasts">Data Template:</th>
-                    <td>
-                        {% if project.is_template_loaded %}
-                            {# show a link to the template detail #}
-                            <a href="{% url 'template-data-detail' project.pk %}">{{ project.csv_filename }}</a>
-                            <small class="text-muted">({{ project.get_num_rows|intword|intcomma }} rows)</small>
-                        {% else %}
-                            {# show that there's no template, optionally with upload button #}
-                            {% if is_user_ok_edit_project %}
-                                {# show a button for uploading a file #}
-                                <form class="form-inline" method="POST" enctype="multipart/form-data"
-                                      action="{% url 'upload-template' project.pk %}">
-                                    {% csrf_token %}
-                                    <small class="text-muted">(No template)&nbsp;</small>
-                                    <div class="form-group">
-                                        <button class="form-control btn btn-success" type="submit">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                        </button>
-                                    </div>
-                                    <div class="form-group">
-                                        <input type="file" name="data_file">
-                                    </div>
-                                </form>
-                            {% else %}
-                                <small class="text-muted">(No template)</small>
-                            {% endif %}
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
                     <th title="A data file containing observed target values for time zeros and locations. Used to calculate scores, and extract the 'actual' data used in plots">
                         Truth Data:
                     </th>
@@ -162,12 +132,6 @@
                     <td><a href="{% url 'project-visualizations' project.pk %}">Visualizations</a>,
                         <a href="{% url 'project-scores' project.pk %}">Aggregate scores</a>,
                         <a href="{% url 'project-score-data' project.pk %}">Score data</a>
-                    </td>
-                </tr>
-                <tr>
-                    <th title="Misc. project configuration as a JSON object">Configuration:</th>
-                    <td>
-                        <pre>{{ config_dict_pretty }}</pre>
                     </td>
                 </tr>
                 </tbody>
@@ -212,10 +176,15 @@
                 <th>Name</th>
                 <th>Description</th>
                 <th>Unit</th>
+                <th>Point Value Type</th>
                 <th>Date?</th>
                 <th title="Integer value indicating # steps ahead relative to a time zero. Used for time chart plots, and to extract 'actual' values from the truth data.">
                     Step Ahead?
                 </th>
+                <th title="Code indicating types of acceptable distributions. BC=BinCat, BL=BinLwr, BI=Binary, NM=Named, PT=Point, SA=Sample, SC=SampleCat">
+                    Predictions
+                </th>
+                <th>BinLwrs</th>
             </tr>
             {% for target in targets %}
                 <tr>
@@ -228,12 +197,21 @@
                     </td>
                     <td>{{ target.description }}</td>
                     <td>{{ target.unit }}</td>
+                    <td>{{ target.point_value_type_str|title }}</td>
                     <td>{% if target.is_date %}<i class="fas fa-check"></i>{% else %}{% endif %}</td>
                     <td>
                         {% if target.is_step_ahead %}
                             {{ target.step_ahead_increment }} step{{ target.step_ahead_increment|pluralize }}
                         {% endif %}
                     </td>
+                    <td>
+                        {% if not target.ok_distributions_str %}
+                            <small class="text-muted">(No prediction types)</small>
+                        {% else %}
+                            {{ target.ok_distributions_str }}
+                        {% endif %}
+                    </td>
+                    <td>{{ target.binlwrs.all.count|intword|intcomma }}</td>
                 </tr>
             {% endfor %}
         </table>

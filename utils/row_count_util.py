@@ -52,10 +52,11 @@ def update(no_enqueue):
         for project in Project.objects.all():
             click.echo("(no enqueue) updating RowCountCache for project={}".format(project))
             _update_project_row_count_cache(project.pk)
+            click.echo("update done")
     else:
         click.echo("enqueuing RowCountCache updates for all projects")
         enqueue_row_count_updates_all_projs()
-    click.echo("enqueuing done")
+        click.echo("enqueuing done")
 
 
 if __name__ == '__main__':
