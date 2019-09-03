@@ -895,7 +895,7 @@ class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
 
 def download_forecast(request, forecast_pk):
     """
-    Returns a response containing a CSV or JSON file for a ModelWithCDCData's (Project or Forecast) data.
+    Returns a response containing a JSON file for a Forecast's data.
     Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
         model's owner.
 

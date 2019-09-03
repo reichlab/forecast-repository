@@ -12,7 +12,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.utilities import parse_value
 
 
-# todo xx these are project-specific: CDC ensemble and Impetus
+# todo these are project-specific: CDC ensemble and Impetus
 BINLWR_TARGET_NAMES = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
                        '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead', '5_biweek_ahead']
 BINCAT_TARGET_NAMES = ['Season onset', 'Season peak week']
@@ -157,9 +157,68 @@ def json_io_dict_from_cdc_csv_file(cdc_csv_file_fp):
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains the three types of predictions. see docs for
         details
     """
-    location_names, target_names, rows = _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp)
+    _, _, rows = _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp)
     return {'meta': {},
             'predictions': _prediction_dicts_for_csv_rows(rows)}
+
+
+def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
+    """
+    Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
+    but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
+    dynamically created by this method's callers). Does *not* skip bin rows where the value is 0.
+
+    :param cdc_csv_file_fp: the *.cdc.csv data file to load
+    :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
+        rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
+    """
+    csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
+
+    # validate header. must be 7 columns (or 8 with the last one being '') matching
+    try:
+        orig_header = next(csv_reader)
+    except StopIteration:  # a kind of Exception, so much come first
+        raise RuntimeError("empty file.")
+    except Exception as exc:
+        raise RuntimeError("error reading from cdc_csv_file_fp={}. exc={}".format(cdc_csv_file_fp, exc))
+
+    header = orig_header
+    if (len(header) == 8) and (header[7] == ''):
+        header = header[:7]
+    header = [h.lower() for h in [i.replace('"', '') for i in header]]
+    if header != CDC_CSV_HEADER:
+        raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
+
+    # collect the rows. first we load them all into memory (processing and validating them as we go)
+    location_names = set()
+    target_names = set()
+    rows = []
+    for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
+        if (len(row) == 8) and (row[7] == ''):
+            row = row[:7]
+
+        if len(row) != 7:
+            raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
+
+        location_name, target_name, row_type, unit, bin_start_incl, bin_end_notincl, value = row  # unit ignored
+
+        # validate row_type
+        row_type = row_type.lower()
+        if (row_type != CDC_POINT_ROW_TYPE) and (row_type != CDC_BIN_ROW_TYPE):
+            raise RuntimeError("row_type was neither '{}' nor '{}': "
+                               .format(CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE))
+        is_point_row = (row_type == CDC_POINT_ROW_TYPE)
+
+        location_names.add(location_name)
+        target_names.add(target_name)
+
+        # use parse_value() to handle non-numeric cases like 'NA' and 'none'
+        bin_start_incl = parse_value(bin_start_incl)
+        bin_end_notincl = parse_value(bin_end_notincl)
+        value = parse_value(value)
+        rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
+
+    return location_names, target_names, rows
 
 
 def _prediction_dicts_for_csv_rows(rows):
@@ -224,65 +283,6 @@ def _prediction_dicts_for_csv_rows(rows):
                                              'prediction': {
                                                  'value': point_value}})
     return prediction_dicts
-
-
-def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
-    """
-    Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
-    but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
-    dynamically created by this method's callers). Does *not* skip bin rows where the value is 0.
-
-    :param cdc_csv_file_fp: the *.cdc.csv data file to load
-    :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
-        rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
-    """
-    csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
-
-    # validate header. must be 7 columns (or 8 with the last one being '') matching
-    try:
-        orig_header = next(csv_reader)
-    except StopIteration:  # a kind of Exception, so much come first
-        raise RuntimeError("empty file.")
-    except Exception as exc:
-        raise RuntimeError("error reading from cdc_csv_file_fp={}. exc={}".format(cdc_csv_file_fp, exc))
-
-    header = orig_header
-    if (len(header) == 8) and (header[7] == ''):
-        header = header[:7]
-    header = [h.lower() for h in [i.replace('"', '') for i in header]]
-    if header != CDC_CSV_HEADER:
-        raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
-
-    # collect the rows. first we load them all into memory (processing and validating them as we go)
-    location_names = set()
-    target_names = set()
-    rows = []
-    for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
-        if (len(row) == 8) and (row[7] == ''):
-            row = row[:7]
-
-        if len(row) != 7:
-            raise RuntimeError("Invalid row (wasn't 7 columns): {!r}".format(row))
-
-        location_name, target_name, row_type, unit, bin_start_incl, bin_end_notincl, value = row  # unit ignored
-
-        # validate row_type
-        row_type = row_type.lower()
-        if (row_type != CDC_POINT_ROW_TYPE) and (row_type != CDC_BIN_ROW_TYPE):
-            raise RuntimeError("row_type was neither '{}' nor '{}': "
-                               .format(CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE))
-        is_point_row = (row_type == CDC_POINT_ROW_TYPE)
-
-        location_names.add(location_name)
-        target_names.add(target_name)
-
-        # use parse_value() to handle non-numeric cases like 'NA' and 'none'
-        bin_start_incl = parse_value(bin_start_incl)
-        bin_end_notincl = parse_value(bin_end_notincl)
-        value = parse_value(value)
-        rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
-
-    return location_names, target_names, rows
 
 
 #

@@ -265,6 +265,34 @@ def truth_data(request, project_pk):
     return csv_response_for_project_truth_data(project)
 
 
+def csv_response_for_project_truth_data(project):
+    """
+    Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
+    CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
+    to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
+    filename to hopefully hint at what's going on.
+    """
+    response = HttpResponse(content_type='text/csv')
+
+    # two cases for deciding the filename to put in download response:
+    # 1) original ends with .csv -> orig-name.csv -> orig-name-validated.csv
+    # 2) "" does not end "" -> orig-name.csv.foo -> orig-name.csv.foo-validated.csv
+    csv_filename_path = Path(project.truth_csv_filename)
+    if csv_filename_path.suffix.lower() == '.csv':
+        csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
+    else:
+        csv_filename = csv_filename_path.name + '-validated.csv'
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+
+    writer = csv.writer(response)
+    writer.writerow(TRUTH_CSV_HEADER)
+    for timezero_date, location_name, target_name, value in project.get_truth_data_rows():
+        timezero_date = timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
+        writer.writerow([timezero_date, location_name, target_name, value])
+
+    return response
+
+
 #
 # Score data-related views
 #
@@ -314,34 +342,6 @@ def json_response_for_forecast(request, forecast):
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
     response = JsonResponse(json_io_dict_from_forecast(forecast))  # defaults to 'content_type' 'application/json'
     response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(forecast.csv_filename)
-    return response
-
-
-def csv_response_for_project_truth_data(project):
-    """
-    Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
-    CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
-    to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
-    filename to hopefully hint at what's going on.
-    """
-    response = HttpResponse(content_type='text/csv')
-
-    # two cases for deciding the filename to put in download response:
-    # 1) original ends with .csv -> orig-name.csv -> orig-name-validated.csv
-    # 2) "" does not end "" -> orig-name.csv.foo -> orig-name.csv.foo-validated.csv
-    csv_filename_path = Path(project.truth_csv_filename)
-    if csv_filename_path.suffix.lower() == '.csv':
-        csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
-    else:
-        csv_filename = csv_filename_path.name + '-validated.csv'
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
-
-    writer = csv.writer(response)
-    writer.writerow(TRUTH_CSV_HEADER)
-    for timezero_date, location_name, target_name, value in project.get_truth_data_rows():
-        timezero_date = timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
-        writer.writerow([timezero_date, location_name, target_name, value])
-
     return response
 
 
