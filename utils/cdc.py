@@ -12,75 +12,15 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.utilities import parse_value
 
 
-# todo these are project-specific: CDC ensemble and Impetus
+#
+# load_cdc_csv_forecast_file() and friends
+#
+
+# todo these are project-specific: CDC ensemble and Impetus´
 BINLWR_TARGET_NAMES = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
                        '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead', '5_biweek_ahead']
 BINCAT_TARGET_NAMES = ['Season onset', 'Season peak week']
 
-
-def epi_week_filename_components_2016_2017_flu_contest(filename):
-    """
-    :param filename: something like 'EW1-KoTstable-2017-01-17.csv'
-    :return: either None (if filename invalid) or a 3-tuple (if valid) that indicates if filename matches the CDC
-        standard format as defined in [1]. The tuple format is: (ew_week_number, team_name, submission_datetime) .
-        Note that "ew_week_number" is AKA the forecast's "time zero".
-
-    [1] https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
-        From that document:
-
-        For submission, the filename should be modified to the following standard naming convention: a forecast
-        submission using week 43 surveillance data submitted by John Doe University on November 7, 2016, should be named
-        “EW43-JDU-2016-11-07.csv” where EW43 is the latest week of ILINet data used in the forecast, JDU is the name of
-        the team making the submission (e.g. John Doe University), and 2016-11-07 is the date of submission.
-
-    """
-    re_split = re.split(r'^EW(\d*)-(\S*)-(\d{4})-(\d{2})-(\d{2})\.csv$', filename)
-    if len(re_split) != 7:
-        return None
-
-    re_split = re_split[1:-1]  # drop outer two ''
-    if any(map(lambda part: len(part) == 0, re_split)):
-        return None
-
-    return int(re_split[0]), re_split[1], datetime.date(int(re_split[2]), int(re_split[3]), int(re_split[4]))
-
-
-def epi_week_filename_components_ensemble(filename):
-    """
-    Similar to epi_week_filename_components_2016_2017_flu_contest(), but instead parses the format used by the
-    https://github.com/FluSightNetwork/cdc-flusight-ensemble project. From README.md:
-
-        Each forecast file must represent a single submission file, as would be submitted to the CDC challenge. Every
-        filename should adopt the following standard naming convention: a forecast submission using week 43 surveillance
-        data from 2016 submitted by John Doe University using a model called "modelA" should be named
-        “EW43-2016-JDU_modelA.csv” where EW43-2016 is the latest week and year of ILINet data used in the forecast, and
-        JDU is the abbreviated name of the team making the submission (e.g. John Doe University). Neither the team or
-        model names are pre-defined, but they must be consistent for all submissions by the team and match the
-        specifications in the metadata file. Neither should include special characters or match the name of another
-        team.
-
-    ex:
-        'EW01-2011-CUBMA.csv'
-        'EW01-2011-CU_EAKFC_SEIRS.csv'
-
-    :return: either None (if filename invalid) or a 3-tuple (if valid) that indicates if filename matches the format
-        described above. The tuple format is: (ew_week_number, ew_year, team_name) .
-        Note that "ew_week_number" is AKA the forecast's "time zero".
-    """
-    re_split = re.split(r'^EW(\d{2})-(\d{4})-(\S*)\.csv$', filename)
-    if len(re_split) != 5:
-        return None
-
-    re_split = re_split[1:-1]  # drop outer two ''
-    if any(map(lambda part: len(part) == 0, re_split)):
-        return None
-
-    return int(re_split[0]), int(re_split[1]), re_split[2]
-
-
-#
-# load_cdc_csv_forecast_file() and friends
-#
 
 def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None):
     """
@@ -157,20 +97,18 @@ def json_io_dict_from_cdc_csv_file(cdc_csv_file_fp):
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains the three types of predictions. see docs for
         details
     """
-    _, _, rows = _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp)
     return {'meta': {},
-            'predictions': _prediction_dicts_for_csv_rows(rows)}
+            'predictions': _prediction_dicts_for_csv_rows(_cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp))}
 
 
-def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
+def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
     """
     Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
     but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
     dynamically created by this method's callers). Does *not* skip bin rows where the value is 0.
 
     :param cdc_csv_file_fp: the *.cdc.csv data file to load
-    :return: a 3-tuple: (location_names, target_names, rows) where the first two are sets and the last is a list of
-        rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
+    :return: a list of rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     """
     csv_reader = csv.reader(cdc_csv_file_fp, delimiter=',')
 
@@ -190,8 +128,6 @@ def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
         raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
-    location_names = set()
-    target_names = set()
     rows = []
     for row in csv_reader:  # might have 7 or 8 columns, depending on whether there's a trailing ',' in file
         if (len(row) == 8) and (row[7] == ''):
@@ -204,13 +140,10 @@ def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
 
         # validate row_type
         row_type = row_type.lower()
-        if (row_type != CDC_POINT_ROW_TYPE) and (row_type != CDC_BIN_ROW_TYPE):
+        if (row_type != CDC_POINT_ROW_TYPE.lower()) and (row_type != CDC_BIN_ROW_TYPE.lower()):
             raise RuntimeError("row_type was neither '{}' nor '{}': "
                                .format(CDC_POINT_ROW_TYPE, CDC_BIN_ROW_TYPE))
-        is_point_row = (row_type == CDC_POINT_ROW_TYPE)
-
-        location_names.add(location_name)
-        target_names.add(target_name)
+        is_point_row = (row_type == CDC_POINT_ROW_TYPE.lower())
 
         # use parse_value() to handle non-numeric cases like 'NA' and 'none'
         bin_start_incl = parse_value(bin_start_incl)
@@ -218,7 +151,7 @@ def _locations_targets_rows_from_cdc_csv_file(cdc_csv_file_fp):
         value = parse_value(value)
         rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
 
-    return location_names, target_names, rows
+    return rows
 
 
 def _prediction_dicts_for_csv_rows(rows):
@@ -226,8 +159,10 @@ def _prediction_dicts_for_csv_rows(rows):
     json_io_dict_from_cdc_csv_file() helper that returns a list of prediction dicts for the 'predictions' section of the
     exported json. Each dict corresponds to either a PointPrediction, BinLwrDistribution, or BinCatDistribution
     depending on each row in rows. See predictions-example.json for an example.
+
+    :param rows: as returned by _cleaned_rows_from_cdc_csv_file():
+        location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     """
-    # recall rows: location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     prediction_dicts = []  # return value
     rows.sort(key=lambda _: (_[0], _[1]))  # sorted so groupby() will work
     for location_name, target_grouper in groupby(rows, key=lambda _: _[0]):
@@ -286,6 +221,102 @@ def _prediction_dicts_for_csv_rows(rows):
 
 
 #
+# cdc_cvs_rows_from_json_io_dict()
+#
+
+def cdc_cvs_rows_from_json_io_dict(json_io_dict):
+    """
+    :param json_io_dict: a "JSON IO dict" to load from. see docs for details. NB: this dict MUST have a valid "meta"
+        section b/c we need ['meta']['targets'] for each target's 'unit' so we can figure out bin_end_notincl values.
+    :return: a list of CDC CSV rows as documented elsewhere. Does not include a column header row. See CDC_CSV_HEADER
+        for columns: ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value'] .
+    """
+    # do some initial validation
+    if 'meta' not in json_io_dict:
+        raise RuntimeError("no meta section found in json_io_dict")
+    elif 'targets' not in json_io_dict['meta']:
+        raise RuntimeError("no targets section found in json_io_dict meta section")
+    elif 'predictions' not in json_io_dict:
+        raise RuntimeError("no predictions section found in json_io_dict")
+
+    rows = []  # returned value. filled next
+    target_name_to_dict = {target_dict['name']: target_dict for target_dict in json_io_dict['meta']['targets']}
+    for prediction_dict in json_io_dict['predictions']:
+        prediction_class = prediction_dict['class']
+        if prediction_class not in ['BinCat', 'BinLwr', 'Point']:
+            raise RuntimeError(f"invalid prediction_dict class: {prediction_class}")
+
+        target_name = prediction_dict['target']
+        if target_name not in target_name_to_dict:
+            raise RuntimeError(f"prediction_dict target not found in meta targets: {target_name}")
+
+        location = prediction_dict['location']
+        target = prediction_dict['target']
+        row_type = CDC_POINT_ROW_TYPE if prediction_class == 'Point' else CDC_BIN_ROW_TYPE
+        unit = target_name_to_dict[target_name]['unit']
+        prediction = prediction_dict['prediction']
+        if row_type == CDC_POINT_ROW_TYPE:  # output the single point row
+            bin_start_incl = CDC_POINT_NA_VALUE
+            bin_end_notincl = CDC_POINT_NA_VALUE
+            value = prediction['value']
+            rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value])
+        elif prediction_class == 'BinCat':  # 'BinCat' CDC_BIN_ROW_TYPE -> output multiple bin rows
+            # BinCat targets: unit='week', target='Season onset' or 'Season peak week'
+            for cat, prob in zip(prediction['cat'], prediction['prob']):
+                bin_start_incl = cat
+                bin_end_notincl = _recode_cat_bin_end_notincl(cat)
+                value = prob
+                rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value])
+        else:  # prediction_class == 'BinLwr' CDC_BIN_ROW_TYPE -> output multiple bin rows
+            # BinLwr targets: unit='percent', target='1 wk ahead' ... '4 wk ahead', or 'Season peak percentage'
+            for lwr, prob in zip(prediction['lwr'], prediction['prob']):
+                bin_start_incl = lwr
+                bin_end_notincl = 100 if lwr == 13 else lwr + 0.1
+                value = prob
+                rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value])
+
+    return rows
+
+
+def _recode_cat_bin_end_notincl(cat):  # from predx: recode_flusight_bin_end_notincl()
+    return {
+        '40': '41',
+        '41': '42',
+        '42': '43',
+        '43': '44',
+        '44': '45',
+        '45': '46',
+        '46': '47',
+        '47': '48',
+        '48': '49',
+        '49': '50',
+        '50': '51',
+        '51': '52',
+        '52': '53',
+        '1': '2',
+        '2': '3',
+        '3': '4',
+        '4': '5',
+        '5': '6',
+        '6': '7',
+        '7': '8',
+        '8': '9',
+        '9': '10',
+        '10': '11',
+        '11': '12',
+        '12': '13',
+        '13': '14',
+        '14': '15',
+        '15': '16',
+        '16': '17',
+        '17': '18',
+        '18': '19',
+        '19': '20',
+        '20': '21',
+        'none': 'none'}[cat.lower()]
+
+
+#
 # *.cdc.csv file functions
 #
 # The following functions implement this project's file naming standard, and defined in 'Forecast data file names' in
@@ -296,8 +327,9 @@ def _prediction_dicts_for_csv_rows(rows):
 # - '20170504-gam_lag1_tops3.cdc.csv'
 #
 
-CDC_POINT_ROW_TYPE = 'point'
-CDC_BIN_ROW_TYPE = 'bin'
+CDC_POINT_NA_VALUE = 'NA'
+CDC_POINT_ROW_TYPE = 'Point'
+CDC_BIN_ROW_TYPE = 'Bin'
 CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
 CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
 CDC_CSV_FILENAME_RE_PAT = re.compile(r"""
@@ -368,3 +400,63 @@ def first_model_subdirectory(directory):
             return subdir
 
     return None
+
+
+def epi_week_filename_components_2016_2017_flu_contest(filename):
+    """
+    :param filename: something like 'EW1-KoTstable-2017-01-17.csv'
+    :return: either None (if filename invalid) or a 3-tuple (if valid) that indicates if filename matches the CDC
+        standard format as defined in [1]. The tuple format is: (ew_week_number, team_name, submission_datetime) .
+        Note that "ew_week_number" is AKA the forecast's "time zero".
+
+    [1] https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
+        From that document:
+
+        For submission, the filename should be modified to the following standard naming convention: a forecast
+        submission using week 43 surveillance data submitted by John Doe University on November 7, 2016, should be named
+        “EW43-JDU-2016-11-07.csv” where EW43 is the latest week of ILINet data used in the forecast, JDU is the name of
+        the team making the submission (e.g. John Doe University), and 2016-11-07 is the date of submission.
+
+    """
+    re_split = re.split(r'^EW(\d*)-(\S*)-(\d{4})-(\d{2})-(\d{2})\.csv$', filename)
+    if len(re_split) != 7:
+        return None
+
+    re_split = re_split[1:-1]  # drop outer two ''
+    if any(map(lambda part: len(part) == 0, re_split)):
+        return None
+
+    return int(re_split[0]), re_split[1], datetime.date(int(re_split[2]), int(re_split[3]), int(re_split[4]))
+
+
+def epi_week_filename_components_ensemble(filename):
+    """
+    Similar to epi_week_filename_components_2016_2017_flu_contest(), but instead parses the format used by the
+    https://github.com/FluSightNetwork/cdc-flusight-ensemble project. From README.md:
+
+        Each forecast file must represent a single submission file, as would be submitted to the CDC challenge. Every
+        filename should adopt the following standard naming convention: a forecast submission using week 43 surveillance
+        data from 2016 submitted by John Doe University using a model called "modelA" should be named
+        “EW43-2016-JDU_modelA.csv” where EW43-2016 is the latest week and year of ILINet data used in the forecast, and
+        JDU is the abbreviated name of the team making the submission (e.g. John Doe University). Neither the team or
+        model names are pre-defined, but they must be consistent for all submissions by the team and match the
+        specifications in the metadata file. Neither should include special characters or match the name of another
+        team.
+
+    ex:
+        'EW01-2011-CUBMA.csv'
+        'EW01-2011-CU_EAKFC_SEIRS.csv'
+
+    :return: either None (if filename invalid) or a 3-tuple (if valid) that indicates if filename matches the format
+        described above. The tuple format is: (ew_week_number, ew_year, team_name) .
+        Note that "ew_week_number" is AKA the forecast's "time zero".
+    """
+    re_split = re.split(r'^EW(\d{2})-(\d{4})-(\S*)\.csv$', filename)
+    if len(re_split) != 5:
+        return None
+
+    re_split = re_split[1:-1]  # drop outer two ''
+    if any(map(lambda part: len(part) == 0, re_split)):
+        return None
+
+    return int(re_split[0]), int(re_split[1]), re_split[2]

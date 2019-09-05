@@ -533,7 +533,7 @@ class Project(models.Model):
 
     def _load_truth_data_rows(self, csv_file_fp):
         """
-        Similar to ModelWithCDCData._locations_targets_rows_from_cdc_csv_file(), loads, validates, and cleans the rows
+        Similar to ModelWithCDCData._cleaned_rows_from_cdc_csv_file(), loads, validates, and cleans the rows
         in csv_file_fp.
         """
         csv_reader = csv.reader(csv_file_fp, delimiter=',')

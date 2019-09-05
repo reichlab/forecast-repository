@@ -29,8 +29,9 @@ class ForecastTestCase(TestCase):
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
-        cls.forecast = load_cdc_csv_forecast_file(cls.forecast_model, Path(
-            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
+        cls.forecast = load_cdc_csv_forecast_file(
+            cls.forecast_model, Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+            cls.time_zero)
 
 
     def test_load_forecast_created_at_field(self):
