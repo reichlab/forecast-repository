@@ -228,8 +228,8 @@ def cdc_cvs_rows_from_json_io_dict(json_io_dict):
     """
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details. NB: this dict MUST have a valid "meta"
         section b/c we need ['meta']['targets'] for each target's 'unit' so we can figure out bin_end_notincl values.
-    :return: a list of CDC CSV rows as documented elsewhere. Does not include a column header row. See CDC_CSV_HEADER
-        for columns: ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value'] .
+    :return: a list of CDC CSV rows as documented elsewhere. Does include a column header row. See CDC_CSV_HEADER:
+        ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value'] .
     """
     # do some initial validation
     if 'meta' not in json_io_dict:
@@ -239,7 +239,7 @@ def cdc_cvs_rows_from_json_io_dict(json_io_dict):
     elif 'predictions' not in json_io_dict:
         raise RuntimeError("no predictions section found in json_io_dict")
 
-    rows = []  # returned value. filled next
+    rows = [CDC_CSV_HEADER]  # returned value. filled next
     target_name_to_dict = {target_dict['name']: target_dict for target_dict in json_io_dict['meta']['targets']}
     for prediction_dict in json_io_dict['predictions']:
         prediction_class = prediction_dict['class']
@@ -274,7 +274,6 @@ def cdc_cvs_rows_from_json_io_dict(json_io_dict):
                 bin_end_notincl = 100 if lwr == 13 else lwr + 0.1
                 value = prob
                 rows.append([location, target, row_type, unit, bin_start_incl, bin_end_notincl, value])
-
     return rows
 
 

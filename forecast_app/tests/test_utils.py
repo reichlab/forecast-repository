@@ -10,7 +10,7 @@ from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
     load_cdc_csv_forecast_file, cdc_csv_filename_components, first_model_subdirectory, cdc_cvs_rows_from_json_io_dict
-from utils.forecast import json_io_dict_from_forecast
+from utils.forecast import json_io_dict_from_forecast, cvs_rows_from_json_io_dict
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date
 
 
@@ -57,6 +57,50 @@ class UtilsTestCase(TestCase):
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 52)))
         cls.forecast4 = load_cdc_csv_forecast_file(cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), time_zero)
+
+
+    def test_cvs_rows_from_json_io_dict(self):
+        # no meta
+        with self.assertRaises(RuntimeError) as context:
+            cvs_rows_from_json_io_dict({})
+        self.assertIn('no meta section found in json_io_dict', str(context.exception))
+
+        # no meta > targets
+        with self.assertRaises(RuntimeError) as context:
+            cvs_rows_from_json_io_dict({'meta': {}})
+        self.assertIn('no targets section found in json_io_dict meta section', str(context.exception))
+
+        with open('forecast_app/tests/predictions/predictions-example.json') as fp:
+            json_io_dict = json.load(fp)
+        with self.assertRaises(RuntimeError) as context:
+            # remove arbitrary meta target. doesn't matter b/c all are referenced
+            del (json_io_dict['meta']['targets'][0])
+            cdc_cvs_rows_from_json_io_dict(json_io_dict)
+        self.assertIn('prediction_dict target not found in meta targets', str(context.exception))
+
+        with open('forecast_app/tests/predictions/predictions-example.json') as fp:
+            json_io_dict = json.load(fp)
+        # location,target,unit,class,cat,family,lwr,param1,param2,param3,prob,sample,value
+        exp_rows = [
+            ['location', 'target', 'unit', 'class', 'cat', 'family', 'lwr', 'param1', 'param2', 'param3', 'prob',
+             'sample', 'value'],
+            ['US National', '1 wk ahead', 'percent', 'BinCat', 'cat1', '', '', '', '', '', 0.0, '', ''],
+            ['US National', '1 wk ahead', 'percent', 'BinCat', 'cat2', '', '', '', '', '', 0.1, '', ''],
+            ['US National', '1 wk ahead', 'percent', 'BinCat', 'cat3', '', '', '', '', '', 0.9, '', ''],
+            ['HHS Region 1', '2 wk ahead', 'percent', 'BinLwr', '', '', 0.0, '', '', '', 0.0, '', ''],
+            ['HHS Region 1', '2 wk ahead', 'percent', 'BinLwr', '', '', 0.1, '', '', '', 0.1, '', ''],
+            ['HHS Region 1', '2 wk ahead', 'percent', 'BinLwr', '', '', 0.2, '', '', '', 0.9, '', ''],
+            ['HHS Region 2', '3 wk ahead', 'percent', 'Binary', '', '', '', '', '', '', 0.5, '', ''],
+            ['HHS Region 3', '4 wk ahead', 'percent', 'Named', '', 'gamma', '', 1.1, 2.2, 3.3, '', '', ''],
+            ['HHS Region 4', 'Season onset', 'week', 'Point', '', '', '', '', '', '', '', '', '1'],
+            ['HHS Region 5', 'Season peak percentage', 'percent', 'Sample', '', '', '', '', '', '', '', 1.1, ''],
+            ['HHS Region 5', 'Season peak percentage', 'percent', 'Sample', '', '', '', '', '', '', '', 2.2, ''],
+            ['HHS Region 6', 'Season peak week', 'week', 'SampleCat', 'cat1', '', '', '', '', '', '', 'cat1 sample',
+             ''],
+            ['HHS Region 6', 'Season peak week', 'week', 'SampleCat', 'cat2', '', '', '', '', '', '', 'cat2 sample',
+             '']]
+        act_rows = cvs_rows_from_json_io_dict(json_io_dict)
+        self.assertEqual(exp_rows, act_rows)
 
 
     def test_cdc_csv_rows_from_json_io_dict(self):
@@ -111,12 +155,12 @@ class UtilsTestCase(TestCase):
             forecast_model, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
         with open(Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')) as csv_fp:
             csv_reader = csv.reader(csv_fp, delimiter=',')
-            next(csv_reader)  # skip header
-            exp_cdc_cvs_rows = list(map(_xform_cdc_csv_row, sorted(csv_reader)))
-
+            exp_rows = list(csv_reader)
+            exp_rows[0] = list(map(str.lower, exp_rows[0]))  # fix header case difference
+            exp_rows = list(map(_xform_cdc_csv_row, sorted(exp_rows)))
         json_io_dict = json_io_dict_from_forecast(forecast)
-        act_cdc_cvs_rows = sorted(cdc_cvs_rows_from_json_io_dict(json_io_dict))
-        self.assertEqual(exp_cdc_cvs_rows, act_cdc_cvs_rows)
+        act_rows = sorted(cdc_cvs_rows_from_json_io_dict(json_io_dict))
+        self.assertEqual(exp_rows, act_rows)
 
 
     def test_epi_week_filename_components_2016_2017_flu_contest(self):
