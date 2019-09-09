@@ -221,10 +221,10 @@ def _prediction_dicts_for_csv_rows(rows):
 
 
 #
-# cdc_cvs_rows_from_json_io_dict()
+# cdc_csv_rows_from_json_io_dict()
 #
 
-def cdc_cvs_rows_from_json_io_dict(json_io_dict):
+def cdc_csv_rows_from_json_io_dict(json_io_dict):
     """
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details. NB: this dict MUST have a valid "meta"
         section b/c we need ['meta']['targets'] for each target's 'unit' so we can figure out bin_end_notincl values.
@@ -346,7 +346,7 @@ CDC_CSV_FILENAME_RE_PAT = re.compile(r"""
 
 def cdc_csv_components_from_data_dir(cdc_csv_dir):
     """
-    A utility that helps process a directory containing cdc cvs files.
+    A utility that helps process a directory containing cdc csv files.
 
     :return a list of 4-tuples for each *.cdc.csv file in cdc_csv_dir, with the last three in the form returned by
         cdc_csv_filename_components(): (cdc_csv_file, timezero_date, model_name, data_version_date). cdc_csv_file is a

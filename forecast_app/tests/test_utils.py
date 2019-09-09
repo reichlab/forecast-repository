@@ -9,8 +9,8 @@ from django.test import TestCase
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import epi_week_filename_components_2016_2017_flu_contest, epi_week_filename_components_ensemble, \
-    load_cdc_csv_forecast_file, cdc_csv_filename_components, first_model_subdirectory, cdc_cvs_rows_from_json_io_dict
-from utils.forecast import json_io_dict_from_forecast, cvs_rows_from_json_io_dict
+    load_cdc_csv_forecast_file, cdc_csv_filename_components, first_model_subdirectory, cdc_csv_rows_from_json_io_dict
+from utils.forecast import json_io_dict_from_forecast, csv_rows_from_json_io_dict
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, season_start_year_for_date
 
 
@@ -59,15 +59,15 @@ class UtilsTestCase(TestCase):
             'forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), time_zero)
 
 
-    def test_cvs_rows_from_json_io_dict(self):
+    def test_csv_rows_from_json_io_dict(self):
         # no meta
         with self.assertRaises(RuntimeError) as context:
-            cvs_rows_from_json_io_dict({})
+            csv_rows_from_json_io_dict({})
         self.assertIn('no meta section found in json_io_dict', str(context.exception))
 
         # no meta > targets
         with self.assertRaises(RuntimeError) as context:
-            cvs_rows_from_json_io_dict({'meta': {}})
+            csv_rows_from_json_io_dict({'meta': {}})
         self.assertIn('no targets section found in json_io_dict meta section', str(context.exception))
 
         # invalid prediction class
@@ -75,7 +75,7 @@ class UtilsTestCase(TestCase):
             with self.assertRaises(RuntimeError) as context:
                 json_io_dict = {'meta': {'targets': []},
                                 'predictions': [{'class': invalid_prediction_class}]}
-                cdc_cvs_rows_from_json_io_dict(json_io_dict)
+                cdc_csv_rows_from_json_io_dict(json_io_dict)
             self.assertIn('invalid prediction_dict class', str(context.exception))
 
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
@@ -83,7 +83,7 @@ class UtilsTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             # remove arbitrary meta target. doesn't matter b/c all are referenced
             del (json_io_dict['meta']['targets'][0])
-            cdc_cvs_rows_from_json_io_dict(json_io_dict)
+            cdc_csv_rows_from_json_io_dict(json_io_dict)
         self.assertIn('prediction_dict target not found in meta targets', str(context.exception))
 
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
@@ -107,24 +107,24 @@ class UtilsTestCase(TestCase):
              ''],
             ['HHS Region 6', 'Season peak week', 'week', 'SampleCat', 'cat2', '', '', '', '', '', '', 'cat2 sample',
              '']]
-        act_rows = cvs_rows_from_json_io_dict(json_io_dict)
+        act_rows = csv_rows_from_json_io_dict(json_io_dict)
         self.assertEqual(exp_rows, act_rows)
 
 
     def test_cdc_csv_rows_from_json_io_dict(self):
         # no meta
         with self.assertRaises(RuntimeError) as context:
-            cdc_cvs_rows_from_json_io_dict({})
+            cdc_csv_rows_from_json_io_dict({})
         self.assertIn('no meta section found in json_io_dict', str(context.exception))
 
         # no meta > targets
         with self.assertRaises(RuntimeError) as context:
-            cdc_cvs_rows_from_json_io_dict({'meta': {}})
+            cdc_csv_rows_from_json_io_dict({'meta': {}})
         self.assertIn('no targets section found in json_io_dict meta section', str(context.exception))
 
         # no predictions
         with self.assertRaises(RuntimeError) as context:
-            cdc_cvs_rows_from_json_io_dict({'meta': {'targets': []}})
+            cdc_csv_rows_from_json_io_dict({'meta': {'targets': []}})
         self.assertIn('no predictions section found in json_io_dict', str(context.exception))
 
         # invalid prediction class
@@ -132,7 +132,7 @@ class UtilsTestCase(TestCase):
             with self.assertRaises(RuntimeError) as context:
                 json_io_dict = {'meta': {'targets': []},
                                 'predictions': [{'class': invalid_prediction_class}]}
-                cdc_cvs_rows_from_json_io_dict(json_io_dict)
+                cdc_csv_rows_from_json_io_dict(json_io_dict)
             self.assertIn('invalid prediction_dict class', str(context.exception))
 
         # prediction dict target not found in meta > targets
@@ -148,7 +148,7 @@ class UtilsTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             # remove arbitrary meta target. doesn't matter b/c all are referenced
             del (json_io_dict['meta']['targets'][0])
-            cdc_cvs_rows_from_json_io_dict(json_io_dict)
+            cdc_csv_rows_from_json_io_dict(json_io_dict)
         self.assertIn('prediction_dict target not found in meta targets', str(context.exception))
 
         # blue sky: small forecast
@@ -167,7 +167,7 @@ class UtilsTestCase(TestCase):
             exp_rows[0] = list(map(str.lower, exp_rows[0]))  # fix header case difference
             exp_rows = list(map(_xform_cdc_csv_row, sorted(exp_rows)))
         json_io_dict = json_io_dict_from_forecast(forecast)
-        act_rows = sorted(cdc_cvs_rows_from_json_io_dict(json_io_dict))
+        act_rows = sorted(cdc_csv_rows_from_json_io_dict(json_io_dict))
         self.assertEqual(exp_rows, act_rows)
 
 

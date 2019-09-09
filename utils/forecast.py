@@ -257,14 +257,14 @@ def _target_dicts_for_project(project, target_names):
 
 
 #
-# cvs_rows_from_json_io_dict()
+# csv_rows_from_json_io_dict()
 #
 
 CSV_HEADER = ['location', 'target', 'unit', 'class', 'cat', 'family', 'lwr', 'param1', 'param2', 'param3', 'prob',
               'sample', 'value']
 
 
-def cvs_rows_from_json_io_dict(json_io_dict):
+def csv_rows_from_json_io_dict(json_io_dict):
     """
     A utility that converts json_io_dict to a list of CSV rows specific to Zoltar. The rows are an 'expanded' version of
     json_io_dict where bin-type classes result in multiple rows: BinCatDistribution, BinLwrDistribution,
@@ -277,7 +277,7 @@ def cvs_rows_from_json_io_dict(json_io_dict):
         section b/c we need ['meta']['targets'] for each target's 'unit' so we can figure out bin_end_notincl values.
     :return: a list of CSV rows including header
     """
-    # todo merge w/cdc_cvs_rows_from_json_io_dict()
+    # todo merge w/cdc_csv_rows_from_json_io_dict()
 
     # do some initial validation
     if 'meta' not in json_io_dict:
