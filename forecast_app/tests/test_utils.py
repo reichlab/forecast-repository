@@ -70,6 +70,14 @@ class UtilsTestCase(TestCase):
             cvs_rows_from_json_io_dict({'meta': {}})
         self.assertIn('no targets section found in json_io_dict meta section', str(context.exception))
 
+        # invalid prediction class
+        for invalid_prediction_class in ['InvalidClass']:  # ok: PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+            with self.assertRaises(RuntimeError) as context:
+                json_io_dict = {'meta': {'targets': []},
+                                'predictions': [{'class': invalid_prediction_class}]}
+                cdc_cvs_rows_from_json_io_dict(json_io_dict)
+            self.assertIn('invalid prediction_dict class', str(context.exception))
+
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             json_io_dict = json.load(fp)
         with self.assertRaises(RuntimeError) as context:
