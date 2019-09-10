@@ -982,7 +982,7 @@ def upload_truth(request, project_pk):
 
 def process_upload_file_job__truth(upload_file_job_pk):
     """
-    An _upload_file() enqueue() function that loads a template file. Called by upload_truth().
+    An _upload_file() enqueue() function that loads a truth file. Called by upload_truth().
 
     - Expected UploadFileJob.input_json key(s): 'project_pk' - passed to _upload_file()
     - Saves UploadFileJob.output_json key(s): None
@@ -992,7 +992,7 @@ def process_upload_file_job__truth(upload_file_job_pk):
     with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
         project_pk = upload_file_job.input_json['project_pk']
         project = get_object_or_404(Project, pk=project_pk)
-        project.load_truth_data(cloud_file_fp, upload_file_job.filename)
+        project.load_truth_data(cloud_file_fp, file_name=upload_file_job.filename)
 
 
 def download_truth(request, project_pk):
@@ -1073,13 +1073,19 @@ def process_upload_file_job__forecast(upload_file_job_pk):
         forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
         timezero_pk = upload_file_job.input_json['timezero_pk']
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
+        logger.debug(f"process_upload_file_job__forecast(): upload_file_job={upload_file_job}, "
+                     f"forecast_model={forecast_model}, time_zero={time_zero}")
         with transaction.atomic():
+            logger.debug(f"process_upload_file_job__forecast(): creating Forecast")
             new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
                                                    source=upload_file_job.filename)
             json_io_dict = json.load(cloud_file_fp)
+            logger.debug(f"process_upload_file_job__forecast(): loading predictions. "
+                         f"#predictions={len(json_io_dict['predictions'])}")
             load_predictions_from_json_io_dict(new_forecast, json_io_dict)
             upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
             upload_file_job.save()
+            logger.debug(f"process_upload_file_job__forecast(): done")
 
 
 def delete_forecast(request, forecast_pk):
