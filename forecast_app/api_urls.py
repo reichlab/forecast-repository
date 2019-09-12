@@ -5,7 +5,9 @@ from forecast_app import api_views
 
 urlpatterns = [
     url(r'^$', api_views.api_root, name='api-root'),
+
     url(r'^user/(?P<pk>\d+)/$', api_views.UserDetail.as_view(), name='api-user-detail'),
+
     url(r'^uploadfilejob/(?P<pk>\d+)/$', api_views.UploadFileJobDetailView.as_view(),
         name='api-upload-file-job-detail'),
 

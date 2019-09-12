@@ -627,7 +627,68 @@ class ProjectTestCase(TestCase):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
-    def test_create_project_from_json_spec(self):
+    def test_create_project_from_json_validation(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project_dict = {}  # built up as we go
+
+        # test owner permissions
+        self.fail()  # todo xx
+
+        # test existing project
+        # "found existing project"
+        self.fail()  # todo xx
+
+        # test top level fields
+        for field in ['name', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type',
+                      'visualization_y_label', 'locations', 'targets']:
+            with self.assertRaises(RuntimeError) as context:
+                create_project_from_json(project_dict, po_user)
+            self.assertIn(f"no '{field}' field", str(context.exception))
+            project_dict[field] = f"'{field}' value"
+
+        # test time_interval_type
+        # "invalid 'time_interval_type'"
+        self.fail()  # todo xx
+
+        # test locations
+        project_dict['locations'] = []
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn(f"no locations", str(context.exception))
+
+        project_dict['locations'] = [{}]
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn(f"location has no name field", str(context.exception))
+
+        # test targets
+        project_dict['locations'] = [{"name": "HHS Region 1"}]  # valid
+        project_dict['targets'] = []
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn(f"no targets", str(context.exception))
+
+        target_dict = {}
+        project_dict['targets'] = [target_dict]
+        for field in ['name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment',
+                      'point_value_type', 'prediction_types']:
+            with self.assertRaises(RuntimeError) as context:
+                create_project_from_json(project_dict, po_user)
+            self.assertIn(f"no '{field}' field", str(context.exception))
+            target_dict[field] = f"'{field}' value"
+
+        # todo xx "invalid 'point_value_type'"
+        # todo xx "invalid prediction_type"
+        # todo xx "required lwr entry is missing for BinLwr prediction type"
+        # todo xx "found a non-numeric BinLwr lwr"
+        # todo xx "lwrs were not sorted"
+        self.fail()  # todo xx
+
+        # with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
+        #     project_dict = json.load(fp)
+
+
+    def test_create_project_from_json(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
 

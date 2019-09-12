@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
@@ -13,7 +14,7 @@ from rest_framework.test import APIClient
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
-from utils.cdc import load_cdc_csv_forecast_file, CDC_CSV_HEADER
+from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
@@ -347,7 +348,10 @@ class ViewsTestCase(TestCase):
                 # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
                 self.client.logout()  # AnonymousUser
                 if user:
-                    self.authenticate_jwt_user(user)
+                    password = self.po_user_password if user == self.po_user \
+                        else self.mo_user_password if user == self.mo_user \
+                        else self.superuser_password
+                    self.authenticate_jwt_user(user, password)
                 response = self.client.get(url)
                 self.assertEqual(exp_status_code, response.status_code)
 
@@ -363,7 +367,7 @@ class ViewsTestCase(TestCase):
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
 
         # authorized access: self.mo_user: self.public_project, self.private_project, self.public_project2
-        self.authenticate_jwt_user(self.mo_user)
+        self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
         response = self.client.get(reverse('api-project-list'), format='json')
         self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
@@ -430,7 +434,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
         # authorized self.mo_user: delete private_forecast2 (new Forecast) -> allowed
-        self.authenticate_jwt_user(self.mo_user)
+        self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
         self.assertEqual(1, self.private_model.forecasts.count())
 
         private_forecast2 = load_cdc_csv_forecast_file(self.private_model, self.csv_file_path, self.private_tz1)
@@ -450,7 +454,7 @@ class ViewsTestCase(TestCase):
         # forecast data as JSON. a django.http.response.JsonResponse:
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
         response_dict = json.loads(response.content)  # will fail if not JSON
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response['Content-Type'], "application/json")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
@@ -459,12 +463,58 @@ class ViewsTestCase(TestCase):
 
         # score data as CSV. a django.http.response.HttpResponse
         response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response['Content-Type'], "text/csv")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')
         split_content = response.content.decode("utf-8").split('\r\n')
         self.assertEqual(split_content[0], ','.join(SCORE_CSV_HEADER_PREFIX))
         self.assertEqual(len(split_content), 2)  # no score data
+
+
+    def test_api_create_project(self):
+        project_list_url = reverse('api-project-list')
+
+        # case: not authorized. recall that any logged-in user can create
+        json_response = self.client.post(project_list_url, {
+            'config_file': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: blue sky
+        with open(Path('forecast_app/tests/projects/cdc-project.json'), 'rb') as fp:
+            project_dict = json.load(fp)
+        jwt_token = self.authenticate_jwt_user(self.po_user, self.po_user_password)
+        json_response = self.client.post(project_list_url, {
+            'config_file': project_dict,
+            'Authorization': f'JWT {jwt_token}',
+        }, format='json')
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+
+    def test_api_delete_project(self):
+        # create a project to delete
+        project_list_url = reverse('api-project-list')
+        with open(Path('forecast_app/tests/projects/cdc-project.json'), 'rb') as fp:
+            project_dict = json.load(fp)
+        json_response = self.client.post(project_list_url, {
+            'config_file': project_dict,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        project_json = json_response.json()  # ProjectSerializer
+        new_project_pk = project_json['id']
+
+        # case: not authorized
+        joe_user = User.objects.create_user(username='joe', password='password')
+        response = self.client.delete(reverse('api-project-detail', args=[new_project_pk]), {
+            'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
+        })
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # case: blue sky
+        response = self.client.delete(reverse('api-project-detail', args=[new_project_pk]), {
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        })
+        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
 
 
     def test_api_upload_forecast(self):
@@ -473,11 +523,19 @@ class ViewsTestCase(TestCase):
         with patch('forecast_app.views._upload_file') as upload_file_mock:
             upload_forecast_url = reverse('api-forecast-list', args=[str(self.public_model.pk)])
             data_file = SimpleUploadedFile('file.csv', b'file_content', content_type='text/csv')
-            jwt_token = self.authenticate_jwt_user(self.mo_user)
+
+            # case: not authorized
+            joe_user = User.objects.create_user(username='joe', password='password')
+            json_response = self.client.post(upload_forecast_url, {
+                'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
             # case: no 'data_file'
+            jwt_token = self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
             json_response = self.client.post(upload_forecast_url, {
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
@@ -485,14 +543,14 @@ class ViewsTestCase(TestCase):
             # case: no 'timezero_date'
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
             # case: invalid 'timezero_date' format - YYYYMMDD_DATE_FORMAT
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': 'x20171202',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
@@ -500,7 +558,7 @@ class ViewsTestCase(TestCase):
             # case: existing_forecast_for_time_zero
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz1.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),  # public_tz1
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
@@ -509,7 +567,7 @@ class ViewsTestCase(TestCase):
             upload_file_mock.return_value = False, UploadFileJob.objects.create()  # is_error, upload_file_job
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
@@ -527,7 +585,7 @@ class ViewsTestCase(TestCase):
             upload_file_mock.return_value = True, None  # is_error, upload_file_job
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
@@ -537,7 +595,7 @@ class ViewsTestCase(TestCase):
             new_timezero_date = '19621022'
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': new_timezero_date,  # doesn't exist
             }, format='multipart')
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
@@ -550,7 +608,7 @@ class ViewsTestCase(TestCase):
             act_time_zero.delete()
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': new_timezero_date,  # doesn't exist
                 'data_version_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
             }, format='multipart')
@@ -564,17 +622,14 @@ class ViewsTestCase(TestCase):
             act_time_zero.delete()
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
-                'Authorization': 'JWT {}'.format(jwt_token),
+                'Authorization': f'JWT {jwt_token}',
                 'timezero_date': new_timezero_date,  # doesn't exist
                 'data_version_date': 'x20171202',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
 
-    def authenticate_jwt_user(self, user):
-        password = self.po_user_password if user == self.po_user \
-            else self.mo_user_password if user == self.mo_user \
-            else self.superuser_password
+    def authenticate_jwt_user(self, user, password):
         jwt_auth_url = reverse('auth-jwt-get')
         jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password}, format='json')
         jwt_token = jwt_auth_resp.data['token']

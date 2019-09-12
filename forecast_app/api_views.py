@@ -25,8 +25,10 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer
+from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_project
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
+from utils.project import create_project_from_json
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -62,7 +64,29 @@ class ProjectList(generics.ListAPIView):
         return [project for project in Project.objects.all() if project.is_user_ok_to_view(self.request.user)]
 
 
-class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+    def post(self, request, *args, **kwargs):
+        """
+        Creates a new Project based on a project config file ala create_project_from_json(). Runs in the calling thread
+        and therefore blocks. POST form fields:
+        - request.data (required) must have a 'config_file' field containing a dict valid for
+            create_project_from_json(). NB: this is different from other API args in this file in that it takes all
+            required information as data, whereas others take their main data as a file in request.FILES, plus some
+            additional data in request.data.
+        """
+        if not is_user_ok_create_project(request.user):  # any logged-in user can create
+            raise PermissionDenied
+        elif 'config_file' not in request.data:
+            return JsonResponse({'error': "No 'config_file' data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_project = create_project_from_json(request.data['config_file'], request.user)
+            project_serializer = ProjectSerializer(new_project, context={'request': request})
+            return JsonResponse(project_serializer.data)
+        except Exception as ex:
+            return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
@@ -71,6 +95,18 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return project.is_user_ok_to_view(self.request.user)
+
+
+    def delete(self, request, *args, **kwargs):
+        """
+        Deletes this project. Runs in the calling thread and therefore blocks.
+        """
+        project = self.get_object()
+        if not is_user_ok_edit_project(request.user, project):
+            raise PermissionDenied
+
+        response = self.destroy(request, *args, **kwargs)
+        return response
 
 
 class UserList(generics.ListAPIView):
@@ -87,28 +123,6 @@ class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return self.request.user.is_superuser or (detail_user == self.request.user)
-
-
-class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
-    queryset = UploadFileJob.objects.all()
-    serializer_class = UploadFileJobSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
-
-
-    def test_func(self):  # return True if the current user can access the view
-        upload_file_job = self.get_object()
-        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
-
-
-class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
-    queryset = ForecastModel.objects.all()
-    serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
-
-
-    def test_func(self):  # return True if the current user can access the view
-        forecast_model = self.get_object()
-        return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
 class ForecastModelForecastList(ListCreateAPIView):
@@ -131,13 +145,13 @@ class ForecastModelForecastList(ListCreateAPIView):
     def post(self, request, *args, **kwargs):
         """
         Handles uploading a new Forecast to this ForecastModel. POST form fields:
-        - 'data_file' (required): The data file to upload. NB: 'data_file'is our naming convention. it could be renamed.
-            if multiple files, just uses the first one.
+        - 'data_file' (required): The data file to upload. NB: 'data_file' is our naming convention. it could be
+            renamed. If multiple files, just uses the first one.
         - 'timezero_date' (required): The TimeZero.timezero_date to use to look up the TimeZero to associate with the
             upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. The TimeZero will be created if one
             corresponding to 'timezero_date' isn't found.
         - data_version_date (optional): To be used for the newly-created TimeZero corresponding to 'timezero_date', if
-            it didn't exist
+            it didn't exist.
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
@@ -153,20 +167,17 @@ class ForecastModelForecastList(ListCreateAPIView):
 
         # validate 'data_file'
         if 'data_file' not in request.FILES:
-            return JsonResponse({'error': "No 'data_file' form field."},
-                                status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'error': "No 'data_file' form field."}, status=status.HTTP_400_BAD_REQUEST)
 
         # NB: if multiple files, just uses the first one:
         data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
         if data_file.size > MAX_UPLOAD_FILE_SIZE:
             message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
-            return JsonResponse({'error': message},
-                                status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
         # validate 'timezero_date'
         if 'timezero_date' not in request.POST:
-            return JsonResponse({'error': "No 'timezero_date' form field."},
-                                status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'error': "No 'timezero_date' form field."}, status=status.HTTP_400_BAD_REQUEST)
 
         timezero_date_str = request.POST['timezero_date']
         try:
@@ -215,6 +226,28 @@ class ForecastModelForecastList(ListCreateAPIView):
         return JsonResponse(upload_file_job_serializer.data)
 
 
+class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = UploadFileJob.objects.all()
+    serializer_class = UploadFileJobSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):  # return True if the current user can access the view
+        upload_file_job = self.get_object()
+        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
+
+
+class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = ForecastModel.objects.all()
+    serializer_class = ForecastModelSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):  # return True if the current user can access the view
+        forecast_model = self.get_object()
+        return forecast_model.project.is_user_ok_to_view(self.request.user)
+
+
 class ForecastDetail(RetrieveDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
@@ -229,6 +262,9 @@ class ForecastDetail(RetrieveDestroyAPIView):
 
 
     def delete(self, request, *args, **kwargs):
+        """
+        Deletes this forecast. Runs in the calling thread and therefore blocks.
+        """
         forecast = self.get_object()
         if not forecast.is_user_ok_to_delete(request.user):
             raise PermissionDenied
