@@ -14,8 +14,8 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     """
     Function shared by log and pit scores.
 
-    :param: save_score_fcn: a function that creates and saves a ScoreValue. args: see save_score_fcn() call below
-    :param: kwargs: passed through to save_score_fcn
+    :param save_score_fcn: a function that creates and saves a ScoreValue. args: see save_score_fcn() call below
+    :param kwargs: passed through to save_score_fcn
     """
     try:
         _validate_score_targets_and_data(forecast_model)

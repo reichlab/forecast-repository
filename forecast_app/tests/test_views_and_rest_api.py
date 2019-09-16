@@ -472,46 +472,88 @@ class ViewsTestCase(TestCase):
 
 
     def test_api_create_project(self):
-        project_list_url = reverse('api-project-list')
-
         # case: not authorized. recall that any logged-in user can create
-        json_response = self.client.post(project_list_url, {
-            'config_file': {},
+        json_response = self.client.post(reverse('api-project-list'), {
+            'project_config': {},
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
         # case: blue sky
         with open(Path('forecast_app/tests/projects/cdc-project.json'), 'rb') as fp:
             project_dict = json.load(fp)
-        jwt_token = self.authenticate_jwt_user(self.po_user, self.po_user_password)
-        json_response = self.client.post(project_list_url, {
-            'config_file': project_dict,
-            'Authorization': f'JWT {jwt_token}',
+        json_response = self.client.post(reverse('api-project-list'), {
+            'project_config': project_dict,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+        # spot-check response
+        proj_json = json_response.json()
+        self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
+                          'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros'},
+                         set(proj_json.keys()))
+        self.assertEqual('CDC Flu challenge', proj_json['name'])
 
 
     def test_api_delete_project(self):
         # create a project to delete
-        project_list_url = reverse('api-project-list')
-        with open(Path('forecast_app/tests/projects/cdc-project.json'), 'rb') as fp:
-            project_dict = json.load(fp)
-        json_response = self.client.post(project_list_url, {
-            'config_file': project_dict,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
-        }, format='json')
-        project_json = json_response.json()  # ProjectSerializer
-        new_project_pk = project_json['id']
+        project2 = Project.objects.create(owner=self.po_user)
 
         # case: not authorized
         joe_user = User.objects.create_user(username='joe', password='password')
-        response = self.client.delete(reverse('api-project-detail', args=[new_project_pk]), {
+        response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
             'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
         # case: blue sky
-        response = self.client.delete(reverse('api-project-detail', args=[new_project_pk]), {
+        response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        })
+        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+
+
+    def test_api_create_model(self):
+        project2 = Project.objects.create(owner=self.po_user)
+
+        # case: not authorized. recall user must be a superuser, project owner, or model owner
+        json_response = self.client.post(reverse('api-models-list', args=[project2.pk]), {
+            'model_config': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: blue sky
+        model_config = {'name': 'a model_name', 'abbreviation': 'an abbreviation', 'team_name': 'a team_name',
+                        'description': 'a description', 'home_url': 'http://example.com/',
+                        'aux_data_url': 'http://example.com/'}
+        json_response = self.client.post(reverse('api-models-list', args=[project2.pk]), {
+            'model_config': model_config,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+        # spot-check response
+        model_json = json_response.json()
+        self.assertEqual({'id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url',
+                          'aux_data_url', 'forecasts'},
+                         set(model_json.keys()))
+        self.assertEqual('a model_name', model_json['name'])
+
+
+    def test_api_delete_model(self):
+        # create a model to delete
+        project2 = Project.objects.create(owner=self.po_user)
+        forecast_model2 = ForecastModel.objects.create(project=project2, owner=self.po_user)
+
+        # case: not authorized
+        joe_user = User.objects.create_user(username='joe', password='password')
+        response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
+        })
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # case: blue sky
+        response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
             'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
         })
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)

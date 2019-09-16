@@ -25,7 +25,8 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer
-from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_project
+from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_project, is_user_ok_edit_model, \
+    is_user_ok_create_model
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json
@@ -68,18 +69,18 @@ class ProjectList(generics.ListAPIView):
         """
         Creates a new Project based on a project config file ala create_project_from_json(). Runs in the calling thread
         and therefore blocks. POST form fields:
-        - request.data (required) must have a 'config_file' field containing a dict valid for
+        - request.data (required) must have a 'project_config' field containing a dict valid for
             create_project_from_json(). NB: this is different from other API args in this file in that it takes all
             required information as data, whereas others take their main data as a file in request.FILES, plus some
             additional data in request.data.
         """
         if not is_user_ok_create_project(request.user):  # any logged-in user can create
             raise PermissionDenied
-        elif 'config_file' not in request.data:
-            return JsonResponse({'error': "No 'config_file' data."}, status=status.HTTP_400_BAD_REQUEST)
+        elif 'project_config' not in request.data:
+            return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            new_project = create_project_from_json(request.data['config_file'], request.user)
+            new_project = create_project_from_json(request.data['project_config'], request.user)
             project_serializer = ProjectSerializer(new_project, context={'request': request})
             return JsonResponse(project_serializer.data)
         except Exception as ex:
@@ -109,6 +110,57 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         return response
 
 
+class ProjectForecastModelList(ListCreateAPIView):
+    # View that returns a list of ForecastModels in a Project
+    serializer_class = ForecastModelSerializer
+
+
+    def get_queryset(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return project.models
+
+
+    def post(self, request, *args, **kwargs):
+        """
+        Creates a new ForecastModel based on a model config dict. Runs in the calling thread and therefore blocks.
+
+        POST form fields:
+        - request.data (required) must have a 'model_config' field containing these fields: ['name'].
+            optional fields: ['abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url']
+        """
+        project = Project.objects.get(pk=self.kwargs['pk'])
+
+        # check authorization
+        if not is_user_ok_create_model(request.user, project):  # any logged-in user can create
+            raise PermissionDenied
+        elif 'model_config' not in request.data:
+            return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # validate model_config
+        model_config = request.data['model_config']
+        actual_keys = set(model_config.keys())
+        expected_keys = {'name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url'}
+        if actual_keys != expected_keys:
+            return JsonResponse({'error': f"Wrong keys in 'model_config'. expected={expected_keys}, "
+                                          f"actual={actual_keys}"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            model_init = {'project': project,
+                          'owner': request.user,
+                          'name': model_config['name'],
+                          'abbreviation': model_config['abbreviation'] if 'abbreviation' in model_config else '',
+                          'team_name': model_config['team_name'] if 'team_name' in model_config else '',
+                          'description': model_config['description'] if 'description' in model_config else '',
+                          'home_url': model_config['home_url'] if 'home_url' in model_config else '',
+                          'aux_data_url': model_config['aux_data_url'] if 'aux_data_url' in model_config else ''}
+            new_model = ForecastModel.objects.create(**model_init)
+            model_serializer = ForecastModelSerializer(new_model, context={'request': request})
+            return JsonResponse(model_serializer.data)
+        except Exception as ex:
+            return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class UserList(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -126,6 +178,7 @@ class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
 
 class ForecastModelForecastList(ListCreateAPIView):
+    # View that returns a list of Forecasts in a ForecastModel
     serializer_class = ForecastSerializer
 
 
@@ -237,7 +290,7 @@ class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
         return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
 
 
-class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
+class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     queryset = ForecastModel.objects.all()
     serializer_class = ForecastModelSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -246,6 +299,18 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return forecast_model.project.is_user_ok_to_view(self.request.user)
+
+
+    def delete(self, request, *args, **kwargs):
+        """
+        Deletes this model. Runs in the calling thread and therefore blocks.
+        """
+        forecast_model = self.get_object()
+        if not is_user_ok_edit_model(request.user, forecast_model):
+            raise PermissionDenied
+
+        response = self.destroy(request, *args, **kwargs)
+        return response
 
 
 class ForecastDetail(RetrieveDestroyAPIView):
@@ -335,11 +400,11 @@ def csv_response_for_project_truth_data(project):
 
 @api_view(['GET'])
 @renderer_classes((BrowsableAPIRenderer, CSVRenderer))
-def score_data(request, project_pk):
+def score_data(request, pk):
     """
     :return: the Project's score data as CSV
     """
-    project = get_object_or_404(Project, pk=project_pk)
+    project = get_object_or_404(Project, pk=pk)
     if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
@@ -355,11 +420,11 @@ def score_data(request, project_pk):
 
 @api_view(['GET'])
 @renderer_classes((JSONRenderer, BrowsableAPIRenderer))
-def forecast_data(request, forecast_pk):
+def forecast_data(request, pk):
     """
     :return: a Forecast's data as JSON - see load_predictions_from_json_io_dict() for the format
     """
-    forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    forecast = get_object_or_404(Forecast, pk=pk)
     if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
