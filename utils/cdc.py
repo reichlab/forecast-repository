@@ -164,59 +164,57 @@ def _prediction_dicts_for_csv_rows(rows):
         location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     """
     prediction_dicts = []  # return value
-    rows.sort(key=lambda _: (_[0], _[1]))  # sorted so groupby() will work
-    for location_name, target_grouper in groupby(rows, key=lambda _: _[0]):
-        for target_name, row_type_grouper in groupby(target_grouper, key=lambda _: _[1]):
-            point_values = []  # NB: should only be one point row, but collect all (but don't validate here)
-            bincat_cats = []
-            bincat_probs = []
-            binlwr_lwrs = []
-            binlwr_probs = []
-            for _, _, is_point_row, bin_start_incl, bin_end_notincl, value in row_type_grouper:
-                try:
-                    if is_point_row:
-                        # NB: point comes in as a number (see parse_value() below), but should be a string
-                        # for Targets whose point_value_type is Target.POINT_TEXT
-                        point_value = str(value) if target_name in BINCAT_TARGET_NAMES else value
-                        point_values.append(point_value)
-                    elif target_name in BINCAT_TARGET_NAMES:
-                        bincat_cats.append(str(bin_start_incl))
-                        bincat_probs.append(float(value))
-                    elif target_name in BINLWR_TARGET_NAMES:
-                        binlwr_lwrs.append(float(bin_start_incl))
-                        binlwr_probs.append(float(value))
-                    else:
-                        raise RuntimeError(
-                            f"unexpected bin target_name. target_name={target_name!r}, "
-                            f"BINLWR_TARGET_NAMES={BINLWR_TARGET_NAMES}, "
-                            f"BINCAT_TARGET_NAMES={BINCAT_TARGET_NAMES}")
-                except ValueError as ve:
-                    row = [location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value]
-                    raise RuntimeError(f"could not coerce either bin_start_incl or value to float. bin_start_incl="
-                                       f"{bin_start_incl}, value={value}, row={row}, error={ve}")
+    rows.sort(key=lambda _: (_[0], _[1], _[2]))  # sorted for groupby()
+    for (location_name, target_name, is_point_row), bin_start_end_val_grouper in \
+            groupby(rows, key=lambda _: (_[0], _[1], _[2])):
+        point_values = []  # NB: should only be one point row, but collect all (but don't validate here)
+        bincat_cats, bincat_probs = [], []
+        binlwr_lwrs, binlwr_probs = [], []
+        for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:
+            try:
+                if is_point_row:
+                    # NB: point comes in as a number (see parse_value() below), but should be a string
+                    # for Targets whose point_value_type is Target.POINT_TEXT
+                    point_value = str(value) if target_name in BINCAT_TARGET_NAMES else value
+                    point_values.append(point_value)
+                elif target_name in BINCAT_TARGET_NAMES:
+                    bincat_cats.append(str(bin_start_incl))
+                    bincat_probs.append(float(value))
+                elif target_name in BINLWR_TARGET_NAMES:
+                    binlwr_lwrs.append(float(bin_start_incl))
+                    binlwr_probs.append(float(value))
+                else:
+                    raise RuntimeError(
+                        f"unexpected bin target_name. target_name={target_name!r}, "
+                        f"BINLWR_TARGET_NAMES={BINLWR_TARGET_NAMES}, "
+                        f"BINCAT_TARGET_NAMES={BINCAT_TARGET_NAMES}")
+            except ValueError as ve:
+                row = [location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value]
+                raise RuntimeError(f"could not coerce either bin_start_incl or value to float. bin_start_incl="
+                                   f"{bin_start_incl}, value={value}, row={row}, error={ve}")
 
-            # add the actual prediction dicts
-            if bincat_cats:
+        # add the actual prediction dicts
+        if bincat_cats:
+            prediction_dicts.append({"location": location_name,
+                                     "target": target_name,
+                                     "class": "BinCat",
+                                     "prediction": {
+                                         "cat": bincat_cats,
+                                         "prob": bincat_probs}})
+        if binlwr_lwrs:
+            prediction_dicts.append({"location": location_name,
+                                     "target": target_name,
+                                     "class": "BinLwr",
+                                     "prediction": {
+                                         "lwr": binlwr_lwrs,
+                                         "prob": binlwr_probs}})
+        if point_values:
+            for point_value in point_values:
                 prediction_dicts.append({"location": location_name,
                                          "target": target_name,
-                                         "class": "BinCat",
-                                         "prediction": {
-                                             "cat": bincat_cats,
-                                             "prob": bincat_probs}})
-            if binlwr_lwrs:
-                prediction_dicts.append({"location": location_name,
-                                         "target": target_name,
-                                         "class": "BinLwr",
-                                         "prediction": {
-                                             "lwr": binlwr_lwrs,
-                                             "prob": binlwr_probs}})
-            if point_values:
-                for point_value in point_values:
-                    prediction_dicts.append({"location": location_name,
-                                             "target": target_name,
-                                             'class': 'Point',
-                                             'prediction': {
-                                                 'value': point_value}})
+                                         'class': 'Point',
+                                         'prediction': {
+                                             'value': point_value}})
     return prediction_dicts
 
 

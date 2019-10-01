@@ -144,7 +144,7 @@ class Project(models.Model):
         """
         Utility that returns a sorted list of TimeZeros for season_name.
 
-        :param: season_name: a valid season name (see seasons()) or None, which is used to access TimeZeros that have
+        :param season_name: a valid season name (see seasons()) or None, which is used to access TimeZeros that have
             no season. For the latter, there are two cases:
             1) there are no seasons at all
             2) there are seasons, but the first starts after the first TimeZero, i.e., my TimeZeros start with some
@@ -179,7 +179,7 @@ class Project(models.Model):
 
     def start_end_dates_for_season(self, season_name):
         """
-        :param: season_name: same as timezeros_in_season() - can be None
+        :param season_name: same as timezeros_in_season() - can be None
         :return: 2-tuple: (start_date, end_date) for season_name. this is a closed interval - both are included.
             Note that start_date == end_date if there is only one TimeZero. returns None if no TimeZeros found
         """

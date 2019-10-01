@@ -1,0 +1,17 @@
+Location,Target,Type,Unit,Bin_start_incl,Bin_end_notincl,Value
+HHS Region 1,1 wk ahead,Bin,percent,0,0.1,1
+HHS Region 1,1 wk ahead,Bin,percent,0.1,0.2,2
+HHS Region 1,1 wk ahead,Point,percent,NA,NA,3
+HHS Region 1,2 wk ahead,Bin,percent,0,0.1,4
+HHS Region 1,2 wk ahead,Bin,percent,0.1,0.2,5
+HHS Region 1,2 wk ahead,Point,percent,NA,NA,6
+HHS Region 10,Season onset,Bin,week,1,2,7
+HHS Region 10,Season onset,Bin,week,10,11,8
+HHS Region 10,Season onset,Bin,week,none,none,9
+HHS Region 10,Season onset,Point,week,NA,NA,10
+HHS Region 10,Season peak percentage,Bin,percent,0,0.1,11
+HHS Region 10,Season peak percentage,Point,percent,NA,NA,12
+US National,Season peak week,Bin,week,1,2,13
+US National,Season peak week,Bin,week,10,11,14
+US National,Season peak week,Bin,week,11,12,15
+US National,Season peak week,Point,week,NA,NA,16

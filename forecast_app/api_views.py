@@ -532,7 +532,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     score_csv_header = SCORE_CSV_HEADER_PREFIX + [score.csv_column_name() for score in scores]
     csv_writer.writerow(score_csv_header)
 
-    # get the raw rows - sorted so groupby() will work
+    # get the raw rows - sorted for groupby()
     logger.debug("_write_csv_score_data_for_project(): getting rows: project={}".format(project))
     sql = """
         SELECT f.forecast_model_id, f.time_zero_id, sv.location_id, sv.target_id, sv.score_id, sv.value

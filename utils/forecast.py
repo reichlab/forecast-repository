@@ -260,6 +260,9 @@ def _target_dicts_for_project(project, target_names):
 # load_predictions_from_json_io_dict()
 #
 
+BIN_SUM_REL_TOL = 0.01  # hard-coded magic number for prediction probability sums
+
+
 @transaction.atomic
 def load_predictions_from_json_io_dict(forecast, json_io_dict):
     """
@@ -366,7 +369,7 @@ def _validate_bin_prob(forecast, location, target, bin_probs):
     # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
     # (0.9300285798758262 -> 0.07 fixed it)
     forecast_bin_sum = sum([prob if prob is not None else 0 for prob in bin_probs])
-    if not math.isclose(1.0, forecast_bin_sum, rel_tol=0.07):  # todo hard-coded magic number
+    if not math.isclose(1.0, forecast_bin_sum, rel_tol=BIN_SUM_REL_TOL):
         raise RuntimeError(f"Bin did not sum to 1.0. bin_probs={bin_probs}, forecast_bin_sum={forecast_bin_sum}, "
                            f"forecast={forecast}, location={location}, target={target}")
 

@@ -50,10 +50,18 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
 
 
-    def test_convert_cdc_csv_to_predictions_files(self):
+    def test_json_io_dict_from_cdc_csv_file(self):
         with open(self.cdc_csv_path) as cdc_csv_fp, \
                 open('forecast_app/tests/predictions/exp-predictions.json') as exp_json_fp:
             exp_json_io_dict = json.load(exp_json_fp)  # converted from EW1-KoTsarima-2017-01-17-small.csv
+            act_json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
+            self.assertEqual(exp_json_io_dict, act_json_io_dict)
+
+        # test a test larger csv file that has >1 bin rows
+        with open('forecast_app/tests/predictions/20161023-KoTstable-20161109-small.cdc.csv') as cdc_csv_fp, \
+                open('forecast_app/tests/predictions/20161023-KoTstable-20161109-small-exp-predictions.json') \
+                        as exp_json_fp:
+            exp_json_io_dict = json.load(exp_json_fp)
             act_json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
             self.assertEqual(exp_json_io_dict, act_json_io_dict)
 
@@ -107,10 +115,10 @@ class PredictionsTestCase(TestCase):
             self.assertEqual(sorted(exp_json_io_dict['meta']['targets'], key=lambda _: _['name']),
                              sorted(act_json_io_dict['meta']['targets'], key=lambda _: _['name']))
 
-            del(exp_json_io_dict['predictions'][0]['prediction']['cat'][0])  # BinCat
-            del(exp_json_io_dict['predictions'][0]['prediction']['prob'][0])  # ""
-            del(exp_json_io_dict['predictions'][1]['prediction']['lwr'][0])  # BinLwr
-            del(exp_json_io_dict['predictions'][1]['prediction']['prob'][0])  # ""
+            del (exp_json_io_dict['predictions'][0]['prediction']['cat'][0])  # BinCat
+            del (exp_json_io_dict['predictions'][0]['prediction']['prob'][0])  # ""
+            del (exp_json_io_dict['predictions'][1]['prediction']['lwr'][0])  # BinLwr
+            del (exp_json_io_dict['predictions'][1]['prediction']['prob'][0])  # ""
             self.assertEqual(sorted(exp_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])),
                              sorted(act_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])))
 
