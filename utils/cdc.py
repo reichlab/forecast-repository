@@ -174,11 +174,12 @@ def _prediction_dicts_for_csv_rows(rows):
             try:
                 if is_point_row:
                     # NB: point comes in as a number (see parse_value() below), but should be a string
-                    # for Targets whose point_value_type is Target.POINT_TEXT
-                    point_value = str(value) if target_name in BINCAT_TARGET_NAMES else value
+                    # for Targets whose point_value_type is Target.POINT_TEXT. lower() handles 'None' -> 'none'
+                    point_value = str(value).lower() if target_name in BINCAT_TARGET_NAMES else value
                     point_values.append(point_value)
                 elif target_name in BINCAT_TARGET_NAMES:
-                    bincat_cats.append(str(bin_start_incl))
+                    bin_start_incl_value = str(bin_start_incl) if target_name in BINCAT_TARGET_NAMES else bin_start_incl
+                    bincat_cats.append(bin_start_incl_value.lower())  # lower() ""
                     bincat_probs.append(float(value))
                 elif target_name in BINLWR_TARGET_NAMES:
                     binlwr_lwrs.append(float(bin_start_incl))

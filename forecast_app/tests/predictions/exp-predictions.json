@@ -1561,10 +1561,12 @@
       "class": "BinCat",
       "prediction": {
         "cat": [
-          "40"
+          "40",
+          "none"
         ],
         "prob": [
-          1.0
+          0.9,
+          0.1
         ]
       }
     },

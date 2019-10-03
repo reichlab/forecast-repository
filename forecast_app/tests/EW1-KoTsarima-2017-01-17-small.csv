@@ -1,6 +1,7 @@
 "Location","Target","Type","Unit","Bin_start_incl","Bin_end_notincl","Value"
 "US National","Season onset","Point","week",NA,NA,50
-"US National","Season onset","Bin","week","40","41",1
+"US National","Season onset","Bin","week","40","41",0.9
+"US National","Season onset","Bin","week","none","none",0.1
 "US National","Season peak week","Point","week",NA,NA,5
 "US National","Season peak week","Bin","week","40","41",1
 "US National","Season peak percentage","Point","percent",NA,NA,3.9

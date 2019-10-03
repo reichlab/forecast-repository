@@ -4,11 +4,11 @@
     {"location": "HHS Region 1", "target": "1 wk ahead", "class": "Point", "prediction": {"value": 3}},
     {"location": "HHS Region 1", "target": "2 wk ahead", "class": "BinLwr", "prediction": {"lwr": [0.0, 0.1], "prob": [4.0, 5.0]}},
     {"location": "HHS Region 1", "target": "2 wk ahead", "class": "Point", "prediction": {"value": 6}},
-    {"location": "HHS Region 10", "target": "Season onset", "class": "BinCat", "prediction": {"cat": ["1", "10", "None"], "prob": [7.0, 8.0, 9.0]}},
+    {"location": "HHS Region 10", "target": "Season onset", "class": "BinCat", "prediction": {"cat": ["1", "10", "none"], "prob": [7.0, 8.0, 9.0]}},
     {"location": "HHS Region 10", "target": "Season onset", "class": "Point", "prediction": {"value": "10"}},
     {"location": "HHS Region 10", "target": "Season peak percentage", "class": "BinLwr", "prediction": {"lwr": [0.0], "prob": [11.0]}},
     {"location": "HHS Region 10", "target": "Season peak percentage", "class": "Point", "prediction": {"value": 12}},
     {"location": "US National", "target": "Season peak week", "class": "BinCat", "prediction": {"cat": ["1", "10", "11"], "prob": [13.0, 14.0, 15.0]}},
-    {"location": "US National", "target": "Season peak week", "class": "Point", "prediction": {"value": "None"}}
+    {"location": "US National", "target": "Season peak week", "class": "Point", "prediction": {"value": "none"}}
   ]
 }

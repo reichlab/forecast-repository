@@ -91,7 +91,7 @@ class PredictionsTestCase(TestCase):
         with open(self.cdc_csv_path) as cdc_csv_fp:
             json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
             load_predictions_from_json_io_dict(self.forecast, json_io_dict)
-            self.assertEqual(22, self.forecast.bincat_distribution_qs().count())
+            self.assertEqual(23, self.forecast.bincat_distribution_qs().count())
             self.assertEqual(55, self.forecast.binlwr_distribution_qs().count())
             self.assertEqual(0, self.forecast.binary_distribution_qs().count())
             self.assertEqual(0, self.forecast.named_distribution_qs().count())

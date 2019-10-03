@@ -274,7 +274,7 @@ class ForecastTestCase(TestCase):
             .values_list('location__name', 'target__name', 'cat', 'prob')
         self.assertEqual(737, bincat_distribution_qs.count())
         self.assertEqual(('HHS Region 1', 'Season onset', '1', 2.37797107673309e-05), bincat_distribution_qs[0])
-        self.assertEqual(('HHS Region 1', 'Season onset', 'None', 0.0227300694570138), bincat_distribution_qs[33])
+        self.assertEqual(('HHS Region 1', 'Season onset', 'none', 0.0227300694570138), bincat_distribution_qs[33])
 
 
     def test_forecast_delete(self):
