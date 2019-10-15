@@ -556,7 +556,8 @@ def edit_project(request, project_pk):
         Project, Location, fields=('name',), extra=3,
         widgets={'name': forms.TextInput()})
     TargetInlineFormSet = forms.inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment'),
+        Project, Target, fields=('name', 'description', 'unit', 'point_value_type', 'is_date', 'is_step_ahead',
+                                 'step_ahead_increment'),
         extra=3, widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
     TimeZeroInlineFormSet = forms.inlineformset_factory(
         Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,

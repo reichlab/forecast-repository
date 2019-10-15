@@ -735,7 +735,7 @@ class Target(models.Model):
                 return human_readable_value
 
         return f'(unknown point_value_type: {self.point_value_type}. ' \
-            f'Target.POINT_VALUE_TYPE_CHOICES={Target.POINT_VALUE_TYPE_CHOICES})'
+               f'Target.POINT_VALUE_TYPE_CHOICES={Target.POINT_VALUE_TYPE_CHOICES})'
 
 
     def ok_distributions_str(self):
