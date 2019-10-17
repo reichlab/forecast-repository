@@ -740,6 +740,12 @@ class ProjectTestCase(TestCase):
             create_project_from_json(cdc_project_json, po_user)
         self.assertIn("found a non-numeric BinLwr lwr", str(context.exception))
 
+        # test existing project
+        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(cdc_project_json, po_user)
+        self.assertIn("found existing project", str(context.exception))
+
 
 # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns
 def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):

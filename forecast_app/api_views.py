@@ -203,7 +203,7 @@ class ForecastModelForecastList(ListCreateAPIView):
         - 'timezero_date' (required): The TimeZero.timezero_date to use to look up the TimeZero to associate with the
             upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. The TimeZero will be created if one
             corresponding to 'timezero_date' isn't found.
-        - data_version_date (optional): To be used for the newly-created TimeZero corresponding to 'timezero_date', if
+        - 'data_version_date' (optional): To be used for the newly-created TimeZero corresponding to 'timezero_date', if
             it didn't exist.
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
