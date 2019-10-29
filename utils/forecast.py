@@ -11,48 +11,6 @@ from forecast_app.models.project import POSTGRES_NULL_VALUE
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
-#
-# JSON input/output format documentation
-# - todo xx move these docs elsewhere!
-#
-# For prediction input and output we use a dictionary structure suitable for JSON I/O. The dict is called a
-# "JSON IO dict" in code documentation. See predictions-example.json for an example. Functions accept a json_io_dict
-# include: load_predictions_from_json_io_dict(). Functions that return a json_io_dict include:
-# json_io_dict_from_forecast() and json_io_dict_from_cdc_csv_file(). This format is closely inspired by
-# https://github.com/cdcepi/predx/blob/master/predx_classes.md
-#
-# Briefly, the dict has four top level keys:
-#
-# - forecast: a metadata dict about the file's forecast. has these keys: 'id', 'forecast_model_id', 'source',
-#   'created_at', and 'time_zero'. Some or all of these keys might be ignored by functions that accept a JSON IO dict.
-#
-# - locations: a list of "location dicts", each of which has just a 'name' key whose value is the name of a location
-#   in the below 'predictions' section.
-#
-# - targets: a list of "target dicts", each of which has the following fields. The fields are: 'name', 'description',
-#   'unit', 'is_date', 'is_step_ahead', and 'step_ahead_increment'.
-#
-# - predictions: a list of "prediction dicts" that contains the prediction data. Each dict has these fields:
-#   = 'location': name of the Location
-#   = 'target': "" the Target
-#   = 'class': the type of prediction this is. it is an abbreviation of the corresponding Prediction subclass - see
-#     PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS for the names
-#   = 'prediction': a class-specific dict containing the prediction data itself. the format varies according to class.
-#     See https://github.com/cdcepi/predx/blob/master/predx_classes.md for details. Here is a summary:
-#     + 'BinCat': Binned distribution with a category for each bin. is a two-column table represented by two keys, one
-#                 per column: 'cat' and 'prob'. They are paired, i.e., have the same number of rows
-#     + 'BinLwr': Binned distribution defined by inclusive lower bounds for each bin. Similar to 'BinCat', but has these
-#                 two keys: 'lwr' and 'prob'.
-#     + 'Binary': Binary distribution with a single 'prob' key.
-#     + 'Named': A named distribution with four fields: 'family' and 'param1' through 'param3'. family must be listed in
-#                FAMILY_CHOICE_TO_ABBREVIATION.
-#     + 'Point': A numeric point prediction with a single 'value' key.
-#     + 'Sample': Numeric samples represented as a table with one column that is found in the 'sample' key.
-#     + 'SampleCat': Character string samples from categories. Similar to 'BinCat', but has these two keys: 'cat' and
-#                    'sample'.
-#
-
-
 PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
     BinCatDistribution: 'BinCat',
     BinLwrDistribution: 'BinLwr',

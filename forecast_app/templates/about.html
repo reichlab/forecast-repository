@@ -13,49 +13,16 @@
         along with tools to compare, etc.
     </p>
 
-
-    <h2>Introduction</h2>
-
-    <p>The Zoltar forecast archive is a web application to develop ideas for a repository of model forecast results.
-        Until now, predictions made by models have been stored in differing formats and locations. This complicates
-        tracking, comparing, and revisiting forecasts. Zoltar supports storing, retrieving, comparing, and analyzing
-        time series forecasts for prediction challenges of interest to the modeling community.
+    <p>Zoltar is a web application to develop ideas for a repository of model forecast results. Until now, predictions made by
+        models have been stored in differing formats and locations. This complicates tracking, comparing, and revisiting
+        forecasts. Zoltar supports storing, retrieving, comparing, and analyzing time series forecasts for prediction challenges
+        of interest to the modeling community.
     </p>
 
-
-    <h2>Assumptions/Limitations</h2>
-
-    <p>The scope of this first iteration is limited in these ways:</p>
-
-    <ul>
-        <li><u>Process-agnostic</u>: By storing only core datasets, we make no assumptions about ML processes behind a
-            model’s forecast, such as how it’s fit.
-        </li>
-        <li><u>Enforceability</u>: There is currently not a method in place to test whether the models were fit on the
-            right data subsets (this is something that the below ForecastFramework integration could help with).
-        </li>
-        <li><u>Unrevised vs. revised data</u>: A Project’s core dataset may or may not include data revisions, such as
-            those used to model or forecast reporting delays. Each project should give specific instructions on what
-            type of data (revised vs. unrevised) is used in the training and testing phases of the forecasting.
-        </li>
-        <li><u>Model instances</u>: The system stores only model metadata, rather than computable representations of
-            models (internals) that could be used to reconstruct and re-run them.
-        </li>
-        <li><u>Reports</u>: Some projects generate automated narrative reports from forecast data. This system does not
-            support storing reports with their models.
-        </li>
-        <li><u>Training/testing data</u>: The only information about what subsets of the core data were used for
-            different ML stages (e.g. training vs testing) will be stored in narrative format in the project
-            description.
-        </li>
-        <li><u>Reproducibility</u>: Since this system stores data involved in forecasts and not source code, information
-            about how to re-run models is only captured in narrative form in the model's description, and is linked to
-            by the model's url field.
-        </li>
-        <li><u>Metrics</u>: This version does not capture metric information. If metrics change, then a new project
-            should be created.
-        </li>
-    </ul>
+    <p>Please visit the <a href="https://docs.zoltardata.com/">Zoltar Documentation Site</a> for more information, along
+        with guides for users, researchers, and developers (including R and Python libraries for accessing the Zoltar
+        API).
+    </p>
 
 
     <h2>Funding</h2>
