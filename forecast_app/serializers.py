@@ -30,7 +30,7 @@ class TimeZeroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TimeZero
-        fields = ('timezero_date', 'data_version_date')
+        fields = ('timezero_date', 'data_version_date', 'is_season_start', 'season_name')
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):

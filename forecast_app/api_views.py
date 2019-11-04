@@ -14,7 +14,8 @@ from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import get_object_or_404, RetrieveDestroyAPIView, ListCreateAPIView
+from rest_framework.generics import get_object_or_404, RetrieveDestroyAPIView, ListCreateAPIView, ListAPIView, \
+    RetrieveAPIView
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -24,7 +25,7 @@ from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreVa
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TruthSerializer, UploadFileJobSerializer
+    TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer
 from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_project, is_user_ok_edit_model, \
     is_user_ok_create_model
 from utils.cloud_file import download_file
@@ -51,13 +52,14 @@ def api_root(request, format=None):
 # List- and detail-related views
 #
 
-# was ListCreateAPIView -> def perform_create(self, serializer): serializer.save(owner=self.request.user)
 class ProjectList(generics.ListAPIView):
-    # View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
-    # Note that this means API users have more limited access than the web home page, which lists all projects regardless
-    # of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
-    # it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
-    # me and won.
+    """
+    View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
+    Note that this means API users have more limited access than the web home page, which lists all projects regardless
+    of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
+    it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
+    me too hard.
+    """
     serializer_class = ProjectSerializer
 
 
@@ -93,7 +95,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def test_func(self):
         project = self.get_object()
         return project.is_user_ok_to_view(self.request.user)
 
@@ -110,9 +112,19 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         return response
 
 
-class ProjectForecastModelList(ListCreateAPIView):
-    # View that returns a list of ForecastModels in a Project
+class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):
+    """
+    View that returns a list of ForecastModels in a Project. This is different from other Views in this file b/c the
+    serialized instances returned (ForecastModelSerializer) are different from this class's serializer_class
+    (ForecastModelSerializer). Note that `pk` is the project's pk.
+    """
     serializer_class = ForecastModelSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return project.is_user_ok_to_view(self.request.user)
 
 
     def get_queryset(self):
@@ -130,8 +142,8 @@ class ProjectForecastModelList(ListCreateAPIView):
         """
         project = Project.objects.get(pk=self.kwargs['pk'])
 
-        # check authorization
-        if not is_user_ok_create_model(request.user, project):  # any logged-in user can create
+        # check authorization, 'model_config'
+        if not is_user_ok_create_model(request.user, project):
             raise PermissionDenied
         elif 'model_config' not in request.data:
             return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
@@ -161,6 +173,72 @@ class ProjectForecastModelList(ListCreateAPIView):
             return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
+    """
+    View that returns a list of TimeZeros in a Project. This is different from other Views in this file b/c the
+    serialized instances returned (TimeZeroSerializer) are different from this class's serializer_class
+    (TimeZeroSerializer). Note that `pk` is the project's pk.
+    """
+    serializer_class = TimeZeroSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return project.is_user_ok_to_view(self.request.user)
+
+
+    def get_queryset(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return project.timezeros
+
+
+    def post(self, request, *args, **kwargs):
+        """
+        Creates a new TimeZero for this project based on a config dict. Runs in the calling thread and therefore blocks.
+
+        POST form fields:
+        - request.data (required) must have a 'timezero_config' field containing these fields:
+            ['timezero_date', 'data_version_date', 'is_season_start', 'season_name']
+
+        The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. 'data_version_date' can be None.
+        """
+        # check authorization, 'timezero_config'
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        if not is_user_ok_edit_project(request.user, project):
+            raise PermissionDenied
+        elif 'timezero_config' not in request.data:
+            return JsonResponse({'error': "No 'timezero_config' data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # validate timezero_config
+        timezero_config = request.data['timezero_config']
+        actual_keys = set(timezero_config.keys())
+        expected_keys = {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'}
+        if actual_keys != expected_keys:
+            return JsonResponse({'error': f"Wrong keys in 'timezero_config'. expected={expected_keys}, "
+                                          f"actual={actual_keys}"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYYMMDD_DATE_FORMAT)
+            timezero_date = datetime.date(tz_datetime.year, tz_datetime.month, tz_datetime.day)
+            dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYYMMDD_DATE_FORMAT) \
+                if timezero_config['data_version_date'] else None
+            data_version_date = datetime.date(dvd_datetime.year, dvd_datetime.month, dvd_datetime.day) \
+                if dvd_datetime else None
+            is_season_start = timezero_config['is_season_start']
+            timezero_init = {'project': project,
+                             'timezero_date': timezero_date,
+                             'data_version_date': data_version_date,
+                             'is_season_start': is_season_start,
+                             'season_name': timezero_config['season_name'] if is_season_start else None}
+            new_timezero = TimeZero.objects.create(**timezero_init)
+            timezero_serializer = TimeZeroSerializer(new_timezero, context={'request': request})
+            return JsonResponse(timezero_serializer.data)
+        except Exception as ex:
+            return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class UserList(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -172,27 +250,27 @@ class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def test_func(self):
         detail_user = self.get_object()
         return self.request.user.is_superuser or (detail_user == self.request.user)
 
 
-class ForecastModelForecastList(ListCreateAPIView):
-    # View that returns a list of Forecasts in a ForecastModel
+class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
+    """
+    View that returns a list of Forecasts in a ForecastModel
+    """
     serializer_class = ForecastSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
+        return forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
     def get_queryset(self):
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
         return forecast_model.forecasts
-
-
-    def get(self, request, *args, **kwargs):
-        forecast_model = ForecastModel.objects.get(pk=kwargs['pk'])
-        if not forecast_model.project.is_user_ok_to_view(request.user):
-            raise PermissionDenied
-
-        return self.list(request, *args, **kwargs)
 
 
     def post(self, request, *args, **kwargs):
@@ -285,7 +363,7 @@ class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def test_func(self):
         upload_file_job = self.get_object()
         return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
 
@@ -296,7 +374,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def test_func(self):
         forecast_model = self.get_object()
         return forecast_model.project.is_user_ok_to_view(self.request.user)
 
@@ -313,17 +391,15 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         return response
 
 
-class ForecastDetail(RetrieveDestroyAPIView):
+class ForecastDetail(UserPassesTestMixin, RetrieveDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
-    def get(self, request, *args, **kwargs):
+    def test_func(self):
         forecast = self.get_object()
-        if not forecast.forecast_model.project.is_user_ok_to_view(request.user):
-            raise PermissionDenied
-
-        return self.retrieve(request, *args, **kwargs)
+        return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
 
 
     def delete(self, request, *args, **kwargs):
@@ -338,13 +414,24 @@ class ForecastDetail(RetrieveDestroyAPIView):
         return response
 
 
+class TimeZeroDetail(UserPassesTestMixin, RetrieveAPIView):
+    queryset = TimeZero.objects.all()
+    serializer_class = TimeZeroSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        time_zero = self.get_object()
+        return time_zero.project.is_user_ok_to_view(self.request.user)
+
+
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TruthSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
-    def test_func(self):  # return True if the current user can access the view
+    def test_func(self):
         project = self.get_object()
         return project.is_user_ok_to_view(self.request.user)
 
@@ -355,11 +442,11 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
 @api_view(['GET'])
 @renderer_classes((BrowsableAPIRenderer, CSVRenderer))
-def truth_data(request, project_pk):
+def truth_data(request, pk):
     """
     :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
     """
-    project = get_object_or_404(Project, pk=project_pk)
+    project = get_object_or_404(Project, pk=pk)
     if not project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
@@ -563,7 +650,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     for (forecast_model_id, time_zero_id, location_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
         forecast_model = forecast_model_id_to_obj[forecast_model_id]
-        timezero = timezero_id_to_obj[time_zero_id]
+        time_zero = timezero_id_to_obj[time_zero_id]
         location = location_id_to_obj[location_id]
         target = target_id_to_obj[target_id]
         # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
@@ -572,7 +659,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                             timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), timezero_to_season_name[timezero],
+                             time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), timezero_to_season_name[time_zero],
                              location.name, target.name]
                             + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")

@@ -1016,11 +1016,6 @@ def download_truth(request, project_pk):
 # ---- Forecast upload/delete views ----
 #
 
-def is_user_ok_upload_forecast(request, forecast_model):
-    return request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-           (request.user == forecast_model.owner)
-
-
 def upload_forecast(request, forecast_model_pk, timezero_pk):
     """
     Uploads the passed data into a new Forecast. Authorization: The logged-in user must be a superuser, or the Project's
@@ -1262,3 +1257,8 @@ def is_user_ok_edit_model(user, forecast_model):
 
 def is_user_ok_edit_user(request, detail_user):
     return request.user.is_superuser or (detail_user == request.user)
+
+
+def is_user_ok_upload_forecast(request, forecast_model):
+    return request.user.is_superuser or (request.user == forecast_model.project.owner) or \
+           (request.user == forecast_model.owner)

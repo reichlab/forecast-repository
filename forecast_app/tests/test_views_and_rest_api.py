@@ -74,6 +74,17 @@ class ViewsTestCase(TestCase):
 
         # public_model
         cls.csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
+
+        # create some models to bump up ID in case of accidental passing where model IDs == project IDs :-)
+        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
+                                     home_url='http://example.com', owner=cls.mo_user)
+        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
+                                     home_url='http://example.com', owner=cls.mo_user)
+        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
+                                     home_url='http://example.com', owner=cls.mo_user)
+
+        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
+                                     home_url='http://example.com', owner=cls.mo_user)
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
                                                         description='', home_url='http://example.com',
                                                         owner=cls.mo_user)
@@ -323,20 +334,31 @@ class ViewsTestCase(TestCase):
         # e.g., eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InByb2plY3Rfb3duZXIxIiwiZXhwIjoxNTM1MzgwMjM0LCJlbWFpbCI6IiJ9.T_mHlvd3EjeAPhKRZwipyLhklV5StBQ_tRJ9YR-v8sA
 
 
+    # update this when this changes: forecast_app/api_urls.py
     def test_api_get_endpoints(self):
         url_to_exp_user_status_code_pairs = {
             reverse('api-root'): self.OK_ALL,
+            reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
+            reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
             reverse('api-project-list'): self.OK_ALL,
             reverse('api-project-detail', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-timezero-list', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-timezero-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-truth-detail', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-truth-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-truth-data', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-score-data', args=[self.public_project.pk]): self.OK_ALL,
             reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
-            reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
+            reverse('api-model-list', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-model-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-list', args=[self.public_model.pk]): self.OK_ALL,
             reverse('api-forecast-list', args=[self.private_model.pk]): self.ONLY_PO_MO,
+            reverse('api-timezero-detail', args=[self.public_tz1.pk]): self.OK_ALL,
+            reverse('api-timezero-detail', args=[self.private_tz1.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,
             reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-data', args=[self.public_forecast.pk]): self.OK_ALL,
@@ -517,20 +539,39 @@ class ViewsTestCase(TestCase):
         project2 = Project.objects.create(owner=self.po_user)
 
         # case: not authorized. recall user must be a superuser, project owner, or model owner
-        json_response = self.client.post(reverse('api-models-list', args=[project2.pk]), {
+        json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
             'model_config': {},
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: no 'model_config'
+        json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertEqual({'error': "No 'model_config' data."}, json_response.json())
+
+        # case: bad 'model_config': missing expected_keys:
+        #   {'name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url'}
+        model_config = {}
+        json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
+            'model_config': model_config,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
         # case: blue sky
         model_config = {'name': 'a model_name', 'abbreviation': 'an abbreviation', 'team_name': 'a team_name',
                         'description': 'a description', 'home_url': 'http://example.com/',
                         'aux_data_url': 'http://example.com/'}
-        json_response = self.client.post(reverse('api-models-list', args=[project2.pk]), {
+        json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
             'model_config': model_config,
             'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertEqual(set(json_response.json().keys()),
+                         {'project', 'home_url', 'forecasts', 'aux_data_url', 'abbreviation', 'description', 'owner',
+                          'url', 'id', 'name'})
 
         # spot-check response
         model_json = json_response.json()
@@ -557,6 +598,58 @@ class ViewsTestCase(TestCase):
             'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
         })
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+
+
+    def test_api_create_timezero(self):
+        project2 = Project.objects.create(owner=self.po_user)
+
+        # case: not authorized. recall user must be a superuser, project owner, or model owner
+        json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
+            'timezero_config': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: no 'timezero_config'
+        json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertEqual({'error': "No 'timezero_config' data."}, json_response.json())
+
+        # case: bad 'timezero_config': missing expected_keys:
+        #   {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'}
+        timezero_config = {}
+        json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
+            'timezero_config': timezero_config,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+        # case: blue sky:  no data_version_date, yes season
+        timezero_config = {'timezero_date': '20171201',
+                           'data_version_date': None,
+                           'is_season_start': True,
+                           'season_name': 'tis the season'}
+        json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
+            'timezero_config': timezero_config,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertEqual(set(json_response.json().keys()),
+                         {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'})
+
+        # case: blue sky:  yes data_version_date, no season
+        timezero_config = {'timezero_date': '20171201',
+                           'data_version_date': '20171202',
+                           'is_season_start': False,
+                           'season_name': None}
+        json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
+            'timezero_config': timezero_config,
+            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertEqual(set(json_response.json().keys()),
+                         {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'})
 
 
     def test_api_upload_forecast(self):
