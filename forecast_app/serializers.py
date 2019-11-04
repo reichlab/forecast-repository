@@ -22,7 +22,7 @@ class TargetSerializer(serializers.ModelSerializer):
         fields = ('name', 'description')
 
 
-class TimeZeroSerializer(serializers.ModelSerializer):
+class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
     # customize these to use our standard format
     timezero_date = serializers.DateField(format=YYYYMMDD_DATE_FORMAT, input_formats=[YYYYMMDD_DATE_FORMAT])
     data_version_date = serializers.DateField(format=YYYYMMDD_DATE_FORMAT, input_formats=[YYYYMMDD_DATE_FORMAT])
@@ -30,7 +30,10 @@ class TimeZeroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TimeZero
-        fields = ('timezero_date', 'data_version_date', 'is_season_start', 'season_name')
+        fields = ('id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name')
+        extra_kwargs = {
+            'url': {'view_name': 'api-timezero-detail'},
+        }
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
