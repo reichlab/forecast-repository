@@ -1,7 +1,6 @@
 import itertools
 import json
 import logging
-import math
 import numbers
 
 from django.db import transaction
@@ -25,7 +24,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=T
     exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or load forecasts.
 
     :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
-        see cdc-project.json for an example
+        See https://docs.zoltardata.com/ for details, and cdc-project.json for an example.
     :param owner: the new Project's owner (a User)
     :param is_validate: True if the input json should be validated. passed in case a project requires less stringent
         validation
@@ -39,6 +38,13 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=T
         with open(proj_config_file_path_or_dict) as fp:
             project_dict = json.load(fp)
 
+    # validate project_dict
+    actual_keys = set(project_dict.keys())
+    expected_keys = {'name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type',
+                     'visualization_y_label', 'locations', 'targets', 'timezeros'}
+    if actual_keys != expected_keys:
+        raise RuntimeError(f"Wrong keys in project_dict. expected={expected_keys}, actual={actual_keys}")
+
     # error if project already exists
     name = project_dict['name']
     project = Project.objects.filter(name=name).first()  # None if doesn't exist
@@ -48,24 +54,44 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=T
     project = create_project(project_dict, owner)
     logger.info(f"- created Project: {project}")
 
-    locations = create_locations(project, project_dict)
+    locations = validate_and_create_locations(project, project_dict)
     logger.info(f"- created {len(locations)} Locations: {locations}")
 
     targets = validate_and_create_targets(project, project_dict, is_validate)
     logger.info(f"- created {len(targets)} Targets: {targets}")
 
+    timezeros = validate_and_create_timezeros(project, project_dict)
+    logger.info(f"- created {len(timezeros)} TimeZeros: {timezeros}")
+
     logger.info(f"* create_project_from_json(): done!")
     return project
 
 
-def create_locations(project, project_dict):
-    return [Location.objects.create(project=project, name=location_dict['name'])
-            for location_dict in project_dict['locations']]
+def validate_and_create_locations(project, project_dict):
+    try:
+        return [Location.objects.create(project=project, name=location_dict['name'])
+                for location_dict in project_dict['locations']]
+    except KeyError:
+        raise RuntimeError(f"one of the location_dicts had no 'name' field. locations={project_dict['locations']}")
+
+
+def validate_and_create_timezeros(project, project_dict):
+    from forecast_app.api_views import validate_and_create_timezero  # avoid circular imports
+
+
+    return [validate_and_create_timezero(project, timezero_config) for timezero_config in project_dict['timezeros']]
 
 
 def validate_and_create_targets(project, project_dict, is_validate=True):
     targets = []
     for target_dict in project_dict['targets']:
+        actual_keys = set(target_dict.keys()) - {'lwr'}  # lwr is optional and tested below
+        expected_keys = {'name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment',
+                         'point_value_type', 'prediction_types'}
+        if actual_keys != expected_keys:
+            raise RuntimeError(f"Wrong keys in target_dict. difference={expected_keys ^ actual_keys}. " 
+                               f"expected={expected_keys}, actual={actual_keys}")
+
         # validate point_value_type and convert to db choice - one of: 'integer', 'float', or 'text'
         point_value_type_input = target_dict['point_value_type'].lower()
         point_value_type = None
@@ -90,9 +116,8 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
         prediction_types = target_dict['prediction_types']
         for prediction_type in prediction_types:
             if is_validate and (prediction_type not in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values()):
-                prediction_type_choices = [choice[1] for choice in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS]
-                raise RuntimeError(f"invalid prediction_type: {prediction_type}. must be one of: "
-                                   f"{prediction_type_choices}")
+                raise RuntimeError(f"invalid 'prediction_type': {prediction_type}. must be one of: "
+                                   f"{PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values()}")
             elif is_validate and (prediction_type == 'BinLwr') and \
                     (('lwr' not in target_dict) or not target_dict['lwr']):
                 raise RuntimeError(f"required lwr entry is missing for BinLwr prediction type")

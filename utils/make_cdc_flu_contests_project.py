@@ -19,7 +19,7 @@ django.setup()
 
 from forecast_app.models import TimeZero, ForecastModel, Project
 from django.contrib.auth.models import User
-from utils.project import create_project_from_json, create_locations, validate_and_create_targets
+from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.cdc import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory, \
     load_cdc_csv_forecasts_from_dir
@@ -70,9 +70,9 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
                            f"{component_models_dir_ensemble}. did you run "
                            f"normalize_filenames_cdc_flusight_ensemble.py?")
 
-    time_zeros = make_timezeros(project, [model_subdir])
+    timezeros = make_timezeros(project, [model_subdir])
     logger.info("- created {} TimeZeros: {}"
-                .format(len(time_zeros), sorted(time_zeros, key=lambda time_zero: time_zero.timezero_date)))
+                .format(len(timezeros), sorted(timezeros, key=lambda time_zero: time_zero.timezero_date)))
 
     # load the truth data
     truth_file_path = Path(truths_csv_file)
@@ -105,7 +105,7 @@ def make_timezeros(project, model_dirs):
 
     :param model_dirs: a list of model directories such as returned by first_model_subdirectory()
     """
-    time_zeros = []
+    timezeros = []
     season_start_years = []  # helps track season transitions
     for model_dir in model_dirs:
         for cdc_csv_file, timezero_date, _, data_version_date in cdc_csv_components_from_data_dir(model_dir):
@@ -124,14 +124,14 @@ def make_timezeros(project, model_dirs):
             season_start_year = season_start_year_for_date(timezero_date)
             is_new_season = season_start_year not in season_start_years
             new_season_name = '{}-{}'.format(season_start_year, season_start_year + 1) if is_new_season else None
-            time_zeros.append(TimeZero.objects.create(project=project,
+            timezeros.append(TimeZero.objects.create(project=project,
                                                       timezero_date=timezero_date,
                                                       data_version_date=data_version_date,
                                                       is_season_start=(True if is_new_season else False),
                                                       season_name=(new_season_name if is_new_season else None)))
             if is_new_season:
                 season_start_years.append(season_start_year)
-    return time_zeros
+    return timezeros
 
 
 def get_model_dirs_to_load(component_models_dir):
@@ -276,7 +276,7 @@ def make_cdc_locations_and_targets(project):
     """
     with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
         project_dict = json.load(fp)
-    create_locations(project, project_dict)
+    validate_and_create_locations(project, project_dict)
     validate_and_create_targets(project, project_dict)
 
 

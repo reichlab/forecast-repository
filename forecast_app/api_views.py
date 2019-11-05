@@ -210,33 +210,43 @@ class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
         elif 'timezero_config' not in request.data:
             return JsonResponse({'error': "No 'timezero_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # validate timezero_config
-        timezero_config = request.data['timezero_config']
-        actual_keys = set(timezero_config.keys())
-        expected_keys = {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'}
-        if actual_keys != expected_keys:
-            return JsonResponse({'error': f"Wrong keys in 'timezero_config'. expected={expected_keys}, "
-                                          f"actual={actual_keys}"},
-                                status=status.HTTP_400_BAD_REQUEST)
-
         try:
-            tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYYMMDD_DATE_FORMAT)
-            timezero_date = datetime.date(tz_datetime.year, tz_datetime.month, tz_datetime.day)
-            dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYYMMDD_DATE_FORMAT) \
-                if timezero_config['data_version_date'] else None
-            data_version_date = datetime.date(dvd_datetime.year, dvd_datetime.month, dvd_datetime.day) \
-                if dvd_datetime else None
-            is_season_start = timezero_config['is_season_start']
-            timezero_init = {'project': project,
-                             'timezero_date': timezero_date,
-                             'data_version_date': data_version_date,
-                             'is_season_start': is_season_start,
-                             'season_name': timezero_config['season_name'] if is_season_start else None}
-            new_timezero = TimeZero.objects.create(**timezero_init)
-            timezero_serializer = TimeZeroSerializer(new_timezero, context={'request': request})
+            time_zero = validate_and_create_timezero(project, request.data['timezero_config'])
+            timezero_serializer = TimeZeroSerializer(time_zero, context={'request': request})
             return JsonResponse(timezero_serializer.data)
         except Exception as ex:
             return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def validate_and_create_timezero(project, timezero_config):
+    """
+    Helper that validates and creates a TimeZero in project based on timezero_config.
+
+    :param project: project to add the TimeZero to
+    :param timezero_config: dict as documented above, with these fields:
+        ['timezero_date', 'data_version_date', 'is_season_start', 'season_name']
+    :return: the new TimeZero
+    """
+    # validate timezero_config
+    actual_keys = set(timezero_config.keys())
+    expected_keys = {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'}
+    if actual_keys != expected_keys:
+        raise RuntimeError(f"Wrong keys in timezero_config. expected={expected_keys}, actual={actual_keys}")
+
+    # create the TimeZero
+    tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYYMMDD_DATE_FORMAT)
+    timezero_date = datetime.date(tz_datetime.year, tz_datetime.month, tz_datetime.day)
+    dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYYMMDD_DATE_FORMAT) \
+        if timezero_config['data_version_date'] else None
+    data_version_date = datetime.date(dvd_datetime.year, dvd_datetime.month, dvd_datetime.day) \
+        if dvd_datetime else None
+    is_season_start = timezero_config['is_season_start']
+    timezero_init = {'project': project,
+                     'timezero_date': timezero_date,
+                     'data_version_date': data_version_date,
+                     'is_season_start': is_season_start,
+                     'season_name': timezero_config['season_name'] if is_season_start else None}
+    return TimeZero.objects.create(**timezero_init)
 
 
 class UserList(generics.ListAPIView):

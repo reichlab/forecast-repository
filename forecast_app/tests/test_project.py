@@ -629,68 +629,95 @@ class ProjectTestCase(TestCase):
 
     def test_create_project_from_json_validation(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project_dict = {}  # built up as we go
+        with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
+            project_dict = json.load(fp)
 
-        # test owner permissions
-        self.fail()  # todo xx
+        # note: owner permissions tested by test_views_and_rest_api.py
 
-        # test existing project
-        # "found existing project"
-        self.fail()  # todo xx
-
-        # test top level fields
-        for field in ['name', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type',
-                      'visualization_y_label', 'locations', 'targets']:
+        # test missing top level fields
+        for field_name in ['name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data',
+                           'time_interval_type', 'visualization_y_label', 'locations', 'targets', 'timezeros']:
+            field_value = project_dict[field_name]
             with self.assertRaises(RuntimeError) as context:
+                del (project_dict[field_name])
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"no '{field}' field", str(context.exception))
-            project_dict[field] = f"'{field}' value"
-
-        # test time_interval_type
-        # "invalid 'time_interval_type'"
-        self.fail()  # todo xx
+            self.assertIn("Wrong keys in project_dict", str(context.exception))
+            project_dict[field_name] = field_value
 
         # test locations
-        project_dict['locations'] = []
-        with self.assertRaises(RuntimeError) as context:
-            create_project_from_json(project_dict, po_user)
-        self.assertIn(f"no locations", str(context.exception))
-
         project_dict['locations'] = [{}]
         with self.assertRaises(RuntimeError) as context:
             create_project_from_json(project_dict, po_user)
-        self.assertIn(f"location has no name field", str(context.exception))
+        self.assertIn("one of the location_dicts had no 'name' field", str(context.exception))
 
-        # test targets
-        project_dict['locations'] = [{"name": "HHS Region 1"}]  # valid
-        project_dict['targets'] = []
+        # test target missing fields
+        project_dict['locations'] = [{"name": "HHS Region 1"}]  # reset to valid
+        first_target_dict = project_dict['targets'][0]
+        project_dict['targets'] = [first_target_dict]
+        for field_name in ['name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment',
+                           'point_value_type', 'prediction_types']:
+            field_value = first_target_dict[field_name]
+            with self.assertRaises(RuntimeError) as context:
+                del (first_target_dict[field_name])
+                create_project_from_json(project_dict, po_user)
+            self.assertIn("Wrong keys in target_dict", str(context.exception))
+            first_target_dict[field_name] = field_value
+
+        # test timezero missing fields
+        timezero_config = {'timezero_date': '20171201',
+                           'data_version_date': None,
+                           'is_season_start': True,
+                           'season_name': 'tis the season'}
+        project_dict['timezeros'] = [timezero_config]
+        for field_name in ['timezero_date', 'data_version_date', 'is_season_start', 'season_name']:
+            field_value = timezero_config[field_name]
+            with self.assertRaises(RuntimeError) as context:
+                del (timezero_config[field_name])
+                create_project_from_json(project_dict, po_user)
+            self.assertIn("Wrong keys in timezero_config", str(context.exception))
+            timezero_config[field_name] = field_value
+
+        # test existing project
+        project_name = project_dict['name']
+        project_dict['name'] = self.project.name
         with self.assertRaises(RuntimeError) as context:
             create_project_from_json(project_dict, po_user)
-        self.assertIn(f"no targets", str(context.exception))
+        self.assertIn('found existing project', str(context.exception))
+        project_dict['name'] = project_name
 
-        target_dict = {}
-        project_dict['targets'] = [target_dict]
-        for field in ['name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment',
-                      'point_value_type', 'prediction_types']:
-            with self.assertRaises(RuntimeError) as context:
-                create_project_from_json(project_dict, po_user)
-            self.assertIn(f"no '{field}' field", str(context.exception))
-            target_dict[field] = f"'{field}' value"
+        # test time_interval_type
+        project_time_interval_type = project_dict['time_interval_type']
+        project_dict['time_interval_type'] = "not 'week', 'biweek', or 'month'"
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn("invalid 'time_interval_type'", str(context.exception))
+        project_dict['time_interval_type'] = project_time_interval_type
 
-        # todo xx "invalid 'point_value_type'"
-        # todo xx "invalid prediction_type"
-        # todo xx "required lwr entry is missing for BinLwr prediction type"
-        # todo xx "found a non-numeric BinLwr lwr"
-        # todo xx "lwrs were not sorted"
-        self.fail()  # todo xx
+        # test point_value_type
+        first_target_dict['point_value_type'] = "not 'INTEGER', 'FLOAT', or 'TEXT'"
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn("invalid 'point_value_type'", str(context.exception))
+        first_target_dict['point_value_type'] = 'INTEGER'  # reset to valid
 
-        # with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
-        #     project_dict = json.load(fp)
+        # test prediction_type: 'BinCat', 'BinLwr', 'Binary', 'Named', 'Point', 'Sample', or 'SampleCat'
+        first_target_dict['prediction_types'] = ["not 'BinCat', 'BinLwr', etc."]
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn("invalid 'prediction_type'", str(context.exception))
+        first_target_dict['prediction_types'] = ["BinCat", "Binary", "SampleCat"]  # reset to valid
 
 
     def test_create_project_from_json(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+        with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
+            project_config = json.load(fp)
+            timezero_config = {'timezero_date': '20171201',
+                               'data_version_date': None,
+                               'is_season_start': True,
+                               'season_name': 'tis the season'}
+            project_config['timezeros'] = [timezero_config]
+        project = create_project_from_json(project_config, po_user)
 
         # spot-check some fields
         self.assertEqual(po_user, project.owner)
@@ -720,6 +747,14 @@ class ProjectTestCase(TestCase):
         self.assertTrue(target.ok_sample_distribution)  # Sample
         self.assertFalse(target.ok_samplecat_distribution)
 
+        # check the TimeZero
+        time_zero = project.timezeros.first()
+        self.assertIsNotNone(time_zero)
+        self.assertEqual(datetime.date(2017, 12, 1), time_zero.timezero_date)
+        self.assertIsNone(time_zero.data_version_date)
+        self.assertEqual(timezero_config['is_season_start'], time_zero.is_season_start)
+        self.assertEqual(timezero_config['season_name'], time_zero.season_name)
+
         # test "lwr" validation
         project.delete()
         with open('forecast_app/tests/projects/cdc-project.json') as fp:
@@ -741,7 +776,7 @@ class ProjectTestCase(TestCase):
         self.assertIn("found a non-numeric BinLwr lwr", str(context.exception))
 
         # test existing project
-        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+        create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
         with self.assertRaises(RuntimeError) as context:
             create_project_from_json(cdc_project_json, po_user)
         self.assertIn("found existing project", str(context.exception))

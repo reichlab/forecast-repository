@@ -692,7 +692,7 @@ class Target(models.Model):
                                            "set. Default is False.",
                                  default=False)
     step_ahead_increment = IntegerField(help_text="Optional field that's required when Target.is_step_ahead "
-                                                  "is True, is an integer specifing how many time steps "
+                                                  "is True, is an integer specifying how many time steps "
                                                   "ahead the Target is. Can be negative, zero, or positive.",
                                         default=0)
 
