@@ -514,7 +514,7 @@ class Project(models.Model):
         with connection.cursor() as cursor:
             rows = self._load_truth_data_rows(cdc_csv_file_fp)  # validates
             if not rows:
-                return
+                return 0
 
             truth_data_table_name = TruthData._meta.db_table
             columns = [TruthData._meta.get_field('time_zero').column,
