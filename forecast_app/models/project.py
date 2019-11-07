@@ -483,21 +483,28 @@ class Project(models.Model):
             combination, OR an already-open file-like object
         :param file_name: name to use for the file
         """
+        logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
+                     f"file_name={file_name}")
         if not self.pk:
             raise RuntimeError("instance is not saved the the database, so can't insert data: {!r}".format(self))
 
+        logger.debug(f"load_truth_data(): calling delete_truth_data()")
         self.delete_truth_data()
 
+        logger.debug(f"load_truth_data(): calling _load_truth_data()")
+        num_rows = -1
         # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
         if isinstance(truth_file_path_or_fp, io.IOBase):
-            self._load_truth_data(truth_file_path_or_fp)
+            num_rows = self._load_truth_data(truth_file_path_or_fp)
         else:
             with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
-                self._load_truth_data(cdc_csv_file_fp)
+                num_rows = self._load_truth_data(cdc_csv_file_fp)
 
         # done!
+        logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
         self.truth_csv_filename = file_name or truth_file_path_or_fp.name
         self.save()
+        logger.debug(f"load_truth_data(): done")
 
 
     def _load_truth_data(self, cdc_csv_file_fp):
@@ -529,6 +536,7 @@ class Project(models.Model):
                     VALUES (%s, %s, %s, %s);
                 """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
                 cursor.executemany(sql, rows)
+        return len(rows)
 
 
     def _load_truth_data_rows(self, csv_file_fp):
