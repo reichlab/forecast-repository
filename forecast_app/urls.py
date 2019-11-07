@@ -50,7 +50,8 @@ urlpatterns = [
     # ---- CRUD-related form URLs ----
 
     # Project
-    url(r'^project/create/$', views.create_project, name='create-project'),
+    url(r'^project/create_form/$', views.create_project_from_form, name='create-project-from-form'),
+    url(r'^project/create_file/$', views.create_project_from_file, name='create-project-from-file'),
     url(r'^project/(?P<project_pk>\d+)/edit/$', views.edit_project, name='edit-project'),
     url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project, name='delete-project'),
 
