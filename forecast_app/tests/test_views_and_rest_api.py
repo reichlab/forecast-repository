@@ -128,7 +128,7 @@ class ViewsTestCase(TestCase):
 
 
     @patch('forecast_app.models.forecast.Forecast.delete')  # 'delete-forecast'
-    # 'create-project' -> form
+    # 'create-project-from-form' -> form
     # 'edit-project' -> form
     @patch('forecast_app.models.project.Project.delete')  # 'delete-project'
     # 'create-model' -> form
@@ -164,7 +164,8 @@ class ViewsTestCase(TestCase):
             reverse('project-score-data', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('download-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('download-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('create-project', args=[]): self.ONLY_PO_MO,
+            reverse('create-project-from-form', args=[]): self.ONLY_PO_MO,
+            reverse('create-project-from-file', args=[]): self.ONLY_PO_MO,
             reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
             reverse('edit-project', args=[str(self.private_project.pk)]): self.ONLY_PO,
             reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
@@ -257,7 +258,11 @@ class ViewsTestCase(TestCase):
             },
             # home page
             reverse('index', args=[]): {
-                reverse('create-project', args=[]):
+                reverse('create-project-from-form', args=[]):
+                    [(self.po_user, True),
+                     (self.mo_user, True),
+                     (self.superuser, True)],
+                reverse('create-project-from-file', args=[]):
                     [(self.po_user, True),
                      (self.mo_user, True),
                      (self.superuser, True)],

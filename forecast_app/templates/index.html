@@ -25,12 +25,36 @@
     </p>
 
 
-    <h2>Projects
-        <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
-        {% if is_user_ok_create_project %}
-            &nbsp;<a href="{% url 'create-project' %}" class="btn btn-success" role="button">New</a>
-        {% endif %}
-    </h2>
+    {% if is_user_ok_create_project %}
+        <h2>Projects
+            <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
+            {# show the new project form with a button dropdown of options for creating: form or file #}
+            <form id="download_form" class="form-inline" style="display: inline-block;" method="POST"
+                  action="{% url 'about' %}">
+                {% csrf_token %}
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-success dropdown-toggle" data-toggle="dropdown"
+                            aria-haspopup="true"
+                            aria-expanded="false">New <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a href="{% url 'create-project-from-form' %}">From form...</a></li>
+                        <li><a data-toggle="modal" data-target="#upload_project_config_modal" href="#">From file...</a>
+                        </li>
+                    </ul>
+                </div>
+            </form>
+        </h2>
+        {# the #upload_project_config_modal itself - hidden until above link shows it #}
+        {% include 'upload_project_config_snippet.html' %}
+    {% else %}
+        <h2>Projects
+            <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
+        </h2>
+    {% endif %}
+
+
+
 
     {% if projects %}
         <p class="help-block">The archive has {{ projects|length }} project{{ projects|length|pluralize }}:</p>

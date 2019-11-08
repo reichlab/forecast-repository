@@ -28,6 +28,7 @@ from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
+from utils.project import create_project_from_json
 
 
 logger = logging.getLogger(__name__)
@@ -481,10 +482,36 @@ def download_scores(request, project_pk):
 # ---- CRUD-related form functions ----
 #
 
-def create_project(request):
+def create_project_from_file(request):
+    """
+    Creates a project from a project config dict valid for create_project_from_json(). Authorization: The logged-in user
+    must be a superuser, or must be in the group PROJECT_OWNER_GROUP_NAME. Runs in the calling thread and therefore
+    blocks.
+    """
+    if not is_user_ok_create_project(request.user):
+        raise PermissionDenied
+
+    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
+    if is_error:
+        return is_error
+
+    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+    project_dict = json.load(data_file)
+    try:
+        new_project = create_project_from_json(project_dict, request.user)
+        messages.success(request, f"Created project '{new_project.name}'")
+        return redirect('project-detail', pk=new_project.pk)
+    except RuntimeError as re:
+        return render(request, 'message.html',
+                      context={'title': "Error creating project from file.",
+                               'message': f"There was an error uploading the file. The error was: "
+                                          f"&ldquo;<span class=\"bg-danger\">{re}</span>&rdquo;"})
+
+
+def create_project_from_form(request):
     """
     Shows a form to add a new Project with the owner being request.user. Authorization: The logged-in user must be a
-    superuser, or must be in the group PROJECT_OWNER_GROUP_NAME.
+    superuser, or must be in the group PROJECT_OWNER_GROUP_NAME. Runs in the calling thread and therefore blocks.
 
     :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """

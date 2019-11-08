@@ -1,0 +1,31 @@
+<div class="modal fade" id="upload_project_config_modal" tabindex="-1" role="dialog"
+     aria-labelledby="titleLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title" id="titleLabel">Choose a project configuration JSON file
+                    <a href="https://docs.zoltardata.com/fileformats/#project-creation-configuration-json"
+                       target="_blank">(details)</a>
+                </h4>
+            </div>
+            <div class="modal-footer">
+                {# the actual upload form #}
+                <form class="form-inline" method="POST" enctype="multipart/form-data" action="{% url 'create-project-from-file' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <button class="form-control btn btn-success" type="submit">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <input type="file" name="data_file">
+                    </div>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
