@@ -13,7 +13,8 @@ django.setup()
 
 from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
-from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets
+from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets, \
+    delete_project_iteratively
 from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
 from utils.cdc import cdc_csv_components_from_data_dir, load_cdc_csv_forecasts_from_dir
 
@@ -48,7 +49,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
     project = Project.objects.filter(name=THAI_PROJECT_NAME).first()
     if project:
         click.echo("* Deleting existing project: {}".format(project))
-        project.delete()
+        delete_project_iteratively(project)
 
     # create the Project (and Users if necessary), including loading the template and creating Targets
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)

@@ -28,7 +28,6 @@ from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
-from utils.project import create_project_from_json
 
 
 logger = logging.getLogger(__name__)
@@ -633,8 +632,12 @@ def delete_project(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied
 
+    # imported here so that test_delete_project_iteratively() can patch via mock:
+    from utils.project import delete_project_iteratively
+
+
     project_name = project.name
-    project.delete()
+    delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
     return redirect('user-detail', pk=user.pk)
 

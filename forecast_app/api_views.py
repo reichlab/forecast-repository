@@ -108,8 +108,14 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         if not is_user_ok_edit_project(request.user, project):
             raise PermissionDenied
 
-        response = self.destroy(request, *args, **kwargs)
-        return response
+        # imported here so that test_delete_project_iteratively() can patch via mock:
+        from utils.project import delete_project_iteratively
+
+
+        # we call our own delete_project_iteratively() instead of using DestroyModelMixin.destroy(), which calls
+        # instance.delete()
+        delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):

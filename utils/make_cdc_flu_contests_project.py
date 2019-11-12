@@ -19,7 +19,8 @@ django.setup()
 
 from forecast_app.models import TimeZero, ForecastModel, Project
 from django.contrib.auth.models import User
-from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets
+from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets, \
+    delete_project_iteratively
 from utils.normalize_filenames_2016_2017_flu_contest import SEASON_START_EW_NUMBER
 from utils.cdc import cdc_csv_components_from_data_dir, cdc_csv_filename_components, first_model_subdirectory, \
     load_cdc_csv_forecasts_from_dir
@@ -54,7 +55,7 @@ def make_cdc_flu_contests_project_app(component_models_dir_ensemble, truths_csv_
     project = Project.objects.filter(name=CDC_PROJECT_NAME).first()  # None if doesn't exist
     if project:
         logger.warning(f"make_cdc_flu_contests_project_app(): found existing project. deleting project={project}")
-        project.delete()
+        delete_project_iteratively(project)
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
     logger.info("* Creating Project...")
@@ -125,10 +126,10 @@ def make_timezeros(project, model_dirs):
             is_new_season = season_start_year not in season_start_years
             new_season_name = '{}-{}'.format(season_start_year, season_start_year + 1) if is_new_season else None
             timezeros.append(TimeZero.objects.create(project=project,
-                                                      timezero_date=timezero_date,
-                                                      data_version_date=data_version_date,
-                                                      is_season_start=(True if is_new_season else False),
-                                                      season_name=(new_season_name if is_new_season else None)))
+                                                     timezero_date=timezero_date,
+                                                     data_version_date=data_version_date,
+                                                     is_season_start=(True if is_new_season else False),
+                                                     season_name=(new_season_name if is_new_season else None)))
             if is_new_season:
                 season_start_years.append(season_start_year)
     return timezeros

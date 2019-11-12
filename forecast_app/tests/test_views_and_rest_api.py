@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,6 +17,7 @@ from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import load_cdc_csv_forecast_file
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.project import delete_project_iteratively
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -127,10 +129,11 @@ class ViewsTestCase(TestCase):
                            (cls.superuser, status.HTTP_302_FOUND)]
 
 
+    # the following @patch calls stop CRUD calls from actually taking place. all we care about here is access permissions
     @patch('forecast_app.models.forecast.Forecast.delete')  # 'delete-forecast'
     # 'create-project-from-form' -> form
     # 'edit-project' -> form
-    @patch('forecast_app.models.project.Project.delete')  # 'delete-project'
+    @patch('utils.project.delete_project_iteratively')  # 'delete-project'
     # 'create-model' -> form
     # 'edit-model' -> form
     @patch('forecast_app.models.forecast_model.ForecastModel.delete')  # 'delete-model'
@@ -321,6 +324,57 @@ class ViewsTestCase(TestCase):
                         self.assertNotIn(exp_url, str(response.content))
 
 
+    def test_delete_project_iteractively(self):
+        # delete_project_iteratively() should delete its project
+        project2 = Project.objects.create(owner=self.po_user)
+        self.assertIsNotNone(project2.pk)
+        delete_project_iteratively(project2)
+        self.assertIsNone(project2.pk)
+
+        # views.delete_project() should call delete_project_iteratively()
+        project2 = Project.objects.create(owner=self.po_user)
+        self.client.login(username=self.po_user.username, password=self.po_user_password)
+        with patch('utils.project.delete_project_iteratively') as del_proj_iter_mock:
+            self.client.delete(reverse('delete-project', args=[str(project2.pk)]))
+            del_proj_iter_mock.assert_called_once()
+            args = del_proj_iter_mock.call_args[0]
+            self.assertEqual(project2, args[0])
+
+        # api_views.ProjectDetail.delete() should call delete_project_iteratively()
+        project2 = Project.objects.create(owner=self.po_user)
+        with patch('utils.project.delete_project_iteratively') as del_proj_iter_mock:
+            self.client.delete(reverse('delete-project', args=[str(project2.pk)]), {
+                'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            })
+            del_proj_iter_mock.assert_called_once()
+            args = del_proj_iter_mock.call_args[0]
+            self.assertEqual(project2, args[0])
+
+
+    def test_data_download_formats(self):
+        """
+        Test forecast_data().
+        """
+        # forecast data as JSON. a django.http.response.JsonResponse:
+        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
+        response_dict = json.loads(response.content)  # will fail if not JSON
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], "application/json")
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
+        self.assertEqual({'meta', 'predictions'}, set(response_dict))
+        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
+        self.assertEqual(11, len(response_dict['meta']['locations']))
+
+        # score data as CSV. a django.http.response.HttpResponse
+        response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response['Content-Type'], "text/csv")
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')
+        split_content = response.content.decode("utf-8").split('\r\n')
+        self.assertEqual(split_content[0], ','.join(SCORE_CSV_HEADER_PREFIX))
+        self.assertEqual(len(split_content), 2)  # no score data
+
+
     # https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
     def test_api_jwt_auth(self):
         # recall from base.py: ROOT_URLCONF = 'forecast_repo.urls'
@@ -454,7 +508,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
 
 
-    def test_api_delete_endpoints(self):
+    def test_api_delete_forecast(self):
         # anonymous delete: self.public_forecast -> disallowed
         self.client.logout()  # AnonymousUser
         response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
@@ -472,30 +526,6 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
         self.assertIsNone(Forecast.objects.filter(pk=private_forecast2_pk).first())  # is deleted
         self.assertEqual(1, self.private_model.forecasts.count())  # is no longer in list
-
-
-    def test_data_download_formats(self):
-        """
-        Test forecast_data().
-        """
-        # forecast data as JSON. a django.http.response.JsonResponse:
-        response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
-        response_dict = json.loads(response.content)  # will fail if not JSON
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response['Content-Type'], "application/json")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
-        self.assertEqual({'meta', 'predictions'}, set(response_dict))
-        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
-        self.assertEqual(11, len(response_dict['meta']['locations']))
-
-        # score data as CSV. a django.http.response.HttpResponse
-        response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')
-        split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(split_content[0], ','.join(SCORE_CSV_HEADER_PREFIX))
-        self.assertEqual(len(split_content), 2)  # no score data
 
 
     def test_api_create_project(self):

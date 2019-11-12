@@ -3,7 +3,8 @@ import resource
 
 import click
 import django
-from django.db import transaction
+
+from utils.project import delete_project_iteratively
 
 
 logger = logging.getLogger(__name__)
@@ -30,39 +31,6 @@ def delete_project_app(name):
     # delete_project_single_call(project)
     delete_project_iteratively(project)
     print(f"\ndelete_project_app(): done!")
-
-
-@transaction.atomic
-def delete_project_iteratively(project):
-    """
-    Deletes the passed Project, but unlike `delete_project_single_call()`, does so by iterating over objects that refer
-    to the project before deleting the project itself. This apparently reduces the memory usage enough to allow the
-    below Heroku deletion.
-    """
-    print(f"\n* models and forecasts")
-    for forecast_model in project.models.iterator():
-        print(f"- {forecast_model.pk}")
-        for forecast in forecast_model.forecasts.iterator():
-            print(f"  = {forecast.pk}")
-            forecast.delete()
-        forecast_model.delete()
-
-    print(f"\n* locations")
-    for location in project.locations.iterator():
-        print(f"- {location.pk}")
-        location.delete()
-
-    print(f"\n* targets")
-    for target in project.targets.iterator():
-        print(f"- {target.pk}")
-        target.delete()
-
-    print(f"\n* timezeros")
-    for timezero in project.timezeros.iterator():
-        print(f"- {timezero.pk}")
-        timezero.delete()
-
-    project.delete()  # deletes remaining references: RowCountCache, ScoreCsvFileCache
 
 
 def delete_project_single_call(project):

@@ -16,6 +16,45 @@ logger = logging.getLogger(__name__)
 
 
 #
+# delete_project_iteratively()
+#
+
+@transaction.atomic
+def delete_project_iteratively(project):
+    """
+    An alternative to Project.delete(), deletes the passed Project, but unlike that function, does so by iterating over
+    objects that refer to the project before deleting the project itself. This apparently reduces the memory usage
+    enough to allow the below Heroku deletion. See [Deleting projects on Heroku production fails](https://github.com/reichlab/forecast-repository/issues/91).
+    """
+    logger.info(f"* delete_project_iteratively(): deleting models and forecasts")
+    for forecast_model in project.models.iterator():
+        logger.info(f"- {forecast_model.pk}")
+        for forecast in forecast_model.forecasts.iterator():
+            logger.info(f"  = {forecast.pk}")
+            forecast.delete()
+        forecast_model.delete()
+
+    logger.info(f"delete_project_iteratively(): deleting locations")
+    for location in project.locations.iterator():
+        logger.info(f"- {location.pk}")
+        location.delete()
+
+    logger.info(f"delete_project_iteratively(): deleting targets")
+    for target in project.targets.iterator():
+        logger.info(f"- {target.pk}")
+        target.delete()
+
+    logger.info(f"delete_project_iteratively(): deleting timezeros")
+    for timezero in project.timezeros.iterator():
+        logger.info(f"- {timezero.pk}")
+        timezero.delete()
+
+    logger.info(f"delete_project_iteratively(): deleting remainder")
+    project.delete()  # deletes remaining references: RowCountCache, ScoreCsvFileCache
+    logger.info(f"delete_project_iteratively(): done")
+
+
+#
 # config_dict_from_project()
 #
 
