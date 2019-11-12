@@ -10,6 +10,8 @@
         {% include 'visibility_snippet.html' with project=project size="fa-sm" %}
         Project: {{ project.name }}
         <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
+        <a href="{% url 'project-config' project.pk %}" class="btn btn-success btn-sm" role="button">
+            <i class="fas fa-cloud-download-alt"></i> Config</a>
         {% if is_user_ok_edit_project %}
             {# Edit Project: a simple link to an edit form #}
             <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">

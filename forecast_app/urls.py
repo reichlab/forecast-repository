@@ -30,7 +30,8 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/scores', views.project_scores, name='project-scores'),
     url(r'^project/(?P<project_pk>\d+)/score_data', views.project_score_data, name='project-score-data'),
-    url(r'^project/(?P<project_pk>\d+)/download_score_data', views.download_scores, name='download-scores'),
+    url(r'^project/(?P<project_pk>\d+)/download_score_data', views.download_project_scores, name='project-scores'),
+    url(r'^project/(?P<project_pk>\d+)/download_config', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/truth/delete$', views.delete_truth, name='delete-truth'),

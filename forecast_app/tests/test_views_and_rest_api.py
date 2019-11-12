@@ -165,8 +165,10 @@ class ViewsTestCase(TestCase):
             reverse('project-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-score-data', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-score-data', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('download-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('download-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('project-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('project-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('project-config', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('project-config', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('create-project-from-form', args=[]): self.ONLY_PO_MO,
             reverse('create-project-from-file', args=[]): self.ONLY_PO_MO,
             reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
@@ -366,7 +368,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(11, len(response_dict['meta']['locations']))
 
         # score data as CSV. a django.http.response.HttpResponse
-        response = self.client.get(reverse('download-scores', args=[self.public_project.pk]))
+        response = self.client.get(reverse('project-scores', args=[self.public_project.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response['Content-Type'], "text/csv")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')

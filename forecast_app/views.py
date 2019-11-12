@@ -13,7 +13,9 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Count
+from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
@@ -28,6 +30,7 @@ from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
+from utils.project import config_dict_from_project
 
 
 logger = logging.getLogger(__name__)
@@ -457,7 +460,7 @@ def _model_score_count_rows_for_project(project):
         return cursor.fetchall()
 
 
-def download_scores(request, project_pk):
+def download_project_scores(request, project_pk):
     """
     Returns a response containing a CSV file for a project_pk's scores.
     Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
@@ -475,6 +478,23 @@ def download_scores(request, project_pk):
         return csv_response_for_cached_project_score_data(project)
     else:
         return csv_response_for_project_score_data(project)
+
+
+def download_project_config(request, project_pk):
+    """
+    View function that returns a response containing a JSON config file for project_pk.
+    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
+        model's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_ok_to_view(request.user):
+        raise PermissionDenied
+
+    project_config = config_dict_from_project(project)
+    filename = get_valid_filename(f'{project.name}-config.json')
+    response = JsonResponse(project_config)  # defaults to 'content_type' 'application/json'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
 
 
 #
