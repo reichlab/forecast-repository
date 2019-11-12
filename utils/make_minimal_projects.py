@@ -80,6 +80,10 @@ def make_minimal_projects_app():
 
 
 def fill_project(project, mo_user):
+    project.description = "description"
+    project.home_url = "http://example.com/"
+    project.core_data = "http://example.com/"
+
     # make the Locations and Targets
     make_cdc_locations_and_targets(project)
 
