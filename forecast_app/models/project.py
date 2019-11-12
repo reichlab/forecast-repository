@@ -100,6 +100,15 @@ class Project(models.Model):
         super().save(*args, **kwargs)
 
 
+    def time_interval_type_as_str(self):
+        """
+        :return: my time_interval_type as a human-friendly string from TIME_INTERVAL_TYPE_CHOICES
+        """
+        for db_value, human_readable_value in Project.TIME_INTERVAL_TYPE_CHOICES:
+            if db_value == self.time_interval_type:
+                return human_readable_value
+
+
     def is_user_ok_to_view(self, user):
         """
         :return: True if user is allowed to view my pages based on my is_public, owner, and model_owners.

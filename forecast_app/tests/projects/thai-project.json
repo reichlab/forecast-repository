@@ -93,7 +93,7 @@
       "is_date": false,
       "is_step_ahead": true,
       "step_ahead_increment": 1,
-      "point_value_type": "float",
+      "point_value_type": "FLOAT",
       "prediction_types": [
         "BinLwr",
         "Named",
@@ -109,7 +109,7 @@
       "is_date": false,
       "is_step_ahead": true,
       "step_ahead_increment": 2,
-      "point_value_type": "float",
+      "point_value_type": "FLOAT",
       "prediction_types": [
         "BinLwr",
         "Named",
@@ -125,7 +125,7 @@
       "is_date": false,
       "is_step_ahead": true,
       "step_ahead_increment": 3,
-      "point_value_type": "float",
+      "point_value_type": "FLOAT",
       "prediction_types": [
         "BinLwr",
         "Named",
@@ -141,7 +141,7 @@
       "is_date": false,
       "is_step_ahead": true,
       "step_ahead_increment": 4,
-      "point_value_type": "float",
+      "point_value_type": "FLOAT",
       "prediction_types": [
         "BinLwr",
         "Named",
@@ -157,7 +157,7 @@
       "is_date": false,
       "is_step_ahead": true,
       "step_ahead_increment": 5,
-      "point_value_type": "float",
+      "point_value_type": "FLOAT",
       "prediction_types": [
         "BinLwr",
         "Named",

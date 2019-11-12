@@ -5,12 +5,75 @@ import numbers
 
 from django.db import transaction
 
-from forecast_app.models import Project, Location, Target
+from forecast_app.models import Project, Location, Target, BinCatDistribution, BinLwrDistribution, BinaryDistribution, \
+    NamedDistribution, PointPrediction, SampleDistribution, SampleCatDistribution
 from forecast_app.models.project import TargetBinLwr
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
+
+
+#
+# config_dict_from_project()
+#
+
+def config_dict_from_project(project):
+    """
+    The twin of `create_project_from_json()`, returns a configuration dict for project as passed to that function.
+    """
+    return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
+            'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
+            'time_interval_type': project.time_interval_type_as_str(),
+            'visualization_y_label': project.visualization_y_label,
+            'locations': [{'name': location.name} for location in project.locations.all()],
+            'targets': _target_config_dicts_for_project(project),
+            'timezeros': [{'timezero_date': timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                           'data_version_date':
+                               timezero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+                               if timezero.data_version_date else None,
+                           'is_season_start': timezero.is_season_start,
+                           'season_name': timezero.season_name}
+                          for timezero in project.timezeros.all()]}
+
+
+# todo xx merge w/Target.ok_distributions_str(). definitely a code smell
+def _prediction_types_for_target(target):
+    prediction_types = []
+    if target.ok_bincat_distribution:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinCatDistribution])
+    if target.ok_binlwr_distribution:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinLwrDistribution])
+    if target.ok_binary_distribution:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinaryDistribution])
+    if target.ok_named_distribution:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution])
+    if target.ok_point_prediction:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction])
+    if target.ok_sample_distribution:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution])
+    if target.ok_samplecat_distribution:
+        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleCatDistribution])
+    return prediction_types
+
+
+def _target_config_dicts_for_project(project):
+    target_dicts = []
+    for target in project.targets.all():
+        prediction_types = _prediction_types_for_target(target)
+        target_dict = {'name': target.name,
+                       'description': target.description,
+                       'unit': target.unit,
+                       'is_date': target.is_date,
+                       'is_step_ahead': target.is_step_ahead,
+                       'step_ahead_increment': target.step_ahead_increment,
+                       'point_value_type': target.point_value_type_str(),
+                       'prediction_types': prediction_types}
+        if 'BinLwr' in prediction_types:
+            target_dict['lwr'] = [binlwr.lwr for binlwr in target.binlwrs.all()]
+        target_dicts.append(target_dict)
+    return target_dicts
 
 
 #
@@ -24,7 +87,8 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=T
     exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or load forecasts.
 
     :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
-        See https://docs.zoltardata.com/ for details, and cdc-project.json for an example.
+        See https://docs.zoltardata.com/fileformats/#project-creation-configuration-json for details, and
+        cdc-project.json for an example.
     :param owner: the new Project's owner (a User)
     :param is_validate: True if the input json should be validated. passed in case a project requires less stringent
         validation
@@ -89,7 +153,7 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
         expected_keys = {'name', 'description', 'unit', 'is_date', 'is_step_ahead', 'step_ahead_increment',
                          'point_value_type', 'prediction_types'}
         if actual_keys != expected_keys:
-            raise RuntimeError(f"Wrong keys in target_dict. difference={expected_keys ^ actual_keys}. " 
+            raise RuntimeError(f"Wrong keys in target_dict. difference={expected_keys ^ actual_keys}. "
                                f"expected={expected_keys}, actual={actual_keys}")
 
         # validate point_value_type and convert to db choice - one of: 'integer', 'float', or 'text'
