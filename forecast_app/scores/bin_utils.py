@@ -85,7 +85,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     for (timezero_pk, location_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
         count = tz_loc_targ_pks_to_error_count[timezero_pk, location_pk, target_pk]
         logger.warning(f"_calc_bin_score(): missing {count} truth value(s): "
-                       "timezero_pk={timezero_pk}, location_pk={location_pk}, target_pk={target_pk}")
+                       f"timezero_pk={timezero_pk}, location_pk={location_pk}, target_pk={target_pk}")
 
 
 def _truth_data_pks_for_forecast_model(forecast_model):
