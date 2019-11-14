@@ -142,7 +142,7 @@ class Score(models.Model):
 
 
         start_time = timeit.default_timer()
-        logger.info("update_score_for_model(): entered. score={}, forecast_model={}".format(self, forecast_model))
+        logger.info(f"update_score_for_model(): entered. score={self}, forecast_model={forecast_model}")
 
         logger.info("update_score_for_model(): deleting existing ScoreValues for model")
         forecast_model_score_value_qs = ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model)
@@ -150,12 +150,13 @@ class Score(models.Model):
 
         # e.g., 'calc_error' or 'calc_abs_error':
         calc_function = getattr(forecast_app.scores.definitions, 'calc_' + self.abbreviation)
-        logger.info("update_score_for_model(): calling calculation function: {}".format(calc_function))
+        logger.info(f"update_score_for_model(): calling calculation function: {calc_function}")
         calc_function(self, forecast_model)
 
         self.set_last_update_for_forecast_model(forecast_model)
-        logger.info("update_score_for_model(): done. -> {} total ScoreValues. time: {}"
-                    .format(forecast_model_score_value_qs.count(), timeit.default_timer() - start_time))
+        logger.info(f"update_score_for_model(): done. score={self}, forecast_model={forecast_model} -> "
+                    f"count={forecast_model_score_value_qs.count()} "
+                    f"total ScoreValues. time: {timeit.default_timer() - start_time}")
 
 
     def clear(self):
