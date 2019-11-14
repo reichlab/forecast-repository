@@ -35,19 +35,20 @@ def print_scores():
 
     click.echo("\n* Scores:")
     for score in Score.objects.all():
-        click.echo("- {} | {}".format(score, ScoreValue.objects.filter(score=score).count()))
+        click.echo(f"- {score} | {ScoreValue.objects.filter(score=score).count()}")
 
     click.echo("\n* Score Forecasts:")
     for score in Score.objects.all().order_by('name'):
         for project in Project.objects.all():
             for forecast_model in project.models.all().order_by('project__name', 'name'):
                 score_last_update = score.last_update_for_forecast_model(forecast_model)  # None o/w
-                score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model__project=project)
+                score_values_qs = ScoreValue.objects.filter(score=score, forecast__forecast_model=forecast_model)
                 last_update_str = '{:%Y-%m-%d %H:%M:%S}'.format(score_last_update.updated_at) if score_last_update \
                     else '[no updated_at]'
-                click.echo("  + (score={}) '{}' | {} | {} . (proj={}, model={}) '{}'"
-                           .format(score.pk, score.abbreviation, score_values_qs.count(),
-                                   last_update_str, forecast_model.project.pk, forecast_model.pk, forecast_model.name))
+                # e.g.,  + (score=5) 'pit' | 3135 | 2019-11-14 16:18:53 . (proj=46, model=127) 'SARIMA model with seasonal differencing'
+                click.echo(f"  + (score={score.pk}) '{score.abbreviation}' | {score_values_qs.count()} | "
+                           f"{last_update_str} . (proj={forecast_model.project.pk}, model={forecast_model.pk}) "
+                           f"'{forecast_model.name}'")
 
 
 @cli.command()
