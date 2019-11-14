@@ -17,9 +17,8 @@
                 <th>Project</th>
                 <th>Model</th>
                 <th>updated_at</th>
-                <th># Score Values</th>
             </tr>
-            {% for forecast_model, score, num_score_values, last_update in score_last_update_rows %}
+            {% for forecast_model, score, last_update in score_last_update_rows %}
                 <tr>
                     <td>{{ score.abbreviation }}</td>
                     <td>
@@ -27,7 +26,6 @@
                     </td>
                     <td><a href="{% url 'model-detail' forecast_model.pk %}">{{ forecast_model.name }}</a></td>
                     <td>{{ last_update|date:"Y-m-d h:i:s" }}</td>
-                    <td>{{ num_score_values }}</td>
                 </tr>
             {% endfor %}
         </table>

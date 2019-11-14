@@ -66,14 +66,15 @@ def zadmin_upload_file_jobs(request):
 def zadmin_score_last_updates(request):
     Score.ensure_all_scores_exist()
 
-    # build score_last_update_rows. NB: this takes a long time
+    # build score_last_update_rows. NB: num_score_values_for_model() took a long time, so we removed it. o/w the page
+    # was timing out on Heroku
     score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
     for score_last_update in ScoreLastUpdate.objects \
             .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
         score_last_update_rows.append(
             (score_last_update.forecast_model,
              score_last_update.score,
-             score_last_update.score.num_score_values_for_model(score_last_update.forecast_model),
+             # score_last_update.score.num_score_values_for_model(score_last_update.forecast_model),
              score_last_update.updated_at))
 
     return render(
