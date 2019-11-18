@@ -147,7 +147,6 @@ class ViewsTestCase(TestCase):
             reverse('upload-file-job-detail', args=[str(self.upload_file_job.pk)]): self.ONLY_PO,
 
             reverse('zadmin'): self.ONLY_SU_200,
-            reverse('empty-rq'): self.ONLY_SU_302,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
             reverse('update-row-count-caches'): self.ONLY_SU_302,
             reverse('clear-score-csv-file-caches'): self.ONLY_SU_302,

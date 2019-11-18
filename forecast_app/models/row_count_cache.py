@@ -8,6 +8,7 @@ from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Project
+from forecast_repo.settings.base import ROW_COUNT_UPDATE_QUEUE_NAME
 from utils.utilities import basic_str
 
 
@@ -47,7 +48,7 @@ class RowCountCache(models.Model):
         this does not preclude race conditions if called simultaneously by different threads. In that case, the most
         recent call wins, which is not terrible if we assume that one used the latest data.
         """
-        logger.debug("update_row_count_cache(): calling: get_num_forecast_rows_all_models(). project={}".format(self.project))
+        logger.debug(f"update_row_count_cache(): calling: get_num_forecast_rows_all_models(). project={self.project}")
         num_forecast_rows = self.project.get_num_forecast_rows_all_models()
         self.row_count = num_forecast_rows  # recall last_update is auto_now
         self.save()
@@ -60,7 +61,8 @@ class RowCountCache(models.Model):
 
 def enqueue_row_count_updates_all_projs():
     for project in Project.objects.all():
-        django_rq.enqueue(_update_project_row_count_cache, project.pk)
+        queue = django_rq.get_queue(ROW_COUNT_UPDATE_QUEUE_NAME)
+        queue.enqueue(_update_project_row_count_cache, project.pk)
 
 
 def _update_project_row_count_cache(project_pk):

@@ -185,6 +185,22 @@ MESSAGE_TAGS = {
 }
 
 #
+# ---- Django-RQ queue name variables. used by "inheriting" settings files ----
+#
+
+HIGH_QUEUE_NAME = 'high'
+DEFAULT_QUEUE_NAME = 'default'
+LOW_QUEUE_NAME = 'low'
+
+# here's the mapping of all RQ-related functionality to specific queues. NB: when adding new functionality, add new
+# variables here.
+ROW_COUNT_UPDATE_QUEUE_NAME = DEFAULT_QUEUE_NAME
+UPDATE_MODEL_SCORES_QUEUE_NAME = DEFAULT_QUEUE_NAME
+UPDATE_PROJECT_SCORE_CSV_FILE_CACHE_QUEUE_NAME = DEFAULT_QUEUE_NAME
+UPDATE_MODEL_SCORES_QUEUE_NAME = DEFAULT_QUEUE_NAME
+UPLOAD_FILE_QUEUE_NAME = DEFAULT_QUEUE_NAME
+
+#
 # S3 support - used by cloud_file.py
 #
 

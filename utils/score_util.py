@@ -3,8 +3,10 @@ import django
 import django_rq
 from django.shortcuts import get_object_or_404
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
+
+
 django.setup()
 
 from forecast_app.models.score import _update_model_scores
@@ -90,11 +92,12 @@ def update(score_pk, model_pk, no_enqueue):
         for forecast_model in models:
             print('  ', forecast_model)
             if no_enqueue:
-                click.echo("(no enqueue) calculating score={}, forecast_model={}".format(score, forecast_model))
+                click.echo(f"(no enqueue) calculating score={score}, forecast_model={forecast_model}")
                 _update_model_scores(score.pk, forecast_model.pk)
             else:
-                click.echo("enqueuing score={}, forecast_model={}".format(score, forecast_model))
-                django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+                click.echo(f"enqueuing score={score}, forecast_model={forecast_model}")
+                queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
+                queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
     click.echo("update done")
 
 

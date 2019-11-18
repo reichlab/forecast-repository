@@ -6,6 +6,7 @@ from django.db import models
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Forecast, Project, ForecastModel
+from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
 from utils.utilities import basic_str
 
 
@@ -176,9 +177,9 @@ class Score(models.Model):
         for score in cls.objects.all():
             for project in Project.objects.all():
                 for forecast_model in project.models.all():
-                    logger.info("enqueuing update project scores. score={}, forecast_model={}"
-                                .format(score, forecast_model))
-                    django_rq.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+                    logger.info(f"enqueuing update project scores. score={score}, forecast_model={forecast_model}")
+                    queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
+                    queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
 
 
 def _update_model_scores(score_pk, forecast_model_pk):

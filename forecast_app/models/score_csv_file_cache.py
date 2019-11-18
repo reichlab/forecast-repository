@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Project
+from forecast_repo.settings.base import UPDATE_PROJECT_SCORE_CSV_FILE_CACHE_QUEUE_NAME
 from utils.cloud_file import is_file_exists
 from utils.utilities import basic_str
 
@@ -86,7 +87,8 @@ class ScoreCsvFileCache(models.Model):
 
 def enqueue_score_csv_file_cache_all_projs():
     for project in Project.objects.all():
-        django_rq.enqueue(_update_project_score_csv_file_cache, project.pk)
+        queue = django_rq.get_queue(UPDATE_PROJECT_SCORE_CSV_FILE_CACHE_QUEUE_NAME)
+        queue.enqueue(_update_project_score_csv_file_cache, project.pk)
 
 
 def _update_project_score_csv_file_cache(project_pk):

@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from jsonfield import JSONField
 
+from forecast_repo.settings.base import UPLOAD_FILE_QUEUE_NAME
 from utils.cloud_file import delete_file, download_file
 from utils.utilities import basic_str
 
@@ -106,13 +107,13 @@ class UploadFileJob(models.Model):
         Cancels the RQ job corresponding to me.
         """
         try:
-            logger.debug("cancel_rq_job(): Started: {}".format(self))
-            queue = django_rq.get_queue()  # name='default'
+            logger.debug(f"cancel_rq_job(): Started: {self}")
+            queue = django_rq.get_queue(UPLOAD_FILE_QUEUE_NAME)
             job = queue.fetch_job(self.rq_job_id())
             job.cancel()  # NB: just removes it from the queue and won't will kill it if is already executing
-            logger.debug("cancel_rq_job(): done: {}".format(self))
+            logger.debug(f"cancel_rq_job(): done: {self}")
         except Exception as exc:
-            logger.debug("cancel_rq_job(): Failed: {}, {}".format(exc, self))
+            logger.debug(f"cancel_rq_job(): Failed: {exc}, {self}")
 
 
 #

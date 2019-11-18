@@ -25,7 +25,7 @@ from forecast_app.models.project import Target, Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
-from forecast_repo.settings.base import S3_BUCKET_PREFIX
+from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME
 from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
@@ -88,9 +88,6 @@ def zadmin(request):
 
     Score.ensure_all_scores_exist()
 
-    rq_queue = django_rq.get_queue()  # name='default'
-    rq_conn = django_rq.get_connection()  # name='default'
-    rq_jobs = _rq_jobs_for_queue(rq_queue)
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
 
     projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
@@ -99,37 +96,10 @@ def zadmin(request):
         context={'django_db_name': django_db_name,
                  'django_conn': connection,
                  's3_bucket_prefix': S3_BUCKET_PREFIX,
-                 'rq_conn': rq_conn,
-                 'rq_queue': rq_queue,
-                 'rq_jobs': rq_jobs,
                  'projects_sort_pk': projects_sort_pk,
                  'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
                  'scores_sort_name': Score.objects.all().order_by('name'),
-                 'scores_sort_pk': Score.objects.all().order_by('pk'),
-                 })
-
-
-def _rq_jobs_for_queue(rq_queue):
-    """
-    :return: a list of Jobs in rq_queue, handling the connection errors that happen when redis-server is not running.
-    """
-    try:
-        return rq_queue.jobs
-    except redis.exceptions.ConnectionError:
-        return []
-
-
-def empty_rq(request):
-    if not is_user_ok_admin(request.user):
-        raise PermissionDenied
-
-    try:
-        queue = django_rq.get_queue()  # name='default'
-        queue.empty()
-        messages.success(request, "Emptied the queue.")
-    except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, "Error emptying queue: {}.".format(ce))
-    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
+                 'scores_sort_pk': Score.objects.all().order_by('pk')})
 
 
 def delete_upload_file_jobs(request):
@@ -1216,8 +1186,8 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
 
     # enqueue a worker
     try:
-        rq_job = django_rq.enqueue(process_upload_file_job_fcn, upload_file_job.pk,
-                                   job_id=upload_file_job.rq_job_id())  # name="default"
+        queue = django_rq.get_queue(UPLOAD_FILE_QUEUE_NAME)
+        rq_job = queue.enqueue(process_upload_file_job_fcn, upload_file_job.pk, job_id=upload_file_job.rq_job_id())
         upload_file_job.status = UploadFileJob.QUEUED
         upload_file_job.save()
         logger.debug("_upload_file(): 3/3 Enqueued the job: {}. upload_file_job={}".format(rq_job, upload_file_job))

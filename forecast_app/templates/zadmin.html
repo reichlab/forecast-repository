@@ -26,29 +26,6 @@
     </ul>
 
 
-    <h2>RQ</h2>
-
-    <ul>
-        <li>Connection: {{ rq_conn }}</li>
-        <li>Queue: {{ rq_queue }}</li>
-        <li>Jobs: ({{ rq_jobs|length }})
-            <ul>
-                {% for job in rq_jobs %}
-                    <li>{{ job }}</li>
-                {% endfor %}
-            </ul>
-        </li>
-    </ul>
-
-    <form class="form-inline" method="POST" enctype="multipart/form-data"
-          action="{% url 'empty-rq' %}">
-        {% csrf_token %}
-        <div class="form-group">
-            <button class="form-control btn btn-danger" type="submit">Empty RQ</button>
-        </div>
-    </form>
-
-
     <h2>PK Reference</h2>
 
     <p>Scores:</p>

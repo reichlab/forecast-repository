@@ -23,7 +23,7 @@ DATABASES = {
 #
 
 RQ_QUEUES = {
-    'default': {
+    DEFAULT_QUEUE_NAME: {
         'URL': 'redis://localhost:6379/0',
         'DEFAULT_TIMEOUT': 360,
     },

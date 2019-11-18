@@ -12,7 +12,6 @@ urlpatterns = [
     url(r'^zadmin$', views.zadmin, name='zadmin'),
     url(r'^zadmin/upload_file_jobs$', views.zadmin_upload_file_jobs, name='zadmin-upload-file-jobs'),
     url(r'^zadmin/score_last_updates$', views.zadmin_score_last_updates, name='zadmin-score-last-updates'),
-    url(r'^empty_rq/$', views.empty_rq, name='empty-rq'),
     url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),
     url(r'^clear_score_csv_file_caches', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
