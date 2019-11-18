@@ -19,7 +19,15 @@ DATABASES = {
 #
 
 RQ_QUEUES = {
+    HIGH_QUEUE_NAME: {
+        'URL': 'redis://localhost:6379/0',
+        'DEFAULT_TIMEOUT': 360,
+    },
     DEFAULT_QUEUE_NAME: {
+        'URL': 'redis://localhost:6379/0',
+        'DEFAULT_TIMEOUT': 360,
+    },
+    LOW_QUEUE_NAME: {
         'URL': 'redis://localhost:6379/0',
         'DEFAULT_TIMEOUT': 360,
     },

@@ -64,7 +64,15 @@ if not redis_url:
     raise RuntimeError('heroku_production.py: REDIS_URL not configured!')
 
 RQ_QUEUES = {
+    HIGH_QUEUE_NAME: {
+        'URL': redis_url,
+        'DEFAULT_TIMEOUT': 500,
+    },
     DEFAULT_QUEUE_NAME: {
+        'URL': redis_url,
+        'DEFAULT_TIMEOUT': 500,
+    },
+    LOW_QUEUE_NAME: {
         'URL': redis_url,
         'DEFAULT_TIMEOUT': 500,
     },
