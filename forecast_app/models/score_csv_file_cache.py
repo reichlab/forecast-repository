@@ -20,11 +20,8 @@ class ScoreCsvFileCache(models.Model):
     Stores a cached value of a Project's score csv file, which can be a time-consuming operation.
     """
 
-    project = models.OneToOneField(
-        Project,
-        related_name='score_csv_file_cache',
-        on_delete=models.CASCADE,
-        primary_key=True)
+    project = models.OneToOneField(Project, related_name='score_csv_file_cache', on_delete=models.CASCADE,
+                                   primary_key=True)
 
     # datetime at the last update. auto_now: automatically set the field to now every time the object is saved:
     updated_at = models.DateTimeField(auto_now=True)

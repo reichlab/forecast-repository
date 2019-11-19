@@ -4,10 +4,11 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero
+from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
@@ -37,11 +38,11 @@ class ForecastTestCase(TestCase):
     def test_load_forecast_created_at_field(self):
         project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
-        time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
+        time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
         forecast2 = load_cdc_csv_forecast_file(forecast_model2,
                                                Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                               time_zero)
+                                               time_zero2)
         self.assertIsNotNone(forecast2.created_at)
 
 
@@ -305,3 +306,89 @@ class ForecastTestCase(TestCase):
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
+
+
+    def test_model_score_change_forecasts(self):
+        # creating a new model should set its score_change.changed_at
+        project2 = Project.objects.create()
+        make_cdc_locations_and_targets(project2)
+        time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        self.assertIsInstance(forecast_model2.score_change.changed_at, datetime.datetime)
+
+        # adding a forecast should update its model's score_change.changed_at
+        before_changed_at = forecast_model2.score_change.changed_at
+        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                               time_zero)
+        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
+        self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
+
+        # deleting a forecast should update its model's score_change.changed_at
+        before_changed_at = forecast_model2.score_change.changed_at
+        forecast2.delete()
+        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
+        self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
+
+        # bulk-deleting a model's forecasts will update its score_change.changed_at. (this basically tests that a signal
+        # is used instead of a customized delete() - see set_model_changed_at() comment
+        for _ in range(2):
+            load_cdc_csv_forecast_file(forecast_model2,
+                                       Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                       time_zero)
+        before_changed_at = forecast_model2.score_change.changed_at
+        forecast_model2.forecasts.all().delete()
+        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
+        self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
+
+
+    def test_model_score_change_truths(self):
+        project2 = Project.objects.create()
+        make_cdc_locations_and_targets(project2)
+        # adding project truth should update all of its models' score_change.changed_at. test with no models -> ensure
+        # Project._update_model_score_changes() is called
+        with patch('forecast_app.models.Project._update_model_score_changes') as update_mock:
+            project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+            self.assertEqual(2, update_mock.call_count)  # called once each: delete_truth_data(), load_truth_data()
+
+        # adding project truth should update all of its models' score_change.changed_at. test with one model
+        forecast_model2 = ForecastModel.objects.create(project=project2)
+        before_changed_at = forecast_model2.score_change.changed_at
+        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        # refresh_from_db() per https://stackoverflow.com/questions/35330693/django-testcase-not-saving-my-models :
+        forecast_model2.score_change.refresh_from_db()
+        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
+
+        # deleting project truth should update all of its models' score_change.changed_at
+        before_changed_at = forecast_model2.score_change.changed_at
+        project2.delete_truth_data()
+        forecast_model2.score_change.refresh_from_db()
+        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
+
+
+    def test_enqueue_update_scores_for_all_models(self):
+        # tests that Score.enqueue_update_scores_for_all_models() should only enqueue scores for changed models
+
+        # test that with ModelScoreChanges but no ScoreLastUpdate, all Score/ForecastModel pairs are updated
+        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
+            Score.enqueue_update_scores_for_all_models(is_only_changed=True)
+            self.assertEqual(5, enqueue_mock.call_count)  # 5 scores * 1 model
+
+        # make all ScoreLastUpdates be after self.forecast_model's update, which means none should update
+        Score.ensure_all_scores_exist()
+        for score in Score.objects.all():
+            score.set_last_update_for_forecast_model(self.forecast_model)
+        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
+            Score.enqueue_update_scores_for_all_models(is_only_changed=True)
+            enqueue_mock.assert_not_called()
+
+        # same, but pass is_only_changed=False -> all Score/ForecastModel pairs should update
+        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
+            Score.enqueue_update_scores_for_all_models(is_only_changed=False)
+            self.assertEqual(5, enqueue_mock.call_count)
+
+        # loading truth should result in all Score/ForecastModel pairs being updated
+        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
+            Score.enqueue_update_scores_for_all_models(is_only_changed=True)
+            self.assertEqual(5, enqueue_mock.call_count)

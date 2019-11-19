@@ -5,7 +5,7 @@ import django_rq
 from django.db import models
 from django.shortcuts import get_object_or_404
 
-from forecast_app.models import Forecast, Project, ForecastModel
+from forecast_app.models import Forecast, ForecastModel
 from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
 from utils.utilities import basic_str
 
@@ -143,7 +143,7 @@ class Score(models.Model):
 
 
         start_time = timeit.default_timer()
-        logger.info(f"update_score_for_model(): entered. score={self}, forecast_model={forecast_model}")
+        logger.info(f"update_score_for_model(): entered. score={self}, {forecast_model}")
 
         logger.info("update_score_for_model(): deleting existing ScoreValues for model")
         forecast_model_score_value_qs = ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model)
@@ -155,7 +155,7 @@ class Score(models.Model):
         calc_function(self, forecast_model)
 
         self.set_last_update_for_forecast_model(forecast_model)
-        logger.info(f"update_score_for_model(): done. score={self}, forecast_model={forecast_model} -> "
+        logger.info(f"update_score_for_model(): done. score={self}, {forecast_model} -> "
                     f"count={forecast_model_score_value_qs.count()} "
                     f"total ScoreValues. time: {timeit.default_timer() - start_time}")
 
@@ -169,17 +169,30 @@ class Score(models.Model):
 
 
     @classmethod
-    def enqueue_update_scores_for_all_projects(cls):
+    def enqueue_update_scores_for_all_models(cls, is_only_changed):
         """
-        Top-level method for enqueuing the update of all scores for all projects.
+        Utility method that enqueues updates of all scores for all models in all projects.
+
+        :param is_only_changed: True if should exclude enqueuing models that have not changed since the last score
+            update.
         """
         Score.ensure_all_scores_exist()
         for score in cls.objects.all():
-            for project in Project.objects.all():
-                for forecast_model in project.models.all():
-                    logger.info(f"enqueuing update project scores. score={score}, forecast_model={forecast_model}")
-                    queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
-                    queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+            for forecast_model in ForecastModel.objects.all():
+                model_score_change = forecast_model.score_change
+                score_last_update = score.last_update_for_forecast_model(forecast_model)  # None o/w
+                is_out_of_date = (score_last_update is None) or \
+                                 (model_score_change.changed_at > score_last_update.updated_at)
+                if is_only_changed and (not is_out_of_date):
+                    logger.info(f"NOT enqueuing score update. {score}, {forecast_model}. "
+                                f"{model_score_change.changed_at} <= {score_last_update.updated_at}")
+                    continue
+
+                logger.info(f"enqueuing score update. {score}, {forecast_model} "
+                            f"{model_score_change.changed_at} > "
+                            f"{score_last_update.updated_at if score_last_update else '(no score_last_update)'}")
+                queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
+                queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
 
 
 def _update_model_scores(score_pk, forecast_model_pk):

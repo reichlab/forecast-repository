@@ -188,13 +188,14 @@ def update_score_csv_file_caches(request):
 
 def update_all_scores(request):
     """
-    View function that enqueues updates of all scores for all projects.
+    View function that enqueues updates of all scores for all models in all projects, regardless of whether each model
+    has changed since the last score update.
     """
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
     try:
-        Score.enqueue_update_scores_for_all_projects()
+        Score.enqueue_update_scores_for_all_models(is_only_changed=False)
         messages.success(request, "Scheduled score updating for all projects.")
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, "Error updating scores: {}.".format(ce))

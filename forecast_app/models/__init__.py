@@ -3,6 +3,7 @@
 
 from .forecast import Forecast
 from .forecast_model import ForecastModel
+from .model_score_change import ModelScoreChange
 from .prediction import Prediction, PointPrediction, NamedDistribution, EmpiricalDistribution, BinLwrDistribution, \
     SampleDistribution, BinCatDistribution, SampleCatDistribution, BinaryDistribution
 from .project import Project, Target, TimeZero, Location

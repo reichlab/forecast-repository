@@ -3,10 +3,8 @@ import django
 import django_rq
 from django.shortcuts import get_object_or_404
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
-
-
 django.setup()
 
 from forecast_app.models.score import _update_model_scores
@@ -77,12 +75,17 @@ def clear(score_pk):
 @click.option('--no-enqueue', is_flag=True, default=False)
 def update(score_pk, model_pk, no_enqueue):
     """
-    A subcommand that enqueues or (executes immediately) updating model scores, controlled by the args.
+    A subcommand that enqueues or (executes immediately) updating model scores, controlled by the args. NB: Does NOT
+    exclude those that do not need updating according to how ForecastModel.forecasts_changed_at compares to
+    ScoreLastUpdate.updated_at .
 
     :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are updated
     :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are updated
     :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
+    from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
+
+
     Score.ensure_all_scores_exist()
 
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
@@ -99,6 +102,17 @@ def update(score_pk, model_pk, no_enqueue):
                 queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
                 queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
     click.echo("update done")
+
+
+@cli.command()
+def update_all_changed():
+    """
+    A subcommand that enqueues all Score/ForecastModel pairs, excluding models that have not changed since the last
+    score update
+    """
+    click.echo("searching for changed Score/ForecastModel pairs")
+    Score.enqueue_update_scores_for_all_models(is_only_changed=True)
+    click.echo("enqueuing done")
 
 
 if __name__ == '__main__':

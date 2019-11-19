@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import pre_delete, post_save
+from django.dispatch import receiver
 from django.urls import reverse
 
 from forecast_app.models.forecast_model import ForecastModel
@@ -129,3 +131,18 @@ class Forecast(models.Model):
     def _predictions_qs(self, prediction_subclass):
         # *_prediction_qs() helper that returns a QuerySet for all of my Predictions of type prediction_subclass
         return prediction_subclass.objects.filter(forecast=self)
+
+
+#
+# set up save and delete signals to manage my ForecastModel's forecasts_changed_at.
+#
+# NB: post_save will NOT be called by bulk operations: Overridden model methods are not called on bulk operations: ...
+# To ensure customized delete logic gets executed, you can use pre_delete and/or post_delete signals. Unfortunately,
+# there isn’t a workaround when creating or updating objects in bulk, since none of save(), pre_save, and post_save are
+# called. https://docs.djangoproject.com/en/1.11/topics/db/models/#overriding-model-methods
+#
+
+@receiver(pre_delete, sender=Forecast)  # pre_delete not post_delete so that instance.forecast_model is available
+@receiver(post_save, sender=Forecast)
+def set_model_forecasts_changed_at(sender, instance, using, **kwargs):
+    instance.forecast_model.score_change.update_changed_at()

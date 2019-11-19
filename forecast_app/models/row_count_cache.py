@@ -20,11 +20,7 @@ class RowCountCache(models.Model):
     Stores a cached value of Project.get_num_forecast_rows_all_models(), which can be a time-consuming operation.
     """
 
-    project = models.OneToOneField(
-        Project,
-        related_name='row_count_cache',
-        on_delete=models.CASCADE,
-        primary_key=True)
+    project = models.OneToOneField(Project, related_name='row_count_cache', on_delete=models.CASCADE, primary_key=True)
 
     # datetime at the last update. auto_now: automatically set the field to now every time the object is saved:
     updated_at = models.DateTimeField(auto_now=True)
@@ -33,7 +29,7 @@ class RowCountCache(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.project, self.updated_at, self.row_count))
+        return str((self.pk, self.project, self.updated_at, self.row_count, self.updated_at))
 
 
     def __str__(self):  # todo

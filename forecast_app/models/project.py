@@ -388,6 +388,7 @@ class Project(models.Model):
         self.truth_data_qs().delete()
         self.truth_csv_filename = ''
         self.save()
+        self._update_model_score_changes()
 
 
     def reference_target_for_actual_values(self):
@@ -501,7 +502,6 @@ class Project(models.Model):
         self.delete_truth_data()
 
         logger.debug(f"load_truth_data(): calling _load_truth_data()")
-        num_rows = -1
         # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
         if isinstance(truth_file_path_or_fp, io.IOBase):
             num_rows = self._load_truth_data(truth_file_path_or_fp)
@@ -509,10 +509,11 @@ class Project(models.Model):
             with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
                 num_rows = self._load_truth_data(cdc_csv_file_fp)
 
-        # done!
+        # done
         logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
         self.truth_csv_filename = file_name or truth_file_path_or_fp.name
         self.save()
+        self._update_model_score_changes()
         logger.debug(f"load_truth_data(): done")
 
 
@@ -668,6 +669,18 @@ class Project(models.Model):
         return loc_tz_date_to_actual_vals
 
 
+    #
+    # Score-related functions
+    #
+
+    def _update_model_score_changes(self):
+        """
+        Marks all my models' ModelScoreChange to now.
+        """
+        for forecast_model in self.models.all():
+            forecast_model.score_change.update_changed_at()
+
+
 #
 # ---- Location class ----
 #
@@ -795,7 +808,7 @@ class Target(models.Model):
             raise ValidationError('passed is_date and is_step_ahead')
 
         # done
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
 
 class TargetBinLwr(models.Model):
@@ -867,4 +880,4 @@ class TimeZero(models.Model):
             raise ValidationError('passed season_name but not is_season_start')
 
         # done
-        return super().save(*args, **kwargs)
+        super().save(*args, **kwargs)
