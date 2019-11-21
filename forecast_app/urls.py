@@ -7,36 +7,40 @@ from . import views
 urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^about$', views.about, name='about'),
-    url(r'^docs', views.documentation, name='docs'),
+    url(r'^docs$', views.documentation, name='docs'),
 
     url(r'^zadmin$', views.zadmin, name='zadmin'),
     url(r'^zadmin/upload_file_jobs$', views.zadmin_upload_file_jobs, name='zadmin-upload-file-jobs'),
     url(r'^zadmin/score_last_updates$', views.zadmin_score_last_updates, name='zadmin-score-last-updates'),
-    url(r'^clear_row_count_caches', views.clear_row_count_caches, name='clear-row-count-caches'),
-    url(r'^update_row_count_caches', views.update_row_count_caches, name='update-row-count-caches'),
-    url(r'^clear_score_csv_file_caches', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
-    url(r'^update_score_csv_file_caches', views.update_score_csv_file_caches, name='update-score-csv-file-caches'),
+    url(r'^zadmin/model_score_changes$', views.zadmin_model_score_changes, name='zadmin-model-score-changes'),
+    url(r'^clear_row_count_caches$', views.clear_row_count_caches, name='clear-row-count-caches'),
+    url(r'^update_row_count_caches$', views.update_row_count_caches, name='update-row-count-caches'),
+    url(r'^clear_score_csv_file_caches$', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
+    url(r'^update_score_csv_file_caches$', views.update_score_csv_file_caches, name='update-score-csv-file-caches'),
     url(r'^delete_upload_file_jobs/$', views.delete_upload_file_jobs, name='delete-file-jobs'),
 
-    url(r'^update_all_scores', views.update_all_scores, name='update-all-scores'),
-    url(r'^clear_all_scores', views.clear_all_scores, name='clear-all-scores'),
-    url(r'^delete_score_last_updates', views.delete_score_last_updates, name='delete-score-last-updates'),
+    url(r'^update_all_scores$', views.update_all_scores, {'is_only_changed': False},
+        name='update-all-scores'),
+    url(r'^update_all_scores_changed$', views.update_all_scores, {'is_only_changed': True},
+        name='update-all-scores-changed'),
+    url(r'^clear_all_scores$', views.clear_all_scores, name='clear-all-scores'),
+    url(r'^delete_score_last_updates$', views.delete_score_last_updates, name='delete-score-last-updates'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),
     url(r'^users/', views.UserListView.as_view(), name='user-list'),
 
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
-    url(r'^project/(?P<project_pk>\d+)/scores', views.project_scores, name='project-scores'),
-    url(r'^project/(?P<project_pk>\d+)/score_data', views.project_score_data, name='project-score-data'),
-    url(r'^project/(?P<project_pk>\d+)/download_score_data', views.download_project_scores,
+    url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
+    url(r'^project/(?P<project_pk>\d+)/score_data$', views.project_score_data, name='project-score-data'),
+    url(r'^project/(?P<project_pk>\d+)/download_score_data$', views.download_project_scores,
         name='download-project-scores'),
-    url(r'^project/(?P<project_pk>\d+)/download_config', views.download_project_config, name='project-config'),
+    url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/truth/delete$', views.delete_truth, name='delete-truth'),
     url(r'^project/(?P<project_pk>\d+)/truth/upload/$', views.upload_truth, name='upload-truth'),
-    url(r'^project/(?P<project_pk>\d+)/truth/download', views.download_truth, name='download-truth'),
+    url(r'^project/(?P<project_pk>\d+)/truth/download$', views.download_truth, name='download-truth'),
 
     url(r'^model/(?P<pk>\d+)$', views.ForecastModelDetailView.as_view(), name='model-detail'),
 
@@ -45,7 +49,7 @@ urlpatterns = [
     url(r'^uploadfilejob/(?P<pk>\d+)$', views.UploadFileJobDetailView.as_view(), name='upload-file-job-detail'),
 
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
-    url(r'^forecast/(?P<forecast_pk>\d+)/download', views.download_forecast, name='download-forecast'),
+    url(r'^forecast/(?P<forecast_pk>\d+)/download$', views.download_forecast, name='download-forecast'),
 
 
     # ---- CRUD-related form URLs ----

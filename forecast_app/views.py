@@ -20,7 +20,7 @@ from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
-    Prediction
+    Prediction, ModelScoreChange
 from forecast_app.models.project import Target, Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
@@ -80,6 +80,12 @@ def zadmin_score_last_updates(request):
     return render(
         request, 'zadmin_score_last_updates.html',
         context={'score_last_update_rows': score_last_update_rows})
+
+
+def zadmin_model_score_changes(request):
+    return render(
+        request, 'zadmin_model_score_changes.html',
+        context={'model_score_changes': ModelScoreChange.objects.all()})
 
 
 def zadmin(request):
@@ -186,19 +192,25 @@ def update_score_csv_file_caches(request):
     return redirect('zadmin')  # hard-coded
 
 
-def update_all_scores(request):
+def update_all_scores(request, **kwargs):
     """
     View function that enqueues updates of all scores for all models in all projects, regardless of whether each model
     has changed since the last score update.
+
+    :param kwargs: has a single 'is_only_changed' key that's either True or False. this is passed to
+        Score.enqueue_update_scores_for_all_models(), which means this arg controls whether updates are enqueued for
+        only changed models (if True) or all of them (False)
     """
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
     try:
-        Score.enqueue_update_scores_for_all_models(is_only_changed=False)
-        messages.success(request, "Scheduled score updating for all projects.")
+        is_only_changed = kwargs['is_only_changed']
+        enqueued_score_model_pks = Score.enqueue_update_scores_for_all_models(is_only_changed=is_only_changed)
+        messages.success(request, f"Scheduled {len(enqueued_score_model_pks)} score updates for all projects. "
+                                  f"is_only_changed={is_only_changed}.")
     except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, "Error updating scores: {}.".format(ce))
+        messages.warning(request, f"Error updating scores: {ce}.")
     return redirect('zadmin')  # hard-coded
 
 

@@ -14,6 +14,7 @@
     <ul>
         <li><a href="{% url 'zadmin-upload-file-jobs' %}">UploadFileJobs</a></li>
         <li><a href="{% url 'zadmin-score-last-updates' %}">ScoreLastUpdates</a></li>
+        <li><a href="{% url 'zadmin-model-score-changes' %}">ModelScoreChanges</a></li>
     </ul>
 
 
@@ -83,21 +84,21 @@
             {% endfor %}
         </table>
 
-        <form class="form-inline" style="display: inline-block;" method="POST"
-              action="{% url 'clear-row-count-caches' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger">Clear All</button>
-        </form>
-
-        <form class="form-inline" style="display: inline-block;" method="POST"
-              action="{% url 'update-row-count-caches' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">Update All</button>
-        </form>
-
     {% else %}
-        <p>There are no projects in the archive.</p>
+        <small class="text-muted">(No RowCountCaches)</small>
     {% endif %}
+
+    <form class="form-inline" style="display: inline-block;" method="POST"
+          action="{% url 'clear-row-count-caches' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Clear All</button>
+    </form>
+
+    <form class="form-inline" style="display: inline-block;" method="POST"
+          action="{% url 'update-row-count-caches' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Update All</button>
+    </form>
 
 
     <h2>ScoreCsvFileCaches</h2>
@@ -137,7 +138,7 @@
         </form>
 
     {% else %}
-        <p>There are no projects in the archive.</p>
+        <small class="text-muted">(No projects)</small>
     {% endif %}
 
 
@@ -171,10 +172,17 @@
             <small class="text-muted">(No scores)</small>
         </p>
     {% endif %}
+
     <form class="form-inline" style="display: inline-block;" method="POST"
           action="{% url 'update-all-scores' %}">
         {% csrf_token %}
         <button type="submit" class="btn btn-success">Update All</button>
+    </form>
+
+    <form class="form-inline" style="display: inline-block;" method="POST"
+          action="{% url 'update-all-scores-changed' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Update Changed</button>
     </form>
 
 {% endblock %}
