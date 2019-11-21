@@ -73,13 +73,13 @@ def make_minimal_projects_app():
     private_project.model_owners.add(mo_user)
     private_project.save()
 
-    for project in [public_project, private_project]:
-        fill_project(project, mo_user)
+    fill_project(public_project, mo_user, is_public=True)
+    fill_project(private_project, mo_user, is_public=False)
 
     click.echo("* Done")
 
 
-def fill_project(project, mo_user):
+def fill_project(project, mo_user, is_public):
     project.description = "description"
     project.home_url = "http://example.com/"
     project.core_data = "http://example.com/"
@@ -103,7 +103,7 @@ def fill_project(project, mo_user):
     # create the models
     click.echo("creating ForecastModel")
     forecast_model1 = ForecastModel.objects.create(project=project,
-                                                   name='Test ForecastModel1',
+                                                   name=f'Test ForecastModel1 ({"public" if is_public else "private"})',
                                                    team_name='ForecastModel1 team',
                                                    description="a ForecastModel for testing",
                                                    home_url='http://example.com',
@@ -118,7 +118,7 @@ def fill_project(project, mo_user):
     click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
 
     ForecastModel.objects.create(project=project,
-                                 name='Test ForecastModel2',
+                                 name=f'Test ForecastModel2 ({"public" if is_public else "private"})',
                                  # team_name='ForecastModel2 team',  # leave default ('')
                                  description="a second ForecastModel for testing",
                                  home_url='http://example.com',
