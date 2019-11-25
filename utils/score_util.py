@@ -105,14 +105,18 @@ def update(score_pk, model_pk, no_enqueue):
 
 
 @cli.command()
-def update_all_changed():
+@click.option('--dry-run', is_flag=True, default=False)
+def update_all_changed(dry_run):
     """
     A subcommand that enqueues all Score/ForecastModel pairs, excluding models that have not changed since the last
     score update
+
+    :param dry_run: True means just print a report of Score/ForecastModel pairs that would be updated
     """
-    click.echo("searching for changed Score/ForecastModel pairs")
-    Score.enqueue_update_scores_for_all_models(is_only_changed=True)
-    click.echo("enqueuing done")
+    click.echo(f"searching for changed Score/ForecastModel pairs. dry_run={dry_run}")
+    enqueued_score_model_pks = Score.enqueue_update_scores_for_all_models(is_only_changed=True, dry_run=dry_run)
+    click.echo(f"enqueuing done. dry_run={dry_run}. {len(enqueued_score_model_pks)} Score/ForecastModel pairs. "
+               f"enqueued_score_model_pks={enqueued_score_model_pks}")
 
 
 if __name__ == '__main__':

@@ -169,17 +169,18 @@ class Score(models.Model):
 
 
     @classmethod
-    def enqueue_update_scores_for_all_models(cls, is_only_changed):
+    def enqueue_update_scores_for_all_models(cls, is_only_changed, dry_run=False):
         """
         Utility method that enqueues updates of all scores for all models in all projects.
 
         :param is_only_changed: True if should exclude enqueuing models that have not changed since the last score
             update.
-        :return list of enqueued 2-tuples: (score.pk, forecast_model.pk)
+        :param dry_run: True means just print a report of Score/ForecastModel pairs that would be updated
+        :return list of enqueued 2-tuples: (score, forecast_model)
         """
         Score.ensure_all_scores_exist()
         queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
-        enqueued_score_model_pks = []
+        enqueued_score_models = []
         for score in cls.objects.all():
             for forecast_model in ForecastModel.objects.all():
                 model_score_change = forecast_model.score_change
@@ -194,9 +195,10 @@ class Score(models.Model):
                 logger.info(f"enqueuing score update. {score}, {forecast_model} "
                             f"{model_score_change.changed_at} > "
                             f"{score_last_update.updated_at if score_last_update else '(no score_last_update)'}")
-                queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
-                enqueued_score_model_pks.append((score.pk, forecast_model.pk))
-        return enqueued_score_model_pks
+                if not dry_run:
+                    queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+                enqueued_score_models.append((score, forecast_model))
+        return enqueued_score_models
 
 
 def _update_model_scores(score_pk, forecast_model_pk):
