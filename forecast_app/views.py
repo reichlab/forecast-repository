@@ -67,15 +67,15 @@ def zadmin_score_last_updates(request):
     Score.ensure_all_scores_exist()
 
     # build score_last_update_rows. NB: num_score_values_for_model() took a long time, so we removed it. o/w the page
-    # was timing out on Heroku
+    # timed out on Heroku. was: score_last_update.score.num_score_values_for_model(score_last_update.forecast_model)
     score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
     for score_last_update in ScoreLastUpdate.objects \
             .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
         score_last_update_rows.append(
             (score_last_update.forecast_model,
              score_last_update.score,
-             # score_last_update.score.num_score_values_for_model(score_last_update.forecast_model),
-             score_last_update.updated_at))
+             score_last_update.updated_at,
+             score_last_update.forecast_model.score_change.changed_at > score_last_update.updated_at))
 
     return render(
         request, 'zadmin_score_last_updates.html',
@@ -83,9 +83,10 @@ def zadmin_score_last_updates(request):
 
 
 def zadmin_model_score_changes(request):
+    model_score_changes = ModelScoreChange.objects.all().order_by('changed_at')
     return render(
         request, 'zadmin_model_score_changes.html',
-        context={'model_score_changes': ModelScoreChange.objects.all()})
+        context={'model_score_changes': model_score_changes})
 
 
 def zadmin(request):
