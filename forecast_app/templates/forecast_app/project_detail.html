@@ -190,13 +190,7 @@
             </tr>
             {% for target in targets %}
                 <tr>
-                    <td title="This target needs completing. Please edit and fill in missing/incorrect fields.">
-                        {% if not target.description and not target.unit %}
-                            <span class="text-danger">{{ target.name }}</span>
-                        {% else %}
-                            {{ target.name }}
-                        {% endif %}
-                    </td>
+                    <td>{{ target.name }}</td>
                     <td>{{ target.description }}</td>
                     <td>{{ target.unit }}</td>
                     <td>{{ target.point_value_type_str|title }}</td>
