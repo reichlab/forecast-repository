@@ -116,7 +116,10 @@ The files under utils/ are currently project-specific ones. They should probably
 # RQ infrastructure
 Zoltar uses an asynchronous messaging queue to support executing long-running tasks outside the web dyno, which keeps
 the latter responsive and prevents Heroku's 30 second timeouts. We use [RQ](https://python-rq.org/) for this, which
-requires a [Redis](https://redis.io/) server along with one or more worker dynos. Here's the setup to run locally:
+requires a [Redis](https://redis.io/) server along with one or more worker dynos. Currently we use the free 30MB
+[rediscloud](https://elements.heroku.com/addons/rediscloud) Heroku addon.
+
+Here's the setup to run locally:
 
 1. Start Redis:
 ```$bash

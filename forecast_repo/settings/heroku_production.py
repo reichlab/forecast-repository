@@ -58,10 +58,10 @@ DATABASES['default']['TEST'] = {'NAME': DATABASES['default']['NAME']}
 # ---- Django-RQ config ----
 #
 
-redis_url = os.environ.get('REDIS_URL')
+redis_url = os.environ.get('REDISCLOUD_URL')
 
 if not redis_url:
-    raise RuntimeError('heroku_production.py: REDIS_URL not configured!')
+    raise RuntimeError('heroku_production.py: REDISCLOUD_URL not configured!')
 
 RQ_QUEUES = {
     HIGH_QUEUE_NAME: {
