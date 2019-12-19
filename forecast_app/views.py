@@ -21,7 +21,7 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
-from forecast_app.models.project import Target, Location
+from forecast_app.models.project import Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
@@ -519,6 +519,9 @@ def create_project_from_form(request):
 
     :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
+    from forecast_app.models import Target  # avoid circular imports
+
+
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
 
@@ -578,6 +581,9 @@ def edit_project(request, project_pk):
     Shows a form to edit a Project's basic information. Authorization: The logged-in user must be a superuser or the
     Project's owner.
     """
+    from forecast_app.models import Target  # avoid circular imports
+
+
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied

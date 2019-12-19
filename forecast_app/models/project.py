@@ -8,7 +8,7 @@ from itertools import groupby
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models, transaction, connection
-from django.db.models import ManyToManyField, Max, BooleanField, IntegerField
+from django.db.models import ManyToManyField, Max
 from django.urls import reverse
 
 from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
@@ -419,6 +419,9 @@ class Project(models.Model):
         Generally, the definition is:
             actual[location][timezero_date] = truth[location][ref_target][timezero_date - ref_target_incr]
         """
+        from forecast_app.models import Target  # avoid circular imports
+
+
         return Target.objects.filter(project=self, is_step_ahead=True, step_ahead_increment__gte=0) \
             .order_by('step_ahead_increment') \
             .first()
@@ -695,139 +698,6 @@ class Location(models.Model):
 
     def __repr__(self):
         return str((self.pk, self.name))
-
-
-    def __str__(self):  # todo
-        return basic_str(self)
-
-
-#
-# ---- Target and TargetBinLwr classes ----
-#
-
-class Target(models.Model):
-    """
-    Represents one of a project's targets - a description of the desired data in the each forecast's data file.
-    """
-    project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
-    name = models.TextField()
-    description = models.TextField(help_text="A few paragraphs describing the target.")
-    unit = models.TextField(help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.",
-                            blank=True)
-    is_date = BooleanField(help_text="Flag that's True if this Target is relative to dates. Default is False.",
-                           default=False)
-    is_step_ahead = BooleanField(help_text="Flag that's True if this Target is a 'k-step-ahead' one that can be used "
-                                           "in analysis tools to reference forward and back in a Project's TimeZeros "
-                                           "(when sorted by timezero_date). If True then step_ahead_increment must be "
-                                           "set. Default is False.",
-                                 default=False)
-    step_ahead_increment = IntegerField(help_text="Optional field that's required when Target.is_step_ahead "
-                                                  "is True, is an integer specifying how many time steps "
-                                                  "ahead the Target is. Can be negative, zero, or positive.",
-                                        default=0)
-
-    # point_value_type determines which PointPrediction.value_* field is used for loading data from csv files
-    POINT_INTEGER = 0  # PointPrediction.value_i
-    POINT_FLOAT = 1  # PointPrediction.value_f
-    POINT_TEXT = 2  # PointPrediction.value_t
-    POINT_VALUE_TYPE_CHOICES = (
-        (POINT_INTEGER, 'INTEGER'),
-        (POINT_FLOAT, 'FLOAT'),
-        (POINT_TEXT, 'TEXT'),
-    )
-    point_value_type = models.IntegerField(choices=POINT_VALUE_TYPE_CHOICES)
-
-    # these fields collectively indicate which prediction data types are allowed for this Target:
-    ok_bincat_distribution = BooleanField(default=False, help_text="True if allows BinCatDistributions")
-    ok_binlwr_distribution = BooleanField(default=False, help_text="True if allows BinLwrDistributions")
-    ok_binary_distribution = BooleanField(default=False, help_text="True if allows BinaryDistributions")
-    ok_named_distribution = BooleanField(default=False, help_text="True if allows NamedDistribution")
-    ok_point_prediction = BooleanField(default=False, help_text="True if allows PointPredictions")
-    ok_sample_distribution = BooleanField(default=False, help_text="True if allows SampleDistributions")
-    ok_samplecat_distribution = BooleanField(default=False, help_text="True if allows SampleCatDistributions")
-
-
-    def __repr__(self):
-        return str((self.pk, self.name, self.is_date, self.is_step_ahead, self.step_ahead_increment,
-                    self.ok_distributions_str()))
-
-
-    def __str__(self):  # todo
-        return basic_str(self)
-
-
-    def point_value_type_str(self):
-        """
-        :return: a human-readable string for my point_value_type
-        """
-        for db_value, human_readable_value in Target.POINT_VALUE_TYPE_CHOICES:
-            if db_value == self.point_value_type:
-                return human_readable_value
-
-        return f'(unknown point_value_type: {self.point_value_type}. ' \
-               f'Target.POINT_VALUE_TYPE_CHOICES={Target.POINT_VALUE_TYPE_CHOICES})'
-
-
-    def ok_distributions_str(self):
-        """
-        :return: a string that includes abbreviations for all acceptable ("OK") distribution classes based on my
-            ok_*_distribution values.
-        """
-        ok_classes = []
-        if self.ok_bincat_distribution:
-            ok_classes.append('BC')
-        if self.ok_binlwr_distribution:
-            ok_classes.append('BL')
-        if self.ok_binary_distribution:
-            ok_classes.append('BI')
-        if self.ok_named_distribution:
-            ok_classes.append('NM')
-        if self.ok_point_prediction:
-            ok_classes.append('PT')
-        if self.ok_sample_distribution:
-            ok_classes.append('SA')
-        if self.ok_samplecat_distribution:
-            ok_classes.append('SC')
-        return '|'.join(ok_classes)
-
-
-    def save(self, *args, **kwargs):
-        """
-        Validates is_step_ahead and step_ahead_increment, and is_date and is_step_ahead.
-
-        NB: we can't test constraints involving step_ahead_increment b/c it can be zero, and we are not passed the
-        keyword arguments that create() got.
-        """
-        # if self.is_step_ahead and not self.step_ahead_increment:
-        #     raise ValidationError('passed is_step_ahead with no step_ahead_increment')
-
-        # if not self.is_step_ahead and self.step_ahead_increment:
-        #     raise ValidationError('passed step_ahead_increment but not is_step_ahead')
-
-        if self.is_date and self.is_step_ahead:
-            raise ValidationError('passed is_date and is_step_ahead')
-
-        # done
-        super().save(*args, **kwargs)
-
-
-class TargetBinLwr(models.Model):
-    """
-    Associates BinLwr.lwr values with a Target. These act as a "template" against which forecast BinLwr predictions can
-    be validated against. Note that only lwr is typically passed by the user. upper is typically calculated from
-    lwr by the caller.
-
-    Regarding upper: It is currently used only for scoring, when the true bin is queried for. In that case we test
-    truth >= lwr AND truth < upper. Therefore it is currently calculated by utils.project.validate_and_create_targets()
-    based on lwr. That function has to infer the final bin's upper, and uses float('inf') for that
-    """
-    target = models.ForeignKey('Target', blank=True, null=True, related_name='binlwrs', on_delete=models.CASCADE)
-    lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
-    upper = models.FloatField(null=True)  # "". possibly float('inf')
-
-
-    def __repr__(self):
-        return str((self.pk, self.target.pk, self.lwr, self.upper))
 
 
     def __str__(self):  # todo

@@ -5,9 +5,7 @@ import numbers
 
 from django.db import transaction
 
-from forecast_app.models import Project, Location, Target, BinCatDistribution, BinLwrDistribution, BinaryDistribution, \
-    NamedDistribution, PointPrediction, SampleDistribution, SampleCatDistribution
-from forecast_app.models.project import TargetBinLwr
+from forecast_app.models import Project, Location, Target, NamedDistribution, PointPrediction, SampleDistribution
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
@@ -122,8 +120,9 @@ def _target_config_dicts_for_project(project):
 @transaction.atomic
 def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate=True):
     """
-    Creates a Project based on the json configuration file at json_file_path. Errors if one with that name already
-    exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or load forecasts.
+    Top-level function that creates a Project based on the json configuration file at json_file_path. Errors if one with
+    that name already exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or
+    load forecasts.
 
     :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
         See https://docs.zoltardata.com/fileformats/#project-creation-configuration-json for details, and
@@ -229,7 +228,7 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
                 raise RuntimeError(f"found a non-numeric BinLwr lwr: {target_dict['lwr']}")
 
             prediction_ok_types_dict[prediction_type_to_field_name[prediction_type]] = True
-        with transaction.atomic():  # so that Targets and TargetBinLwr both succeed
+        with transaction.atomic():  # so that Targets and TargetLwr both succeed
             target = Target.objects.create(project=project, name=target_dict['name'],
                                            description=target_dict['description'], unit=target_dict['unit'],
                                            is_date=target_dict['is_date'], is_step_ahead=target_dict['is_step_ahead'],
@@ -245,7 +244,7 @@ def validate_and_create_targets(project, project_dict, is_validate=True):
 
                 # create TargetBinLwrs, calculating `upper` via zip(). NB: we use infinity for the last bin's upper!
                 for lwr, upper in itertools.zip_longest(lwrs, lwrs[1:], fillvalue=float('inf')):
-                    TargetBinLwr.objects.create(target=target, lwr=lwr, upper=upper)
+                    TargetLwr.objects.create(target=target, lwr=lwr, upper=upper)
 
             targets.append(target)
     return targets

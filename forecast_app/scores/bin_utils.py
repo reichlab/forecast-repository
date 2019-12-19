@@ -6,7 +6,7 @@ from itertools import groupby
 from django.db import connection
 
 from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, BinLwrDistribution, ScoreValue
-from forecast_app.models.project import TargetBinLwr, Target, POSTGRES_NULL_VALUE
+from forecast_app.models.project import TargetLwr, Target, POSTGRES_NULL_VALUE
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
 
@@ -144,12 +144,12 @@ def _tz_loc_targ_pk_to_true_bin_lwr(project):
 
         [timezero_pk][location_pk][target_pk] -> true_bin_lwr
 
-    We need the TargetBinLwr to get lwr and upper for the truth.
+    We need the TargetLwr to get lwr and upper for the truth.
     """
     sql = f"""
         SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id, tblwr.lwr
         FROM {TruthData._meta.db_table} as truthd
-               LEFT JOIN {TargetBinLwr._meta.db_table} as tblwr
+               LEFT JOIN {TargetLwr._meta.db_table} as tblwr
                     ON truthd.target_id = tblwr.target_id
                LEFT JOIN {Target._meta.db_table} as t
                     ON tblwr.target_id = t.id
@@ -182,7 +182,7 @@ def _targ_pk_to_bin_lwrs(project):
     Only returns rows whose targets match non_date_targets().
     """
     targets = project.non_date_targets()
-    target_bin_lwr_qs = TargetBinLwr.objects \
+    target_bin_lwr_qs = TargetLwr.objects \
         .filter(target__in=targets) \
         .order_by('target__id', 'lwr') \
         .values_list('target__id', 'lwr')

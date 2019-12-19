@@ -5,20 +5,17 @@ from itertools import groupby
 
 from django.db import connection, transaction
 
-from forecast_app.models import BinCatDistribution, BinLwrDistribution, BinaryDistribution, NamedDistribution, \
-    PointPrediction, SampleDistribution, SampleCatDistribution, Forecast, Target
+from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
+    SampleDistribution
 from forecast_app.models.project import POSTGRES_NULL_VALUE
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
-    BinCatDistribution: 'BinCat',
-    BinLwrDistribution: 'BinLwr',
-    BinaryDistribution: 'Binary',
+    BinDistribution: 'Bin',
     NamedDistribution: 'Named',
     PointPrediction: 'Point',
     SampleDistribution: 'Sample',
-    SampleCatDistribution: 'SampleCat',
 }
 
 
@@ -227,8 +224,8 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict):
     Loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note that we ignore the
     'meta' portion of json_io_dict. Errors if any referenced Locations and Targets do not exist in forecast's Project.
 
-    :param forecast a Forecast to load json_io_dict's predictions into
-    :param json_io_dict a "JSON IO dict" to load from. see docs for details
+    :param forecast: a Forecast to load json_io_dict's predictions into
+    :param json_io_dict: a "JSON IO dict" to load from. see docs for details
     """
     # validate predictions, convert them to class-specific quickly-loadable rows, and then load them by class
     if 'predictions' not in json_io_dict:

@@ -66,50 +66,49 @@ class EmpiricalDistribution(Prediction):
 
 
 #
-# ---- BinCatDistribution ----
+# ---- BinDistribution ----
 #
 
-class BinCatDistribution(EmpiricalDistribution):
+class BinDistribution(EmpiricalDistribution):
     """
-    Concrete class representing binned distribution with a category for each bin.
+    Concrete class representing binned distribution with a category for each bin. Like PointPrediction, we compromise
+    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
+    but one are NULL.
     """
 
-    cat = models.TextField()
+    cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    cat_f = models.FloatField(null=True)  # ""
+    cat_t = models.TextField(null=True)  # ""
+    cat_d = models.DateField(null=True)  # ""
     prob = models.FloatField()
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.', self.cat, self.prob))
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+                    self.cat_i, self.cat_f, self.cat_t, self.cat_d))
 
 
 #
-# ---- BinLwrDistribution ----
+# ---- SampleDistribution ----
 #
 
-class BinLwrDistribution(EmpiricalDistribution):
+class SampleDistribution(EmpiricalDistribution):
     """
-    Concrete class representing binned distribution defined by inclusive lower bounds for each bin.
+    Concrete class representing character string samples from categories. Like PointPrediction, we compromise
+    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
+    but one are NULL.
     """
 
-    lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
+    sample_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    sample_f = models.FloatField(null=True)  # ""
+    sample_t = models.TextField(null=True)  # ""
+    sample_d = models.DateField(null=True)  # ""
     prob = models.FloatField()
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.', self.lwr, self.prob))
-
-
-#
-# ---- BinaryDistribution ----
-#
-
-class BinaryDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing binary distributions. Unlike other EmpiricalDistributions, this class is more like
-    PointPrediction and NamedDistribution in that it has only a single entry per Forecast.
-    """
-
-    prob = models.FloatField()
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+                    self.sample_i, self.sample_f, self.sample_t, self.sample_d))
 
 
 #
@@ -225,14 +224,15 @@ class PointPrediction(Prediction):
     of the three columns is NULL in every row.
     """
 
-    value_i = models.IntegerField(null=True)
-    value_f = models.FloatField(null=True)
-    value_t = models.TextField(null=True)
+    value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    value_f = models.FloatField(null=True)  # ""
+    value_t = models.TextField(null=True)  # ""
+    value_d = models.DateField(null=True)  # ""
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk,
-                    self.value_i, self.value_f, self.value_t))
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+                    self.value_i, self.value_f, self.value_t, self.value_d))
 
 
     def __str__(self):  # todo
@@ -246,28 +246,3 @@ class PointPrediction(Prediction):
         'or' b/c 0 values fail.
         """
         return [_ for _ in [value_i, value_f, value_t] if _ is not None][0]
-
-
-#
-# ---- SampleDistribution ----
-#
-
-class SampleDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing numeric samples.
-    """
-
-    sample = models.FloatField()
-
-
-#
-# ---- SampleCatDistribution ----
-#
-
-class SampleCatDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing character string samples from categories.
-    """
-
-    cat = models.TextField()
-    sample = models.TextField()

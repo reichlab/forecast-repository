@@ -11,7 +11,7 @@ from django.test import TestCase
 from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero, Location, Target, TruthData
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.models.project import TargetBinLwr
+from forecast_app.models.project import TargetLwr
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_bin_lwrs, \
     _tz_loc_targ_pk_bin_lwr_to_pred_val
@@ -427,13 +427,13 @@ class ScoresTestCase(TestCase):
         }
         self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
 
-        # test when truth value is None. requires TargetBinLwr lwr and upper be None as well, or won't match
+        # test when truth value is None. requires TargetLwr lwr and upper be None as well, or won't match
         # _tz_loc_targ_pk_to_true_bin_lwr() query
         truth_data = project2.truth_data_qs().filter(location__name='TH01', target__name='1_biweek_ahead').first()
         truth_data.value = None
         truth_data.save()
 
-        target_bin_lwr = TargetBinLwr.objects \
+        target_bin_lwr = TargetLwr.objects \
             .filter(target__name='1_biweek_ahead', lwr=0) \
             .first()
         target_bin_lwr.lwr = None

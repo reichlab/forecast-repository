@@ -156,7 +156,7 @@ class ForecastTestCase(TestCase):
                                        self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
             try:
                 load_cdc_csv_forecast_file(self.forecast_model,
@@ -187,7 +187,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(131, target.binlwrs.count())  # cdc-project.json: [0, 0.1, ..., 13]
 
         # test lwr validation: predictions-example.json /is/ valid.
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with open('forecast_app/tests/predictions/predictions-example.json') as fp:
             json_io_dict = json.load(fp)
@@ -219,7 +219,7 @@ class ForecastTestCase(TestCase):
             cdc_project_json = json.load(fp)
         cdc_project_json['targets'][2]['lwr'][0] = 0.05  # Season peak percentage: different first interval
 
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised/4711722#4711722
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
             try:
                 create_project_from_json(cdc_project_json, po_user)  # formerly: "lwrs had non-uniform bin sizes"
