@@ -261,6 +261,25 @@ def validate_and_create_targets(project, project_dict):
                              Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
             raise RuntimeError(f"'dates' passed but is invalid for type_name={type_name}")
 
+        # validate 'range' if passed
+        data_type = Target.data_type(type_int)  # python type
+        if 'range' in target_dict.keys():
+            for range_str in target_dict['range']:
+                try:
+                    data_type(range_str)
+                except ValueError as ve:
+                    raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
+                                       f"data_type={data_type}, error: {ve}")
+
+        # validate 'cats' if passed
+        if 'cats' in target_dict.keys():
+            for cats_str in target_dict['cats']:
+                try:
+                    data_type(cats_str)
+                except ValueError as ve:
+                    raise RuntimeError(f"cats type did not match data_type. cats_str={cats_str!r}, "
+                                       f"data_type={data_type}, error: {ve}")
+
         # validate 'dates' if passed
         if 'dates' in target_dict.keys():
             for date_str in target_dict['dates']:

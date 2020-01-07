@@ -19,10 +19,11 @@ class Target(models.Model):
     target_type and related information.
     """
     # database-level data_types - leveraging Python's built-in types
+    BOOLEAN_DATA_TYPE = bool
+    DATE_DATA_TYPE = datetime.date
     FLOAT_DATA_TYPE = float
     INTEGER_DATA_TYPE = int
     TEXT_DATA_TYPE = str
-    DATE_DATA_TYPE = datetime.date
 
     # date unit choices
     DATE_UNITS = ['month', 'week', 'biweek', 'day']
@@ -116,7 +117,7 @@ class Target(models.Model):
             Target.CONTINUOUS_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
             Target.DISCRETE_TARGET_TYPE: Target.INTEGER_DATA_TYPE,
             Target.NOMINAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
-            Target.BINARY_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
+            Target.BINARY_TARGET_TYPE: Target.BOOLEAN_DATA_TYPE,
             Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
             Target.COMPOSITIONAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
         }[target_type]

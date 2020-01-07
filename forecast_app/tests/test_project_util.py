@@ -358,7 +358,61 @@ class ProjectUtilTestCase(TestCase):
             self.assertIn(f"'dates' passed but is invalid for type_name={target_type}", str(context.exception))
 
 
-    def test_create_project_from_json_target_date_format(self):
+    def test_create_project_from_json_target_range_format(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+            project_dict = json.load(fp)
+            pct_next_week_target_dict = [target_dict for target_dict in project_dict['targets']
+                                         if target_dict['name'] == 'pct next week'][0]
+            project_dict['targets'] = [pct_next_week_target_dict]
+
+        # loaded range is valid format: test that an error is not raised
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
+        with self.assertRaises(Exception):
+            try:
+                project = create_project_from_json(project_dict, po_user)
+                project.delete()
+            except:
+                pass
+            else:
+                raise Exception
+
+        # break range by setting to invalid format: test that an error is raised
+        range_list = ["not float", True]  # not floats
+        pct_next_week_target_dict['range'] = range_list
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn(f"range type did not match data_type", str(context.exception))
+
+
+    def test_create_project_from_json_target_cats_format(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+            project_dict = json.load(fp)
+            pct_next_week_target_dict = [target_dict for target_dict in project_dict['targets']
+                                         if target_dict['name'] == 'pct next week'][0]
+            project_dict['targets'] = [pct_next_week_target_dict]
+
+        # loaded cats is valid format: test that an error is not raised
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
+        with self.assertRaises(Exception):
+            try:
+                project = create_project_from_json(project_dict, po_user)
+                project.delete()
+            except:
+                pass
+            else:
+                raise Exception
+
+        # break cats by setting to invalid format: test that an error is raised
+        cats = ["not float", True, {}]  # not floats
+        pct_next_week_target_dict['cats'] = cats
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn(f"cats type did not match data_type", str(context.exception))
+
+
+    def test_create_project_from_json_target_dates_format(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
             project_dict = json.load(fp)
