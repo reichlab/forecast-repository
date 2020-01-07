@@ -33,27 +33,27 @@ class ProjectUtilTestCase(TestCase):
     def test_config_dict_from_project(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
-            input_project_config = json.load(fp)
+            input_project_dict = json.load(fp)
             timezero_config = {'timezero_date': '2017-12-01',
                                'data_version_date': None,
                                'is_season_start': True,
                                'season_name': 'tis the season'}
-            input_project_config['timezeros'] = [timezero_config]
-        project = create_project_from_json(input_project_config, po_user)
+            input_project_dict['timezeros'] = [timezero_config]
+        project = create_project_from_json(input_project_dict, po_user)
         output_project_config = config_dict_from_project(project)
-        self.assertEqual(input_project_config, output_project_config)
+        self.assertEqual(input_project_dict, output_project_config)
 
 
     def test_create_project_from_json(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
-            project_config = json.load(fp)
+            project_dict = json.load(fp)
             timezero_config = {'timezero_date': '2017-12-01',
                                'data_version_date': None,
                                'is_season_start': True,
                                'season_name': 'tis the season'}
-            project_config['timezeros'] = [timezero_config]
-        project = create_project_from_json(project_config, po_user)
+            project_dict['timezeros'] = [timezero_config]
+        project = create_project_from_json(project_dict, po_user)
 
         # spot-check some fields
         self.assertEqual(po_user, project.owner)
@@ -165,29 +165,32 @@ class ProjectUtilTestCase(TestCase):
 
         # test valid types
         minimal_target_dict = {'name': 'n', 'description': 'd', 'is_step_ahead': False}  # no 'type'
-        target_type_int_to_required_keys = {
-            Target.CONTINUOUS_TARGET_TYPE: {'unit'},  # 'range' optional
-            Target.DISCRETE_TARGET_TYPE: {'unit'},  # 'range' optional
-            Target.NOMINAL_TARGET_TYPE: {'cat'},
-            # Target.BINARY_TARGET_TYPE: set(),
-            Target.DATE_TARGET_TYPE: {'unit', 'date'},
-            Target.COMPOSITIONAL_TARGET_TYPE: {'cat'},
-        }
+        target_type_int_to_required_keys_and_values = {
+            Target.CONTINUOUS_TARGET_TYPE: [('unit', 'month')],  # 'range' optional
+            Target.DISCRETE_TARGET_TYPE: [('unit', 'month')],  # 'range' optional
+            Target.NOMINAL_TARGET_TYPE: [('cats', ['a', 'b'])],
+            # Target.BINARY_TARGET_TYPE: [],
+            Target.DATE_TARGET_TYPE: [('unit', 'month'), ('dates', ["2019-12-15", "2019-12-22"])],
+            Target.COMPOSITIONAL_TARGET_TYPE: [('cats', ['a', 'b'])]}
         type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
-        for type_int, required_keys in target_type_int_to_required_keys.items():
+        for type_int, required_keys_and_values in target_type_int_to_required_keys_and_values.items():
             test_target_dict = dict(minimal_target_dict)  # copy
             project_dict['targets'] = [test_target_dict]
             test_target_dict['type'] = type_int_to_name[type_int]
-            for required_key in required_keys:
-                test_target_dict[required_key] = 'month'  # works for unit, but others too :-) None doesn't work, though
-            with self.assertRaises(Exception):
-                try:
-                    project = create_project_from_json(project_dict, po_user)
-                    project.delete()
-                except:
-                    pass
-                else:
-                    raise Exception
+            for required_key, value in required_keys_and_values:
+                test_target_dict[required_key] = value
+
+            project = create_project_from_json(project_dict, po_user)
+            project.delete()
+
+            # with self.assertRaises(Exception):
+            #     try:
+            #         project = create_project_from_json(project_dict, po_user)
+            #         project.delete()
+            #     except:
+            #         pass
+            #     else:
+            #         raise Exception
 
         # test invalid type
         Project.objects.filter(name=project_dict['name']).delete()
@@ -236,8 +239,8 @@ class ProjectUtilTestCase(TestCase):
         # --------+------------------------------------+-----------------------------+-----------------------------------------------------------------
         # 'unit'  | ['continuous', 'discrete', 'date'] | []                          | ['nominal', 'binary', 'compositional']
         # 'range' | []                                 | ['continuous', 'discrete']  | ['nominal', 'binary', 'date', 'compositional']
-        # 'cat'   | ['nominal', 'compositional']       | ['continuous']              | ['discrete', 'binary', 'date']
-        # 'date'  | ['date']                           | []                          | ['continuous', 'discrete', 'nominal', 'binary', 'compositional']
+        # 'cats'  | ['nominal', 'compositional']       | ['continuous']              | ['discrete', 'binary', 'date']
+        # 'dates' | ['date']                           | []                          | ['continuous', 'discrete', 'nominal', 'binary', 'compositional']
         # --------+------------------------------------+-----------------------------+-----------------------------------------------------------------
 
         # 1) test optional 'unit'. three cases a-c follow
@@ -260,7 +263,7 @@ class ProjectUtilTestCase(TestCase):
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
-        first_target_dict['unit'] = 'month'  # works for unit, but others too :-) None doesn't work, though
+        first_target_dict['unit'] = 'month'
         for target_type in ['nominal', 'binary', 'compositional']:
             first_target_dict['type'] = target_type
             with self.assertRaises(RuntimeError) as context:
@@ -276,7 +279,7 @@ class ProjectUtilTestCase(TestCase):
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
-        first_target_dict['range'] = 'month'  # works for unit, but others too :-) None doesn't work, though
+        first_target_dict['range'] = [1, 2]
         for target_type in ['nominal', 'binary', 'date', 'compositional']:
             first_target_dict['type'] = target_type
             if target_type == 'date':
@@ -287,19 +290,19 @@ class ProjectUtilTestCase(TestCase):
                 create_project_from_json(project_dict, po_user)
             self.assertIn(f"'range' passed but is invalid for type_name={target_type}", str(context.exception))
 
-        # 3) test optional 'cat'. three cases a-c follow
+        # 3) test optional 'cats'. three cases a-c follow
         # 3a) required but not passed: ['nominal', 'compositional']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
-        first_target_dict.pop('cat', None)
+        first_target_dict.pop('cats', None)
         first_target_dict.pop('unit', None)
         for target_type in ['nominal', 'compositional']:
             first_target_dict['type'] = target_type
             with self.assertRaises(RuntimeError) as context:
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'cat' not passed but is required for type_name={target_type}", str(context.exception))
+            self.assertIn(f"'cats' not passed but is required for type_name={target_type}", str(context.exception))
 
         # 3b) optional: ok to pass or not pass: ['continuous']: no need to validate
 
@@ -308,7 +311,7 @@ class ProjectUtilTestCase(TestCase):
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
-        first_target_dict['cat'] = 'month'  # works for unit, but others too :-) None doesn't work, though
+        first_target_dict['cats'] = ['a', 'b']
         for target_type in ['discrete', 'binary', 'date']:
             first_target_dict['type'] = target_type
             if target_type in ['discrete', 'date']:
@@ -317,20 +320,20 @@ class ProjectUtilTestCase(TestCase):
                 first_target_dict.pop('unit', None)
             with self.assertRaises(RuntimeError) as context:
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'cat' passed but is invalid for type_name={target_type}", str(context.exception))
+            self.assertIn(f"'cats' passed but is invalid for type_name={target_type}", str(context.exception))
 
-        # 4) test optional 'date'. three cases a-c follow
+        # 4) test optional 'dates'. three cases a-c follow
         # 4a) required but not passed: ['date']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
-        first_target_dict.pop('date', None)
+        first_target_dict.pop('dates', None)
         for target_type in ['date']:
             first_target_dict['type'] = target_type
             with self.assertRaises(RuntimeError) as context:
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'date' not passed but is required for type_name={target_type}", str(context.exception))
+            self.assertIn(f"'dates' not passed but is required for type_name={target_type}", str(context.exception))
 
         # 4b) optional: ok to pass or not pass: []: no need to validate
 
@@ -339,7 +342,7 @@ class ProjectUtilTestCase(TestCase):
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
-        first_target_dict['date'] = 'month'  # works for unit, but others too :-) None doesn't work, though
+        first_target_dict['dates'] = ["2019-12-15", "2019-12-22"]
         for target_type in ['continuous', 'discrete', 'nominal', 'binary', 'compositional']:
             first_target_dict['type'] = target_type
             if target_type in ['continuous', 'discrete', 'date']:
@@ -347,12 +350,39 @@ class ProjectUtilTestCase(TestCase):
             else:
                 first_target_dict.pop('unit', None)
             if target_type in ['nominal', 'compositional']:
-                first_target_dict['cat'] = 'c'
+                first_target_dict['cats'] = 'c'
             else:
-                first_target_dict.pop('cat', None)
+                first_target_dict.pop('cats', None)
             with self.assertRaises(RuntimeError) as context:
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'date' passed but is invalid for type_name={target_type}", str(context.exception))
+            self.assertIn(f"'dates' passed but is invalid for type_name={target_type}", str(context.exception))
+
+
+    def test_create_project_from_json_target_date_format(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+            project_dict = json.load(fp)
+            season_peak_week_target_dict = [target_dict for target_dict in project_dict['targets']
+                                            if target_dict['name'] == 'Season peak week'][0]
+            project_dict['targets'] = [season_peak_week_target_dict]
+
+        # loaded dates are in valid 'yyyy-mm-dd' format: test that an error is not raised
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
+        with self.assertRaises(Exception):
+            try:
+                project = create_project_from_json(project_dict, po_user)
+                project.delete()
+            except:
+                pass
+            else:
+                raise Exception
+
+        # break dates by setting to invalid 'yyyymmdd' format: test that an error is raised
+        dates = ["2019-12-15", "20191222"]
+        season_peak_week_target_dict['dates'] = dates
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn(f"date was not in YYYY-MM-DD format", str(context.exception))
 
 
     def test_create_project_from_json_lists(self):
@@ -360,8 +390,8 @@ class ProjectUtilTestCase(TestCase):
         # project-config-example.json contains examples of all six target types
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
-            project_config = json.load(fp)
-        project = create_project_from_json(project_config, po_user)
+            project_dict = json.load(fp)
+        project = create_project_from_json(project_dict, po_user)
 
         # test 'pct next week' target. continuous, with range and cat
         target = project.targets.filter(name='pct next week').first()

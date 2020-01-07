@@ -28,7 +28,7 @@
       "step_ahead_increment" : 1,
       "unit" : "percent",
       "range": [0, 100],
-      "cat" : [0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10, 50]
+      "cats" : [0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10, 50]
     },
     {
       "name" : "cases next week",
@@ -44,7 +44,7 @@
       "description" : "The forecasted severity for a given season.",
       "type" : "nominal",
       "is_step_ahead" : false,
-      "cat": ["mild", "moderate", "high", "severe"]
+      "cats": ["mild", "moderate", "high", "severe"]
     },
     {
       "name" : "above baseline",
@@ -58,14 +58,14 @@
       "type" : "date",
       "is_step_ahead" : false,
       "unit" : "week",
-      "date" :  ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
+      "dates" :  ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
     },
     {
       "name" : "Next season flu strain composition",
       "description" : "The fraction of flu strains in the subsequent season within each specified clade.",
       "type" : "compositional",
       "is_step_ahead" : false,
-      "cat" :  ["A1", "A1a", "A2", "A2/re", "A3"]
+      "cats" :  ["A1", "A1a", "A2", "A2/re", "A3"]
     }
   ],
   "timezeros" : [

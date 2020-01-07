@@ -1,11 +1,12 @@
 import json
 import logging
+from datetime import datetime
 
 from django.db import transaction
 
 from forecast_app.models import Project, Location, Target, NamedDistribution, PointPrediction, SampleDistribution
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-from utils.utilities import YYYYMMDD_DATE_FORMAT
+from utils.utilities import YYYYMMDD_DATE_FORMAT, YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -188,7 +189,7 @@ def validate_and_create_targets(project, project_dict):
     for target_dict in project_dict['targets']:
         # check for keys required by all target types. optional keys are tested below
         all_keys = set(target_dict.keys())
-        tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cat', 'date'}  # optional keys
+        tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cats', 'dates'}  # optional keys
         expected_keys = {'name', 'description', 'type', 'is_step_ahead'}
         if tested_keys != expected_keys:
             raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "
@@ -206,7 +207,7 @@ def validate_and_create_targets(project, project_dict):
             raise RuntimeError(f"step_ahead_increment not found but is required when is_step_ahead is passed. "
                                f"target_dict={target_dict}")
 
-        # check required, optional, and invalid keys by specific target type. 4 cases: 'unit', 'range', 'cat', 'date'
+        # check required, optional, and invalid keys by specific target type. 4 cases: 'unit', 'range', 'cats', 'dates'
         type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
         type_int = type_name_to_type_int[type_name]
 
@@ -234,31 +235,39 @@ def validate_and_create_targets(project, project_dict):
                              Target.COMPOSITIONAL_TARGET_TYPE]):
             raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
 
-        # 3) test optional 'cat'. three cases a-c follow
+        # 3) test optional 'cats'. three cases a-c follow
         # 3a) required but not passed: ['nominal', 'compositional']
-        if ('cat' not in all_keys) and \
+        if ('cats' not in all_keys) and \
                 (type_int in [Target.NOMINAL_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
-            raise RuntimeError(f"'cat' not passed but is required for type_name={type_name}")
+            raise RuntimeError(f"'cats' not passed but is required for type_name={type_name}")
 
         # 3b) optional: ok to pass or not pass: ['continuous']: no need to validate
 
         # 3c) invalid but passed: ['discrete', 'binary', 'date']
-        if ('cat' in all_keys) and (
+        if ('cats' in all_keys) and (
                 type_int in [Target.DISCRETE_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
-            raise RuntimeError(f"'cat' passed but is invalid for type_name={type_name}")
+            raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
 
-        # 4) test optional 'date'. three cases a-c follow
-        # 4a) required but not passed: ['date']
-        if ('date' not in all_keys) and (type_int in [Target.DATE_TARGET_TYPE]):
-            raise RuntimeError(f"'date' not passed but is required for type_name={type_name}")
+        # 4) test optional 'dates'. three cases a-c follow
+        # 4a) required but not passed: ['dates']
+        if ('dates' not in all_keys) and (type_int in [Target.DATE_TARGET_TYPE]):
+            raise RuntimeError(f"'dates' not passed but is required for type_name={type_name}")
 
         # 4b) optional: ok to pass or not pass: []: no need to validate
 
         # 4c) invalid but passed: ['continuous', 'discrete', 'nominal', 'binary', 'compositional']
-        if ('date' in all_keys) and (
+        if ('dates' in all_keys) and (
                 type_int in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
                              Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
-            raise RuntimeError(f"'date' passed but is invalid for type_name={type_name}")
+            raise RuntimeError(f"'dates' passed but is invalid for type_name={type_name}")
+
+        # validate 'dates' if passed
+        if 'dates' in target_dict.keys():
+            for date_str in target_dict['dates']:
+                try:
+                    datetime.strptime(date_str, YYYY_MM_DD_DATE_FORMAT)
+                except ValueError as ve:
+                    raise RuntimeError(f"date was not in YYYY-MM-DD format: {date_str!r}")
 
         # valid!
         with transaction.atomic():  # so that Targets and TargetLwr both succeed xx
