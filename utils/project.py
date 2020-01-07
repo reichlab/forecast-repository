@@ -203,7 +203,7 @@ def validate_and_create_targets(project, project_dict):
                                f"target_dict={target_dict}")
 
         # check for step_ahead_increment required if is_step_ahead
-        if target_dict['is_step_ahead'] and ('step_ahead_increment' not in target_dict.keys()):
+        if target_dict['is_step_ahead'] and ('step_ahead_increment' not in target_dict):
             raise RuntimeError(f"step_ahead_increment not found but is required when is_step_ahead is passed. "
                                f"target_dict={target_dict}")
 
@@ -263,7 +263,7 @@ def validate_and_create_targets(project, project_dict):
 
         # validate 'range' if passed
         data_type = Target.data_type(type_int)  # python type
-        if 'range' in target_dict.keys():
+        if 'range' in target_dict:
             for range_str in target_dict['range']:
                 try:
                     data_type(range_str)
@@ -271,8 +271,11 @@ def validate_and_create_targets(project, project_dict):
                     raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
                                        f"data_type={data_type}, error: {ve}")
 
+            if len(target_dict['range']) != 2:
+                raise RuntimeError(f"range did not contain exactly two items: {target_dict['range']}")
+
         # validate 'cats' if passed
-        if 'cats' in target_dict.keys():
+        if 'cats' in target_dict:
             for cats_str in target_dict['cats']:
                 try:
                     data_type(cats_str)
@@ -281,15 +284,16 @@ def validate_and_create_targets(project, project_dict):
                                        f"data_type={data_type}, error: {ve}")
 
         # validate 'dates' if passed
-        if 'dates' in target_dict.keys():
+        if 'dates' in target_dict:
             for date_str in target_dict['dates']:
                 try:
                     datetime.strptime(date_str, YYYY_MM_DD_DATE_FORMAT)
                 except ValueError as ve:
                     raise RuntimeError(f"date was not in YYYY-MM-DD format: {date_str!r}")
 
-        # valid!
-        with transaction.atomic():  # so that Targets and TargetLwr both succeed xx
+        # valid! create the Target and then supporting 'list' instances: TargetCat, TargetLwr, TargetDate,
+        # and TargetRange. atomic so that Targets succeed only if others do too
+        with transaction.atomic():
             model_init = {'project': project,
                           'type': type_name_to_type_int[type_name],
                           'name': target_dict['name'],
@@ -302,7 +306,13 @@ def validate_and_create_targets(project, project_dict):
             target = Target.objects.create(**model_init)
             targets.append(target)
 
-        # todo xx create TargetCat, TargetLwr, TargetDate, and TargetRange instances
+            # create TargetRange, TargetCat, TargetLwr, and TargetDate instances
+            if 'range' in target_dict:  # create two TargetRanges
+                target.set_range(target_dict['range'][0], target_dict['range'][1])
+            if 'cats' in target_dict:  # create TargetCats
+                target.set_cats(target_dict['cats'])
+            if 'dates' in target_dict:  # create TargetDates
+                target.set_dates(target_dict['dates'])
     return targets
 
 

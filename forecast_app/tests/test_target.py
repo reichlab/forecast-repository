@@ -196,7 +196,7 @@ class TargetTestCase(TestCase):
             Target.CONTINUOUS_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
             Target.DISCRETE_TARGET_TYPE: Target.INTEGER_DATA_TYPE,
             Target.NOMINAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
-            Target.BINARY_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
+            Target.BINARY_TARGET_TYPE: Target.BOOLEAN_DATA_TYPE,
             Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
             Target.COMPOSITIONAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
         }
