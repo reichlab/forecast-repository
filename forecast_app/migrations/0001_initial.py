@@ -149,7 +149,7 @@ class Migration(migrations.Migration):
             name='Target',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('type', models.IntegerField(choices=[(0, 'Continuous'), (1, 'Discrete'), (2, 'Nominal'), (3, 'Binary'), (4, 'Date'), (5, 'Compositional')], help_text="The Target's type. The choices are 'Continuous', 'Discrete', 'Nominal', 'Binary', 'Date', and 'Compositional'.")),
+                ('type', models.IntegerField(choices=[(0, 'continuous'), (1, 'Discrete'), (2, 'Nominal'), (3, 'Binary'), (4, 'Date'), (5, 'Compositional')], help_text="The Target's type. The choices are 'continuous', 'Discrete', 'Nominal', 'Binary', 'Date', and 'Compositional'.")),
                 ('name', models.TextField(help_text='A brief name for the target.')),
                 ('description', models.TextField(help_text='A verbose description of what the target is.')),
                 ('is_step_ahead', models.BooleanField(help_text='True if the target is one of a sequence of targets that predict values at different points in the future.')),

@@ -84,7 +84,7 @@ class TargetTestCase(TestCase):
 
 
     def test_unit_required(self):
-        # target type: Continuous, Discrete, Date
+        # target type: continuous, discrete, date
         model_init = {'project': self.project,
                       'name': 'target_name',
                       'description': 'target_description',
@@ -97,7 +97,7 @@ class TargetTestCase(TestCase):
 
 
     def test_range_required(self):
-        # target type: Continuous and Discrete accept an optional 'range' list via Target.set_range(). here we test that
+        # target type: continuous and discrete accept an optional 'range' list via Target.set_range(). here we test that
         # that function checks the target type
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -129,7 +129,7 @@ class TargetTestCase(TestCase):
 
 
     def test_cat_required(self):
-        # target type: Continuous, Nominal, Compositional accept an optional 'cat' list via Target.set_cats(). here we
+        # target type: continuous, nominal, compositional accept an optional 'cat' list via Target.set_cats(). here we
         # test that that function checks the target type
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -161,7 +161,7 @@ class TargetTestCase(TestCase):
 
 
     def test_date_required(self):
-        # target type: Continuous and Discrete accept an optional 'date' list via Target.set_dates(). here we test that
+        # target type: continuous and discrete accept an optional 'date' list via Target.set_dates(). here we test that
         # that function checks the target type
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -233,7 +233,7 @@ class TargetTestCase(TestCase):
 
 
     def test_target_ranges_created(self):
-        # tests that exactly two TargetRange rows of the correct type are created (Continuous: f, Discrete: t).
+        # tests that exactly two TargetRange rows of the correct type are created (continuous: f, discrete: t).
         # recall both are optional
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -271,8 +271,8 @@ class TargetTestCase(TestCase):
 
 
     def test_target_cats_created(self):
-        # tests that TargetCat rows of the correct type are created (Continuous: f, Nominal: t, Compositional: t).
-        # recall that Continuous is optional.
+        # tests that TargetCat rows of the correct type are created (continuous: f, nominal: t, compositional: t).
+        # recall that continuous is optional.
         model_init = {'project': self.project,
                       'name': 'target_name',
                       'description': 'target_description',
@@ -316,7 +316,7 @@ class TargetTestCase(TestCase):
 
 
     def test_target_date_unit(self):
-        # Date target type: unit must be one of Target.DATE_UNITS
+        # date target type: unit must be one of Target.DATE_UNITS
         model_init = {'project': self.project,
                       'type': Target.DATE_TARGET_TYPE,
                       'name': 'target_name',
@@ -343,7 +343,7 @@ class TargetTestCase(TestCase):
 
 
     def test_target_date_format(self):
-        # Date target type: dates must be YYYY_MM_DD_DATE_FORMAT
+        # date target type: dates must be YYYY_MM_DD_DATE_FORMAT
         model_init = {'project': self.project,
                       'type': Target.DATE_TARGET_TYPE,
                       'name': 'target_name',
@@ -369,7 +369,7 @@ class TargetTestCase(TestCase):
 
 
     def test_target_dates_created(self):
-        # tests that TargetDate rows of the correct type are created (Date: d)
+        # tests that TargetDate rows of the correct type are created (date: d)
         model_init = {'project': self.project,
                       'type': Target.DATE_TARGET_TYPE,
                       'name': 'target_name',
@@ -383,7 +383,7 @@ class TargetTestCase(TestCase):
 
 
     def test_target_lwrs_created(self):
-        # tests that TargetLwr rows are created for Continuous targets
+        # tests that TargetLwr rows are created for continuous targets
         model_init = {'project': self.project,
                       'type': Target.CONTINUOUS_TARGET_TYPE,
                       'name': 'target_name',

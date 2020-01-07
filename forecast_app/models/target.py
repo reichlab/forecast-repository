@@ -36,18 +36,18 @@ class Target(models.Model):
     BINARY_TARGET_TYPE = 3
     DATE_TARGET_TYPE = 4
     COMPOSITIONAL_TARGET_TYPE = 5
-    TYPE_CHOICES = (
-        (CONTINUOUS_TARGET_TYPE, 'Continuous'),
-        (DISCRETE_TARGET_TYPE, 'Discrete'),
-        (NOMINAL_TARGET_TYPE, 'Nominal'),
-        (BINARY_TARGET_TYPE, 'Binary'),
-        (DATE_TARGET_TYPE, 'Date'),
-        (COMPOSITIONAL_TARGET_TYPE, 'Compositional'),
+    TARGET_TYPE_CHOICES = (
+        (CONTINUOUS_TARGET_TYPE, 'continuous'),
+        (DISCRETE_TARGET_TYPE, 'discrete'),
+        (NOMINAL_TARGET_TYPE, 'nominal'),
+        (BINARY_TARGET_TYPE, 'binary'),
+        (DATE_TARGET_TYPE, 'date'),
+        (COMPOSITIONAL_TARGET_TYPE, 'compositional'),
     )
     # required fields for all types
-    type = models.IntegerField(choices=TYPE_CHOICES,
-                               help_text="The Target's type. The choices are 'Continuous', 'Discrete', 'Nominal', "
-                                         "'Binary', 'Date', and 'Compositional'.")
+    type = models.IntegerField(choices=TARGET_TYPE_CHOICES,
+                               help_text="The Target's type. The choices are 'continuous', 'discrete', 'nominal', "
+                                         "'binary', 'date', and 'compositional'.")
     name = models.TextField(help_text="A brief name for the target.")
     description = models.TextField(help_text="A verbose description of what the target is.")
     is_step_ahead = BooleanField(help_text="True if the target is one of a sequence of targets that predict values at "
@@ -77,7 +77,7 @@ class Target(models.Model):
 
     @classmethod
     def type_as_str(cls, the_type_int):
-        for type_int, type_name in cls.TYPE_CHOICES:
+        for type_int, type_name in cls.TARGET_TYPE_CHOICES:
             if type_int == the_type_int:
                 return type_name
 
@@ -152,7 +152,7 @@ class Target(models.Model):
                                      cat_f=cat if (data_type == Target.FLOAT_DATA_TYPE) else None,
                                      cat_t=cat if (data_type == Target.TEXT_DATA_TYPE) else None)
 
-        # ditto for TargetLwrs for the Continuous case (required for scoring), calculating `upper` via zip().
+        # ditto for TargetLwrs for the continuous case (required for scoring), calculating `upper` via zip().
         # NB: we use infinity for the last bin's upper!
         if self.type == Target.CONTINUOUS_TARGET_TYPE:
             cats = sorted(cats)

@@ -4,9 +4,9 @@
     {
       "location": "HHS Region 1",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -25,9 +25,9 @@
     {
       "location": "HHS Region 1",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -46,9 +46,9 @@
     {
       "location": "HHS Region 1",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -67,9 +67,9 @@
     {
       "location": "HHS Region 1",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -88,7 +88,7 @@
     {
       "location": "HHS Region 1",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -109,9 +109,9 @@
     {
       "location": "HHS Region 1",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -130,7 +130,7 @@
     {
       "location": "HHS Region 1",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -151,9 +151,9 @@
     {
       "location": "HHS Region 10",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -172,9 +172,9 @@
     {
       "location": "HHS Region 10",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -193,9 +193,9 @@
     {
       "location": "HHS Region 10",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -214,9 +214,9 @@
     {
       "location": "HHS Region 10",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -235,7 +235,7 @@
     {
       "location": "HHS Region 10",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -256,9 +256,9 @@
     {
       "location": "HHS Region 10",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -277,7 +277,7 @@
     {
       "location": "HHS Region 10",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -298,9 +298,9 @@
     {
       "location": "HHS Region 2",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -319,9 +319,9 @@
     {
       "location": "HHS Region 2",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -340,9 +340,9 @@
     {
       "location": "HHS Region 2",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -361,9 +361,9 @@
     {
       "location": "HHS Region 2",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -382,7 +382,7 @@
     {
       "location": "HHS Region 2",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -403,9 +403,9 @@
     {
       "location": "HHS Region 2",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -424,7 +424,7 @@
     {
       "location": "HHS Region 2",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -445,9 +445,9 @@
     {
       "location": "HHS Region 3",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -466,9 +466,9 @@
     {
       "location": "HHS Region 3",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -487,9 +487,9 @@
     {
       "location": "HHS Region 3",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -508,9 +508,9 @@
     {
       "location": "HHS Region 3",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -529,7 +529,7 @@
     {
       "location": "HHS Region 3",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -550,9 +550,9 @@
     {
       "location": "HHS Region 3",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -571,7 +571,7 @@
     {
       "location": "HHS Region 3",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -592,9 +592,9 @@
     {
       "location": "HHS Region 4",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -613,9 +613,9 @@
     {
       "location": "HHS Region 4",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -634,9 +634,9 @@
     {
       "location": "HHS Region 4",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -655,9 +655,9 @@
     {
       "location": "HHS Region 4",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -676,7 +676,7 @@
     {
       "location": "HHS Region 4",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -697,9 +697,9 @@
     {
       "location": "HHS Region 4",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -718,7 +718,7 @@
     {
       "location": "HHS Region 4",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -739,9 +739,9 @@
     {
       "location": "HHS Region 5",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -760,9 +760,9 @@
     {
       "location": "HHS Region 5",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -781,9 +781,9 @@
     {
       "location": "HHS Region 5",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -802,9 +802,9 @@
     {
       "location": "HHS Region 5",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -823,7 +823,7 @@
     {
       "location": "HHS Region 5",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -844,9 +844,9 @@
     {
       "location": "HHS Region 5",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -865,7 +865,7 @@
     {
       "location": "HHS Region 5",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -886,9 +886,9 @@
     {
       "location": "HHS Region 6",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -907,9 +907,9 @@
     {
       "location": "HHS Region 6",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -928,9 +928,9 @@
     {
       "location": "HHS Region 6",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -949,9 +949,9 @@
     {
       "location": "HHS Region 6",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -970,7 +970,7 @@
     {
       "location": "HHS Region 6",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -991,9 +991,9 @@
     {
       "location": "HHS Region 6",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1012,7 +1012,7 @@
     {
       "location": "HHS Region 6",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1033,9 +1033,9 @@
     {
       "location": "HHS Region 7",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1054,9 +1054,9 @@
     {
       "location": "HHS Region 7",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1075,9 +1075,9 @@
     {
       "location": "HHS Region 7",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1096,9 +1096,9 @@
     {
       "location": "HHS Region 7",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1117,7 +1117,7 @@
     {
       "location": "HHS Region 7",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1138,9 +1138,9 @@
     {
       "location": "HHS Region 7",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1159,7 +1159,7 @@
     {
       "location": "HHS Region 7",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1180,9 +1180,9 @@
     {
       "location": "HHS Region 8",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1201,9 +1201,9 @@
     {
       "location": "HHS Region 8",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1222,9 +1222,9 @@
     {
       "location": "HHS Region 8",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1243,9 +1243,9 @@
     {
       "location": "HHS Region 8",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1264,7 +1264,7 @@
     {
       "location": "HHS Region 8",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1285,9 +1285,9 @@
     {
       "location": "HHS Region 8",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1306,7 +1306,7 @@
     {
       "location": "HHS Region 8",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1327,9 +1327,9 @@
     {
       "location": "HHS Region 9",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1348,9 +1348,9 @@
     {
       "location": "HHS Region 9",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1369,9 +1369,9 @@
     {
       "location": "HHS Region 9",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1390,9 +1390,9 @@
     {
       "location": "HHS Region 9",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1411,7 +1411,7 @@
     {
       "location": "HHS Region 9",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1432,9 +1432,9 @@
     {
       "location": "HHS Region 9",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1453,7 +1453,7 @@
     {
       "location": "HHS Region 9",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"
@@ -1474,9 +1474,9 @@
     {
       "location": "US National",
       "target": "1 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1495,9 +1495,9 @@
     {
       "location": "US National",
       "target": "2 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1516,9 +1516,9 @@
     {
       "location": "US National",
       "target": "3 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1537,9 +1537,9 @@
     {
       "location": "US National",
       "target": "4 wk ahead",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1558,7 +1558,7 @@
     {
       "location": "US National",
       "target": "Season onset",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40",
@@ -1581,9 +1581,9 @@
     {
       "location": "US National",
       "target": "Season peak percentage",
-      "class": "BinLwr",
+      "class": "Bin",
       "prediction": {
-        "lwr": [
+        "cat": [
           0.0
         ],
         "prob": [
@@ -1602,7 +1602,7 @@
     {
       "location": "US National",
       "target": "Season peak week",
-      "class": "BinCat",
+      "class": "Bin",
       "prediction": {
         "cat": [
           "40"

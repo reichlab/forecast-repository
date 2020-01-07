@@ -1,0 +1,89 @@
+{
+  "name" : "My project",
+  "is_public" : true,
+  "description" : "A full description of my project is here. You could include narrative details about what seasons are included, what group has provided data, whether the project focuses on real-time or retrospective forecasts.",
+  "home_url" : "https://reichlab.io",
+  "logo_url" : "http://reichlab.io/assets/images/logo/nav-logo.png",
+  "core_data" : "",
+  "time_interval_type" : "Week",
+  "visualization_y_label" : "the scale for your variable of interest",
+  "locations" : [
+    {
+      "name" : "location1"
+    },
+    {
+      "name" : "location2"
+    },
+    {
+      "name" : "location3"
+    }
+
+  ],
+  "targets" : [
+    {
+      "name" : "pct next week",
+      "description" : "The forecasted percentage of positive tests for the next week",
+      "type" : "continuous",
+      "is_step_ahead" : true,
+      "step_ahead_increment" : 1,
+      "unit" : "percent",
+      "range": [0, 100],
+      "cat" : [0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10, 50]
+    },
+    {
+      "name" : "cases next week",
+      "description" : "A forecasted integer number of cases for a future week.",
+      "type" : "discrete",
+      "is_step_ahead" : true,
+      "step_ahead_increment" : 1,
+      "unit" : "cases",
+      "range" : [0, 100000]
+    },
+    {
+      "name" : "season severity",
+      "description" : "The forecasted severity for a given season.",
+      "type" : "nominal",
+      "is_step_ahead" : false,
+      "cat": ["mild", "moderate", "high", "severe"]
+    },
+    {
+      "name" : "above baseline",
+      "description" : "Whether or not a region-specific threshold will be exceeded in a given season.",
+      "type" : "binary",
+      "is_step_ahead" : false
+    },
+    {
+      "name" : "Season peak week",
+      "description" : "The week in which the peak y value is observed. Given dates represent the Sunday that begin the peak week. Externally to Zoltar, weeks will be calculated using standard definitions of MMWR weeks.",
+      "type" : "date",
+      "is_step_ahead" : false,
+      "unit" : "week",
+      "date" :  ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
+    },
+    {
+      "name" : "Next season flu strain composition",
+      "description" : "The fraction of flu strains in the subsequent season within each specified clade.",
+      "type" : "compositional",
+      "is_step_ahead" : false,
+      "cat" :  ["A1", "A1a", "A2", "A2/re", "A3"]
+    }
+  ],
+  "timezeros" : [
+    {
+      "timezero_date" : "2011-10-02",
+      "data_version_date" : null,
+      "is_season_start" : true,
+      "season_name" : "2011-2012"
+    },
+    {
+      "timezero_date" : "2011-10-09",
+      "data_version_date" : null,
+      "is_season_start" : false
+    },
+    {
+      "timezero_date" : "2011-10-16",
+      "data_version_date" : null,
+      "is_season_start" : false
+    }
+  ]
+}

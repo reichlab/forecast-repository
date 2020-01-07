@@ -108,7 +108,7 @@ def main():
     df['date_delivered'].replace('', np.nan, inplace=True)
     df.dropna(subset=['date_delivered'], inplace=True)
 
-    # Convert to Date values
+    # Convert to date values
     df.date_delivered = pd.to_datetime(df.date_delivered)
     df_dates.reg_yr_datestart = pd.to_datetime(df_dates.reg_yr_datestart) 
     

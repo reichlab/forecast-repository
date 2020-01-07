@@ -31,7 +31,7 @@ from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_projec
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json
-from utils.utilities import YYYYMMDD_DATE_FORMAT
+from utils.utilities import YYYYMMDD_DATE_FORMAT, YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -159,8 +159,8 @@ class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):
         actual_keys = set(model_config.keys())
         expected_keys = {'name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url'}
         if actual_keys != expected_keys:
-            return JsonResponse({'error': f"Wrong keys in 'model_config'. expected={expected_keys}, "
-                                          f"actual={actual_keys}"},
+            return JsonResponse({'error': f"Wrong keys in 'model_config'. difference={expected_keys ^ actual_keys}. "
+                                          f"expected={expected_keys}, actual={actual_keys}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         try:
@@ -233,16 +233,23 @@ def validate_and_create_timezero(project, timezero_config):
         ['timezero_date', 'data_version_date', 'is_season_start', 'season_name']
     :return: the new TimeZero
     """
-    # validate timezero_config
-    actual_keys = set(timezero_config.keys())
-    expected_keys = {'timezero_date', 'data_version_date', 'is_season_start', 'season_name'}
-    if actual_keys != expected_keys:
-        raise RuntimeError(f"Wrong keys in timezero_config. expected={expected_keys}, actual={actual_keys}")
+    # validate timezero_config. optional keys are tested below
+    all_keys = set(timezero_config.keys())
+    tested_keys = all_keys - {'season_name'}  # optional key
+    expected_keys = {'timezero_date', 'data_version_date', 'is_season_start'}  # required keys
+    if tested_keys != expected_keys:
+        raise RuntimeError(f"Wrong keys in timezero_config. difference={expected_keys ^ tested_keys}. "
+                           f"expected={expected_keys}, tested_keys={tested_keys}")
+
+    # test for the optional season_name
+    if timezero_config['is_season_start'] and ('season_name' not in timezero_config.keys()):
+        raise RuntimeError(f"season_name not found but is required when is_season_start is passed. "
+                           f"timezero_config={timezero_config}")
 
     # create the TimeZero
-    tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYYMMDD_DATE_FORMAT)
+    tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYY_MM_DD_DATE_FORMAT)
     timezero_date = datetime.date(tz_datetime.year, tz_datetime.month, tz_datetime.day)
-    dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYYMMDD_DATE_FORMAT) \
+    dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYY_MM_DD_DATE_FORMAT) \
         if timezero_config['data_version_date'] else None
     data_version_date = datetime.date(dvd_datetime.year, dvd_datetime.month, dvd_datetime.day) \
         if dvd_datetime else None

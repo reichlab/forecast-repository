@@ -168,8 +168,7 @@ def _prediction_dicts_for_csv_rows(rows):
     for (location_name, target_name, is_point_row), bin_start_end_val_grouper in \
             groupby(rows, key=lambda _: (_[0], _[1], _[2])):
         point_values = []  # NB: should only be one point row, but collect all (but don't validate here)
-        bincat_cats, bincat_probs = [], []
-        binlwr_lwrs, binlwr_probs = [], []
+        bin_cats, bin_probs = [], []
         for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:
             try:
                 if is_point_row:
@@ -179,11 +178,11 @@ def _prediction_dicts_for_csv_rows(rows):
                     point_values.append(point_value)
                 elif target_name in BINCAT_TARGET_NAMES:
                     bin_start_incl_value = str(bin_start_incl) if target_name in BINCAT_TARGET_NAMES else bin_start_incl
-                    bincat_cats.append(bin_start_incl_value.lower())  # lower() ""
-                    bincat_probs.append(float(value))
+                    bin_cats.append(bin_start_incl_value.lower())  # lower() ""
+                    bin_probs.append(float(value))
                 elif target_name in BINLWR_TARGET_NAMES:
-                    binlwr_lwrs.append(float(bin_start_incl))
-                    binlwr_probs.append(float(value))
+                    bin_cats.append(float(bin_start_incl))
+                    bin_probs.append(float(value))
                 else:
                     raise RuntimeError(
                         f"unexpected bin target_name. target_name={target_name!r}, "
