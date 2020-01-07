@@ -45,8 +45,7 @@ class PredictionsTestCase(TestCase):
 
 
         concrete_subclasses = Prediction.concrete_subclasses()
-        exp_subclasses = {'BinCatDistribution', 'BinLwrDistribution', 'BinaryDistribution', 'NamedDistribution',
-                          'PointPrediction', 'SampleDistribution', 'SampleCatDistribution'}
+        exp_subclasses = {'BinDistribution', 'NamedDistribution', 'PointPrediction', 'SampleDistribution'}
         self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
 
 

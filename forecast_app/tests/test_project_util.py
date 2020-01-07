@@ -6,7 +6,6 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Target
-from forecast_app.models.forecast_model import ForecastModel
 from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
 from utils.project import create_project_from_json, config_dict_from_project
 
@@ -21,13 +20,7 @@ class ProjectUtilTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.project = Project.objects.create()
-        cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
-        make_cdc_locations_and_targets(cls.project)
-
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
-        # cls.forecast = load_cdc_csv_forecast_file(cls.forecast_model, Path(
-        #     'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
+        pass
 
 
     def test_config_dict_from_project(self):
@@ -141,14 +134,6 @@ class ProjectUtilTestCase(TestCase):
         self.assertIn('season_name not found but is required when is_season_start', str(context.exception))
         timezero_config['season_name'] = 'tis the season'  # reset to valid
 
-        # test existing project
-        project_name = project_dict['name']
-        project_dict['name'] = self.project.name
-        with self.assertRaises(RuntimeError) as context:
-            create_project_from_json(project_dict, po_user)
-        self.assertIn('found existing project', str(context.exception))
-        project_dict['name'] = project_name
-
         # test time_interval_type
         project_time_interval_type = project_dict['time_interval_type']
         project_dict['time_interval_type'] = "not 'week', 'biweek', or 'month'"
@@ -156,6 +141,12 @@ class ProjectUtilTestCase(TestCase):
             create_project_from_json(project_dict, po_user)
         self.assertIn("invalid 'time_interval_type'", str(context.exception))
         project_dict['time_interval_type'] = project_time_interval_type  # reset to valid
+
+        # test existing project
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+            create_project_from_json(project_dict, po_user)
+        self.assertIn('found existing project', str(context.exception))
 
 
     def test_create_project_from_json_target_types(self):

@@ -5,8 +5,8 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, BinLwrDistribution, ScoreValue
-from forecast_app.models.project import TargetLwr, Target, POSTGRES_NULL_VALUE
+from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, ScoreValue, TargetLwr
+from forecast_app.models.project import POSTGRES_NULL_VALUE
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
 
