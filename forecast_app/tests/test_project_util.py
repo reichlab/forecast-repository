@@ -351,7 +351,7 @@ class ProjectUtilTestCase(TestCase):
 
     def test_create_project_from_json_target_range_format(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             pct_next_week_target_dict = [target_dict for target_dict in project_dict['targets']
                                          if target_dict['name'] == 'pct next week'][0]
@@ -385,7 +385,7 @@ class ProjectUtilTestCase(TestCase):
 
     def test_create_project_from_json_target_cats_format(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             pct_next_week_target_dict = [target_dict for target_dict in project_dict['targets']
                                          if target_dict['name'] == 'pct next week'][0]
@@ -412,7 +412,7 @@ class ProjectUtilTestCase(TestCase):
 
     def test_create_project_from_json_target_dates_format(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             season_peak_week_target_dict = [target_dict for target_dict in project_dict['targets']
                                             if target_dict['name'] == 'Season peak week'][0]
@@ -439,9 +439,9 @@ class ProjectUtilTestCase(TestCase):
 
     def test_create_project_from_json_lists(self):
         # verify that 'list' TargetCat, TargetLwr, TargetDate, and TargetRange instances are created.
-        # project-config-example.json contains examples of all six target types
+        # docs-project.json contains examples of all six target types
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        with open(Path('forecast_app/tests/projects/project-config-example.json')) as fp:
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
         project = create_project_from_json(project_dict, po_user)
 

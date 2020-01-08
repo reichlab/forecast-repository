@@ -51,64 +51,39 @@ class Prediction(models.Model):
 
 
 #
-# ---- EmpiricalDistribution ----
+# ---- PointPrediction ----
 #
 
-class EmpiricalDistribution(Prediction):
+class PointPrediction(Prediction):
     """
-    Abstract base class representing empirical distributions like bins and samples. This class has no instance
-    variables.
-    """
-
-
-    class Meta:
-        abstract = True
-
-
-#
-# ---- BinDistribution ----
-#
-
-class BinDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing binned distribution with a category for each bin. Like PointPrediction, we compromise
-    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
-    but one are NULL.
+    Concrete class representing point predictions. Note that point values can be integers, floats, or text, depending on
+    the Target.point_value_type associated with the prediction. We chose to implement this as a sparse table where two
+    of the three columns is NULL in every row.
     """
 
-    cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
-    cat_f = models.FloatField(null=True)  # ""
-    cat_t = models.TextField(null=True)  # ""
-    cat_d = models.DateField(null=True)  # ""
-    prob = models.FloatField()
+    value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    value_f = models.FloatField(null=True)  # ""
+    value_t = models.TextField(null=True)  # ""
+    value_d = models.DateField(null=True)  # ""
+    value_b = models.NullBooleanField(null=True)  # ""
 
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
-                    self.cat_i, self.cat_f, self.cat_t, self.cat_d))
+                    self.value_i, self.value_f, self.value_t, self.value_d, self.value_b))
 
 
-#
-# ---- SampleDistribution ----
-#
-
-class SampleDistribution(EmpiricalDistribution):
-    """
-    Concrete class representing character string samples from categories. Like PointPrediction, we compromise
-    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
-    but one are NULL.
-    """
-
-    sample_i = models.IntegerField(null=True)  # NULL if any others non-NULL
-    sample_f = models.FloatField(null=True)  # ""
-    sample_t = models.TextField(null=True)  # ""
-    sample_d = models.DateField(null=True)  # ""
-    prob = models.FloatField()
+    def __str__(self):  # todo
+        return basic_str(self)
 
 
-    def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
-                    self.sample_i, self.sample_f, self.sample_t, self.sample_d))
+    @staticmethod
+    def first_non_none_value(value_i, value_f, value_t):
+        """
+        Simple utility that returns the first of the passed value_* args that is not None. NB: you cannot simply use
+        'or' b/c 0 values fail.
+        """
+        return [_ for _ in [value_i, value_f, value_t] if _ is not None][0]
 
 
 #
@@ -214,35 +189,62 @@ def calc_named_distribution(abbreviation, param1, param2, param3):
 
 
 #
-# ---- PointPrediction ----
+# ---- EmpiricalDistribution ----
 #
 
-class PointPrediction(Prediction):
+class EmpiricalDistribution(Prediction):
     """
-    Concrete class representing point predictions. Note that point values can be integers, floats, or text, depending on
-    the Target.point_value_type associated with the prediction. We chose to implement this as a sparse table where two
-    of the three columns is NULL in every row.
+    Abstract base class representing empirical distributions like bins and samples. This class has no instance
+    variables.
     """
 
-    value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
-    value_f = models.FloatField(null=True)  # ""
-    value_t = models.TextField(null=True)  # ""
-    value_d = models.DateField(null=True)  # ""
+
+    class Meta:
+        abstract = True
+
+
+#
+# ---- BinDistribution ----
+#
+
+class BinDistribution(EmpiricalDistribution):
+    """
+    Concrete class representing binned distribution with a category for each bin. Like PointPrediction, we compromise
+    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
+    but one are NULL.
+    """
+
+    cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    cat_f = models.FloatField(null=True)  # ""
+    cat_t = models.TextField(null=True)  # ""
+    cat_d = models.DateField(null=True)  # ""
+    cat_b = models.NullBooleanField(null=True)  # ""
+    prob = models.FloatField()
 
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
-                    self.value_i, self.value_f, self.value_t, self.value_d))
+                    self.cat_i, self.cat_f, self.cat_t, self.cat_d, self.cat_b))
 
 
-    def __str__(self):  # todo
-        return basic_str(self)
+#
+# ---- SampleDistribution ----
+#
+
+class SampleDistribution(EmpiricalDistribution):
+    """
+    Concrete class representing character string samples from categories. Like PointPrediction, we compromise
+    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
+    but one are NULL.
+    """
+
+    sample_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    sample_f = models.FloatField(null=True)  # ""
+    sample_t = models.TextField(null=True)  # ""
+    sample_d = models.DateField(null=True)  # ""
+    sample_b = models.NullBooleanField(null=True)  # ""
 
 
-    @staticmethod
-    def first_non_none_value(value_i, value_f, value_t):
-        """
-        Simple utility that returns the first of the passed value_* args that is not None. NB: you cannot simply use
-        'or' b/c 0 values fail.
-        """
-        return [_ for _ in [value_i, value_f, value_t] if _ is not None][0]
+    def __repr__(self):
+        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+                    self.sample_i, self.sample_f, self.sample_t, self.sample_d, self.sample_b))

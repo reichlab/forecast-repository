@@ -95,7 +95,7 @@ class ForecastTestCase(TestCase):
 
     def test_load_forecast_skips_bin_cat_and_lwr_zero_prob_bins(self):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-        with open('forecast_app/tests/predictions/predictions-example.json') as fp:
+        with open('forecast_app/tests/predictions/cdc-predictions.json') as fp:
             json_io_dict = json.load(fp)
         load_predictions_from_json_io_dict(forecast2, json_io_dict)
         self.assertEqual(2, forecast2.bincat_distribution_qs().count())
@@ -167,14 +167,6 @@ class ForecastTestCase(TestCase):
             else:
                 raise Exception
 
-        # todo xx move to test_predictions.py? since we are validating prediction_dicts and not rows, etc.
-        # todo xx test other validations ala old Forecast.validate_forecast_data():
-        #   v Point value was non-numeric
-        #   v Bin did not sum to 1.0
-        #   - Locations did not match template
-        #   - Targets did not match template
-        #   ? Bins did not match template
-        #   ...
         self.fail()  # todo xx
 
 
@@ -186,10 +178,10 @@ class ForecastTestCase(TestCase):
         target = project.targets.filter(name='2 wk ahead').first()
         self.assertEqual(131, target.binlwrs.count())  # cdc-project.json: [0, 0.1, ..., 13]
 
-        # test lwr validation: predictions-example.json /is/ valid.
+        # test lwr validation: cdc-predictions.json /is/ valid.
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-        with open('forecast_app/tests/predictions/predictions-example.json') as fp:
+        with open('forecast_app/tests/predictions/cdc-predictions.json') as fp:
             json_io_dict = json.load(fp)
         with self.assertRaises(Exception):
             try:
@@ -199,7 +191,7 @@ class ForecastTestCase(TestCase):
             else:
                 raise Exception
 
-        # 'patch' predictions-example.json to be invalid
+        # 'patch' cdc-predictions.json to be invalid
         json_io_dict['predictions'][1]['prediction']['lwr'][0] = 14  # BinLwr.lwr: 0.0 -> 14 (max is 13)
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(forecast2, json_io_dict)

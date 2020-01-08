@@ -1,6 +1,5 @@
 import csv
 import io
-import math
 from itertools import groupby
 
 from django.db import connection, transaction
@@ -26,7 +25,7 @@ PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
 def json_io_dict_from_forecast(forecast):
     """
     The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for exporting json (for
-    example). See predictions-example.json for an example. Does not reuse that function's helper methods b/c the latter
+    example). See cdc-predictions.json for an example. Does not reuse that function's helper methods b/c the latter
     is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of predictions in CDC CSV
     files. Does include the 'meta' section in the returned dict.
 
@@ -184,7 +183,7 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
 def _forecast_dict_for_forecast(forecast):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a dict for the 'forecast' section of the exported json.
-    See predictions-example.json for an example.
+    See cdc-predictions.json for an example.
     """
     return {"id": forecast.pk,
             "forecast_model_id": forecast.forecast_model.pk,
@@ -200,7 +199,7 @@ def _forecast_dict_for_forecast(forecast):
 def _target_dicts_for_project(project, target_names):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a list of target dicts for the 'targets' section of the exported
-    json. See predictions-example.json for an example. only those in target_names are included
+    json. See cdc-predictions.json for an example. only those in target_names are included
     """
     return [{"name": target.name,
              "description": target.description,
@@ -232,22 +231,20 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict):
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
 
     prediction_dicts = json_io_dict['predictions']
-    bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
-        _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
-    _load_bincat_rows(forecast, bincat_rows)
-    _load_binlwr_rows(forecast, binlwr_rows)
-    _load_binary_rows(forecast, binary_rows)
+    bin_rows, named_rows, point_rows, sample_rows = _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
+    target_pk_to_object = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
+
+    _load_bin_rows(forecast, bin_rows, target_pk_to_object)
     _load_named_rows(forecast, named_rows)
-    _load_point_rows(forecast, point_rows)
-    _load_sample_rows(forecast, sample_rows)
-    _load_samplecat_rows(forecast, samplecat_rows)
+    _load_point_rows(forecast, point_rows, target_pk_to_object)
+    _load_sample_rows(forecast, sample_rows, target_pk_to_object)
 
 
 def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
     """
-    Validates prediction_dicts and returns a 7-tuple of rows suitable for bulk-loading into a database:
-        bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
-    Each row is Prediction class-specific. Skips zero-prob BinCat and BinLwr rows.
+    Validates prediction_dicts and returns a 4-tuple of rows suitable for bulk-loading into a database:
+        bin_rows, named_rows, point_rows, sample_rows
+    Each row is Prediction class-specific. Skips zero-prob BinDistribution rows.
 
     :param forecast: a Forecast that's used to validate against
     :param prediction_dicts: the 'predictions' portion of a "JSON IO dict" as returned by
@@ -255,8 +252,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
     """
     location_name_to_obj = {location.name: location for location in forecast.forecast_model.project.locations.all()}
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
-    bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows = \
-        [], [], [], [], [], [], []  # return values. filled next
+    bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. filled next
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
         target_name = prediction_dict['target']
@@ -275,129 +271,79 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
         location = location_name_to_obj[location_name]
-        if prediction_class == 'BinCat':
-            # validation: xx
-            _validate_bin_prob(forecast, location, target, prediction_data['prob'])
+        if prediction_class == 'Bin':
+            # _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:
-                    bincat_rows.append([location_name, target_name, cat, prob])
-        elif prediction_class == 'BinLwr':
-            # validation: xx
-            _validate_bin_prob(forecast, location, target, prediction_data['prob'])
-            _validate_bin_lwr(forecast, location, target, prediction_data['lwr'])
-            for lwr, prob in zip(prediction_data['lwr'], prediction_data['prob']):
-                if prob != 0:
-                    binlwr_rows.append([location_name, target_name, lwr, prob])
-        elif prediction_class == 'Binary':
-            # validation: xx
-            binary_rows.append([location_name, target_name, prediction_data['prob']])
+                    bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == 'Named':
-            # family name validated in _replace_family_abbrev_with_id_rows()
+            # family name validated in _replace_family_abbrev_with_id()
             named_rows.append([location_name, target_name, prediction_data['family'],
-                               prediction_data['param1'], prediction_data['param2'], prediction_data['param3']])
+                               prediction_data.get('param1', None),
+                               prediction_data.get('param2', None),
+                               prediction_data.get('param3', None)])
         elif prediction_class == 'Point':
             value = prediction_data['value']
-            if (not target.is_date) and (value is None):
-                raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, location={location}, "
-                                   f"target={target}")
+            # if (not target.is_date) and (value is None):
+            #     raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, location={location}, "
+            #                        f"target={target}")
 
             point_rows.append([location_name, target_name, value])
         elif prediction_class == 'Sample':
-            # validation: xx
             for sample in prediction_data['sample']:
                 sample_rows.append([location_name, target_name, sample])
-        elif prediction_class == 'SampleCat':
-            # validation: xx
-            for cat, sample in zip(prediction_data['cat'], prediction_data['sample']):
-                samplecat_rows.append([location_name, target_name, cat, sample])
         else:
             raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
                                f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}")
-    return bincat_rows, binlwr_rows, binary_rows, named_rows, point_rows, sample_rows, samplecat_rows
+    return bin_rows, named_rows, point_rows, sample_rows
 
 
-def _validate_bin_prob(forecast, location, target, bin_probs):
-    # todo other validations!
-
-    # validate probs sum to 1.0
-    # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
-    # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
-    # (0.9300285798758262 -> 0.07 fixed it)
-    forecast_bin_sum = sum([prob if prob is not None else 0 for prob in bin_probs])
-    if not math.isclose(1.0, forecast_bin_sum, rel_tol=BIN_SUM_REL_TOL):
-        raise RuntimeError(f"Bin did not sum to 1.0. bin_probs={bin_probs}, forecast_bin_sum={forecast_bin_sum}, "
-                           f"forecast={forecast}, location={location}, target={target}")
-
-
-def _validate_bin_lwr(forecast, location, target, bin_lwrs):
-    # ensure bin_lwrs are a subset of the target's TargetBinLwrs. note that we test subsets and not lists b/c some
-    # forecasts do not generate bins with values of zero
-    target_binlwrs = target.binlwrs.all().values_list('lwr', flat=True)
-    if not (set(bin_lwrs) <= set(target_binlwrs)):
-        raise RuntimeError(f"BinLwr lwrs did not match Target. bin_lwrs={bin_lwrs}, target_binlwrs={target_binlwrs}"
-                           f"forecast={forecast}, location={location}, target={target}")
+# def _validate_bin_prob(forecast, location, target, bin_probs):
+#     # todo other validations!
+#
+#     # validate probs sum to 1.0
+#     # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
+#     # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
+#     # (0.9300285798758262 -> 0.07 fixed it)
+#     forecast_bin_sum = sum([prob if prob is not None else 0 for prob in bin_probs])
+#     if not math.isclose(1.0, forecast_bin_sum, rel_tol=BIN_SUM_REL_TOL):
+#         raise RuntimeError(f"Bin did not sum to 1.0. bin_probs={bin_probs}, forecast_bin_sum={forecast_bin_sum}, "
+#                            f"forecast={forecast}, location={location}, target={target}")
 
 
-def _load_bincat_rows(forecast, rows):
+# def _validate_bin_lwr(forecast, location, target, bin_lwrs):
+#     # ensure bin_lwrs are a subset of the target's TargetBinLwrs. note that we test subsets and not lists b/c some
+#     # forecasts do not generate bins with values of zero
+#     target_binlwrs = target.binlwrs.all().values_list('lwr', flat=True)
+#     if not (set(bin_lwrs) <= set(target_binlwrs)):
+#         raise RuntimeError(f"BinLwr lwrs did not match Target. bin_lwrs={bin_lwrs}, target_binlwrs={target_binlwrs}"
+#                            f"forecast={forecast}, location={location}, target={target}")
+
+
+def _load_bin_rows(forecast, rows, target_pk_to_object):
     """
     Loads the rows in prediction_data_dict as BinCatDistributions.
     """
     # incoming rows: [location_name, target_name, cat, prob]
 
     # after this, rows will be: [location_id, target_id, cat, prob]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
+    _replace_location_target_names_with_pks(forecast, rows)
 
-    # after this, rows will be: [location_id, target_id, cat, prob, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
+    # after this, rows will be: [location_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob]:
+    _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last=True)
 
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = BinCatDistribution
-    columns_names = [prediction_class._meta.get_field('location').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('cat').column,
-                     prediction_class._meta.get_field('prob').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _load_binlwr_rows(forecast, rows):
-    """
-    Loads the rows in rows as BinLwrDistributions.
-    """
-    # incoming rows: [location_name, target_name, lwr, prob]
-
-    # after this, rows will be: [location_id, target_id, lwr, prob]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
-
-    # after this, rows will be: [location_id, target_id, lwr, prob, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
+    # after this, rows will be: [location_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob, self_pk]:
+    _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = BinLwrDistribution
+    prediction_class = BinDistribution
     columns_names = [prediction_class._meta.get_field('location').column,
                      prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('lwr').column,
-                     prediction_class._meta.get_field('prob').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _load_binary_rows(forecast, rows):
-    """
-    Loads the rows in rows as BinaryDistributions.
-    """
-    # incoming rows: [location_name, target_name, prob]
-
-    # after this, rows will be: [location_id, target_id, prob]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
-
-    # after this, rows will be: [location_id, target_id, prob, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = BinaryDistribution
-    columns_names = [prediction_class._meta.get_field('location').column,
-                     prediction_class._meta.get_field('target').column,
+                     prediction_class._meta.get_field('cat_i').column,
+                     prediction_class._meta.get_field('cat_f').column,
+                     prediction_class._meta.get_field('cat_t').column,
+                     prediction_class._meta.get_field('cat_d').column,
+                     prediction_class._meta.get_field('cat_b').column,
                      prediction_class._meta.get_field('prob').column,
                      Forecast._meta.model_name + '_id']
     _insert_prediction_rows(prediction_class, columns_names, rows)
@@ -411,16 +357,16 @@ def _load_named_rows(forecast, rows):
     # incoming rows: [location_name, target_name, family, param1, param2, param3]
 
     # after this, rows will be: [location_id, target_id, family, param1, param2, param3]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
+    _replace_location_target_names_with_pks(forecast, rows)
 
     # after this, rows will be: [location_id, target_id, family_id, param1, param2, param3]:
-    _replace_family_abbrev_with_id_rows(rows)
+    _replace_family_abbrev_with_id(rows)
 
     # after this, rows will be: [location_id, target_id, family_id, param1_or_0, param2_or_0, param3_or_0]:
-    _replace_null_params_with_zeros_rows(forecast, rows)
+    _replace_null_params_with_zeros(rows)
 
     # after this, rows will be: [location_id, target_id, family_id, param1, param2, param3, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
+    _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = NamedDistribution
@@ -434,14 +380,14 @@ def _load_named_rows(forecast, rows):
     _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
-def _load_point_rows(forecast, rows):
+def _load_point_rows(forecast, rows, target_pk_to_object):
     """
     Validates and loads the rows in rows as PointPredictions.
     """
     # incoming rows: [location_name, target_name, value]
 
     # after this, rows will be: [location_id, target_id, value]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
+    _replace_location_target_names_with_pks(forecast, rows)
 
     # # validate rows
     # location_id_to_obj = {location.pk: location for location in forecast.forecast_model.project.locations.all()}
@@ -453,10 +399,10 @@ def _load_point_rows(forecast, rows):
     #                            f"location={location_id_to_obj[location_id]}, target={target}")
 
     # after this, rows will be: [location_id, target_id, value_i, value_f, value_t]:
-    _replace_value_with_three_types_rows(forecast, rows)
+    _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last=False)
 
     # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
+    _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = PointPrediction
@@ -465,54 +411,41 @@ def _load_point_rows(forecast, rows):
                      prediction_class._meta.get_field('value_i').column,
                      prediction_class._meta.get_field('value_f').column,
                      prediction_class._meta.get_field('value_t').column,
+                     prediction_class._meta.get_field('value_d').column,
+                     prediction_class._meta.get_field('value_b').column,
                      Forecast._meta.model_name + '_id']
     _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
-def _load_sample_rows(forecast, rows):
+def _load_sample_rows(forecast, rows, target_pk_to_object):
     """
     Loads the rows in rows as SampleDistribution. See SAMPLE_DISTRIBUTION_HEADER.
     """
     # incoming rows: [location_name, target_name, sample]
 
     # after this, rows will be: [location_id, target_id, sample]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
+    _replace_location_target_names_with_pks(forecast, rows)
+
+    # after this, rows will be: [location_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b]:
+    _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last=False)
 
     # after this, rows will be: [location_id, target_id, sample, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
+    _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = SampleDistribution
     columns_names = [prediction_class._meta.get_field('location').column,
                      prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('sample').column,
+                     prediction_class._meta.get_field('sample_i').column,
+                     prediction_class._meta.get_field('sample_f').column,
+                     prediction_class._meta.get_field('sample_t').column,
+                     prediction_class._meta.get_field('sample_d').column,
+                     prediction_class._meta.get_field('sample_b').column,
                      Forecast._meta.model_name + '_id']
     _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
-def _load_samplecat_rows(forecast, rows):
-    """
-    Loads the rows in rows as SampleCatDistributions.
-    """
-    # incoming rows: [location_name, target_name, cat, sample]
-
-    # after this, rows will be: [location_id, target_id, cat, sample]:
-    _replace_location_target_names_with_pks_rows(forecast, rows)
-
-    # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
-    _add_forecast_pk_rows(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = SampleCatDistribution
-    columns_names = [prediction_class._meta.get_field('location').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('cat').column,
-                     prediction_class._meta.get_field('sample').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _replace_location_target_names_with_pks_rows(forecast, rows):
+def _replace_location_target_names_with_pks(forecast, rows):
     """
     Does an in-place rows replacement of target and location names with PKs.
     """
@@ -527,23 +460,36 @@ def _replace_location_target_names_with_pks_rows(forecast, rows):
         row[1] = target_name_to_pk[row[1]]
 
 
-def _replace_value_with_three_types_rows(forecast, rows):
+def _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last):
     """
-    Does an in-place rows replacement of values with the three type-specific values - value_i, value_f, and value_t.
-    Recall that exactly one will be non-NULL (i.e., not None).
+    Does an in-place rows replacement of values with the five type-specific values based on each row's Target's
+    data_type. The values: value_i, value_f, value_t, value_d, value_b. Recall that exactly one will be non-NULL (i.e.,
+    not None).
+
+    :param rows: a list of lists of the form: [location_id, target_id, value, [last_item]], where last_item is optional
+        and is indicated by is_exclude_last
+    :param is_exclude_last: True if the last item should be preserved, and False o/w
+    :return: rows, but with the value_idx replaced with the above five type-specific values, i.e.,
+        [location_id, target_id, value_i, value_f, value_t, value_d, value_b, [last_item]]
     """
-    target_pk_to_point_value_type = {target.pk: target.point_value_type for target in
-                                     forecast.forecast_model.project.targets.all()}
+    value_idx = 2
     for row in rows:
         target_pk = row[1]
-        value = row[2]
-        value_i = value if target_pk_to_point_value_type[target_pk] == Target.POINT_INTEGER else None
-        value_f = value if target_pk_to_point_value_type[target_pk] == Target.POINT_FLOAT else None
-        value_t = value if target_pk_to_point_value_type[target_pk] == Target.POINT_TEXT else None
-        row[2:] = [value_i, value_f, value_t]
+        target = target_pk_to_object[target_pk]
+        data_type = Target.data_type(target.type)
+        value = row[value_idx]
+        value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
+        value_f = value if data_type == Target.FLOAT_DATA_TYPE else None
+        value_t = value if data_type == Target.TEXT_DATA_TYPE else None
+        value_d = value if data_type == Target.DATE_DATA_TYPE else None
+        value_b = value if data_type == Target.BOOLEAN_DATA_TYPE else None
+        if is_exclude_last:
+            row[value_idx:-1] = [value_i, value_f, value_t, value_d, value_b]
+        else:
+            row[value_idx:] = [value_i, value_f, value_t, value_d, value_b]
 
 
-def _replace_family_abbrev_with_id_rows(rows):
+def _replace_family_abbrev_with_id(rows):
     """
     Does an in-place rows replacement of family abbreviations with ids in NamedDistribution.FAMILY_CHOICES (ints).
     """
@@ -557,7 +503,7 @@ def _replace_family_abbrev_with_id_rows(rows):
                                f"abbreviations={NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()}")
 
 
-def _replace_null_params_with_zeros_rows(forecast, rows):
+def _replace_null_params_with_zeros(rows):
     """
     Does an in-place rows replacement of empty params with zeros."
     """
@@ -567,7 +513,7 @@ def _replace_null_params_with_zeros_rows(forecast, rows):
         row[5] = row[5] or 0  # param3
 
 
-def _add_forecast_pk_rows(forecast, rows):
+def _add_forecast_pks(forecast, rows):
     """
     Does an in-place rows addition of my pk to the end.
     """

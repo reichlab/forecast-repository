@@ -158,7 +158,7 @@ def _prediction_dicts_for_csv_rows(rows):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a list of prediction dicts for the 'predictions' section of the
     exported json. Each dict corresponds to either a PointPrediction, BinLwrDistribution, or BinCatDistribution
-    depending on each row in rows. See predictions-example.json for an example.
+    depending on each row in rows. See cdc-predictions.json for an example.
 
     :param rows: as returned by _cleaned_rows_from_cdc_csv_file():
         location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value

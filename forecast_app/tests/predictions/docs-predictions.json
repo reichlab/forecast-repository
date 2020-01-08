@@ -1,0 +1,241 @@
+{
+  "meta": {},
+  "predictions": [
+    {"location": "location1",
+      "target": "pct next week",
+      "class": "Point",
+      "prediction": {
+        "value": 2.1
+      }
+    },
+    {"location": "location1",
+      "target": "pct next week",
+      "class": "Named",
+      "prediction": {
+        "family": "norm",
+        "param1": 1.1,
+        "param2": 2.2
+      }
+    },
+
+    {"location": "location2",
+      "target": "pct next week",
+      "class": "Point",
+      "prediction": {
+        "value": 2.0
+      }
+    },
+    {"location": "location2",
+      "target": "pct next week",
+      "class": "Bin",
+      "prediction": {
+        "cat": [1.1, 2.2, 3.3],
+        "prob": [0.3, 0.2, 0.5]
+      }
+    },
+
+    {"location": "location3",
+      "target": "pct next week",
+      "class": "Point",
+      "prediction": {
+        "value": 3.567
+      }
+    },
+    {"location": "location3",
+      "target": "pct next week",
+      "class": "Sample",
+      "prediction": {
+        "sample": [2.3, 6.5, 0.0, 10.0234, 0.0001]
+      }
+    },
+
+
+    {"location": "location1",
+      "target": "cases next week",
+      "class": "Named",
+      "prediction": {
+        "family": "pois",
+        "param1": 1.1
+      }
+    },
+
+    {"location": "location2",
+      "target": "cases next week",
+      "class": "Point",
+      "prediction": {
+        "value": 5
+      }
+    },
+    {"location": "location2",
+      "target": "cases next week",
+      "class": "Sample",
+      "prediction": {
+        "sample": [0, 2, 5]
+      }
+    },
+
+    {"location": "location3",
+      "target": "cases next week",
+      "class": "Point",
+      "prediction": {
+        "value": 10
+      }
+    },
+    {"location": "location3",
+      "target": "cases next week",
+      "class": "Bin",
+      "prediction": {
+        "cat": [0, 1, 2],
+        "prob": [0.0, 0.1, 0.9]
+      }
+    },
+
+
+    {"location": "location1",
+      "target": "season severity",
+      "class": "Point",
+      "prediction": {
+        "value": "mild"
+      }
+    },
+    {"location": "location1",
+      "target": "season severity",
+      "class": "Bin",
+      "prediction": {
+        "cat": ["mild", "moderate", "severe"],
+        "prob": [0.0, 0.1, 0.9]
+      }
+    },
+
+    {"location": "location2",
+      "target": "season severity",
+      "class": "Point",
+      "prediction": {
+        "value": "moderate"
+      }
+    },
+    {"location": "location2",
+      "target": "season severity",
+      "class": "Sample",
+      "prediction": {
+        "sample": ["moderate", "severe", "high", "moderate", "mild"]
+      }
+    },
+
+
+    {"location": "location1",
+      "target": "above baseline",
+      "class": "Point",
+      "prediction": {
+        "value": true
+      }
+    },
+
+    {"location": "location2",
+      "target": "above baseline",
+      "class": "Named",
+      "prediction": {
+        "family": "bern",
+        "param1": 0.4
+      }
+    },
+    {"location": "location2",
+      "target": "above baseline",
+      "class": "Sample",
+      "prediction": {
+        "sample": [true, false, true]
+      }
+    },
+
+    {"location": "location3",
+      "target": "above baseline",
+      "class": "Sample",
+      "prediction": {
+        "sample": [false, true, true]
+      }
+    },
+
+
+    {"location": "location1",
+      "target": "Season peak week",
+      "class": "Point",
+      "prediction": {
+        "value": "2019-12-22"
+      }
+    },
+    {"location": "location1",
+      "target": "Season peak week",
+      "class": "Bin",
+      "prediction": {
+        "cat": ["2019-12-15", "2019-12-22", "2019-12-29"],
+        "prob": [0.01, 0.1, 0.89]
+      }
+    },
+    {"location": "location1",
+      "target": "Season peak week",
+      "class": "Sample",
+      "prediction": {
+        "sample": ["2020-01-05", "2019-12-15"]
+      }
+    },
+
+    {"location": "location2",
+      "target": "Season peak week",
+      "class": "Point",
+      "prediction": {
+        "value": "2020-01-05"
+      }
+    },
+    {"location": "location2",
+      "target": "Season peak week",
+      "class": "Bin",
+      "prediction": {
+        "cat": ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"],
+        "prob": [0.01, 0.05, 0.05, 0.89]
+      }
+    },
+
+    {"location": "location3",
+      "target": "Season peak week",
+      "class": "Point",
+      "prediction": {
+        "value": "2019-12-29"
+      }
+    },
+    {"location": "location3",
+      "target": "Season peak week",
+      "class": "Sample",
+      "prediction": {
+        "sample": ["2020-01-06", "2019-12-16"]
+      }
+    },
+
+
+    {"location": "location1",
+      "target": "Next season flu strain composition",
+      "class": "Bin",
+      "prediction": {
+        "cat": ["A1", "A1a", "A2", "A2/re", "A3"],
+        "prob": [0.22, 0.1, 0.58, 0.05, 0.05]
+      }
+    },
+
+    {"location": "location2",
+      "target": "Next season flu strain composition",
+      "class": "Bin",
+      "prediction": {
+        "cat": ["A1", "A1a", "A2", "A3"],
+        "prob": [0.22, 0.1, 0.58, 0.1]
+      }
+    },
+
+    {"location": "location3",
+      "target": "Next season flu strain composition",
+      "class": "Bin",
+      "prediction": {
+        "cat": ["A1", "A1a", "A2", "A2/re", "A3"],
+        "prob": [0, 0.32, 0.58, 0.05, 0.05]
+      }
+    }
+  ]
+}
