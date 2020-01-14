@@ -9,9 +9,9 @@ import django
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.cdc import load_cdc_csv_forecast_file
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from forecast_app.models import Project, TimeZero, ForecastModel
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 #
@@ -114,7 +114,7 @@ def fill_project(project, mo_user, is_public):
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
-    forecast1 = load_cdc_csv_forecast_file(forecast_model1, csv_file_path, time_zero1)
+    forecast1 = load_cdc_csv_forecast_file(xx, forecast_model1, csv_file_path, time_zero1)
     click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
 
     ForecastModel.objects.create(project=project,

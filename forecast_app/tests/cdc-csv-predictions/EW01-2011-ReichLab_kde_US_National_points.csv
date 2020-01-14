@@ -1,0 +1,8 @@
+Location,Target,Type,Unit,Bin_start_incl,Bin_end_notincl,Value
+US National,Season onset,Point,week,NA,NA,50
+US National,Season peak week,Point,week,NA,NA,5
+US National,Season peak percentage,Point,percent,NA,NA,5.1
+US National,1 wk ahead,Point,percent,NA,NA,2.8
+US National,2 wk ahead,Point,percent,NA,NA,3
+US National,3 wk ahead,Point,percent,NA,NA,3.1
+US National,4 wk ahead,Point,percent,NA,NA,3.3

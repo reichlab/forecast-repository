@@ -269,27 +269,27 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
                                f"existing_target_names={target_name_to_obj.keys()}")
 
         # do class-specific validation and row collection
-        target = target_name_to_obj[target_name]
-        location = location_name_to_obj[location_name]
-        if prediction_class == 'Bin':
+        # target = target_name_to_obj[target_name]
+        # location = location_name_to_obj[location_name]
+        if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
             # _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:
                     bin_rows.append([location_name, target_name, cat, prob])
-        elif prediction_class == 'Named':
+        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
             # family name validated in _replace_family_abbrev_with_id()
             named_rows.append([location_name, target_name, prediction_data['family'],
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])
-        elif prediction_class == 'Point':
+        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
             # if (not target.is_date) and (value is None):
             #     raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, location={location}, "
             #                        f"target={target}")
 
             point_rows.append([location_name, target_name, value])
-        elif prediction_class == 'Sample':
+        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
             for sample in prediction_data['sample']:
                 sample_rows.append([location_name, target_name, sample])
         else:

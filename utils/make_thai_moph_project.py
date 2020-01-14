@@ -1,4 +1,6 @@
+import datetime
 import json
+import re
 import timeit
 from pathlib import Path
 
@@ -7,16 +9,14 @@ import django
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-
-
 django.setup()
 
+from utils.utilities import get_or_create_super_po_mo_users
 from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
 from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets, \
     delete_project_iteratively
-from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
-from utils.cdc import cdc_csv_components_from_data_dir, load_cdc_csv_forecasts_from_dir
+from utils.cdc import load_cdc_csv_forecast_file
 
 
 #
@@ -121,7 +121,7 @@ def make_model(project, model_owner, data_dir):
 
 
 #
-# ---- test utilities ----
+# ---- utilities ----
 #
 
 def create_thai_locations_and_targets(project):
@@ -132,6 +132,118 @@ def create_thai_locations_and_targets(project):
     # !is_validate to bypass Impetus non-uniform bins: [0, 1), [1, 10), [10, 20), ..., [1990, 2000):
     validate_and_create_targets(project, project_dict)
 
+
+def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None):
+    """
+    Adds Forecast objects to forecast_model using the cdc csv files under data_dir. Assumes TimeZeros match those in my
+    Project. Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.
+
+    :param forecast_model: a ForecastModel to load the data into
+    :param data_dir: Path of the directory that contains cdc csv files
+    :param is_load_file: a boolean function of one arg (cdc_csv_file) that returns True if that file should be
+        loaded. cdc_csv_file is a Path
+    :return list of loaded Forecasts
+    """
+    forecasts = []
+    for cdc_csv_file, timezero_date, _, _ in cdc_csv_components_from_data_dir(data_dir):
+        if is_load_file and not is_load_file(cdc_csv_file):
+            click.echo("s (!is_load_file)\t{}\t".format(cdc_csv_file.name))
+            continue
+
+        timezero_date = forecast_model.project.time_zero_for_timezero_date(timezero_date)
+        if not timezero_date:
+            click.echo("x (no TimeZero found)\t{}\t".format(cdc_csv_file.name))
+            continue
+
+        found_forecast_for_time_zero = forecast_model.forecast_for_time_zero(timezero_date)
+        if found_forecast_for_time_zero:
+            click.echo("s (found forecast)\t{}\t".format(cdc_csv_file.name))
+            continue
+
+        try:
+            forecast = load_cdc_csv_forecast_file(xx, forecast_model, cdc_csv_file, timezero_date)
+            forecasts.append(forecast)
+            click.echo("o\t{}\t".format(cdc_csv_file.name))
+        except RuntimeError as rte:
+            click.echo("f\t{}\t{}".format(cdc_csv_file.name, rte))
+    if not forecasts:
+        click.echo("Warning: no valid forecast files found in directory: {}".format(data_dir))
+    return forecasts
+
+
+def cdc_csv_components_from_data_dir(cdc_csv_dir):
+    """
+    A utility that helps process a directory containing cdc csv files in our zoltar file name convention - see
+    ZOLTAR_CSV_FILENAME_RE_PAT.
+
+    :return a list of 4-tuples for each *.cdc.csv file in cdc_csv_dir, with the last three in the form returned by
+        cdc_csv_filename_components(): (cdc_csv_file, timezero_date, model_name, data_version_date). cdc_csv_file is a
+        Path. the list is sorted by timezero_date. Returns [] if no
+    """
+    cdc_csv_components = []
+    for cdc_csv_file in cdc_csv_dir.glob('*.' + CDC_CSV_FILENAME_EXTENSION):
+        filename_components = cdc_csv_filename_components(cdc_csv_file.name)
+        if not filename_components:
+            continue
+
+        timezero_date, model_name, data_version_date = filename_components
+        cdc_csv_components.append((cdc_csv_file, timezero_date, model_name, data_version_date))
+    return sorted(cdc_csv_components, key=lambda _: _[1])
+
+
+def cdc_csv_filename_components(cdc_csv_filename):
+    """
+    :param cdc_csv_filename: a *.cdc.csv file name, e.g., '20170419-gam_lag1_tops3-20170516.cdc.csv'
+    :return: a 3-tuple of components from cdc_csv_file: (timezero_date, model_name, data_version_date), where dates are
+        datetime.date objects. data_version_date is None if not found in the file name. returns None if the file name
+        is invalid, i.e., does not conform to our standard.
+    """
+    match = ZOLTAR_CSV_FILENAME_RE_PAT.match(cdc_csv_filename)
+    if not match:
+        return None
+
+    # groups has our two cases: with and without data_version_date, e.g.,
+    # ('2017', '04', '19', 'gam_lag1_tops3', '2017', '05', '16')
+    # ('2017', '04', '19', 'gam_lag1_tops3', None, None, None)
+    groups = match.groups()
+    timezero_date = datetime.date(int(groups[0]), int(int(groups[1])), int(int(groups[2])))
+    model_name = groups[3]
+    data_version_date = datetime.date(int(groups[4]), int(int(groups[5])), int(int(groups[6]))) if groups[4] else None
+    return timezero_date, model_name, data_version_date
+
+
+#
+# variables
+#
+
+CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
+
+
+#
+# The following defines this project's file naming standard, and defined in 'Forecast data file names' in
+# documentation.html, e.g., '<time_zero>-<model_name>[-<data_version_date>].cdc.csv' . For example:
+#
+# - '20170419-gam_lag1_tops3-20170516.cdc.csv'
+# - '20161023-KoTstable-20161109.cdc.csv'
+# - '20170504-gam_lag1_tops3.cdc.csv'
+#
+
+ZOLTAR_CSV_FILENAME_RE_PAT = re.compile(r"""
+^
+(\d{4})(\d{2})(\d{2})    # time_zero YYYYMMDD
+-                        # dash
+([a-zA-Z0-9_]+)          # model_name
+(?:                      # non-repeating group so that '-20170516' doesn't get included
+  -                      # optional dash and dvd
+  (\d{4})(\d{2})(\d{2})  # data_version_date YYYYMMDD
+  )?                     #
+\.cdc.csv$
+""", re.VERBOSE)
+
+
+#
+# app
+#
 
 if __name__ == '__main__':
     make_thai_moph_project_app()

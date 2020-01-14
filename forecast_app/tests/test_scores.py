@@ -17,8 +17,7 @@ from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
-from utils.cdc import load_cdc_csv_forecast_file
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import create_thai_locations_and_targets
 
 
@@ -42,8 +41,8 @@ class ScoresTestCase(TestCase):
 
         # use default abbreviation (""):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
-        load_cdc_csv_forecast_file(cls.forecast_model, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                   cls.time_zero)
+        load_cdc_csv_forecast_file(xx, cls.forecast_model,
+                                   Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), cls.time_zero)
 
 
     def test_score_creation(self):
@@ -364,7 +363,7 @@ class ScoresTestCase(TestCase):
         make_cdc_locations_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecast_file(forecast_model2,
+        load_cdc_csv_forecast_file(xx, forecast_model2,
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero2)
 
@@ -652,7 +651,7 @@ class ScoresTestCase(TestCase):
         create_thai_locations_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecast_file(forecast_model2,
+        load_cdc_csv_forecast_file(xx, forecast_model2,
                                    Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
                                    time_zero2)
         project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
@@ -717,7 +716,7 @@ def _make_cdc_log_score_project():
     project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
 
     forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
-    forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+    forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2,
                                            Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv'),
                                            time_zero2)
 
@@ -730,7 +729,7 @@ def _make_thai_log_score_project():
     create_thai_locations_and_targets(project2)
 
     forecast_model2 = ForecastModel.objects.create(project=project2)
-    forecast2 = load_cdc_csv_forecast_file(forecast_model2, Path(
+    forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2, Path(
         'forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'), time_zero2)
 
     project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))

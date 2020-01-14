@@ -7,9 +7,9 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.flusight import flusight_location_to_data_dict
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
 
 
 class FlusightTestCase(TestCase):
@@ -29,7 +29,7 @@ class FlusightTestCase(TestCase):
                                 # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}
                                 data_version_date=datetime.date(2016, 10, 29))
         forecast_model1 = ForecastModel.objects.create(project=project)
-        load_cdc_csv_forecast_file(forecast_model1, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+        load_cdc_csv_forecast_file(xx, forecast_model1, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
                                    time_zero)
 
         # we treat the json file as a Django's template b/c mode lIDs are hard-coded, but can vary depending on the
@@ -57,7 +57,7 @@ class FlusightTestCase(TestCase):
                                 data_version_date=None,
                                 is_season_start=True, season_name='2017')  # season has no forecast data
         forecast_model = ForecastModel.objects.create(project=project)
-        load_cdc_csv_forecast_file(forecast_model, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+        load_cdc_csv_forecast_file(xx, forecast_model, Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
                                    time_zero)
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-no-points.json', 'r') as fp:
             exp_json_template_str = fp.read()

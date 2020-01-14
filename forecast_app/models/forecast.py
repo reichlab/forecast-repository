@@ -79,25 +79,11 @@ class Forecast(models.Model):
                    for concrete_prediction_class in Prediction.concrete_subclasses())
 
 
-    def bincat_distribution_qs(self):
-        from forecast_app.models import BinCatDistribution
+    def bin_distribution_qs(self):
+        from forecast_app.models import BinDistribution
 
 
-        return self._predictions_qs(BinCatDistribution)
-
-
-    def binlwr_distribution_qs(self):
-        from forecast_app.models import BinLwrDistribution
-
-
-        return self._predictions_qs(BinLwrDistribution)
-
-
-    def binary_distribution_qs(self):
-        from forecast_app.models import BinaryDistribution
-
-
-        return self._predictions_qs(BinaryDistribution)
+        return self._predictions_qs(BinDistribution)
 
 
     def named_distribution_qs(self):
@@ -119,13 +105,6 @@ class Forecast(models.Model):
 
 
         return self._predictions_qs(SampleDistribution)
-
-
-    def samplecat_distribution_qs(self):
-        from forecast_app.models import SampleCatDistribution
-
-
-        return self._predictions_qs(SampleCatDistribution)
 
 
     def _predictions_qs(self, prediction_subclass):

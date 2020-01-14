@@ -6,7 +6,8 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Target
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.cdc import make_cdc_locations_and_targets
+from utils.utilities import get_or_create_super_po_mo_users
 from utils.project import create_project_from_json, config_dict_from_project
 
 

@@ -12,9 +12,10 @@ from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
-from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.utilities import get_or_create_super_po_mo_users
 from utils.project import create_project_from_json
 
 
@@ -30,9 +31,8 @@ class ForecastTestCase(TestCase):
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
-        cls.forecast = load_cdc_csv_forecast_file(
-            cls.forecast_model, Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-            cls.time_zero)
+        cls.forecast = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
+            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
     def test_load_forecast_created_at_field(self):
@@ -40,7 +40,7 @@ class ForecastTestCase(TestCase):
         make_cdc_locations_and_targets(project2)
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
+        forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2,
                                                Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
                                                time_zero2)
         self.assertIsNotNone(forecast2.created_at)
@@ -69,16 +69,14 @@ class ForecastTestCase(TestCase):
 
         # test empty file
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bad_file_no_header-2017-01-17.csv'),
-                                       self.time_zero)
+            load_cdc_csv_forecast_file(xx, self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad_file_no_header-2017-01-17.csv'), self.time_zero)
         self.assertIn('empty file', str(context.exception))
 
         # test a bad data file header
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'),
-                                       self.time_zero)
+            load_cdc_csv_forecast_file(xx, self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'), self.time_zero)
         self.assertIn('invalid header', str(context.exception))
 
         # test load_forecast() with timezero not in the project
@@ -87,9 +85,9 @@ class ForecastTestCase(TestCase):
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(  # TimeZero doesn't matter b/c project has none
-                forecast_model2,
-                Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), self.time_zero)
+            load_cdc_csv_forecast_file(xx, forecast_model2,
+                                       Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
+                                       self.time_zero)
         self.assertIn("time_zero was not in project", str(context.exception))
 
 
@@ -145,13 +143,12 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'),
-                                       self.time_zero)
+            load_cdc_csv_forecast_file(xx, self.forecast_model,
+                                       Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'), self.time_zero)
         self.assertIn("Point value was non-numeric", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(self.forecast_model,
+            load_cdc_csv_forecast_file(xx, self.forecast_model,
                                        Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
                                        self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
@@ -159,7 +156,7 @@ class ForecastTestCase(TestCase):
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
             try:
-                load_cdc_csv_forecast_file(self.forecast_model,
+                load_cdc_csv_forecast_file(xx, self.forecast_model,
                                            Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv'),
                                            self.time_zero)  # date-based Point row w/NA value is OK
             except:
@@ -275,9 +272,8 @@ class ForecastTestCase(TestCase):
         self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
         self.assertEqual(8019, self.forecast.get_num_rows())  # ""
 
-        forecast2 = load_cdc_csv_forecast_file(self.forecast_model,
-                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
-                                               self.time_zero)
+        forecast2 = load_cdc_csv_forecast_file(xx, self.forecast_model,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
         self.assertEqual(5237, forecast2.get_num_rows())  # 8019 total rows - 2782 zero-valued bin rows = 5237 non-zero
         self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
@@ -293,7 +289,7 @@ class ForecastTestCase(TestCase):
                                             data_version_date=None)
         self.assertEqual(None, self.forecast_model.forecast_for_time_zero(time_zero))
 
-        forecast2 = load_cdc_csv_forecast_file(self.forecast_model,
+        forecast2 = load_cdc_csv_forecast_file(xx, self.forecast_model,
                                                Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), time_zero)
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
@@ -310,9 +306,8 @@ class ForecastTestCase(TestCase):
 
         # adding a forecast should update its model's score_change.changed_at
         before_changed_at = forecast_model2.score_change.changed_at
-        forecast2 = load_cdc_csv_forecast_file(forecast_model2,
-                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                               time_zero)
+        forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2,
+                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
         self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
 
@@ -325,9 +320,8 @@ class ForecastTestCase(TestCase):
         # bulk-deleting a model's forecasts will update its score_change.changed_at. (this basically tests that a signal
         # is used instead of a customized delete() - see set_model_changed_at() comment
         for _ in range(2):
-            load_cdc_csv_forecast_file(forecast_model2,
-                                       Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
-                                       time_zero)
+            load_cdc_csv_forecast_file(xx, forecast_model2,
+                                       Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)
         before_changed_at = forecast_model2.score_change.changed_at
         forecast_model2.forecasts.all().delete()
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)

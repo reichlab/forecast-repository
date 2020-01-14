@@ -26,7 +26,7 @@ def convert_cdc_csv_to_json_app(forecast_csv_file):
     click.echo(f"* started converting {forecast_csv_file} -> {output_json_file}")
     with open(forecast_csv_file) as cdc_csv_fp, \
             open(output_json_file, 'w') as output_json_fp:
-        json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
+        json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
         json.dump(json_io_dict, output_json_fp, indent=4)
     click.echo("* done")
 

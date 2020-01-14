@@ -224,7 +224,7 @@ class BinDistribution(EmpiricalDistribution):
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
-                    self.cat_i, self.cat_f, self.cat_t, self.cat_d, self.cat_b))
+                    self.cat_i, self.cat_f, self.cat_t, self.cat_d, self.cat_b, '.', self.prob))
 
 
 #

@@ -7,8 +7,8 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, load_cdc_csv_forecasts_from_dir
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
 
 
@@ -28,22 +28,22 @@ class MAETestCase(TestCase):
 
         # EW1-KoTstable-2017-01-17.csv -> EW1 in 2017:
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 1)))
-        cls.forecast1 = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+        cls.forecast1 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), time_zero)
 
         # EW2-KoTstable-2017-01-23.csv -> EW2 in 2017:
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 2)))
-        cls.forecast2 = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+        cls.forecast2 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW2-KoTstable-2017-01-23.csv'), time_zero)
 
         # EW51-KoTstable-2017-01-03.csv -> EW51 in 2016:
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 51)))
-        cls.forecast3 = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+        cls.forecast3 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW51-KoTstable-2017-01-03.csv'), time_zero)
 
         # EW52-KoTstable-2017-01-09.csv -> EW52 in 2016:
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 52)))
-        cls.forecast4 = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+        cls.forecast4 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), time_zero)
 
         # 'mini' season for testing. from:

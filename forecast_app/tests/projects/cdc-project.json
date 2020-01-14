@@ -22,8 +22,14 @@
   ],
   "targets": [
     {
-      "name": "Season onset",
-      "description": "The onset of the season is defined as the MMWR surveillance week (http://wwwn.cdc.gov/nndss/script/downloads.aspx) when the percentage of visits for influenza-like illness (ILI) reported through ILINet reaches or exceeds the baseline value for three consecutive weeks (updated 2016-2017 ILINet baseline values for the US and each HHS region will be available at http://www.cdc.gov/flu/weekly/overview.htm the week of October 10, 2016). Forecasted 'onset' week values should be for the first week of that three week period.",
+      "name": "Season onset binary",
+      "description": "A binary target indicating whether incidence in a given region-season will go above the threshold, and stay above the threshold for at least three consecutive weeks. TRUE indicates that incidence will go above the threshold.",
+      "type": "binary",
+      "is_step_ahead": false
+    },
+    {
+      "name": "Season onset date",
+      "description": "Conditional on onset occurring (see Season onset binary target), the probability distribution across weeks within the influenza season for which week will be the first week above the regional threshold. The date should be specified as the *Monday* of the epidemic week that is the predicted first week above the threshold.",
       "type": "date",
       "unit": "week",
       "is_step_ahead": false,
@@ -31,7 +37,7 @@
     },
     {
       "name": "Season peak week",
-      "description": "The peak week will be defined as the MMWR surveillance week that the weighted ILINet percentage is the highest for the 2016-2017 influenza season.",
+      "description": "The peak week is defined by the Monday of the MMWR surveillance week in which the weighted ILINet percentage is the highest for the given season in a given region.",
       "type": "date",
       "unit": "week",
       "is_step_ahead": false,
@@ -39,7 +45,7 @@
     },
     {
       "name": "Season peak percentage",
-      "description": "The intensity will be defined as the highest numeric value that the weighted ILINet percentage reaches during the 2016-2017 influenza season.",
+      "description": "The peak percentage is defined as the highest numeric value that the weighted ILINet percentage reaches during the given influenza season in a given region.",
       "type": "continuous",
       "unit": "percent",
       "is_step_ahead": false,

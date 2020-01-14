@@ -3,7 +3,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from forecast_app.models.upload_file_job import UploadFileJob, address_subject_message_for_upload_file_job
-from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 class NotificationTestCase(TestCase):

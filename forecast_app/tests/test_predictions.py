@@ -7,12 +7,11 @@ from django.test import TestCase
 from forecast_app.models import Forecast
 from forecast_app.models import ForecastModel, TimeZero
 from forecast_app.models.prediction import calc_named_distribution
-from utils.cdc import json_io_dict_from_cdc_csv_file
+from utils.cdc import make_cdc_locations_and_targets
 from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows, \
     json_io_dict_from_forecast
-from utils.make_cdc_flu_contests_project import get_or_create_super_po_mo_users, make_cdc_locations_and_targets
 from utils.project import create_project_from_json
-from utils.utilities import YYYYMMDD_DATE_FORMAT
+from utils.utilities import YYYYMMDD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 
 #
@@ -52,22 +51,6 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
 
 
-    def test_json_io_dict_from_cdc_csv_file(self):
-        with open(self.cdc_csv_path) as cdc_csv_fp, \
-                open('forecast_app/tests/predictions/exp-cdc-predictions.json') as exp_json_fp:
-            exp_json_io_dict = json.load(exp_json_fp)  # converted from EW1-KoTsarima-2017-01-17-small.csv
-            act_json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
-            self.assertEqual(exp_json_io_dict, act_json_io_dict)
-
-        # test a test larger csv file that has >1 bin rows
-        with open('forecast_app/tests/predictions/20161023-KoTstable-20161109-small.cdc.csv') as cdc_csv_fp, \
-                open('forecast_app/tests/predictions/20161023-KoTstable-20161109-small-exp-cdc-predictions.json') \
-                        as exp_json_fp:
-            exp_json_io_dict = json.load(exp_json_fp)
-            act_json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
-            self.assertEqual(exp_json_io_dict, act_json_io_dict)
-
-
     def test_load_predictions_from_json_io_dict(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
@@ -90,20 +73,6 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(3, forecast.named_distribution_qs().count())
         self.assertEqual(11, forecast.point_prediction_qs().count())
         self.assertEqual(23, forecast.sample_distribution_qs().count())
-
-
-    def test_load_predictions_from_cdc_csv_file(self):
-        # load the three types of predictions that come from cdc.csv files, call Forecast.*_qs() functions
-        with open(self.cdc_csv_path) as cdc_csv_fp:
-            json_io_dict = json_io_dict_from_cdc_csv_file(cdc_csv_fp)
-            load_predictions_from_json_io_dict(self.forecast, json_io_dict)
-            self.assertEqual(23, self.forecast.bincat_distribution_qs().count())
-            self.assertEqual(55, self.forecast.binlwr_distribution_qs().count())
-            self.assertEqual(0, self.forecast.binary_distribution_qs().count())
-            self.assertEqual(0, self.forecast.named_distribution_qs().count())
-            self.assertEqual(77, self.forecast.point_prediction_qs().count())
-            self.assertEqual(0, self.forecast.sample_distribution_qs().count())
-            self.assertEqual(0, self.forecast.samplecat_distribution_qs().count())
 
 
     def test_json_io_dict_from_forecast(self):
@@ -233,6 +202,7 @@ class PredictionsTestCase(TestCase):
                               ['location3', 'Season peak week', '2020-01-06'],
                               ['location3', 'Season peak week', '2019-12-16']],
                              sample_rows)
+
 
     def test_prediction_dicts_to_db_rows_invalid(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)

@@ -11,9 +11,9 @@ from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
-from utils.cdc import load_cdc_csv_forecast_file
-from utils.make_cdc_flu_contests_project import make_cdc_locations_and_targets, get_or_create_super_po_mo_users
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import create_thai_locations_and_targets
+from utils.utilities import get_or_create_super_po_mo_users
 from utils.project import create_project_from_json
 
 
@@ -32,7 +32,7 @@ class ProjectTestCase(TestCase):
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
-        cls.forecast = load_cdc_csv_forecast_file(cls.forecast_model, Path(
+        cls.forecast = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
             'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
 
 
@@ -108,7 +108,7 @@ class ProjectTestCase(TestCase):
 
     def test_get_num_rows(self):
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
-        load_cdc_csv_forecast_file(self.forecast_model,
+        load_cdc_csv_forecast_file(xx, self.forecast_model,
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero2)
         self.assertEqual(self.project.get_num_forecast_rows_all_models(), 8019 * 2)
@@ -235,7 +235,7 @@ class ProjectTestCase(TestCase):
 
         # test location_to_max_val()
         forecast_model = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecast_file(forecast_model,
+        load_cdc_csv_forecast_file(xx, forecast_model,
                                    Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
                                    time_zero3)
         exp_location_to_max_val = {'HHS Region 1': 2.06145600601835, 'HHS Region 10': 2.89940153907353,
