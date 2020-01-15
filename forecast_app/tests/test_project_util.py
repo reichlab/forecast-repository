@@ -57,7 +57,7 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual('Weighted ILI (%)', project.visualization_y_label)
 
         self.assertEqual(11, project.locations.count())
-        self.assertEqual(7, project.targets.count())
+        self.assertEqual(8, project.targets.count())
 
         # spot-check a Location
         location = project.locations.filter(name='US National').first()

@@ -25,12 +25,6 @@ from utils.utilities import parse_value, YYYY_MM_DD_DATE_FORMAT
 SEASON_START_EW_NUMBER = 30
 
 
-# these are project-specific: Impetus ('1_biweek_ahead', ...) and CDC ensemble (all other targets)
-# BINLWR_TARGET_NAMES = ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
-#                        '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead', '5_biweek_ahead']
-# BINCAT_TARGET_NAMES = ['Season onset', 'Season peak week']
-
-
 @transaction.atomic
 def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_path, time_zero):
     """

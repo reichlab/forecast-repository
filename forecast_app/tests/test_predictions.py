@@ -64,11 +64,24 @@ class PredictionsTestCase(TestCase):
             load_predictions_from_json_io_dict(forecast, {})
         self.assertIn("json_io_dict had no 'predictions' key", str(context.exception))
 
-        # load all four types of Predictions, call Forecast.*_qs() functions. see docs-predictionsexp-rows.xlsx
+        # load all four types of Predictions, call Forecast.*_qs() functions. see docs-predictionsexp-rows.xlsx.
+        #
+        # counts from docs-predictionsexp-rows.xlsx: point: 11, named: 3, bin: 30 (3 zero prob), sample: 23
+        # = total rows: 67
+        #
+        # counts based on .json file:
+        # - 'pct next week': point: 3, named: 1 , bin: 3, sample: 5 = 12
+        # - 'cases next week': point: 2, named: 1 , bin: 3, sample: 3 = 10
+        # - 'season severity': point: 2, named: 0 , bin: 3, sample: 5 = 10
+        # - 'above baseline': point: 1, named: 1 , bin: 0, sample: 6 = 8
+        # - 'Season peak week': point: 3, named: 0 , bin: 7, sample: 4 = 13
+        # - 'Next season flu strain composition': point: 0, named: 0 , bin: 14, sample: 0 = 14
+        # = total rows: 67 - 3 zero prob = 64
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict = json.load(fp)
+
         load_predictions_from_json_io_dict(forecast, json_io_dict)
-        self.assertEqual(-1, forecast.get_num_rows())
+        self.assertEqual(64, forecast.get_num_rows())
         self.assertEqual(27, forecast.bin_distribution_qs().count())  # 30 - 3 zero prob
         self.assertEqual(3, forecast.named_distribution_qs().count())
         self.assertEqual(11, forecast.point_prediction_qs().count())

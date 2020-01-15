@@ -11,10 +11,10 @@ from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
 PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
-    BinDistribution: 'Bin',
-    NamedDistribution: 'Named',
-    PointPrediction: 'Point',
-    SampleDistribution: 'Sample',
+    BinDistribution: 'bin',
+    NamedDistribution: 'named',
+    PointPrediction: 'point',
+    SampleDistribution: 'sample',
 }
 
 

@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets, season_start_year_for_date
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets, season_start_year_from_ew_and_year
 from utils.make_thai_moph_project import cdc_csv_filename_components
 
 
@@ -34,25 +34,25 @@ class UtilsTestCase(TestCase):
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 
-        # EW1-KoTstable-2017-01-17.csv -> EW1 in 2017:
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
+        season_start_year = season_start_year_from_ew_and_year(1, 2017)
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 1)))
-        cls.forecast1 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
-            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), time_zero)
+        cls.forecast1 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
 
-        # EW2-KoTstable-2017-01-23.csv -> EW2 in 2017:
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW2-KoTstable-2017-01-23.csv')  # EW02 2017
+        season_start_year = season_start_year_from_ew_and_year(1, 2017)
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 2)))
-        cls.forecast2 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
-            'forecast_app/tests/model_error/ensemble/EW2-KoTstable-2017-01-23.csv'), time_zero)
+        cls.forecast2 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
 
-        # EW51-KoTstable-2017-01-03.csv -> EW51 in 2016:
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW51-KoTstable-2017-01-03.csv')  # EW51 2016
+        season_start_year = season_start_year_from_ew_and_year(51, 2016)
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 51)))
-        cls.forecast3 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
-            'forecast_app/tests/model_error/ensemble/EW51-KoTstable-2017-01-03.csv'), time_zero)
+        cls.forecast3 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
 
-        # EW52-KoTstable-2017-01-09.csv -> EW52 in 2016:
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv')  # EW52 2016
+        season_start_year = season_start_year_from_ew_and_year(52, 2016)
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 52)))
-        cls.forecast4 = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
-            'forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv'), time_zero)
+        cls.forecast4 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
 
 
     def test_name_components_from_cdc_csv_filename(self):
