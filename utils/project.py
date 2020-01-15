@@ -4,9 +4,8 @@ from datetime import datetime
 
 from django.db import transaction
 
-from forecast_app.models import Project, Location, Target, NamedDistribution, PointPrediction, SampleDistribution
-from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-from utils.utilities import YYYYMMDD_DATE_FORMAT, YYYY_MM_DD_DATE_FORMAT
+from forecast_app.models import Project, Location, Target
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -59,55 +58,72 @@ def config_dict_from_project(project):
     """
     The twin of `create_project_from_json()`, returns a configuration dict for project as passed to that function.
     """
+    # todo xx integrate with API serialization!
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
             'locations': [{'name': location.name} for location in project.locations.all()],
-            'targets': _target_config_dicts_for_project(project),
-            'timezeros': [{'timezero_date': timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+            'targets': _target_dicts_for_project_config(project),
+            'timezeros': [{'timezero_date': timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                            'data_version_date':
-                               timezero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+                               timezero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
                                if timezero.data_version_date else None,
                            'is_season_start': timezero.is_season_start,
                            'season_name': timezero.season_name}
                           for timezero in project.timezeros.all()]}
 
 
-# todo xx merge w/Target.ok_distributions_str(). definitely a code smell
-def _prediction_types_for_target(target):
-    prediction_types = []
-    if target.ok_bincat_distribution:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinCatDistribution])
-    if target.ok_binlwr_distribution:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinLwrDistribution])
-    if target.ok_binary_distribution:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinaryDistribution])
-    if target.ok_named_distribution:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution])
-    if target.ok_point_prediction:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction])
-    if target.ok_sample_distribution:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution])
-    if target.ok_samplecat_distribution:
-        prediction_types.append(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleCatDistribution])
-    return prediction_types
-
-
-def _target_config_dicts_for_project(project):
+def _target_dicts_for_project_config(project):
     target_dicts = []
     for target in project.targets.all():
-        prediction_types = _prediction_types_for_target(target)
+        data_type = Target.data_type(target.type)
+        type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
+
+        # start with required fields
         target_dict = {'name': target.name,
                        'description': target.description,
-                       'unit': target.unit,
-                       'is_date': target.is_date,
-                       'is_step_ahead': target.is_step_ahead,
-                       'step_ahead_increment': target.step_ahead_increment,
-                       'point_value_type': target.point_value_type_str(),
-                       'prediction_types': prediction_types}
-        if 'BinLwr' in prediction_types:
-            target_dict['lwr'] = [binlwr.lwr for binlwr in target.binlwrs.all()]
+                       'type': type_int_to_name[target.type],  # TARGET_TYPE_CHOICES
+                       'is_step_ahead': target.is_step_ahead}
+
+        # add optional fields, including 'list' ones. rather than basing whether they are available on target type (for
+        # example, 'continuous' targets /might/ have a range), we check for whether the optional field (including 'list'
+        # ones) is present. the exception is step_ahead_increment, for which we check is_step_ahead
+
+        # is_step_ahead
+        if target.is_step_ahead:
+            target_dict['step_ahead_increment'] = target.step_ahead_increment
+
+        # unit (target.unit)
+        if target.unit is not None:
+            target_dict['unit'] = target.unit
+
+        # range (target.ranges)
+        target_ranges_qs = target.ranges  # target.value_i, target.value_f
+        if target_ranges_qs.count() != 0:  # s/b exactly 2
+            target_ranges = target_ranges_qs.values_list('value_i', flat=True) \
+                if data_type == Target.INTEGER_DATA_TYPE \
+                else target_ranges_qs.values_list('value_f', flat=True)
+            target_ranges = sorted(target_ranges)
+            target_dict['range'] = [target_ranges[0], target_ranges[1]]
+
+        # cats (target.cats)
+        target_cats_qs = target.cats  # target.cat_f, target.cat_t
+        if target_cats_qs.count() != 0:
+            target_cats = target_cats_qs.values_list('cat_f', flat=True) \
+                if data_type == Target.FLOAT_DATA_TYPE \
+                else target_cats_qs.values_list('cat_t', flat=True)
+            target_dict['cats'] = sorted(target_cats)
+
+        # dates (target.dates)
+        target_dates_qs = target.dates  # target.date
+        if target_dates_qs.count() != 0:
+            target_dates = sorted(target_dates_qs.values_list('date', flat=True))
+            target_dict['dates'] = [date.strftime(YYYY_MM_DD_DATE_FORMAT) for date in target_dates]
+
+        # todo xx needed? lwrs (target.lwrs)
+        #     target_dict['lwr'] = [binlwr.lwr for binlwr in target.binlwrs.all()]
+
         target_dicts.append(target_dict)
     return target_dicts
 

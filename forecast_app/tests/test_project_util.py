@@ -5,10 +5,9 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Target
-from utils.cdc import make_cdc_locations_and_targets
-from utils.utilities import get_or_create_super_po_mo_users
+from forecast_app.models import Project, Target
 from utils.project import create_project_from_json, config_dict_from_project
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -26,13 +25,8 @@ class ProjectUtilTestCase(TestCase):
 
     def test_config_dict_from_project(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
-            timezero_config = {'timezero_date': '2017-12-01',
-                               'data_version_date': None,
-                               'is_season_start': True,
-                               'season_name': 'tis the season'}
-            input_project_dict['timezeros'] = [timezero_config]
         project = create_project_from_json(input_project_dict, po_user)
         output_project_config = config_dict_from_project(project)
         self.assertEqual(input_project_dict, output_project_config)

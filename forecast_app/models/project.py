@@ -337,7 +337,10 @@ class Project(models.Model):
 
 
     def non_date_targets(self):
-        return self.targets.filter(is_date=False).order_by('name')
+        from forecast_app.models import Target  # avoid circular imports
+
+
+        return self.targets.exclude(type=Target.DATE_TARGET_TYPE).order_by('name')
 
 
     #
