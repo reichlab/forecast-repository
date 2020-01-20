@@ -26,7 +26,10 @@ django-rq = "*"
 "boto3" = "*"
 djangorestframework-jwt = "*"
 more-itertools = "*"
-django-anymail = {version = "*", extras = ["sendinblue", "sendgrid"]}
+django-anymail = {extras = ["sendgrid", "sendinblue"],version = "*"}
+rest-framework-jwt = "*"
+djangorestframework-jsonapi = "*"
+compressor = "*"
 
 [dev-packages]
 

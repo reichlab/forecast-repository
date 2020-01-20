@@ -8,6 +8,7 @@ urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^about$', views.about, name='about'),
     url(r'^docs$', views.documentation, name='docs'),
+    url(r'^projects$', views.projects, name='projects'),
 
     url(r'^zadmin$', views.zadmin, name='zadmin'),
     url(r'^zadmin/upload_file_jobs$', views.zadmin_upload_file_jobs, name='zadmin-upload-file-jobs'),

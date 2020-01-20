@@ -1,3 +1,5 @@
+from .base import *
+import dj_database_url
 import os
 
 
@@ -12,19 +14,10 @@ DEBUG = False
 if 'SECRET_KEY' not in os.environ:
     from django.core.exceptions import ImproperlyConfigured
 
-
-    raise ImproperlyConfigured("The 'SECRET_KEY' environment variable was not set.")
+    raise ImproperlyConfigured(
+        "The 'SECRET_KEY' environment variable was not set.")
 
 SECRET_KEY = os.environ['SECRET_KEY']
-
-#
-# ---- imports ----
-#
-
-import dj_database_url
-
-from .base import *
-
 
 #
 # ---- MIDDLEWARE ----
@@ -41,7 +34,8 @@ MIDDLEWARE.extend([
 # ---- database config ----
 #
 
-# Update database configuration with $DATABASE_URL. This default is used when running `$ heroku local` b/c the .env
+# Update database configuration with $DATABASE_URL.
+# This default is used when running `$ heroku local` b/c the .env
 # file sets DJANGO_SETTINGS_MODULE="forecast_repo.settings.heroku_production"
 DATABASES = {
     'default': {
@@ -99,10 +93,9 @@ STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
 
 # Extra places for collectstatic to find static files.
 STATICFILES_DIRS = (
-    os.path.join(PROJECT_ROOT, 'static'),
+    os.path.join(PROJECT_ROOT, 'staticfiles'),
 )
 
 # Simplified static file serving.
 # https://warehouse.python.org/project/whitenoise/
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-

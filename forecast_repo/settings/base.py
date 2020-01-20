@@ -10,14 +10,17 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
+from django.contrib.messages import constants as message_constants
 import os
 
 from django.conf import settings
 
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE_DIR = os.path.dirname(os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))))
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
@@ -46,7 +49,8 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'debug_toolbar',
     'django_rq',
-    "anymail",
+    'anymail',
+    'compressor'
 ]
 
 REST_FRAMEWORK = {
@@ -54,14 +58,16 @@ REST_FRAMEWORK = {
     #     'rest_framework.permissions.AllowAny',  # default
     # ],
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',  # djangorestframework-jwt
+        # djangorestframework-jwt
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
         # 'rest_framework.authentication.SessionAuthentication',  # default
         # 'rest_framework.authentication.BasicAuthentication',  # ""
     ),
     'PAGE_SIZE': 10
 }
 
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # editing Projects involves possibly many <input> fields dep. on # of TimeZeros
+# editing Projects involves possibly many <input> fields dep. on # of TimeZeros
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -114,6 +120,10 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+COMPRESS_PRECOMPILERS = (
+    ('text/x-scss', 'django_libsass.SassCompiler'),  # compatable with scss
+)
 
 LANGUAGE_CODE = 'en-us'
 
@@ -173,15 +183,13 @@ INTERNAL_IPS = ['127.0.0.1']
 # set tags to match Bootstrap 3, https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
 #
 
-from django.contrib.messages import constants as message_constants
-
-
 MESSAGE_TAGS = {
     # message_constants.DEBUG: 'debug',
     # message_constants.INFO: 'info',
     # message_constants.SUCCESS: 'success',
     # message_constants.WARNING: 'warning',
-    message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
+    # the only one that needs correcting, i.e., the only one different from default
+    message_constants.ERROR: 'danger',
 }
 
 #
@@ -225,3 +233,9 @@ ANYMAIL = {
 EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
 
 DEFAULT_FROM_EMAIL = 'admin@zoltardata.com'
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'compressor.finders.CompressorFinder'
+]

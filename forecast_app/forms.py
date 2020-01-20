@@ -9,9 +9,8 @@ class ProjectForm(forms.ModelForm):
     class Meta:
         model = Project
 
-        fields = ('name', 'is_public', 'time_interval_type', 'description', 'home_url', 'core_data', 'logo_url',
-                  'model_owners')
-
+        fields = ('name', 'is_public', 'time_interval_type', 'description',
+                  'home_url', 'core_data', 'logo_url', 'model_owners')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -21,7 +20,8 @@ class ProjectForm(forms.ModelForm):
 
             field.widget.attrs['class'] = 'form-control'
 
-        self.fields['name'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['name'].widget = forms.TextInput(
+            attrs={'class': 'form-control'})
 
 
 class UserModelForm(forms.ModelForm):
@@ -29,7 +29,6 @@ class UserModelForm(forms.ModelForm):
         model = User
 
         fields = ('email', 'first_name', 'last_name')
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -41,14 +40,17 @@ class ForecastModelForm(forms.ModelForm):
     class Meta:
         model = ForecastModel
 
-        fields = ('name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url')
-
+        fields = ('name', 'abbreviation', 'team_name',
+                  'description', 'home_url', 'aux_data_url')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
 
-        self.fields['name'].widget = forms.TextInput(attrs={'class': 'form-control'})
-        self.fields['abbreviation'].widget = forms.TextInput(attrs={'class': 'form-control'})
-        self.fields['team_name'].widget = forms.TextInput(attrs={'class': 'form-control'})
+        self.fields['name'].widget = forms.TextInput(
+            attrs={'class': 'form-control'})
+        self.fields['abbreviation'].widget = forms.TextInput(
+            attrs={'class': 'form-control'})
+        self.fields['team_name'].widget = forms.TextInput(
+            attrs={'class': 'form-control'})
