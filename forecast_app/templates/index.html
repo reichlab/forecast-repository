@@ -23,10 +23,9 @@
             <div class="container">
             <h3 class="display-3">A Forecast Archive</h1>
                 <p>
-                    Welcome to the Zoltar forecast archive, a web application to demonstrate ideas for a repository of model
-                    forecast
-                    results along with tools to compare, etc. The main ideas are outlined on the
-                    <a href="{% url 'about' %}">About</a> page.
+                   Welcome to the Zoltar forecast archive, an open-source web application that facilitates 
+                   the storage, retrieval, evaluation, and visualization of point and probabilistic forecasts. 
+                   Zoltar was developed to assist with many kinds of real-time forecasting projects. 
                 </p>
             <p><a class="btn btn-outline-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p>
             </div>
@@ -37,17 +36,29 @@
         <div class="row">
           <div class="col-md-4">
             <h2>Projects</h2>
-            <p>Projects hold a collection of models and their forecasts. Project Owners configure models, timezeros, and targets before uploading forecasts. This allows Zoltar to store and programatically score and visualize projects.</p>
-            <p><a class="btn btn-secondary" href="{% url 'projects' %}" role="button">View Projects &raquo;</a></p>
+              <p>
+                Projects are the fundamental organization unit of Zoltar, and hold a collection of 
+                models and their forecasts. Project owners can customize the details of a project 
+                for a forecasting challenge, a collaborative research project, or a teaching workshop.
+              </p>
+              <p><a class="btn btn-secondary" href="{% url 'projects' %}" role="button">View Projects &raquo;</a></p>
           </div>
           <div class="col-md-4">
             <h2>Users</h2>
-            <p>Intereasted in becoming a user of Zoltar? Contact us at zoltar@reichlab.com. We aim to open user sign up by May 2020. Users have permission to create projects and upload forecasts to Zoltar.</p>
-            <p><a class="btn btn-secondary" href="{% url 'login' %}" role="button">Sign in &raquo;</a></p>
+              <p>
+                Interested in using Zoltar yourself? Contact us at zoltar@reichlab.com 
+                to be added to our beta-tester invitation queue. We aim to open user registration 
+                by May 2020. Users have permission to create projects and upload forecasts to Zoltar.
+            </p>
+              <p><a class="btn btn-secondary" href="{% url 'login' %}" role="button">Sign in &raquo;</a></p>
           </div>
           <div class="col-md-4">
             <h2>First Steps</h2>
-            <p>Getting started with Zoltar? The developers wrote a documentation page that decribes the usage and benefit of Zoltar. From creating projects to uploading forecasts, click below to get started.</p>
+              <p>
+                Getting started with Zoltar? We have developed a documentation site that 
+                describes in detail how to use Zoltar. From configuring projects, interacting 
+                with Zoltar via the API, and choosing the right targets for your setting, click below to get started.
+              </p>
             <p><a class="btn btn-secondary" href="https://docs.zoltardata.com/" role="button">Get Started &raquo;</a></p>
           </div>
         </div>
