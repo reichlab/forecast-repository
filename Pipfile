@@ -22,14 +22,13 @@ newrelic = "*"
 django-debug-toolbar = "*"
 redis = "*"
 rq = "*"
-django-rq = "*"
+django-rq = "==2.1.0"
 "boto3" = "*"
 djangorestframework-jwt = "*"
 more-itertools = "*"
-django-anymail = {extras = ["sendgrid", "sendinblue"],version = "*"}
-rest-framework-jwt = "*"
-djangorestframework-jsonapi = "*"
-compressor = "*"
+django-anymail = {version = "*",extras = ["sendinblue", "sendgrid"]}
+django-compressor = "*"
+django-libsass = "*"
 
 [dev-packages]
 
