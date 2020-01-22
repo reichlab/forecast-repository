@@ -1,76 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-        <title>{% block title %}{% endblock %} - Zoltar</title>
+    <title>{% block title %}{% endblock %} - Zoltar</title>
 
-        <!-- Custom Fonts-->
-        <link href="https://fonts.googleapis.com/css?family=Exo:400,600,700&display=swap" rel="stylesheet">
-        <!-- Scholar Icons -->
-        <link rel="stylesheet" href="https://cdn.rawgit.com/jpswalsh/academicons/master/css/academicons.min.css">
-        <!-- Bootstrap 4 Dependencies-->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.js"></script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-        <!-- Bootstrap 4 -->
-        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
-        
-        {% load static %}
-        {% load compress %}
-        {% compress css %}
-        <link type="text/x-scss" rel="stylesheet" href="{% static 'css/custom.scss' %}">
-        {% endcompress %}
-        <script src="{% static 'fontawesome/fontawesome-all.min.js' %}"></script>
-        
-    </head>
+    <!-- Custom Fonts-->
+    <link href="https://fonts.googleapis.com/css?family=Exo:400,600,700&display=swap" rel="stylesheet">
+    <!-- Scholar Icons -->
+    <link rel="stylesheet" href="https://cdn.rawgit.com/jpswalsh/academicons/master/css/academicons.min.css">
+    <!-- Bootstrap 4 Dependencies-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <!-- Bootstrap 4 -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
 
-    <body data-spy="scroll" data-target="#navbar1" data-offset="60">
+    {% load static %}
+    <script src="{% static 'fontawesome/fontawesome-all.min.js' %}"></script>
 
-        {% include 'navbar_snippet.html' %}
+</head>
 
-        <div class="container mt-4">
-            <!-- hack to put vertical spacing above row, https://stackoverflow.com/questions/12273588/add-vertical-blank-space-using-twitter-bootstrap -->
-            <ol style="visibility:hidden;"></ol>
+<body data-spy="scroll" data-target="#navbar1" data-offset="60">
 
-            {% if messages %}
-            {% for message in messages %}
+{% include 'navbar_snippet.html' %}
+
+<div class="container mt-4">
+    <!-- hack to put vertical spacing above row, https://stackoverflow.com/questions/12273588/add-vertical-blank-space-using-twitter-bootstrap -->
+    <ol style="visibility:hidden;"></ol>
+
+    {% if messages %}
+        {% for message in messages %}
             <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
-            {% endfor %}
-            {% endif %}
+        {% endfor %}
+    {% endif %}
 
-            {% block content %}
-            {% endblock %}
+    {% block content %}
+    {% endblock %}
 
-        </div>
+</div>
 
 
-        <!-- Default Statcounter code for Zoltardata.com http://zoltardata.com -->
-        <script type="text/javascript">
-            var sc_project = 11701640;
-            var sc_invisible = 1;
-            var sc_security = "3e3643bc";
+<!-- Default Statcounter code for Zoltardata.com http://zoltardata.com -->
+<script type="text/javascript">
+    var sc_project = 11701640;
+    var sc_invisible = 1;
+    var sc_security = "3e3643bc";
 
-        </script>
-        <script type="text/javascript" src="https://www.statcounter.com/counter/counter.js" async>
+</script>
+<script type="text/javascript" src="https://www.statcounter.com/counter/counter.js" async>
 
-        </script>
-        <noscript>
-            <div class="statcounter">
-                <a title="Web Analytics" href="http://statcounter.com/" target="_blank">
-                    <img class="statcounter" src="//c.statcounter.com/11701640/0/3e3643bc/1/" alt="Web Analytics">
-                </a>
-            </div>
-        </noscript>
-        <!-- End of Statcounter Code -->
-    </body>
+</script>
+<noscript>
+    <div class="statcounter">
+        <a title="Web Analytics" href="http://statcounter.com/" target="_blank">
+            <img class="statcounter" src="//c.statcounter.com/11701640/0/3e3643bc/1/" alt="Web Analytics">
+        </a>
+    </div>
+</noscript>
+<!-- End of Statcounter Code -->
+</body>
 
-    <footer class="footer navbar-fixed-bottom">  
-        <div class="container">
-        <hr> 
-            <span class="text-muted">&copy; Nicholas Reich 2020</span>
-        </div>
-    </footer>
+<footer class="footer navbar-fixed-bottom">
+    <div class="container">
+        <hr>
+        <span class="text-muted">&copy; Nicholas Reich 2020</span>
+    </div>
+</footer>
 
 </html>
