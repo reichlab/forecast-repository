@@ -67,3 +67,7 @@ dump.rdb
 
 # IDE files
 .vscode
+
+## random RStudio files
+*.Rproj*
+
