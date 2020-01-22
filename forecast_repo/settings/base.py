@@ -10,14 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
-from django.contrib.messages import constants as message_constants
 import os
 
 from django.conf import settings
 
 
-BASE_DIR = os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'static')
@@ -58,16 +56,14 @@ REST_FRAMEWORK = {
     #     'rest_framework.permissions.AllowAny',  # default
     # ],
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        # djangorestframework-jwt
-        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',
+        'rest_framework_jwt.authentication.JSONWebTokenAuthentication',  # djangorestframework-jwt
         # 'rest_framework.authentication.SessionAuthentication',  # default
         # 'rest_framework.authentication.BasicAuthentication',  # ""
     ),
     'PAGE_SIZE': 10
 }
 
-# editing Projects involves possibly many <input> fields dep. on # of TimeZeros
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # editing Projects involves possibly many <input> fields dep. on # of TimeZeros
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -183,13 +179,15 @@ INTERNAL_IPS = ['127.0.0.1']
 # set tags to match Bootstrap 3, https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
 #
 
+from django.contrib.messages import constants as message_constants
+
+
 MESSAGE_TAGS = {
     # message_constants.DEBUG: 'debug',
     # message_constants.INFO: 'info',
     # message_constants.SUCCESS: 'success',
     # message_constants.WARNING: 'warning',
-    # the only one that needs correcting, i.e., the only one different from default
-    message_constants.ERROR: 'danger',
+    message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
 }
 
 #
