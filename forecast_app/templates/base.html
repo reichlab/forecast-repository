@@ -18,6 +18,10 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
 
     {% load static %}
+    {% load compress %}
+    {% compress css %}
+        <link type="text/x-scss" rel="stylesheet" href="{% static 'css/custom.scss' %}">
+    {% endcompress %}
     <script src="{% static 'fontawesome/fontawesome-all.min.js' %}"></script>
 
 </head>

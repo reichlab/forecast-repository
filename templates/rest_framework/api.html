@@ -8,6 +8,10 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
 
     {% load static %}
+    {% load compress %}
+    {% compress css %}
+        <link type="text/x-scss" rel="stylesheet" href="{% static 'css/custom.scss' %}">
+    {% endcompress %}
 {% endblock %}
 
 {% block title %}{% if name %}{{ name }} – {% endif %}Zoltar API{% endblock %}

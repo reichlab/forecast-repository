@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'django_rq',
     'anymail',
-    # 'compressor'
+    'compressor'
 ]
 
 REST_FRAMEWORK = {
@@ -117,9 +117,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# COMPRESS_PRECOMPILERS = (
-#     ('text/x-scss', 'django_libsass.SassCompiler'),  # compatable with scss
-# )
+COMPRESS_PRECOMPILERS = (
+    ('text/x-scss', 'django_libsass.SassCompiler'),  # compatable with scss
+)
 
 LANGUAGE_CODE = 'en-us'
 
@@ -235,5 +235,5 @@ DEFAULT_FROM_EMAIL = 'admin@zoltardata.com'
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-    # 'compressor.finders.CompressorFinder'
+    'compressor.finders.CompressorFinder'
 ]
