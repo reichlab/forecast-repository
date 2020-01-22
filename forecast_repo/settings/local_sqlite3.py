@@ -14,6 +14,7 @@ DATABASES = {
     }
 }
 
+
 #
 # ---- Django-RQ config ----
 #
@@ -33,6 +34,7 @@ RQ_QUEUES = {
     },
 }
 
+
 #
 # ---- djangorestframework-jwt config ----
 #
@@ -40,6 +42,7 @@ RQ_QUEUES = {
 # JWT_AUTH = {
 #     'JWT_VERIFY_EXPIRATION': False,  # dangerous
 # }
+
 
 #
 # ---- disable debug toolbar due to executemany() error when using sqlite3 ----
@@ -50,3 +53,10 @@ RQ_QUEUES = {
 
 INSTALLED_APPS.remove('debug_toolbar')
 MIDDLEWARE.remove('debug_toolbar.middleware.DebugToolbarMiddleware')
+
+
+#
+# http://whitenoise.evans.io/en/stable/django.html#using-whitenoise-in-development
+#
+
+INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # put at top, before 'django.contrib.staticfiles'

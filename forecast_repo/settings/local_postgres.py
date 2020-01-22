@@ -18,6 +18,7 @@ DATABASES = {
     }
 }
 
+
 #
 # ---- Django-RQ config ----
 #
@@ -37,6 +38,7 @@ RQ_QUEUES = {
     },
 }
 
+
 #
 # ---- djangorestframework-jwt config ----
 #
@@ -44,3 +46,10 @@ RQ_QUEUES = {
 # JWT_AUTH = {
 #     'JWT_VERIFY_EXPIRATION': False,  # dangerous
 # }
+
+
+#
+# http://whitenoise.evans.io/en/stable/django.html#using-whitenoise-in-development
+#
+
+INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # put at top, before 'django.contrib.staticfiles'
