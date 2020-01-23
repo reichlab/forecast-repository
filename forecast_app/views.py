@@ -37,12 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 def index(request):
-    return render(
-        request,
-        'index.html',
-        context={'users': User.objects.all(),
-                 'projects': Project.objects.order_by('name'),
-                 'is_user_ok_create_project': is_user_ok_create_project(request.user)})
+    return render(request, 'index.html')
 
 
 def about(request):
@@ -50,11 +45,10 @@ def about(request):
 
 
 def projects(request):
-     return render(
+    return render(
         request,
         'projects.html',
-        context={'users': User.objects.all(),
-                 'projects': Project.objects.order_by('name'),
+        context={'projects': Project.objects.order_by('name'),
                  'is_user_ok_create_project': is_user_ok_create_project(request.user)})
 
 
