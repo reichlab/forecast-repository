@@ -11,7 +11,7 @@ jsonfield = "*"
 "psycopg2-binary" = "*"
 dj-database-url = "*"
 gunicorn = "*"
-whitenoise = "*"
+whitenoise = {extras = ["brotli"],version = "*"}
 djangorestframework = "*"
 httpie = "*"
 pillow = "*"
@@ -29,6 +29,7 @@ more-itertools = "*"
 django-anymail = {version = "*",extras = ["sendinblue", "sendgrid"]}
 django-compressor = "*"
 django-libsass = "*"
+brotlipy = "*"
 
 [dev-packages]
 

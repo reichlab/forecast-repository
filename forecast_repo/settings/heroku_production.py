@@ -28,18 +28,6 @@ from .base import *
 
 
 #
-# ---- MIDDLEWARE ----
-#
-
-MIDDLEWARE.extend([
-    # Simplified static file serving.
-    # https://warehouse.python.org/project/whitenoise/
-    # 'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
-])
-
-
-#
 # ---- database config ----
 #
 
@@ -90,23 +78,3 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Allow all host headers
 ALLOWED_HOSTS = ['*']
 
-#
-# ---- static files config ----
-#
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.8/howto/static-files/
-
-# Extra places for collectstatic to find static files.
-STATICFILES_DIRS = (
-    os.path.join(PROJECT_ROOT, 'static'),
-)
-
-# Simplified static file serving.
-# https://warehouse.python.org/project/whitenoise/
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
-
-# https://www.accordbox.com/blog/how-use-scss-sass-your-django-project-python-way/
-COMPRESS_OFFLINE = True
-LIBSASS_OUTPUT_STYLE = 'compressed'
