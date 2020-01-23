@@ -70,4 +70,4 @@ dump.rdb
 
 ## random RStudio files
 *.Rproj*
-
+*.Rhistory
