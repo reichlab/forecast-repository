@@ -37,16 +37,19 @@ logger = logging.getLogger(__name__)
 
 
 def index(request):
-    return render(
-        request,
-        'index.html',
-        context={'users': User.objects.all(),
-                 'projects': Project.objects.order_by('name'),
-                 'is_user_ok_create_project': is_user_ok_create_project(request.user)})
+    return render(request, 'index.html')
 
 
 def about(request):
     return render(request, 'about.html')
+
+
+def projects(request):
+    return render(
+        request,
+        'projects.html',
+        context={'projects': Project.objects.order_by('name'),
+                 'is_user_ok_create_project': is_user_ok_create_project(request.user)})
 
 
 def documentation(request):

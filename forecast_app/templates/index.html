@@ -15,94 +15,58 @@
         }
     </style>
 
-    <h1>Zoltar Home <a href="{% url 'api-root' %}" class="btn btn-info btn-xs" role="button">API</a></h1>
+    <main role="main">
 
-    <p><img width="50%" src="{% static 'flusight-wide.png' %}" class="pull-right">
-        Welcome to the Zoltar forecast archive, a web application to demonstrate ideas for a repository of model
-        forecast
-        results along with tools to compare, etc. The main ideas are outlined on the
-        <a href="{% url 'about' %}">About</a> page.
-    </p>
-
-
-    {% if is_user_ok_create_project %}
-        <h2>Projects
-            <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
-            {# show the new project form with a button dropdown of options for creating: form or file #}
-            <form id="download_form" class="form-inline" style="display: inline-block;" method="POST"
-                  action="{% url 'about' %}">
-                {% csrf_token %}
-                <div class="btn-group">
-                    <button type="submit" class="btn btn-success dropdown-toggle" data-toggle="dropdown"
-                            aria-haspopup="true"
-                            aria-expanded="false">New <span class="caret"></span>
-                    </button>
-                    <ul class="dropdown-menu">
-                        <li><a href="{% url 'create-project-from-form' %}">From form...</a></li>
-                        <li><a data-toggle="modal" data-target="#upload_project_config_modal" href="#">From file...</a>
-                        </li>
-                    </ul>
+        <!-- Main jumbotron for a primary marketing message or call to action -->
+        <div class="container background-image">
+            <div class="jumbotron" background-image="{% static 'flusight-wide.png' %}">
+                <div class="container">
+                    <h3 class="display-3">A Forecast Archive</h3>
+                    <p>
+                        Welcome to the Zoltar forecast archive, an open-source web application that facilitates
+                        the storage, retrieval, evaluation, and visualization of point and probabilistic forecasts.
+                        Zoltar was developed to assist with many kinds of real-time forecasting projects.
+                    </p>
+                    <p><a class="btn btn-outline-primary btn-lg" href="{% url 'about' %}" role="button">Learn more
+                        &raquo;</a></p>
                 </div>
-            </form>
-        </h2>
-        {# the #upload_project_config_modal itself - hidden until above link shows it #}
-        {% include 'upload_project_config_snippet.html' %}
-    {% else %}
-        <h2>Projects
-            <a href="{% url 'api-project-list' %}" class="btn btn-info btn-xs" role="button">API</a>
-        </h2>
-    {% endif %}
+            </div>
+        </div>
 
-
-
-
-    {% if projects %}
-        <p class="help-block">The archive has {{ projects|length }} project{{ projects|length|pluralize }}:</p>
-
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Project</th>
-                <th></th>  <!-- Logo -->
-                <th>Owner</th>
-                <th>Description</th>
-                <th>Summary</th>
-            </tr>
-            {% for project in projects %}
-                {% with proj_summary_counts=project.get_summary_counts %}
-                    <tr>
-                        <td>
-                            <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
-                        </td>
-                        <td>
-                            {% if project.logo_url %}
-                                <div id="projectLogoDiv"><a href="{{ project.home_url }}"><img
-                                        src="{{ project.logo_url }}"></a>
-                                </div>
-                            {% else %}
-                                <small class="text-muted">(No logo)</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if project.owner %}
-                                <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
-                            {% else %}
-                                <small class="text-muted">(No owner)</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ project.description|linebreaksbr }}
-                        </td>
-                        <td title="Est. row counts" class="text-muted">
-                            {% include 'visibility_snippet.html' with project=project %}
-                            <br>
-                            {% include "project_count_snippet.html" with project=project proj_summary_counts=proj_summary_counts use_intword=True %}
-                        </td>
-                    </tr>
-                {% endwith %}
-            {% endfor %}
-        </table>
-    {% else %}
-        <p>There are no projects in the archive.</p>
-    {% endif %}
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h2>Projects</h2>
+                    <p>
+                        Projects are the fundamental organization unit of Zoltar, and hold a collection of
+                        models and their forecasts. Project owners can customize the details of a project
+                        for a forecasting challenge, a collaborative research project, or a teaching workshop.
+                    </p>
+                    <p><a class="btn btn-secondary" href="{% url 'projects' %}" role="button">View Projects &raquo;</a>
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h2>Users</h2>
+                    <p>
+                        Interested in using Zoltar yourself? Contact us at zoltar@reichlab.io
+                        to be added to our beta-tester invitation queue. We aim to open user registration
+                        by May 2020. Users have permission to create projects and upload forecasts to Zoltar.
+                    </p>
+                    <p><a class="btn btn-secondary" href="{% url 'login' %}" role="button">Sign in &raquo;</a></p>
+                </div>
+                <div class="col-md-4">
+                    <h2>First Steps</h2>
+                    <p>
+                        Getting started with Zoltar? We have developed a documentation site that
+                        describes in detail how to use Zoltar. From configuring projects, interacting
+                        with Zoltar via the API, and choosing the right targets for your setting, click below to get
+                        started.
+                    </p>
+                    <p><a class="btn btn-secondary" href="https://docs.zoltardata.com/" role="button">Get Started
+                        &raquo;</a></p>
+                </div>
+            </div>
+        </div>
+    </main>
 
 {% endblock %}

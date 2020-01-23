@@ -1,0 +1,93 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "bootstrap-scss",
+        "scope": null,
+        "escapedName": "bootstrap-scss",
+        "name": "bootstrap-scss",
+        "rawSpec": "",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "/Users/katiehouse/Documents/github/forecast-repository-2"
+    ]
+  ],
+  "_from": "bootstrap-scss@latest",
+  "_hasShrinkwrap": false,
+  "_id": "bootstrap-scss@4.4.1",
+  "_inCache": true,
+  "_location": "/bootstrap-scss",
+  "_nodeVersion": "12.11.1",
+  "_npmOperationalInternal": {
+    "host": "s3://npm-registry-packages",
+    "tmp": "tmp/bootstrap-scss_4.4.1_1575027362658_0.6023487602454094"
+  },
+  "_npmUser": {
+    "name": "crissdev",
+    "email": "criss.trifan@gmail.com"
+  },
+  "_npmVersion": "6.11.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "bootstrap-scss",
+    "scope": null,
+    "escapedName": "bootstrap-scss",
+    "name": "bootstrap-scss",
+    "rawSpec": "",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "#USER"
+  ],
+  "_resolved": "https://registry.npmjs.org/bootstrap-scss/-/bootstrap-scss-4.4.1.tgz",
+  "_shasum": "8b1ceb5af771a068d486eddfd7067192cc62c8f1",
+  "_shrinkwrap": null,
+  "_spec": "bootstrap-scss",
+  "_where": "/Users/katiehouse/Documents/github/forecast-repository-2",
+  "author": {
+    "name": "Cristian Trifan",
+    "email": "criss.trifan@gmail.com",
+    "url": "https://crissdev.com"
+  },
+  "bugs": {
+    "url": "https://github.com/crissdev/bootstrap-scss/issues"
+  },
+  "dependencies": {},
+  "description": "Bootstrap's SCSS files (only)",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "integrity": "sha512-OznewkRrYIUip6iT27eQc4M8GvA/lxjJ/bny0GuUmdsBRbvjyPscWL0ghR0QBrZ4nufWi+qZno5G4rf7AVQfkw==",
+    "shasum": "8b1ceb5af771a068d486eddfd7067192cc62c8f1",
+    "tarball": "https://registry.npmjs.org/bootstrap-scss/-/bootstrap-scss-4.4.1.tgz",
+    "fileCount": 92,
+    "unpackedSize": 225063,
+    "npm-signature": "-----BEGIN PGP SIGNATURE-----\r\nVersion: OpenPGP.js v3.0.4\r\nComment: https://openpgpjs.org\r\n\r\nwsFcBAEBCAAQBQJd4QKjCRA9TVsSAnZWagAA7rUP/RHK0ptepj611taY+O03\n6n9bpP1+yHTiVWrkQ+h/S0S2TVqFbHFF+DAZK1ODD92WiMnYOgw3AmFt1zGC\nG/i18p0HY3K+V6oxzvAWcbUD2V5dTdL65GYDOtdBThPkWq3txE0meoril6x9\nawXAKgHWm4SKRKtURMth0uhgqTgZ/ha6MGm9Eh5h/FG4GcXilD4mno+6wbdK\nrR1Ju750/JojfuF7tU/h4+Sk25qHWJYXmYN9IMyUoWfPFiPhdLZHOrm3ELc/\nZ+pf9KAlJ3YTsuXeYEY/Bo4W9qJPqORBUlbF3hzzch14HvytWndUCQvcPmnk\n1Phc6znF1VaP0DeejlOBwEbUk9YC9tQuP5oq312ah+6SOBUROSBQyUSMPfnt\nYZIr/m0e/Huj4OTBjIMBtA7IjYB0k1J76SJyU+uPq9U4iG71EXsQY5NugeOH\noiYgomoJuN6RifkBgjAEUG2AwbYjjF9lpw9t9IFfCPjpQUMLAAZvj+ZWy22k\nIXTVXs/45fNLwBlo3/qLlmcpxQvyQ28NF3nZ3xtUEEpAXGR4pFcqveYKMbz7\nlTfEE62l6Jw0NlTXpNNrHbEm1JBEdK8JV1YMHVkYndnZ4RvwrTp/0PSMPKop\nVycC4bCE3UFG5EIjguT1r1UHalCPccW/qNeff2miNC88RX+0xlEeVLcd6HEj\nijB5\r\n=eaUi\r\n-----END PGP SIGNATURE-----\r\n"
+  },
+  "gitHead": "32e773ea73ef11d3f81b7835726c104123d8e2fd",
+  "homepage": "https://github.com/crissdev/bootstrap-scss",
+  "keywords": [
+    "bootstrap",
+    "bootstrap-scss",
+    "responsive",
+    "scss"
+  ],
+  "license": "MIT",
+  "main": "bootstrap.scss",
+  "maintainers": [
+    {
+      "name": "crissdev",
+      "email": "criss.trifan@gmail.com"
+    }
+  ],
+  "name": "bootstrap-scss",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/crissdev/bootstrap-scss.git"
+  },
+  "version": "4.4.1"
+}

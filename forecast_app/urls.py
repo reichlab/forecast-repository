@@ -8,6 +8,7 @@ urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^about$', views.about, name='about'),
     url(r'^docs$', views.documentation, name='docs'),
+    url(r'^projects$', views.projects, name='projects'),
 
     url(r'^zadmin$', views.zadmin, name='zadmin'),
     url(r'^zadmin/upload_file_jobs$', views.zadmin_upload_file_jobs, name='zadmin-upload-file-jobs'),
@@ -26,8 +27,8 @@ urlpatterns = [
     url(r'^clear_all_scores$', views.clear_all_scores, name='clear-all-scores'),
     url(r'^delete_score_last_updates$', views.delete_score_last_updates, name='delete-score-last-updates'),
 
-    url(r'^accounts/', include('django.contrib.auth.urls')),
-    url(r'^users/', views.UserListView.as_view(), name='user-list'),
+    url(r'^accounts/', include('django.contrib.auth.urls')),  # requires trailing slash and no $
+    url(r'^users$', views.UserListView.as_view(), name='user-list'),
 
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),

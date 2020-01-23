@@ -11,7 +11,7 @@ jsonfield = "*"
 "psycopg2-binary" = "*"
 dj-database-url = "*"
 gunicorn = "*"
-whitenoise = "*"
+whitenoise = {extras = ["brotli"],version = "*"}
 djangorestframework = "*"
 httpie = "*"
 pillow = "*"
@@ -22,11 +22,14 @@ newrelic = "*"
 django-debug-toolbar = "*"
 redis = "*"
 rq = "*"
-django-rq = "*"
+django-rq = "==2.1.0"
 "boto3" = "*"
 djangorestframework-jwt = "*"
 more-itertools = "*"
-django-anymail = {version = "*", extras = ["sendinblue", "sendgrid"]}
+django-anymail = {version = "*",extras = ["sendinblue", "sendgrid"]}
+django-compressor = "*"
+django-libsass = "*"
+brotlipy = "*"
 
 [dev-packages]
 

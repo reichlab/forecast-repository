@@ -261,8 +261,8 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, True),
                      (self.superuser, True)],
             },
-            # home page
-            reverse('index', args=[]): {
+            # project list
+            reverse('projects', args=[]): {
                 reverse('create-project-from-form', args=[]):
                     [(self.po_user, True),
                      (self.mo_user, True),
@@ -321,6 +321,8 @@ class ViewsTestCase(TestCase):
                     self.client.login(username=user.username, password=password)
                     response = self.client.get(url)
                     if is_accessible:
+                        if exp_url not in str(response.content):
+                            print('zz', exp_url, user, is_accessible)
                         self.assertIn(exp_url, str(response.content))
                     else:
                         self.assertNotIn(exp_url, str(response.content))

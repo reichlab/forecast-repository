@@ -1,0 +1,57 @@
+// Custom.scss
+
+body {
+  padding-top: 50px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Exo', semi-bold;
+}
+
+a,
+p {
+  font-family: 'Exo', Regular;
+}
+
+
+
+$dark-blue: rgb(27, 44, 55);
+$dark-grey: rgb(110, 120, 127);
+$orange: rgb(200, 140, 30);
+$beige: rgb(245, 237, 229);
+$reichlabwhite: #eef2f2;
+$green: #2e9f62;
+$light-blue:#27a2fc;
+$flusight-blue:#268BD2;
+
+$fprimary: #07689F;
+
+$theme-colors: ("primary": $dark-blue,
+  "secondary": $orange,
+  "success": $green,
+  "info": $fprimary,
+  "light": $reichlabwhite,
+  "dark": $dark-blue,
+);
+
+.background-image {
+  background-image: url("../flusight-wide.png");
+  background-size: cover;
+}
+
+.jumbotron {
+  background-color: rgba(242, 244, 245, 0.8) !important;
+  width: 101%;
+}
+
+$link-color: $fprimary;
+$link-hover-color: $flusight-blue;
+
+
+// Your variable overrides
+$body-color: rgb(27, 44, 55);
+
+@import "./bootstrap-scss/bootstrap";

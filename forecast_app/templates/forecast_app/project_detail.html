@@ -6,42 +6,44 @@
 
 {% block content %}
 
-    <p class="lead">
-        {% include 'visibility_snippet.html' with project=project size="fa-sm" %}
-        Project: {{ project.name }}
-        <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-info btn-xs" role="button">API</a>
-        <a href="{% url 'project-config' project.pk %}" class="btn btn-success btn-sm" role="button">
-            <i class="fas fa-cloud-download-alt"></i> Config</a>
-        {% if is_user_ok_edit_project %}
-            {# Edit Project: a simple link to an edit form #}
-            <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
-                <i class="fas fa-edit"></i>
-            </a>
+<h2>
+    {% include 'visibility_snippet.html' with project=project size="fa-xs" %}
+    Project: {{ project.name }}
+</h2>
+<p class="lead">
+    <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+    <a href="{% url 'project-config' project.pk %}" class="btn btn-success btn-sm" role="button">
+        <i class="fas fa-cloud-download-alt"></i> Config</a>
+    {% if is_user_ok_edit_project %}
+    {# Edit Project: a simple link to an edit form #}
+    <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
+        <i class="fas fa-edit"></i>
+    </a>
 
-            {# Delete Project: a button that shows a hidden confirm modal when clicked #}
-            <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
-                    data-target="#confirmModal_{{ project.html_id }}">
-                <i class="fas fa-trash-alt"></i>
-            </button>
+    {# Delete Project: a button that shows a hidden confirm modal when clicked #}
+    <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
+        data-target="#confirmModal_{{ project.html_id }}">
+        <i class="fas fa-trash-alt"></i>
+    </button>
 
-            {# the modal itself - hidden until above button shows it #}
-            {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-project' %}
-        {% endif %}
-    </p>
+    {# the modal itself - hidden until above button shows it #}
+    {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-project' %}
+    {% endif %}
+</p>
 
 
-    <div class="row">
-        {# left column: info table #}
-        <div class="col-md-8">
-            <table class="table table-bordered">
-                <tbody>
+<div class="row">
+    {# left column: info table #}
+    <div class="col-md-8">
+        <table class="table table-bordered">
+            <tbody>
                 <tr>
                     <th title="Count of models, forecasts, and rows">Summary:</th>
                     <td>
                         {% with proj_summary_counts=project.get_summary_counts %}
-                            <span class="text-muted">
-                                {% include "project_count_snippet.html" with project=project proj_summary_counts=proj_summary_counts use_intword=False %}
-                            </span>
+                        <span class="text-muted">
+                            {% include "project_count_snippet.html" with project=project proj_summary_counts=proj_summary_counts use_intword=False %}
+                        </span>
                         {% endwith %}
                     </td>
                 </tr>
@@ -49,9 +51,9 @@
                     <th>Owner:</th>
                     <td>
                         {% if project.owner %}
-                            <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
+                        <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
                         {% else %}
-                            <small class="text-muted">(No owner)</small>
+                        <small class="text-muted">(No owner)</small>
                         {% endif %}
                     </td>
                 </tr>
@@ -59,18 +61,19 @@
                     <th title="Users who can view private projects, and create models">Model Owners:</th>
                     <td>
                         {% if project.model_owners.all %}
-                            {% for model_owner in project.model_owners.all %}
-                                {# this line's indentation keeps the comma(s) tight: #}
-                                <a href="{% url 'user-detail' model_owner.pk %}">
-                                    {{ model_owner.username }}</a>{% if not forloop.last %}, {% endif %}
-                            {% endfor %}
+                        {% for model_owner in project.model_owners.all %}
+                        {# this line's indentation keeps the comma(s) tight: #}
+                        <a href="{% url 'user-detail' model_owner.pk %}">
+                            {{ model_owner.username }}</a>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
                         {% else %}
-                            <small class="text-muted">(No model owners)</small>
+                        <small class="text-muted">(No model owners)</small>
                         {% endif %}
                     </td>
                 </tr>
                 <tr>
-                    <th title="Tells the D3 Foresight component what its x-axis label should be. Choices: Week, Biweek, or Month">
+                    <th
+                        title="Tells the D3 Foresight component what its x-axis label should be. Choices: Week, Biweek, or Month">
                         Time Interval Type
                     </th>
                     <td>{{ project.time_interval_type_to_foresight|title }}</td>
@@ -79,9 +82,9 @@
                     <th>Visibility</th>
                     <td>
                         {% if project.is_public %}
-                            <span style="color:green">Public</span>
+                        <span style="color:green">Public</span>
                         {% else %}
-                            <span style="color:red">Private</span>
+                        <span style="color:red">Private</span>
                         {% endif %}
                     </td>
                 </tr>
@@ -98,34 +101,34 @@
                     <td><a href="{{ project.core_data }}">{{ project.core_data }}</a></td>
                 </tr>
                 <tr>
-                    <th title="A data file containing observed target values for time zeros and locations. Used to calculate scores, and extract the 'actual' data used in plots">
+                    <th
+                        title="A data file containing observed target values for time zeros and locations. Used to calculate scores, and extract the 'actual' data used in plots">
                         Truth Data:
                     </th>
                     <td>
                         {% if project.is_truth_data_loaded %}
-                            {# show a link to the truth detail #}
-                            <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_csv_filename }}</a>
-                            <small class="text-muted">({{ project.get_num_truth_rows|intword|intcomma }} rows)</small>
+                        {# show a link to the truth detail #}
+                        <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_csv_filename }}</a>
+                        <small class="text-muted">({{ project.get_num_truth_rows|intword|intcomma }} rows)</small>
                         {% else %}
-                            {# show that there's no truth data, optionally with upload button #}
-                            {% if is_user_ok_edit_project %}
-                                {# show a button for uploading a file #}
-                                <form class="form-inline" method="POST" enctype="multipart/form-data"
-                                      action="{% url 'upload-truth' project.pk %}">
-                                    {% csrf_token %}
-                                    <small class="text-muted">(No truth data)&nbsp;</small>
-                                    <div class="form-group">
-                                        <button class="form-control btn btn-success" type="submit">
-                                            <i class="fas fa-cloud-upload-alt"></i>
-                                        </button>
-                                    </div>
-                                    <div class="form-group">
-                                        <input type="file" name="data_file">
-                                    </div>
-                                </form>
-                            {% else %}
-                                <small class="text-muted">(No truth data)</small>
-                            {% endif %}
+                        {# show that there's no truth data, optionally with upload button #}
+                        {% if is_user_ok_edit_project %}
+                        {# show a button for uploading a file #}
+                        <form class="form-inline" method="POST" enctype="multipart/form-data"
+                            action="{% url 'upload-truth' project.pk %}">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <input type="file" name="data_file">
+                                <button class="btn-sm btn-success" type="submit">
+                                    <!--<i class="fas fa-cloud-upload-alt"></i>-->
+                                    Upload
+                                </button>
+                            </div>
+                            <small class="text-muted">(No truth data)&nbsp;</small>
+                        </form>
+                        {% else %}
+                        <small class="text-muted">(No truth data)</small>
+                        {% endif %}
                         {% endif %}
                     </td>
                 </tr>
@@ -136,125 +139,129 @@
                         <a href="{% url 'project-score-data' project.pk %}">Score data</a>
                     </td>
                 </tr>
-                </tbody>
-            </table>
-        </div>
-
-
-        {# right column: info icon #}
-        <div class="col-md-4">
-            {% if project.logo_url %}
-                <a href="{{ project.home_url }}"><img src="{{ project.logo_url }}"></a>
-            {% endif %}
-        </div>
+            </tbody>
+        </table>
     </div>
 
 
-    <h2>Models ({{ project.models.all|length }})
-        {% if is_user_ok_create_model %}
-            &nbsp;<a href="{% url 'create-model' project.pk %}" class="btn btn-success" role="button">New</a>
+    {# right column: info icon #}
+    <div class="col-md-4">
+        {% if project.logo_url %}
+        <a href="{{ project.home_url }}"><img src="{{ project.logo_url }}"></a>
         {% endif %}
-    </h2>
+    </div>
+</div>
 
-    {% include 'model_list_snippet.html' %}
 
-
-    <h2>Locations ({{ project.locations.all|length }})</h2>
-
-    {% if locations %}
-        {% for location in locations %}
-            <code>{{ location.name }}</code>{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    {% else %}
-        <small class="text-muted">(No locations)</small>
+<h2>Models ({{ project.models.all|length }})
+    {% if is_user_ok_create_model %}
+    &nbsp;<a href="{% url 'create-model' project.pk %}" class="btn-sm btn-success" role="button">New</a>
     {% endif %}
+</h2>
+
+{% include 'model_list_snippet.html' %}
 
 
-    <h2>Targets ({{ targets|length }})</h2>
+<h2>Locations ({{ project.locations.all|length }})</h2>
 
-    {% if targets %}
+{% if locations %}
+{% for location in locations %}
+<code>{{ location.name }}</code>{% if not forloop.last %},{% endif %}
+{% endfor %}
+{% else %}
+<small class="text-muted">(No locations)</small>
+{% endif %}
+
+
+<h2>Targets ({{ targets|length }})</h2>
+
+{% if targets %}
+<table class="table table-striped table-bordered">
+    <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Unit</th>
+        <th>Point Value Type</th>
+        <th>Date?</th>
+        <th
+            title="Integer value indicating # steps ahead relative to a time zero. Used for time chart plots, and to extract 'actual' values from the truth data.">
+            Step Ahead?
+        </th>
+        <th
+            title="Code indicating types of acceptable distributions. BC=BinCat, BL=BinLwr, BI=Binary, NM=Named, PT=Point, SA=Sample, SC=SampleCat">
+            Predictions
+        </th>
+        <th>BinLwrs</th>
+    </tr>
+    {% for target in targets %}
+    <tr>
+        <td>{{ target.name }}</td>
+        <td>{{ target.description }}</td>
+        <td>{{ target.unit }}</td>
+        <td>{{ target.point_value_type_str|title }}</td>
+        <td>{% if target.is_date %}<i class="fas fa-check"></i>{% else %}{% endif %}</td>
+        <td>
+            {% if target.is_step_ahead %}
+            {{ target.step_ahead_increment }} step{{ target.step_ahead_increment|pluralize }}
+            {% endif %}
+        </td>
+        <td>
+            {% if not target.ok_distributions_str %}
+            <small class="text-muted">(No prediction types)</small>
+            {% else %}
+            {{ target.ok_distributions_str }}
+            {% endif %}
+        </td>
+        <td>{{ target.binlwrs.all.count|intword|intcomma }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% else %}
+<small class="text-muted">(No targets)</small>
+{% endif %}
+
+
+<h2>Time zeros ({{ project.timezeros.all|length }})</h2>
+
+{% if project.timezeros.all %}
+<div class="row">
+    <div class="col-sm-8">
         <table class="table table-striped table-bordered">
             <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Unit</th>
-                <th>Point Value Type</th>
-                <th>Date?</th>
-                <th title="Integer value indicating # steps ahead relative to a time zero. Used for time chart plots, and to extract 'actual' values from the truth data.">
-                    Step Ahead?
+                <th
+                    title="The date from which a forecast originates and to which targets are relative. Every forecast has a time zero.">
+                    Time Zero
                 </th>
-                <th title="Code indicating types of acceptable distributions. BC=BinCat, BL=BinLwr, BI=Binary, NM=Named, PT=Point, SA=Sample, SC=SampleCat">
-                    Predictions
+                <th
+                    title="(Optional) Latest date at which any forecast data source should be considered. Used externally by system users to recreate model results by 'rolling back' the core data to a particular state.">
+                    Data Version Date
                 </th>
-                <th>BinLwrs</th>
+                <th># Forecasts</th>
+                <th>Starts Season</th>
             </tr>
-            {% for target in targets %}
-                <tr>
-                    <td>{{ target.name }}</td>
-                    <td>{{ target.description }}</td>
-                    <td>{{ target.unit }}</td>
-                    <td>{{ target.point_value_type_str|title }}</td>
-                    <td>{% if target.is_date %}<i class="fas fa-check"></i>{% else %}{% endif %}</td>
-                    <td>
-                        {% if target.is_step_ahead %}
-                            {{ target.step_ahead_increment }} step{{ target.step_ahead_increment|pluralize }}
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if not target.ok_distributions_str %}
-                            <small class="text-muted">(No prediction types)</small>
-                        {% else %}
-                            {{ target.ok_distributions_str }}
-                        {% endif %}
-                    </td>
-                    <td>{{ target.binlwrs.all.count|intword|intcomma }}</td>
-                </tr>
+            {% for timezero, num_forecasts in timezeros_num_forecasts %}
+            <tr>
+                <td>{{ timezero.timezero_date|date:"Y-m-d" }}</td>
+                <td>
+                    {% if timezero.data_version_date %}
+                    &nbsp; @ {{ timezero.data_version_date|date:"Y-m-d" }}
+                    {% else %}
+                    <small class="text-muted">(No data version date)</small>
+                    {% endif %}
+                </td>
+                <td>{{ num_forecasts }}</td>
+                <td>
+                    {% if timezero.is_season_start %}
+                    &nbsp; &ldquo;{{ timezero.season_name }}&rdquo;
+                    {% endif %}
+                </td>
+            </tr>
             {% endfor %}
         </table>
-    {% else %}
-        <small class="text-muted">(No targets)</small>
-    {% endif %}
-
-
-    <h2>Time zeros ({{ project.timezeros.all|length }})</h2>
-
-    {% if project.timezeros.all %}
-        <div class="row">
-            <div class="col-sm-8">
-                <table class="table table-striped table-bordered">
-                    <tr>
-                        <th title="The date from which a forecast originates and to which targets are relative. Every forecast has a time zero.">
-                            Time Zero
-                        </th>
-                        <th title="(Optional) Latest date at which any forecast data source should be considered. Used externally by system users to recreate model results by 'rolling back' the core data to a particular state.">
-                            Data Version Date
-                        </th>
-                        <th># Forecasts</th>
-                        <th>Starts Season</th>
-                    </tr>
-                    {% for timezero, num_forecasts in timezeros_num_forecasts %}
-                        <tr>
-                            <td>{{ timezero.timezero_date|date:"Y-m-d" }}</td>
-                            <td>
-                                {% if timezero.data_version_date %}
-                                    &nbsp; @ {{ timezero.data_version_date|date:"Y-m-d" }}
-                                {% else %}
-                                    <small class="text-muted">(No data version date)</small>
-                                {% endif %}
-                            </td>
-                            <td>{{ num_forecasts }}</td>
-                            <td>
-                                {% if timezero.is_season_start %}
-                                    &nbsp; &ldquo;{{ timezero.season_name }}&rdquo;
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </table>
-            </div>
-        </div>
-    {% else %}
-        <small class="text-muted">(No time zeros)</small>
-    {% endif %}
+    </div>
+</div>
+{% else %}
+<small class="text-muted">(No time zeros)</small>
+{% endif %}
 
 {% endblock %}

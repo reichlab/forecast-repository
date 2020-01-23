@@ -15,9 +15,13 @@ import os
 from django.conf import settings
 
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+#
+# directories
+#
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
@@ -46,7 +50,8 @@ INSTALLED_APPS = [
     'django.contrib.humanize',
     'debug_toolbar',
     'django_rq',
-    "anymail",
+    'anymail',
+    'compressor'
 ]
 
 REST_FRAMEWORK = {
@@ -65,6 +70,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # editing Projects involves possibly many 
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -115,6 +121,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+COMPRESS_PRECOMPILERS = (
+    ('text/x-scss', 'django_libsass.SassCompiler'),  # https://github.com/torchbox/django-libsass -> {% compress css %}
+)
+
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'America/New_York'
@@ -123,10 +133,9 @@ USE_L10N = True
 
 USE_TZ = True
 
-STATIC_URL = '/static/'
-
 if not settings.DEBUG:  # NB: requires "children" settings to set DEBUG before importing
     SECURE_SSL_REDIRECT = True
+
 
 #
 # set up logging - https://stackoverflow.com/questions/5137042/how-can-i-get-django-to-print-the-debug-information-to-the-console
@@ -157,6 +166,7 @@ LOGGING = {
     }
 }
 
+
 #
 # https://docs.djangoproject.com/en/1.11/ref/settings/#std:setting-LOGIN_REDIRECT_URL
 #
@@ -164,10 +174,12 @@ LOGGING = {
 # Redirect to home URL after login (Default redirects to /accounts/profile/)
 LOGIN_REDIRECT_URL = '/'
 
+
 #
 # https://django-debug-toolbar.readthedocs.io/en/stable/installation.html#internal-ips
 #
 INTERNAL_IPS = ['127.0.0.1']
+
 
 #
 # set tags to match Bootstrap 3, https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
@@ -183,6 +195,7 @@ MESSAGE_TAGS = {
     # message_constants.WARNING: 'warning',
     message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
 }
+
 
 #
 # ---- Django-RQ queue name variables. used by "inheriting" settings files ----
@@ -225,3 +238,44 @@ ANYMAIL = {
 EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
 
 DEFAULT_FROM_EMAIL = 'admin@zoltardata.com'
+
+
+#
+# ---- static files config ----
+#
+
+# the absolute path to the directory where collectstatic will collect static files for deployment:
+STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
+
+# URL to use when referring to static files located in STATIC_ROOT:
+STATIC_URL = '/static/'
+
+# additional locations the staticfiles app will traverse if the FileSystemFinder finder is enabled:
+STATICFILES_DIRS = [
+    os.path.join(PROJECT_ROOT, 'static'),
+]
+
+# the file storage engine to use when collecting static files with the collectstatic management command:
+# STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# the list of finder backends that know how to find static files in various locations:
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'compressor.finders.CompressorFinder'  # Django-Compressor
+]
+
+
+#
+# Django Compressor
+#
+
+# https://medium.com/technolingo/fastest-static-files-served-django-compressor-whitenoise-aws-cloudfront-ef777849090c
+# https://www.accordbox.com/blog/how-use-scss-sass-your-django-project-python-way/
+
+COMPRESS_STORAGE = 'compressor.storage.GzipCompressorFileStorage'
+# COMPRESS_ENABLED = True  # must enable this to use with Whitenoise. default: the opposite of DEBUG
+COMPRESS_OFFLINE = True  # "". default: False
+
+LIBSASS_OUTPUT_STYLE = 'compressed'  # default: 'nested'

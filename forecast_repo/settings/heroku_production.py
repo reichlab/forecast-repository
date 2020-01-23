@@ -17,6 +17,7 @@ if 'SECRET_KEY' not in os.environ:
 
 SECRET_KEY = os.environ['SECRET_KEY']
 
+
 #
 # ---- imports ----
 #
@@ -25,17 +26,6 @@ import dj_database_url
 
 from .base import *
 
-
-#
-# ---- MIDDLEWARE ----
-#
-
-MIDDLEWARE.extend([
-    # Simplified static file serving.
-    # https://warehouse.python.org/project/whitenoise/
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
-])
 
 #
 # ---- database config ----
@@ -87,22 +77,4 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Allow all host headers
 ALLOWED_HOSTS = ['*']
-
-#
-# ---- static files config ----
-#
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.8/howto/static-files/
-
-STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
-
-# Extra places for collectstatic to find static files.
-STATICFILES_DIRS = (
-    os.path.join(PROJECT_ROOT, 'static'),
-)
-
-# Simplified static file serving.
-# https://warehouse.python.org/project/whitenoise/
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 

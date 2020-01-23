@@ -61,3 +61,13 @@ fabric.properties
 .idea/sqldialects.xml
 db.sqlite3
 tmp/
+
+# redis file dump
+dump.rdb
+
+# IDE files
+.vscode
+
+## random RStudio files
+*.Rproj*
+*.Rhistory

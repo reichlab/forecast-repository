@@ -223,3 +223,14 @@ $ git push heroku master
 $ heroku ps:scale web=1
 $ heroku open
 ```
+
+
+## static file configuration
+This project's `bin/` directory is via [heroku-django-cookbook](https://github.com/nigma/heroku-django-cookbook/).
+
+Following is from [Static Files Made Easy — Django Compressor + Whitenoise + AWS CloudFront + Heroku](https://medium.com/technolingo/fastest-static-files-served-django-compressor-whitenoise-aws-cloudfront-ef777849090c):
+
+```bash
+$ heroku config:set DISABLE_COLLECTSTATIC=1
+```
+
