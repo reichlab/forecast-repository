@@ -111,7 +111,7 @@ class CdcCsvToPredictionsTestCase(TestCase):
 
         forecast_model = ForecastModel.objects.create(project=project)
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
-        cdc_csv_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
+        cdc_csv_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         forecast = Forecast.objects.create(forecast_model=forecast_model, source=cdc_csv_path.name, time_zero=time_zero)
 
         with open(self.cdc_csv_path) as cdc_csv_fp:

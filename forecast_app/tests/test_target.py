@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from forecast_app.models import Target, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, Project
-from forecast_app.models.target import TargetRange, TargetCat, TargetDate, TargetLwr
+from forecast_app.models.target import TargetRange, TargetCat, TargetLwr
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -128,8 +128,8 @@ class TargetTestCase(TestCase):
             self.assertIn('invalid target type', str(context.exception))
 
 
-    def test_cat_required(self):
-        # target type: continuous, nominal, compositional accept an optional 'cat' list via Target.set_cats(). here we
+    def test_cats_required(self):
+        # target type: continuous, nominal, compositional accept an optional 'cats' list via Target.set_cats(). here we
         # test that that function checks the target type
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -139,6 +139,7 @@ class TargetTestCase(TestCase):
         # case: valid types
         for target_type, cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3]),
                                   (Target.NOMINAL_TARGET_TYPE, ['cat1', 'cat2', 'cat3']),
+                                  (Target.DATE_TARGET_TYPE, xx),
                                   (Target.COMPOSITIONAL_TARGET_TYPE, ['cat4', 'cat5', 'cat6'])]:
             model_init['type'] = target_type
             target = Target.objects.create(**model_init)
@@ -157,37 +158,6 @@ class TargetTestCase(TestCase):
             target = Target.objects.create(**model_init)
             with self.assertRaises(ValidationError) as context:
                 target.set_cats(['cat1', 'cat2'])
-            self.assertIn('invalid target type', str(context.exception))
-
-
-    def test_date_required(self):
-        # target type: continuous and discrete accept an optional 'date' list via Target.set_dates(). here we test that
-        # that function checks the target type
-        model_init = {'project': self.project,
-                      'name': 'target_name',
-                      'description': 'target_description',
-                      'is_step_ahead': False,
-                      'unit': 'month'}  # missing type
-        # case: valid types
-        for target_type in [Target.DATE_TARGET_TYPE]:
-            model_init['type'] = target_type
-            target = Target.objects.create(**model_init)
-            # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-            with self.assertRaises(Exception):
-                try:
-                    target.set_dates(['2019-01-09', '2019-01-19'])
-                except:
-                    pass
-                else:
-                    raise Exception
-
-        # case: invalid types
-        for target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
-                            Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]:
-            model_init['type'] = target_type
-            target = Target.objects.create(**model_init)
-            with self.assertRaises(ValidationError) as context:
-                target.set_dates(['2019-01-09', '2019-01-19'])
             self.assertIn('invalid target type', str(context.exception))
 
 
@@ -356,7 +326,7 @@ class TargetTestCase(TestCase):
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
             try:
-                target.set_dates(['2019-01-09', '2019-01-19'])
+                target.set_cats(['2019-01-09', '2019-01-19'])
             except:
                 pass
             else:
@@ -364,7 +334,7 @@ class TargetTestCase(TestCase):
 
         # case: invalid format
         with self.assertRaises(ValidationError) as context:
-            target.set_dates(['bad-date-format', '2019-01-19'])
+            target.set_cats(['bad-date-format', '2019-01-19'])
         self.assertIn('date was not in YYYY-MM-DD format', str(context.exception))
 
 
@@ -377,7 +347,7 @@ class TargetTestCase(TestCase):
                       'is_step_ahead': False,
                       'unit': 'month'}
         target = Target.objects.create(**model_init)
-        target.set_dates(['2019-01-09', '2019-01-19'])
+        target.set_cats(['2019-01-09', '2019-01-19'])
         target_dates = sorted(list(TargetDate.objects.filter(target=target).values_list('date', flat=True)))
         self.assertEqual([datetime.date(2019, 1, 9), datetime.date(2019, 1, 19)], target_dates)
 

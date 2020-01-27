@@ -22,18 +22,11 @@
   ],
   "targets": [
     {
-      "name": "Season onset binary",
-      "description": "A binary target indicating whether incidence in a given region-season will go above the threshold, and stay above the threshold for at least three consecutive weeks. TRUE indicates that incidence will go above the threshold.",
-      "type": "binary",
-      "is_step_ahead": false
-    },
-    {
-      "name": "Season onset date",
-      "description": "Conditional on onset occurring (see Season onset binary target), the probability distribution across weeks within the influenza season for which week will be the first week above the regional threshold. The date should be specified as the *Monday* of the epidemic week that is the predicted first week above the threshold.",
-      "type": "date",
-      "unit": "week",
+      "name": "Season onset",
+      "description": "Conditional on onset occurring, the probability distribution across weeks within the influenza season for which week will be the first week above the regional threshold. The date should be specified as the *Monday* of the epidemic week that is the predicted first week above the threshold.",
+      "type": "nominal",
       "is_step_ahead": false,
-      "dates": []
+      "cats": []
     },
     {
       "name": "Season peak week",
@@ -41,7 +34,7 @@
       "type": "date",
       "unit": "week",
       "is_step_ahead": false,
-      "dates": []
+      "cats": []
     },
     {
       "name": "Season peak percentage",

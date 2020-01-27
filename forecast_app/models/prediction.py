@@ -78,12 +78,16 @@ class PointPrediction(Prediction):
 
 
     @staticmethod
-    def first_non_none_value(value_i, value_f, value_t):
+    def first_non_none_value(value_i, value_f, value_t, value_d, value_b):
         """
         Simple utility that returns the first of the passed value_* args that is not None. NB: you cannot simply use
-        'or' b/c 0 values fail.
+        'or' b/c 0 values fail. Errors is all are None.
         """
-        return [_ for _ in [value_i, value_f, value_t] if _ is not None][0]
+        non_non_values = [_ for _ in [value_i, value_f, value_t, value_d, value_b] if _ is not None]
+        if not non_non_values:
+            raise RuntimeError(f"all values were None")
+
+        return non_non_values[0]
 
 
 #

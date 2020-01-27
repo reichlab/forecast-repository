@@ -11,10 +11,10 @@ from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Target, Score
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets, season_start_year_from_ew_and_year
 from utils.make_thai_moph_project import create_thai_locations_and_targets
-from utils.utilities import get_or_create_super_po_mo_users
 from utils.project import create_project_from_json
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -32,8 +32,9 @@ class ProjectTestCase(TestCase):
         make_cdc_locations_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
-        cls.forecast = load_cdc_csv_forecast_file(xx, cls.forecast_model, Path(
-            'forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'), cls.time_zero)
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
+        season_start_year = season_start_year_from_ew_and_year(1, 2017)
+        cls.forecast = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, cls.time_zero)
 
 
     def test_load_truth_data(self):
@@ -108,9 +109,9 @@ class ProjectTestCase(TestCase):
 
     def test_get_num_rows(self):
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
-        load_cdc_csv_forecast_file(xx, self.forecast_model,
-                                   Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                   time_zero2)
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
+        season_start_year = season_start_year_from_ew_and_year(1, 2017)
+        load_cdc_csv_forecast_file(season_start_year, self.forecast_model, csv_file_path, time_zero2)
         self.assertEqual(self.project.get_num_forecast_rows_all_models(), 8019 * 2)
         self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
                          8019 * 2)  # exact b/c uniform forecasts
@@ -235,9 +236,9 @@ class ProjectTestCase(TestCase):
 
         # test location_to_max_val()
         forecast_model = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecast_file(xx, forecast_model,
-                                   Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                   time_zero3)
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
+        season_start_year = season_start_year_from_ew_and_year(1, 2017)
+        load_cdc_csv_forecast_file(season_start_year, forecast_model, csv_file_path, time_zero3)
         exp_location_to_max_val = {'HHS Region 1': 2.06145600601835, 'HHS Region 10': 2.89940153907353,
                                    'HHS Region 2': 4.99776594895244, 'HHS Region 3': 2.99944727598047,
                                    'HHS Region 4': 2.62168214634388, 'HHS Region 5': 2.19233072084465,
@@ -280,13 +281,12 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create()
 
         # no is_step_ahead, no step_ahead_increment: valid
-        target = Target.objects.create(project=project2, name="Test target", description="d",
-                                       point_value_type=Target.POINT_FLOAT)
+        target = Target.objects.create(project=project2, name="Test target", description="d")
         self.assertFalse(target.is_step_ahead)
 
         # yes is_step_ahead, yes step_ahead_increment: valid
-        target = Target.objects.create(project=project2, name="Test target", description="d",
-                                       is_step_ahead=True, step_ahead_increment=1, point_value_type=Target.POINT_FLOAT)
+        target = Target.objects.create(project=project2, name="Test target", description="d", is_step_ahead=True,
+                                       step_ahead_increment=1)
         self.assertTrue(target.is_step_ahead)
         self.assertEqual(1, target.step_ahead_increment)
 
@@ -299,17 +299,14 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create()
 
         # yes is_date, no is_step_ahead: valid
-        Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False,
-                              point_value_type=Target.POINT_FLOAT)
+        Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=False)
 
         # no is_date, yes is_step_ahead: valid
-        Target.objects.create(project=project2, name="t", description="d", is_date=False, is_step_ahead=True,
-                              point_value_type=Target.POINT_FLOAT)
+        Target.objects.create(project=project2, name="t", description="d", is_date=False, is_step_ahead=True)
 
         # yes is_date, yes is_step_ahead: invalid
         with self.assertRaises(ValidationError) as context:
-            Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=True,
-                                  point_value_type=Target.POINT_FLOAT)
+            Target.objects.create(project=project2, name="t", description="d", is_date=True, is_step_ahead=True)
         self.assertIn('passed is_date and is_step_ahead', str(context.exception))
 
 

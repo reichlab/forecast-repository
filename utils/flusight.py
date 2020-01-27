@@ -142,7 +142,7 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
         .order_by('forecast__forecast_model__id', 'location__id', 'forecast__time_zero__timezero_date',
                   'target__step_ahead_increment') \
         .values_list('forecast__forecast_model__id', 'location__name', 'forecast__time_zero__timezero_date',
-                     'value_i', 'value_f')  # only one of value_* is non-None
+                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')  # only one of value_* is non-None
 
     # build the dict
     model_to_location_timezero_points = {}  # return value. filled next
@@ -151,7 +151,8 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
         for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
             timezero_to_points_dict = {}
             for timezero_date, values_grouper in groupby(timezero_values_grouper, key=lambda _: _[2]):
-                point_values = [PointPrediction.first_non_none_value(_[3], _[4], None) for _ in list(values_grouper)]
+                point_values = [PointPrediction.first_non_none_value(_[3], _[4], _[5], _[6], _[7])
+                                for _ in list(values_grouper)]
                 timezero_to_points_dict[timezero_date] = point_values
             location_to_timezero_points_dict[location] = timezero_to_points_dict
         forecast_model = ForecastModel.objects.get(pk=model_pk)

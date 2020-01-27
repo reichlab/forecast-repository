@@ -40,14 +40,15 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         .filter(target__in=targets,
                 forecast__forecast_model=forecast_model) \
         .values_list('forecast__id', 'forecast__time_zero__id', 'location__id', 'target__id',
-                     'value_i', 'value_f')  # only one of value_* is non-None
+                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')  # only one of value_* is non-None
 
     # calculate scores for all combinations of location and target. keep a list of errors so we don't log thousands of
     # duplicate messages. dict format: {(forecast_pk, timezero_pk, location_pk, target_pk): error_string, ...}:
     forec_tz_loc_targ_pk_to_error_str = {}
-    for forecast_pk, timezero_pk, location_pk, target_pk, predicted_value_i, predicted_value_f \
-            in forecast_point_predictions_qs:
-        predicted_value = PointPrediction.first_non_none_value(predicted_value_i, predicted_value_f, None)
+    for forecast_pk, timezero_pk, location_pk, target_pk, pred_value_i, pred_value_f, pred_value_t, pred_value_d, \
+        pred_value_b in forecast_point_predictions_qs:
+        predicted_value = PointPrediction.first_non_none_value(pred_value_i, pred_value_f, pred_value_t, pred_value_d,
+                                                               pred_value_b)
         true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals, timezero_pk, location_pk, target_pk)
         if error_string:
             error_key = (forecast_pk, timezero_pk, location_pk, target_pk)

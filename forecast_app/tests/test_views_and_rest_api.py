@@ -322,7 +322,6 @@ class ViewsTestCase(TestCase):
                     response = self.client.get(url)
                     if is_accessible:
                         if exp_url not in str(response.content):
-                            print('zz', exp_url, user, is_accessible)
                         self.assertIn(exp_url, str(response.content))
                     else:
                         self.assertNotIn(exp_url, str(response.content))
@@ -666,7 +665,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
         # case: blue sky:  no data_version_date, yes season
-        timezero_config = {'timezero_date': '20171201',
+        timezero_config = {'timezero_date': '2017-12-01',
                            'data_version_date': None,
                            'is_season_start': True,
                            'season_name': 'tis the season'}
@@ -679,8 +678,8 @@ class ViewsTestCase(TestCase):
                          {'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'})
 
         # case: blue sky:  yes data_version_date, no season
-        timezero_config = {'timezero_date': '20171201',
-                           'data_version_date': '20171202',
+        timezero_config = {'timezero_date': '2017-12-01',
+                           'data_version_date': '2017-12-02',
                            'is_season_start': False,
                            'season_name': None}
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {

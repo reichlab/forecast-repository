@@ -17,7 +17,8 @@ from utils.cdc import json_io_dict_from_cdc_csv_file
 
 @click.command()
 @click.argument('forecast_csv_file', type=click.Path(file_okay=True, exists=True))
-def convert_cdc_csv_to_json_app(forecast_csv_file):
+@click.argument('season_start_year', type=click.INT)
+def convert_cdc_csv_to_json_app(forecast_csv_file, season_start_year):
     """
     App to convert files in the CDC CSV format to our "JSON IO dict" one. Saves into the same dir as the source.
     """

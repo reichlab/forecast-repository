@@ -30,7 +30,8 @@
       "is_step_ahead": true,
       "step_ahead_increment": 1,
       "unit": "cases",
-      "range": [0, 100000]
+      "range": [0, 100000],
+      "cats": [1, 2, 50]
     },
     {
       "name": "season severity",
@@ -51,7 +52,7 @@
       "type": "date",
       "is_step_ahead": false,
       "unit": "week",
-      "dates": ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
+      "cats": ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
     },
     {
       "name": "Next season flu strain composition",

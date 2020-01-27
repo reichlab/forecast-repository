@@ -7,6 +7,7 @@ from django.db import connection, transaction
 from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
     SampleDistribution
 from forecast_app.models.project import POSTGRES_NULL_VALUE
+from utils.project import _target_dicts_for_project_config
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -25,9 +26,9 @@ PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
 def json_io_dict_from_forecast(forecast):
     """
     The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for exporting json (for
-    example). See cdc-predictions.json for an example. Does not reuse that function's helper methods b/c the latter
-    is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of predictions in CDC CSV
-    files. Does include the 'meta' section in the returned dict.
+    example). See EW01-2011-ReichLab_kde_US_National.json for an example. Does not reuse that function's helper methods
+    b/c the latter is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of
+    predictions in CDC CSV files. Does include the 'meta' section in the returned dict.
 
     :param forecast: a Forecast whose predictions are to be outputted
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by location
@@ -39,7 +40,7 @@ def json_io_dict_from_forecast(forecast):
             'forecast': _forecast_dict_for_forecast(forecast),
             'locations': sorted([{'name': location_names} for location_names in location_names],
                                 key=lambda _: (_['name'])),
-            'targets': sorted(_target_dicts_for_project(forecast.forecast_model.project, target_names),
+            'targets': sorted(_target_dicts_for_project_config(forecast.forecast_model.project),
                               key=lambda _: (_['name'])),
         },
         'predictions': sorted(prediction_dicts, key=lambda _: (_['location'], _['target']))}
@@ -58,60 +59,28 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
     # Predictions returns base Prediction instances (forecast, location, and target) without subclass fields (e.g.,
     # PointPrediction.value). so we have to handle each Prediction subclass individually. this implementation loads
     # all instances of each concrete subclass into memory, ordered by (location, target) for groupby(). note: b/c the
-    # code for each class is so similar, I implemented an abstraction, but it turned out to be longer and more
-    # complicated, and didn't warrant eliminating the duplication
+    # code for each class is so similar, I had implemented an abstraction, but it turned out to be longer and more
+    # complicated, and IMHO didn't warrant eliminating the duplication
 
     location_names = set()
     target_names = set()
     prediction_dicts = []  # filled next for each Prediction subclass
 
-    # BinCatDistribution
-    bincat_qs = forecast.bincat_distribution_qs() \
-        .order_by('location__id', 'target__id', 'cat') \
-        .values_list('location__name', 'target__name', 'cat', 'prob')  # ordering by 'cat' for testing - slower query
-    for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
-        for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
-            target_names.add(target_name)
-            bincat_cats, bincat_probs = [], []
-            for _, _, cat, prob in cat_prob_grouper:
-                bincat_cats.append(cat)
-                bincat_probs.append(prob)
-            prediction_dicts.append({"location": location_name, "target": target_name,
-                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinCatDistribution],
-                                     "prediction": {"cat": bincat_cats, "prob": bincat_probs}})
-
-    # BinLwrDistribution
-    binlwr_qs = forecast.binlwr_distribution_qs() \
-        .order_by('location__id', 'target__id', 'lwr') \
-        .values_list('location__name', 'target__name', 'lwr', 'prob')  # ordering by 'lwr'
-    for location_name, target_lwr_prob_grouper in groupby(binlwr_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
-        for target_name, lwr_prob_grouper in groupby(target_lwr_prob_grouper, key=lambda _: _[1]):
-            target_names.add(target_name)
-            binlwr_lwrs, binlwr_probs = [], []
-            for _, _, lwr, prob in lwr_prob_grouper:
-                binlwr_lwrs.append(lwr)
-                binlwr_probs.append(prob)
-            prediction_dicts.append({"location": location_name, "target": target_name,
-                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinLwrDistribution],
-                                     "prediction": {"lwr": binlwr_lwrs, "prob": binlwr_probs}})
-
-    # BinaryDistribution
-    binary_qs = forecast.binary_distribution_qs() \
+    # PointPrediction
+    point_qs = forecast.point_prediction_qs() \
         .order_by('location__id', 'target__id') \
-        .values_list('location__name', 'target__name', 'prob')
-    for location_name, target_prob_grouper in groupby(binary_qs, key=lambda _: _[0]):
+        .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    for location_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
         location_names.add(location_name)
-        for target_name, prob_grouper in groupby(target_prob_grouper, key=lambda _: _[1]):
+        for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
             target_names.add(target_name)
-            for _, _, prob in prob_grouper:
-                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1
-                # BinaryDistributions per Forecast. validation should take care of enforcing this, but this code here is
-                # general
+            for _, _, value_i, value_f, value_t, value_d, value_b in values_grouper:  # recall that exactly one will be non-NULL
+                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
+                # per Forecast. validation should take care of enforcing this, but this code here is general
+                point_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
                 prediction_dicts.append({"location": location_name, "target": target_name,
-                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinaryDistribution],
-                                         "prediction": {"prob": prob}})
+                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
+                                         "prediction": {"value": point_value}})
 
     # NamedDistribution
     named_qs = forecast.named_distribution_qs() \
@@ -130,84 +99,56 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
                                          "prediction": {"family": famil_abbrev,
                                                         "param1": param1, "param2": param2, "param3": param3}})
 
-    # PointPrediction
-    point_qs = forecast.point_prediction_qs() \
-        .order_by('location__id', 'target__id') \
-        .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t')
-    for location_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
+    # BinDistribution. ordering by 'cat_*' for testing, but it's a slower query:
+    bincat_qs = forecast.bin_distribution_qs() \
+        .order_by('location__id', 'target__id', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b') \
+        .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+    for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
         location_names.add(location_name)
-        for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
+        for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
             target_names.add(target_name)
-            for _, _, value_i, value_f, value_t in values_grouper:  # recall that exactly one will be non-NULL
-                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
-                # per Forecast. validation should take care of enforcing this, but this code here is general
-                point_value = PointPrediction.first_non_none_value(value_i, value_f, value_t)
-                prediction_dicts.append({"location": location_name, "target": target_name,
-                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
-                                         "prediction": {"value": point_value}})
+            bin_cats, bin_probs = [], []
+            for _, _, prob, cat_i, cat_f, cat_t, cat_d, cat_b in cat_prob_grouper:
+                cat_value = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
+                bin_cats.append(cat_value)
+                bin_probs.append(prob)
+            prediction_dicts.append({'location': location_name, 'target': target_name,
+                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
+                                     'prediction': {'cat': bin_cats, 'prob': bin_probs}})
 
-    # SampleDistribution
+    # SampleDistribution. ordering by 'sample_*' for testing, but it's a slower query:
     sample_qs = forecast.sample_distribution_qs() \
-        .order_by('location__id', 'target__id') \
-        .values_list('location__name', 'target__name', 'sample')
+        .order_by('location__id', 'target__id', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b') \
+        .values_list('location__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
     for location_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, sample_grouper in groupby(target_sample_grouper, key=lambda _: _[1]):
             target_names.add(target_name)
-            samples = []
-            for _, _, sample in sample_grouper:
-                samples.append(sample)
-            prediction_dicts.append({"location": location_name, "target": target_name,
-                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
-                                     "prediction": {"sample": samples}})
-
-    # SampleCatDistribution
-    samplecat_qs = forecast.samplecat_distribution_qs() \
-        .order_by('location__id', 'target__id', 'cat') \
-        .values_list('location__name', 'target__name', 'cat', 'sample')  # ordering by 'cat' for testing - slower query
-    for location_name, target_cat_sample_grouper in groupby(samplecat_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
-        for target_name, cat_sample_grouper in groupby(target_cat_sample_grouper, key=lambda _: _[1]):
-            target_names.add(target_name)
-            samplecat_cats, samplecat_samples = [], []
-            for _, _, cat, sample in cat_sample_grouper:
-                samplecat_cats.append(cat)
-                samplecat_samples.append(sample)
-            prediction_dicts.append({"location": location_name, "target": target_name,
-                                     "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleCatDistribution],
-                                     "prediction": {"cat": samplecat_cats, "sample": samplecat_samples}})
+            sample_cats, sample_probs = [], []
+            for _, _, prob, sample_i, sample_f, sample_t, sample_d, sample_b in sample_grouper:
+                sample_value = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
+                sample_cats.append(sample_value)
+            prediction_dicts.append({'location': location_name, 'target': target_name,
+                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
+                                     'prediction': {'sample': sample_cats}})
 
     return location_names, target_names, prediction_dicts
 
 
 def _forecast_dict_for_forecast(forecast):
     """
-    json_io_dict_from_cdc_csv_file() helper that returns a dict for the 'forecast' section of the exported json.
+    json_io_dict_from_forecast() helper that returns a dict for the 'forecast' section of the exported json.
     See cdc-predictions.json for an example.
     """
-    return {"id": forecast.pk,
-            "forecast_model_id": forecast.forecast_model.pk,
-            "source": forecast.source,
-            "created_at": forecast.created_at.isoformat(),
-            "time_zero": {
-                "timezero_date": forecast.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
-                "data_version_date": forecast.time_zero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+    return {'id': forecast.pk,
+            'forecast_model_id': forecast.forecast_model.pk,
+            'source': forecast.source,
+            'created_at': forecast.created_at.isoformat(),
+            'time_zero': {
+                'timezero_date': forecast.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                'data_version_date': forecast.time_zero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
                 if forecast.time_zero.data_version_date else None
             }}
-
-
-def _target_dicts_for_project(project, target_names):
-    """
-    json_io_dict_from_cdc_csv_file() helper that returns a list of target dicts for the 'targets' section of the exported
-    json. See cdc-predictions.json for an example. only those in target_names are included
-    """
-    return [{"name": target.name,
-             "description": target.description,
-             "unit": target.unit,
-             "is_date": target.is_date,
-             "is_step_ahead": target.is_step_ahead,
-             "step_ahead_increment": target.step_ahead_increment}
-            for target in project.targets.all() if target.name in target_names]
 
 
 #

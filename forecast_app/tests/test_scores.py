@@ -42,7 +42,7 @@ class ScoresTestCase(TestCase):
         # use default abbreviation (""):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
         load_cdc_csv_forecast_file(xx, cls.forecast_model,
-                                   Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), cls.time_zero)
+                                   Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), cls.time_zero)  # EW01 2017
 
 
     def test_score_creation(self):

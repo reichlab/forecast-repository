@@ -88,7 +88,7 @@ def fill_project(project, mo_user, is_public):
     make_cdc_locations_and_targets(project)
 
     # make a few TimeZeros that match the truth and forecast data
-    # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))
+    # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))  # EW01 2017
     #   -> {'year': 2017, 'week': 3, 'day': 3}
     time_zero1 = TimeZero.objects.create(project=project,
                                          timezero_date=datetime.date(2017, 1, 17),
@@ -111,7 +111,7 @@ def fill_project(project, mo_user, is_public):
 
     # load the forecasts using the small data file
     # csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
-    csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
+    csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
     forecast1 = load_cdc_csv_forecast_file(xx, forecast_model1, csv_file_path, time_zero1)

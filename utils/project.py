@@ -74,6 +74,7 @@ def config_dict_from_project(project):
                           for timezero in project.timezeros.all()]}
 
 
+# todo xx integrate with API serialization!
 def _target_dicts_for_project_config(project):
     target_dicts = []
     for target in project.targets.all():
@@ -108,22 +109,20 @@ def _target_dicts_for_project_config(project):
             target_dict['range'] = [target_ranges[0], target_ranges[1]]
 
         # cats (target.cats)
-        target_cats_qs = target.cats  # target.cat_f, target.cat_t
+        target_cats_qs = target.cats  # target.cat_i, target.cat_f, target.cat_t, target.cat_d
         if target_cats_qs.count() != 0:
-            target_cats = target_cats_qs.values_list('cat_f', flat=True) \
-                if data_type == Target.FLOAT_DATA_TYPE \
-                else target_cats_qs.values_list('cat_t', flat=True)
+            if data_type == Target.INTEGER_DATA_TYPE:
+                target_cats = target_cats_qs.values_list('cat_i', flat=True)
+            elif data_type == Target.FLOAT_DATA_TYPE:
+                target_cats = target_cats_qs.values_list('cat_f', flat=True)
+            elif data_type == Target.TEXT_DATA_TYPE:
+                target_cats = target_cats_qs.values_list('cat_t', flat=True)
+            elif data_type == Target.DATE_DATA_TYPE:
+                target_cats = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                               for cat_date in target_cats_qs.values_list('cat_d', flat=True)]
+            else:
+                raise RuntimeError(f"invalid data_type={data_type} ({type_int_to_name[target.type]})")
             target_dict['cats'] = sorted(target_cats)
-
-        # dates (target.dates)
-        target_dates_qs = target.dates  # target.date
-        if target_dates_qs.count() != 0:
-            target_dates = sorted(target_dates_qs.values_list('date', flat=True))
-            target_dict['dates'] = [date.strftime(YYYY_MM_DD_DATE_FORMAT) for date in target_dates]
-
-        # todo xx needed? lwrs (target.lwrs)
-        #     target_dict['lwr'] = [binlwr.lwr for binlwr in target.binlwrs.all()]
-
         target_dicts.append(target_dict)
     return target_dicts
 
@@ -205,7 +204,7 @@ def validate_and_create_targets(project, project_dict):
     for target_dict in project_dict['targets']:
         # check for keys required by all target types. optional keys are tested below
         all_keys = set(target_dict.keys())
-        tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cats', 'dates'}  # optional keys
+        tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
         expected_keys = {'name', 'description', 'type', 'is_step_ahead'}
         if tested_keys != expected_keys:
             raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "
@@ -223,7 +222,7 @@ def validate_and_create_targets(project, project_dict):
             raise RuntimeError(f"step_ahead_increment not found but is required when is_step_ahead is passed. "
                                f"target_dict={target_dict}")
 
-        # check required, optional, and invalid keys by specific target type. 4 cases: 'unit', 'range', 'cats', 'dates'
+        # check required, optional, and invalid keys by target type. 3 cases: 'unit', 'range', 'cats'
         type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
         type_int = type_name_to_type_int[type_name]
 
@@ -252,37 +251,24 @@ def validate_and_create_targets(project, project_dict):
             raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
 
         # 3) test optional 'cats'. three cases a-c follow
-        # 3a) required but not passed: ['nominal', 'compositional']
+        # 3a) required but not passed: ['nominal', 'date', 'compositional']
         if ('cats' not in all_keys) and \
-                (type_int in [Target.NOMINAL_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
+                (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
             raise RuntimeError(f"'cats' not passed but is required for type_name={type_name}")
 
-        # 3b) optional: ok to pass or not pass: ['continuous']: no need to validate
+        # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
-        # 3c) invalid but passed: ['discrete', 'binary', 'date']
-        if ('cats' in all_keys) and (
-                type_int in [Target.DISCRETE_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
+        # 3c) invalid but passed: ['binary']
+        if ('cats' in all_keys) and (type_int == Target.BINARY_TARGET_TYPE):
             raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
-
-        # 4) test optional 'dates'. three cases a-c follow
-        # 4a) required but not passed: ['dates']
-        if ('dates' not in all_keys) and (type_int in [Target.DATE_TARGET_TYPE]):
-            raise RuntimeError(f"'dates' not passed but is required for type_name={type_name}")
-
-        # 4b) optional: ok to pass or not pass: []: no need to validate
-
-        # 4c) invalid but passed: ['continuous', 'discrete', 'nominal', 'binary', 'compositional']
-        if ('dates' in all_keys) and (
-                type_int in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
-                             Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
-            raise RuntimeError(f"'dates' passed but is invalid for type_name={type_name}")
 
         # validate 'range' if passed
         data_type = Target.data_type(type_int)  # python type
+        range_parsed = []  # set next if valid
         if 'range' in target_dict:
             for range_str in target_dict['range']:
                 try:
-                    data_type(range_str)
+                    range_parsed.append(data_type(range_str))
                 except ValueError as ve:
                     raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
                                        f"data_type={data_type}, error: {ve}")
@@ -290,22 +276,20 @@ def validate_and_create_targets(project, project_dict):
             if len(target_dict['range']) != 2:
                 raise RuntimeError(f"range did not contain exactly two items: {target_dict['range']}")
 
-        # validate 'cats' if passed
+        # validate 'cats' if passed. data type can be any of Target.*_DATA_TYPE: bool, datetime.date, float, int, or
+        # str. all functions but datetime.date can be called directly on the passed cat. we handle datetime.date
+        # separately
+        cats_parsed = []  # set next if valid
         if 'cats' in target_dict:
-            for cats_str in target_dict['cats']:
+            for cat_str in target_dict['cats']:
                 try:
-                    data_type(cats_str)
+                    if type_int == Target.DATE_TARGET_TYPE:
+                        cats_parsed.append(datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date())
+                    else:
+                        cats_parsed.append(data_type(cat_str))
                 except ValueError as ve:
-                    raise RuntimeError(f"cats type did not match data_type. cats_str={cats_str!r}, "
+                    raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
                                        f"data_type={data_type}, error: {ve}")
-
-        # validate 'dates' if passed
-        if 'dates' in target_dict:
-            for date_str in target_dict['dates']:
-                try:
-                    datetime.strptime(date_str, YYYY_MM_DD_DATE_FORMAT)
-                except ValueError as ve:
-                    raise RuntimeError(f"date was not in YYYY-MM-DD format: {date_str!r}")
 
         # valid! create the Target and then supporting 'list' instances: TargetCat, TargetLwr, TargetDate,
         # and TargetRange. atomic so that Targets succeed only if others do too
@@ -322,13 +306,11 @@ def validate_and_create_targets(project, project_dict):
             target = Target.objects.create(**model_init)
             targets.append(target)
 
-            # create TargetRange, TargetCat, TargetLwr, and TargetDate instances
-            if 'range' in target_dict:  # create two TargetRanges
-                target.set_range(target_dict['range'][0], target_dict['range'][1])
-            if 'cats' in target_dict:  # create TargetCats
-                target.set_cats(target_dict['cats'])
-            if 'dates' in target_dict:  # create TargetDates
-                target.set_dates(target_dict['dates'])
+            # create TargetRange, and TargetCat and TargetLwr (via set_cats()) instances
+            if ('range' in target_dict) and range_parsed:  # create two TargetRanges
+                target.set_range(range_parsed[0], range_parsed[1])
+            if ('cats' in target_dict) and cats_parsed:  # create TargetCats and TargetLwrs
+                target.set_cats(cats_parsed)
     return targets
 
 

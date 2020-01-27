@@ -112,7 +112,7 @@ def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
             raise RuntimeError(f"row_type was neither '{CDC_POINT_ROW_TYPE}' nor '{CDC_BIN_ROW_TYPE}': {row_type!r}")
         is_point_row = (row_type == CDC_POINT_ROW_TYPE.lower())
 
-        # use parse_value() to handle non-numeric cases like 'NA' and 'none'
+        # parse_value() handles non-numeric cases like 'NA' and 'none', which it turns into None. o/w it's a number
         bin_start_incl = parse_value(bin_start_incl)
         bin_end_notincl = parse_value(bin_end_notincl)
         value = parse_value(value)
@@ -125,22 +125,28 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a list of prediction dicts for the 'predictions' section of the
     exported json. Each dict corresponds to either a PointPrediction or BinDistribution depending on each row in rows.
-    Translates 'Season onset' targets by splitting them into two Reichlab non-CDC ones: 'season_onset_binary' and
-    'season_onset_date'. Also, uses season_start_year to convert EWs to YYYYMMDD_DATE_FORMAT dates.
+    Uses season_start_year to convert EWs to YYYYMMDD_DATE_FORMAT dates.
 
-    Recall the eight cdc-project.json targets and their types:
+    Recall the seven cdc-project.json targets and their types:
     -------------------------+-------------------------------+-----------+-----------+---------------------
     Target name              | target_type                   | unit      | data_type | step_ahead_increment
     -------------------------+-------------------------------+-----------+-----------+---------------------
-    "season_onset_binary"    | Target.BINARY                 | n/a       | boolean   | n/a    } new targets split from
-    "season_onset_date"      | Target.DATE_TARGET_TYPE       | "week"    | date      | n/a    } original 'Season onset'
-    "Season peak week"       | Target.DATE_TARGET_TYPE       | "week"    | date      | n/a
+    "Season onset"           | Target.NOMINAL_TARGET_TYPE    | "week"    | date      | n/a
+    "Season peak week"       | Target.DATE_TARGET_TYPE       | "week"    | text      | n/a
     "Season peak percentage" | Target.CONTINUOUS_TARGET_TYPE | "percent" | float     | n/a
     "1 wk ahead"             | Target.CONTINUOUS_TARGET_TYPE | "percent" | float     | 1
     "2 wk ahead"             | ""                            | ""        | ""        | 2
     "3 wk ahead"             | ""                            | ""        | ""        | 3
     "4 wk ahead"             | ""                            | ""        | ""        | 4
     -------------------------+-------------------------------+-----------+-----------+---------------------
+
+    Note that the "Season onset" target is nominal and not date. This is due to how the CDC decided to represent the
+    case when predicting no season onset, i.e., the threshold is not exceeded. This is done via a "none" bin where
+    both Bin_start_incl and Bin_end_notincl are the strings "none" and not an EW week number. Thus, we have to store
+    all bin starts as strings and not dates. At one point the lab was going to represent this case by splitting the
+    "Season onset" target into two: "season_onset_binary" (a Target.BINARY that indicates whether there is an onset or
+    not) and "season_onset_date" (a Target.DATE_TARGET_TYPE that is the onset date if "season_onset_binary" is true).
+    But we dropped that idea and stayed with the original single nominal target.
 
     :param season_start_year: as returned by season_start_year_from_ew_and_year()
     :param rows: as returned by _cleaned_rows_from_cdc_csv_file():
@@ -152,39 +158,40 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     for (location_name, target_name, is_point_row), bin_start_end_val_grouper in \
             groupby(rows, key=lambda _: (_[0], _[1], _[2])):
         # NB: should only be one point row per location/target pair, but collect all (i.e., don't validate here):
-        point_targets_and_values = []  # point prediction 2-tuples: (point_target_name, point_value)
-        # similarly, should only be one row per location/target pair, but "":
-        season_onset_binary_probs = []  # 'Season onset binary' True bin probabilities
-        season_onset_dates_and_probs = []  # 'Season onset date' 2-tuples: (monday_date, probability)
-        season_peak_week_dates_and_probs = []  # 'Season peak week' 2-tuples: (monday_date, probability)
-        bin_cats_and_probs = []  # 2-tuples for the remaining non-date targets: (cat, probability)
-        for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:
+        point_values = []
+        bin_cats, bin_probs = [], []
+        for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:  # all 3 are numbers or None
             try:
-                if is_point_row:
-                    is_date_target = target_name in ['Season onset', 'Season peak week']
-                    is_season_onset = target_name == 'Season onset'
-                    if is_date_target:
+                if is_point_row:  # save value in point_values, possibly converted based on target
+                    if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
+                        if value is None:
+                            value = 'none'
+                        else:  # value is an EW week number
+                            monday_date = monday_date_from_ew_and_season_start_year(value, season_start_year)
+                            value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                    elif target_name == 'Season peak week':  # date target. value: an EW Monday date
                         monday_date = monday_date_from_ew_and_season_start_year(value, season_start_year)
                         value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                    point_targets_and_values.append(('Season onset date' if is_season_onset else target_name, value))
-                elif (target_name == 'Season onset') and (bin_start_incl is None) and (bin_end_notincl is None):  # date
-                    # convert into 'Season onset binary' BinDistribution prediction dict
-                    season_onset_binary_probs.append(1 - value)  # 1 - p_none
-                elif (target_name == 'Season onset') and ((bin_start_incl is None) or (bin_end_notincl is None)):
-                    raise RuntimeError(f"got 'Season onset' row but not both start and end were None. "
-                                       f"bin_start_incl={bin_start_incl}, bin_end_notincl={bin_end_notincl}")
-                elif target_name == 'Season onset':  # date
-                    # convert into 'Season onset date' BinDistribution prediction dict. NB: these values still need to
-                    # be scaled: value/(1 - p_none) . however, we aren't guaranteed to have p_none until after we've
-                    # processed the special 'p_none' row (see test above that appends to season_onset_binary_probs). so
-                    # we defer scaling to below after all bin rows have been processed
+                    point_values.append(value)
+                # is_bin_row:
+                elif target_name == 'Season onset':  # nominal target. start: None or an EW Monday date
+                    if (bin_start_incl is None) and (bin_end_notincl is None):  # "none" bin (probability of no onset)
+                        bin_cat = 'none'  # convert back from None to original 'none' input
+                    elif (bin_start_incl is not None) and (bin_end_notincl is not None):  # regular (non-"none") bin
+                        monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
+                        bin_cat = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                    else:
+                        raise RuntimeError(f"got 'Season onset' row but not both start and end were None. "
+                                           f"bin_start_incl={bin_start_incl}, bin_end_notincl={bin_end_notincl}")
+                    bin_cats.append(bin_cat)
+                    bin_probs.append(value)
+                elif target_name == 'Season peak week':  # date target. start: an EW Monday date
                     monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
-                    season_onset_dates_and_probs.append((monday_date.strftime(YYYY_MM_DD_DATE_FORMAT), value))
-                elif target_name == 'Season peak week':  # date
-                    monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
-                    season_peak_week_dates_and_probs.append((monday_date.strftime(YYYY_MM_DD_DATE_FORMAT), value))
+                    bin_cats.append(monday_date.strftime(YYYY_MM_DD_DATE_FORMAT))
+                    bin_probs.append(value)
                 elif target_name in ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead']:
-                    bin_cats_and_probs.append((bin_start_incl, value))
+                    bin_cats.append(bin_start_incl)
+                    bin_probs.append(value)
                 else:
                     raise RuntimeError(f"invalid target_name: {target_name!r}")
             except ValueError as ve:
@@ -193,50 +200,23 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
                                    f"{bin_start_incl}, value={value}, row={row}, error={ve}")
 
         # add the actual prediction dicts
-        if point_targets_and_values:
-            if len(point_targets_and_values) > 1:
-                raise RuntimeError(f"len(point_targets_and_values) > 1: {point_targets_and_values}")
+        if point_values:
+            if len(point_values) > 1:
+                raise RuntimeError(f"len(point_values) > 1: {point_values}")
 
-            point_target_name, point_value = point_targets_and_values[0]
+            point_value = point_values[0]
             prediction_dicts.append({"location": location_name,
-                                     "target": point_target_name,
+                                     "target": target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
                                      'prediction': {
                                          'value': point_value}})
-        if season_onset_binary_probs:
-            if len(season_onset_binary_probs) > 1:
-                raise RuntimeError(f"len(season_onset_binary_probs) > 1: {season_onset_binary_probs}")
-
-            prob = season_onset_binary_probs[0]
-            prediction_dicts.append({"location": location_name,
-                                     "target": 'Season onset binary',
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
-                                     'prediction': {
-                                         'cat': [True],
-                                         'prob': [prob]}})
-        if season_onset_dates_and_probs:
-            # recall from above that we need to scale probs now that we have p_none
-            one_minus_p_none = season_onset_binary_probs[0]
-            prediction_dicts.append({"location": location_name,
-                                     "target": 'Season onset date',
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
-                                     'prediction': {
-                                         'cat': [_[0] for _ in season_onset_dates_and_probs],  # dates
-                                         'prob': [_[1] / one_minus_p_none for _ in season_onset_dates_and_probs]}})
-        if season_peak_week_dates_and_probs:
-            prediction_dicts.append({"location": location_name,
-                                     "target": 'Season peak week',
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
-                                     'prediction': {
-                                         'cat': [_[0] for _ in season_peak_week_dates_and_probs],  # dates
-                                         'prob': [_[1] for _ in season_peak_week_dates_and_probs]}})
-        if bin_cats_and_probs:
+        if bin_cats:
             prediction_dicts.append({"location": location_name,
                                      "target": target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
                                      'prediction': {
-                                         'cat': [_[0] for _ in bin_cats_and_probs],
-                                         'prob': [_[1] for _ in bin_cats_and_probs]}})
+                                         "cat": bin_cats,
+                                         "prob": bin_probs}})
     return prediction_dicts
 
 

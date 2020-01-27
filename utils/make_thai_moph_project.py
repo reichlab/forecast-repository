@@ -9,6 +9,9 @@ import django
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+import pymmwr
+
+
 django.setup()
 
 from utils.utilities import get_or_create_super_po_mo_users
@@ -16,7 +19,7 @@ from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
 from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets, \
     delete_project_iteratively
-from utils.cdc import load_cdc_csv_forecast_file
+from utils.cdc import load_cdc_csv_forecast_file, season_start_year_from_ew_and_year
 
 
 #
@@ -150,18 +153,20 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None)
             click.echo("s (!is_load_file)\t{}\t".format(cdc_csv_file.name))
             continue
 
-        timezero_date = forecast_model.project.time_zero_for_timezero_date(timezero_date)
-        if not timezero_date:
+        timezero = forecast_model.project.time_zero_for_timezero_date(timezero_date)
+        if not timezero:
             click.echo("x (no TimeZero found)\t{}\t".format(cdc_csv_file.name))
             continue
 
-        found_forecast_for_time_zero = forecast_model.forecast_for_time_zero(timezero_date)
+        found_forecast_for_time_zero = forecast_model.forecast_for_time_zero(timezero)
         if found_forecast_for_time_zero:
             click.echo("s (found forecast)\t{}\t".format(cdc_csv_file.name))
             continue
 
         try:
-            forecast = load_cdc_csv_forecast_file(xx, forecast_model, cdc_csv_file, timezero_date)
+            mmwr_week_dict = pymmwr.date_to_mmwr_week(timezero.timezero_date)  # ex: {'year': 2017, 'week': 3, 'day': 3}
+            season_start_year = season_start_year_from_ew_and_year(mmwr_week_dict['week'], mmwr_week_dict['year'])
+            forecast = load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file, timezero_date)
             forecasts.append(forecast)
             click.echo("o\t{}\t".format(cdc_csv_file.name))
         except RuntimeError as rte:

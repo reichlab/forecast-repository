@@ -1,12 +1,12 @@
+import datetime
 import itertools
-from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import BooleanField, IntegerField
 
 from forecast_app.models import Project, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution
-from utils.utilities import basic_str, YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import basic_str
 
 
 #
@@ -130,10 +130,12 @@ class Target(models.Model):
         :param cats: a list of either all floats or all strings, depending on my data_type
         """
         # validate target type
-        valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
-                              Target.COMPOSITIONAL_TARGET_TYPE]
+        valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
+                              Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]
         if self.type not in valid_target_types:
-            raise ValidationError(f"invalid target type  {self.type}. must be one of: {valid_target_types}")
+            valid_target_types = [Target.type_as_str(target_type) for target_type in valid_target_types]
+            raise ValidationError(f"invalid target type  {Target.type_as_str(self.type)}. must be one of: "
+                                  f"{valid_target_types}")
 
         # validate cats
         data_type = Target.data_type(self.type)
@@ -143,15 +145,17 @@ class Target(models.Model):
 
         cats_type = list(types_set)[0]
         if data_type != cats_type:
-            raise ValidationError(f"cats type did not match target data type. cats type={cats_type}, "
+            raise ValidationError(f"at least one cats type did not match target data type. cats type={cats_type}, "
                                   f"data_type={data_type}")
 
         # delete and save the new TargetCats
         TargetCat.objects.filter(target=self).delete()
         for cat in cats:
             TargetCat.objects.create(target=self,
+                                     cat_i=cat if (data_type == Target.INTEGER_DATA_TYPE) else None,
                                      cat_f=cat if (data_type == Target.FLOAT_DATA_TYPE) else None,
-                                     cat_t=cat if (data_type == Target.TEXT_DATA_TYPE) else None)
+                                     cat_t=cat if (data_type == Target.TEXT_DATA_TYPE) else None,
+                                     cat_d=cat if (data_type == Target.DATE_DATA_TYPE) else None)
 
         # ditto for TargetLwrs for the continuous case (required for scoring), calculating `upper` via zip().
         # NB: we use infinity for the last bin's upper!
@@ -159,30 +163,6 @@ class Target(models.Model):
             cats = sorted(cats)
             for lwr, upper in itertools.zip_longest(cats, cats[1:], fillvalue=float('inf')):
                 TargetLwr.objects.create(target=self, lwr=lwr, upper=upper)
-
-
-    def set_dates(self, dates):
-        """
-        Creates TargetDate entries for each date in dates, first deleting all current ones.
-
-        :param dates: a list of date strings in YYYY_MM_DD_DATE_FORMAT
-        """
-        # validate target type
-        valid_target_types = [Target.DATE_TARGET_TYPE]
-        if self.type not in valid_target_types:
-            raise ValidationError(f"invalid target type  {self.type}. must be one of: {valid_target_types}")
-
-        # validate dates
-        for date in dates:
-            try:
-                datetime.strptime(date, YYYY_MM_DD_DATE_FORMAT)
-            except ValueError as ve:
-                raise ValidationError(f"date was not in YYYY-MM-DD format: {date}")
-
-        # delete and save the new TargetDates
-        TargetDate.objects.filter(target=self).delete()
-        for date in dates:
-            TargetDate.objects.create(target=self, date=date)
 
 
     def set_range(self, lower, upper):
@@ -258,12 +238,17 @@ class TargetCat(models.Model):
     Associates a 'list' of cat values with Targets of type Target.NOMINAL_TARGET_TYPE and Target.COMPOSITIONAL.
     """
     target = models.ForeignKey('Target', blank=True, null=True, related_name='cats', on_delete=models.CASCADE)
-    cat_f = models.FloatField(null=True)  # NULL if cat_t non-NULL
-    cat_t = models.TextField(null=True)  # NULL if cat_f non-NULL
+    cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    cat_f = models.FloatField(null=True)  # ""
+    cat_t = models.TextField(null=True)  # ""
+    cat_d = models.DateField(null=True)  # ""
+
+
+    # cat_b = models.NullBooleanField(null=True)  # not required b/c binary targets are not allowed cats
 
 
     def __repr__(self):
-        return str((self.pk, self.target.pk, self.cat_f, self.cat_t))
+        return str((self.pk, self.target.pk, self.cat_i, self.cat_f, self.cat_t, self.cat_d))
 
 
     def __str__(self):  # todo
@@ -293,26 +278,6 @@ class TargetLwr(models.Model):
 
     def __repr__(self):
         return str((self.pk, self.target.pk, self.lwr, self.upper))
-
-
-    def __str__(self):  # todo
-        return basic_str(self)
-
-
-#
-# ---- TargetDate ----
-#
-
-class TargetDate(models.Model):
-    """
-    Associates a 'list' of date values with Targets of type Target.DATE.
-    """
-    target = models.ForeignKey('Target', blank=True, null=True, related_name='dates', on_delete=models.CASCADE)
-    date = models.DateField()
-
-
-    def __repr__(self):
-        return str((self.pk, self.target.pk, self.date))
 
 
     def __str__(self):  # todo
