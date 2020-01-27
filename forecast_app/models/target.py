@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models import BooleanField, IntegerField
 
 from forecast_app.models import Project, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution
-from utils.utilities import basic_str
+from utils.utilities import basic_str, YYYY_MM_DD_DATE_FORMAT
 
 
 #
@@ -127,7 +127,8 @@ class Target(models.Model):
         """
         Creates TargetCat entries for each cat in cats, first deleting all current ones.
 
-        :param cats: a list of either all floats or all strings, depending on my data_type
+        :param cats: a list of categories. they are either all ints, floats, or strs depending on my data_type. strs
+            will be converted to datetime.date objects for date targets.
         """
         # validate target type
         valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
@@ -137,15 +138,24 @@ class Target(models.Model):
             raise ValidationError(f"invalid target type  {Target.type_as_str(self.type)}. must be one of: "
                                   f"{valid_target_types}")
 
-        # validate cats
+        # validate uniform data type
         data_type = Target.data_type(self.type)
         types_set = set(map(type, cats))
         if len(types_set) != 1:
             raise ValidationError(f"there was more than one data type in cats={cats}: {types_set}")
 
+        # before validating data type compatibility, try to replace date strings with actual date objects
+        try:
+            if data_type == Target.DATE_DATA_TYPE:
+                cats = [datetime.datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date() for cat_str in cats]
+        except ValueError as exc:
+            raise ValidationError(f"one or more cats were not in YYYY-MM-DD format. cats={cats}. exc={exc}")
+
+        # validate data type compatibility
+        types_set = set(map(type, cats))
         cats_type = list(types_set)[0]
         if data_type != cats_type:
-            raise ValidationError(f"at least one cats type did not match target data type. cats type={cats_type}, "
+            raise ValidationError(f"cats data type did not match target data type. cats={cats}. cats_type={cats_type}, "
                                   f"data_type={data_type}")
 
         # delete and save the new TargetCats
@@ -169,7 +179,7 @@ class Target(models.Model):
         """
         Creates two TargetRange entries for lower and upper, first deleting all current ones.
 
-        :param lower: a float or string, depending on my data_type
+        :param lower: an int or float, depending on my data_type
         :param upper: ""
         """
         # validate target type

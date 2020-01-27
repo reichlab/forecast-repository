@@ -129,8 +129,8 @@ class TargetTestCase(TestCase):
 
 
     def test_cats_required(self):
-        # target type: continuous, nominal, compositional accept an optional 'cats' list via Target.set_cats(). here we
-        # test that that function checks the target type
+        # the target types continuous, discrete, nominal, date, and compositional accept an optional or required 'cats'
+        # list via Target.set_cats(). here we test that that function checks the target type
         model_init = {'project': self.project,
                       'name': 'target_name',
                       'description': 'target_description',
@@ -138,8 +138,9 @@ class TargetTestCase(TestCase):
                       'unit': 'month'}  # missing type
         # case: valid types
         for target_type, cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3]),
+                                  (Target.DISCRETE_TARGET_TYPE, [1, 20, 35]),
                                   (Target.NOMINAL_TARGET_TYPE, ['cat1', 'cat2', 'cat3']),
-                                  (Target.DATE_TARGET_TYPE, xx),
+                                  (Target.DATE_TARGET_TYPE, ['2019-01-09', '2019-01-19']),
                                   (Target.COMPOSITIONAL_TARGET_TYPE, ['cat4', 'cat5', 'cat6'])]:
             model_init['type'] = target_type
             target = Target.objects.create(**model_init)
@@ -153,7 +154,7 @@ class TargetTestCase(TestCase):
                     raise Exception
 
         # case: invalid types
-        for target_type in [Target.DISCRETE_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
+        for target_type in [Target.BINARY_TARGET_TYPE]:
             model_init['type'] = target_type
             target = Target.objects.create(**model_init)
             with self.assertRaises(ValidationError) as context:
@@ -266,19 +267,19 @@ class TargetTestCase(TestCase):
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['cat4', 'cat5', 'cat6'])  # should be floats
-        self.assertIn('cats type did not match target data type', str(context.exception))
+        self.assertIn('cats data type did not match target data type', str(context.exception))
 
         model_init['type'] = Target.NOMINAL_TARGET_TYPE
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 2.2, 3.3])  # should be strings
-        self.assertIn('cats type did not match target data type', str(context.exception))
+        self.assertIn('cats data type did not match target data type', str(context.exception))
 
         model_init['type'] = Target.COMPOSITIONAL_TARGET_TYPE
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 2.2, 3.3])  # should be strings
-        self.assertIn('cats type did not match target data type', str(context.exception))
+        self.assertIn('cats data type did not match target data type', str(context.exception))
 
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 'cat5', 'cat6'])  # should be same type
@@ -327,7 +328,7 @@ class TargetTestCase(TestCase):
         with self.assertRaises(Exception):
             try:
                 target.set_cats(['2019-01-09', '2019-01-19'])
-            except:
+            except Exception as ex:
                 pass
             else:
                 raise Exception
@@ -335,7 +336,7 @@ class TargetTestCase(TestCase):
         # case: invalid format
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['bad-date-format', '2019-01-19'])
-        self.assertIn('date was not in YYYY-MM-DD format', str(context.exception))
+        self.assertIn('one or more cats were not in YYYY-MM-DD format', str(context.exception))
 
 
     def test_target_dates_created(self):
@@ -348,8 +349,8 @@ class TargetTestCase(TestCase):
                       'unit': 'month'}
         target = Target.objects.create(**model_init)
         target.set_cats(['2019-01-09', '2019-01-19'])
-        target_dates = sorted(list(TargetDate.objects.filter(target=target).values_list('date', flat=True)))
-        self.assertEqual([datetime.date(2019, 1, 9), datetime.date(2019, 1, 19)], target_dates)
+        target_cats = sorted(list(TargetCat.objects.filter(target=target).values_list('cat_d', flat=True)))
+        self.assertEqual([datetime.date(2019, 1, 9), datetime.date(2019, 1, 19)], target_cats)
 
 
     def test_target_lwrs_created(self):

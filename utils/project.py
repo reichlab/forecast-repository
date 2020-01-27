@@ -262,13 +262,12 @@ def validate_and_create_targets(project, project_dict):
         if ('cats' in all_keys) and (type_int == Target.BINARY_TARGET_TYPE):
             raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
 
-        # validate 'range' if passed
+        # validate 'range' if passed. values can be either ints or floats, and must match the target's data type
         data_type = Target.data_type(type_int)  # python type
-        range_parsed = []  # set next if valid
         if 'range' in target_dict:
             for range_str in target_dict['range']:
                 try:
-                    range_parsed.append(data_type(range_str))
+                    data_type(range_str)  # try parsing as an int or float
                 except ValueError as ve:
                     raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
                                        f"data_type={data_type}, error: {ve}")
@@ -276,17 +275,15 @@ def validate_and_create_targets(project, project_dict):
             if len(target_dict['range']) != 2:
                 raise RuntimeError(f"range did not contain exactly two items: {target_dict['range']}")
 
-        # validate 'cats' if passed. data type can be any of Target.*_DATA_TYPE: bool, datetime.date, float, int, or
-        # str. all functions but datetime.date can be called directly on the passed cat. we handle datetime.date
-        # separately
-        cats_parsed = []  # set next if valid
+        # validate 'cats' if passed. values can strings, ints, or floats, and must match the target's data type. strings
+        # can be either dates in YYYY_MM_DD_DATE_FORMAT form or just plain strings.
         if 'cats' in target_dict:
             for cat_str in target_dict['cats']:
                 try:
                     if type_int == Target.DATE_TARGET_TYPE:
-                        cats_parsed.append(datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date())
+                        datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
                     else:
-                        cats_parsed.append(data_type(cat_str))
+                        data_type(cat_str)  # try parsing as a string, int, or float
                 except ValueError as ve:
                     raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
                                        f"data_type={data_type}, error: {ve}")
@@ -307,10 +304,10 @@ def validate_and_create_targets(project, project_dict):
             targets.append(target)
 
             # create TargetRange, and TargetCat and TargetLwr (via set_cats()) instances
-            if ('range' in target_dict) and range_parsed:  # create two TargetRanges
-                target.set_range(range_parsed[0], range_parsed[1])
-            if ('cats' in target_dict) and cats_parsed:  # create TargetCats and TargetLwrs
-                target.set_cats(cats_parsed)
+            if ('range' in target_dict) and target_dict['range']:
+                target.set_range(target_dict['range'][0], target_dict['range'][1])  # create two TargetRanges
+            if ('cats' in target_dict) and target_dict['cats']:
+                target.set_cats(target_dict['cats'])  # create TargetCats and TargetLwrs
     return targets
 
 
