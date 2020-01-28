@@ -729,8 +729,8 @@ def _make_thai_log_score_project():
     create_thai_locations_and_targets(project2)
 
     forecast_model2 = ForecastModel.objects.create(project=project2)
-    forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2, Path(
-        'forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'), time_zero2)
+    csv_file_path = Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv')
+    forecast2 = load_cdc_csv_forecast_file(None, forecast_model2, csv_file_path, time_zero2)  # no season_start_year
 
     project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
     return project2, forecast_model2, forecast2, time_zero2

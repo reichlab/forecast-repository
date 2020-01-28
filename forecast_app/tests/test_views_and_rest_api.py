@@ -321,7 +321,6 @@ class ViewsTestCase(TestCase):
                     self.client.login(username=user.username, password=password)
                     response = self.client.get(url)
                     if is_accessible:
-                        if exp_url not in str(response.content):
                         self.assertIn(exp_url, str(response.content))
                     else:
                         self.assertNotIn(exp_url, str(response.content))

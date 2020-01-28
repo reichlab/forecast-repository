@@ -84,15 +84,11 @@ class CdcCsvToPredictionsTestCase(TestCase):
             act_json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
             self.assertEqual(exp_json_io_dict, act_json_io_dict)
 
-        # test a test larger csv file
+        # test a larger csv file
         with open('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde.csv') as cdc_csv_fp:
             ew_and_year = ew_and_year_from_cdc_file_name('EW01-2011-ReichLab_kde.csv')
             season_start_year = season_start_year_from_ew_and_year(ew_and_year[0], ew_and_year[1])
             act_json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
-
-            with open('/Users/cornell/temp.json', 'w') as output_json_fp:
-                json.dump(act_json_io_dict, output_json_fp, indent=4)
-
             # - 15 prediction dicts per region * 11 regions = 165 dicts total
             # - dicts for each region:
             #   2 per each 'n wk ahead' target (1 bin, 1 point) * 4 'n wk ahead' targets = 8 dicts
@@ -102,6 +98,9 @@ class CdcCsvToPredictionsTestCase(TestCase):
             #   2 "Season peak week" dicts (1 bin, 1 point)
             # = 15 dicts total
             self.assertEqual(165, len(act_json_io_dict['predictions']))
+
+            # spot-check EW conversion to Mondays in YYYY_MM_DD_DATE_FORMAT
+            self.assertEqual(-1, -2)
 
 
     def test_load_predictions_from_cdc_csv_file(self):

@@ -31,8 +31,7 @@ class ForecastTestCase(TestCase):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
-        season_start_year = season_start_year_from_ew_and_year(1, 2017)
-        cls.forecast = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, cls.time_zero)
+        cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
 
     def test_load_forecast_created_at_field(self):
@@ -41,8 +40,7 @@ class ForecastTestCase(TestCase):
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
-        season_start_year = season_start_year_from_ew_and_year(1, 2017)
-        forecast2 = load_cdc_csv_forecast_file(season_start_year, forecast_model2, csv_file_path, time_zero2)
+        forecast2 = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
         self.assertIsNotNone(forecast2.created_at)
 
 
@@ -51,7 +49,6 @@ class ForecastTestCase(TestCase):
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.source)
         self.assertEqual(8019, self.forecast.get_num_rows())  # excluding header
-
 
         # check 'US National' targets
         us_nat_points_qs = self.forecast.point_prediction_qs() \
@@ -63,15 +60,14 @@ class ForecastTestCase(TestCase):
             .order_by('location__name', 'target__name') \
             .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
 
-
         # spot-check a few point rows
-        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None),
-                      ('US National', '2 wk ahead', None, 2.72809349594878, None),
-                      ('US National', '3 wk ahead', None, 2.5332588357381, None),
-                      ('US National', '4 wk ahead', None, 2.42985946508278, None),
-                      ('US National', 'Season onset', None, None, '50.0012056690978'),  # value_t
-                      ('US National', 'Season peak percentage', None, 3.30854920241938, None),  # value_f
-                      ('US National', 'Season peak week', None, None, '4.96302456525203')]
+        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None, None, None),  # _i, _f, _t, _d, _b
+                      ('US National', '2 wk ahead', None, 2.72809349594878, None, None, None),
+                      ('US National', '3 wk ahead', None, 2.5332588357381, None, None, None),
+                      ('US National', '4 wk ahead', None, 2.42985946508278, None, None, None),
+                      ('US National', 'Season onset', None, None, '2016-12-12', None, None),
+                      ('US National', 'Season peak percentage', None, 3.30854920241938, None, None, None),
+                      ('US National', 'Season peak week', None, None, None, datetime.date(2017, 1, 30), None)]
         act_points_qs = self.forecast.point_prediction_qs() \
             .filter(location__name='US National') \
             .order_by('location__name', 'target__name') \
@@ -87,7 +83,7 @@ class ForecastTestCase(TestCase):
 
         # test a bad data file header
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(xx, self.forecast_model,
+            load_cdc_csv_forecast_file(season_start_year, self.forecast_model,
                                        Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'), self.time_zero)
         self.assertIn('invalid header', str(context.exception))
 
@@ -97,28 +93,40 @@ class ForecastTestCase(TestCase):
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(xx, forecast_model2,
-                                       Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                       self.time_zero)
+            csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
+            load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, self.time_zero)
         self.assertIn("time_zero was not in project", str(context.exception))
 
 
-    def test_load_forecast_skips_bin_cat_and_lwr_zero_prob_bins(self):
+    def test_load_forecast_skips_zero_values(self):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-        with open('forecast_app/tests/predictions/cdc-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/cdc_zero_probabilities.json') as fp:
             json_io_dict = json.load(fp)
         load_predictions_from_json_io_dict(forecast2, json_io_dict)
-        self.assertEqual(2, forecast2.bincat_distribution_qs().count())
-        self.assertEqual(2, forecast2.binlwr_distribution_qs().count())
+
+        # test points: both should be there (points are not skipped)
+        self.assertEqual(2, forecast2.point_prediction_qs().count())
+
+        # test bins: 2 out of 6 have zero probabilities and should be skipped
+        exp_bins = [('HHS Region 1', '1 wk ahead', 0.2, None, 0.1, None, None, None),  # _i, _f, _t, _d, _b
+                    ('HHS Region 1', '1 wk ahead', 0.8, None, 0.2, None, None, None),
+                    ('US National', 'Season onset', 0.1, None, None, 'cat2', None, None),
+                    ('US National', 'Season onset', 0.9, None, None, 'cat3', None, None)]
+        bin_distribution_qs = forecast2.bin_distribution_qs() \
+            .order_by('location__name', 'target__name') \
+            .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+        self.assertEqual(4, bin_distribution_qs.count())
+        self.assertEqual(exp_bins, list(bin_distribution_qs))
 
 
     def test_load_forecast_thai_point_json_type(self):
         # exposes a bug where 0-valued bin points are loaded as null
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
         act_json_io_dict = json_io_dict_from_forecast(forecast2)  # recall json predictions are sorted by location, type
-        exp_point = {'location': 'TH01', 'target': '1_biweek_ahead', 'class': 'Point', 'prediction': {'value': 0}}
-        act_point = act_json_io_dict['predictions'][1]
-        self.assertEqual(exp_point, act_point)
+        exp_pred_dict = {'location': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
+        act_pred_dict = [pred_dict for pred_dict in act_json_io_dict['predictions']
+                         if (pred_dict['location'] == 'TH01') and (pred_dict['target'] == '1_biweek_ahead')][0]
+        self.assertEqual(exp_pred_dict, act_pred_dict)
 
 
     def test_load_forecasts_from_dir(self):
@@ -155,22 +163,21 @@ class ForecastTestCase(TestCase):
 
     def test_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(xx, self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv'), self.time_zero)
-        self.assertIn("Point value was non-numeric", str(context.exception))
+            csv_file_path = Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv')  # EW01 2017
+            load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
+        self.assertIn("None point values are only valid for 'Season onset' targets", str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(xx, self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv'),
-                                       self.time_zero)
+            csv_file_path = Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv')  # EW01 2017
+            load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
         self.assertIn("Bin did not sum to 1.0", str(context.exception))
 
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
             try:
-                load_cdc_csv_forecast_file(xx, self.forecast_model,
-                                           Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv'),
-                                           self.time_zero)  # date-based Point row w/NA value is OK
+                # date-based Point row w/NA value is OK:
+                csv_file_path = Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv')  # EW01 2017
+                load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
             except:
                 pass
             else:
@@ -179,19 +186,19 @@ class ForecastTestCase(TestCase):
         self.fail()  # todo xx
 
 
-    def test_forecast_data_binlwr_validation(self):
+    def test_forecast_data_bin_validation(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
 
         # test that BinLwr lwrs are loaded into Target 'template'
         target = project.targets.filter(name='2 wk ahead').first()
-        self.assertEqual(131, target.binlwrs.count())  # cdc-project.json: [0, 0.1, ..., 13]
+        self.assertEqual(131, target.lwrs.count())  # cdc-project.json: [0, 0.1, ..., 13]
 
         # test lwr validation: cdc-predictions.json /is/ valid.
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with open('forecast_app/tests/predictions/cdc-predictions.json') as fp:
             json_io_dict = json.load(fp)
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
             try:
                 load_predictions_from_json_io_dict(forecast2, json_io_dict)
@@ -253,30 +260,128 @@ class ForecastTestCase(TestCase):
         point_prediction_qs = self.forecast.point_prediction_qs() \
             .order_by('location__name', 'target__name') \
             .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(77, point_prediction_qs.count())
-        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None),
-                      ('US National', '2 wk ahead', None, 2.72809349594878, None),
-                      ('US National', '3 wk ahead', None, 2.5332588357381, None),
-                      ('US National', '4 wk ahead', None, 2.42985946508278, None),
-                      ('US National', 'Season onset', None, None, '50.0012056690978'),  # value_t
-                      ('US National', 'Season peak percentage', None, 3.30854920241938, None),  # value_f
-                      ('US National', 'Season peak week', None, None, '4.96302456525203')]
+        self.assertEqual(77, point_prediction_qs.count())  # 11 locations x 7 targets x 1 point/location-target pair
+
+        # spot-check a location
+        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None, None, None),  # _i, _f, _t, _d, _b
+                      ('US National', '2 wk ahead', None, 2.72809349594878, None, None, None),
+                      ('US National', '3 wk ahead', None, 2.5332588357381, None, None, None),
+                      ('US National', '4 wk ahead', None, 2.42985946508278, None, None, None),
+                      ('US National', 'Season onset', None, None, '2016-12-12', None, None),
+                      ('US National', 'Season peak percentage', None, 3.30854920241938, None, None, None),
+                      ('US National', 'Season peak week', None, None, None, datetime.date(2017, 1, 30), None)]
+        # re: EW translations to absolute dates:
+        # - self.forecast's season_start_year is 2016
+        # - EW '50.0012056690978' within that file rounds down to EW50
+        # - EW50 in season_start_year is 2016 -> EW50 2016 (50 >= SEASON_START_EW_NUMBER -> is in season_start_year)
+        # - EW50 2016 is the week ending Saturday 12/17/2016. that week's Monday is 12/12/2016, formatted as
+        #   '2016-12-12'. it says a string b/c the target is nominal
+        # similarly:
+        # - EW '4.96302456525203' within that file rounds up to EW05
+        # - EW05 in season_start_year is 2016 -> EW05 2017 (5 < SEASON_START_EW_NUMBER -> is in season_start_year + 1)
+        # - EW05 2017 is the week ending Saturday 2/4/2017. that week's Monday is 1/30/2017, formatted as '2017-01-30'.
+        #   it is a datetime.date b/c the target is date
         self.assertEqual(exp_points, list(point_prediction_qs.filter(location__name='US National')))
 
-        # test binlwr
-        binlwr_distribution_qs = self.forecast.binlwr_distribution_qs() \
-            .order_by('location__name', 'target__name', 'lwr') \
-            .values_list('location__name', 'target__name', 'lwr', 'prob')
-        self.assertEqual(7205, binlwr_distribution_qs.count())
-        self.assertEqual(('HHS Region 1', '1 wk ahead', 0.0, 3.30894085342807e-07), binlwr_distribution_qs[0])
+        # test bins
+        bin_distribution_qs = self.forecast.bin_distribution_qs() \
+            .order_by('location__name', 'target__name') \
+            .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+        self.assertEqual(7942, bin_distribution_qs.count())
 
-        #  test bincat
-        bincat_distribution_qs = self.forecast.bincat_distribution_qs() \
-            .order_by('location__name', 'target__name', 'cat') \
-            .values_list('location__name', 'target__name', 'cat', 'prob')
-        self.assertEqual(737, bincat_distribution_qs.count())
-        self.assertEqual(('HHS Region 1', 'Season onset', '1', 2.37797107673309e-05), bincat_distribution_qs[0])
-        self.assertEqual(('HHS Region 1', 'Season onset', 'none', 0.0227300694570138), bincat_distribution_qs[33])
+        # spot-check a location and date-based target ('Season onset') which is actually nominal (text), but contains
+        # date strings (due to 'none' values not being date objects)
+        exp_bins = [
+            # EW40 2016. Sat end: 10/8/2016 -> Mon: 10/3/2016:
+            ('US National', 'Season onset', 1.95984004521967e-05, '2016-10-03'),
+            ('US National', 'Season onset', 1.46988003391476e-05, '2016-10-10'),
+            ('US National', 'Season onset', 6.98193016109509e-06, '2016-10-17'),
+            ('US National', 'Season onset', 3.79719008761312e-06, '2016-10-24'),
+            ('US National', 'Season onset', 4.28715009891804e-06, '2016-10-31'),
+            ('US National', 'Season onset', 1.59237003674098e-05, '2016-11-07'),
+            ('US National', 'Season onset', 3.0989970715036e-05, '2016-11-14'),
+            ('US National', 'Season onset', 5.3895601243541e-05, '2016-11-21'),
+            ('US National', 'Season onset', 7.49638817296525e-05, '2016-11-28'),
+            ('US National', 'Season onset', 0.000110241002543607, '2016-12-05'),
+            ('US National', 'Season onset', 0.998941808865584, '2016-12-12'),
+            ('US National', 'Season onset', 0.000165973953829541, '2016-12-19'),
+            # EW52 2016. Sat end: 12/31/2016 -> Mon: 12/26/2016:
+            ('US National', 'Season onset', 0.000147110493394302, '2016-12-26'),
+            # EW01 2017. Sat end: 1/7/2017 -> Mon: 1/2/2017:
+            ('US National', 'Season onset', 9.7624532252505e-05, '2017-01-02'),
+            ('US National', 'Season onset', 5.41405812491935e-05, '2017-01-09'),
+            ('US National', 'Season onset', 3.8951820898741e-05, '2017-01-16'),
+            ('US National', 'Season onset', 4.99759211531016e-05, '2017-01-23'),
+            ('US National', 'Season onset', 4.09116609439607e-05, '2017-01-30'),
+            ('US National', 'Season onset', 3.60120608309115e-05, '2017-02-06'),
+            ('US National', 'Season onset', 2.51104505793771e-05, '2017-02-13'),
+            ('US National', 'Season onset', 2.09457904832853e-05, '2017-02-20'),
+            ('US National', 'Season onset', 1.99658704606754e-05, '2017-02-27'),
+            ('US National', 'Season onset', 1.6536150381541e-05, '2017-03-06'),
+            ('US National', 'Season onset', 6.00201013848525e-06, '2017-03-13'),
+            ('US National', 'Season onset', 2.20482005087213e-06, '2017-03-20'),
+            ('US National', 'Season onset', 3.6747000847869e-07, '2017-03-27'),
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-03'),
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-10'),
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-17'),
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-24'),
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-01'),
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-08'),
+            # EW20 2017. Sat end: 5/20/2017 -> Mon: 5/15/2017:
+            ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-15'),
+            ('US National', 'Season onset', 1.22490002826229e-07, 'none')]
+        bin_distribution_qs = self.forecast.bin_distribution_qs() \
+            .filter(location__name='US National', target__name='Season onset') \
+            .order_by('location__name', 'target__name', 'cat_t') \
+            .values_list('location__name', 'target__name', 'prob', 'cat_t')
+        self.assertEqual(34, bin_distribution_qs.count())
+        self.assertEqual(exp_bins, list(bin_distribution_qs))
+
+        # spot-check a location an an actual date-based target ('Season peak week')
+        exp_bins = [
+            # EW40 2016. Sat end: 10/8/2016 -> Mon: 10/3/2016:
+            ('US National', 'Season peak week', 3.88312283001796e-05, datetime.date(2016, 10, 3)),
+            ('US National', 'Season peak week', 4.32690829630572e-05, datetime.date(2016, 10, 10)),
+            ('US National', 'Season peak week', 4.27143511301975e-05, datetime.date(2016, 10, 17)),
+            ('US National', 'Season peak week', 4.82616694587946e-05, datetime.date(2016, 10, 24)),
+            ('US National', 'Season peak week', 3.66123009687408e-05, datetime.date(2016, 10, 31)),
+            ('US National', 'Season peak week', 3.16197144730033e-05, datetime.date(2016, 11, 7)),
+            ('US National', 'Season peak week', 2.49629324786868e-05, datetime.date(2016, 11, 14)),
+            ('US National', 'Season peak week', 4.99258649573737e-05, datetime.date(2016, 11, 21)),
+            ('US National', 'Season peak week', 8.48739704275352e-05, datetime.date(2016, 11, 28)),
+            ('US National', 'Season peak week', 0.000148113399373542, datetime.date(2016, 12, 5)),
+            ('US National', 'Season peak week', 0.000217454878481005, datetime.date(2016, 12, 12)),
+            ('US National', 'Season peak week', 0.000290124748585627, datetime.date(2016, 12, 19)),
+            # EW52 2016. Sat end: 12/31/2016 -> Mon: 12/26/2016:
+            ('US National', 'Season peak week', 0.183889955515593, datetime.date(2016, 12, 26)),
+            # EW01 2017. Sat end: 1/7/2017 -> Mon: 1/2/2071:
+            ('US National', 'Season peak week', 0.000328955976885807, datetime.date(2017, 1, 2)),
+            ('US National', 'Season peak week', 0.0813603183066327, datetime.date(2017, 1, 9)),
+            ('US National', 'Season peak week', 0.113514362560564, datetime.date(2017, 1, 16)),
+            ('US National', 'Season peak week', 0.0918622520724573, datetime.date(2017, 1, 23)),
+            ('US National', 'Season peak week', 0.0636838880421198, datetime.date(2017, 1, 30)),
+            ('US National', 'Season peak week', 0.0985233865781112, datetime.date(2017, 2, 6)),
+            ('US National', 'Season peak week', 0.104099128806362, datetime.date(2017, 2, 13)),
+            ('US National', 'Season peak week', 0.0403122043568698, datetime.date(2017, 2, 20)),
+            ('US National', 'Season peak week', 0.0641961804893339, datetime.date(2017, 2, 27)),
+            ('US National', 'Season peak week', 0.0951013531890285, datetime.date(2017, 3, 6)),
+            ('US National', 'Season peak week', 0.025085879433318, datetime.date(2017, 3, 13)),
+            ('US National', 'Season peak week', 0.0182445605042546, datetime.date(2017, 3, 20)),
+            ('US National', 'Season peak week', 0.0103074209280581, datetime.date(2017, 3, 27)),
+            ('US National', 'Season peak week', 0.00205822405270794, datetime.date(2017, 4, 3)),
+            ('US National', 'Season peak week', 0.0018802440369379, datetime.date(2017, 4, 10)),
+            ('US National', 'Season peak week', 0.00102908781284421, datetime.date(2017, 4, 17)),
+            ('US National', 'Season peak week', 0.000848733083646314, datetime.date(2017, 4, 24)),
+            ('US National', 'Season peak week', 0.00133599391065648, datetime.date(2017, 5, 1)),
+            ('US National', 'Season peak week', 0.000699739274163662, datetime.date(2017, 5, 8)),
+            # EW20 2017. Sat end: 5/20/2017 -> Mon: 5/15/2017:
+            ('US National', 'Season peak week', 0.000581366927856728, datetime.date(2017, 5, 15))]
+        bin_distribution_qs = self.forecast.bin_distribution_qs() \
+            .filter(location__name='US National', target__name='Season peak week') \
+            .order_by('location__name', 'target__name', 'cat_d') \
+            .values_list('location__name', 'target__name', 'prob', 'cat_d')
+        self.assertEqual(33, bin_distribution_qs.count())
+        self.assertEqual(exp_bins, list(bin_distribution_qs))
 
 
     def test_forecast_delete(self):
@@ -284,8 +389,8 @@ class ForecastTestCase(TestCase):
         self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
         self.assertEqual(8019, self.forecast.get_num_rows())  # ""
 
-        forecast2 = load_cdc_csv_forecast_file(xx, self.forecast_model,
-                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), self.time_zero)
+        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')  # EW01 2017
+        forecast2 = load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
         self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
         self.assertEqual(5237, forecast2.get_num_rows())  # 8019 total rows - 2782 zero-valued bin rows = 5237 non-zero
         self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
@@ -301,8 +406,8 @@ class ForecastTestCase(TestCase):
                                             data_version_date=None)
         self.assertEqual(None, self.forecast_model.forecast_for_time_zero(time_zero))
 
-        forecast2 = load_cdc_csv_forecast_file(xx, self.forecast_model,
-                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'), time_zero)
+        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')  # EW01 2017
+        forecast2 = load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, time_zero)
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
@@ -318,8 +423,8 @@ class ForecastTestCase(TestCase):
 
         # adding a forecast should update its model's score_change.changed_at
         before_changed_at = forecast_model2.score_change.changed_at
-        forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2,
-                                               Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)  # EW01 2017
+        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
+        forecast2 = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero)
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
         self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
 
@@ -332,8 +437,8 @@ class ForecastTestCase(TestCase):
         # bulk-deleting a model's forecasts will update its score_change.changed_at. (this basically tests that a signal
         # is used instead of a customized delete() - see set_model_changed_at() comment
         for _ in range(2):
-            load_cdc_csv_forecast_file(xx, forecast_model2,
-                                       Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), time_zero)  # EW01 2017
+            csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
+            load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero)
         before_changed_at = forecast_model2.score_change.changed_at
         forecast_model2.forecasts.all().delete()
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)

@@ -136,23 +136,17 @@ def create_thai_locations_and_targets(project):
     validate_and_create_targets(project, project_dict)
 
 
-def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None):
+def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir):
     """
     Adds Forecast objects to forecast_model using the cdc csv files under data_dir. Assumes TimeZeros match those in my
     Project. Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.
 
     :param forecast_model: a ForecastModel to load the data into
     :param data_dir: Path of the directory that contains cdc csv files
-    :param is_load_file: a boolean function of one arg (cdc_csv_file) that returns True if that file should be
-        loaded. cdc_csv_file is a Path
     :return list of loaded Forecasts
     """
     forecasts = []
     for cdc_csv_file, timezero_date, _, _ in cdc_csv_components_from_data_dir(data_dir):
-        if is_load_file and not is_load_file(cdc_csv_file):
-            click.echo("s (!is_load_file)\t{}\t".format(cdc_csv_file.name))
-            continue
-
         timezero = forecast_model.project.time_zero_for_timezero_date(timezero_date)
         if not timezero:
             click.echo("x (no TimeZero found)\t{}\t".format(cdc_csv_file.name))
@@ -166,7 +160,7 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, is_load_file=None)
         try:
             mmwr_week_dict = pymmwr.date_to_mmwr_week(timezero.timezero_date)  # ex: {'year': 2017, 'week': 3, 'day': 3}
             season_start_year = season_start_year_from_ew_and_year(mmwr_week_dict['week'], mmwr_week_dict['year'])
-            forecast = load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file, timezero_date)
+            forecast = load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file, timezero)
             forecasts.append(forecast)
             click.echo("o\t{}\t".format(cdc_csv_file.name))
         except RuntimeError as rte:

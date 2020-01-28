@@ -162,15 +162,25 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
         bin_cats, bin_probs = [], []
         for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:  # all 3 are numbers or None
             try:
+                # if (target_name != 'Season onset') and ((bin_start_incl is None) or
+                #                                         (bin_end_notincl is None) or (value is None)):
+                #     raise RuntimeError(f"None bins or values are only valid for the 'Season onset' target. "
+                #                        f"target_name={target_name}, bin_start_incl, bin_end_notincl, value: "
+                #                        f"{bin_start_incl}, {bin_end_notincl}, {value}")
                 if is_point_row:  # save value in point_values, possibly converted based on target
                     if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
                         if value is None:
                             value = 'none'
-                        else:  # value is an EW week number
-                            monday_date = monday_date_from_ew_and_season_start_year(value, season_start_year)
+                        else:  # value is an EW week number (float), maybe a fraction (e.g., 50.0012056690978, 4.96302456525203)
+                            # todo xx round(value) < 1 or round(value) > 52!?
+                            monday_date = monday_date_from_ew_and_season_start_year(round(value), season_start_year)
                             value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                    elif value is None:
+                        raise RuntimeError(f"None point values are only valid for 'Season onset' targets. "
+                                           f"target_name={target_name}")
                     elif target_name == 'Season peak week':  # date target. value: an EW Monday date
-                        monday_date = monday_date_from_ew_and_season_start_year(value, season_start_year)
+                        # todo xx round(value) < 1 or round(value) > 52!?
+                        monday_date = monday_date_from_ew_and_season_start_year(round(value), season_start_year)
                         value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
                     point_values.append(value)
                 # is_bin_row:
@@ -185,11 +195,17 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
                                            f"bin_start_incl={bin_start_incl}, bin_end_notincl={bin_end_notincl}")
                     bin_cats.append(bin_cat)
                     bin_probs.append(value)
+                elif (bin_start_incl is None) or (bin_end_notincl is None):
+                    raise RuntimeError(f"None bins are only valid for 'Season onset' targets. "
+                                       f"target_name={target_name}. bin_start_incl, bin_end_notincl: "
+                                       f"{bin_start_incl}, {bin_end_notincl}")
                 elif target_name == 'Season peak week':  # date target. start: an EW Monday date
                     monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
                     bin_cats.append(monday_date.strftime(YYYY_MM_DD_DATE_FORMAT))
                     bin_probs.append(value)
-                elif target_name in ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead']:
+                elif target_name in ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
+                                     '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',  # thai
+                                     '5_biweek_ahead']:
                     bin_cats.append(bin_start_incl)
                     bin_probs.append(value)
                 else:
@@ -306,4 +322,4 @@ def monday_date_from_ew_and_season_start_year(ew_week, season_start_year):
         sunday_date = pymmwr.mmwr_week_to_date(season_start_year + 1, ew_week)
     else:
         sunday_date = pymmwr.mmwr_week_to_date(season_start_year, ew_week)
-    return sunday_date + + datetime.timedelta(days=1)
+    return sunday_date + datetime.timedelta(days=1)
