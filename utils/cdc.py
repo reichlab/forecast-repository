@@ -31,7 +31,7 @@ def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_p
     Loads the passed cdc csv file into a new forecast_model Forecast for time_zero. NB: does not check if a Forecast
     already exists for time_zero and file_name. Is atomic so that an invalid forecast's data is not saved.
 
-    :param season_start_year: as returned by season_start_year_from_ew_and_year()
+    :param season_start_year
     :param forecast_model: the ForecastModel to create the new Forecast in
     :param cdc_csv_file_path: string or Path to a CDC CSV forecast file. the CDC CSV file format is documented at
         https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
@@ -58,7 +58,7 @@ def json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp):
     and BinCatDistributions), returning them as a "JSON IO dict" suitable for loading into the database (see
     load_predictions_from_json_io_dict()). Note that the returned dict's "meta" section is empty.
 
-    :param season_start_year: as returned by season_start_year_from_ew_and_year()
+    :param season_start_year
     :param cdc_csv_file_fp: an open cdc csv file-like object. the CDC CSV file format is documented at
         https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains the three types of predictions. see docs for
@@ -148,7 +148,7 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     not) and "season_onset_date" (a Target.DATE_TARGET_TYPE that is the onset date if "season_onset_binary" is true).
     But we dropped that idea and stayed with the original single nominal target.
 
-    :param season_start_year: as returned by season_start_year_from_ew_and_year()
+    :param season_start_year
     :param rows: as returned by _cleaned_rows_from_cdc_csv_file():
         location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
     :return: a list of PointPrediction or BinDistribution prediction dicts
@@ -300,22 +300,10 @@ def ew_and_year_from_cdc_file_name(filename):
     return int(groups[0]), int(int(groups[1]))
 
 
-def season_start_year_from_ew_and_year(ew_week, ew_year):
-    """
-    :param ew_week: as returned by ew_and_year_from_cdc_file_name(). e.g., 1, 30, 52
-    :param ew_year: "". e.g., 2019
-    :return: a year naming the start of the season that the two args represent, based on SEASON_START_EW_NUMBER.
-        for example, (29, 2010) -> 2009 . (30, 2010) -> 2010
-    """
-    datetime_for_mmwr_week = pymmwr.mmwr_week_to_date(ew_year, ew_week)  # a Sunday
-    return datetime_for_mmwr_week.year - 1 if ew_week < SEASON_START_EW_NUMBER else datetime_for_mmwr_week.year
-
-
 def monday_date_from_ew_and_season_start_year(ew_week, season_start_year):
     """
     :param ew_week: an epi week from within a cdc csv forecast file. e.g., 1, 30, 52
-    :param season_start_year: as returned by season_start_year_from_ew_and_year(). e.g., 2010, which implies the season
-        "2010/2011" (that is, EW30 through EW52 of 2010 continuing to EW01 through EW29 of 2011)
+    :param season_start_year
     :return: a datetime.date that is the Monday of the EW corresponding to the args
     """
     if ew_week < SEASON_START_EW_NUMBER:

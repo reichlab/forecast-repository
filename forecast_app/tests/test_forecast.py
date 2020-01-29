@@ -148,13 +148,13 @@ class ForecastTestCase(TestCase):
             shutil.copy(str(test_file_dir / '20161023-KoTstable-20161109.cdc.csv'), str(temp_dir))
             shutil.copy(str(test_file_dir / '20161030-KoTstable-20161114.cdc.csv'), str(temp_dir))
 
-            forecasts = load_cdc_csv_forecasts_from_dir(forecast_model2, temp_dir)
+            forecasts = load_cdc_csv_forecasts_from_dir(forecast_model2, temp_dir, 2016)
             self.assertEqual(2, len(forecasts))
             self.assertEqual(2, len(forecast_model2.forecasts.all()))
 
             # copy third file and test only new loaded
             shutil.copy(str(test_file_dir / 'third-file/20161106-KoTstable-20161121.cdc.csv'), str(temp_dir))
-            forecasts = load_cdc_csv_forecasts_from_dir(forecast_model2, temp_dir)
+            forecasts = load_cdc_csv_forecasts_from_dir(forecast_model2, temp_dir, 2016)
             self.assertEqual(1, len(forecasts))
 
 

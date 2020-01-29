@@ -5,8 +5,8 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import PointPrediction, Project, ForecastModel, TimeZero, Forecast
-from utils.cdc import ew_and_year_from_cdc_file_name, season_start_year_from_ew_and_year, \
-    json_io_dict_from_cdc_csv_file, monday_date_from_ew_and_season_start_year, make_cdc_locations_and_targets
+from utils.cdc import ew_and_year_from_cdc_file_name, json_io_dict_from_cdc_csv_file, \
+    monday_date_from_ew_and_season_start_year, make_cdc_locations_and_targets
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 
 
@@ -24,26 +24,6 @@ class CdcCsvToPredictionsTestCase(TestCase):
     def test_ew_and_year_from_cdc_file_name(self):
         components = ew_and_year_from_cdc_file_name(self.cdc_csv_path.name)
         self.assertEqual((1, 2011), components)
-
-
-    def test_season_start_year_from_ew_and_year(self):
-        # recall: SEASON_START_EW_NUMBER = 30
-        self.assertEqual(2009, season_start_year_from_ew_and_year(1, 2010))  # ... 2009/2010 season
-        self.assertEqual(2009, season_start_year_from_ew_and_year(2, 2010))
-        self.assertEqual(2009, season_start_year_from_ew_and_year(29, 2010))  # end 2009/2010 season
-
-        self.assertEqual(2010, season_start_year_from_ew_and_year(30, 2010))  # start 2010/2011 season
-        self.assertEqual(2010, season_start_year_from_ew_and_year(31, 2010))
-        self.assertEqual(2010, season_start_year_from_ew_and_year(51, 2010))
-        self.assertEqual(2010, season_start_year_from_ew_and_year(52, 2010))
-        self.assertEqual(2010, season_start_year_from_ew_and_year(1, 2011))
-        self.assertEqual(2010, season_start_year_from_ew_and_year(2, 2011))
-        self.assertEqual(2010, season_start_year_from_ew_and_year(29, 2011))  # end 2010/2011 season
-
-        self.assertEqual(2011, season_start_year_from_ew_and_year(30, 2011))  # start 2011/2012 season
-        self.assertEqual(2011, season_start_year_from_ew_and_year(31, 2011))
-        self.assertEqual(2011, season_start_year_from_ew_and_year(51, 2011))
-        self.assertEqual(2011, season_start_year_from_ew_and_year(52, 2011))  # 2011/2012 season...
 
 
     def test_monday_date_from_ew_and_season_start_year(self):

@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets, season_start_year_from_ew_and_year
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
 
@@ -32,18 +32,15 @@ class MAETestCase(TestCase):
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 2)))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW2-KoTstable-2017-01-23.csv')  # EW02 2017
-        season_start_year = season_start_year_from_ew_and_year(2, 2017)
-        cls.forecast2 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
+        cls.forecast2 = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, time_zero)
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 51)))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW51-KoTstable-2017-01-03.csv')  # EW51 2016
-        season_start_year = season_start_year_from_ew_and_year(51, 2016)
-        cls.forecast3 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
+        cls.forecast3 = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, time_zero)
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2016, 52)))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW52-KoTstable-2017-01-09.csv')  # EW52 2016
-        season_start_year = season_start_year_from_ew_and_year(52, 2016)
-        cls.forecast4 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
+        cls.forecast4 = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, time_zero)
 
         # 'mini' season for testing. from:
         #   model_error_calculations.txt -> model_error_calculations.py -> model_error_calculations.xlsx:
@@ -67,7 +64,7 @@ class MAETestCase(TestCase):
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 11, 6))
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecasts_from_dir(forecast_model2, Path('forecast_app/tests/load_forecasts'))
+        load_cdc_csv_forecasts_from_dir(forecast_model2, Path('forecast_app/tests/load_forecasts'), 2016)
         project2.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         Score.ensure_all_scores_exist()

@@ -87,8 +87,8 @@ class FlusightTestCase(TestCase):
         forecast_model1 = ForecastModel.objects.create(name='forecast_model1', project=project)
         forecast_model2 = ForecastModel.objects.create(name='forecast_model2', project=project)
         forecast_dir = Path('forecast_app/tests/load_forecasts')
-        load_cdc_csv_forecasts_from_dir(forecast_model1, forecast_dir)
-        load_cdc_csv_forecasts_from_dir(forecast_model2, forecast_dir / 'third-file')
+        load_cdc_csv_forecasts_from_dir(forecast_model1, forecast_dir, 2016)
+        load_cdc_csv_forecasts_from_dir(forecast_model2, forecast_dir / 'third-file', 2016)
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-data.json', 'r') as fp:
             exp_json_template_str = fp.read()
             exp_json_template = Template(exp_json_template_str)

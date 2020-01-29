@@ -9,7 +9,6 @@ import django
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-import pymmwr
 
 
 django.setup()
@@ -19,7 +18,7 @@ from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
 from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets, \
     delete_project_iteratively
-from utils.cdc import load_cdc_csv_forecast_file, season_start_year_from_ew_and_year
+from utils.cdc import load_cdc_csv_forecast_file
 
 
 #
@@ -95,7 +94,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
     # load data
     click.echo("* Loading forecasts")
     forecast_model = project.models.first()
-    forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, data_dir)
+    forecasts = load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, None)  # season_start_year
     click.echo("- Loading forecasts: loaded {} forecast(s)".format(len(forecasts)))
 
     # done
@@ -136,13 +135,15 @@ def create_thai_locations_and_targets(project):
     validate_and_create_targets(project, project_dict)
 
 
-def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir):
+def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir, season_start_year):
     """
     Adds Forecast objects to forecast_model using the cdc csv files under data_dir. Assumes TimeZeros match those in my
     Project. Skips files that have already been loaded. Skips files that cause load_forecast() to raise a RuntimeError.
 
     :param forecast_model: a ForecastModel to load the data into
     :param data_dir: Path of the directory that contains cdc csv files
+    :param season_start_year: optional (used only if the files in data_dir have the date-related targets
+        'Season onset' or 'Season peak week')
     :return list of loaded Forecasts
     """
     forecasts = []
@@ -158,8 +159,6 @@ def load_cdc_csv_forecasts_from_dir(forecast_model, data_dir):
             continue
 
         try:
-            mmwr_week_dict = pymmwr.date_to_mmwr_week(timezero.timezero_date)  # ex: {'year': 2017, 'week': 3, 'day': 3}
-            season_start_year = season_start_year_from_ew_and_year(mmwr_week_dict['week'], mmwr_week_dict['year'])
             forecast = load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file, timezero)
             forecasts.append(forecast)
             click.echo("o\t{}\t".format(cdc_csv_file.name))
@@ -217,7 +216,6 @@ def cdc_csv_filename_components(cdc_csv_filename):
 
 CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
 
-
 #
 # The following defines this project's file naming standard, and defined in 'Forecast data file names' in
 # documentation.html, e.g., '<time_zero>-<model_name>[-<data_version_date>].cdc.csv' . For example:
@@ -238,7 +236,6 @@ ZOLTAR_CSV_FILENAME_RE_PAT = re.compile(r"""
   )?                     #
 \.cdc.csv$
 """, re.VERBOSE)
-
 
 #
 # app

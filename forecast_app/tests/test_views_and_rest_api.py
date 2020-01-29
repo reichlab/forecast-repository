@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets, season_start_year_from_ew_and_year
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.project import delete_project_iteratively
 from utils.utilities import YYYYMMDD_DATE_FORMAT, get_or_create_super_po_mo_users
 
@@ -74,7 +74,6 @@ class ViewsTestCase(TestCase):
 
         # public_model
         cls.csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')  # EW01 2017
-        cls.season_start_year = season_start_year_from_ew_and_year(1, 2017)
 
         # create some models to bump up ID in case of accidental passing where model IDs == project IDs :-)
         ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
@@ -89,15 +88,13 @@ class ViewsTestCase(TestCase):
         cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
                                                         description='', home_url='http://example.com',
                                                         owner=cls.mo_user)
-        cls.public_forecast = load_cdc_csv_forecast_file(cls.season_start_year, cls.public_model, cls.csv_file_path,
-                                                         cls.public_tz1)
+        cls.public_forecast = load_cdc_csv_forecast_file(2016, cls.public_model, cls.csv_file_path, cls.public_tz1)
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          description='', home_url='http://example.com',
                                                          owner=cls.mo_user)
-        cls.private_forecast = load_cdc_csv_forecast_file(cls.season_start_year, cls.private_model, cls.csv_file_path,
-                                                          cls.private_tz1)
+        cls.private_forecast = load_cdc_csv_forecast_file(2016, cls.private_model, cls.csv_file_path, cls.private_tz1)
 
         # user/response pairs for testing authorization
         cls.OK_ALL = [(None, status.HTTP_200_OK),
@@ -520,8 +517,7 @@ class ViewsTestCase(TestCase):
         self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
         self.assertEqual(1, self.private_model.forecasts.count())
 
-        private_forecast2 = load_cdc_csv_forecast_file(self.season_start_year, self.private_model, self.csv_file_path,
-                                                       self.private_tz1)
+        private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
         private_forecast2_pk = private_forecast2.pk
         self.assertEqual(2, self.private_model.forecasts.count())
 
