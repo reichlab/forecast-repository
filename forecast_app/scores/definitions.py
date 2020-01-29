@@ -109,7 +109,7 @@ def calc_pit(score, forecast_model):
 
 def _validate_score_targets_and_data(forecast_model):
     # validate targets
-    targets = forecast_model.project.non_date_targets()
+    targets = forecast_model.project.numeric_targets()
     if not targets:
         raise RuntimeError("_validate_score_targets_and_data(): no targets. project={}".format(forecast_model.project))
 

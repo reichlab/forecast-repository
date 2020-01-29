@@ -179,9 +179,9 @@ def _tz_loc_targ_pk_to_true_bin_lwr(project):
 def _targ_pk_to_bin_lwrs(project):
     """
     Returns project's lwr data as a dict: [target_pk] -> [lwr_1, ...]. Each list is sorted by lwr.
-    Only returns rows whose targets match non_date_targets().
+    Only returns rows whose targets match numeric_targets().
     """
-    targets = project.non_date_targets()
+    targets = project.numeric_targets()
     target_bin_lwr_qs = TargetLwr.objects \
         .filter(target__in=targets) \
         .order_by('target__id', 'lwr') \
@@ -201,9 +201,9 @@ def _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model):
 
         [timezero_pk][location_pk][target_pk][bin_lwr] -> predicted_value
 
-    Only returns rows whose targets match non_date_targets().
+    Only returns rows whose targets match numeric_targets().
     """
-    targets = forecast_model.project.non_date_targets()
+    targets = forecast_model.project.numeric_targets()
     forecast_data_qs = BinLwrDistribution.objects \
         .filter(forecast__forecast_model=forecast_model,
                 target__in=targets) \

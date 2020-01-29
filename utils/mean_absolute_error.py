@@ -39,7 +39,7 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
     does not have appropriate target_names defined in its configuration. NB: assumes all of project's models have the
     same target_names
     """
-    targets = project.non_date_targets()  # order_by('name')
+    targets = project.numeric_targets()  # order_by('name')
     if not targets:
         return {}
 

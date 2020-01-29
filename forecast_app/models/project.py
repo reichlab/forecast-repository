@@ -333,14 +333,19 @@ class Project(models.Model):
     #
 
     def step_ahead_targets(self):
-        return self.targets.filter(is_step_ahead=True).order_by('name')
+        return self.targets.filter(is_step_ahead=True)\
+            .order_by('name')
 
 
-    def non_date_targets(self):
+    def numeric_targets(self):
+        """
+        :return: a list of Targets whose values are numeric - either int or float. used by scoring
+        """
         from forecast_app.models import Target  # avoid circular imports
 
 
-        return self.targets.exclude(type=Target.DATE_TARGET_TYPE).order_by('name')
+        return self.targets.filter(type__in=[Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]) \
+            .order_by('name')
 
 
     #
