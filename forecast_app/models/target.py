@@ -167,9 +167,9 @@ class Target(models.Model):
                                      cat_t=cat if (data_type == Target.TEXT_DATA_TYPE) else None,
                                      cat_d=cat if (data_type == Target.DATE_DATA_TYPE) else None)
 
-        # ditto for TargetLwrs for the continuous case (required for scoring), calculating `upper` via zip().
+        # ditto for TargetLwrs for continuous and discrete cases (required for scoring), calculating `upper` via zip().
         # NB: we use infinity for the last bin's upper!
-        if self.type == Target.CONTINUOUS_TARGET_TYPE:
+        if self.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]:
             cats = sorted(cats)
             for lwr, upper in itertools.zip_longest(cats, cats[1:], fillvalue=float('inf')):
                 TargetLwr.objects.create(target=self, lwr=lwr, upper=upper)
@@ -282,8 +282,8 @@ class TargetLwr(models.Model):
     based on lwr. That function has to infer the final bin's upper, and uses float('inf') for that
     """
     target = models.ForeignKey('Target', blank=True, null=True, related_name='lwrs', on_delete=models.CASCADE)
-    lwr = models.FloatField()
-    upper = models.FloatField()
+    lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
+    upper = models.FloatField(null=True)  # "". possibly float('inf')
 
 
     def __repr__(self):

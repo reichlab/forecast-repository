@@ -5,7 +5,8 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, ScoreValue, TargetLwr
+from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, ScoreValue, TargetLwr, Target, \
+    BinDistribution, PointPrediction
 from forecast_app.models.project import POSTGRES_NULL_VALUE
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
@@ -39,7 +40,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     # 2/3 truth: [timezero_pk][location_pk][target_pk] -> true_bin_lwr:
     tz_loc_targ_pk_to_true_bin_lwr = _tz_loc_targ_pk_to_true_bin_lwr(forecast_model.project)
 
-    # 3/3 forecast: [timezero_pk][location_pk][target_pk][bin_lwr] -> predicted_value:
+    # 3/3 forecast: [timezero_pk][location_pk][target_pk][cat_value] -> predicted_value:
     tz_loc_targ_pk_bin_lwr_to_pred_val = _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model)
 
     # it is convenient to iterate over truths to get all timezero/location/target combinations. this will omit forecasts
@@ -199,16 +200,17 @@ def _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model):
     """
     Returns prediction data for all forecasts in forecast_model as a dict:
 
-        [timezero_pk][location_pk][target_pk][bin_lwr] -> predicted_value
+        [timezero_pk][location_pk][target_pk][cat_value] -> predicted_value
 
     Only returns rows whose targets match numeric_targets().
     """
     targets = forecast_model.project.numeric_targets()
-    forecast_data_qs = BinLwrDistribution.objects \
+    forecast_data_qs = BinDistribution.objects \
         .filter(forecast__forecast_model=forecast_model,
                 target__in=targets) \
         .order_by('forecast__time_zero__id', 'location__id', 'target__id') \
-        .values_list('forecast__time_zero__id', 'location__id', 'target__id', 'lwr', 'prob')
+        .values_list('forecast__time_zero__id', 'location__id', 'target__id', 'prob',
+                     'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
 
     # build the dict: {timezero_pk: {location_pk: {target_id: {bin_lwr_1: predicted_value_1, ...}}}}:
     tzltpk_to_forec_st_to_pred_val = {}
@@ -219,7 +221,8 @@ def _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model):
             # {target_id: {bin_lwr_1: predicted_value_1, ...}}:
             tpk_to_forec_start_to_pred_val = defaultdict(dict)
             ltpk_to_forec_start_to_pred_val[location_id] = tpk_to_forec_start_to_pred_val
-            for _, _, target_id, bin_lwr, pred_value in target_val_grouper:
-                tpk_to_forec_start_to_pred_val[target_id][bin_lwr] = pred_value
+            for _, _, target_id, pred_value, cat_i, cat_f, cat_t, cat_d, cat_b in target_val_grouper:
+                cat_value = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
+                tpk_to_forec_start_to_pred_val[target_id][cat_value] = pred_value
 
     return tzltpk_to_forec_st_to_pred_val

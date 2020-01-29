@@ -9,7 +9,7 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.api_views import _write_csv_score_data_for_project
-from forecast_app.models import Project, TimeZero, Location, Target, TruthData
+from forecast_app.models import Project, TimeZero, Location, Target, TruthData, TargetLwr
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_bin_lwrs, \
@@ -136,13 +136,15 @@ class ScoresTestCase(TestCase):
 
         # test "clip Math.log(0) to -999 instead of its real value (-Infinity)". do so by changing this bin to have a
         # value of zero: US National,1 wk ahead,Bin,percent,1.6,1.7,0.0770752152650201
-        binlwr_dist = forecast2.binlwr_distribution_qs() \
-            .filter(location__name='US National', target__name='1 wk ahead', lwr=1.6) \
+        bin_dist = forecast2.bin_distribution_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead', cat_f=1.6) \
             .first()
-        binlwr_dist.lwr = 0
-        binlwr_dist.save()
+        bin_dist.cat_f = 0.0
+        bin_dist.save()
 
-        truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
+        truth_data = project2.truth_data_qs()\
+            .filter(location__name='US National', target__name='1 wk ahead')\
+            .first()
         truth_data.value = 1.65  # 1.65 -> bin: US National,1 wk ahead,Bin,percent,1.6,1.7,0  # NB: value is now 0
         truth_data.save()
 
@@ -162,8 +164,8 @@ class ScoresTestCase(TestCase):
         #   US National	1 wk ahead	Bin	percent	2	2.1	0.0196988816334531
         # the row after it is:
         #   US National	1 wk ahead	Bin	percent	2.1	2.2	0.000162775167244309
-        forecast2.binlwr_distribution_qs() \
-            .filter(location__name='US National', target__name='1 wk ahead', lwr=2.0) \
+        forecast2.bin_distribution_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead', cat_f=2.0) \
             .first() \
             .delete()
 
@@ -326,7 +328,7 @@ class ScoresTestCase(TestCase):
         truth_data.save()
 
         target_1wk = project2.targets.filter(name='1 wk ahead').first()
-        target_binlwr = target_1wk.binlwrs.filter(lwr=0).first()
+        target_binlwr = target_1wk.lwrs.filter(lwr=0).first()
         target_binlwr.lwr = None
         target_binlwr.upper = None
         target_binlwr.save()
@@ -340,11 +342,11 @@ class ScoresTestCase(TestCase):
         # case: truth = None, with a matching forecast bin start/end that's None. we'll change the first bin row:
         #   US National,1 wk ahead,Bin,percent,None,0.1,1.39332920335022e-07  # set start = None
         # NB: in this case, the score should degenerate to the num_bins_one_side=0 'Log score (single bin)' calculation
-        binlwr_dist = forecast2.binlwr_distribution_qs() \
-            .filter(location__name='US National', target__name='1 wk ahead', lwr=0) \
+        bin_dist = forecast2.bin_distribution_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead', cat_f=0) \
             .first()
-        binlwr_dist.lwr = None
-        binlwr_dist.save()
+        bin_dist.cat_f = None
+        bin_dist.save()
 
         log_multi_bin_score.update_score_for_model(forecast_model2)
 
@@ -435,7 +437,7 @@ class ScoresTestCase(TestCase):
             .first()
         target_bin_lwr.lwr = None
         target_bin_lwr.upper = None
-        target_bin_lwr.save()
+        target_bin_lwr.save()  # django.db.utils.IntegrityError: NOT NULL constraint failed: forecast_app_targetlwr.lwr
 
         exp_tz_loc_targ_pk_to_true_bin_lwr[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = None
         self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
@@ -497,33 +499,41 @@ class ScoresTestCase(TestCase):
         # case: truth = None, but no bin start/end that's None -> no matching bin -> no ScoreValue created.
         # we'll change this row:
         #   20170423	TH01	1_biweek_ahead	2  # 2 -> None
-        truth_data = project2.truth_data_qs().filter(location__name='TH01', target__name='1_biweek_ahead').first()
+        truth_data = project2.truth_data_qs() \
+            .filter(location__name='TH01', target__name='1_biweek_ahead') \
+            .first()
         truth_data.value = None  # -> no matching bin
         truth_data.save()
 
         pit_score = Score.objects.filter(abbreviation='pit').first()
         pit_score.update_score_for_model(forecast_model2)
-        score_value = pit_score.values.filter(location__name='TH01', target__name='1_biweek_ahead').first()
+        score_value = pit_score.values \
+            .filter(location__name='TH01', target__name='1_biweek_ahead') \
+            .first()
         self.assertIsNone(score_value)
 
         # case: truth = None, with a bin start that's None -> matching bin -> should only use the predicted true value.
         # we'll change this bin row:
         #   TH01	1_biweek_ahead	Bin	cases	0	1	0.576  # 0	1 -> None	None
-        # requires template start and ends be None as well, or won't match _tz_loc_targ_pk_to_true_bin_lwr() query
-        binlwr_dist = forecast2.binlwr_distribution_qs() \
-            .filter(location__name='TH01', target__name='1_biweek_ahead', lwr=0) \
+        # requires TargetLwr start and ends be None as well, or won't match _tz_loc_targ_pk_to_true_bin_lwr() query.
+        # recall that '1_biweek_ahead' is a discrete (int) target
+        bin_dist = forecast2.bin_distribution_qs() \
+            .filter(location__name='TH01', target__name='1_biweek_ahead', cat_i=0) \
             .first()
-        binlwr_dist.lwr = None
-        binlwr_dist.save()
+        bin_dist.cat_i = None
+        bin_dist.save()
 
-        target_1bwk = project2.targets.filter(name='1_biweek_ahead').first()
-        target_binlwr = target_1bwk.binlwrs.filter(lwr=0).first()
-        target_binlwr.lwr = None
-        target_binlwr.upper = None
-        target_binlwr.save()
+        target_lwr = project2.targets.filter(name='1_biweek_ahead').first().lwrs \
+            .filter(lwr=0) \
+            .first()
+        target_lwr.lwr = None
+        target_lwr.upper = None
+        target_lwr.save()
 
         pit_score.update_score_for_model(forecast_model2)
-        score_value = pit_score.values.filter(location__name='TH01', target__name='1_biweek_ahead').first()
+        score_value = pit_score.values \
+            .filter(location__name='TH01', target__name='1_biweek_ahead') \
+            .first()
         self.assertIsNotNone(score_value)
         self.assertEqual(0.288, score_value.value)
 
@@ -650,9 +660,8 @@ class ScoresTestCase(TestCase):
         create_thai_locations_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecast_file(xx, forecast_model2,
-                                   Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv'),
-                                   time_zero2)
+        csv_file_path = Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv')
+        load_cdc_csv_forecast_file(None, forecast_model2, csv_file_path, time_zero2)  # no season_start_year
         project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
 
         log_single_bin_score = Score.objects.filter(abbreviation='log_single_bin').first()
@@ -746,6 +755,6 @@ def _print_proj_data(project, forecast, time_zero):
         print(f"{timezero}")
     for truth_data in TruthData.objects.filter(time_zero=time_zero):
         print(f"{truth_data}")
-    for binlwr in forecast.binlwr_distribution_qs().all().order_by('id'):
-        print(f"{binlwr}")
+    for bin_dist in forecast.bin_distribution_qs().all().order_by('id'):
+        print(f"{bin_dist}")
     print(f"_print_proj_data(): done")
