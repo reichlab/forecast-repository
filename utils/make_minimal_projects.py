@@ -110,11 +110,10 @@ def fill_project(project, mo_user, is_public):
                                                    owner=mo_user)
 
     # load the forecasts using the small data file
-    # csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
-    forecast1 = load_cdc_csv_forecast_file(xx, forecast_model1, csv_file_path, time_zero1)
+    forecast1 = load_cdc_csv_forecast_file(2016, forecast_model1, csv_file_path, time_zero1)
     click.echo("  loaded forecast={}. {}".format(forecast1, timeit.default_timer() - start_time))
 
     ForecastModel.objects.create(project=project,

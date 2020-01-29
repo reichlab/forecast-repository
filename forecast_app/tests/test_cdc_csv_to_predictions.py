@@ -63,44 +63,32 @@ class CdcCsvToPredictionsTestCase(TestCase):
 
     def test_json_io_dict_from_cdc_csv_file_points(self):
         cdc_csv_path = Path('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde_US_National_points.csv')
+        exp_json_path = Path('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde_US_National.json')
         with open(cdc_csv_path) as cdc_csv_fp, \
-                open('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde_US_National.json') as exp_json_fp:
+                open(exp_json_path) as exp_json_fp:
             exp_json_io_dict = json.load(exp_json_fp)
             exp_predictions = [prediction_dict for prediction_dict in exp_json_io_dict['predictions']
                                if prediction_dict['class'] == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]
-            ew_and_year = ew_and_year_from_cdc_file_name(cdc_csv_path.name)
-            season_start_year = season_start_year_from_ew_and_year(ew_and_year[0], ew_and_year[1])
-            act_json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
+            act_json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             self.assertEqual(7, len(act_json_io_dict['predictions']))
             self.assertEqual(exp_predictions, act_json_io_dict['predictions'])
 
 
     def test_json_io_dict_from_cdc_csv_file(self):
+        # from EW01-2011-ReichLab_kde_US_National.csv
+        exp_json_path = Path('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde_US_National.json')
         with open(self.cdc_csv_path) as cdc_csv_fp, \
-                open(self.cdc_csv_path.with_suffix('.json')) as exp_json_fp:
+                open(exp_json_path) as exp_json_fp:
             exp_json_io_dict = json.load(exp_json_fp)
-            ew_and_year = ew_and_year_from_cdc_file_name(self.cdc_csv_path.name)
-            season_start_year = season_start_year_from_ew_and_year(ew_and_year[0], ew_and_year[1])
-            act_json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
+            act_json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             self.assertEqual(exp_json_io_dict, act_json_io_dict)
 
         # test a larger csv file
         with open('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde.csv') as cdc_csv_fp:
-            ew_and_year = ew_and_year_from_cdc_file_name('EW01-2011-ReichLab_kde.csv')
-            season_start_year = season_start_year_from_ew_and_year(ew_and_year[0], ew_and_year[1])
-            act_json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
-            # - 15 prediction dicts per region * 11 regions = 165 dicts total
-            # - dicts for each region:
-            #   2 per each 'n wk ahead' target (1 bin, 1 point) * 4 'n wk ahead' targets = 8 dicts
-            #   1 "Season onset binary" dict
-            #   2 "Season onset date" dicts (1 bin, 1 point)
-            #   2 "Season peak percentage" dicts (1 bin, 1 point)
-            #   2 "Season peak week" dicts (1 bin, 1 point)
-            # = 15 dicts total
-            self.assertEqual(165, len(act_json_io_dict['predictions']))
-
-            # spot-check EW conversion to Mondays in YYYY_MM_DD_DATE_FORMAT
-            self.assertEqual(-1, -2)
+            act_json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
+            # each location/target pair has 2 prediction dicts: one point and one bin
+            # there are 11 locations and 7 targets = 77 * 2 = 154 dicts total
+            self.assertEqual(154, len(act_json_io_dict['predictions']))
 
 
     def test_load_predictions_from_cdc_csv_file(self):
@@ -115,8 +103,7 @@ class CdcCsvToPredictionsTestCase(TestCase):
 
         with open(self.cdc_csv_path) as cdc_csv_fp:
             ew_and_year = ew_and_year_from_cdc_file_name(self.cdc_csv_path.name)
-            season_start_year = season_start_year_from_ew_and_year(ew_and_year[0], ew_and_year[1])
-            json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_fp)
+            json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict)
             self.assertEqual(729, forecast.get_num_rows())
             self.assertEqual(0, forecast.named_distribution_qs().count())

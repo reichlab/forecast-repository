@@ -28,8 +28,7 @@ class MAETestCase(TestCase):
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 1)))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
-        season_start_year = season_start_year_from_ew_and_year(1, 2017)
-        cls.forecast1 = load_cdc_csv_forecast_file(season_start_year, cls.forecast_model, csv_file_path, time_zero)
+        cls.forecast1 = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, time_zero)
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 2)))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW2-KoTstable-2017-01-23.csv')  # EW02 2017
@@ -79,7 +78,8 @@ class MAETestCase(TestCase):
         self.assertEqual(5 * 11, len(score_value_rows_for_season))  # 5 targets * 11 locations
 
         # spot-check a location
-        exp_maes = [0.1830079332082548, 0.127335480231265, 0.040631614561185525, 0.09119562794624952, 0.15125133156909953]
+        exp_maes = [0.1830079332082548, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,
+                    0.15125133156909953]
         hhs1_loc = project2.locations.filter(name='HHS Region 1').first()
         hhs1_loc_rows = filter(lambda row: row[0] == hhs1_loc.id, score_value_rows_for_season)
         act_maes = [row[-1] for row in hhs1_loc_rows]

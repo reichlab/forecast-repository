@@ -12,11 +12,9 @@ from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets, season_start_year_from_ew_and_year
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
-from utils.project import create_project_from_json
-from utils.utilities import get_or_create_super_po_mo_users
 
 
 class ForecastTestCase(TestCase):
@@ -77,14 +75,13 @@ class ForecastTestCase(TestCase):
         # test empty file
         with self.assertRaises(RuntimeError) as context:
             csv_file_path = Path('forecast_app/tests/EW1-bad_file_no_header-2017-01-17.csv')  # EW01 2017?
-            season_start_year = season_start_year_from_ew_and_year(1, 2017)
-            load_cdc_csv_forecast_file(season_start_year, self.forecast_model, csv_file_path, self.time_zero)
+            load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
         self.assertIn('empty file', str(context.exception))
 
         # test a bad data file header
         with self.assertRaises(RuntimeError) as context:
-            load_cdc_csv_forecast_file(season_start_year, self.forecast_model,
-                                       Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv'), self.time_zero)
+            csv_file_path = Path('forecast_app/tests/EW1-bad_file_header-2017-01-17.csv')  # EW01 2017?
+            load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
         self.assertIn('invalid header', str(context.exception))
 
         # test load_forecast() with timezero not in the project
@@ -184,57 +181,6 @@ class ForecastTestCase(TestCase):
                 raise Exception
 
         self.fail()  # todo xx
-
-
-    def test_forecast_data_bin_validation(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
-
-        # test that BinLwr lwrs are loaded into Target 'template'
-        target = project.targets.filter(name='2 wk ahead').first()
-        self.assertEqual(131, target.lwrs.count())  # cdc-project.json: [0, 0.1, ..., 13]
-
-        # test lwr validation: cdc-predictions.json /is/ valid.
-        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-        with open('forecast_app/tests/predictions/cdc-predictions.json') as fp:
-            json_io_dict = json.load(fp)
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                load_predictions_from_json_io_dict(forecast2, json_io_dict)
-            except:
-                pass
-            else:
-                raise Exception
-
-        # 'patch' cdc-predictions.json to be invalid
-        json_io_dict['predictions'][1]['prediction']['lwr'][0] = 14  # BinLwr.lwr: 0.0 -> 14 (max is 13)
-        with self.assertRaises(RuntimeError) as context:
-            load_predictions_from_json_io_dict(forecast2, json_io_dict)
-        self.assertIn("BinLwr lwrs did not match Target", str(context.exception))
-
-        # test Target 'template' lwrs
-        project.delete()
-        with open('forecast_app/tests/projects/cdc-project.json') as fp:
-            cdc_project_json = json.load(fp)
-        cdc_project_json['targets'][2]['lwr'][0] = 0.1  # Season peak percentage: unsorted
-        cdc_project_json['targets'][2]['lwr'][1] = 0  # ""
-        with self.assertRaises(RuntimeError) as context:
-            create_project_from_json(cdc_project_json, po_user)
-        self.assertIn("lwrs were not sorted", str(context.exception))
-
-        with open('forecast_app/tests/projects/cdc-project.json') as fp:
-            cdc_project_json = json.load(fp)
-        cdc_project_json['targets'][2]['lwr'][0] = 0.05  # Season peak percentage: different first interval
-
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                create_project_from_json(cdc_project_json, po_user)  # formerly: "lwrs had non-uniform bin sizes"
-            except:
-                pass
-            else:
-                raise Exception
 
 
     @unittest.skip

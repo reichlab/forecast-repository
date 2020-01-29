@@ -41,8 +41,8 @@ class ScoresTestCase(TestCase):
 
         # use default abbreviation (""):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
-        load_cdc_csv_forecast_file(xx, cls.forecast_model,
-                                   Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'), cls.time_zero)  # EW01 2017
+        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
+        load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
 
     def test_score_creation(self):
@@ -363,9 +363,8 @@ class ScoresTestCase(TestCase):
         make_cdc_locations_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
-        load_cdc_csv_forecast_file(xx, forecast_model2,
-                                   Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv'),
-                                   time_zero2)
+        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')
+        load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
 
         project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
 
@@ -716,9 +715,8 @@ def _make_cdc_log_score_project():
     project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
 
     forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
-    forecast2 = load_cdc_csv_forecast_file(xx, forecast_model2,
-                                           Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv'),
-                                           time_zero2)
+    csv_file_path = Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv')
+    forecast2 = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
 
     return project2, forecast_model2, forecast2, time_zero2
 

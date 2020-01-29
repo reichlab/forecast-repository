@@ -8,10 +8,9 @@ from forecast_app.models import Forecast
 from forecast_app.models import ForecastModel, TimeZero
 from forecast_app.models.prediction import calc_named_distribution
 from utils.cdc import make_cdc_locations_and_targets
-from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows, \
-    json_io_dict_from_forecast
+from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows
 from utils.project import create_project_from_json
-from utils.utilities import YYYYMMDD_DATE_FORMAT, get_or_create_super_po_mo_users
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 #
@@ -86,40 +85,6 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(3, forecast.named_distribution_qs().count())
         self.assertEqual(11, forecast.point_prediction_qs().count())
         self.assertEqual(23, forecast.sample_distribution_qs().count())
-
-
-    def test_json_io_dict_from_forecast(self):
-        with open('forecast_app/tests/predictions/cdc-predictions.json') as fp:
-            exp_json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(self.forecast, exp_json_io_dict)
-
-            act_json_io_dict = json_io_dict_from_forecast(self.forecast)
-
-            # test three top-level components separately for TDD. note that we 'patch' expected values by removing the
-            # zero-valued bins that load_predictions_from_json_io_dict() skips
-            self.assertEqual(list(exp_json_io_dict), list(act_json_io_dict))
-            self.assertEqual(sorted(exp_json_io_dict['meta']['locations'], key=lambda _: _['name']),
-                             sorted(act_json_io_dict['meta']['locations'], key=lambda _: _['name']))
-            self.assertEqual(sorted(exp_json_io_dict['meta']['targets'], key=lambda _: _['name']),
-                             sorted(act_json_io_dict['meta']['targets'], key=lambda _: _['name']))
-
-            del (exp_json_io_dict['predictions'][0]['prediction']['cat'][0])  # BinCat
-            del (exp_json_io_dict['predictions'][0]['prediction']['prob'][0])  # ""
-            del (exp_json_io_dict['predictions'][1]['prediction']['lwr'][0])  # BinLwr
-            del (exp_json_io_dict['predictions'][1]['prediction']['prob'][0])  # ""
-            self.assertEqual(sorted(exp_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])),
-                             sorted(act_json_io_dict['predictions'], key=lambda _: (_['location'], _['target'])))
-
-            # test 'forecast' separately to account for runtime differences (forecast.id, created_at, etc.) Do so by
-            # 'patching' the runtime-specific differences. note: we could have used Django templates as in
-            # test_flusight.py, but this was simpler
-            exp_json_io_dict['meta']['forecast']['id'] = self.forecast.id
-            exp_json_io_dict['meta']['forecast']['forecast_model_id'] = self.forecast.forecast_model.id
-            exp_json_io_dict['meta']['forecast']['created_at'] = self.forecast.created_at.isoformat()
-            exp_json_io_dict['meta']['forecast']['time_zero']['timezero_date'] = \
-                self.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
-            exp_json_io_dict['meta']['forecast']['time_zero']['data_version_date'] = self.time_zero.data_version_date
-            self.assertEqual(exp_json_io_dict['meta']['forecast'], act_json_io_dict['meta']['forecast'])
 
 
     def test_unexpected_bin_target_name(self):
