@@ -6,7 +6,7 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import Project, Target
-from utils.project import create_project_from_json, config_dict_from_project
+from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -251,7 +251,7 @@ class ProjectUtilTestCase(TestCase):
         for target_type in ['nominal', 'binary', 'date', 'compositional']:
             first_target_dict['type'] = target_type
             if target_type == 'date':
-                first_target_dict['unit'] = 'u'
+                first_target_dict['unit'] = 'biweek'
             else:
                 first_target_dict.pop('unit', None)
             with self.assertRaises(RuntimeError) as context:
@@ -269,7 +269,7 @@ class ProjectUtilTestCase(TestCase):
         for target_type in ['nominal', 'date', 'compositional']:
             first_target_dict['type'] = target_type
             if target_type in ['continuous', 'discrete', 'date']:
-                first_target_dict['unit'] = 'u'
+                first_target_dict['unit'] = 'biweek'
             else:
                 first_target_dict.pop('unit', None)
             with self.assertRaises(RuntimeError) as context:
@@ -440,3 +440,21 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual(5, len(cats))
         self.assertEqual([(None, 'A1'), (None, 'A1a'), (None, 'A2'), (None, 'A2/re'), (None, 'A3')],
                          list(cats.values_list('cat_f', 'cat_t')))
+
+
+    def test_target_round_trip_target_dict(self):
+        # test round-trip: target_dict -> Target -> target_dict
+        # 1. target_dict -> Target
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            project_dict = json.load(fp)
+        input_target_dicts = project_dict['targets']
+        # does validate_and_create_targets() -> model_init = {...}  # required keys:
+        project = create_project_from_json(project_dict, po_user)
+
+        # 2. Target -> target_dict
+        # does target_dict() = {...}  # required keys:
+        output_target_dicts = [_target_dict_for_target(target) for target in project.targets.all()]
+
+        # 3. they should be equal
+        self.assertEqual(input_target_dicts, output_target_dicts)

@@ -89,19 +89,14 @@ class Target(models.Model):
         """
         Validates is_step_ahead and step_ahead_increment, and is_date and is_step_ahead.
         """
-        if not self.name:
-            raise ValidationError("name is required")
-        elif not self.description:
-            raise ValidationError("description is required")
-        elif getattr(self, 'is_step_ahead', None) is None:
-            raise ValidationError("is_step_ahead is required")
-        elif self.is_step_ahead and (self.step_ahead_increment is None):
-            raise ValidationError('passed is_step_ahead with no step_ahead_increment')
-        elif (self.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]) \
-                and (getattr(self, 'unit', None) is None):
-            raise ValidationError("unit is required")
-        elif (self.type == Target.DATE_TARGET_TYPE) and (self.unit not in Target.DATE_UNITS):
-            raise ValidationError(f"unit was not one of: {Target.DATE_UNITS!r}")
+        from utils.project import _target_dict_for_target, _validate_target_dict  # avoid circular imports
+
+
+        # validate by serializing to a dict so we can use _validate_target_dict(). note that Targets created without
+        # a name, description
+        type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
+        target_dict = _target_dict_for_target(self)
+        _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
 
         # done
         super().save(*args, **kwargs)

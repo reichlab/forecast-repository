@@ -1,7 +1,9 @@
 import datetime
 import logging
 
+import django
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.test import TestCase
 
 from forecast_app.models import Target, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, Project
@@ -22,29 +24,33 @@ class TargetTestCase(TestCase):
 
 
     def test_all_required(self):
-        # target type: any. required fields type, name, description, is_step_ahead. (step_ahead_increment tested
-        # separately)
-
-        # all required fields. swapped out one-by-one next:
-        model_init = {'project': self.project,
-                      'name': 'target_name',
-                      'description': 'target_description',
-                      'is_step_ahead': False}  # missing type
-
-        # type missing raises django.db.utils.IntegrityError, not ValidationError
-        with self.assertRaises(Exception) as context:
+        # b/c I'm getting confused about which tests are testing which required fields, this tests steps through each
+        # missing field to ensure it errors if missing. notice that TextFields default to '': name, description, unit
+        # and therefore cannot be tested for being passed
+        # no type
+        model_init = {}
+        with self.assertRaises(RuntimeError) as context:
             Target.objects.create(**model_init)
-        self.assertIn('NOT NULL constraint failed', str(context.exception))
-        model_init['type'] = Target.DISCRETE_TARGET_TYPE
+        self.assertIn('target has no type', str(context.exception))
 
-        # these all raise ValidationError
-        for field_name in ['name', 'description', 'is_step_ahead']:
-            old_field_value = model_init[field_name]
-            del (model_init[field_name])
-            with self.assertRaises(ValidationError) as context:
-                Target.objects.create(**model_init)
-            self.assertIn(f"{field_name} is required", str(context.exception))
-            model_init[field_name] = old_field_value
+        # no is_step_ahead
+        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE}
+        with self.assertRaises(RuntimeError) as context:
+            Target.objects.create(**model_init)
+        self.assertIn('is_step_ahead not found but is required', str(context.exception))
+
+        # no step_ahead_increment
+        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': True}
+        with self.assertRaises(RuntimeError) as context:
+            Target.objects.create(**model_init)
+        self.assertIn('step_ahead_increment not found but is required when is_step_ahead', str(context.exception))
+
+        # no project (raises django.db.utils.IntegrityError)
+        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': False}
+        with self.assertRaises(django.db.utils.IntegrityError) as context:
+            Target.objects.create(**model_init)
+        # self.assertIn('NOT NULL constraint failed: forecast_app_target.project_id', str(context.exception))  # sqlite3
+        # self.assertIn('null value in column "project_id" violates not-null constraint', str(context.exception))  # postgres
 
 
     def test_step_ahead_increment_if_is_step_ahead(self):
@@ -56,9 +62,9 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': True}  # missing step_ahead_increment
-        with self.assertRaises(ValidationError) as context:
+        with self.assertRaises(RuntimeError) as context:
             Target.objects.create(**model_init)
-        self.assertIn('passed is_step_ahead with no step_ahead_increment', str(context.exception))
+        self.assertIn('step_ahead_increment not found but is required when is_step_ahead is', str(context.exception))
 
         # case: is_step_ahead=True, step_ahead_increment: 0
         model_init['step_ahead_increment'] = 0
@@ -91,9 +97,9 @@ class TargetTestCase(TestCase):
                       'is_step_ahead': False}  # missing type and unit
         for target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
             model_init['type'] = target_type
-            with self.assertRaises(ValidationError) as context:
+            with self.assertRaises(RuntimeError) as context:
                 Target.objects.create(**model_init)
-            self.assertIn('unit is required', str(context.exception))
+            self.assertIn("'unit' not passed but is required", str(context.exception))
 
 
     def test_range_required(self):
@@ -106,7 +112,7 @@ class TargetTestCase(TestCase):
                       'unit': 'month'}  # missing type
         # case: valid types
         for target_type, the_range in [(Target.CONTINUOUS_TARGET_TYPE, (3.3, 4.4)),
-                                       (Target.DISCRETE_TARGET_TYPE, (1, 2))]:
+                                       (Target.DISCRETE_TARGET_TYPE, (1, 2))]:  # unit valid for both
             model_init['type'] = target_type
             target = Target.objects.create(**model_init)
             # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
@@ -122,6 +128,10 @@ class TargetTestCase(TestCase):
         for target_type in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE,
                             Target.COMPOSITIONAL_TARGET_TYPE]:
             model_init['type'] = target_type
+            if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
+                model_init['unit'] = 'month'
+            else:
+                model_init.pop('unit', None)
             target = Target.objects.create(**model_init)
             with self.assertRaises(ValidationError) as context:
                 target.set_range(0, 0)
@@ -134,8 +144,7 @@ class TargetTestCase(TestCase):
         model_init = {'project': self.project,
                       'name': 'target_name',
                       'description': 'target_description',
-                      'is_step_ahead': False,
-                      'unit': 'month'}  # missing type
+                      'is_step_ahead': False}  # missing type
         # case: valid types
         for target_type, cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3]),
                                   (Target.DISCRETE_TARGET_TYPE, [1, 20, 35]),
@@ -143,6 +152,10 @@ class TargetTestCase(TestCase):
                                   (Target.DATE_TARGET_TYPE, ['2019-01-09', '2019-01-19']),
                                   (Target.COMPOSITIONAL_TARGET_TYPE, ['cat4', 'cat5', 'cat6'])]:
             model_init['type'] = target_type
+            if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
+                model_init['unit'] = 'month'
+            else:
+                model_init.pop('unit', None)
             target = Target.objects.create(**model_init)
             # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
             with self.assertRaises(Exception):
@@ -247,8 +260,7 @@ class TargetTestCase(TestCase):
         model_init = {'project': self.project,
                       'name': 'target_name',
                       'description': 'target_description',
-                      'is_step_ahead': False,
-                      'unit': 'the_unit'}  # missing type
+                      'is_step_ahead': False}  # missing type
         for target_type, cats, exp_cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3],
                                              [(1.1, None), (2.2, None), (3.3, None)]),
                                             (Target.NOMINAL_TARGET_TYPE, ['cat1', 'cat2', 'cat3'],
@@ -256,6 +268,10 @@ class TargetTestCase(TestCase):
                                             (Target.COMPOSITIONAL_TARGET_TYPE, ['cat4', 'cat5', 'cat6'],
                                              [(None, 'cat4'), (None, 'cat5'), (None, 'cat6')])]:
             model_init['type'] = target_type
+            if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
+                model_init['unit'] = 'month'
+            else:
+                model_init.pop('unit', None)
             target = Target.objects.create(**model_init)
             for _ in range(2):  # twice to make sure old are deleted
                 target.set_cats(cats)
@@ -264,18 +280,21 @@ class TargetTestCase(TestCase):
 
         # test cat types must match - both within the list, and the target type's data_type
         model_init['type'] = Target.CONTINUOUS_TARGET_TYPE
+        model_init['unit'] = 'month'
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['cat4', 'cat5', 'cat6'])  # should be floats
         self.assertIn('cats data type did not match target data type', str(context.exception))
 
         model_init['type'] = Target.NOMINAL_TARGET_TYPE
+        model_init.pop('unit', None)
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 2.2, 3.3])  # should be strings
         self.assertIn('cats data type did not match target data type', str(context.exception))
 
         model_init['type'] = Target.COMPOSITIONAL_TARGET_TYPE
+        model_init.pop('unit', None)
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 2.2, 3.3])  # should be strings
@@ -308,9 +327,9 @@ class TargetTestCase(TestCase):
 
         # case: invalid unit
         model_init['unit'] = 'bad_unit'
-        with self.assertRaises(ValidationError) as context:
+        with self.assertRaises(RuntimeError) as context:
             Target.objects.create(**model_init)
-        self.assertIn('unit was not one of', str(context.exception))
+        self.assertIn("'unit' passed for date target but was not valid", str(context.exception))
 
 
     def test_target_date_format(self):

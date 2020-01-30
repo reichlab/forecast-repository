@@ -7,7 +7,7 @@ from django.db import connection, transaction
 from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
     SampleDistribution
 from forecast_app.models.project import POSTGRES_NULL_VALUE
-from utils.project import _target_dicts_for_project_config
+from utils.project import _target_dict_for_target
 from utils.utilities import YYYYMMDD_DATE_FORMAT
 
 
@@ -40,8 +40,9 @@ def json_io_dict_from_forecast(forecast):
             'forecast': _forecast_dict_for_forecast(forecast),
             'locations': sorted([{'name': location_names} for location_names in location_names],
                                 key=lambda _: (_['name'])),
-            'targets': sorted(_target_dicts_for_project_config(forecast.forecast_model.project),
-                              key=lambda _: (_['name'])),
+            'targets': sorted(
+                [_target_dict_for_target(target) for target in forecast.forecast_model.project.targets.all()],
+                key=lambda _: (_['name'])),
         },
         'predictions': sorted(prediction_dicts, key=lambda _: (_['location'], _['target']))}
 

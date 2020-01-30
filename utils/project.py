@@ -54,17 +54,17 @@ def delete_project_iteratively(project):
 # config_dict_from_project()
 #
 
+# todo xx integrate with API serialization!
 def config_dict_from_project(project):
     """
     The twin of `create_project_from_json()`, returns a configuration dict for project as passed to that function.
     """
-    # todo xx integrate with API serialization!
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
             'locations': [{'name': location.name} for location in project.locations.all()],
-            'targets': _target_dicts_for_project_config(project),
+            'targets': [_target_dict_for_target(target) for target in project.targets.all()],
             'timezeros': [{'timezero_date': timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                            'data_version_date':
                                timezero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
@@ -75,56 +75,59 @@ def config_dict_from_project(project):
 
 
 # todo xx integrate with API serialization!
-def _target_dicts_for_project_config(project):
-    target_dicts = []
-    for target in project.targets.all():
-        data_type = Target.data_type(target.type)
-        type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
+def _target_dict_for_target(target):
+    if target.type is None:
+        raise RuntimeError(f"target has no type: {target}")
 
-        # start with required fields
-        target_dict = {'name': target.name,
-                       'description': target.description,
-                       'type': type_int_to_name[target.type],  # TARGET_TYPE_CHOICES
-                       'is_step_ahead': target.is_step_ahead}
+    data_type = Target.data_type(target.type)
+    type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
 
-        # add optional fields, including 'list' ones. rather than basing whether they are available on target type (for
-        # example, 'continuous' targets /might/ have a range), we check for whether the optional field (including 'list'
-        # ones) is present. the exception is step_ahead_increment, for which we check is_step_ahead
+    # start with required fields
+    target_dict = {'type': type_int_to_name[target.type],
+                   'name': target.name,
+                   'description': target.description,
+                   'is_step_ahead': target.is_step_ahead}  # required keys
 
-        # is_step_ahead
-        if target.is_step_ahead:
-            target_dict['step_ahead_increment'] = target.step_ahead_increment
+    # add optional fields, including 'list' ones. rather than basing whether they are available on target type (for
+    # example, 'continuous' targets /might/ have a range), we check for whether the optional field (including 'list'
+    # ones) is present. the exception is step_ahead_increment, for which we check is_step_ahead
 
-        # unit (target.unit)
-        if target.unit is not None:
-            target_dict['unit'] = target.unit
+    # add is_step_ahead
+    if target.is_step_ahead and (target.step_ahead_increment is not None):
+        target_dict['step_ahead_increment'] = target.step_ahead_increment
 
-        # range (target.ranges)
-        target_ranges_qs = target.ranges  # target.value_i, target.value_f
-        if target_ranges_qs.count() != 0:  # s/b exactly 2
-            target_ranges = target_ranges_qs.values_list('value_i', flat=True) \
-                if data_type == Target.INTEGER_DATA_TYPE \
-                else target_ranges_qs.values_list('value_f', flat=True)
-            target_ranges = sorted(target_ranges)
-            target_dict['range'] = [target_ranges[0], target_ranges[1]]
+    # add unit
+    if target.unit is not None:
+        target_dict['unit'] = target.unit
 
-        # cats (target.cats)
-        target_cats_qs = target.cats  # target.cat_i, target.cat_f, target.cat_t, target.cat_d
-        if target_cats_qs.count() != 0:
-            if data_type == Target.INTEGER_DATA_TYPE:
-                target_cats = target_cats_qs.values_list('cat_i', flat=True)
-            elif data_type == Target.FLOAT_DATA_TYPE:
-                target_cats = target_cats_qs.values_list('cat_f', flat=True)
-            elif data_type == Target.TEXT_DATA_TYPE:
-                target_cats = target_cats_qs.values_list('cat_t', flat=True)
-            elif data_type == Target.DATE_DATA_TYPE:
-                target_cats = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                               for cat_date in target_cats_qs.values_list('cat_d', flat=True)]
-            else:
-                raise RuntimeError(f"invalid data_type={data_type} ({type_int_to_name[target.type]})")
-            target_dict['cats'] = sorted(target_cats)
-        target_dicts.append(target_dict)
-    return target_dicts
+    # add range
+    target_ranges_qs = target.ranges  # target.value_i, target.value_f
+    if target_ranges_qs.count() != 0:  # s/b exactly 2
+        target_ranges = target_ranges_qs.values_list('value_i', flat=True) \
+            if data_type == Target.INTEGER_DATA_TYPE \
+            else target_ranges_qs.values_list('value_f', flat=True)
+        target_ranges = sorted(target_ranges)
+        target_dict['range'] = [target_ranges[0], target_ranges[1]]
+
+    # add cats
+    if target.cats.count() != 0:
+        if data_type == Target.INTEGER_DATA_TYPE:
+            target_cats = target.cats.values_list('cat_i', flat=True)
+        elif data_type == Target.FLOAT_DATA_TYPE:
+            target_cats = target.cats.values_list('cat_f', flat=True)
+        elif data_type == Target.TEXT_DATA_TYPE:
+            target_cats = target.cats.values_list('cat_t', flat=True)
+        elif data_type == Target.DATE_DATA_TYPE:
+            target_cats = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                           for cat_date in target.cats.values_list('cat_d', flat=True)]
+        else:
+            raise RuntimeError(f"invalid data_type={data_type} ({type_int_to_name[target.type]})")
+
+        target_dict['cats'] = sorted(target_cats)
+    elif target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]:
+        # handle the case of required cats list that must have come in but was empty
+        target_dict['cats'] = []
+    return target_dict
 
 
 #
@@ -199,94 +202,12 @@ def validate_and_create_timezeros(project, project_dict):
     return [validate_and_create_timezero(project, timezero_config) for timezero_config in project_dict['timezeros']]
 
 
+# todo xx integrate with API serialization!
 def validate_and_create_targets(project, project_dict):
     targets = []
+    type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
     for target_dict in project_dict['targets']:
-        # check for keys required by all target types. optional keys are tested below
-        all_keys = set(target_dict.keys())
-        tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
-        expected_keys = {'name', 'description', 'type', 'is_step_ahead'}
-        if tested_keys != expected_keys:
-            raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "
-                               f"expected_keys={expected_keys}, tested_keys={tested_keys}. target_dict={target_dict}")
-
-        # validate type
-        type_name = target_dict['type']
-        valid_target_types = [type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES]
-        if type_name not in valid_target_types:
-            raise RuntimeError(f"Invalid type_name={type_name}. valid_target_types={valid_target_types} . "
-                               f"target_dict={target_dict}")
-
-        # check for step_ahead_increment required if is_step_ahead
-        if target_dict['is_step_ahead'] and ('step_ahead_increment' not in target_dict):
-            raise RuntimeError(f"step_ahead_increment not found but is required when is_step_ahead is passed. "
-                               f"target_dict={target_dict}")
-
-        # check required, optional, and invalid keys by target type. 3 cases: 'unit', 'range', 'cats'
-        type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
-        type_int = type_name_to_type_int[type_name]
-
-        # 1) test optional 'unit'. three cases a-c follow
-        # 1a) required but not passed: ['continuous', 'discrete', 'date']
-        if ('unit' not in all_keys) and \
-                (type_int in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
-            raise RuntimeError(f"'unit' not passed but is required for type_name={type_name}")
-
-        # 1b) optional: ok to pass or not pass: []: no need to validate
-
-        # 1c) invalid but passed: ['nominal', 'binary', 'compositional']
-        if ('unit' in all_keys) and \
-                (type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
-            raise RuntimeError(f"'unit' passed but is invalid for type_name={type_name}")
-
-        # 2) test optional 'range'. three cases a-c follow
-        # 2a) required but not passed: []: no need to validate
-
-        # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
-
-        # 2c) invalid but passed: ['nominal', 'binary', 'date', 'compositional']
-        if ('range' in all_keys) and (
-                type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE,
-                             Target.COMPOSITIONAL_TARGET_TYPE]):
-            raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
-
-        # 3) test optional 'cats'. three cases a-c follow
-        # 3a) required but not passed: ['nominal', 'date', 'compositional']
-        if ('cats' not in all_keys) and \
-                (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
-            raise RuntimeError(f"'cats' not passed but is required for type_name={type_name}")
-
-        # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
-
-        # 3c) invalid but passed: ['binary']
-        if ('cats' in all_keys) and (type_int == Target.BINARY_TARGET_TYPE):
-            raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
-
-        # validate 'range' if passed. values can be either ints or floats, and must match the target's data type
-        data_type = Target.data_type(type_int)  # python type
-        if 'range' in target_dict:
-            for range_str in target_dict['range']:
-                try:
-                    data_type(range_str)  # try parsing as an int or float
-                except ValueError as ve:
-                    raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
-                                       f"data_type={data_type}, error: {ve}")
-
-            if len(target_dict['range']) != 2:
-                raise RuntimeError(f"range did not contain exactly two items: {target_dict['range']}")
-
-        # validate 'cats' if passed. values can strings, ints, or floats, and must match the target's data type. strings
-        # can be either dates in YYYY_MM_DD_DATE_FORMAT form or just plain strings.
-        if 'cats' in target_dict:
-            for cat_str in target_dict['cats']:
-                try:
-                    if type_int == Target.DATE_TARGET_TYPE:
-                        datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
-                    else:
-                        data_type(cat_str)  # try parsing as a string, int, or float
-                except ValueError as ve:
-                    raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
-                                       f"data_type={data_type}, error: {ve}")
+        type_name = _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
 
         # valid! create the Target and then supporting 'list' instances: TargetCat, TargetLwr, TargetDate,
         # and TargetRange. atomic so that Targets succeed only if others do too
@@ -295,20 +216,128 @@ def validate_and_create_targets(project, project_dict):
                           'type': type_name_to_type_int[type_name],
                           'name': target_dict['name'],
                           'description': target_dict['description'],
-                          'is_step_ahead': target_dict['is_step_ahead']}
+                          'is_step_ahead': target_dict['is_step_ahead']}  # required keys
+
+            # add is_step_ahead
             if target_dict['is_step_ahead']:
                 model_init['step_ahead_increment'] = target_dict['step_ahead_increment']
+
+            # add unit
             if 'unit' in target_dict:
                 model_init['unit'] = target_dict['unit']
+
+            # instantiate the new Target
             target = Target.objects.create(**model_init)
             targets.append(target)
 
-            # create TargetRange, and TargetCat and TargetLwr (via set_cats()) instances
-            if ('range' in target_dict) and target_dict['range']:
-                target.set_range(target_dict['range'][0], target_dict['range'][1])  # create two TargetRanges
-            if ('cats' in target_dict) and target_dict['cats']:
-                target.set_cats(target_dict['cats'])  # create TargetCats and TargetLwrs
+            # add range
+            if ('range' in target_dict) and target_dict['range']:  # create two TargetRanges
+                target.set_range(target_dict['range'][0], target_dict['range'][1])
+
+            # add cats
+            if ('cats' in target_dict) and target_dict['cats']:  # create TargetCats and TargetLwrs
+                target.set_cats(target_dict['cats'])
     return targets
+
+
+def _validate_target_dict(target_dict, type_name_to_type_int):
+    # check for keys required by all target types. optional keys are tested below
+    all_keys = set(target_dict.keys())
+    tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
+    expected_keys = {'name', 'description', 'type', 'is_step_ahead'}
+    if tested_keys != expected_keys:
+        raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "
+                           f"expected_keys={expected_keys}, tested_keys={tested_keys}. target_dict={target_dict}")
+    # validate type
+    type_name = target_dict['type']
+    valid_target_types = [type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES]
+    if type_name not in valid_target_types:
+        raise RuntimeError(f"Invalid type_name={type_name}. valid_target_types={valid_target_types} . "
+                           f"target_dict={target_dict}")
+
+    # validate is_step_ahead. field default if not passed is None
+    if target_dict['is_step_ahead'] is None:
+        raise RuntimeError(f"is_step_ahead not found but is required")
+
+    # check for step_ahead_increment required if is_step_ahead
+    if target_dict['is_step_ahead'] and ('step_ahead_increment' not in target_dict):
+        raise RuntimeError(f"step_ahead_increment not found but is required when is_step_ahead is passed. "
+                           f"target_dict={target_dict}")
+
+    # check required, optional, and invalid keys by target type. 3 cases: 'unit', 'range', 'cats'
+    type_int = type_name_to_type_int[type_name]
+
+    # 1) test optional 'unit'. three cases a-c follow
+
+    # 1a) required but not passed: ['continuous', 'discrete', 'date']
+    if ('unit' not in all_keys) and \
+            (type_int in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
+        raise RuntimeError(f"'unit' not passed but is required for type_name={type_name}")
+
+    # 1b) optional: ok to pass or not pass: []: no need to validate
+
+    # 1c) invalid but passed: ['nominal', 'binary', 'compositional']
+    if ('unit' in all_keys) and \
+            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
+        raise RuntimeError(f"'unit' passed but is invalid for type_name={type_name}")
+
+    # test that unit, if passed to a Target.DATE_TARGET_TYPE, is valid
+    if ('unit' in all_keys) and (type_int == Target.DATE_TARGET_TYPE) and \
+            (target_dict['unit'] not in Target.DATE_UNITS):
+        raise RuntimeError(f"'unit' passed for date target but was not valid. unit={target_dict['unit']!r}, "
+                           f"valid_date_units={Target.DATE_UNITS!r}")
+
+    # 2) test optional 'range'. three cases a-c follow
+
+    # 2a) required but not passed: []: no need to validate
+
+    # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
+
+    # 2c) invalid but passed: ['nominal', 'binary', 'date', 'compositional']
+    if ('range' in all_keys) and (
+            type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE,
+                         Target.COMPOSITIONAL_TARGET_TYPE]):
+        raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
+
+    # 3) test optional 'cats'. three cases a-c follow
+
+    # 3a) required but not passed: ['nominal', 'date', 'compositional']
+    if ('cats' not in all_keys) and \
+            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
+        raise RuntimeError(f"'cats' not passed but is required for type_name={type_name}")
+
+    # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
+
+    # 3c) invalid but passed: ['binary']
+    if ('cats' in all_keys) and (type_int == Target.BINARY_TARGET_TYPE):
+        raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
+
+    # validate 'range' if passed. values can be either ints or floats, and must match the target's data type
+    data_type = Target.data_type(type_int)  # python type
+    if 'range' in target_dict:
+        for range_str in target_dict['range']:
+            try:
+                data_type(range_str)  # try parsing as an int or float
+            except ValueError as ve:
+                raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
+                                   f"data_type={data_type}, error: {ve}")
+
+        if len(target_dict['range']) != 2:
+            raise RuntimeError(f"range did not contain exactly two items: {target_dict['range']}")
+
+    # validate 'cats' if passed. values can strings, ints, or floats, and must match the target's data type. strings
+    # can be either dates in YYYY_MM_DD_DATE_FORMAT form or just plain strings.
+    if 'cats' in target_dict:
+        for cat_str in target_dict['cats']:
+            try:
+                if type_int == Target.DATE_TARGET_TYPE:
+                    datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
+                else:
+                    data_type(cat_str)  # try parsing as a string, int, or float
+            except ValueError as ve:
+                raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
+                                   f"data_type={data_type}, error: {ve}")
+    return type_name
 
 
 def create_project(project_dict, owner):
