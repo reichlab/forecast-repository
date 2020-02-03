@@ -1,0 +1,36 @@
+@font-face {
+  font-family: 'Exo semi-bold';
+  src: url('../fonts/Exo/Exo-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Exo regular';
+  src: url('../fonts/Exo/Exo-Regular.ttf');
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Exo semi-bold';
+}
+
+a,
+p {
+  font-family: 'Exo regular';
+}
+
+.btn-primary,
+.bg-primary {
+  background-color: rgb(27, 44, 55);
+}
+
+.nav-api {
+  padding: .5rem 1rem !important;
+}
+
+@media (min-width: 768px) {
+  .container {
+    max-width: 960px !important;
+  }
+}

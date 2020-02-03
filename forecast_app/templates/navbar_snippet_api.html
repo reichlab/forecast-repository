@@ -1,0 +1,83 @@
+{% load static %}
+<nav class="navbar nav-api navbar-inverse navbar-expand-lg navbar-fixed-top navbar-dark bg-primary">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar"
+                    aria-expanded="false" aria-controls="navbar">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="{% url 'index' %}">
+                {# following style https://stackoverflow.com/a/35952273/1082367 . took forever to get this close! #}
+                <img style="display: inline-block; height: 40px; margin-top: -10px"
+                     src="{% static 'zoltar_white.png' %}"/>
+            </a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div id="navbar" class="collapse navbar-collapse">
+
+            <!-- Left-justified items -->
+            <ul class="nav navbar-nav navbar-left">
+                <li class="dropdown">
+                    <a href="{% url 'about' %}">About</a>
+                </li>
+                <li class="dropdown">
+                    <a ref="{% url 'projects' %}">Projects</a>
+                </li>
+                <li class="dropdown">
+                    <a href="https://docs.zoltardata.com/">Docs</a>
+                </li>
+            </ul>
+            <!-- Right-justified items. Regarding classes, the ones from the docs ( "nav navbar-nav navbar-right" ) work,
+                 but result in their being hard-justified on the right with no padding. I was able to add padding using
+                "nav navbar-nav pull-right" to add padding on the right, but the items are also on the right in the
+                collapsed hamburger. Also, dropdowns were off the screen to the right. So for now we live with the former.
+            -->
+            <ul class="nav navbar-nav navbar-right">
+                <!-- user dropdown -->
+                {% if user.is_authenticated %}
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                           aria-expanded="false">
+                            {{ user }}
+                            <span class="caret"></span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            {% if user.is_superuser %}
+                                <li><a href="{% url 'admin:index' %}">Admin site</a></li>
+                                <li><a href="{% url 'user-list' %}">Users</a></li>
+                                <li><a href="{% url 'zadmin' %}">Zoltar Admin</a></li>
+                                <li><a href="{% url 'rq_home' %}">RQ Admin</a></li>
+                                <li role="separator" class="divider"></li>
+                            {% endif %}
+                            <li><a href="{% url 'user-detail' user.pk %}">Profile Page</a></li>
+                            <li><a href="{% url 'logout' %}">Sign out</a></li>
+                        </ul>
+                    </li>
+                {% else %}
+                    <li><a href="{% url 'login' %}">Sign in</a></li>
+                {% endif %}
+
+                <!-- help dropdown -->
+                <li class="dropdown">
+                    <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true"
+                       aria-expanded="false">
+                        <i class="fas fa-question-circle"></i>
+                        <span class="caret"></span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a href="{% url 'about' %}">About</a></li>
+                        <li><a href="{% url 'docs' %}">Documentation</a></li>
+                        <li role="separator" class="divider"></li>
+                        <li><a href="{% url 'index' %}">Site Index</a></li>
+                        <li><a href="{% url 'api-root' %}">Site API Root</a></li>
+                    </ul>
+                </li>
+            </ul>
+
+        </div>
+    </div>
+</nav>

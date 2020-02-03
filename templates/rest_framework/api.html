@@ -2,20 +2,22 @@
 {% load i18n %}
 
 {% block bootstrap_theme %}
+    
     <link href="https://fonts.googleapis.com/css?family=Exo:400,600,700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.js"></script>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+     
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
 
     {% load static %}
     {% load compress %}
     {% compress css %}
-        <link type="text/x-scss" rel="stylesheet" href="{% static 'css/custom.scss' %}">
+        <link type="text/x-scss" rel="stylesheet" href="{% static 'css/custom_api.css' %}">
     {% endcompress %}
 {% endblock %}
 
 {% block title %}{% if name %}{{ name }} – {% endif %}Zoltar API{% endblock %}
 
+
 {% block navbar %}
-    {% include 'navbar_snippet.html' %}
+    {% include 'navbar_snippet_api.html' %}
 {% endblock %}
