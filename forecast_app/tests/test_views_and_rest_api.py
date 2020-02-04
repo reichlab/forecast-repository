@@ -15,7 +15,7 @@ from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
-from utils.project import delete_project_iteratively
+from utils.project import delete_project_iteratively, load_truth_data
 from utils.utilities import YYYYMMDD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 
@@ -47,7 +47,7 @@ class ViewsTestCase(TestCase):
         make_cdc_locations_and_targets(cls.public_project)
 
         TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
-        cls.public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(cls.public_project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
 
         cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 1),
                                                  data_version_date=None)

@@ -72,10 +72,6 @@ class Target(models.Model):
         return basic_str(self)
 
 
-    # def is_date(self):
-    #     return self.type == Target.CONTINUOUS_TARGET_TYPE
-
-
     @classmethod
     def type_as_str(cls, the_type_int):
         for type_int, type_name in cls.TARGET_TYPE_CHOICES:
@@ -276,6 +272,7 @@ class TargetLwr(models.Model):
     truth >= lwr AND truth < upper. Therefore it is currently calculated by utils.project.validate_and_create_targets()
     based on lwr. That function has to infer the final bin's upper, and uses float('inf') for that
     """
+
     target = models.ForeignKey('Target', blank=True, null=True, related_name='lwrs', on_delete=models.CASCADE)
     lwr = models.FloatField(null=True)  # nullable b/c some bins have non-numeric values, e.g., 'NA'
     upper = models.FloatField(null=True)  # "". possibly float('inf')

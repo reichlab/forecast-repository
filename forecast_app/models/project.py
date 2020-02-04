@@ -1,17 +1,14 @@
-import csv
-import datetime
-import io
 import logging
 from collections import defaultdict
 from itertools import groupby
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
-from django.db import models, transaction, connection
+from django.db import models
 from django.db.models import ManyToManyField, Max
 from django.urls import reverse
 
-from utils.utilities import basic_str, parse_value, YYYYMMDD_DATE_FORMAT
+from utils.utilities import basic_str
 
 
 logger = logging.getLogger(__name__)
@@ -333,7 +330,7 @@ class Project(models.Model):
     #
 
     def step_ahead_targets(self):
-        return self.targets.filter(is_step_ahead=True)\
+        return self.targets.filter(is_step_ahead=True) \
             .order_by('name')
 
 
@@ -363,10 +360,16 @@ class Project(models.Model):
     def get_truth_data_preview(self):
         """
         :return: view helper function that returns a preview of my truth data in the form of a table that's represented
-            as a nested list of rows
+            as a nested list of rows. each row: [timezero_date, location_name, target_name, truth_value]
         """
-        return list(self.truth_data_qs()
-                    .values_list('time_zero__timezero_date', 'location__name', 'target__name', 'value')[:10])
+        from forecast_app.models import PointPrediction  # avoid circular imports
+
+
+        rows = self.truth_data_qs().values_list('time_zero__timezero_date', 'location__name', 'target__name',
+                                                'value_i', 'value_f', 'value_t', 'value_d', 'value_b')[:10]
+        return [[timezero_date, location_name, target_name,
+                 PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)]
+                for timezero_date, location_name, target_name, value_i, value_f, value_t, value_d, value_b in rows]
 
 
     def get_num_truth_rows(self):
@@ -379,7 +382,8 @@ class Project(models.Model):
         """
         return list(self.truth_data_qs()
                     .order_by('id')
-                    .values_list('time_zero__timezero_date', 'location__name', 'target__name', 'value'))
+                    .values_list('time_zero__timezero_date', 'location__name', 'target__name',
+                                 'value_i', 'value_f', 'value_t', 'value_d', 'value_b'))
 
 
     def truth_data_qs(self):
@@ -441,14 +445,17 @@ class Project(models.Model):
         location_target_name_tz_date_to_truth[location_name][target_name][timezero_date]. Only includes data from
         season_name, which is None if I have no seasons.
         """
-        logger.debug("location_target_name_tz_date_to_truth(): entered. project={}, season_name={}"
-                     .format(self, season_name))
+        from forecast_app.models import PointPrediction  # avoid circular imports
+
+
+        logger.debug(f"location_target_name_tz_date_to_truth(): entered. project={self}, season_name={season_name}")
         loc_target_tz_date_to_truth = {}
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
         truth_data_qs = self.truth_data_qs() \
             .order_by('location__name', 'target__name') \
-            .values_list('location__id', 'target__id', 'time_zero__timezero_date', 'value')
+            .values_list('location__id', 'target__id', 'time_zero__timezero_date',
+                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
             truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
@@ -468,162 +475,12 @@ class Project(models.Model):
 
                 tz_date_to_truth = defaultdict(list)
                 target_tz_date_to_truth[target_pks_to_names[target_id]] = tz_date_to_truth
-                for _, _, tz_date, value in target_tz_grouper:
+                for _, _, tz_date, value_i, value_f, value_t, value_d, value_b in target_tz_grouper:
+                    value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
                     tz_date_to_truth[tz_date].append(value)
-        logger.debug("location_target_name_tz_date_to_truth(): done ({}). project={}, season_name={}"
-                     .format(len(loc_target_tz_date_to_truth), self, season_name))
+        logger.debug(f"location_target_name_tz_date_to_truth(): done ({len(loc_target_tz_date_to_truth)}). "
+                     f"project={self}, season_name={season_name}")
         return loc_target_tz_date_to_truth
-
-
-    @transaction.atomic
-    def load_truth_data(self, truth_file_path_or_fp, file_name=None):
-        """
-        Loads the data in truth_file_path (see below for file format docs). Like load_csv_data(), uses direct SQL for
-        performance, using a fast Postgres-specific routine if connected to it. Note that this method should be called
-        after all TimeZeros are created b/c truth data is validated against them. Notes:
-
-        - TimeZeros "" b/c truth timezeros are validated against project ones
-        - One csv file/project, which includes timezeros across all seasons.
-        - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
-          formatted “yyyymmdd”. A header must be included.
-        - Missing timezeros: If the program generating the csv file does not have information for a particular project
-          timezero, then it should not generate a value for it. (The alternative would be to require the program to
-          generate placeholder values for missing dates.)
-        - Non-numeric values: Some targets will have no value, such as season onset when a baseline is not met. In those
-          cases, the value should be “NA”, per
-          https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx.
-        - For date-based onset or peak targets, values must be dates in the same format as timezeros, rather than
-            project-specific time intervals such as an epidemic week.
-        - Validation:
-            - Every timezero in the csv file must have a matching one in the project. Note that the inverse is not
-              necessarily true, such as in the case above of missing timezeros.
-            - Every location in the csv file must a matching one in the Project.
-            - Ditto for every target.
-
-        :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
-            combination, OR an already-open file-like object
-        :param file_name: name to use for the file
-        """
-        logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
-                     f"file_name={file_name}")
-        if not self.pk:
-            raise RuntimeError("instance is not saved the the database, so can't insert data: {!r}".format(self))
-
-        logger.debug(f"load_truth_data(): calling delete_truth_data()")
-        self.delete_truth_data()
-
-        logger.debug(f"load_truth_data(): calling _load_truth_data()")
-        # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
-        if isinstance(truth_file_path_or_fp, io.IOBase):
-            num_rows = self._load_truth_data(truth_file_path_or_fp)
-        else:
-            with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
-                num_rows = self._load_truth_data(cdc_csv_file_fp)
-
-        # done
-        logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
-        self.truth_csv_filename = file_name or truth_file_path_or_fp.name
-        self.save()
-        self._update_model_score_changes()
-        logger.debug(f"load_truth_data(): done")
-
-
-    def _load_truth_data(self, cdc_csv_file_fp):
-        from forecast_app.models import TruthData  # avoid circular imports
-
-
-        with connection.cursor() as cursor:
-            rows = self._load_truth_data_rows(cdc_csv_file_fp)  # validates
-            if not rows:
-                return 0
-
-            truth_data_table_name = TruthData._meta.db_table
-            columns = [TruthData._meta.get_field('time_zero').column,
-                       TruthData._meta.get_field('location').column,
-                       TruthData._meta.get_field('target').column,
-                       'value']
-            if connection.vendor == 'postgresql':
-                string_io = io.StringIO()
-                csv_writer = csv.writer(string_io, delimiter=',')
-                for timezero, location_id, target_id, value in rows:
-                    # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
-                    csv_writer.writerow([timezero, location_id, target_id,
-                                         value if value is not None else POSTGRES_NULL_VALUE])
-                string_io.seek(0)
-                cursor.copy_from(string_io, truth_data_table_name, columns=columns, sep=',', null=POSTGRES_NULL_VALUE)
-            else:  # 'sqlite', etc.
-                sql = """
-                    INSERT INTO {truth_data_table_name} ({column_names})
-                    VALUES (%s, %s, %s, %s);
-                """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
-                cursor.executemany(sql, rows)
-        return len(rows)
-
-
-    def _load_truth_data_rows(self, csv_file_fp):
-        """
-        Similar to ModelWithCDCData._cleaned_rows_from_cdc_csv_file(), loads, validates, and cleans the rows
-        in csv_file_fp.
-        """
-        csv_reader = csv.reader(csv_file_fp, delimiter=',')
-
-        # validate header
-        try:
-            orig_header = next(csv_reader)
-        except StopIteration:
-            raise RuntimeError("empty file")
-
-        header = orig_header
-        header = [h.lower() for h in [i.replace('"', '') for i in header]]
-        if header != TRUTH_CSV_HEADER:
-            raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
-
-        # collect the rows. first we load them all into memory (processing and validating them as we go)
-        location_names_to_pks = {location.name: location.id for location in self.locations.all()}
-        target_names_to_pks = {target.name: target.id for target in self.targets.all()}
-        rows = []
-        timezero_to_missing_count = defaultdict(int)  # to minimize warnings
-        location_to_missing_count = defaultdict(int)
-        target_to_missing_count = defaultdict(int)
-        for row in csv_reader:
-            if len(row) != 4:
-                raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
-
-            timezero_date, location_name, target_name, value = row
-
-            # validate timezero_date
-            # todo cache: time_zero_for_timezero_date() results - expensive?
-            time_zero = self.time_zero_for_timezero_date(
-                datetime.datetime.strptime(timezero_date, YYYYMMDD_DATE_FORMAT))
-            if not time_zero:
-                timezero_to_missing_count[timezero_date] += 1
-                continue
-
-            # validate location and target
-            if location_name not in location_names_to_pks:
-                location_to_missing_count[location_name] += 1
-                continue
-
-            if target_name not in target_names_to_pks:
-                target_to_missing_count[target_name] += 1
-                continue
-
-            value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
-            rows.append((time_zero.pk, location_names_to_pks[location_name], target_names_to_pks[target_name], value))
-
-        # report warnings
-        for time_zero, count in timezero_to_missing_count.items():
-            logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
-                           .format(time_zero, count))
-        for location_name, count in location_to_missing_count.items():
-            logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
-                           .format(location_name, count))
-        for target_name, count in target_to_missing_count.items():
-            logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
-                           .format(target_name, count))
-
-        # done
-        return rows
 
 
     #

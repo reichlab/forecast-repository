@@ -162,11 +162,6 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
         bin_cats, bin_probs = [], []
         for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:  # all 3 are numbers or None
             try:
-                # if (target_name != 'Season onset') and ((bin_start_incl is None) or
-                #                                         (bin_end_notincl is None) or (value is None)):
-                #     raise RuntimeError(f"None bins or values are only valid for the 'Season onset' target. "
-                #                        f"target_name={target_name}, bin_start_incl, bin_end_notincl, value: "
-                #                        f"{bin_start_incl}, {bin_end_notincl}, {value}")
                 if is_point_row:  # save value in point_values, possibly converted based on target
                     if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
                         if value is None:

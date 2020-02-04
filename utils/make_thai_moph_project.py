@@ -17,7 +17,7 @@ from utils.utilities import get_or_create_super_po_mo_users
 from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
 from utils.project import create_project_from_json, validate_and_create_locations, validate_and_create_targets, \
-    delete_project_iteratively
+    delete_project_iteratively, load_truth_data
 from utils.cdc import load_cdc_csv_forecast_file
 
 
@@ -89,7 +89,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
 
     # load the truth
     click.echo("- loading truth values")
-    project.load_truth_data(Path('utils/dengue-truth-table-script/truths.csv'))
+    load_truth_data(project, Path('utils/dengue-truth-table-script/truths.csv'))
 
     # load data
     click.echo("* Loading forecasts")

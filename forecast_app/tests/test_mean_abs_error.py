@@ -10,6 +10,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
+from utils.project import load_truth_data
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -48,7 +49,7 @@ class MAETestCase(TestCase):
                                  '2 wk ahead': 0.458186984,
                                  '3 wk ahead': 0.950515864,
                                  '4 wk ahead': 1.482010693}
-        cls.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths.csv'))
+        load_truth_data(cls.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths.csv'))
 
         # score needed for MAE calculation
         Score.ensure_all_scores_exist()
@@ -65,7 +66,7 @@ class MAETestCase(TestCase):
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 11, 6))
         forecast_model2 = ForecastModel.objects.create(project=project2)
         load_cdc_csv_forecasts_from_dir(forecast_model2, Path('forecast_app/tests/load_forecasts'), 2016)
-        project2.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        load_truth_data(project2, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name

@@ -90,10 +90,18 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
 
 def _truth_data_pks_for_forecast_model(forecast_model):
+    """
+    NB: Only compares TruthData.value_i and TruthData.value_f columns. todo xx should base this on Target.type?
+
+    :param forecast_model: a ForecastModel
+    :return: truth data in forecast_model as a list of 5-tuples where truth_value is the (first?) non-null truth value
+        in TruthData.value_i and TruthData.value_f: (time_zero_pk, forecast_pk, location_pk, target_pk, truth_value)
+
+    """
     sql = f"""
-        SELECT td.time_zero_id, f.id, td.location_id, td.target_id, td.value
-        FROM {TruthData._meta.db_table} AS td
-               LEFT JOIN {TimeZero._meta.db_table} AS tz ON td.time_zero_id = tz.id
+        SELECT truthd.time_zero_id, f.id, truthd.location_id, truthd.target_id, COALESCE(truthd.value_i, truthd.value_f)
+        FROM {TruthData._meta.db_table} AS truthd
+               LEFT JOIN {TimeZero._meta.db_table} AS tz ON truthd.time_zero_id = tz.id
                LEFT JOIN {Forecast._meta.db_table} AS f ON tz.id = f.time_zero_id
                LEFT JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
         WHERE fm.id = %s;
@@ -146,18 +154,21 @@ def _tz_loc_targ_pk_to_true_bin_lwr(project):
         [timezero_pk][location_pk][target_pk] -> true_bin_lwr
 
     We need the TargetLwr to get lwr and upper for the truth.
+    NB: Only compares TruthData.value_i and TruthData.value_f columns. todo xx should base this on Target.type?
     """
     sql = f"""
-        SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id, tblwr.lwr
+        SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id, targlwr.lwr
         FROM {TruthData._meta.db_table} as truthd
-               LEFT JOIN {TargetLwr._meta.db_table} as tblwr
-                    ON truthd.target_id = tblwr.target_id
-               LEFT JOIN {Target._meta.db_table} as t
-                    ON tblwr.target_id = t.id
-        WHERE t.project_id = %s
-          AND ((truthd.value >= tblwr.lwr) OR ((truthd.value IS NULL) AND (tblwr.lwr IS NULL)))
-          AND ((truthd.value < tblwr.upper) OR ((truthd.value IS NULL) AND (tblwr.upper IS NULL)))
-        ORDER BY truthd.time_zero_id, truthd.location_id, truthd.target_id, tblwr.lwr
+               LEFT JOIN {TargetLwr._meta.db_table} as targlwr
+                    ON truthd.target_id = targlwr.target_id
+               LEFT JOIN {Target._meta.db_table} as target
+                    ON targlwr.target_id = target.id
+        WHERE target.project_id = %s
+          AND ((COALESCE(truthd.value_i, truthd.value_f) >= targlwr.lwr) OR
+               ((COALESCE(truthd.value_i, truthd.value_f) IS NULL) AND (targlwr.lwr IS NULL)))
+          AND ((COALESCE(truthd.value_i, truthd.value_f) < targlwr.upper) OR
+               ((COALESCE(truthd.value_i, truthd.value_f) IS NULL) AND (targlwr.upper IS NULL)))
+        ORDER BY truthd.time_zero_id, truthd.location_id, truthd.target_id, targlwr.lwr
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))

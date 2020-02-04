@@ -1,5 +1,5 @@
 This is a download of the JavaScript program at 
-[Scripts for creating truth.csv using flusight-csv-tools]( https://gist.github.com/lepisma/f7b92d7eadd19d1384834ed32af5d53a)
+[Scripts for creating truth.csv using flusight-csv-tools]( https://gist.github.com/lepisma/f7b92d7eadd19d1384834ed32af5d53a )
 that creates the truth table for the https://github.com/FluSightNetwork/cdc-flusight-ensemble project . We use it to
 create truth tables for the following Zoltar project. The directory was downloaded on 2018-05-17.
 

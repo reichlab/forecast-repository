@@ -1,8 +1,8 @@
 timezero,location,target,value
-20170101,US National,1 wk ahead,0.73102
-20170101,US National,2 wk ahead,0.688338
-20170101,US National,3 wk ahead,0.732049
-20170101,US National,4 wk ahead,0.911641
-20170101,US National,Season peak percentage,null
-20170101,US National,Season peak week,NA
-20170101,US National,Season onset,201747
+2017-01-01,US National,1 wk ahead,0.73102
+2017-01-01,US National,2 wk ahead,0.688338
+2017-01-01,US National,3 wk ahead,0.732049
+2017-01-01,US National,4 wk ahead,0.911641
+2017-01-01,US National,Season peak percentage,null
+2017-01-01,US National,Season peak week,NA
+2017-01-01,US National,Season onset,2017-11-20

@@ -21,7 +21,7 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
-from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue
+from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
@@ -481,9 +481,11 @@ def csv_response_for_project_truth_data(project):
 
     writer = csv.writer(response)
     writer.writerow(TRUTH_CSV_HEADER)
-    for timezero_date, location_name, target_name, value in project.get_truth_data_rows():
-        timezero_date = timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
-        writer.writerow([timezero_date, location_name, target_name, value])
+    for timezero_date, location_name, target_name, \
+        value_i, value_f, value_t, value_d, value_b in project.get_truth_data_rows():
+        timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+        writer.writerow([timezero_date, location_name, target_name, truth_value])
 
     return response
 

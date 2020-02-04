@@ -80,7 +80,8 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
     """
     truth_data_qs = forecast_model.project.truth_data_qs() \
         .order_by('time_zero__id', 'location__id', 'target__id') \
-        .values_list('time_zero__id', 'location__id', 'target__id', 'value')
+        .values_list('time_zero__id', 'location__id', 'target__id',
+                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
 
     tz_loc_targ_pks_to_truth_vals = {}  # {timezero_pk: {location_pk: {target_id: truth_value}}}
     for time_zero_id, loc_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
@@ -89,7 +90,8 @@ def _timezero_loc_target_pks_to_truth_values(forecast_model):
         for location_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
             target_pk_to_truth = defaultdict(list)  # {target_id: truth_value}
             loc_targ_pks_to_truth[location_id] = target_pk_to_truth
-            for _, _, target_id, value in target_val_grouper:
+            for _, _, target_id, value_i, value_f, value_t, value_d, value_b in target_val_grouper:
+                value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
                 target_pk_to_truth[target_id].append(value)
 
     return tz_loc_targ_pks_to_truth_vals

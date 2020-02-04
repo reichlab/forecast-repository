@@ -22,7 +22,7 @@ const OUTPUT_FILE = 'truths-2010-through-2018.csv'  // originally 'truths.csv'
 function epiweekToTimezero (ew) {
   let mdate = new mmwr.MMWRDate()
   mdate.fromEpiweek(ew)
-  return mdate.toMomentDate().format('YYYYMMDD')
+  return mdate.toMomentDate().format('YYYY-MM-DD')
 }
 
 async function main () {

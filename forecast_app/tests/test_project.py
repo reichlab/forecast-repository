@@ -13,7 +13,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _location_to_actual_points, _location_to_actual_max_val
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import create_thai_locations_and_targets
-from utils.project import create_project_from_json
+from utils.project import create_project_from_json, load_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -37,7 +37,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_load_truth_data(self):
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
         self.assertEqual(7, self.project.truth_data_qs().count())
         self.assertTrue(self.project.is_truth_data_loaded())
         self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
@@ -47,16 +47,16 @@ class ProjectTestCase(TestCase):
         self.assertFalse(self.project.truth_csv_filename)
 
         # csv references non-existent TimeZero in Project: should not raise error
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
-                                     'truths-bad-timezero.csv')
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
+                        'truths-bad-timezero.csv')
 
         # csv references non-existent location in Project: should not raise error
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
-                                     'truths-bad-location.csv')
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
+                        'truths-bad-location.csv')
 
         # csv references non-existent target in Project: should not raise error
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
-                                     'truths-bad-target.csv')
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
+                        'truths-bad-target.csv')
 
         project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
@@ -64,33 +64,71 @@ class ProjectTestCase(TestCase):
         self.assertFalse(project2.is_truth_data_loaded())
 
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
-        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
         self.assertEqual(7, project2.truth_data_qs().count())
 
         # test get_truth_data_preview()
         exp_truth_preview = [
-            (datetime.date(2017, 1, 1), 'US National', '1 wk ahead', 0.73102),
-            (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', 0.688338),
-            (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', 0.732049),
-            (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641),
-            (datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None),
-            (datetime.date(2017, 1, 1), 'US National', 'Season peak week', None),
-            (datetime.date(2017, 1, 1), 'US National', 'Season onset', 201747.0)
-        ]
+            [datetime.date(2017, 1, 1), 'US National', '1 wk ahead', 0.73102],
+            [datetime.date(2017, 1, 1), 'US National', '2 wk ahead', 0.688338],
+            [datetime.date(2017, 1, 1), 'US National', '3 wk ahead', 0.732049],
+            [datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641],
+            [datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None],
+            [datetime.date(2017, 1, 1), 'US National', 'Season peak week', None],
+            [datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20']]
         self.assertEqual(exp_truth_preview, project2.get_truth_data_preview())
 
 
-    def test_truth_date_format(self):
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+    def test_load_truth_data_other_files(self):
+        # test truth files that used to be in yyyymmdd or yyyyww (EW) formats
+        # truths-ok.csv (2017-01-17-truths.csv would basically test the same)
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        exp_rows = [(datetime.date(2017, 1, 1), 'US National', '1 wk ahead', None, 0.73102, None, None, None),
+                    (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', None, 0.688338, None, None, None),
+                    (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', None, 0.732049, None, None, None),
+                    (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', None, 0.911641, None, None, None),
+                    (datetime.date(2017, 1, 1), 'US National', 'Season onset', None, None, '2017-11-20', None, None),
+                    (datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None, None, None, None, None),
+                    (datetime.date(2017, 1, 1), 'US National', 'Season peak week', None, None, None, None, None)]
+        act_rows = self.project.truth_data_qs() \
+            .order_by('location__name', 'target__name') \
+            .values_list('time_zero__timezero_date', 'location__name', 'target__name',
+                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+        self.assertEqual(exp_rows, list(act_rows))
+
+        # truths-2016-2017-reichlab-small.csv
+        project2 = Project.objects.create()
+        TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
+        make_cdc_locations_and_targets(project2)
+        load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
+        exp_rows = [(datetime.date(2016, 10, 30), 'US National', '1 wk ahead', None, 1.55838, None, None, None),
+                    (datetime.date(2016, 10, 30), 'US National', '2 wk ahead', None, 1.64639, None, None, None),
+                    (datetime.date(2016, 10, 30), 'US National', '3 wk ahead', None, 1.91196, None, None, None),
+                    (datetime.date(2016, 10, 30), 'US National', '4 wk ahead', None, 1.81129, None, None, None),
+                    (datetime.date(2016, 10, 30), 'US National', 'Season onset', None, None, '2016-12-11', None, None),
+                    (datetime.date(2016, 10, 30), 'US National', 'Season peak percentage',
+                     None, 5.06094, None, None, None),
+                    (datetime.date(2016, 10, 30), 'US National', 'Season peak week',
+                     None, None, None, datetime.date(2017, 2, 5), None)]
+
+        act_rows = project2.truth_data_qs() \
+            .order_by('location__name', 'target__name') \
+            .values_list('time_zero__timezero_date', 'location__name', 'target__name',
+                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+        self.assertEqual(exp_rows, list(act_rows))
+
+
+    def test_export_truth_data(self):
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
         response = csv_response_for_project_truth_data(self.project)
         exp_content = ['timezero,location,target,value',
-                       '20170101,US National,1 wk ahead,0.73102',
-                       '20170101,US National,2 wk ahead,0.688338',
-                       '20170101,US National,3 wk ahead,0.732049',
-                       '20170101,US National,4 wk ahead,0.911641',
-                       '20170101,US National,Season peak percentage,',
-                       '20170101,US National,Season peak week,',
-                       '20170101,US National,Season onset,201747.0',
+                       '2017-01-01,US National,1 wk ahead,0.73102',
+                       '2017-01-01,US National,2 wk ahead,0.688338',
+                       '2017-01-01,US National,3 wk ahead,0.732049',
+                       '2017-01-01,US National,4 wk ahead,0.911641',
+                       '2017-01-01,US National,Season peak percentage,',
+                       '2017-01-01,US National,Season peak week,',
+                       '2017-01-01,US National,Season onset,2017-11-20',
                        '']
         act_content = response.content.decode("utf-8").split('\r\n')
         self.assertEqual(exp_content, act_content)
@@ -120,7 +158,7 @@ class ProjectTestCase(TestCase):
         self.assertIsNotNone(self.project.score_csv_file_cache)
 
         # test CSV file gets created
-        self.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        load_truth_data(self.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score_for_model(self.forecast_model)
@@ -307,7 +345,7 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
         exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
@@ -440,7 +478,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual({}, project.location_timezero_date_to_actual_vals(None))
 
 
-    def test_loc_target_tz_date_to_truth(self):
+    def test_location_target_name_tz_date_to_truth(self):
         # at this point self.project.timezeros.all() = <QuerySet [(1, datetime.date(2017, 1, 1), None, False, None)]>,
         # so add remaining TimeZeros so that truths are not skipped when loading mean-abs-error-truths-dups.csv
         TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2016, 12, 18))
@@ -448,7 +486,7 @@ class ProjectTestCase(TestCase):
         # we omit 20170108
 
         self.project.delete_truth_data()
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
 
         exp_loc_target_tz_date_to_truth = {
             'HHS Region 1': {
@@ -495,12 +533,11 @@ class ProjectTestCase(TestCase):
                 }
             }
         }
-        _conv_loc_target_tz_date_to_truth_to_default_dict(exp_loc_target_tz_date_to_truth)
-        self.assertEqual(exp_loc_target_tz_date_to_truth,
-                         self.project.location_target_name_tz_date_to_truth())  # target__id
+        act_loc_target_tz_date_to_truth = self.project.location_target_name_tz_date_to_truth()
+        self.assertEqual(exp_loc_target_tz_date_to_truth, act_loc_target_tz_date_to_truth)
 
 
-    def test_location_timezero_date_to_actual_vals_multi_season(self):
+    def test_location_target_name_tz_date_to_truth_multi_season(self):
         # test multiple seasons
         project = Project.objects.create()
         make_cdc_locations_and_targets(project)
@@ -513,12 +550,13 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6),
                                 is_season_start=True, season_name='season2')
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 13))
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))  # 4004 rows
 
         # test location_target_name_tz_date_to_truth() with above multiple seasons - done in this method b/c we've
         # set up some seasons :-)
-        self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1a(),
-                         project.location_target_name_tz_date_to_truth('season1'))  # target__id
+        act_loc_target_tz_date_to_truth = project.location_target_name_tz_date_to_truth('season1')
+        # todo xx convert from defaultdict
+        self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1a(), act_loc_target_tz_date_to_truth)
 
         # test location_timezero_date_to_actual_vals() with above multiple seasons
         self.assertEqual(_exp_loc_tz_date_to_actual_vals_season_1b(),
@@ -536,7 +574,7 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
 
         # change '1 wk ahead' to '0 wk ahead' in Target and truth data. also tests that target names are not used
         # (ids or step_ahead_increment should be used)
@@ -587,11 +625,11 @@ class ProjectTestCase(TestCase):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
-# converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns
-def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):
-    for location, target_tz_dict in loc_target_tz_date_to_truth.items():
-        for target_name, tz_date_truth in target_tz_dict.items():
-            loc_target_tz_date_to_truth[location][target_name] = defaultdict(list, tz_date_truth)
+# # converts innermost dicts to defaultdicts, which are what location_target_name_tz_date_to_truth() returns
+# def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):
+#     for location, target_tz_dict in loc_target_tz_date_to_truth.items():
+#         for target_name, tz_date_truth in target_tz_dict.items():
+#             loc_target_tz_date_to_truth[location][target_name] = defaultdict(list, tz_date_truth)
 
 
 def _exp_loc_tz_date_to_actual_vals_season_1a():
@@ -604,8 +642,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [0.325429]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.325429],
                                         datetime.date(2017, 7, 30): [0.339203]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171119.0],
-                                          datetime.date(2017, 7, 30): [20171119.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-11-19'],
+                                          datetime.date(2017, 7, 30): ['2017-11-19']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -619,8 +657,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                          datetime.date(2017, 7, 30): [0.241729]},
                           '4 wk ahead': {datetime.date(2017, 7, 23): [0.241729],
                                          datetime.date(2017, 7, 30): [0.293072]},
-                          'Season onset': {datetime.date(2017, 7, 23): [20171217.0],
-                                           datetime.date(2017, 7, 30): [20171217.0]},
+                          'Season onset': {datetime.date(2017, 7, 23): ['2017-12-17'],
+                                           datetime.date(2017, 7, 30): ['2017-12-17']},
                           'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                      datetime.date(2017, 7, 30): [None]},
                           'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -634,8 +672,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [1.41483]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [1.41483],
                                         datetime.date(2017, 7, 30): [1.32425]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
-                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-12-03'],
+                                          datetime.date(2017, 7, 30): ['2017-12-03']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -649,8 +687,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [0.623141]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.623141],
                                         datetime.date(2017, 7, 30): [0.781271]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171217.0],
-                                          datetime.date(2017, 7, 30): [20171217.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-12-17'],
+                                          datetime.date(2017, 7, 30): ['2017-12-17']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -664,8 +702,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [0.782429]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.782429],
                                         datetime.date(2017, 7, 30): [1.11294]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171105.0],
-                                          datetime.date(2017, 7, 30): [20171105.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-11-05'],
+                                          datetime.date(2017, 7, 30): ['2017-11-05']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -679,8 +717,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [0.627954]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.627954],
                                         datetime.date(2017, 7, 30): [0.724628]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
-                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-12-03'],
+                                          datetime.date(2017, 7, 30): ['2017-12-03']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -694,8 +732,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [1.66769]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [1.66769],
                                         datetime.date(2017, 7, 30): [1.74834]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171126.0],
-                                          datetime.date(2017, 7, 30): [20171126.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-11-26'],
+                                          datetime.date(2017, 7, 30): ['2017-11-26']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -709,8 +747,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [0.233776]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.233776],
                                         datetime.date(2017, 7, 30): [0.142496]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
-                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-12-03'],
+                                          datetime.date(2017, 7, 30): ['2017-12-03']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -724,8 +762,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [0.419146]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [0.419146],
                                         datetime.date(2017, 7, 30): [0.714684]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171210.0],
-                                          datetime.date(2017, 7, 30): [20171210.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-12-10'],
+                                          datetime.date(2017, 7, 30): ['2017-12-10']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -739,8 +777,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                         datetime.date(2017, 7, 30): [1.26206]},
                          '4 wk ahead': {datetime.date(2017, 7, 23): [1.26206],
                                         datetime.date(2017, 7, 30): [1.28077]},
-                         'Season onset': {datetime.date(2017, 7, 23): [20171203.0],
-                                          datetime.date(2017, 7, 30): [20171203.0]},
+                         'Season onset': {datetime.date(2017, 7, 23): ['2017-12-03'],
+                                          datetime.date(2017, 7, 30): ['2017-12-03']},
                          'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                     datetime.date(2017, 7, 30): [None]},
                          'Season peak week': {datetime.date(2017, 7, 23): [None],
@@ -754,8 +792,8 @@ def _exp_loc_tz_date_to_actual_vals_season_1a():
                                        datetime.date(2017, 7, 30): [0.911641]},
                         '4 wk ahead': {datetime.date(2017, 7, 23): [0.911641],
                                        datetime.date(2017, 7, 30): [1.02105]},
-                        'Season onset': {datetime.date(2017, 7, 23): [20171119.0],
-                                         datetime.date(2017, 7, 30): [20171119.0]},
+                        'Season onset': {datetime.date(2017, 7, 23): ['2017-11-19'],
+                                         datetime.date(2017, 7, 30): ['2017-11-19']},
                         'Season peak percentage': {datetime.date(2017, 7, 23): [None],
                                                    datetime.date(2017, 7, 30): [None]},
                         'Season peak week': {datetime.date(2017, 7, 23): [None],

@@ -30,7 +30,7 @@ from utils.cloud_file import delete_file, upload_file
 from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
-from utils.project import config_dict_from_project, create_project_from_json
+from utils.project import config_dict_from_project, create_project_from_json, load_truth_data
 
 
 logger = logging.getLogger(__name__)
@@ -1035,7 +1035,7 @@ def process_upload_file_job__truth(upload_file_job_pk):
     with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
         project_pk = upload_file_job.input_json['project_pk']
         project = get_object_or_404(Project, pk=project_pk)
-        project.load_truth_data(cloud_file_fp, file_name=upload_file_job.filename)
+        load_truth_data(project, cloud_file_fp, file_name=upload_file_job.filename)
 
 
 def download_truth(request, project_pk):

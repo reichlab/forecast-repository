@@ -1,11 +1,17 @@
+import csv
+import datetime
+import io
 import json
 import logging
-from datetime import datetime
+from collections import defaultdict
 
+from django.db import connection
 from django.db import transaction
 
 from forecast_app.models import Project, Location, Target
+from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import parse_value
 
 
 logger = logging.getLogger(__name__)
@@ -19,7 +25,7 @@ logger = logging.getLogger(__name__)
 def delete_project_iteratively(project):
     """
     An alternative to Project.delete(), deletes the passed Project, but unlike that function, does so by iterating over
-    objects that refer to the project before deleting the project itself. This apparently reduces the memory usage
+    objects that refer to the project before deleting the project itproject. This apparently reduces the memory usage
     enough to allow the below Heroku deletion. See [Deleting projects on Heroku production fails](https://github.com/reichlab/forecast-repository/issues/91).
     """
     logger.info(f"* delete_project_iteratively(): deleting models and forecasts")
@@ -331,7 +337,7 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
         for cat_str in target_dict['cats']:
             try:
                 if type_int == Target.DATE_TARGET_TYPE:
-                    datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
+                    datetime.datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
                 else:
                     data_type(cat_str)  # try parsing as a string, int, or float
             except ValueError as ve:
@@ -366,3 +372,172 @@ def create_project(project_dict, owner):
     )
     project.save()
     return project
+
+
+#
+# load_truth_data()
+#
+
+@transaction.atomic
+def load_truth_data(project, truth_file_path_or_fp, file_name=None):
+    """
+    Loads the data in truth_file_path (see below for file format docs). Like load_csv_data(), uses direct SQL for
+    performance, using a fast Postgres-specific routine if connected to it. Note that this method should be called
+    after all TimeZeros are created b/c truth data is validated against them. Notes:
+
+    - TimeZeros "" b/c truth timezeros are validated against project ones
+    - One csv file/project, which includes timezeros across all seasons.
+    - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
+      formatted “yyyymmdd”. A header must be included.
+    - Missing timezeros: If the program generating the csv file does not have information for a particular project
+      timezero, then it should not generate a value for it. (The alternative would be to require the program to
+      generate placeholder values for missing dates.)
+    - Non-numeric values: Some targets will have no value, such as season onset when a baseline is not met. In those
+      cases, the value should be “NA”, per
+      https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx.
+    - For date-based onset or peak targets, values must be dates in the same format as timezeros, rather than
+        project-specific time intervals such as an epidemic week.
+    - Validation:
+        - Every timezero in the csv file must have a matching one in the project. Note that the inverse is not
+          necessarily true, such as in the case above of missing timezeros.
+        - Every location in the csv file must a matching one in the Project.
+        - Ditto for every target.
+
+    :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
+        combination, OR an already-open file-like object
+    :param file_name: name to use for the file
+    """
+    logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
+                 f"file_name={file_name}")
+    if not project.pk:
+        raise RuntimeError("instance is not saved the the database, so can't insert data: {!r}".format(project))
+
+    logger.debug(f"load_truth_data(): calling delete_truth_data()")
+    project.delete_truth_data()
+
+    logger.debug(f"load_truth_data(): calling _load_truth_data()")
+    # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
+    if isinstance(truth_file_path_or_fp, io.IOBase):
+        num_rows = _load_truth_data(project, truth_file_path_or_fp)
+    else:
+        with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
+            num_rows = _load_truth_data(project, cdc_csv_file_fp)
+
+    # done
+    logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
+    project.truth_csv_filename = file_name or truth_file_path_or_fp.name
+    project.save()
+    project._update_model_score_changes()
+    logger.debug(f"load_truth_data(): done")
+
+
+def _load_truth_data(project, cdc_csv_file_fp):
+    from forecast_app.models import TruthData  # avoid circular imports
+
+
+    with connection.cursor() as cursor:
+        rows = _load_truth_data_rows(project, cdc_csv_file_fp)  # validates, and replaces value to the five typed values
+        if not rows:
+            return 0
+
+        truth_data_table_name = TruthData._meta.db_table
+        columns = [TruthData._meta.get_field('time_zero').column,
+                   TruthData._meta.get_field('location').column,
+                   TruthData._meta.get_field('target').column,
+                   'value_i', 'value_f', 'value_t', 'value_d', 'value_b']  # only one of value_* is non-None
+        if connection.vendor == 'postgresql':
+            string_io = io.StringIO()
+            csv_writer = csv.writer(string_io, delimiter=',')
+            for timezero, location_id, target_id, value_i, value_f, value_t, value_d, value_b in rows:
+                # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
+                csv_writer.writerow([timezero, location_id, target_id,
+                                     value_i if value_i is not None else POSTGRES_NULL_VALUE,
+                                     value_f if value_f is not None else POSTGRES_NULL_VALUE,
+                                     value_t if value_t is not None else POSTGRES_NULL_VALUE,
+                                     value_d if value_d is not None else POSTGRES_NULL_VALUE,
+                                     value_b if value_b is not None else POSTGRES_NULL_VALUE])
+            string_io.seek(0)
+            cursor.copy_from(string_io, truth_data_table_name, columns=columns, sep=',', null=POSTGRES_NULL_VALUE)
+        else:  # 'sqlite', etc.
+            sql = """
+                INSERT INTO {truth_data_table_name} ({column_names})
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
+            cursor.executemany(sql, rows)
+    return len(rows)
+
+
+def _load_truth_data_rows(project, csv_file_fp):
+    """
+    Similar to _cleaned_rows_from_cdc_csv_file(), loads, validates, and cleans the rows in csv_file_fp. Replaces value
+    with the five typed values.
+    """
+    csv_reader = csv.reader(csv_file_fp, delimiter=',')
+
+    # validate header
+    try:
+        orig_header = next(csv_reader)
+    except StopIteration:
+        raise RuntimeError("empty file")
+
+    header = orig_header
+    header = [h.lower() for h in [i.replace('"', '') for i in header]]
+    if header != TRUTH_CSV_HEADER:
+        raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
+
+    # collect the rows. first we load them all into memory (processing and validating them as we go)
+    location_names_to_pks = {location.name: location.id for location in project.locations.all()}
+    target_name_to_object = {target.name: target for target in project.targets.all()}
+    rows = []
+    timezero_to_missing_count = defaultdict(int)  # to minimize warnings
+    location_to_missing_count = defaultdict(int)
+    target_to_missing_count = defaultdict(int)
+    for row in csv_reader:
+        if len(row) != 4:
+            raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
+
+        timezero_date, location_name, target_name, value = row
+
+        # validate timezero_date
+        # todo cache: time_zero_for_timezero_date() results - expensive?
+        time_zero = project.time_zero_for_timezero_date(
+            datetime.datetime.strptime(timezero_date, YYYY_MM_DD_DATE_FORMAT))
+        if not time_zero:
+            timezero_to_missing_count[timezero_date] += 1
+            continue
+
+        # validate location and target
+        if location_name not in location_names_to_pks:
+            location_to_missing_count[location_name] += 1
+            continue
+
+        if target_name not in target_name_to_object:
+            target_to_missing_count[target_name] += 1
+            continue
+
+        # replace value with the five typed values - similar to _replace_value_with_five_types()
+        target = target_name_to_object[target_name]
+        data_type = Target.data_type(target.type)
+        value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
+        value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
+        value_f = value if data_type == Target.FLOAT_DATA_TYPE else None
+        value_t = value if data_type == Target.TEXT_DATA_TYPE else None
+        value_d = value if data_type == Target.DATE_DATA_TYPE else None
+        value_b = value if data_type == Target.BOOLEAN_DATA_TYPE else None
+
+        rows.append((time_zero.pk, location_names_to_pks[location_name], target_name_to_object[target_name].pk,
+                     value_i, value_f, value_t, value_d, value_b))
+
+    # report warnings
+    for time_zero, count in timezero_to_missing_count.items():
+        logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
+                       .format(time_zero, count))
+    for location_name, count in location_to_missing_count.items():
+        logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
+                       .format(location_name, count))
+    for target_name, count in target_to_missing_count.items():
+        logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
+                       .format(target_name, count))
+
+    # done
+    return rows

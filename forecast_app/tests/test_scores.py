@@ -3,7 +3,6 @@ import datetime
 import io
 import logging
 import math
-from collections import defaultdict
 from pathlib import Path
 
 from django.test import TestCase
@@ -19,6 +18,7 @@ from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import create_thai_locations_and_targets
+from utils.project import load_truth_data
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -37,7 +37,7 @@ class ScoresTestCase(TestCase):
         # load truth only for the TimeZero in truths-2016-2017-reichlab.csv we're testing against
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1),
                                                 is_season_start=True, season_name='season1')
-        cls.project.load_truth_data(Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        load_truth_data(cls.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         # use default abbreviation (""):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
@@ -118,7 +118,7 @@ class ScoresTestCase(TestCase):
         # this takes us to the next bin:
         #   US National,1 wk ahead,Bin,percent,1.6,1.7,0.0770752152650201
         #   -> math.log(0.0770752152650201) = -2.562973512284597
-        truth_data.value = 1.6
+        truth_data.value_f = 1.6  # value_f for continuous targets
         truth_data.save()
 
         log_single_bin_score.update_score_for_model(forecast_model2)
@@ -127,7 +127,7 @@ class ScoresTestCase(TestCase):
 
         # test when truth falls exactly on Bin_start_incl
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
-        truth_data.value = 1.5  # 1.5 -> same bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
+        truth_data.value_f = 1.5  # 1.5 -> same bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
         truth_data.save()
 
         log_single_bin_score.update_score_for_model(forecast_model2)
@@ -142,10 +142,10 @@ class ScoresTestCase(TestCase):
         bin_dist.cat_f = 0.0
         bin_dist.save()
 
-        truth_data = project2.truth_data_qs()\
-            .filter(location__name='US National', target__name='1 wk ahead')\
+        truth_data = project2.truth_data_qs() \
+            .filter(location__name='US National', target__name='1 wk ahead') \
             .first()
-        truth_data.value = 1.65  # 1.65 -> bin: US National,1 wk ahead,Bin,percent,1.6,1.7,0  # NB: value is now 0
+        truth_data.value_f = 1.65  # 1.65 -> bin: US National,1 wk ahead,Bin,percent,1.6,1.7,0  # NB: value is now 0
         truth_data.save()
 
         log_single_bin_score.update_score_for_model(forecast_model2)
@@ -271,7 +271,8 @@ class ScoresTestCase(TestCase):
 
         # case 2a:
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
-        truth_data.value = 0  # -> bin: US National,1 wk ahead,Bin,percent,0,0.1,1.39332920335022e-07
+        # value_f for continuous targets. -> bin: US National,1 wk ahead,Bin,percent,0,0.1,1.39332920335022e-07 :
+        truth_data.value_f = 0
         truth_data.save()
 
         log_multi_bin_score.update_score_for_model(forecast_model2)
@@ -283,7 +284,7 @@ class ScoresTestCase(TestCase):
 
         # case 2b:
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
-        truth_data.value = 0.1  # -> US National,1 wk ahead,Bin,percent,0.1,0.2,1.39332920335022e-07
+        truth_data.value_f = 0.1  # -> US National,1 wk ahead,Bin,percent,0.1,0.2,1.39332920335022e-07
         truth_data.save()
 
         log_multi_bin_score.update_score_for_model(forecast_model2)
@@ -294,7 +295,7 @@ class ScoresTestCase(TestCase):
 
         # case 3a:
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
-        truth_data.value = 13  # -> US National,1 wk ahead,Bin,percent,13,100,1.39332920335022e-07
+        truth_data.value_f = 13  # -> US National,1 wk ahead,Bin,percent,13,100,1.39332920335022e-07
         truth_data.save()
 
         log_multi_bin_score.update_score_for_model(forecast_model2)
@@ -305,7 +306,7 @@ class ScoresTestCase(TestCase):
 
         # case 3b:
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
-        truth_data.value = 12.95  # -> US National,1 wk ahead,Bin,percent,12.9,13,1.39332920335022e-07
+        truth_data.value_f = 12.95  # -> US National,1 wk ahead,Bin,percent,12.9,13,1.39332920335022e-07
         truth_data.save()
 
         log_multi_bin_score.update_score_for_model(forecast_model2)
@@ -324,7 +325,7 @@ class ScoresTestCase(TestCase):
         # value (rather than not generating a ScoreValue at all). this test also tests the
         # LOG_SINGLE_BIN_NEGATIVE_INFINITY case
         truth_data = project2.truth_data_qs().filter(location__name='US National', target__name='1 wk ahead').first()
-        truth_data.value = None  # -> no matching bin
+        truth_data.value_f = None  # -> no matching bin
         truth_data.save()
 
         target_1wk = project2.targets.filter(name='1 wk ahead').first()
@@ -368,7 +369,7 @@ class ScoresTestCase(TestCase):
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')
         load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
 
-        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
 
         # test the scores - only ones with truth are created. see log-score-multi-bin-hand-calc.xlsx for how expected
         # values were verified
@@ -428,18 +429,29 @@ class ScoresTestCase(TestCase):
 
         # test when truth value is None. requires TargetLwr lwr and upper be None as well, or won't match
         # _tz_loc_targ_pk_to_true_bin_lwr() query
-        truth_data = project2.truth_data_qs().filter(location__name='TH01', target__name='1_biweek_ahead').first()
-        truth_data.value = None
+        truth_data = project2.truth_data_qs() \
+            .filter(location__name='TH01', target__name='1_biweek_ahead') \
+            .first()  # TruthData: (78, 2, 12, 8, '.', 2, None, None, None, None)
+        truth_data.value_i = None  # was 2. value_i is for discrete targets
         truth_data.save()
 
         target_bin_lwr = TargetLwr.objects \
             .filter(target__name='1_biweek_ahead', lwr=0) \
-            .first()
+            .first()  # TargetLwr: (656, 8, 0.0, 1.0)
         target_bin_lwr.lwr = None
         target_bin_lwr.upper = None
-        target_bin_lwr.save()  # django.db.utils.IntegrityError: NOT NULL constraint failed: forecast_app_targetlwr.lwr
+        target_bin_lwr.save()
 
         exp_tz_loc_targ_pk_to_true_bin_lwr[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = None
+        # {2: {
+        #   12: {8: None, 9: 0.0,  10: 10.0, 11: 1.0,  12: 10.0},
+        #   13: {8: 1.0,  9: 10.0, 10: 50.0, 11: 40.0, 12: 80.0}}}
+
+        # act:
+        # {2: {
+        #   12: {8: 1.0, 9: 0.0,  10: 10.0, 11: 1.0,  12: 10.0},
+        #   13: {8: 1.0, 9: 10.0, 10: 50.0, 11: 40.0, 12: 80.0}}}
+
         self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
 
         # test CDC project
@@ -502,7 +514,7 @@ class ScoresTestCase(TestCase):
         truth_data = project2.truth_data_qs() \
             .filter(location__name='TH01', target__name='1_biweek_ahead') \
             .first()
-        truth_data.value = None  # -> no matching bin
+        truth_data.value_i = None  # -> no matching bin. value_i is for discrete targets
         truth_data.save()
 
         pit_score = Score.objects.filter(abbreviation='pit').first()
@@ -596,7 +608,6 @@ class ScoresTestCase(TestCase):
 
 
     def test_timezero_loc_target_pks_to_truth_values(self):
-        tz_pk = self.time_zero.pk
         loc1_pk = Location.objects.filter(name='HHS Region 1').first().pk
         loc2_pk = Location.objects.filter(name='HHS Region 2').first().pk
         loc3_pk = Location.objects.filter(name='HHS Region 3').first().pk
@@ -616,38 +627,29 @@ class ScoresTestCase(TestCase):
         target6_pk = Target.objects.filter(name='3 wk ahead').first().pk
         target7_pk = Target.objects.filter(name='4 wk ahead').first().pk
         exp_dict = {  # {timezero_pk: {location_pk: {target_id: truth_value}}}
-            tz_pk: {
-                loc1_pk: {target1_pk: [20161225.0], target2_pk: [20170205.0], target3_pk: [3.19221],
+            1: {
+                loc1_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [3.19221],
                           target4_pk: [1.52411], target5_pk: [1.73987], target6_pk: [2.06524], target7_pk: [2.51375]},
-                loc2_pk: {target1_pk: [20161120.0], target2_pk: [20170205.0], target3_pk: [6.93759],
+                loc2_pk: {target1_pk: ['2016-11-20'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [6.93759],
                           target4_pk: [5.07086], target5_pk: [5.68166], target6_pk: [6.01053], target7_pk: [6.49829]},
-                loc3_pk: {target1_pk: [20161218.0], target2_pk: [20170212.0], target3_pk: [5.20003],
+                loc3_pk: {target1_pk: ['2016-12-18'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [5.20003],
                           target4_pk: [2.81366], target5_pk: [3.09968], target6_pk: [3.45232], target7_pk: [3.73339]},
-                loc4_pk: {target1_pk: [20161113.0], target2_pk: [20170212.0], target3_pk: [5.5107],
+                loc4_pk: {target1_pk: ['2016-11-13'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [5.5107],
                           target4_pk: [2.89395], target5_pk: [3.68564], target6_pk: [3.69188], target7_pk: [4.53169]},
-                loc5_pk: {target1_pk: [20161225.0], target2_pk: [20170212.0], target3_pk: [4.31787],
+                loc5_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [4.31787],
                           target4_pk: [2.11757], target5_pk: [2.4432], target6_pk: [2.76295], target7_pk: [3.182]},
-                loc6_pk: {target1_pk: [20170108.0], target2_pk: [20170205.0], target3_pk: [9.87589],
+                loc6_pk: {target1_pk: ['2017-01-08'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [9.87589],
                           target4_pk: [4.80185], target5_pk: [5.26955], target6_pk: [6.10427], target7_pk: [8.13221]},
-                loc7_pk: {target1_pk: [20161225.0], target2_pk: [20170205.0], target3_pk: [6.35948],
+                loc7_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [6.35948],
                           target4_pk: [2.75581], target5_pk: [3.46528], target6_pk: [4.56991], target7_pk: [5.52653]},
-                loc8_pk: {target1_pk: [20161218.0], target2_pk: [20170212.0], target3_pk: [2.72703],
+                loc8_pk: {target1_pk: ['2016-12-18'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [2.72703],
                           target4_pk: [1.90851], target5_pk: [2.2668], target6_pk: [2.07104], target7_pk: [2.27632]},
-                loc9_pk: {target1_pk: [20161218.0], target2_pk: [20161225.0], target3_pk: [3.30484],
+                loc9_pk: {target1_pk: ['2016-12-18'], target2_pk: [datetime.date(2016, 12, 25)], target3_pk: [3.30484],
                           target4_pk: [2.83778], target5_pk: [2.68071], target6_pk: [2.9577], target7_pk: [3.03987]},
-                loc10_pk: {target1_pk: [20161211.0], target2_pk: [20161225.0], target3_pk: [3.67061],
+                loc10_pk: {target1_pk: ['2016-12-11'], target2_pk: [datetime.date(2016, 12, 25)], target3_pk: [3.67061],
                            target4_pk: [2.15197], target5_pk: [3.25108], target6_pk: [2.51434], target7_pk: [2.28634]},
-                loc11_pk: {target1_pk: [20161211.0], target2_pk: [20170205.0], target3_pk: [5.06094],
-                           target4_pk: [3.07623], target5_pk: [3.50708], target6_pk: [3.79872], target7_pk: [4.43601]},
-            }
-        }
-
-        # convert exp_dict innermost dicts to defaultdicts, which is what _timezero_loc_target_pks_to_truth_values()
-        # returns
-        for pk0, dict0 in exp_dict.items():
-            for pk1, dict1 in dict0.items():
-                exp_dict[pk0][pk1] = defaultdict(list, dict1)
-
+                loc11_pk: {target1_pk: ['2016-12-11'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [5.06094],
+                           target4_pk: [3.07623], target5_pk: [3.50708], target6_pk: [3.79872], target7_pk: [4.43601]}}}
         act_dict = _timezero_loc_target_pks_to_truth_values(self.forecast_model)
         self.assertEqual(exp_dict, act_dict)
 
@@ -662,7 +664,7 @@ class ScoresTestCase(TestCase):
         forecast_model2 = ForecastModel.objects.create(project=project2)
         csv_file_path = Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv')
         load_cdc_csv_forecast_file(None, forecast_model2, csv_file_path, time_zero2)  # no season_start_year
-        project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/scores/dengue-truths-small.csv'))
 
         log_single_bin_score = Score.objects.filter(abbreviation='log_single_bin').first()
         log_single_bin_score.update_score_for_model(forecast_model2)
@@ -721,7 +723,7 @@ def _make_cdc_log_score_project():
     make_cdc_locations_and_targets(project2)
 
     time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
-    project2.load_truth_data(Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
+    load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
 
     forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
     csv_file_path = Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv')
@@ -739,7 +741,7 @@ def _make_thai_log_score_project():
     csv_file_path = Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv')
     forecast2 = load_cdc_csv_forecast_file(None, forecast_model2, csv_file_path, time_zero2)  # no season_start_year
 
-    project2.load_truth_data(Path('forecast_app/tests/scores/dengue-truths-small.csv'))
+    load_truth_data(project2, Path('forecast_app/tests/scores/dengue-truths-small.csv'))
     return project2, forecast_model2, forecast2, time_zero2
 
 

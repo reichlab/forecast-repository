@@ -1,9 +1,8 @@
+import datetime
 import logging
-from ast import literal_eval
 
 
 logger = logging.getLogger(__name__)
-
 
 #
 # __str__()-related functions
@@ -30,14 +29,23 @@ YYYY_MM_DD_DATE_FORMAT = '%Y-%m-%d'  # e.g., '2017-01-17'
 # numeric functions
 #
 
-def parse_value(value):
+def parse_value(value_str):
     """
-    Parses a value numerically as smartly as possible, in order: float, int, None. o/w is an error
+    Tries to parse value_str (a string) in this order: int, float, or date in YYYY_MM_DD_DATE_FORMAT. Returns None o/w.
     """
-    # https://stackoverflow.com/questions/34425583/how-to-check-if-string-is-int-or-float-in-python-2-7
     try:
-        return literal_eval(value)
-    except ValueError:
+        return int(value_str)
+    except ValueError as ve:
+        pass
+
+    try:
+        return float(value_str)
+    except ValueError as ve:
+        pass
+
+    try:
+        return datetime.datetime.strptime(value_str, YYYY_MM_DD_DATE_FORMAT).date()
+    except ValueError as ve:
         return None
 
 

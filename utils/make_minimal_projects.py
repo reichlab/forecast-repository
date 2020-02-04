@@ -9,6 +9,8 @@ import django
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
+from utils.project import load_truth_data
+
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from forecast_app.models import Project, TimeZero, ForecastModel
 from utils.utilities import get_or_create_super_po_mo_users
@@ -98,7 +100,7 @@ def fill_project(project, mo_user, is_public):
                             data_version_date=None)
 
     # load the truth data. todo xx file_name arg:
-    project.load_truth_data(Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
+    load_truth_data(project, Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
 
     # create the models
     click.echo("creating ForecastModel")

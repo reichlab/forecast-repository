@@ -15,6 +15,7 @@ from forecast_app.tests.test_scores import _make_thai_log_score_project
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
+from utils.project import load_truth_data
 
 
 class ForecastTestCase(TestCase):
@@ -397,13 +398,13 @@ class ForecastTestCase(TestCase):
         # adding project truth should update all of its models' score_change.changed_at. test with no models -> ensure
         # Project._update_model_score_changes() is called
         with patch('forecast_app.models.Project._update_model_score_changes') as update_mock:
-            project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+            load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
             self.assertEqual(2, update_mock.call_count)  # called once each: delete_truth_data(), load_truth_data()
 
         # adding project truth should update all of its models' score_change.changed_at. test with one model
         forecast_model2 = ForecastModel.objects.create(project=project2)
         before_changed_at = forecast_model2.score_change.changed_at
-        project2.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
         # refresh_from_db() per https://stackoverflow.com/questions/35330693/django-testcase-not-saving-my-models :
         forecast_model2.score_change.refresh_from_db()
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
@@ -437,7 +438,7 @@ class ForecastTestCase(TestCase):
             self.assertEqual(5, enqueue_mock.call_count)
 
         # loading truth should result in all Score/ForecastModel pairs being updated
-        self.project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             Score.enqueue_update_scores_for_all_models(is_only_changed=True)
             self.assertEqual(5, enqueue_mock.call_count)
