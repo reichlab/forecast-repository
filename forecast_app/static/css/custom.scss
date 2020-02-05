@@ -1,4 +1,14 @@
 // Custom.scss
+@font-face {
+  font-family: 'Exo semi-bold';
+  src: url('../fonts/Exo/Exo-SemiBold.ttf');
+}
+
+@font-face {
+  font-family: 'Exo regular';
+  src: url('../fonts/Exo/Exo-Regular.ttf');
+}
+
 
 body {
   padding-top: 50px;
@@ -8,14 +18,17 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: 'Exo', semi-bold;
+  font-family: 'Exo semi-bold';
 }
 
 a,
 p {
-  font-family: 'Exo', Regular;
+  font-family: 'Exo regular';
 }
 
+.btn-sm {
+  font-family: 'Exo regular';
+}
 
 
 $dark-blue: rgb(27, 44, 55);
@@ -53,5 +66,6 @@ $link-hover-color: $flusight-blue;
 
 // Your variable overrides
 $body-color: rgb(27, 44, 55);
+
 
 @import "./bootstrap-scss/bootstrap";
