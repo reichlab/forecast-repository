@@ -404,9 +404,9 @@ class ProjectUtilTestCase(TestCase):
                          list(cats.values_list('cat_f', 'cat_t')))
 
         lwrs = target.lwrs.all().order_by('lwr', 'upper')
-        self.assertEqual(10, len(lwrs))
+        self.assertEqual(11, len(lwrs))
         self.assertEqual([(0.0, 1.0), (1.0, 1.1), (1.1, 2.0), (2.0, 2.2), (2.2, 3.0), (3.0, 3.3), (3.3, 5.0),
-                          (5.0, 10.0), (10.0, 50.0), (50.0, float('inf'))],
+                          (5.0, 10.0), (10.0, 50.0), (50.0, 100.0), (100.0, float('inf'))],
                          list(lwrs.values_list('lwr', 'upper')))
 
         # test 'cases next week' target. discrete, with range

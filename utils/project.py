@@ -242,7 +242,10 @@ def validate_and_create_targets(project, project_dict):
 
             # add cats
             if ('cats' in target_dict) and target_dict['cats']:  # create TargetCats and TargetLwrs
-                target.set_cats(target_dict['cats'])
+                # extra_lwr implements this interaction: "if `range` had been specified as [0, 100] in addition to the
+                # above `cats`, then the final bin would be [2.2, 100]."
+                extra_lwr = max(target_dict['range']) if ('range' in target_dict) and target_dict['range'] else None
+                target.set_cats(target_dict['cats'], extra_lwr)
     return targets
 
 

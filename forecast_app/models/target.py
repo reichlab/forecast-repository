@@ -111,12 +111,14 @@ class Target(models.Model):
         }[target_type]
 
 
-    def set_cats(self, cats):
+    def set_cats(self, cats, extra_lwr=None):
         """
-        Creates TargetCat entries for each cat in cats, first deleting all current ones.
+        Creates TargetCat and optional TargetLwr entries for each cat in cats, first deleting all current ones.
 
         :param cats: a list of categories. they are either all ints, floats, or strs depending on my data_type. strs
             will be converted to datetime.date objects for date targets.
+        :param extra_lwr: an optional final upper lwr to use when creating TargetLwrs. used when a Target has both cats
+            and range
         """
         # validate target type
         valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
@@ -159,6 +161,8 @@ class Target(models.Model):
         # NB: we use infinity for the last bin's upper!
         if self.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]:
             cats = sorted(cats)
+            if extra_lwr:
+                cats.append(extra_lwr)
             for lwr, upper in itertools.zip_longest(cats, cats[1:], fillvalue=float('inf')):
                 TargetLwr.objects.create(target=self, lwr=lwr, upper=upper)
 

@@ -1,5 +1,7 @@
 import datetime
+import json
 import logging
+from pathlib import Path
 
 import django
 from django.core.exceptions import ValidationError
@@ -8,6 +10,8 @@ from django.test import TestCase
 
 from forecast_app.models import Target, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, Project
 from forecast_app.models.target import TargetRange, TargetCat, TargetLwr
+from utils.project import create_project_from_json
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -227,8 +231,9 @@ class TargetTestCase(TestCase):
             target = Target.objects.create(**model_init)
             for _ in range(2):  # twice to make sure old are deleted
                 target.set_range(*the_range)
-                target_ranges = sorted(
-                    list(TargetRange.objects.filter(target=target).values_list('value_i', 'value_f')))
+                target_ranges = sorted(list(TargetRange.objects
+                                            .filter(target=target)
+                                            .values_list('value_i', 'value_f')))
                 self.assertEqual(exp_range, target_ranges)
 
         # test lower and upper types match - both each other, and the target type's data_type
@@ -247,6 +252,76 @@ class TargetTestCase(TestCase):
         with self.assertRaises(ValidationError) as context:
             target.set_range(1.1, 2)  # should be same type
         self.assertIn('lower and upper were of different data types', str(context.exception))
+
+
+    def test_target_range_cats_lwr_interaction(self):
+        # test this interaction: "if `range` had been specified as [0, 100] in addition to the above `cats`, then the
+        # final bin would be [2.2, 100]."
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            input_project_dict = json.load(fp)
+            create_project_from_json(input_project_dict, po_user)
+        # "pct next week":
+        #   "range": [0.0, 100.0]                                         -> TargetRange: 2 value_f
+        #   "cats": [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]  -> TargetCat:  10 value_f
+        #   -> TargetLwr: 10: lwr/upper: [(0.0, 1.0), (1.0, 1.1), (1.1, 2.0), (2.0, 2.2), (2.2, 3.0), (3.0, 3.3),
+        #                                 (3.3, 5.0), (5.0, 10.0), (10.0, 50.0), (50.0, 100.0)]
+        pct_next_week_target = Target.objects.filter(name='pct next week').first()
+        ranges_qs = pct_next_week_target.ranges.all() \
+            .order_by('value_f') \
+            .values_list('target__name', 'value_i', 'value_f')
+        self.assertEqual([('pct next week', None, 0.0), ('pct next week', None, 100.0)], list(ranges_qs))
+
+        cats_qs = pct_next_week_target.cats.all() \
+            .order_by('cat_f') \
+            .values_list('target__name', 'cat_i', 'cat_f', 'cat_t', 'cat_d')
+        exp_cats = [('pct next week', None, 0.0, None, None), ('pct next week', None, 1.0, None, None),
+                    ('pct next week', None, 1.1, None, None), ('pct next week', None, 2.0, None, None),
+                    ('pct next week', None, 2.2, None, None), ('pct next week', None, 3.0, None, None),
+                    ('pct next week', None, 3.3, None, None), ('pct next week', None, 5.0, None, None),
+                    ('pct next week', None, 10.0, None, None), ('pct next week', None, 50.0, None, None)]
+        self.assertEqual(exp_cats, list(cats_qs))
+
+        lwrs_qs = pct_next_week_target.lwrs.all() \
+            .order_by('lwr') \
+            .values_list('target__name', 'lwr', 'upper')
+        exp_lwrs = [('pct next week', 0.0, 1.0), ('pct next week', 1.0, 1.1), ('pct next week', 1.1, 2.0),
+                    ('pct next week', 2.0, 2.2), ('pct next week', 2.2, 3.0), ('pct next week', 3.0, 3.3),
+                    ('pct next week', 3.3, 5.0), ('pct next week', 5.0, 10.0), ('pct next week', 10.0, 50.0),
+                    ('pct next week', 50.0, 100.0), ('pct next week', 100.0, float('inf'))]
+        self.assertEqual(exp_lwrs, list(lwrs_qs))
+
+        # "cases next week":
+        #   "range": [0, 100000]  -> TargetRange: 2 value_i
+        #   "cats": [0, 2, 50]    -> TargetCat:   3 value_i
+        #   -> TargetLwr: 3: lwr/upper: [(0, 2), (2, 50), (50, 100000)]
+        cases_next_week_target = Target.objects.filter(name='cases next week').first()
+        ranges_qs = cases_next_week_target.ranges.all() \
+            .order_by('value_i') \
+            .values_list('target__name', 'value_i', 'value_f')
+        self.assertEqual([('cases next week', 0, None), ('cases next week', 100000, None)], list(ranges_qs))
+
+        cats_qs = cases_next_week_target.cats.all() \
+            .order_by('cat_i') \
+            .values_list('target__name', 'cat_i', 'cat_f', 'cat_t', 'cat_d')
+        exp_cats = [('cases next week', 0, None, None, None),
+                    ('cases next week', 2, None, None, None),
+                    ('cases next week', 50, None, None, None)]
+        self.assertEqual(exp_cats, list(cats_qs))
+
+        lwrs_qs = cases_next_week_target.lwrs.all() \
+            .order_by('lwr') \
+            .values_list('target__name', 'lwr', 'upper')
+        exp_lwrs = [('cases next week', 0.0, 2.0), ('cases next week', 2.0, 50.0), ('cases next week', 50.0, 100000.0),
+                    ('cases next week', 100000.0, float('inf'))]
+        self.assertEqual(exp_lwrs, list(lwrs_qs))
+
+
+    def test_target_range_cat_validation(self):
+        # tests this interaction: "If `cats` are specified, then the min(`cats`) must equal the lower bound of `range`
+        # and max(`cats`) must be less than the upper bound of `range`."
+
+        self.fail()  # todo xx
 
 
     def test_target_cats_created(self):

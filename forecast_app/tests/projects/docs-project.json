@@ -31,7 +31,7 @@
       "step_ahead_increment": 1,
       "unit": "cases",
       "range": [0, 100000],
-      "cats": [1, 2, 50]
+      "cats": [0, 2, 50]
     },
     {
       "name": "season severity",

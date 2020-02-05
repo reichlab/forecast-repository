@@ -156,7 +156,7 @@ def _forecast_dict_for_forecast(forecast):
 # load_predictions_from_json_io_dict()
 #
 
-BIN_SUM_REL_TOL = 0.01  # hard-coded magic number for prediction probability sums
+BIN_SUM_REL_TOL = 0.001  # hard-coded magic number for prediction probability sums
 
 
 @transaction.atomic
