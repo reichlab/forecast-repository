@@ -254,8 +254,8 @@ class TargetTestCase(TestCase):
         self.assertIn('lower and upper were of different data types', str(context.exception))
 
 
-    def test_target_range_cats_lwr_interaction(self):
-        # test this interaction: "if `range` had been specified as [0, 100] in addition to the above `cats`, then the
+    def test_target_range_cats_lwr_relationship(self):
+        # test this relationship: "if `range` had been specified as [0, 100] in addition to the above `cats`, then the
         # final bin would be [2.2, 100]."
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
@@ -318,10 +318,35 @@ class TargetTestCase(TestCase):
 
 
     def test_target_range_cat_validation(self):
-        # tests this interaction: "If `cats` are specified, then the min(`cats`) must equal the lower bound of `range`
+        # tests this relationship: "If `cats` are specified, then the min(`cats`) must equal the lower bound of `range`
         # and max(`cats`) must be less than the upper bound of `range`."
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            input_project_dict = json.load(fp)
 
-        self.fail()  # todo xx
+        # test: "the min(`cats`) must equal the lower bound of `range`":
+        # for the "cases next week" target, change min(cats) to != min(range)
+        #   "range": [0, 100000]
+        #   "cats": [0, 2, 50]  -> change to [1, 2, 50]
+        input_project_dict['targets'][1]['cats'] = [1, 2, 50]
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(input_project_dict, po_user)
+        self.assertIn("the minimum cat (1) did not equal the range's lower bound (0)", str(context.exception))
+
+        # test: "max(`cats`) must be less than the upper bound of `range`":
+        # for the "cases next week" target, change max(cats) to == max(range)
+        #   "range": [0, 100000]
+        #   "cats": [0, 2, 50]  -> change to [0, 2, 100000]
+        input_project_dict['targets'][1]['cats'] = [0, 2, 100000]
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(input_project_dict, po_user)
+        self.assertIn("the maximum cat (100000) was not less than the range's upper bound", str(context.exception))
+
+        # also test max(cats) to > max(range)
+        input_project_dict['targets'][1]['cats'] = [0, 2, 100001]
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(input_project_dict, po_user)
+        self.assertIn("the maximum cat (100001) was not less than the range's upper bound ", str(context.exception))
 
 
     def test_target_cats_created(self):

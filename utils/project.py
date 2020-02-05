@@ -242,7 +242,7 @@ def validate_and_create_targets(project, project_dict):
 
             # add cats
             if ('cats' in target_dict) and target_dict['cats']:  # create TargetCats and TargetLwrs
-                # extra_lwr implements this interaction: "if `range` had been specified as [0, 100] in addition to the
+                # extra_lwr implements this relationship: "if `range` had been specified as [0, 100] in addition to the
                 # above `cats`, then the final bin would be [2.2, 100]."
                 extra_lwr = max(target_dict['range']) if ('range' in target_dict) and target_dict['range'] else None
                 target.set_cats(target_dict['cats'], extra_lwr)
@@ -345,6 +345,19 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
             except ValueError as ve:
                 raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
                                    f"data_type={data_type}, error: {ve}")
+
+    # test range-cat relationships
+    if ('cats' in target_dict) and ('range' in target_dict):
+        cats = [data_type(cat_str) for cat_str in target_dict['cats']]
+        the_range = [data_type(range_str) for range_str in target_dict['range']]
+        if min(cats) != min(the_range):
+            raise RuntimeError(f"the minimum cat ({min(cats)}) did not equal the range's lower bound "
+                               f"({min(the_range)})")
+
+        if max(cats) >= max(the_range):
+            raise RuntimeError(f"the maximum cat ({max(cats)}) was not less than the range's upper bound "
+                               f"({max(the_range)})")
+
     return type_name
 
 
