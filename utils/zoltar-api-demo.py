@@ -97,7 +97,7 @@ def demo_zoltar_api_app(forecast_csv_file):
     #
     # delete existing Forecast, if any
     #
-    timezero_date = '20170117'  # YYYYMMDD_DATE_FORMAT
+    timezero_date = '20170117'  # YYYY_MM_DD_DATE_FORMAT
     forecast_for_tz_date = get_forecast_from_obj(model, timezero_date)
     forecast_uri = forecast_for_tz_date['forecast']
     print('- forecast_for_tz_date', forecast_for_tz_date)
@@ -159,7 +159,7 @@ def demo_zoltar_api_app(forecast_csv_file):
 
     #
     # upload a new forecast, but let post() auto-create a TimeZero for timezero_date
-    timezero_date = '19621022'  # YYYYMMDD_DATE_FORMAT
+    timezero_date = '19621022'  # YYYY_MM_DD_DATE_FORMAT
 
     # todo delete_resource(timezero_uri, mo1_token)
 
@@ -214,7 +214,7 @@ def get_token(host, username, password):
     return response.json()['token']
 
 
-def upload_forecast(model_uri, token, timezero_date, file):  # timezero_date format: YYYYMMDD_DATE_FORMAT
+def upload_forecast(model_uri, token, timezero_date, file):  # timezero_date format: YYYY_MM_DD_DATE_FORMAT
     response = requests.post(model_uri + 'forecasts/',
                              headers={'Authorization': 'JWT {}'.format(token)},
                              data={'timezero_date': timezero_date},
@@ -242,7 +242,7 @@ def get_project_from_obj_list(project_list, name):
     return None
 
 
-def get_forecast_from_obj(model, timezero_date):  # timezero_date format: YYYYMMDD_DATE_FORMAT
+def get_forecast_from_obj(model, timezero_date):  # timezero_date format: YYYY_MM_DD_DATE_FORMAT
     for forecast in model['forecasts']:
         if forecast['timezero_date'] == timezero_date:
             return forecast

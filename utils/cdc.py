@@ -125,7 +125,7 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a list of prediction dicts for the 'predictions' section of the
     exported json. Each dict corresponds to either a PointPrediction or BinDistribution depending on each row in rows.
-    Uses season_start_year to convert EWs to YYYYMMDD_DATE_FORMAT dates.
+    Uses season_start_year to convert EWs to YYYY_MM_DD_DATE_FORMAT dates.
 
     Recall the seven cdc-project.json targets and their types:
     -------------------------+-------------------------------+-----------+-----------+---------------------

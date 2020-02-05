@@ -8,7 +8,7 @@ from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Ta
     SampleDistribution
 from forecast_app.models.project import POSTGRES_NULL_VALUE
 from utils.project import _target_dict_for_target
-from utils.utilities import YYYYMMDD_DATE_FORMAT
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
@@ -146,8 +146,8 @@ def _forecast_dict_for_forecast(forecast):
             'source': forecast.source,
             'created_at': forecast.created_at.isoformat(),
             'time_zero': {
-                'timezero_date': forecast.time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
-                'data_version_date': forecast.time_zero.data_version_date.strftime(YYYYMMDD_DATE_FORMAT)
+                'timezero_date': forecast.time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                'data_version_date': forecast.time_zero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
                 if forecast.time_zero.data_version_date else None
             }}
 

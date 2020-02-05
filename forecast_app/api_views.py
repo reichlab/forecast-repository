@@ -31,7 +31,7 @@ from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_projec
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json
-from utils.utilities import YYYYMMDD_DATE_FORMAT, YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -207,7 +207,7 @@ class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
         - request.data (required) must have a 'timezero_config' field containing these fields:
             ['timezero_date', 'data_version_date', 'is_season_start', 'season_name']
 
-        The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. 'data_version_date' can be None.
+        The date format is utils.utilities.YYYY_MM_DD_DATE_FORMAT. 'data_version_date' can be None.
         """
         # check authorization, 'timezero_config'
         project = Project.objects.get(pk=self.kwargs['pk'])
@@ -302,7 +302,7 @@ class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
         - 'data_file' (required): The data file to upload. NB: 'data_file' is our naming convention. it could be
             renamed. If multiple files, just uses the first one.
         - 'timezero_date' (required): The TimeZero.timezero_date to use to look up the TimeZero to associate with the
-            upload. The date format is utils.utilities.YYYYMMDD_DATE_FORMAT. The TimeZero must exist, and will not be
+            upload. The date format is utils.utilities.YYYY_MM_DD_DATE_FORMAT. The TimeZero must exist, and will not be
             created if one corresponding to 'timezero_date' isn't found.
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
@@ -333,7 +333,7 @@ class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
 
         timezero_date_str = request.POST['timezero_date']
         try:
-            timezero_date_obj = datetime.datetime.strptime(timezero_date_str, YYYYMMDD_DATE_FORMAT)
+            timezero_date_obj = datetime.datetime.strptime(timezero_date_str, YYYY_MM_DD_DATE_FORMAT)
         except ValueError as ve:
             return JsonResponse({'error': "Badly formatted 'timezero_date' form field: '{}'".format(ve)},
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -348,7 +348,7 @@ class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
         if existing_forecast_for_time_zero:
             return JsonResponse({'error': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
                                           "existing data and then upload again."
-                                .format(time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), data_file.name)},
+                                .format(time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), data_file.name)},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # upload to cloud and enqueue a job to process a new UploadFileJob
@@ -601,18 +601,18 @@ def _write_csv_score_data_for_project(csv_writer, project):
     Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
     the header. An example header and first few rows:
 
-        model,           timezero,  season,    location,  target,          constant score,  Absolute Error
-        gam_lag1_tops3,  20170423,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
-        gam_lag1_tops3,  20170423,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
-        gam_lag1_tops3,  20170423,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
-        gam_lag1_tops3,  20170423,  2017-2018  TH01,      3_biweek_ahead,  <blank>          9
-        gam_lag1_tops3,  20170423,  2017-2018  TH01,      4_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  20170423,  2017-2018  TH01,      5_biweek_ahead,  <blank>          8
-        gam_lag1_tops3,  20170423,  2017-2018  TH02,      1_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  20170423,  2017-2018  TH02,      2_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  20170423,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
-        gam_lag1_tops3,  20170423,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
-        gam_lag1_tops3,  20170423,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
+        model,           timezero,    season,    location,  target,          constant score,  Absolute Error
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      3_biweek_ahead,  <blank>          9
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      4_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      5_biweek_ahead,  <blank>          8
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      1_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      2_biweek_ahead,  <blank>          6
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
+        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
 
     Notes:
     - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
@@ -668,7 +668,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                             time_zero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT), timezero_to_season_name[time_zero],
+                             time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), timezero_to_season_name[time_zero],
                              location.name, target.name]
                             + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")

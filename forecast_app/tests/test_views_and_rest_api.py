@@ -16,7 +16,7 @@ from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.project import delete_project_iteratively, load_truth_data
-from utils.utilities import YYYYMMDD_DATE_FORMAT, get_or_create_super_po_mo_users
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 
 # todo has no affect on errors like:
@@ -697,7 +697,7 @@ class ViewsTestCase(TestCase):
             joe_user = User.objects.create_user(username='joe', password='password')
             json_response = self.client.post(upload_forecast_url, {
                 'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
-                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
@@ -705,7 +705,7 @@ class ViewsTestCase(TestCase):
             jwt_token = self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
             json_response = self.client.post(upload_forecast_url, {
                 'Authorization': f'JWT {jwt_token}',
-                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
@@ -716,7 +716,7 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
-            # case: invalid 'timezero_date' format - YYYYMMDD_DATE_FORMAT
+            # case: invalid 'timezero_date' format - YYYY_MM_DD_DATE_FORMAT
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
@@ -728,7 +728,7 @@ class ViewsTestCase(TestCase):
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
-                'timezero_date': self.public_tz1.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),  # public_tz1
+                'timezero_date': self.public_tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # public_tz1
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
@@ -737,7 +737,7 @@ class ViewsTestCase(TestCase):
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
-                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
@@ -755,7 +755,7 @@ class ViewsTestCase(TestCase):
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
-                'timezero_date': self.public_tz2.timezero_date.strftime(YYYYMMDD_DATE_FORMAT),
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 

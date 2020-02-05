@@ -21,7 +21,6 @@ def basic_str(obj):
 # date formats
 #
 
-YYYYMMDD_DATE_FORMAT = '%Y%m%d'  # e.g., '20170117'
 YYYY_MM_DD_DATE_FORMAT = '%Y-%m-%d'  # e.g., '2017-01-17'
 
 

@@ -580,7 +580,7 @@ class ScoresTestCase(TestCase):
 
                 # test non-numeric columns
                 self.assertEqual(exp_model_column_value, act_row[0])  # model
-                self.assertEqual(exp_row[1], act_row[1])  # timezero. format: YYYYMMDD_DATE_FORMAT
+                self.assertEqual(exp_row[1], act_row[1])  # timezero. format: YYYY_MM_DD_DATE_FORMAT
                 self.assertEqual(exp_row[2], act_row[2])  # season
                 self.assertEqual(exp_row[3], act_row[3])  # location
                 self.assertEqual(exp_row[4], act_row[4])  # target
