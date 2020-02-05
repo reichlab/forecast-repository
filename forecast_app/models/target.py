@@ -36,19 +36,17 @@ class Target(models.Model):
     NOMINAL_TARGET_TYPE = 2
     BINARY_TARGET_TYPE = 3
     DATE_TARGET_TYPE = 4
-    COMPOSITIONAL_TARGET_TYPE = 5
     TARGET_TYPE_CHOICES = (
         (CONTINUOUS_TARGET_TYPE, 'continuous'),
         (DISCRETE_TARGET_TYPE, 'discrete'),
         (NOMINAL_TARGET_TYPE, 'nominal'),
         (BINARY_TARGET_TYPE, 'binary'),
         (DATE_TARGET_TYPE, 'date'),
-        (COMPOSITIONAL_TARGET_TYPE, 'compositional'),
     )
     # required fields for all types
     type = models.IntegerField(choices=TARGET_TYPE_CHOICES,
                                help_text="The Target's type. The choices are 'continuous', 'discrete', 'nominal', "
-                                         "'binary', 'date', and 'compositional'.")
+                                         "'binary', and 'date'.")
     name = models.TextField(help_text="A brief name for the target.")
     description = models.TextField(help_text="A verbose description of what the target is.")
     is_step_ahead = BooleanField(help_text="True if the target is one of a sequence of targets that predict values at "
@@ -110,7 +108,6 @@ class Target(models.Model):
             Target.NOMINAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
             Target.BINARY_TARGET_TYPE: Target.BOOLEAN_DATA_TYPE,
             Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
-            Target.COMPOSITIONAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
         }[target_type]
 
 
@@ -123,7 +120,7 @@ class Target(models.Model):
         """
         # validate target type
         valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
-                              Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]
+                              Target.DATE_TARGET_TYPE]
         if self.type not in valid_target_types:
             valid_target_types = [Target.type_as_str(target_type) for target_type in valid_target_types]
             raise ValidationError(f"invalid target type  {Target.type_as_str(self.type)}. must be one of: "
@@ -210,7 +207,6 @@ class Target(models.Model):
             Target.NOMINAL_TARGET_TYPE: [],  # n/a
             Target.BINARY_TARGET_TYPE: [NamedDistribution.BERN_DIST],
             Target.DATE_TARGET_TYPE: [],  # n/a
-            Target.COMPOSITIONAL_TARGET_TYPE: [],  # n/a
         }[target_type]
 
 
@@ -226,7 +222,6 @@ class Target(models.Model):
             Target.NOMINAL_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
             Target.BINARY_TARGET_TYPE: [PointPrediction, SampleDistribution, NamedDistribution],
             Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.COMPOSITIONAL_TARGET_TYPE: [BinDistribution]
         }[target_type]
 
 
@@ -236,7 +231,8 @@ class Target(models.Model):
 
 class TargetCat(models.Model):
     """
-    Associates a 'list' of cat values with Targets of type Target.NOMINAL_TARGET_TYPE and Target.COMPOSITIONAL.
+    Associates a 'list' of cat values with Targets of type Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE,
+    Target.NOMINAL_TARGET_TYPE, or Target.DATE_TARGET_TYPE.
     """
     target = models.ForeignKey('Target', blank=True, null=True, related_name='cats', on_delete=models.CASCADE)
     cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL

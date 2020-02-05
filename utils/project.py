@@ -130,7 +130,7 @@ def _target_dict_for_target(target):
             raise RuntimeError(f"invalid data_type={data_type} ({type_int_to_name[target.type]})")
 
         target_dict['cats'] = sorted(target_cats)
-    elif target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]:
+    elif target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
         # handle the case of required cats list that must have come in but was empty
         target_dict['cats'] = []
     return target_dict
@@ -282,9 +282,9 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
 
     # 1b) optional: ok to pass or not pass: []: no need to validate
 
-    # 1c) invalid but passed: ['nominal', 'binary', 'compositional']
+    # 1c) invalid but passed: ['nominal', 'binary']
     if ('unit' in all_keys) and \
-            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
+            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE]):
         raise RuntimeError(f"'unit' passed but is invalid for type_name={type_name}")
 
     # test that unit, if passed to a Target.DATE_TARGET_TYPE, is valid
@@ -299,17 +299,16 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
 
     # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
-    # 2c) invalid but passed: ['nominal', 'binary', 'date', 'compositional']
+    # 2c) invalid but passed: ['nominal', 'binary', 'date']
     if ('range' in all_keys) and (
-            type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE,
-                         Target.COMPOSITIONAL_TARGET_TYPE]):
+            type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
         raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
 
     # 3) test optional 'cats'. three cases a-c follow
 
-    # 3a) required but not passed: ['nominal', 'date', 'compositional']
+    # 3a) required but not passed: ['nominal', 'date']
     if ('cats' not in all_keys) and \
-            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE, Target.COMPOSITIONAL_TARGET_TYPE]):
+            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
         raise RuntimeError(f"'cats' not passed but is required for type_name={type_name}")
 
     # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate

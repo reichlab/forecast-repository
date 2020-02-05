@@ -156,8 +156,7 @@ class ProjectUtilTestCase(TestCase):
             Target.DISCRETE_TARGET_TYPE: [('unit', 'month')],  # 'range' optional
             Target.NOMINAL_TARGET_TYPE: [('cats', ['a', 'b'])],
             Target.BINARY_TARGET_TYPE: [],  # binary has no required keys
-            Target.DATE_TARGET_TYPE: [('unit', 'month'), ('cats', ['2019-12-15', '2019-12-22'])],
-            Target.COMPOSITIONAL_TARGET_TYPE: [('cats', ['a', 'b'])]}
+            Target.DATE_TARGET_TYPE: [('unit', 'month'), ('cats', ['2019-12-15', '2019-12-22'])]}
         type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
         for type_int, required_keys_and_values in target_type_int_to_required_keys_and_values.items():
             test_target_dict = dict(minimal_target_dict)  # copy
@@ -226,13 +225,13 @@ class ProjectUtilTestCase(TestCase):
 
         # 1b) optional: ok to pass or not pass: []: no need to validate
 
-        # 1c) invalid but passed: ['nominal', 'binary', 'compositional']
+        # 1c) invalid but passed: ['nominal', 'binary']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
         first_target_dict['unit'] = 'month'
-        for target_type in ['nominal', 'binary', 'compositional']:
+        for target_type in ['nominal', 'binary']:
             first_target_dict['type'] = target_type
             with self.assertRaises(RuntimeError) as context:
                 create_project_from_json(project_dict, po_user)
@@ -242,13 +241,13 @@ class ProjectUtilTestCase(TestCase):
         # 2a) required but not passed: []: no need to validate
         # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
-        # 2c) invalid but passed: ['nominal', 'binary', 'date', 'compositional']
+        # 2c) invalid but passed: ['nominal', 'binary', 'date']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
         first_target_dict['range'] = [1, 2]
-        for target_type in ['nominal', 'binary', 'date', 'compositional']:
+        for target_type in ['nominal', 'binary', 'date']:
             first_target_dict['type'] = target_type
             if target_type == 'date':
                 first_target_dict['unit'] = 'biweek'
@@ -259,14 +258,14 @@ class ProjectUtilTestCase(TestCase):
             self.assertIn(f"'range' passed but is invalid for type_name={target_type}", str(context.exception))
 
         # 3) test optional 'cats'. three cases a-c follow
-        # 3a) required but not passed: ['nominal', 'date', 'compositional']
+        # 3a) required but not passed: ['nominal', 'date']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
         first_target_dict.pop('cats', None)
         first_target_dict.pop('unit', None)
-        for target_type in ['nominal', 'date', 'compositional']:
+        for target_type in ['nominal', 'date']:
             first_target_dict['type'] = target_type
             if target_type in ['continuous', 'discrete', 'date']:
                 first_target_dict['unit'] = 'biweek'
@@ -433,13 +432,6 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual([datetime.date(2019, 12, 15), datetime.date(2019, 12, 22),
                           datetime.date(2019, 12, 29), datetime.date(2020, 1, 5)],
                          list(dates.values_list('cat_d', flat=True)))
-
-        # test 'Next season flu strain composition' target. compositional, with cats
-        target = project.targets.filter(name='Next season flu strain composition').first()
-        cats = target.cats.all().order_by('cat_t')  # cat_f, cat_t
-        self.assertEqual(5, len(cats))
-        self.assertEqual([(None, 'A1'), (None, 'A1a'), (None, 'A2'), (None, 'A2/re'), (None, 'A3')],
-                         list(cats.values_list('cat_f', 'cat_t')))
 
 
     def test_target_round_trip_target_dict(self):

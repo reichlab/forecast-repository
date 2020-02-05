@@ -125,8 +125,7 @@ class TargetTestCase(TestCase):
                     raise Exception
 
         # case: invalid types
-        for target_type in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE,
-                            Target.COMPOSITIONAL_TARGET_TYPE]:
+        for target_type in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
                 model_init['unit'] = 'month'
@@ -139,7 +138,7 @@ class TargetTestCase(TestCase):
 
 
     def test_cats_required(self):
-        # the target types continuous, discrete, nominal, date, and compositional accept an optional or required 'cats'
+        # the target types continuous, discrete, nominal, and date accept an optional or required 'cats'
         # list via Target.set_cats(). here we test that that function checks the target type
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -149,8 +148,7 @@ class TargetTestCase(TestCase):
         for target_type, cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3]),
                                   (Target.DISCRETE_TARGET_TYPE, [1, 20, 35]),
                                   (Target.NOMINAL_TARGET_TYPE, ['cat1', 'cat2', 'cat3']),
-                                  (Target.DATE_TARGET_TYPE, ['2019-01-09', '2019-01-19']),
-                                  (Target.COMPOSITIONAL_TARGET_TYPE, ['cat4', 'cat5', 'cat6'])]:
+                                  (Target.DATE_TARGET_TYPE, ['2019-01-09', '2019-01-19'])]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
                 model_init['unit'] = 'month'
@@ -166,13 +164,13 @@ class TargetTestCase(TestCase):
                 else:
                     raise Exception
 
-        # case: invalid types
-        for target_type in [Target.BINARY_TARGET_TYPE]:
-            model_init['type'] = target_type
-            target = Target.objects.create(**model_init)
-            with self.assertRaises(ValidationError) as context:
-                target.set_cats(['cat1', 'cat2'])
-            self.assertIn('invalid target type', str(context.exception))
+        # case: invalid type
+        model_init['type'] = Target.BINARY_TARGET_TYPE
+        model_init.pop('unit', None)
+        target = Target.objects.create(**model_init)
+        with self.assertRaises(ValidationError) as context:
+            target.set_cats(['2017-01-02', '2017-01-09'])
+        self.assertIn('invalid target type', str(context.exception))
 
 
     def test_target_type_to_data_type(self):
@@ -182,7 +180,6 @@ class TargetTestCase(TestCase):
             Target.NOMINAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
             Target.BINARY_TARGET_TYPE: Target.BOOLEAN_DATA_TYPE,
             Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
-            Target.COMPOSITIONAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
         }
         for target_type, exp_data_type in target_type_to_exp_data_type.items():
             self.assertEqual(exp_data_type, Target.data_type(target_type))
@@ -197,7 +194,6 @@ class TargetTestCase(TestCase):
             Target.NOMINAL_TARGET_TYPE: [],  # n/a
             Target.BINARY_TARGET_TYPE: [NamedDistribution.BERN_DIST],
             Target.DATE_TARGET_TYPE: [],  # n/a
-            Target.COMPOSITIONAL_TARGET_TYPE: [],  # n/a
         }
         for target_type, exp_valid_named_families in target_type_to_exp_valid_named_families.items():
             self.assertEqual(exp_valid_named_families, Target.valid_named_families(target_type))
@@ -210,7 +206,6 @@ class TargetTestCase(TestCase):
             Target.NOMINAL_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
             Target.BINARY_TARGET_TYPE: [PointPrediction, SampleDistribution, NamedDistribution],
             Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.COMPOSITIONAL_TARGET_TYPE: [BinDistribution],
         }
         for target_type, exp_prediction_types in target_type_to_exp_pred_types.items():
             self.assertEqual(exp_prediction_types, Target.valid_prediction_types(target_type))
@@ -255,7 +250,7 @@ class TargetTestCase(TestCase):
 
 
     def test_target_cats_created(self):
-        # tests that TargetCat rows of the correct type are created (continuous: f, nominal: t, compositional: t).
+        # tests that TargetCat rows of the correct type are created (continuous: f, nominal: t).
         # recall that continuous is optional.
         model_init = {'project': self.project,
                       'name': 'target_name',
@@ -264,9 +259,7 @@ class TargetTestCase(TestCase):
         for target_type, cats, exp_cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3],
                                              [(1.1, None), (2.2, None), (3.3, None)]),
                                             (Target.NOMINAL_TARGET_TYPE, ['cat1', 'cat2', 'cat3'],
-                                             [(None, 'cat1'), (None, 'cat2'), (None, 'cat3')]),
-                                            (Target.COMPOSITIONAL_TARGET_TYPE, ['cat4', 'cat5', 'cat6'],
-                                             [(None, 'cat4'), (None, 'cat5'), (None, 'cat6')])]:
+                                             [(None, 'cat1'), (None, 'cat2'), (None, 'cat3')])]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
                 model_init['unit'] = 'month'
@@ -287,13 +280,6 @@ class TargetTestCase(TestCase):
         self.assertIn('cats data type did not match target data type', str(context.exception))
 
         model_init['type'] = Target.NOMINAL_TARGET_TYPE
-        model_init.pop('unit', None)
-        target = Target.objects.create(**model_init)
-        with self.assertRaises(ValidationError) as context:
-            target.set_cats([1.1, 2.2, 3.3])  # should be strings
-        self.assertIn('cats data type did not match target data type', str(context.exception))
-
-        model_init['type'] = Target.COMPOSITIONAL_TARGET_TYPE
         model_init.pop('unit', None)
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
