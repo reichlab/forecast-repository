@@ -443,15 +443,6 @@ class ScoresTestCase(TestCase):
         target_bin_lwr.save()
 
         exp_tz_loc_targ_pk_to_true_bin_lwr[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = None
-        # {2: {
-        #   12: {8: None, 9: 0.0,  10: 10.0, 11: 1.0,  12: 10.0},
-        #   13: {8: 1.0,  9: 10.0, 10: 50.0, 11: 40.0, 12: 80.0}}}
-
-        # act:
-        # {2: {
-        #   12: {8: 1.0, 9: 0.0,  10: 10.0, 11: 1.0,  12: 10.0},
-        #   13: {8: 1.0, 9: 10.0, 10: 50.0, 11: 40.0, 12: 80.0}}}
-
         self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
 
         # test CDC project
@@ -608,6 +599,7 @@ class ScoresTestCase(TestCase):
 
 
     def test_timezero_loc_target_pks_to_truth_values(self):
+        tz_pk = self.time_zero.pk
         loc1_pk = Location.objects.filter(name='HHS Region 1').first().pk
         loc2_pk = Location.objects.filter(name='HHS Region 2').first().pk
         loc3_pk = Location.objects.filter(name='HHS Region 3').first().pk
@@ -627,7 +619,7 @@ class ScoresTestCase(TestCase):
         target6_pk = Target.objects.filter(name='3 wk ahead').first().pk
         target7_pk = Target.objects.filter(name='4 wk ahead').first().pk
         exp_dict = {  # {timezero_pk: {location_pk: {target_id: truth_value}}}
-            1: {
+            tz_pk: {
                 loc1_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [3.19221],
                           target4_pk: [1.52411], target5_pk: [1.73987], target6_pk: [2.06524], target7_pk: [2.51375]},
                 loc2_pk: {target1_pk: ['2016-11-20'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [6.93759],
