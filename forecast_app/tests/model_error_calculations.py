@@ -1,4 +1,16 @@
-from forecast_app.tests.test_model_error_score_tables import EPI_YR_WK_TO_ACTUAL_WILI, mock_wili_for_epi_week_fcn
+from forecast_app.tests.test_model_error_score_tables import mock_wili_for_epi_week_fcn
+
+EPI_YR_WK_TO_ACTUAL_WILI = {
+    (2016, 51): 2.74084,
+    (2016, 52): 3.36496,
+    (2017, 1): 3.0963,
+    (2017, 2): 3.08492,
+    (2017, 3): 3.51496,
+    (2017, 4): 3.8035,
+    (2017, 5): 4.45059,
+    (2017, 6): 5.07947,
+}
+
 
 # 'mini' season for testing. US National,1 wk ahead,Point,percent,NA,NA,<value>. for 1/2/3/4 wk ahead:
 model_to_1234_wk_predictions = {

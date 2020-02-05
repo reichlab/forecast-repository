@@ -1,7 +1,6 @@
 import csv
 import datetime
 import json
-import re
 from itertools import groupby
 from pathlib import Path
 
@@ -16,14 +15,22 @@ from utils.utilities import parse_value, YYYY_MM_DD_DATE_FORMAT
 
 
 #
-# load_cdc_csv_forecast_file() and friends
+# *.cdc.csv file variables
 #
+
+CDC_POINT_ROW_TYPE = 'Point'
+CDC_BIN_ROW_TYPE = 'Bin'
+CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
 
 # This number is the internal reichlab standard: "We used week 30. I don't think this is a standardized concept outside
 # of our lab though. We use separate concepts for a "season" and a "year". So, e.g. the "2016/2017 season" starts with
 # EW30-2016 and ends with EW29-2017."
 SEASON_START_EW_NUMBER = 30
 
+
+#
+# load_cdc_csv_forecast_file() and friends
+#
 
 @transaction.atomic
 def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_path, time_zero):
@@ -166,16 +173,30 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
                     if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
                         if value is None:
                             value = 'none'
-                        else:  # value is an EW week number (float), maybe a fraction (e.g., 50.0012056690978, 4.96302456525203)
-                            # todo xx round(value) < 1 or round(value) > 52!?
-                            monday_date = monday_date_from_ew_and_season_start_year(round(value), season_start_year)
+                        else:  # value is an EW week number (float)
+                            # note that value may be a fraction (e.g., 50.0012056690978, 4.96302456525203), so we round
+                            # the EW number to get an int, but this could cause boundary issues where the value is
+                            # invalid, either:
+                            #   1) < 1 (so use last EW in season_start_year), or:
+                            #   2) > the last EW in season_start_year (so use EW01 of season_start_year + 1)
+                            ew_week = round(value)
+                            if ew_week < 1:
+                                ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
+                            elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
+                                ew_week = 1
+                            monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
                             value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
                     elif value is None:
                         raise RuntimeError(f"None point values are only valid for 'Season onset' targets. "
                                            f"target_name={target_name}")
                     elif target_name == 'Season peak week':  # date target. value: an EW Monday date
-                        # todo xx round(value) < 1 or round(value) > 52!?
-                        monday_date = monday_date_from_ew_and_season_start_year(round(value), season_start_year)
+                        # same 'wrapping' logic as above to handle rounding boundaries
+                        ew_week = round(value)
+                        if ew_week < 1:
+                            ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
+                        elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
+                            ew_week = 1
+                        monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
                         value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
                     point_values.append(value)
                 # is_bin_row:
@@ -232,16 +253,6 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
 
 
 #
-# *.cdc.csv file variables
-#
-
-CDC_POINT_NA_VALUE = 'NA'
-CDC_POINT_ROW_TYPE = 'Point'
-CDC_BIN_ROW_TYPE = 'Bin'
-CDC_CSV_HEADER = ['location', 'target', 'type', 'unit', 'bin_start_incl', 'bin_end_notincl', 'value']
-
-
-#
 # ---- test utilities ----
 #
 
@@ -258,42 +269,6 @@ def make_cdc_locations_and_targets(project):
 #
 # ---- CDC EW utilities ----
 #
-
-
-#
-# The following defines the CDC's file naming standard, e.g., 'EW<ew_week>-<season_start_year>-<model_name>.csv' . For example:
-#
-# 'EW01-2011-CU_EAKFC_SEIRS.csv'
-# 'EW07-2018-ReichLab_kde.csv'
-# 'EW53-2014-Delphi_BasisRegression.csv'
-#
-
-CDC_CSV_FILENAME_RE_PAT = re.compile(r"""
-^
-EW
-(\d{2})            # ew_week
--                  # dash
-(\d{4})            # season_start_year
--                  # dash
-([a-zA-Z0-9_]+)    # model_name
-\.csv$             # extension
-""", re.VERBOSE)
-
-
-def ew_and_year_from_cdc_file_name(filename):
-    """
-    Parses and returns the EW week and EW year from filename.
-
-    :param filename: a CDC EW filename as documented in CDC_CSV_FILENAME_RE_PAT
-    :return: 2-tuple: (ew_week, season_start_year). returns None if does not match the pattern
-    """
-    match = CDC_CSV_FILENAME_RE_PAT.match(filename)
-    if not match:
-        return None
-
-    groups = match.groups()
-    return int(groups[0]), int(int(groups[1]))
-
 
 def monday_date_from_ew_and_season_start_year(ew_week, season_start_year):
     """

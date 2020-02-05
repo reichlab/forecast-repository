@@ -49,17 +49,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.source)
         self.assertEqual(8019, self.forecast.get_num_rows())  # excluding header
 
-        # check 'US National' targets
-        us_nat_points_qs = self.forecast.point_prediction_qs() \
-            .filter(location__name='US National') \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        us_nat_bin_qs = self.forecast.bin_distribution_qs() \
-            .filter(location__name='US National') \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-
-        # spot-check a few point rows
+        # check 'US National' targets: spot-check a few point rows
         exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None, None, None),  # _i, _f, _t, _d, _b
                       ('US National', '2 wk ahead', None, 2.72809349594878, None, None, None),
                       ('US National', '3 wk ahead', None, 2.5332588357381, None, None, None),

@@ -10,18 +10,6 @@ from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.make_thai_moph_project import cdc_csv_filename_components
 
 
-EPI_YR_WK_TO_ACTUAL_WILI = {
-    (2016, 51): 2.74084,
-    (2016, 52): 3.36496,
-    (2017, 1): 3.0963,
-    (2017, 2): 3.08492,
-    (2017, 3): 3.51496,
-    (2017, 4): 3.8035,
-    (2017, 5): 4.45059,
-    (2017, 6): 5.07947,
-}
-
-
 class UtilsTestCase(TestCase):
     """
     """

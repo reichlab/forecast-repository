@@ -5,8 +5,8 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import PointPrediction, Project, ForecastModel, TimeZero, Forecast
-from utils.cdc import ew_and_year_from_cdc_file_name, json_io_dict_from_cdc_csv_file, \
-    monday_date_from_ew_and_season_start_year, make_cdc_locations_and_targets
+from utils.cdc import json_io_dict_from_cdc_csv_file, monday_date_from_ew_and_season_start_year, \
+    make_cdc_locations_and_targets
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 
 
@@ -19,11 +19,6 @@ class CdcCsvToPredictionsTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.cdc_csv_path = Path('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde_US_National.csv')
-
-
-    def test_ew_and_year_from_cdc_file_name(self):
-        components = ew_and_year_from_cdc_file_name(self.cdc_csv_path.name)
-        self.assertEqual((1, 2011), components)
 
 
     def test_monday_date_from_ew_and_season_start_year(self):
@@ -82,7 +77,6 @@ class CdcCsvToPredictionsTestCase(TestCase):
         forecast = Forecast.objects.create(forecast_model=forecast_model, source=cdc_csv_path.name, time_zero=time_zero)
 
         with open(self.cdc_csv_path) as cdc_csv_fp:
-            ew_and_year = ew_and_year_from_cdc_file_name(self.cdc_csv_path.name)
             json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict)
             self.assertEqual(729, forecast.get_num_rows())
