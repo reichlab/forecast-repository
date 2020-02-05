@@ -71,3 +71,7 @@ dump.rdb
 ## random RStudio files
 *.Rproj*
 *.Rhistory
+
+# node modules
+*node_modules
+
