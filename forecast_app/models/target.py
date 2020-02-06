@@ -206,6 +206,22 @@ class Target(models.Model):
                                    value_f=upper if (data_type == Target.FLOAT_DATA_TYPE) else None)
 
 
+    def range_tuple(self):
+        """
+        :return: either a 2-tuple () if I have a ranges, or None o/w
+        """
+        ranges_qs = self.ranges.all()
+        if not ranges_qs.count():
+            return
+
+        ranges_list = list(ranges_qs)
+        ranges0 = ranges_list[0]
+        ranges1 = ranges_list[1]
+        ranges0_val = PointPrediction.first_non_none_value(ranges0.value_i, ranges0.value_f, None, None, None)
+        ranges1_val = PointPrediction.first_non_none_value(ranges1.value_i, ranges1.value_f, None, None, None)
+        return min(ranges0_val, ranges1_val), max(ranges0_val, ranges1_val)
+
+
     @classmethod
     def valid_named_families(cls, target_type):
         """

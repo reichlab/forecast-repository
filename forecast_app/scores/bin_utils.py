@@ -34,8 +34,8 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     tz_loc_targ_pks_to_error_count = defaultdict(int)  # helps eliminate duplicate warnings
 
     # cache the three necessary bins and values - lwrs, truth, and forecasts
-    # 1/3 binlwrs: [target_pk] -> [lwr_1, ...]:
-    targ_pk_to_bin_lwrs = _targ_pk_to_bin_lwrs(forecast_model.project)
+    # 1/3 lwrs: [target_pk] -> [lwr_1, ...]:
+    targ_pk_to_lwrs = _targ_pk_to_lwrs(forecast_model.project)
 
     # 2/3 truth: [timezero_pk][location_pk][target_pk] -> true_bin_lwr:
     tz_loc_targ_pk_to_true_bin_lwr = _tz_loc_targ_pk_to_true_bin_lwr(forecast_model.project)
@@ -50,7 +50,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
             _truth_data_pks_for_forecast_model(forecast_model):
         # get binlwrs for this forecast
         try:
-            bin_lwrs = targ_pk_to_bin_lwrs[target_pk]
+            bin_lwrs = targ_pk_to_lwrs[target_pk]
         except KeyError:
             error_key = (time_zero_pk, location_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
@@ -188,23 +188,23 @@ def _tz_loc_targ_pk_to_true_bin_lwr(project):
     return tz_loc_targ_pks_to_true_bin_lwr
 
 
-def _targ_pk_to_bin_lwrs(project):
+def _targ_pk_to_lwrs(project):
     """
     Returns project's lwr data as a dict: [target_pk] -> [lwr_1, ...]. Each list is sorted by lwr.
     Only returns rows whose targets match numeric_targets().
     """
     targets = project.numeric_targets()
-    target_bin_lwr_qs = TargetLwr.objects \
+    target_lwr_qs = TargetLwr.objects \
         .filter(target__in=targets) \
         .order_by('target__id', 'lwr') \
         .values_list('target__id', 'lwr')
 
     # build the dict
-    target_pk_to_bin_lwrs = {}  # {target_id: [bin_lwr_1, ...]}
-    for target_id, lwr_grouper in groupby(target_bin_lwr_qs, key=lambda _: _[0]):
-        target_pk_to_bin_lwrs[target_id] = [lwr for _, lwr in lwr_grouper]
+    target_pk_to_lwrs = {}  # {target_id: [bin_lwr_1, ...]}
+    for target_id, lwr_grouper in groupby(target_lwr_qs, key=lambda _: _[0]):
+        target_pk_to_lwrs[target_id] = [lwr for _, lwr in lwr_grouper]
 
-    return target_pk_to_bin_lwrs
+    return target_pk_to_lwrs
 
 
 def _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model):

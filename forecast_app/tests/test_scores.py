@@ -8,10 +8,10 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.api_views import _write_csv_score_data_for_project
-from forecast_app.models import Project, TimeZero, Location, Target, TruthData, TargetLwr
+from forecast_app.models import Project, TimeZero, Location, Target, TargetLwr
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
-from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_bin_lwrs, \
+from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_lwrs, \
     _tz_loc_targ_pk_bin_lwr_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
@@ -199,8 +199,8 @@ class ScoresTestCase(TestCase):
                                                           target_name_to_pk['4 wk ahead']: 1.8,
                                                           target_name_to_pk['Season peak percentage']: 5.0}}})
 
-        # test _targ_pk_to_bin_lwrs()
-        targ_pk_to_bin_lwrs = _targ_pk_to_bin_lwrs(project2)
+        # test _targ_pk_to_lwrs()
+        targ_pk_to_bin_lwrs = _targ_pk_to_lwrs(project2)
         act_bin_lwrs = targ_pk_to_bin_lwrs[target_name_to_pk['1 wk ahead']]
         self.assertEqual(131, len(act_bin_lwrs))
         self.assertEqual(0, act_bin_lwrs[0])
@@ -735,20 +735,3 @@ def _make_thai_log_score_project():
 
     load_truth_data(project2, Path('forecast_app/tests/scores/dengue-truths-small.csv'))
     return project2, forecast_model2, forecast2, time_zero2
-
-
-def _print_proj_data(project, forecast, time_zero):
-    print(f"* _print_proj_data():\n- {project}\n- {forecast}\n- {time_zero}")
-    for location in project.locations.all().order_by('id'):
-        print(f"{location}")
-    for target in project.targets.all().order_by('id'):
-        binlwrs = list(target.binlwrs.all())
-        binlwrs_first_last = binlwrs if len(binlwrs) < 2 else [binlwrs[0], '...', binlwrs[-1]]
-        print(f"{target}. {binlwrs_first_last}")
-    for timezero in project.timezeros.all().order_by('id'):
-        print(f"{timezero}")
-    for truth_data in TruthData.objects.filter(time_zero=time_zero):
-        print(f"{truth_data}")
-    for bin_dist in forecast.bin_distribution_qs().all().order_by('id'):
-        print(f"{bin_dist}")
-    print(f"_print_proj_data(): done")

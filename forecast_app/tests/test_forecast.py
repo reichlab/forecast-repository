@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Score
+from forecast_app.models import Project, TimeZero, Score, NamedDistribution
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
@@ -450,16 +450,16 @@ class ForecastTestCase(TestCase):
             json_io_dict_out = json_io_dict_from_forecast(forecast)
 
         # test round trip. ignore meta:
-        del(json_io_dict_in['meta'])
-        del(json_io_dict_out['meta'])
+        del (json_io_dict_in['meta'])
+        del (json_io_dict_out['meta'])
 
         # delete the two zero probability bins in the input (they are discarded when loading predictions)
         # - [10] "location": "location3", "target": "cases next week", "class": "bin"
         # - [12] "location": "location1", "target": "season severity", "class": "bin"
-        del(json_io_dict_in['predictions'][10]['prediction']['cat'][0])  # 0
-        del(json_io_dict_in['predictions'][10]['prediction']['prob'][0])  # 0.0
-        del(json_io_dict_in['predictions'][12]['prediction']['cat'][0])  # 'mild'
-        del(json_io_dict_in['predictions'][12]['prediction']['prob'][0])  # 0.0
+        del (json_io_dict_in['predictions'][10]['prediction']['cat'][0])  # 0
+        del (json_io_dict_in['predictions'][10]['prediction']['prob'][0])  # 0.0
+        del (json_io_dict_in['predictions'][12]['prediction']['cat'][0])  # 'mild'
+        del (json_io_dict_in['predictions'][12]['prediction']['prob'][0])  # 0.0
 
         json_io_dict_in['predictions'].sort(key=lambda _: (_['location'], _['target'], _['class']))
         json_io_dict_out['predictions'].sort(key=lambda _: (_['location'], _['target'], _['class']))

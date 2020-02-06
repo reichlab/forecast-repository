@@ -435,7 +435,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_target_round_trip_target_dict(self):
-        # test round-trip: target_dict -> Target -> target_dict
+        # test round trip: target_dict -> Target -> target_dict
         # 1. target_dict -> Target
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:

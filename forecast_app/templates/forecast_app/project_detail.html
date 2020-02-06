@@ -185,10 +185,9 @@
                 <th title="Integer value indicating # steps ahead relative to a time zero. Used for time chart plots, and to extract 'actual' values from the truth data.">
                     Step Ahead?
                 </th>
-                <th title="Code indicating types of acceptable distributions. BC=BinCat, BL=BinLwr, BI=Binary, NM=Named, PT=Point, SA=Sample, SC=SampleCat">
-                    Predictions
-                </th>
-                <th>BinLwrs</th>
+                <th>Range</th>
+                <th>Cats</th>
+                <th>Lwrs</th>
             </tr>
             {% for target in targets %}
                 <tr>
@@ -201,11 +200,9 @@
                             {{ target.step_ahead_increment }} step{{ target.step_ahead_increment|pluralize }}
                         {% endif %}
                     </td>
-                    <td>
-                        {% if not target.ok_distributions_str %} <small class="text-muted">(No prediction types)</small>
-                        {% else %} {{ target.ok_distributions_str }} {% endif %}
-                    </td>
-                    <td>{{ target.binlwrs.all.count|intword|intcomma }}</td>
+                    <td>{% if target.range_tuple is not None %} {{ target.range_tuple }} {% endif %}</td>
+                    <td>{{ target.cats.all.count|intword|intcomma }}</td>
+                    <td>{{ target.lwrs.all.count|intword|intcomma }}</td>
                 </tr>
             {% endfor %}
         </table>

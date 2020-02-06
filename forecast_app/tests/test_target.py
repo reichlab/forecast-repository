@@ -317,6 +317,20 @@ class TargetTestCase(TestCase):
         self.assertEqual(exp_lwrs, list(lwrs_qs))
 
 
+    def test_range_tuple(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            input_project_dict = json.load(fp)
+            project = create_project_from_json(input_project_dict, po_user)
+        act_range_tuples = [(target.name, target.range_tuple()) for target in project.targets.all().order_by('pk')]
+        self.assertEqual([('pct next week', (0.0, 100.0)),
+                          ('cases next week', (0, 100000)),
+                          ('season severity', None),
+                          ('above baseline', None),
+                          ('Season peak week', None)],
+                         act_range_tuples)
+
+
     def test_target_range_cat_validation(self):
         # tests this relationship: "If `cats` are specified, then the min(`cats`) must equal the lower bound of `range`
         # and max(`cats`) must be less than the upper bound of `range`."
