@@ -63,15 +63,20 @@ class Target(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.name, Target.type_as_str(self.type), self.is_step_ahead, self.step_ahead_increment))
+        return str((self.pk, self.name, Target.str_for_target_type(self.type),
+                    self.is_step_ahead, self.step_ahead_increment))
 
 
     def __str__(self):  # todo
         return basic_str(self)
 
 
+    def type_as_str(self):
+        return Target.str_for_target_type(self.type)
+
+
     @classmethod
-    def type_as_str(cls, the_type_int):
+    def str_for_target_type(cls, the_type_int):
         for type_int, type_name in cls.TARGET_TYPE_CHOICES:
             if type_int == the_type_int:
                 return type_name
@@ -96,8 +101,12 @@ class Target(models.Model):
         super().save(*args, **kwargs)
 
 
+    def data_type(self):
+        return Target.data_type_for_target_type(self.type)
+
+
     @classmethod
-    def data_type(cls, target_type):
+    def data_type_for_target_type(cls, target_type):
         """
         :param target_type: one of my *_TARGET_TYPE values
         :return: the database data_type for target_type
@@ -124,12 +133,12 @@ class Target(models.Model):
         valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
                               Target.DATE_TARGET_TYPE]
         if self.type not in valid_target_types:
-            valid_target_types = [Target.type_as_str(target_type) for target_type in valid_target_types]
-            raise ValidationError(f"invalid target type  {Target.type_as_str(self.type)}. must be one of: "
+            valid_target_types = [Target.str_for_target_type(target_type) for target_type in valid_target_types]
+            raise ValidationError(f"invalid target type  {Target.str_for_target_type(self.type)}. must be one of: "
                                   f"{valid_target_types}")
 
         # validate uniform data type
-        data_type = Target.data_type(self.type)
+        data_type = self.data_type()
         types_set = set(map(type, cats))
         if len(types_set) != 1:
             raise ValidationError(f"there was more than one data type in cats={cats}: {types_set}")
@@ -180,7 +189,7 @@ class Target(models.Model):
             raise ValidationError(f"invalid target type  {self.type}. must be one of: {valid_target_types}")
 
         # validate lower, upper
-        data_type = Target.data_type(self.type)
+        data_type = self.data_type()
         if type(lower) != type(upper):
             raise ValidationError(f"lower and upper were of different data types: {type(lower)} != {type(upper)}")
         elif data_type != type(lower):

@@ -85,7 +85,7 @@ def _target_dict_for_target(target):
     if target.type is None:
         raise RuntimeError(f"target has no type: {target}")
 
-    data_type = Target.data_type(target.type)
+    data_type = target.data_type()
     type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
 
     # start with required fields
@@ -321,7 +321,7 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
         raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
 
     # validate 'range' if passed. values can be either ints or floats, and must match the target's data type
-    data_type = Target.data_type(type_int)  # python type
+    data_type = Target.data_type_for_target_type(type_int)  # python type
     if 'range' in target_dict:
         for range_str in target_dict['range']:
             try:
@@ -531,8 +531,7 @@ def _load_truth_data_rows(project, csv_file_fp):
             continue
 
         # replace value with the five typed values - similar to _replace_value_with_five_types()
-        target = target_name_to_object[target_name]
-        data_type = Target.data_type(target.type)
+        data_type = target_name_to_object[target_name].data_type()
         value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
         value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
         value_f = value if data_type == Target.FLOAT_DATA_TYPE else None

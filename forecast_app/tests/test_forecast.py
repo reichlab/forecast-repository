@@ -15,7 +15,8 @@ from forecast_app.tests.test_scores import _make_thai_log_score_project
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
-from utils.project import load_truth_data
+from utils.project import load_truth_data, create_project_from_json
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 class ForecastTestCase(TestCase):
@@ -90,7 +91,7 @@ class ForecastTestCase(TestCase):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with open('forecast_app/tests/predictions/cdc_zero_probabilities.json') as fp:
             json_io_dict = json.load(fp)
-        load_predictions_from_json_io_dict(forecast2, json_io_dict)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict)
 
         # test points: both should be there (points are not skipped)
         self.assertEqual(2, forecast2.point_prediction_qs().count())
@@ -432,3 +433,54 @@ class ForecastTestCase(TestCase):
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             Score.enqueue_update_scores_for_all_models(is_only_changed=True)
             self.assertEqual(5, enqueue_mock.call_count)
+
+
+    def test_json_io_dict_from_forecast(self):
+        # tests that the json_io_dict_from_forecast()'s output order for SampleDistributions is preserved
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project)
+        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                           time_zero=time_zero)
+
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast, json_io_dict_in)
+            json_io_dict_out = json_io_dict_from_forecast(forecast)
+
+        # test round trip. ignore meta:
+        del(json_io_dict_in['meta'])
+        del(json_io_dict_out['meta'])
+
+        # delete the two zero probability bins in the input (they are discarded when loading predictions)
+        # - [10] "location": "location3", "target": "cases next week", "class": "bin"
+        # - [12] "location": "location1", "target": "season severity", "class": "bin"
+        del(json_io_dict_in['predictions'][10]['prediction']['cat'][0])  # 0
+        del(json_io_dict_in['predictions'][10]['prediction']['prob'][0])  # 0.0
+        del(json_io_dict_in['predictions'][12]['prediction']['cat'][0])  # 'mild'
+        del(json_io_dict_in['predictions'][12]['prediction']['prob'][0])  # 0.0
+
+        json_io_dict_in['predictions'].sort(key=lambda _: (_['location'], _['target'], _['class']))
+        json_io_dict_out['predictions'].sort(key=lambda _: (_['location'], _['target'], _['class']))
+
+        self.assertEqual(json_io_dict_out, json_io_dict_in)
+
+        # spot-check some sample predictions
+        sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
+                            if (pred_dict['location'] == 'location3')
+                            and (pred_dict['target'] == 'pct next week')
+                            and (pred_dict['class'] == 'sample')][0]
+        self.assertEqual([2.3, 6.5, 0.0, 10.0234, 0.0001], sample_pred_dict['prediction']['sample'])
+
+        sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
+                            if (pred_dict['location'] == 'location2')
+                            and (pred_dict['target'] == 'season severity')
+                            and (pred_dict['class'] == 'sample')][0]
+        self.assertEqual(['moderate', 'severe', 'high', 'moderate', 'mild'], sample_pred_dict['prediction']['sample'])
+
+        sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
+                            if (pred_dict['location'] == 'location1')
+                            and (pred_dict['target'] == 'Season peak week')
+                            and (pred_dict['class'] == 'sample')][0]
+        self.assertEqual(['2020-01-05', '2019-12-15'], sample_pred_dict['prediction']['sample'])

@@ -186,7 +186,7 @@ class TargetTestCase(TestCase):
             Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
         }
         for target_type, exp_data_type in target_type_to_exp_data_type.items():
-            self.assertEqual(exp_data_type, Target.data_type(target_type))
+            self.assertEqual(exp_data_type, Target.data_type_for_target_type(target_type))
 
 
     def test_target_type_to_valid_named_families(self):

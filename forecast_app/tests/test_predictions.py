@@ -78,8 +78,7 @@ class PredictionsTestCase(TestCase):
 
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict = json.load(fp)
-
-        load_predictions_from_json_io_dict(forecast, json_io_dict)
+            load_predictions_from_json_io_dict(forecast, json_io_dict)
         self.assertEqual(51, forecast.get_num_rows())
         self.assertEqual(14, forecast.bin_distribution_qs().count())  # 16 - 2 zero prob
         self.assertEqual(3, forecast.named_distribution_qs().count())

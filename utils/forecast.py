@@ -62,6 +62,7 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
     # all instances of each concrete subclass into memory, ordered by (location, target) for groupby(). note: b/c the
     # code for each class is so similar, I had implemented an abstraction, but it turned out to be longer and more
     # complicated, and IMHO didn't warrant eliminating the duplication
+    target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
 
     location_names = set()
     target_names = set()
@@ -69,23 +70,26 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
 
     # PointPrediction
     point_qs = forecast.point_prediction_qs() \
-        .order_by('location__id', 'target__id') \
+        .order_by('pk') \
         .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
     for location_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
+            is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
             target_names.add(target_name)
             for _, _, value_i, value_f, value_t, value_d, value_b in values_grouper:  # recall that exactly one will be non-NULL
                 # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
                 # per Forecast. validation should take care of enforcing this, but this code here is general
                 point_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+                if is_date_target:
+                    point_value = point_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                 prediction_dicts.append({"location": location_name, "target": target_name,
                                          "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
                                          "prediction": {"value": point_value}})
 
     # NamedDistribution
     named_qs = forecast.named_distribution_qs() \
-        .order_by('location__id', 'target__id') \
+        .order_by('pk') \
         .values_list('location__name', 'target__name', 'family', 'param1', 'param2', 'param3')
     for location_name, target_family_params_grouper in groupby(named_qs, key=lambda _: _[0]):
         location_names.add(location_name)
@@ -94,40 +98,52 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
             for _, _, family, param1, param2, param3 in family_params_grouper:
                 # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 NamedDistributions
                 # per Forecast. validation should take care of enforcing this, but this code here is general
-                famil_abbrev = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
+                family_abbrev = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
+                pred_dict_pred = {"family": family_abbrev}  # add non-null param* values next
+                if param1 is not None:
+                    pred_dict_pred["param1"] = param1
+                if param2 is not None:
+                    pred_dict_pred["param2"] = param2
+                if param3 is not None:
+                    pred_dict_pred["param3"] = param3
                 prediction_dicts.append({"location": location_name, "target": target_name,
                                          "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
-                                         "prediction": {"family": famil_abbrev,
-                                                        "param1": param1, "param2": param2, "param3": param3}})
+                                         "prediction": pred_dict_pred})
 
     # BinDistribution. ordering by 'cat_*' for testing, but it's a slower query:
     bincat_qs = forecast.bin_distribution_qs() \
-        .order_by('location__id', 'target__id', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b') \
+        .order_by('pk') \
         .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
     for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
+            is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
             target_names.add(target_name)
             bin_cats, bin_probs = [], []
             for _, _, prob, cat_i, cat_f, cat_t, cat_d, cat_b in cat_prob_grouper:
                 cat_value = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
+                if is_date_target:
+                    cat_value = cat_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                 bin_cats.append(cat_value)
                 bin_probs.append(prob)
             prediction_dicts.append({'location': location_name, 'target': target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
                                      'prediction': {'cat': bin_cats, 'prob': bin_probs}})
 
-    # SampleDistribution. ordering by 'sample_*' for testing, but it's a slower query:
+    # SampleDistribution
     sample_qs = forecast.sample_distribution_qs() \
-        .order_by('location__id', 'target__id', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b') \
+        .order_by('pk') \
         .values_list('location__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
     for location_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
         location_names.add(location_name)
         for target_name, sample_grouper in groupby(target_sample_grouper, key=lambda _: _[1]):
+            is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
             target_names.add(target_name)
             sample_cats, sample_probs = [], []
-            for _, _, prob, sample_i, sample_f, sample_t, sample_d, sample_b in sample_grouper:
+            for _, _, sample_i, sample_f, sample_t, sample_d, sample_b in sample_grouper:
                 sample_value = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
+                if is_date_target:
+                    sample_value = sample_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                 sample_cats.append(sample_value)
             prediction_dicts.append({'location': location_name, 'target': target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
@@ -214,22 +230,16 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
         # target = target_name_to_obj[target_name]
         # location = location_name_to_obj[location_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            # _validate_bin_prob(forecast, location, target, prediction_data['prob'])
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:
                     bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
-            # family name validated in _replace_family_abbrev_with_id()
             named_rows.append([location_name, target_name, prediction_data['family'],
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
-            # if (not target.is_date) and (value is None):
-            #     raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, location={location}, "
-            #                        f"target={target}")
-
             point_rows.append([location_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
             for sample in prediction_data['sample']:
@@ -305,7 +315,7 @@ def _load_named_rows(forecast, rows):
     _replace_family_abbrev_with_id(rows)
 
     # after this, rows will be: [location_id, target_id, family_id, param1_or_0, param2_or_0, param3_or_0]:
-    _replace_null_params_with_zeros(rows)
+    # _replace_null_params_with_zeros(rows)  # todo xx temp!
 
     # after this, rows will be: [location_id, target_id, family_id, param1, param2, param3, self_pk]:
     _add_forecast_pks(forecast, rows)
@@ -417,8 +427,7 @@ def _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last):
     value_idx = 2
     for row in rows:
         target_pk = row[1]
-        target = target_pk_to_object[target_pk]
-        data_type = Target.data_type(target.type)
+        data_type = target_pk_to_object[target_pk].data_type()
         value = row[value_idx]
         value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
         value_f = value if data_type == Target.FLOAT_DATA_TYPE else None
