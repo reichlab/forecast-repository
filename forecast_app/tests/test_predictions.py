@@ -219,14 +219,6 @@ class PredictionsTestCase(TestCase):
 
 
     def test_target_acceptable_forecast_data_formats(self):
-        # BooleanFields for each of the seven possibilities:
-        #   - ok_point_prediction
-        #   - ok_named_distribution
-        #   - ok_binlwr_distribution
-        #   - ok_sample_distribution
-        #   - ok_bincat_distribution
-        #   - ok_samplecat_distribution
-        #   - ok_binary_distribution
         self.fail()  # todo xx
 
 

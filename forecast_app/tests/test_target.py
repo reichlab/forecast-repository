@@ -482,5 +482,5 @@ class TargetTestCase(TestCase):
                       'unit': 'the_unit'}
         target = Target.objects.create(**model_init)
         target.set_cats([1.1, 2.2, 3.3])
-        bin_lwrs = sorted(list(TargetLwr.objects.filter(target=target).values_list('lwr', 'upper')))
-        self.assertEqual([(1.1, 2.2), (2.2, 3.3), (3.3, float('inf'))], bin_lwrs)
+        lwrs = sorted(list(TargetLwr.objects.filter(target=target).values_list('lwr', 'upper')))
+        self.assertEqual([(1.1, 2.2), (2.2, 3.3), (3.3, float('inf'))], lwrs)

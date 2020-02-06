@@ -61,8 +61,8 @@ def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_p
 
 def json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp):
     """
-    Utility that extracts the three types of predictions found in CDC CSV files (PointPredictions, BinLwrDistributions,
-    and BinCatDistributions), returning them as a "JSON IO dict" suitable for loading into the database (see
+    Utility that extracts the two types of predictions found in CDC CSV files (PointPredictions, BinDistributions),
+    returning them as a "JSON IO dict" suitable for loading into the database (see
     load_predictions_from_json_io_dict()). Note that the returned dict's "meta" section is empty.
 
     :param season_start_year

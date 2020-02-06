@@ -263,15 +263,6 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
 #                            f"forecast={forecast}, location={location}, target={target}")
 
 
-# def _validate_bin_lwr(forecast, location, target, bin_lwrs):
-#     # ensure bin_lwrs are a subset of the target's TargetBinLwrs. note that we test subsets and not lists b/c some
-#     # forecasts do not generate bins with values of zero
-#     target_binlwrs = target.binlwrs.all().values_list('lwr', flat=True)
-#     if not (set(bin_lwrs) <= set(target_binlwrs)):
-#         raise RuntimeError(f"BinLwr lwrs did not match Target. bin_lwrs={bin_lwrs}, target_binlwrs={target_binlwrs}"
-#                            f"forecast={forecast}, location={location}, target={target}")
-
-
 def _load_bin_rows(forecast, rows, target_pk_to_object):
     """
     Loads the rows in prediction_data_dict as BinCatDistributions.

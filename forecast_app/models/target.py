@@ -290,7 +290,7 @@ class TargetLwr(models.Model):
     Associates a 'list' of lwr values with Targets of type Target.CONTINUOUS_TARGET_TYPE that have 'cats'
 
     . These act as a "template"
-    against which forecast BinLwr predictions can be validated against. Note that only lwr is typically passed by the
+    against which forecast TargetLwr predictions can be validated against. Note that only lwr is typically passed by the
     user (as `cat`). upper is typically calculated from lwr by the caller.
 
     Regarding upper: It is currently used only for scoring, when the true bin is queried for. In that case we test

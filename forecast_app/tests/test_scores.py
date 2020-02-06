@@ -11,8 +11,8 @@ from forecast_app.api_views import _write_csv_score_data_for_project
 from forecast_app.models import Project, TimeZero, Location, Target, TargetLwr
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
-from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_bin_lwr, _targ_pk_to_lwrs, \
-    _tz_loc_targ_pk_bin_lwr_to_pred_val
+from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_to_lwrs, \
+    _tz_loc_targ_pk_lwr_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
@@ -190,9 +190,9 @@ class ScoresTestCase(TestCase):
         loc_us_nat = project2.locations.filter(name='US National').first()
         target_name_to_pk = {target.name: target.pk for target in project2.targets.all()}
 
-        # get _tz_loc_targ_pk_to_true_bin_lwr() - needed here, but tested more thoroughly below
-        tz_loc_targ_pk_to_true_bin_lwr = _tz_loc_targ_pk_to_true_bin_lwr(project2)
-        self.assertEqual(tz_loc_targ_pk_to_true_bin_lwr,
+        # get _tz_loc_targ_pk_to_true_lwr() - needed here, but tested more thoroughly below
+        tz_loc_targ_pk_to_true_lwr = _tz_loc_targ_pk_to_true_lwr(project2)
+        self.assertEqual(tz_loc_targ_pk_to_true_lwr,
                          {time_zero2.pk: {loc_us_nat.pk: {target_name_to_pk['1 wk ahead']: 1.5,
                                                           target_name_to_pk['2 wk ahead']: 1.6,
                                                           target_name_to_pk['3 wk ahead']: 1.9,
@@ -200,44 +200,42 @@ class ScoresTestCase(TestCase):
                                                           target_name_to_pk['Season peak percentage']: 5.0}}})
 
         # test _targ_pk_to_lwrs()
-        targ_pk_to_bin_lwrs = _targ_pk_to_lwrs(project2)
-        act_bin_lwrs = targ_pk_to_bin_lwrs[target_name_to_pk['1 wk ahead']]
-        self.assertEqual(131, len(act_bin_lwrs))
-        self.assertEqual(0, act_bin_lwrs[0])
-        self.assertEqual(1.5, act_bin_lwrs[15])
-        self.assertEqual(13, act_bin_lwrs[-1])
+        targ_pk_to_lwrs = _targ_pk_to_lwrs(project2)
+        act_lwrs = targ_pk_to_lwrs[target_name_to_pk['1 wk ahead']]
+        self.assertEqual(131, len(act_lwrs))
+        self.assertEqual(0, act_lwrs[0])
+        self.assertEqual(1.5, act_lwrs[15])
+        self.assertEqual(13, act_lwrs[-1])
 
-        # test _tz_loc_targ_pk_bin_lwr_to_pred_val()
-        tzltpk_bin_lwr_to_pred_val = _tz_loc_targ_pk_bin_lwr_to_pred_val(forecast_model2)
-        act_bin_lwr_to_pred_val = \
-            tzltpk_bin_lwr_to_pred_val[time_zero2.pk][loc_us_nat.pk][target_name_to_pk['1 wk ahead']]
-        self.assertEqual(131, len(act_bin_lwr_to_pred_val))  # same - no missing zero-value bins in this forecast
-        self.assertEqual(1.39332920335022e-07, act_bin_lwr_to_pred_val[0])
-        self.assertEqual(0.20253796115633, act_bin_lwr_to_pred_val[1.5])
-        self.assertEqual(1.39332920335022e-07, act_bin_lwr_to_pred_val[13])
+        # test _tz_loc_targ_pk_lwr_to_pred_val()
+        tzltpk_lwr_to_pred_val = _tz_loc_targ_pk_lwr_to_pred_val(forecast_model2)
+        act_lwr_to_pred_val = tzltpk_lwr_to_pred_val[time_zero2.pk][loc_us_nat.pk][target_name_to_pk['1 wk ahead']]
+        self.assertEqual(131, len(act_lwr_to_pred_val))  # same - no missing zero-value bins in this forecast
+        self.assertEqual(1.39332920335022e-07, act_lwr_to_pred_val[0])
+        self.assertEqual(0.20253796115633, act_lwr_to_pred_val[1.5])
+        self.assertEqual(1.39332920335022e-07, act_lwr_to_pred_val[13])
 
-        # get the true bin 'key' bin_start_incl from tz_loc_targ_pk_to_true_bin_lwr
-        true_bin_lwr = tz_loc_targ_pk_to_true_bin_lwr[time_zero2.pk][loc_us_nat.pk][
-            target_name_to_pk['1 wk ahead']]  # 1.5
-        targ_pk_to_bin_lwrs = act_bin_lwrs
-        forec_st_to_pred_val = act_bin_lwr_to_pred_val
+        # get the true bin 'key' bin_start_incl from tz_loc_targ_pk_to_true_lwr
+        true_lwr = tz_loc_targ_pk_to_true_lwr[time_zero2.pk][loc_us_nat.pk][target_name_to_pk['1 wk ahead']]  # 1.5
+        targ_pk_to_lwrs = act_lwrs
+        forec_st_to_pred_val = act_lwr_to_pred_val
 
         # implement _calculate_pit_score_values(). get all the bin rows up to truth
-        true_bin_idx = targ_pk_to_bin_lwrs.index(true_bin_lwr)
-        template_bin_keys_pre_truth = targ_pk_to_bin_lwrs[:true_bin_idx]  # excluding true bin
+        true_bin_idx = targ_pk_to_lwrs.index(true_lwr)
+        template_bin_keys_pre_truth = targ_pk_to_lwrs[:true_bin_idx]  # excluding true bin
         pred_vals_pre_truth = [forec_st_to_pred_val[key] for key in template_bin_keys_pre_truth]
         pred_vals_pre_truth_sum = sum(pred_vals_pre_truth)
-        pred_val_true_bin = forec_st_to_pred_val[true_bin_lwr]
+        pred_val_true_bin = forec_st_to_pred_val[true_lwr]
         pit_score_value = ((pred_vals_pre_truth_sum * 2) + pred_val_true_bin) / 2
         self.assertAlmostEqual(0.7406917921528041, pit_score_value)
 
         # implement _calc_log_bin_score_values(). get 5 bin rows on each side of truth, handling start and end
         # boundaries
         num_bins_one_side = 5
-        true_bin_idx = targ_pk_to_bin_lwrs.index(true_bin_lwr)
+        true_bin_idx = targ_pk_to_lwrs.index(true_lwr)
         start_idx = max(0, true_bin_idx - num_bins_one_side)  # max() in case goes before first bin
         end_idx = true_bin_idx + num_bins_one_side + 1  # don't care if it's after the last bin - slice ignores
-        template_bin_keys_both_windows = targ_pk_to_bin_lwrs[start_idx:end_idx]  # todo xx incl!?
+        template_bin_keys_both_windows = targ_pk_to_lwrs[start_idx:end_idx]  # todo xx incl!?
         pred_vals_both_windows = [forec_st_to_pred_val[key] for key in template_bin_keys_both_windows]
         pred_vals_both_windows_sum = sum(pred_vals_both_windows)
         # todo xx LOG_SINGLE_BIN_NEGATIVE_INFINITY, true_value is None, ...:
@@ -329,10 +327,10 @@ class ScoresTestCase(TestCase):
         truth_data.save()
 
         target_1wk = project2.targets.filter(name='1 wk ahead').first()
-        target_binlwr = target_1wk.lwrs.filter(lwr=0).first()
-        target_binlwr.lwr = None
-        target_binlwr.upper = None
-        target_binlwr.save()
+        target_lwr = target_1wk.lwrs.filter(lwr=0).first()
+        target_lwr.lwr = None
+        target_lwr.upper = None
+        target_lwr.save()
 
         log_multi_bin_score = Score.objects.filter(abbreviation='log_multi_bin').first()
         log_multi_bin_score.update_score_for_model(forecast_model2)
@@ -400,7 +398,7 @@ class ScoresTestCase(TestCase):
     # test 'pit'
     #
 
-    def test__tz_loc_targ_pk_to_true_bin_lwr(self):
+    def test__tz_loc_targ_pk_to_true_lwr(self):
         Score.ensure_all_scores_exist()
 
         # test thai project
@@ -415,7 +413,7 @@ class ScoresTestCase(TestCase):
         targ_4bwk = Target.objects.filter(project=project2, name='4_biweek_ahead').first()
         targ_5bwk = Target.objects.filter(project=project2, name='5_biweek_ahead').first()
 
-        exp_tz_loc_targ_pk_to_true_bin_lwr = {
+        exp_tz_loc_targ_pk_to_true_lwr = {
             time_zero2.pk: {
                 loc_TH01.pk: {
                     targ_1bwk.pk: 1.0, targ_2bwk.pk: 0.0, targ_3bwk.pk: 10.0, targ_4bwk.pk: 1.0, targ_5bwk.pk: 10.0,
@@ -425,32 +423,32 @@ class ScoresTestCase(TestCase):
                 },
             }
         }
-        self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
+        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, _tz_loc_targ_pk_to_true_lwr(project2))
 
         # test when truth value is None. requires TargetLwr lwr and upper be None as well, or won't match
-        # _tz_loc_targ_pk_to_true_bin_lwr() query
+        # _tz_loc_targ_pk_to_true_lwr() query
         truth_data = project2.truth_data_qs() \
             .filter(location__name='TH01', target__name='1_biweek_ahead') \
             .first()  # TruthData: (78, 2, 12, 8, '.', 2, None, None, None, None)
         truth_data.value_i = None  # was 2. value_i is for discrete targets
         truth_data.save()
 
-        target_bin_lwr = TargetLwr.objects \
+        target_lwr = TargetLwr.objects \
             .filter(target__name='1_biweek_ahead', lwr=0) \
             .first()  # TargetLwr: (656, 8, 0.0, 1.0)
-        target_bin_lwr.lwr = None
-        target_bin_lwr.upper = None
-        target_bin_lwr.save()
+        target_lwr.lwr = None
+        target_lwr.upper = None
+        target_lwr.save()
 
-        exp_tz_loc_targ_pk_to_true_bin_lwr[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = None
-        self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
+        exp_tz_loc_targ_pk_to_true_lwr[time_zero2.pk][loc_TH01.pk][targ_1bwk.pk] = None
+        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, _tz_loc_targ_pk_to_true_lwr(project2))
 
         # test CDC project
         project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
 
         loc_us = Location.objects.filter(project=project2, name='US National').first()
 
-        exp_tz_loc_targ_pk_to_true_bin_lwr = {
+        exp_tz_loc_targ_pk_to_true_lwr = {
             time_zero2.pk: {
                 loc_us.pk: {
                     Target.objects.filter(project=project2, name='1 wk ahead').first().pk: 1.5,
@@ -461,7 +459,7 @@ class ScoresTestCase(TestCase):
                 },
             }
         }
-        self.assertEqual(exp_tz_loc_targ_pk_to_true_bin_lwr, _tz_loc_targ_pk_to_true_bin_lwr(project2))
+        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, _tz_loc_targ_pk_to_true_lwr(project2))
 
 
     def test_pit_score(self):
@@ -518,7 +516,7 @@ class ScoresTestCase(TestCase):
         # case: truth = None, with a bin start that's None -> matching bin -> should only use the predicted true value.
         # we'll change this bin row:
         #   TH01	1_biweek_ahead	Bin	cases	0	1	0.576  # 0	1 -> None	None
-        # requires TargetLwr start and ends be None as well, or won't match _tz_loc_targ_pk_to_true_bin_lwr() query.
+        # requires TargetLwr start and ends be None as well, or won't match _tz_loc_targ_pk_to_true_lwr() query.
         # recall that '1_biweek_ahead' is a discrete (int) target
         bin_dist = forecast2.bin_distribution_qs() \
             .filter(location__name='TH01', target__name='1_biweek_ahead', cat_i=0) \

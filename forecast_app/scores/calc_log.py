@@ -31,17 +31,16 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     _calc_bin_score(score, forecast_model, save_log_score, num_bins_one_side=num_bins_one_side)
 
 
-def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, bin_lwrs, bin_lwr_to_pred_val,
-                   true_bin_lwr, true_bin_idx, num_bins_one_side):
+def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, lwrs, lwr_to_pred_val,
+                   true_lwr, true_bin_idx, num_bins_one_side):
     if truth_value is None:  # score degenerates to the num_bins_one_side=0 'Log score (single bin)' calculation
         num_bins_one_side = 0
 
     start_idx = max(0, true_bin_idx - num_bins_one_side)  # max() in case window is before first bin
     end_idx = true_bin_idx + num_bins_one_side + 1  # don't care if it's after the last bin - slice ignores
-    bin_lwrs_pre_post_truth = bin_lwrs[start_idx:end_idx]
+    lwrs_pre_post_truth = lwrs[start_idx:end_idx]
     # use 0 b/c unforecasted bins are 0 value ones:
-    pred_vals_both_windows = [bin_lwr_to_pred_val[bin_lwr] if bin_lwr in bin_lwr_to_pred_val else 0
-                              for bin_lwr in bin_lwrs_pre_post_truth]
+    pred_vals_both_windows = [lwr_to_pred_val[lwr] if lwr in lwr_to_pred_val else 0 for lwr in lwrs_pre_post_truth]
     pred_vals_both_windows_sum = sum(pred_vals_both_windows)
 
     try:
