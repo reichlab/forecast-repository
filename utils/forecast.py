@@ -1,5 +1,6 @@
 import csv
 import io
+from collections import Counter
 from itertools import groupby
 
 from django.db import connection, transaction
@@ -212,12 +213,17 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
     family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
                             in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
+    # this variable helps to validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same
+    # type". (recall the definition of "Prediction": "[a] group of a prediction elements(s) specific to a location and
+    # target"):
+    location_target_class_counts = Counter()  # keys: 3-tuples: (location_name, target_name, prediction_class)
     bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. filled next
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
         target_name = prediction_dict['target']
         prediction_class = prediction_dict['class']
         prediction_data = prediction_dict['prediction']
+        location_target_class_counts[(location_name, target_name, prediction_class)] += 1
 
         # validate location and target names (applies to all prediction classes)
         if location_name not in location_name_to_obj:
@@ -232,6 +238,11 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
         target = target_name_to_obj[target_name]
         # location = location_name_to_obj[location_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
+            # validate: "The number of elements in the `cat` and `prob` vectors should be identical."
+            if len(prediction_data['cat']) != len(prediction_data['prob']):
+                raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
+                                   f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}")
+
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:
                     bin_rows.append([location_name, target_name, cat, prob])
@@ -255,6 +266,14 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
         else:
             raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
                                f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}")
+
+    # finally, check location_target_class_counts and then return
+    duplicate_location_target_pairs = [location_target_pair for location_target_pair in location_target_class_counts
+                                       if location_target_class_counts[location_target_pair] > 1]
+    if duplicate_location_target_pairs:
+        raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
+                           f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}")
+
     return bin_rows, named_rows, point_rows, sample_rows
 
 

@@ -5,11 +5,13 @@ from django.test import TestCase
 
 from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution, Target
 from utils.forecast import load_predictions_from_json_io_dict
+from utils.project import create_project_from_json
+from utils.utilities import get_or_create_super_po_mo_users
+
+
 #
 # tests the validations in docs/Validation.md at https://github.com/reichlab/docs.zoltardata/
 #
-from utils.project import create_project_from_json
-from utils.utilities import get_or_create_super_po_mo_users
 
 
 class PredictionsTestCase(TestCase):
@@ -17,17 +19,20 @@ class PredictionsTestCase(TestCase):
     """
 
 
+    @classmethod
+    def setUpTestData(cls):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project)
+        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        cls.forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
+
+
     # ----
     # Tests for all Prediction Elements
     # ----
 
     def test_named_prediction_family_must_be_valid_for_target_type(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        forecast_model = ForecastModel.objects.create(project=project)
-        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
-        forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
-
         # note: we do not test docs-predictions.json here (it's tested elsewhere), which takes care of testing all
         # target_type/prediction_class combinations. here we just test the valid NamedDistribution family/target_type
         # combinations
@@ -60,29 +65,52 @@ class PredictionsTestCase(TestCase):
                     # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
                     with self.assertRaises(Exception):
                         try:
-                            load_predictions_from_json_io_dict(forecast, {'predictions': [prediction_dict]})
+                            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
                         except:
                             pass
                         else:
                             raise Exception
                 else:  # invalid: should raise
                     with self.assertRaises(RuntimeError) as context:
-                        load_predictions_from_json_io_dict(forecast, {'predictions': [prediction_dict]})
+                        load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
                     self.assertIn(f"family {family_name!r} is not valid for "
                                   f"{Target.str_for_target_type(target_type_int)!r} target types",
                                   str(context.exception))
 
 
-    def test_no_more_than_one_prediction_element_of_same_type(self):
-        self.fail()  # todo xx
+    def test_no_more_than_1_prediction_element_of_same_type(self):
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
+                               "prediction": {"value": 1.1}}  # duplicated location/target pair
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict] * 2})
+        self.assertIn(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class",
+                      str(context.exception))
+
+        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
+        with self.assertRaises(Exception):
+            try:
+                prediction_dict2 = dict(prediction_dict)  # copy, but with different location/target pair
+                prediction_dict2['location'] = 'location2'
+                load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict, prediction_dict2]})
+            except:
+                pass
+            else:
+                raise Exception
 
 
     # ----
     # Tests for Prediction Elements by Prediction Class
     # ----
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    def test_number_of_elements_in_cat_and_prob_should_be_identical(self):
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "pct next week", "class": "bin",
+                               "prediction": {
+                                   "cat": [2.2, 3.3],
+                                   "prob": [0.3, 0.2, 0.5]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The number of elements in the 'cat' and 'prob' vectors should be identical.",
+                      str(context.exception))
 
 
     # ----
