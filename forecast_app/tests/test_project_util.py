@@ -18,11 +18,6 @@ class ProjectUtilTestCase(TestCase):
     """
 
 
-    @classmethod
-    def setUpTestData(cls):
-        pass
-
-
     def test_config_dict_from_project(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:

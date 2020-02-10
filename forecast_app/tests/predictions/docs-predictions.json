@@ -133,10 +133,10 @@
 
     {"location": "location2",
       "target": "above baseline",
-      "class": "named",
+      "class": "bin",
       "prediction": {
-        "family": "bern",
-        "param1": 0.4
+        "cat": [true],
+        "prob": [0.9]
       }
     },
     {"location": "location2",

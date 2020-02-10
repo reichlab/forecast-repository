@@ -210,6 +210,8 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
     """
     location_name_to_obj = {location.name: location for location in forecast.forecast_model.project.locations.all()}
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
+    family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
+                            in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
     bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. filled next
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
@@ -227,14 +229,20 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
                                f"existing_target_names={target_name_to_obj.keys()}")
 
         # do class-specific validation and row collection
-        # target = target_name_to_obj[target_name]
+        target = target_name_to_obj[target_name]
         # location = location_name_to_obj[location_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:
                     bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
-            named_rows.append([location_name, target_name, prediction_data['family'],
+            # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
+            # are constrained; all other target_type/prediction_class combinations are valid
+            family_name = prediction_data['family']
+            if family_abbrev_to_int[family_name] not in Target.valid_named_families(target.type):
+                raise RuntimeError(f"family {family_name!r} is not valid for {target.type_as_str()!r} target types")
+
+            named_rows.append([location_name, target_name, family_name,
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])

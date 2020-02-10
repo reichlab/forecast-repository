@@ -196,7 +196,7 @@ class TargetTestCase(TestCase):
             Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
                                           NamedDistribution.NBINOM2_DIST],
             Target.NOMINAL_TARGET_TYPE: [],  # n/a
-            Target.BINARY_TARGET_TYPE: [NamedDistribution.BERN_DIST],
+            Target.BINARY_TARGET_TYPE: [],  # na
             Target.DATE_TARGET_TYPE: [],  # n/a
         }
         for target_type, exp_valid_named_families in target_type_to_exp_valid_named_families.items():

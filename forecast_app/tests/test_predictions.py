@@ -21,21 +21,6 @@ class PredictionsTestCase(TestCase):
     """
     """
 
-
-    @classmethod
-    def setUpTestData(cls):
-        # cls.project = Project.objects.create()
-        # make_cdc_locations_and_targets(cls.project)  # todo xx
-
-        # cls.forecast_model = ForecastModel.objects.create(project=cls.project)
-        # cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
-        # cls.cdc_csv_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
-        # cls.forecast = Forecast.objects.create(forecast_model=cls.forecast_model, source=cls.cdc_csv_path.name,
-        #                                        time_zero=cls.time_zero)
-
-        pass
-
-
     def test_concrete_subclasses(self):
         """
         this test makes sure the current set of concrete Prediction subclasses hasn't changed since the last time this
@@ -72,7 +57,7 @@ class PredictionsTestCase(TestCase):
         # - 'pct next week':    point: 3, named: 1 , bin: 3, sample: 5 = 12
         # - 'cases next week':  point: 2, named: 1 , bin: 3, sample: 3 = 10
         # - 'season severity':  point: 2, named: 0 , bin: 3, sample: 5 = 10
-        # - 'above baseline':   point: 1, named: 1 , bin: 0, sample: 6 =  8
+        # - 'above baseline':   point: 1, named: 0 , bin: 1, sample: 6 =  8
         # - 'Season peak week': point: 3, named: 0 , bin: 7, sample: 4 = 13
         # = total rows: 53 - 2 zero prob = 51
 
@@ -80,18 +65,10 @@ class PredictionsTestCase(TestCase):
             json_io_dict = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict)
         self.assertEqual(51, forecast.get_num_rows())
-        self.assertEqual(14, forecast.bin_distribution_qs().count())  # 16 - 2 zero prob
-        self.assertEqual(3, forecast.named_distribution_qs().count())
+        self.assertEqual(15, forecast.bin_distribution_qs().count())  # 17 - 2 zero prob
+        self.assertEqual(2, forecast.named_distribution_qs().count())
         self.assertEqual(11, forecast.point_prediction_qs().count())
         self.assertEqual(23, forecast.sample_distribution_qs().count())
-
-
-    def test_unexpected_bin_target_name(self):
-        self.fail()  # todo xx
-
-
-    def test_could_not_coerce_bin_start_incl_or_value_to_float(self):
-        self.fail()  # todo xx
 
 
     def test_prediction_dicts_to_db_rows(self):
@@ -108,8 +85,8 @@ class PredictionsTestCase(TestCase):
             prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'locations', and 'targets'
             bin_rows, named_rows, point_rows, sample_rows = \
                 _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
-        self.assertEqual(14, len(bin_rows))  # 16 - 2 zero prob
-        self.assertEqual(3, len(named_rows))
+        self.assertEqual(15, len(bin_rows))  # 17 - 2 zero prob
+        self.assertEqual(2, len(named_rows))
         self.assertEqual(11, len(point_rows))
         self.assertEqual(23, len(sample_rows))
         self.assertEqual([['location2', 'pct next week', 1.1, 0.3],
@@ -119,6 +96,7 @@ class PredictionsTestCase(TestCase):
                           ['location3', 'cases next week', 2, 0.9],
                           ['location1', 'season severity', 'moderate', 0.1],
                           ['location1', 'season severity', 'severe', 0.9],
+                          ['location2', 'above baseline', True, 0.9],
                           ['location1', 'Season peak week', '2019-12-15', 0.01],
                           ['location1', 'Season peak week', '2019-12-22', 0.1],
                           ['location1', 'Season peak week', '2019-12-29', 0.89],
@@ -128,8 +106,7 @@ class PredictionsTestCase(TestCase):
                           ['location2', 'Season peak week', '2020-01-05', 0.89]],
                          bin_rows)
         self.assertEqual([['location1', 'pct next week', 'norm', 1.1, 2.2, None],
-                          ['location1', 'cases next week', 'pois', 1.1, None, None],
-                          ['location2', 'above baseline', 'bern', 0.4, None, None]],
+                          ['location1', 'cases next week', 'pois', 1.1, None, None]],
                          named_rows)
         self.assertEqual([['location1', 'pct next week', 2.1],
                           ['location2', 'pct next week', 2.0],
@@ -203,32 +180,12 @@ class PredictionsTestCase(TestCase):
         self.assertIn('invalid prediction_class', str(context.exception))
 
 
-    def test_bad_csv_file(self):
-        # empty file
-        # invalid header
-        # Invalid row (wasn't 7 columns)
-        # can't coerce, etc.
-        # row_type was neither
-        self.fail()  # todo xx
-
-
-    def test_validations(self):
-        # many of them. see [Zoltar2 Prediction Validation](https://docs.google.com/document/d/1WtYdjhVSKkdlU6mHe_qYBdyIUnPSNBa0QCg1WgnN2qQ/edit)
-        # NB: "prob (f): [0, 1]. No NAs." -> must also be numbers.Number!
-        self.fail()  # todo xx
-
-
-    def test_target_acceptable_forecast_data_formats(self):
-        self.fail()  # todo xx
-
-
     def test_calc_named_distribution(self):
         abbrev_parms_exp_value = [
             ('norm', None, None, None, None),  # todo xx
             ('lnorm', None, None, None, None),
             ('gamma', None, None, None, None),
             ('beta', None, None, None, None),
-            ('bern', None, None, None, None),
             ('binom', None, None, None, None),
             ('pois', None, None, None, None),
             ('nbinom', None, None, None, None),
