@@ -1120,7 +1120,7 @@ def process_upload_file_job__forecast(upload_file_job_pk):
             json_io_dict = json.load(cloud_file_fp)
             logger.debug(f"process_upload_file_job__forecast(): loading predictions. "
                          f"#predictions={len(json_io_dict['predictions'])}")
-            load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+            load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
             upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
             upload_file_job.save()
             logger.debug(f"process_upload_file_job__forecast(): done")

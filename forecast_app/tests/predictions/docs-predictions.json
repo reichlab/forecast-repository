@@ -85,7 +85,7 @@
       "target": "cases next week",
       "class": "bin",
       "prediction": {
-        "cat": [0, 1, 2],
+        "cat": [0, 2, 50],
         "prob": [0.0, 0.1, 0.9]
       }
     },

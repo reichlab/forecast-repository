@@ -78,7 +78,7 @@ class CdcCsvToPredictionsTestCase(TestCase):
 
         with open(self.cdc_csv_path) as cdc_csv_fp:
             json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict)
+            load_predictions_from_json_io_dict(forecast, json_io_dict, False)
         self.assertEqual(729, forecast.get_num_rows())
         self.assertEqual(0, forecast.named_distribution_qs().count())
         self.assertEqual(0, forecast.sample_distribution_qs().count())

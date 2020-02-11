@@ -45,7 +45,7 @@ class PredictionsTestCase(TestCase):
 
         # test json with no 'predictions'
         with self.assertRaises(RuntimeError) as context:
-            load_predictions_from_json_io_dict(forecast, {})
+            load_predictions_from_json_io_dict(forecast, {}, False)
         self.assertIn("json_io_dict had no 'predictions' key", str(context.exception))
 
         # load all four types of Predictions, call Forecast.*_qs() functions. see docs-predictionsexp-rows.xlsx.
@@ -63,7 +63,7 @@ class PredictionsTestCase(TestCase):
 
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict)
+            load_predictions_from_json_io_dict(forecast, json_io_dict, False)
         self.assertEqual(51, forecast.get_num_rows())
         self.assertEqual(15, forecast.bin_distribution_qs().count())  # 17 - 2 zero prob
         self.assertEqual(2, forecast.named_distribution_qs().count())
@@ -84,7 +84,7 @@ class PredictionsTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'locations', and 'targets'
             bin_rows, named_rows, point_rows, sample_rows = \
-                _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
+                _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, False)
         self.assertEqual(15, len(bin_rows))  # 17 - 2 zero prob
         self.assertEqual(2, len(named_rows))
         self.assertEqual(11, len(point_rows))
@@ -92,8 +92,8 @@ class PredictionsTestCase(TestCase):
         self.assertEqual([['location2', 'pct next week', 1.1, 0.3],
                           ['location2', 'pct next week', 2.2, 0.2],
                           ['location2', 'pct next week', 3.3, 0.5],
-                          ['location3', 'cases next week', 1, 0.1],
-                          ['location3', 'cases next week', 2, 0.9],
+                          ['location3', 'cases next week', 2, 0.1],
+                          ['location3', 'cases next week', 50, 0.9],
                           ['location1', 'season severity', 'moderate', 0.1],
                           ['location1', 'season severity', 'severe', 0.9],
                           ['location2', 'above baseline', True, 0.9],
@@ -160,7 +160,7 @@ class PredictionsTestCase(TestCase):
             bad_prediction_dicts = [
                 {"location": "bad location", "target": "1 wk ahead", "class": "BinCat", "prediction": {}}
             ]
-            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts)
+            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('prediction_dict referred to an undefined Location', str(context.exception))
 
         # test for invalid target
@@ -168,7 +168,7 @@ class PredictionsTestCase(TestCase):
             bad_prediction_dicts = [
                 {"location": "HHS Region 1", "target": "bad target", "class": "bad class", "prediction": {}}
             ]
-            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts)
+            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('prediction_dict referred to an undefined Target', str(context.exception))
 
         # test for invalid prediction_class
@@ -176,7 +176,7 @@ class PredictionsTestCase(TestCase):
             bad_prediction_dicts = [
                 {"location": "HHS Region 1", "target": "1 wk ahead", "class": "bad class", "prediction": {}}
             ]
-            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts)
+            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('invalid prediction_class', str(context.exception))
 
 

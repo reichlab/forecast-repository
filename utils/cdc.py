@@ -55,7 +55,7 @@ def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_p
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=file_name)
     with open(cdc_csv_file_path) as cdc_csv_file_fp:
         json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp)
-        load_predictions_from_json_io_dict(new_forecast, json_io_dict)
+        load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
     return new_forecast
 
 

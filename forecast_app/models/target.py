@@ -186,7 +186,7 @@ class Target(models.Model):
         # validate target type
         valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]
         if self.type not in valid_target_types:
-            raise ValidationError(f"invalid target type  {self.type}. must be one of: {valid_target_types}")
+            raise ValidationError(f"invalid target type '{self.type}'. range must be one of: {valid_target_types}")
 
         # validate lower, upper
         data_type = self.data_type()
@@ -220,6 +220,32 @@ class Target(models.Model):
         ranges0_val = PointPrediction.first_non_none_value(ranges0.value_i, ranges0.value_f, None, None, None)
         ranges1_val = PointPrediction.first_non_none_value(ranges1.value_i, ranges1.value_f, None, None, None)
         return min(ranges0_val, ranges1_val), max(ranges0_val, ranges1_val)
+
+
+    def cats_values(self, is_include_binary):
+        """
+        A utility function used for validation. Returns a list of my cat values based on my data_type(), similar to what
+        PointPrediction.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get the
+        field corresponding to my type. Importantly, for binary targets only, if is_include_binary then this function
+        returns the two implicit cats of [False, True]. This means that callers should use this function rather than
+        accessing self.cats directly. (We considered having create_project_from_json() explicitly call Target.set_cats()
+        with these two, but it was simpler and cleaner in some ways to change this function.)
+
+        :param: is_include_binary: True if, for binary data_types, the two implied cats [False, True] should be returned
+        """
+        data_type = self.data_type()
+        if data_type == Target.INTEGER_DATA_TYPE:
+            values = self.cats.values_list('cat_i', flat=True)
+        elif data_type == Target.FLOAT_DATA_TYPE:
+            values = self.cats.values_list('cat_f', flat=True)
+        elif data_type == Target.TEXT_DATA_TYPE:
+            values = self.cats.values_list('cat_t', flat=True)
+        elif data_type == Target.DATE_DATA_TYPE:
+            values = self.cats.values_list('cat_d', flat=True)
+        else:  # data_type == Target.BINARY_TARGET_TYPE
+            # note that the query for not is_include_binary should return []
+            values = [False, True] if is_include_binary else self.cats.values_list('cat_b', flat=True)
+        return list(values)
 
 
     @classmethod
@@ -268,13 +294,11 @@ class TargetCat(models.Model):
     cat_f = models.FloatField(null=True)  # ""
     cat_t = models.TextField(null=True)  # ""
     cat_d = models.DateField(null=True)  # ""
-
-
-    # cat_b = models.NullBooleanField(null=True)  # not required b/c binary targets are not allowed cats
+    cat_b = models.NullBooleanField(null=True)  # ""
 
 
     def __repr__(self):
-        return str((self.pk, self.target.pk, self.cat_i, self.cat_f, self.cat_t, self.cat_d))
+        return str((self.pk, self.target.pk, self.cat_i, self.cat_f, self.cat_t, self.cat_d, self.cat_b))
 
 
     def __str__(self):  # todo

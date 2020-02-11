@@ -116,20 +116,11 @@ def _target_dict_for_target(target):
         target_dict['range'] = [target_ranges[0], target_ranges[1]]
 
     # add cats
-    if target.cats.count() != 0:
-        if data_type == Target.INTEGER_DATA_TYPE:
-            target_cats = target.cats.values_list('cat_i', flat=True)
-        elif data_type == Target.FLOAT_DATA_TYPE:
-            target_cats = target.cats.values_list('cat_f', flat=True)
-        elif data_type == Target.TEXT_DATA_TYPE:
-            target_cats = target.cats.values_list('cat_t', flat=True)
-        elif data_type == Target.DATE_DATA_TYPE:
-            target_cats = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                           for cat_date in target.cats.values_list('cat_d', flat=True)]
-        else:
-            raise RuntimeError(f"invalid data_type={data_type} ({type_int_to_name[target.type]})")
-
-        target_dict['cats'] = sorted(target_cats)
+    cats_values = target.cats_values(is_include_binary=False)
+    if cats_values:
+        if data_type == Target.DATE_DATA_TYPE:
+            cats_values = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT) for cat_date in cats_values]
+        target_dict['cats'] = sorted(cats_values)
     elif target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
         # handle the case of required cats list that must have come in but was empty
         target_dict['cats'] = []
@@ -312,7 +303,7 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
     # 3a) required but not passed: ['nominal', 'date']
     if ('cats' not in all_keys) and \
             (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
-        raise RuntimeError(f"'cats' not passed but is required for type_name={type_name}")
+        raise RuntimeError(f"'cats' not passed but is required for type_name='{type_name}'")
 
     # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 

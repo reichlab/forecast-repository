@@ -91,7 +91,7 @@ class ForecastTestCase(TestCase):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with open('forecast_app/tests/predictions/cdc_zero_probabilities.json') as fp:
             json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict, False)
 
         # test points: both should be there (points are not skipped)
         self.assertEqual(2, forecast2.point_prediction_qs().count())
@@ -446,7 +446,7 @@ class ForecastTestCase(TestCase):
 
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict_in)
+            load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
             json_io_dict_out = json_io_dict_from_forecast(forecast)
 
         # test round trip. ignore meta:

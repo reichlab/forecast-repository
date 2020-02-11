@@ -13,7 +13,6 @@ from utils.utilities import get_or_create_super_po_mo_users
 # tests the validations in docs/Validation.md at https://github.com/reichlab/docs.zoltardata/
 #
 
-
 class PredictionsTestCase(TestCase):
     """
     """
@@ -32,10 +31,10 @@ class PredictionsTestCase(TestCase):
     # Tests for all Prediction Elements
     # ----
 
-    def test_named_prediction_family_must_be_valid_for_target_type(self):
+    def test_the_predictions_class_must_be_valid_for_its_targets_type(self):
         # note: we do not test docs-predictions.json here (it's tested elsewhere), which takes care of testing all
         # target_type/prediction_class combinations. here we just test the valid NamedDistribution family/target_type
-        # combinations
+        # combinations, which are the only ones that are constrained
 
         #   target type   | docs-project.json target | valid named distributions
         #   ------------- | ------------------------ | --------------------------------
@@ -78,7 +77,7 @@ class PredictionsTestCase(TestCase):
                                   str(context.exception))
 
 
-    def test_no_more_than_1_prediction_element_of_same_type(self):
+    def test_within_a_prediction_there_cannot_be_no_more_than_1_prediction_element_of_the_same_class(self):
         with self.assertRaises(RuntimeError) as context:
             prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
                                "prediction": {"value": 1.1}}  # duplicated location/target pair
@@ -102,7 +101,12 @@ class PredictionsTestCase(TestCase):
     # Tests for Prediction Elements by Prediction Class
     # ----
 
-    def test_number_of_elements_in_cat_and_prob_should_be_identical(self):
+    #
+    # `Bin` Prediction Elements
+    #
+
+    # `|cat| = |prob|`
+    def test_the_number_of_elements_in_cat_and_prob_should_be_identical(self):
         with self.assertRaises(RuntimeError) as context:
             prediction_dict = {"location": "location2", "target": "pct next week", "class": "bin",
                                "prediction": {
@@ -113,9 +117,129 @@ class PredictionsTestCase(TestCase):
                       str(context.exception))
 
 
+    # `cat` (i, f, t, d, b)
+    def test_entries_in_the_database_rows_in_the_cat_column_cannot_be_empty_na_or_null(self):
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "bin",
+                               "prediction": {
+                                   "cat": ["mild", "", "severe"],  # empty
+                                   "prob": [0.0, 0.1, 0.9]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `null`",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "bin",
+                               "prediction": {
+                                   "cat": ["mild", "NA", "severe"],  # NA
+                                   "prob": [0.0, 0.1, 0.9]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `null`",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "bin",
+                               "prediction": {
+                                   "cat": ["mild", None, "severe"],  # null
+                                   "prob": [0.0, 0.1, 0.9]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `null`",
+                      str(context.exception))
+
+
+    # `cat` (i, f, t, d, b)
+    def test_entries_in_cat_must_be_a_subset_of_target_cats_from_the_target_definition(self):
+        # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "pct next week", "class": "bin",
+                               "prediction": {
+                                   "cat": [1.1, 2.2, -1.0],  # -1.0 not in cats
+                                   "prob": [0.3, 0.2, 0.5]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `cat` must be a subset of `Target.cats` from the target definition",
+                      str(context.exception))
+
+        # "cases next week": discrete. cats: [0, 2, 50]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location3", "target": "cases next week", "class": "bin",
+                               "prediction": {
+                                   "cat": [-1, 1, 2],  # -1 not in cats
+                                   "prob": [0.0, 0.1, 0.9]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `cat` must be a subset of `Target.cats` from the target definition",
+                      str(context.exception))
+
+        # "season severity": nominal. cats: ["high", "mild", "moderate", "severe"]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "bin",
+                               "prediction": {
+                                   "cat": ["mild", "-1", "severe"],  # '-1" not in cats
+                                   "prob": [0.0, 0.1, 0.9]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `cat` must be a subset of `Target.cats` from the target definition",
+                      str(context.exception))
+
+        # "Season peak week": date. cats: ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "Season peak week", "class": "bin",
+                               "prediction": {
+                                   "cat": ["2019-12-15", "2019-12-22", "2020-01-11"],  # "2020-01-11" not in cats
+                                   "prob": [0.01, 0.1, 0.89]}}
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `cat` must be a subset of `Target.cats` from the target definition",
+                      str(context.exception))
+
+
+    # `prob` (f): [0, 1]
+    def test_entries_in_the_database_rows_in_the_prob_column_must_be_numbers_in_0_1(self):
+        self.fail()  # todo xx
+
+
+    # `prob` (f): [0, 1]
+    def test_for_one_prediction_element_the_values_within_prob_must_sum_to_1_0(self):
+        # Note that for binary targets that by definition need only have one row, this validation does not apply.
+        self.fail()  # todo xx
+
+
+    #
+    # `Named` Prediction Elements
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # `Point` Prediction Elements
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # `Sample` Prediction Elements
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
     # ----
     # Tests for Predictions by Target Type
     # ----
+
+    #
+    # "continuous"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "discrete"
+    #
 
     def test_xx(self):
         self.fail()  # todo xx
@@ -125,6 +249,42 @@ class PredictionsTestCase(TestCase):
     # Tests for Prediction Elements by Target Type
     # ----
 
+    #
+    # "continuous"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "discrete"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "nominal"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "binary"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "date"
+    #
+
     def test_xx(self):
         self.fail()  # todo xx
 
@@ -132,6 +292,42 @@ class PredictionsTestCase(TestCase):
     # ----
     # Tests for target definitions by Target Type
     # ----
+
+    #
+    # "continuous"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "discrete"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "nominal"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "binary"
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # "date"
+    #
 
     def test_xx(self):
         self.fail()  # todo xx
@@ -141,5 +337,28 @@ class PredictionsTestCase(TestCase):
     # Tests for ground truth data tables
     # ----
 
+    #
+    # For all ground truth files
+    #
+
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    #
+    # Range-check for ground truth data
+    #
+
+    # For `binary` targets
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    # For `discrete` and `continuous` targets (if `range` is specified)
+    def test_xx(self):
+        self.fail()  # todo xx
+
+
+    # For `nominal` and `date` target_types
     def test_xx(self):
         self.fail()  # todo xx

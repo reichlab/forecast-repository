@@ -268,7 +268,7 @@ class ProjectUtilTestCase(TestCase):
                 first_target_dict.pop('unit', None)
             with self.assertRaises(RuntimeError) as context:
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'cats' not passed but is required for type_name={target_type}", str(context.exception))
+            self.assertIn(f"'cats' not passed but is required for type_name='{target_type}'", str(context.exception))
 
         # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 

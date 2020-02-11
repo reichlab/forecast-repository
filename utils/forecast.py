@@ -177,11 +177,12 @@ BIN_SUM_REL_TOL = 0.001  # hard-coded magic number for prediction probability su
 
 
 @transaction.atomic
-def load_predictions_from_json_io_dict(forecast, json_io_dict):
+def load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=True):
     """
     Loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note that we ignore the
     'meta' portion of json_io_dict. Errors if any referenced Locations and Targets do not exist in forecast's Project.
 
+    :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
     :param forecast: a Forecast to load json_io_dict's predictions into
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details
     """
@@ -190,7 +191,8 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict):
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
 
     prediction_dicts = json_io_dict['predictions']
-    bin_rows, named_rows, point_rows, sample_rows = _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts)
+    bin_rows, named_rows, point_rows, sample_rows = \
+        _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_validate_cats)
     target_pk_to_object = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
 
     _load_bin_rows(forecast, bin_rows, target_pk_to_object)
@@ -199,12 +201,13 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict):
     _load_sample_rows(forecast, sample_rows, target_pk_to_object)
 
 
-def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
+def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_validate_cats):
     """
     Validates prediction_dicts and returns a 4-tuple of rows suitable for bulk-loading into a database:
         bin_rows, named_rows, point_rows, sample_rows
     Each row is Prediction class-specific. Skips zero-prob BinDistribution rows.
 
+    :param is_validate_cats: same as load_predictions_from_json_io_dict()
     :param forecast: a Forecast that's used to validate against
     :param prediction_dicts: the 'predictions' portion of a "JSON IO dict" as returned by
         json_io_dict_from_cdc_csv_file()
@@ -236,12 +239,24 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
 
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
-        # location = location_name_to_obj[location_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
             # validate: "The number of elements in the `cat` and `prob` vectors should be identical."
             if len(prediction_data['cat']) != len(prediction_data['prob']):
                 raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
                                    f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}")
+
+            # validate: Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL` (case does not
+            # matter)
+            cat_lower = [cat.lower() if isinstance(cat, str) else cat for cat in prediction_data['cat']]
+            if ('' in cat_lower) or ('na' in cat_lower) or (None in cat_lower):
+                raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
+                                   f"`null`. cat={prediction_data['cat']}")
+
+            # validate: Entries in `cat` must be a subset of `Target.cats` from the target definition
+            cats_values_set = set(target.cats_values(is_include_binary=True))
+            if is_validate_cats and not (set(prediction_data['cat']) <= cats_values_set):
+                raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
+                                   f"cat={prediction_data['cat']}, cats_values_set={cats_values_set}")
 
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:
@@ -267,13 +282,14 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts):
             raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
                                f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}")
 
-    # finally, check location_target_class_counts and then return
+    # finally, validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type"
     duplicate_location_target_pairs = [location_target_pair for location_target_pair in location_target_class_counts
                                        if location_target_class_counts[location_target_pair] > 1]
     if duplicate_location_target_pairs:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
                            f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}")
 
+    # done!
     return bin_rows, named_rows, point_rows, sample_rows
 
 

@@ -274,12 +274,12 @@ class TargetTestCase(TestCase):
 
         cats_qs = pct_next_week_target.cats.all() \
             .order_by('cat_f') \
-            .values_list('target__name', 'cat_i', 'cat_f', 'cat_t', 'cat_d')
-        exp_cats = [('pct next week', None, 0.0, None, None), ('pct next week', None, 1.0, None, None),
-                    ('pct next week', None, 1.1, None, None), ('pct next week', None, 2.0, None, None),
-                    ('pct next week', None, 2.2, None, None), ('pct next week', None, 3.0, None, None),
-                    ('pct next week', None, 3.3, None, None), ('pct next week', None, 5.0, None, None),
-                    ('pct next week', None, 10.0, None, None), ('pct next week', None, 50.0, None, None)]
+            .values_list('target__name', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+        exp_cats = [('pct next week', None, 0.0, None, None, None), ('pct next week', None, 1.0, None, None, None),
+                    ('pct next week', None, 1.1, None, None, None), ('pct next week', None, 2.0, None, None, None),
+                    ('pct next week', None, 2.2, None, None, None), ('pct next week', None, 3.0, None, None, None),
+                    ('pct next week', None, 3.3, None, None, None), ('pct next week', None, 5.0, None, None, None),
+                    ('pct next week', None, 10.0, None, None, None), ('pct next week', None, 50.0, None, None, None)]
         self.assertEqual(exp_cats, list(cats_qs))
 
         lwrs_qs = pct_next_week_target.lwrs.all() \
@@ -303,10 +303,10 @@ class TargetTestCase(TestCase):
 
         cats_qs = cases_next_week_target.cats.all() \
             .order_by('cat_i') \
-            .values_list('target__name', 'cat_i', 'cat_f', 'cat_t', 'cat_d')
-        exp_cats = [('cases next week', 0, None, None, None),
-                    ('cases next week', 2, None, None, None),
-                    ('cases next week', 50, None, None, None)]
+            .values_list('target__name', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+        exp_cats = [('cases next week', 0, None, None, None, None),
+                    ('cases next week', 2, None, None, None, None),
+                    ('cases next week', 50, None, None, None, None)]
         self.assertEqual(exp_cats, list(cats_qs))
 
         lwrs_qs = cases_next_week_target.lwrs.all() \
