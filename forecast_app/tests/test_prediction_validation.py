@@ -192,13 +192,50 @@ class PredictionsTestCase(TestCase):
 
     # `prob` (f): [0, 1]
     def test_entries_in_the_database_rows_in_the_prob_column_must_be_numbers_in_0_1(self):
-        self.fail()  # todo xx
+        # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "pct next week", "class": "bin",
+                               "prediction": {
+                                   "cat": [1.1, 2.2, 3.3],
+                                   "prob": [-1.1, 0.2, 0.5]}}  # -1.1 not in [0, 1]
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]",
+                      str(context.exception))
+
+        # "cases next week": discrete. cats: [0, 2, 50]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location3", "target": "cases next week", "class": "bin",
+                               "prediction": {
+                                   "cat": [0, 2, 50],
+                                   "prob": [1.1, 0.1, 0.9]}}  # 1.1 not in [0, 1]
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]",
+                      str(context.exception))
 
 
     # `prob` (f): [0, 1]
     def test_for_one_prediction_element_the_values_within_prob_must_sum_to_1_0(self):
         # Note that for binary targets that by definition need only have one row, this validation does not apply.
-        self.fail()  # todo xx
+        # "season severity": nominal. cats: ["high", "mild", "moderate", "severe"].
+        # recall: BIN_SUM_REL_TOL
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "bin",
+                               "prediction": {
+                                   "cat": ["mild", "moderate", "severe"],
+                                   "prob": [1.0, 0.1, 0.9]}}  # sums to 2.0, not 1.0
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"For one prediction element, the values within prob must sum to 1.0",
+                      str(context.exception))
+
+        # "Season peak week": date. cats: ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "Season peak week", "class": "bin",
+                               "prediction": {
+                                   "cat": ["2019-12-15", "2019-12-22", "2019-12-29"],
+                                   "prob": [0.01, 0.1, 0.8]}}  # sums to 0.91, not 1.0
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"For one prediction element, the values within prob must sum to 1.0",
+                      str(context.exception))
 
 
     #

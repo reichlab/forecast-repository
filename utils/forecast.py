@@ -1,5 +1,6 @@
 import csv
 import io
+import math
 from collections import Counter
 from itertools import groupby
 
@@ -252,14 +253,46 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                 raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
                                    f"`null`. cat={prediction_data['cat']}")
 
-            # validate: Entries in `cat` must be a subset of `Target.cats` from the target definition
-            cats_values_set = set(target.cats_values(is_include_binary=True))
+            # validate: Entries in `cat` must be a subset of `Target.cats` from the target definition.
+            # note: for date targets, format as strings for the comparison
+            cats_values_set = set(target.cats_values(is_include_binary=True))  # datetime.date instances if date target
+            if target.type == Target.DATE_TARGET_TYPE:
+                cats_values_set = {cats_value.strftime(YYYY_MM_DD_DATE_FORMAT) for cats_value in cats_values_set}
+
             if is_validate_cats and not (set(prediction_data['cat']) <= cats_values_set):
                 raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
                                    f"cat={prediction_data['cat']}, cats_values_set={cats_values_set}")
 
+            # validate: Entries in the database rows in the `prob` column must be numbers in [0, 1]
+            types_set = set(map(type, prediction_data['prob']))
+            if len(types_set) != 1:
+                raise RuntimeError(f"there was more than one data type in `prob` column, which should only contain "
+                                   f"numbers. prob column={prediction_data['prob']}, types_set={types_set}")
+
+            prob_type = next(iter(types_set))  # vs. pop()
+            if (prob_type != int) and (prob_type != float):
+                raise RuntimeError(f"wrong data type in `prob` column, which should only contain "
+                                   f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}")
+
+            if (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
+                raise RuntimeError(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]. "
+                                   f"prob column={prediction_data['prob']}")
+
+            # validate: For one prediction element, the values within prob must sum to 1.0 (values within +/- 0.001 of
+            # 1 are acceptable).
+
+            #     # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
+            #     # (prob_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
+            #     # (0.9300285798758262 -> 0.07 fixed it)
+
+            prob_sum = sum(prediction_data['prob'])
+            if not math.isclose(1.0, prob_sum, rel_tol=BIN_SUM_REL_TOL):
+                raise RuntimeError(f"For one prediction element, the values within prob must sum to 1.0. "
+                                   f"prob_sum={prob_sum}, rel_tol={BIN_SUM_REL_TOL}")
+
+            # valid
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
-                if prob != 0:
+                if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
                     bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
             # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
@@ -291,19 +324,6 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
 
     # done!
     return bin_rows, named_rows, point_rows, sample_rows
-
-
-# def _validate_bin_prob(forecast, location, target, bin_probs):
-#     # todo other validations!
-#
-#     # validate probs sum to 1.0
-#     # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
-#     # (forecast_bin_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
-#     # (0.9300285798758262 -> 0.07 fixed it)
-#     forecast_bin_sum = sum([prob if prob is not None else 0 for prob in bin_probs])
-#     if not math.isclose(1.0, forecast_bin_sum, rel_tol=BIN_SUM_REL_TOL):
-#         raise RuntimeError(f"Bin did not sum to 1.0. bin_probs={bin_probs}, forecast_bin_sum={forecast_bin_sum}, "
-#                            f"forecast={forecast}, location={location}, target={target}")
 
 
 def _load_bin_rows(forecast, rows, target_pk_to_object):

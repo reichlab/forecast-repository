@@ -152,7 +152,7 @@ class Target(models.Model):
 
         # validate data type compatibility
         types_set = set(map(type, cats))
-        cats_type = list(types_set)[0]
+        cats_type = next(iter(types_set))  # vs. pop()
         if data_type != cats_type:
             raise ValidationError(f"cats data type did not match target data type. cats={cats}. cats_type={cats_type}, "
                                   f"data_type={data_type}")
