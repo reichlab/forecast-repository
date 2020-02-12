@@ -360,7 +360,7 @@ class ProjectUtilTestCase(TestCase):
             try:
                 project = create_project_from_json(project_dict, po_user)
                 project.delete()
-            except Exception as ex:
+            except Exception:
                 pass
             else:
                 raise Exception

@@ -15,7 +15,7 @@
 "US National","4 wk ahead","Point","percent",NA,NA,3.2
 "US National","4 wk ahead","Bin","percent","0","0.1",1
 "HHS Region 1","Season onset","Point","week",NA,NA,52
-"HHS Region 1","Season onset","Bin","week","40","41",1
+"HHS Region 1","Season onset","Bin","week","40","41",0.9773
 "HHS Region 1","Season onset","Bin","week","none","none",0.0227
 "HHS Region 1","Season peak week","Point","week",NA,NA,6
 "HHS Region 1","Season peak week","Bin","week","40","41",1
@@ -75,7 +75,7 @@
 "HHS Region 4","4 wk ahead","Point","percent",NA,NA,2.8
 "HHS Region 4","4 wk ahead","Bin","percent","0","0.1",1
 "HHS Region 5","Season onset","Point","week",NA,NA,52
-"HHS Region 5","Season onset","Bin","week","40","41",1
+"HHS Region 5","Season onset","Bin","week","40","41",0.9239
 "HHS Region 5","Season onset","Bin","week","none","none",0.0760999999999999
 "HHS Region 5","Season peak week","Point","week",NA,NA,9
 "HHS Region 5","Season peak week","Bin","week","40","41",1
@@ -90,7 +90,7 @@
 "HHS Region 5","4 wk ahead","Point","percent",NA,NA,2.1
 "HHS Region 5","4 wk ahead","Bin","percent","0","0.1",1
 "HHS Region 6","Season onset","Point","week",NA,NA,52
-"HHS Region 6","Season onset","Bin","week","40","41",1
+"HHS Region 6","Season onset","Bin","week","40","41",0.8581
 "HHS Region 6","Season onset","Bin","week","none","none",0.1419
 "HHS Region 6","Season peak week","Point","week",NA,NA,7
 "HHS Region 6","Season peak week","Bin","week","40","41",1
@@ -105,7 +105,7 @@
 "HHS Region 6","4 wk ahead","Point","percent",NA,NA,4.4
 "HHS Region 6","4 wk ahead","Bin","percent","0","0.1",1
 "HHS Region 7","Season onset","Point","week",NA,NA,52
-"HHS Region 7","Season onset","Bin","week","40","41",1
+"HHS Region 7","Season onset","Bin","week","40","41",0.9238
 "HHS Region 7","Season onset","Bin","week","none","none",0.0762
 "HHS Region 7","Season peak week","Point","week",NA,NA,6
 "HHS Region 7","Season peak week","Bin","week","40","41",1

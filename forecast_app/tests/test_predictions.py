@@ -57,15 +57,15 @@ class PredictionsTestCase(TestCase):
         # - 'pct next week':    point: 3, named: 1 , bin: 3, sample: 5 = 12
         # - 'cases next week':  point: 2, named: 1 , bin: 3, sample: 3 = 10
         # - 'season severity':  point: 2, named: 0 , bin: 3, sample: 5 = 10
-        # - 'above baseline':   point: 1, named: 0 , bin: 1, sample: 6 =  8
+        # - 'above baseline':   point: 1, named: 0 , bin: 2, sample: 6 =  9
         # - 'Season peak week': point: 3, named: 0 , bin: 7, sample: 4 = 13
-        # = total rows: 53 - 2 zero prob = 51
+        # = total rows: 54 - 2 zero prob = 52
 
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict, False)
-        self.assertEqual(51, forecast.get_num_rows())
-        self.assertEqual(15, forecast.bin_distribution_qs().count())  # 17 - 2 zero prob
+        self.assertEqual(52, forecast.get_num_rows())
+        self.assertEqual(16, forecast.bin_distribution_qs().count())  # 18 - 2 zero prob
         self.assertEqual(2, forecast.named_distribution_qs().count())
         self.assertEqual(11, forecast.point_prediction_qs().count())
         self.assertEqual(23, forecast.sample_distribution_qs().count())
@@ -85,7 +85,7 @@ class PredictionsTestCase(TestCase):
             prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'locations', and 'targets'
             bin_rows, named_rows, point_rows, sample_rows = \
                 _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, False)
-        self.assertEqual(15, len(bin_rows))  # 17 - 2 zero prob
+        self.assertEqual(16, len(bin_rows))  # 18 - 2 zero prob
         self.assertEqual(2, len(named_rows))
         self.assertEqual(11, len(point_rows))
         self.assertEqual(23, len(sample_rows))
@@ -97,6 +97,7 @@ class PredictionsTestCase(TestCase):
                           ['location1', 'season severity', 'moderate', 0.1],
                           ['location1', 'season severity', 'severe', 0.9],
                           ['location2', 'above baseline', True, 0.9],
+                          ['location2', 'above baseline', False, 0.1],
                           ['location1', 'Season peak week', '2019-12-15', 0.01],
                           ['location1', 'Season peak week', '2019-12-22', 0.1],
                           ['location1', 'Season peak week', '2019-12-29', 0.89],
@@ -106,7 +107,7 @@ class PredictionsTestCase(TestCase):
                           ['location2', 'Season peak week', '2020-01-05', 0.89]],
                          bin_rows)
         self.assertEqual([['location1', 'pct next week', 'norm', 1.1, 2.2, None],
-                          ['location1', 'cases next week', 'pois', 1.1, None, None]],
+                          ['location1', 'cases next week', 'pois', 1.1, 2.2, None]],
                          named_rows)
         self.assertEqual([['location1', 'pct next week', 2.1],
                           ['location2', 'pct next week', 2.0],

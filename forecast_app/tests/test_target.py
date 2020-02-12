@@ -192,11 +192,12 @@ class TargetTestCase(TestCase):
     def test_target_type_to_valid_named_families(self):
         target_type_to_exp_valid_named_families = {
             Target.CONTINUOUS_TARGET_TYPE: [NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST],
+                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST,
+                                            NamedDistribution.BINOM_DIST],  # todo xx here or DISCRETE?
             Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
                                           NamedDistribution.NBINOM2_DIST],
             Target.NOMINAL_TARGET_TYPE: [],  # n/a
-            Target.BINARY_TARGET_TYPE: [],  # na
+            Target.BINARY_TARGET_TYPE: [],  # n/a
             Target.DATE_TARGET_TYPE: [],  # n/a
         }
         for target_type, exp_valid_named_families in target_type_to_exp_valid_named_families.items():
@@ -447,7 +448,7 @@ class TargetTestCase(TestCase):
         with self.assertRaises(Exception):
             try:
                 target.set_cats(['2019-01-09', '2019-01-19'])
-            except Exception as ex:
+            except Exception:
                 pass
             else:
                 raise Exception

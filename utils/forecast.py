@@ -221,7 +221,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
     # type". (recall the definition of "Prediction": "[a] group of a prediction elements(s) specific to a location and
     # target"):
     location_target_class_counts = Counter()  # keys: 3-tuples: (location_name, target_name, prediction_class)
-    bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. filled next
+    bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. set next
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
         target_name = prediction_dict['target']
@@ -233,75 +233,98 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
         if location_name not in location_name_to_obj:
             raise RuntimeError(f"prediction_dict referred to an undefined Location. location_name={location_name!r}. "
                                f"existing_location_names={location_name_to_obj.keys()}")
-
-        if target_name not in target_name_to_obj:
+        elif target_name not in target_name_to_obj:
             raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name!r}. "
                                f"existing_target_names={target_name_to_obj.keys()}")
 
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            # validate: "The number of elements in the `cat` and `prob` vectors should be identical."
+            # validate: "The number of elements in the `cat` and `prob` vectors should be identical"
             if len(prediction_data['cat']) != len(prediction_data['prob']):
                 raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
-                                   f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}")
+                                   f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}, "
+                                   f"prediction_dict={prediction_dict}")
 
-            # validate: Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL` (case does not
-            # matter)
+            # validate: "Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL` (case does
+            # not matter)"
             cat_lower = [cat.lower() if isinstance(cat, str) else cat for cat in prediction_data['cat']]
             if ('' in cat_lower) or ('na' in cat_lower) or (None in cat_lower):
                 raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
-                                   f"`null`. cat={prediction_data['cat']}")
+                                   f"`null`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
 
-            # validate: Entries in `cat` must be a subset of `Target.cats` from the target definition.
-            # note: for date targets, format as strings for the comparison
-            cats_values_set = set(target.cats_values(is_include_binary=True))  # datetime.date instances if date target
+            # validate: "Entries in `cat` must be a subset of `Target.cats` from the target definition".
+            # note: for date targets we format as strings for the comparison (incoming are strings)
+            cats_values_set = set(target.cats_values())  # datetime.date instances if date target
             if target.type == Target.DATE_TARGET_TYPE:
                 cats_values_set = {cats_value.strftime(YYYY_MM_DD_DATE_FORMAT) for cats_value in cats_values_set}
 
             if is_validate_cats and not (set(prediction_data['cat']) <= cats_values_set):
                 raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
-                                   f"cat={prediction_data['cat']}, cats_values_set={cats_values_set}")
+                                   f"cat={prediction_data['cat']}, cats_values_set={cats_values_set}, "
+                                   f"prediction_dict={prediction_dict}")
 
-            # validate: Entries in the database rows in the `prob` column must be numbers in [0, 1]
+            # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
             types_set = set(map(type, prediction_data['prob']))
-            if len(types_set) != 1:
+            if (types_set != {int, float}) and (len(types_set) != 1):
                 raise RuntimeError(f"there was more than one data type in `prob` column, which should only contain "
-                                   f"numbers. prob column={prediction_data['prob']}, types_set={types_set}")
+                                   f"numbers. prob column={prediction_data['prob']}, types_set={types_set}, "
+                                   f"prediction_dict={prediction_dict}")
 
             prob_type = next(iter(types_set))  # vs. pop()
             if (prob_type != int) and (prob_type != float):
                 raise RuntimeError(f"wrong data type in `prob` column, which should only contain "
-                                   f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}")
-
-            if (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
+                                   f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}, "
+                                   f"prediction_dict={prediction_dict}")
+            elif (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
                 raise RuntimeError(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]. "
-                                   f"prob column={prediction_data['prob']}")
+                                   f"prob column={prediction_data['prob']}, prediction_dict={prediction_dict}")
 
-            # validate: For one prediction element, the values within prob must sum to 1.0 (values within +/- 0.001 of
-            # 1 are acceptable).
-
-            #     # note that the default rel_tol of 1e-09 failed for EW17-KoTstable-2017-05-09.csv
-            #     # (prob_sum=0.9614178215505512 -> 0.04 fixed it), and for EW17-KoTkcde-2017-05-09.csv
-            #     # (0.9300285798758262 -> 0.07 fixed it)
-
+            # validate: "For one prediction element, the values within prob must sum to 1.0 (values within +/- 0.001 of
+            # 1 are acceptable)"
             prob_sum = sum(prediction_data['prob'])
             if not math.isclose(1.0, prob_sum, rel_tol=BIN_SUM_REL_TOL):
                 raise RuntimeError(f"For one prediction element, the values within prob must sum to 1.0. "
-                                   f"prob_sum={prob_sum}, rel_tol={BIN_SUM_REL_TOL}")
+                                   f"prob_sum={prob_sum}, delta={abs(1 - prob_sum)}, rel_tol={BIN_SUM_REL_TOL}, "
+                                   f"prediction_dict={prediction_dict}")
 
             # valid
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
                     bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
+            family_abbrev = prediction_data['family']
+
+            # validate: "`family`: must be one of the abbreviations shown in the table below"
+            family_abbrevs = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()
+            if family_abbrev not in family_abbrevs:
+                raise RuntimeError(f"family must be one of the abbreviations shown in the table below. "
+                                   f"family_abbrev={family_abbrev!r}, family_abbrevs={family_abbrevs}, "
+                                   f"prediction_dict={prediction_dict}")
+
             # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
             # are constrained; all other target_type/prediction_class combinations are valid
-            family_name = prediction_data['family']
-            if family_abbrev_to_int[family_name] not in Target.valid_named_families(target.type):
-                raise RuntimeError(f"family {family_name!r} is not valid for {target.type_as_str()!r} target types")
+            if family_abbrev_to_int[family_abbrev] not in Target.valid_named_families(target.type):
+                raise RuntimeError(f"family {family_abbrev!r} is not valid for {target.type_as_str()!r} "
+                                   f"target types. prediction_dict={prediction_dict}")
 
-            named_rows.append([location_name, target_name, family_name,
+            # validate: "The number of param columns with non-NULL entries count must match family definition"
+            param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'binom': 2, 'pois': 2, 'nbinom': 2,
+                                  'nbinom2': 2}
+            num_params = 0
+            if 'param1' in prediction_data:
+                num_params += 1
+            if 'param2' in prediction_data:
+                num_params += 1
+            if 'param3' in prediction_data:
+                num_params += 1
+            if num_params != param_to_exp_count[family_abbrev]:
+                raise RuntimeError(f"The number of param columns with non-NULL entries count must match family "
+                                   f"definition. family_abbrev={family_abbrev!r}, num_params={num_params}, "
+                                   f"expected count={param_to_exp_count[family_abbrev]}, "
+                                   f"prediction_dict={prediction_dict}")
+
+            named_rows.append([location_name, target_name, family_abbrev,
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])
@@ -313,14 +336,16 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                 sample_rows.append([location_name, target_name, sample])
         else:
             raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
-                               f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}")
+                               f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}. "
+                               f"prediction_dict={prediction_dict}")
 
     # finally, validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type"
     duplicate_location_target_pairs = [location_target_pair for location_target_pair in location_target_class_counts
                                        if location_target_class_counts[location_target_pair] > 1]
     if duplicate_location_target_pairs:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                           f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}")
+                           f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}. "
+                           f"prediction_dict={prediction_dict}")
 
     # done!
     return bin_rows, named_rows, point_rows, sample_rows
@@ -504,7 +529,7 @@ def _replace_family_abbrev_with_id(rows):
             row[2] = [choice for choice, abbrev in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()
                       if abbrev == abbreviation][0]
         else:
-            raise RuntimeError(f"invalid family. abbreviation='{abbreviation}', "
+            raise RuntimeError(f"invalid family. abbreviation={abbreviation!r}, "
                                f"abbreviations={NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()}")
 
 

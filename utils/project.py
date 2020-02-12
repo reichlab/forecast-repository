@@ -116,7 +116,7 @@ def _target_dict_for_target(target):
         target_dict['range'] = [target_ranges[0], target_ranges[1]]
 
     # add cats
-    cats_values = target.cats_values(is_include_binary=False)
+    cats_values = target.cats_values()
     if cats_values:
         if data_type == Target.DATE_DATA_TYPE:
             cats_values = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT) for cat_date in cats_values]

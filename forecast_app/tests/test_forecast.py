@@ -150,7 +150,7 @@ class ForecastTestCase(TestCase):
             self.assertEqual(1, len(forecasts))
 
 
-    def test_forecast_data_validation(self):
+    def test_cdc_forecast_data_validation(self):
         with self.assertRaises(RuntimeError) as context:
             csv_file_path = Path('forecast_app/tests/EW1-bad-point-na-2017-01-17.csv')  # EW01 2017
             load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
@@ -159,7 +159,8 @@ class ForecastTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             csv_file_path = Path('forecast_app/tests/EW1-bin-doesnt-sum-to-one-2017-01-17.csv')  # EW01 2017
             load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
-        self.assertIn("Bin did not sum to 1.0", str(context.exception))
+        self.assertIn("Entries in the database rows in the `prob` column must be numbers in [0, 1]",
+                      str(context.exception))
 
         # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
         with self.assertRaises(Exception):
@@ -171,8 +172,6 @@ class ForecastTestCase(TestCase):
                 pass
             else:
                 raise Exception
-
-        self.fail()  # todo xx
 
 
     @unittest.skip

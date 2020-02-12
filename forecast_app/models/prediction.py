@@ -123,6 +123,7 @@ class NamedDistribution(Prediction):
         (LNORM_DIST, 'Log Normal'),
         (GAMMA_DIST, 'Gamma'),
         (BETA_DIST, 'Beta'),
+        (BINOM_DIST, 'Binomial'),
         (POIS_DIST, 'Poisson'),
         (NBINOM_DIST, 'Negative Binomial'),
         (NBINOM2_DIST, 'Negative Binomial 2'),

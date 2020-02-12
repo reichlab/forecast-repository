@@ -222,7 +222,7 @@ class Target(models.Model):
         return min(ranges0_val, ranges1_val), max(ranges0_val, ranges1_val)
 
 
-    def cats_values(self, is_include_binary):
+    def cats_values(self):
         """
         A utility function used for validation. Returns a list of my cat values based on my data_type(), similar to what
         PointPrediction.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get the
@@ -243,8 +243,7 @@ class Target(models.Model):
         elif data_type == Target.DATE_DATA_TYPE:
             values = self.cats.values_list('cat_d', flat=True)
         else:  # data_type == Target.BINARY_TARGET_TYPE
-            # note that the query for not is_include_binary should return []
-            values = [False, True] if is_include_binary else self.cats.values_list('cat_b', flat=True)
+            values = self.cats.values_list('cat_b', flat=True)
         return list(values)
 
 
@@ -254,9 +253,13 @@ class Target(models.Model):
         :param target_type: one of my *_TARGET_TYPE values
         :return: a list of valid NamedDistribution families for target_type
         """
+        # todo xx NamedDistribution.BINOM_DIST: "Valid prediction types by target type" table: in (1) or (2)?:
+        # (1) = valid named distributions are `norm`, `lnorm`, `gamma`, `beta`
+        # (2) = valid named distributions are `pois`, `nbinom`, `nbinom2`
         return {
             Target.CONTINUOUS_TARGET_TYPE: [NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST],
+                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST,
+                                            NamedDistribution.BINOM_DIST],  # todo xx here or DISCRETE?
             Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
                                           NamedDistribution.NBINOM2_DIST],
             Target.NOMINAL_TARGET_TYPE: [],  # n/a
