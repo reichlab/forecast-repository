@@ -59,7 +59,7 @@ class Target(models.Model):
     unit = models.TextField(help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.", null=True)
 
 
-    # 'list' type-specific fields: see TargetLwr.lwrs, TargetCat.cats, TargetDate.date, and TargetDate.range
+    # 'list' type-specific fields: see TargetLwr.lwrs, TargetCat.cats, and TargetDate.range
 
 
     def __repr__(self):
@@ -129,14 +129,6 @@ class Target(models.Model):
         :param extra_lwr: an optional final upper lwr to use when creating TargetLwrs. used when a Target has both cats
             and range
         """
-        # validate target type
-        valid_target_types = [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.NOMINAL_TARGET_TYPE,
-                              Target.DATE_TARGET_TYPE]
-        if self.type not in valid_target_types:
-            valid_target_types = [Target.str_for_target_type(target_type) for target_type in valid_target_types]
-            raise ValidationError(f"invalid target type  {Target.str_for_target_type(self.type)}. must be one of: "
-                                  f"{valid_target_types}")
-
         # validate uniform data type
         data_type = self.data_type()
         types_set = set(map(type, cats))
@@ -164,7 +156,8 @@ class Target(models.Model):
                                      cat_i=cat if (data_type == Target.INTEGER_DATA_TYPE) else None,
                                      cat_f=cat if (data_type == Target.FLOAT_DATA_TYPE) else None,
                                      cat_t=cat if (data_type == Target.TEXT_DATA_TYPE) else None,
-                                     cat_d=cat if (data_type == Target.DATE_DATA_TYPE) else None)
+                                     cat_d=cat if (data_type == Target.DATE_DATA_TYPE) else None,
+                                     cat_b=cat if (data_type == Target.BOOLEAN_DATA_TYPE) else None)
 
         # ditto for TargetLwrs for continuous and discrete cases (required for scoring), calculating `upper` via zip().
         # NB: we use infinity for the last bin's upper!
@@ -226,12 +219,7 @@ class Target(models.Model):
         """
         A utility function used for validation. Returns a list of my cat values based on my data_type(), similar to what
         PointPrediction.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get the
-        field corresponding to my type. Importantly, for binary targets only, if is_include_binary then this function
-        returns the two implicit cats of [False, True]. This means that callers should use this function rather than
-        accessing self.cats directly. (We considered having create_project_from_json() explicitly call Target.set_cats()
-        with these two, but it was simpler and cleaner in some ways to change this function.)
-
-        :param: is_include_binary: True if, for binary data_types, the two implied cats [False, True] should be returned
+        field corresponding to my type.
         """
         data_type = self.data_type()
         if data_type == Target.INTEGER_DATA_TYPE:

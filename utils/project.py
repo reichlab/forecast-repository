@@ -117,7 +117,7 @@ def _target_dict_for_target(target):
 
     # add cats
     cats_values = target.cats_values()
-    if cats_values:
+    if cats_values and (target.type != Target.BINARY_TARGET_TYPE):  # skip implicit binary that were added automatically
         if data_type == Target.DATE_DATA_TYPE:
             cats_values = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT) for cat_date in cats_values]
         target_dict['cats'] = sorted(cats_values)
@@ -206,8 +206,8 @@ def validate_and_create_targets(project, project_dict):
     for target_dict in project_dict['targets']:
         type_name = _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
 
-        # valid! create the Target and then supporting 'list' instances: TargetCat, TargetLwr, TargetDate,
-        # and TargetRange. atomic so that Targets succeed only if others do too
+        # valid! create the Target and then supporting 'list' instances: TargetCat, TargetLwr, and TargetRange. atomic
+        # so that Targets succeed only if others do too
         with transaction.atomic():
             model_init = {'project': project,
                           'type': type_name_to_type_int[type_name],
@@ -227,16 +227,19 @@ def validate_and_create_targets(project, project_dict):
             target = Target.objects.create(**model_init)
             targets.append(target)
 
-            # add range
-            if ('range' in target_dict) and target_dict['range']:  # create two TargetRanges
+            # create two TargetRanges
+            if ('range' in target_dict) and target_dict['range']:
                 target.set_range(target_dict['range'][0], target_dict['range'][1])
 
-            # add cats
-            if ('cats' in target_dict) and target_dict['cats']:  # create TargetCats and TargetLwrs
+            # create TargetCats and TargetLwrs
+            if ('cats' in target_dict) and target_dict['cats']:
                 # extra_lwr implements this relationship: "if `range` had been specified as [0, 100] in addition to the
                 # above `cats`, then the final bin would be [2.2, 100]."
                 extra_lwr = max(target_dict['range']) if ('range' in target_dict) and target_dict['range'] else None
                 target.set_cats(target_dict['cats'], extra_lwr)
+            if target.type == Target.BINARY_TARGET_TYPE:
+                # add the two implicit boolean cats
+                target.set_cats([False, True])
     return targets
 
 

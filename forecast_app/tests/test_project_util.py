@@ -372,9 +372,9 @@ class ProjectUtilTestCase(TestCase):
         self.assertIn("could not convert cat to data_type. cat_str='20191222'", str(context.exception))
 
 
-    def test_create_project_from_json_lists(self):
-        # verify that 'list' TargetCat, TargetLwr, TargetDate, and TargetRange instances are created.
-        # docs-project.json contains examples of all six target types
+    def test_create_project_from_json_cats_lws_ranges_created(self):
+        # verify that 'list' TargetCat, TargetLwr, and TargetRange instances are created.
+        # docs-project.json contains examples of all five target types
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
@@ -387,16 +387,18 @@ class ProjectUtilTestCase(TestCase):
         self.assertTrue(target.is_step_ahead)
         self.assertEqual(1, target.step_ahead_increment)
 
-        ranges = target.ranges.all().order_by('value_f')  # value_i, value_f
+        ranges = target.ranges.all().order_by('value_f')
         self.assertEqual(2, len(ranges))
         self.assertEqual([(None, 0.0), (None, 100.0)],
                          list(ranges.values_list('value_i', 'value_f')))
 
-        cats = target.cats.all().order_by('cat_f')  # cat_f, cat_t
+        cats = target.cats.all().order_by('cat_f')
         self.assertEqual(10, len(cats))
-        self.assertEqual([(0.0, None), (1.0, None), (1.1, None), (2.0, None), (2.2, None), (3.0, None), (3.3, None),
-                          (5.0, None), (10.0, None), (50.0, None)],
-                         list(cats.values_list('cat_f', 'cat_t')))
+        self.assertEqual([(None, 0.0, None, None, None), (None, 1.0, None, None, None), (None, 1.1, None, None, None),
+                          (None, 2.0, None, None, None), (None, 2.2, None, None, None), (None, 3.0, None, None, None),
+                          (None, 3.3, None, None, None), (None, 5.0, None, None, None), (None, 10.0, None, None, None),
+                          (None, 50.0, None, None, None)],
+                         list(cats.values_list('cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')))
 
         lwrs = target.lwrs.all().order_by('lwr', 'upper')
         self.assertEqual(11, len(lwrs))
@@ -406,19 +408,28 @@ class ProjectUtilTestCase(TestCase):
 
         # test 'cases next week' target. discrete, with range
         target = project.targets.filter(name='cases next week').first()
-        ranges = target.ranges.all().order_by('value_i')  # value_i, value_f
+        ranges = target.ranges.all().order_by('value_i')
         self.assertEqual(2, len(ranges))
         self.assertEqual([(0, None), (100000, None)],
                          list(ranges.values_list('value_i', 'value_f')))
 
         # test 'season severity' target. nominal, with cats
         target = project.targets.filter(name='season severity').first()
-        cats = target.cats.all().order_by('cat_t')  # cat_f, cat_t
+        cats = target.cats.all().order_by('cat_t')
         self.assertEqual(4, len(cats))
-        self.assertEqual([(None, 'high'), (None, 'mild'), (None, 'moderate'), (None, 'severe')],
-                         list(cats.values_list('cat_f', 'cat_t')))
+        self.assertEqual([(None, None, 'high', None, None),
+                          (None, None, 'mild', None, None),
+                          (None, None, 'moderate', None, None),
+                          (None, None, 'severe', None, None)],
+            list(cats.values_list('cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')))
 
-        # test 'above baseline' target. binary: no 'lists', so no need to test
+        # test 'above baseline' target. binary, with two implicit boolean cats created behind-the-scenes
+        target = project.targets.filter(name='above baseline').first()
+        cats = target.cats.all().order_by('cat_b')
+        self.assertEqual(2, len(cats))
+        self.assertEqual([(None, None, None, None, False),
+                          (None, None, None, None, True)],
+                         list(cats.values_list('cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')))
 
         # test 'Season peak week' target. date, with dates as cats
         target = project.targets.filter(name='Season peak week').first()

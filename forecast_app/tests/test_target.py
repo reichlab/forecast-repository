@@ -174,7 +174,7 @@ class TargetTestCase(TestCase):
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['2017-01-02', '2017-01-09'])
-        self.assertIn('invalid target type', str(context.exception))
+        self.assertIn('cats data type did not match target data type', str(context.exception))
 
 
     def test_target_type_to_data_type(self):
@@ -215,7 +215,7 @@ class TargetTestCase(TestCase):
             self.assertEqual(exp_prediction_types, Target.valid_prediction_types(target_type))
 
 
-    def test_target_ranges_created(self):
+    def test_target_set_range(self):
         # tests that exactly two TargetRange rows of the correct type are created (continuous: f, discrete: t).
         # recall both are optional
         model_init = {'project': self.project,
@@ -363,17 +363,25 @@ class TargetTestCase(TestCase):
         self.assertIn("the maximum cat (100001) was not less than the range's upper bound ", str(context.exception))
 
 
-    def test_target_cats_created(self):
-        # tests that TargetCat rows of the correct type are created (continuous: f, nominal: t).
-        # recall that continuous is optional.
+    def test_target_set_cats(self):
+        # tests that TargetCat rows of the correct type are created
         model_init = {'project': self.project,
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': False}  # missing type
-        for target_type, cats, exp_cats in [(Target.CONTINUOUS_TARGET_TYPE, [1.1, 2.2, 3.3],
-                                             [(1.1, None), (2.2, None), (3.3, None)]),
-                                            (Target.NOMINAL_TARGET_TYPE, ['cat1', 'cat2', 'cat3'],
-                                             [(None, 'cat1'), (None, 'cat2'), (None, 'cat3')])]:
+        for target_type, cats, exp_cats in [(Target.CONTINUOUS_TARGET_TYPE,
+                                             [0.0, 1.0],
+                                             [(None, 0.0, None, None, None), (None, 1.0, None, None, None)]),
+                                            (Target.DISCRETE_TARGET_TYPE,
+                                             [0, 2],
+                                             [(0, None, None, None, None), (2, None, None, None, None)]),
+                                            (Target.NOMINAL_TARGET_TYPE,
+                                             ["high", "mild"],
+                                             [(None, None, 'high', None, None), (None, None, 'mild', None, None)]),
+                                            (Target.DATE_TARGET_TYPE,
+                                             ["2019-12-15", "2019-12-22"],
+                                             [(None, None, None, datetime.date(2019, 12, 15), None),
+                                              (None, None, None, datetime.date(2019, 12, 22), None)])]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
                 model_init['unit'] = 'month'
@@ -382,7 +390,9 @@ class TargetTestCase(TestCase):
             target = Target.objects.create(**model_init)
             for _ in range(2):  # twice to make sure old are deleted
                 target.set_cats(cats)
-                target_cats = sorted(list(TargetCat.objects.filter(target=target).values_list('cat_f', 'cat_t')))
+                target_cats = sorted(list(TargetCat.objects
+                                          .filter(target=target)
+                                          .values_list('cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')))
                 self.assertEqual(exp_cats, target_cats)
 
         # test cat types must match - both within the list, and the target type's data_type
@@ -458,8 +468,8 @@ class TargetTestCase(TestCase):
         self.assertIn('one or more cats were not in YYYY-MM-DD format', str(context.exception))
 
 
-    def test_target_dates_created(self):
-        # tests that TargetDate rows of the correct type are created (date: d)
+    def test_target_date_cats_created(self):
+        # tests that TargetCat rows of the correct type are created (date: d)
         model_init = {'project': self.project,
                       'type': Target.DATE_TARGET_TYPE,
                       'name': 'target_name',

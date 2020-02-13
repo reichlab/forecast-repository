@@ -107,7 +107,7 @@ class PredictionsTestCase(TestCase):
                           ['location2', 'Season peak week', '2020-01-05', 0.89]],
                          bin_rows)
         self.assertEqual([['location1', 'pct next week', 'norm', 1.1, 2.2, None],
-                          ['location1', 'cases next week', 'pois', 1.1, 2.2, None]],
+                          ['location1', 'cases next week', 'pois', 1.1, None, None]],
                          named_rows)
         self.assertEqual([['location1', 'pct next week', 2.1],
                           ['location2', 'pct next week', 2.0],

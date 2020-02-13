@@ -251,7 +251,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
             cat_lower = [cat.lower() if isinstance(cat, str) else cat for cat in prediction_data['cat']]
             if ('' in cat_lower) or ('na' in cat_lower) or (None in cat_lower):
                 raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
-                                   f"`null`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
+                                   f"`NULL`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
 
             # validate: "Entries in `cat` must be a subset of `Target.cats` from the target definition".
             # note: for date targets we format as strings for the comparison (incoming are strings)
@@ -329,6 +329,14 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
+            # validate: "Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL` (case does
+            # not matter)"
+            value_lower = value.lower() if isinstance(value, str) else value
+            if (value_lower == '') or (value_lower == 'na') or (value_lower == None):
+                raise RuntimeError(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or "
+                                   f"`NULL`. cat={prediction_data['value']}, prediction_dict={prediction_dict}")
+
+            # valid
             point_rows.append([location_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
             for sample in prediction_data['sample']:

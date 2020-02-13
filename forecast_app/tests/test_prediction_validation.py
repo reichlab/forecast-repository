@@ -149,7 +149,7 @@ class PredictionValidationTestCase(TestCase):
                                "prediction": {"cat": ["mild", "", "severe"],  # empty
                                               "prob": [0.0, 0.1, 0.9]}}
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `null`",
+        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
@@ -157,7 +157,7 @@ class PredictionValidationTestCase(TestCase):
                                "prediction": {"cat": ["mild", "NA", "severe"],  # NA
                                               "prob": [0.0, 0.1, 0.9]}}
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `null`",
+        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
         with self.assertRaises(RuntimeError) as context:
@@ -165,7 +165,7 @@ class PredictionValidationTestCase(TestCase):
                                "prediction": {"cat": ["mild", None, "severe"],  # null
                                               "prob": [0.0, 0.1, 0.9]}}
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `null`",
+        self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
 
@@ -253,6 +253,11 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
+    # # these are tested implicitly by: "Entries in `cat` must be a subset of `Target.cats`".
+    # def test_the_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
+    #     pass
+
+
     #
     # `Named` Prediction Elements
     #
@@ -313,8 +318,28 @@ class PredictionValidationTestCase(TestCase):
     # `Point` Prediction Elements
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    # `value` (i, f, t, d, b)
+    def test_entries_in_the_database_rows_in_the_value_column_cannot_be_empty_na_or_null(self):
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "point",
+                               "prediction": {"value": ""}}  # empty
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL`",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "point",
+                               "prediction": {"value": "NA"}}  # NA
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL`",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "point",
+                               "prediction": {"value": None}}  # null
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL`",
+                      str(context.exception))
 
 
     #
