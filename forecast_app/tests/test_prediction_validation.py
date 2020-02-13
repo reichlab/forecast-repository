@@ -253,7 +253,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
-    # # these are tested implicitly by: "Entries in `cat` must be a subset of `Target.cats`".
+    # # these cases are tested implicitly by: "Entries in `cat` must be a subset of `Target.cats`".
     # def test_the_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
     #     pass
 
@@ -342,11 +342,86 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
+    def test_the_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(
+            self):
+        # 'pct next week': continuous
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
+                               "prediction": {"value": '1.2'}}  # value not float
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'cases next week: discrete
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "cases next week", "class": "point",
+                               "prediction": {"value": 1.1}}  # value not int
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'season severity: nominal
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "season severity", "class": "point",
+                               "prediction": {"value": -1}}  # value not str
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'above baseline: binary
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "above baseline", "class": "point",
+                               "prediction": {"value": "not boolean"}}  # value not boolean
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'Season peak week: date
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "Season peak week", "class": "point",
+                               "prediction": {"value": "x 2019-12-22"}}  # value not date
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location1", "target": "Season peak week", "class": "point",
+                               "prediction": {"value": "20191222"}}  # value wrong date format
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+
     #
     # `Sample` Prediction Elements
     #
 
-    def test_xx(self):
+    # `sample` (i, f, t, d, b)
+    def test_entries_in_the_database_rows_in_the_sample_column_cannot_be_empty_na_or_null(self):
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "season severity", "class": "sample",
+                               "prediction": {"sample": ["moderate", "", "high", "moderate", "mild"]}}  # empty
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL`",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "season severity", "class": "sample",
+                               "prediction": {"sample": ["moderate", "NA", "high", "moderate", "mild"]}}  # NA
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL`",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            prediction_dict = {"location": "location2", "target": "season severity", "class": "sample",
+                               "prediction": {"sample": ["moderate", None, "high", "moderate", "mild"]}}  # null
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL`",
+                      str(context.exception))
+
+    def test_the_data_format_of_sample_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(
+            self):
         self.fail()  # todo xx
 
 

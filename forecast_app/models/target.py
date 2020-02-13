@@ -120,6 +120,39 @@ class Target(models.Model):
         }[target_type]
 
 
+    @classmethod
+    def is_value_compatible_with_target_type(cls, target_type, value):
+        """
+        Returns True if value's type is compatible with target_type. NB: for date target types, will try to parse first,
+        but will not raise an error if that fails.
+
+        :param target_type: one of my *_TARGET_TYPE values
+        :param value: an int, float, str, or boolean
+        """
+        value_type = type(value)
+        if (target_type == Target.CONTINUOUS_TARGET_TYPE) and \
+                ((value_type == Target.data_type_for_target_type(Target.CONTINUOUS_TARGET_TYPE)) or
+                 (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE))):
+            return True
+        elif (target_type == Target.DISCRETE_TARGET_TYPE) and \
+                (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE)):
+            return True
+        elif (target_type == Target.NOMINAL_TARGET_TYPE) and \
+                (value_type == Target.data_type_for_target_type(Target.NOMINAL_TARGET_TYPE)):
+            return True
+        elif (target_type == Target.BINARY_TARGET_TYPE) and \
+                (value_type == Target.data_type_for_target_type(Target.BINARY_TARGET_TYPE)):
+            return True
+        elif (target_type == Target.DATE_TARGET_TYPE) and (value_type == str):
+            try:
+                datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
+                return True
+            except ValueError:
+                return False
+
+        return False
+
+
     def set_cats(self, cats, extra_lwr=None):
         """
         Creates TargetCat and optional TargetLwr entries for each cat in cats, first deleting all current ones.

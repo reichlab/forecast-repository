@@ -177,7 +177,7 @@ class TargetTestCase(TestCase):
         self.assertIn('cats data type did not match target data type', str(context.exception))
 
 
-    def test_target_type_to_data_type(self):
+    def test_data_type_for_target_type(self):
         target_type_to_exp_data_type = {
             Target.CONTINUOUS_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
             Target.DISCRETE_TARGET_TYPE: Target.INTEGER_DATA_TYPE,
@@ -187,6 +187,29 @@ class TargetTestCase(TestCase):
         }
         for target_type, exp_data_type in target_type_to_exp_data_type.items():
             self.assertEqual(exp_data_type, Target.data_type_for_target_type(target_type))
+
+
+    def test_is_value_compatible_with_target_type(self):
+        target_type_value_is_compatibles = [(Target.CONTINUOUS_TARGET_TYPE, 1, True),
+                                            (Target.CONTINUOUS_TARGET_TYPE, 1.0, True),
+                                            (Target.CONTINUOUS_TARGET_TYPE, 'nan', False),
+                                            (Target.DISCRETE_TARGET_TYPE, 1, True),
+                                            (Target.DISCRETE_TARGET_TYPE, 1.0, False),
+                                            (Target.DISCRETE_TARGET_TYPE, 'a str', False),
+                                            (Target.NOMINAL_TARGET_TYPE, 'a str', True),
+                                            (Target.NOMINAL_TARGET_TYPE, 1, False),
+                                            (Target.BINARY_TARGET_TYPE, True, True),
+                                            (Target.BINARY_TARGET_TYPE, False, True),
+                                            (Target.BINARY_TARGET_TYPE, 'a str', False),
+                                            (Target.DATE_TARGET_TYPE, '2020-01-05', True),
+                                            (Target.DATE_TARGET_TYPE, '20200105', False),
+                                            (Target.DATE_TARGET_TYPE, datetime.date(2020, 1, 5), False),
+                                            (Target.DATE_TARGET_TYPE, 'x 2020-01-05', False)]
+        for target_type, value, is_compatible in target_type_value_is_compatibles:
+            if is_compatible:
+                self.assertTrue(Target.is_value_compatible_with_target_type(target_type, value))
+            else:
+                self.assertFalse(Target.is_value_compatible_with_target_type(target_type, value))
 
 
     def test_target_type_to_valid_named_families(self):

@@ -1,4 +1,5 @@
 import csv
+import datetime
 import io
 import math
 from collections import Counter
@@ -253,25 +254,36 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                 raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
                                    f"`NULL`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
 
+            # validate: "The data format of `cat` should correspond or be translatable to the `type` as in the target
+            # definition"
+            is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
+                                     for cat in prediction_data['cat']])
+            if not is_all_compatible:
+                raise RuntimeError(f"The data format of `cat` should correspond or be translatable to the `type` as "
+                                   f"in the target definition, but one of the cat values was not. "
+                                   f"cat_values={prediction_data['cat']}, prediction_dict={prediction_dict}")
+
             # validate: "Entries in `cat` must be a subset of `Target.cats` from the target definition".
             # note: for date targets we format as strings for the comparison (incoming are strings)
-            cats_values_set = set(target.cats_values())  # datetime.date instances if date target
-            if target.type == Target.DATE_TARGET_TYPE:
-                cats_values_set = {cats_value.strftime(YYYY_MM_DD_DATE_FORMAT) for cats_value in cats_values_set}
-
-            if is_validate_cats and not (set(prediction_data['cat']) <= cats_values_set):
+            cats_values = set(target.cats_values())  # datetime.date instances for date targets
+            pred_data_cat_parsed = [datetime.datetime.strptime(cat, YYYY_MM_DD_DATE_FORMAT).date()
+                                    for cat in prediction_data['cat']] \
+                if target.type == Target.DATE_TARGET_TYPE else prediction_data['cat']  # fails if invalid
+            if is_validate_cats and not (set(pred_data_cat_parsed) <= cats_values):
                 raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
-                                   f"cat={prediction_data['cat']}, cats_values_set={cats_values_set}, "
+                                   f"cat={prediction_data['cat']}, cats_values={cats_values}, "
                                    f"prediction_dict={prediction_dict}")
+
+
 
             # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
-            types_set = set(map(type, prediction_data['prob']))
-            if (types_set != {int, float}) and (len(types_set) != 1):
+            prob_types = set(map(type, prediction_data['prob']))
+            if (prob_types != {int, float}) and (len(prob_types) != 1):
                 raise RuntimeError(f"there was more than one data type in `prob` column, which should only contain "
-                                   f"numbers. prob column={prediction_data['prob']}, types_set={types_set}, "
+                                   f"numbers. prob column={prediction_data['prob']}, prob_types={prob_types}, "
                                    f"prediction_dict={prediction_dict}")
 
-            prob_type = next(iter(types_set))  # vs. pop()
+            prob_type = next(iter(prob_types))  # vs. pop()
             if (prob_type != int) and (prob_type != float):
                 raise RuntimeError(f"wrong data type in `prob` column, which should only contain "
                                    f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}, "
@@ -336,9 +348,33 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                 raise RuntimeError(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or "
                                    f"`NULL`. cat={prediction_data['value']}, prediction_dict={prediction_dict}")
 
+            # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
+            # definition". note: for date targets we format as strings for the comparison (incoming are strings)
+            if not Target.is_value_compatible_with_target_type(target.type, value):
+                raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
+                                   f"in the target definition. value={value!r}, prediction_dict={prediction_dict}")
+
             # valid
             point_rows.append([location_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
+            # validate: "Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL` (case does
+            # not matter)"
+            sample_lower = [sample.lower() if isinstance(sample, str) else sample
+                            for sample in prediction_data['sample']]
+            if ('' in sample_lower) or ('na' in sample_lower) or (None in sample_lower):
+                raise RuntimeError(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or "
+                                   f"`NULL`. cat={prediction_data['sample']}, prediction_dict={prediction_dict}")
+
+            # validate: "The data format of `sample` should correspond or be translatable to the `type` as in the
+            # target definition"
+            is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
+                                     for cat in prediction_data['sample']])
+            if not is_all_compatible:
+                raise RuntimeError(f"The data format of `sample` should correspond or be translatable to the `type` as "
+                                   f"in the target definition, but one of the sample values was not. "
+                                   f"sample_values={prediction_data['sample']}, prediction_dict={prediction_dict}")
+
+            # valid
             for sample in prediction_data['sample']:
                 sample_rows.append([location_name, target_name, sample])
         else:
@@ -351,8 +387,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                        if location_target_class_counts[location_target_pair] > 1]
     if duplicate_location_target_pairs:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                           f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}. "
-                           f"prediction_dict={prediction_dict}")
+                           f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}.")
 
     # done!
     return bin_rows, named_rows, point_rows, sample_rows
