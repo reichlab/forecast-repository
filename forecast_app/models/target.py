@@ -253,13 +253,9 @@ class Target(models.Model):
         :param target_type: one of my *_TARGET_TYPE values
         :return: a list of valid NamedDistribution families for target_type
         """
-        # todo xx NamedDistribution.BINOM_DIST: "Valid prediction types by target type" table: in (1) or (2)?:
-        # (1) = valid named distributions are `norm`, `lnorm`, `gamma`, `beta`
-        # (2) = valid named distributions are `pois`, `nbinom`, `nbinom2`
         return {
             Target.CONTINUOUS_TARGET_TYPE: [NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST,
-                                            NamedDistribution.BINOM_DIST],  # todo xx here or DISCRETE?
+                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST],
             Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
                                           NamedDistribution.NBINOM2_DIST],
             Target.NOMINAL_TARGET_TYPE: [],  # n/a

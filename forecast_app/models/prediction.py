@@ -114,16 +114,14 @@ class NamedDistribution(Prediction):
     LNORM_DIST = 1
     GAMMA_DIST = 2
     BETA_DIST = 3
-    BINOM_DIST = 4
-    POIS_DIST = 5
-    NBINOM_DIST = 6
-    NBINOM2_DIST = 7
+    POIS_DIST = 4
+    NBINOM_DIST = 5
+    NBINOM2_DIST = 6
     FAMILY_CHOICES = (  # also defines family long_name
         (NORM_DIST, 'Normal'),
         (LNORM_DIST, 'Log Normal'),
         (GAMMA_DIST, 'Gamma'),
         (BETA_DIST, 'Beta'),
-        (BINOM_DIST, 'Binomial'),
         (POIS_DIST, 'Poisson'),
         (NBINOM_DIST, 'Negative Binomial'),
         (NBINOM2_DIST, 'Negative Binomial 2'),
@@ -141,7 +139,6 @@ class NamedDistribution(Prediction):
         LNORM_DIST: 'lnorm',
         GAMMA_DIST: 'gamma',
         BETA_DIST: 'beta',
-        BINOM_DIST: 'binom',
         POIS_DIST: 'pois',
         NBINOM_DIST: 'nbinom',
         NBINOM2_DIST: 'nbinom2',
@@ -173,8 +170,6 @@ def calc_named_distribution(abbreviation, param1, param2, param3):
     elif abbreviation == 'gamma':
         raise NotImplementedError()
     elif abbreviation == 'beta':
-        raise NotImplementedError()
-    elif abbreviation == 'binom':
         raise NotImplementedError()
     elif abbreviation == 'pois':
         raise NotImplementedError()

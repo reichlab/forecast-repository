@@ -3,7 +3,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution, Target
+from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.project import create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users
@@ -13,10 +13,34 @@ from utils.utilities import get_or_create_super_po_mo_users
 # tests the validations in docs/Validation.md at https://github.com/reichlab/docs.zoltardata/
 #
 
-PARAM_TO_TARGET_EXP_COUNT = {'norm': ('pct next week', 2), 'lnorm': ('pct next week', 2),  # continuous
-                             'gamma': ('pct next week', 2), 'beta': ('pct next week', 2),
-                             'binom': ('pct next week', 2), 'pois': ('cases next week', 2),
-                             'nbinom': ('cases next week', 2), 'nbinom2': ('cases next week', 2)}  # discrete
+# the following variable helps test named distributions by associating applicable docs-project.json targets that have
+# valid types for each family with a tuple of ok_params (the correct count and valid values), plus a list of bad_params
+# that have correct counts but one or more out-of-range values. we have one tuple of bad params for each combination of
+# variables. the two targets we use are the only two that NamedDistributions are valid for: 'pct next week' (continuous)
+# and 'cases next week' (discrete). comments before each family/key indicate params ('-' means no paramN)
+
+FAMILY_TO_TARGET_OK_BAD_PARAMS = {
+    # | mean | sd>=0 | - |
+    'norm': ('pct next week', (0.0, 0.0), [(0.0, -0.1)]),
+
+    # | mean | sd>=0 | - |
+    'lnorm': ('pct next week', (0.0, 0.0), [(0.0, -0.1)]),
+
+    # | shape>0 |rate>0 | - |
+    'gamma': ('pct next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)]),
+
+    # | a>0 | b>0 | - |
+    'beta': ('pct next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)]),
+
+    # | rate>0 |  - | - |
+    'pois': ('cases next week', (0.0,), [(-0.1,)]),
+
+    # | r>0 | 0<=p<=1 | - |
+    'nbinom': ('cases next week', (0.1, 0.1), [(0.0, 0.1), (0.1, -0.1), (0.0, -0.1)]),
+
+    # | mean>0 | disp>0 | - |
+    'nbinom2': ('cases next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)])
+}
 
 
 class PredictionValidationTestCase(TestCase):
@@ -49,29 +73,28 @@ class PredictionValidationTestCase(TestCase):
         #   nominal       | "season severity"        | none
         #   binary        | "above baseline"         | none
         #   date          | "Season peak week"       | none
-        target_name_to_type_is_valid_family_tuple = {  # 7-tuples: t/f for families in below order
-            "pct next week": (Target.CONTINUOUS_TARGET_TYPE, (True, True, True, True, False, False, False)),
-            "cases next week": (Target.DISCRETE_TARGET_TYPE, (False, False, False, False, True, True, True)),
-            "season severity": (Target.NOMINAL_TARGET_TYPE, (False, False, False, False, False, False, False)),
-            "above baseline": (Target.BINARY_TARGET_TYPE, (False, False, False, False, False, False, False)),
-            "Season peak week": (Target.DATE_TARGET_TYPE, (False, False, False, False, False, False, False))}
-        for target_name, (target_type_int, is_valid_family_tuple) \
-                in target_name_to_type_is_valid_family_tuple.items():
+
+        target_name_to_is_valid_family_tuple = {  # is_valid: 7-tuples: t/f in below order ('norm', 'lnorm', ...)
+            "pct next week": (True, True, True, True, False, False, False),
+            "cases next week": (False, False, False, False, True, True, True),
+            "season severity": (False, False, False, False, False, False, False),
+            "above baseline": (False, False, False, False, False, False, False),
+            "Season peak week": (False, False, False, False, False, False, False)}
+        for target_name, is_valid_family_tuple in target_name_to_is_valid_family_tuple.items():
             for family_int, is_valid in zip([NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
                                              NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST,
                                              NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
                                              NamedDistribution.NBINOM2_DIST],
                                             is_valid_family_tuple):
-                family_name = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family_int]
-                # NB: this one-size-fits-all param will fail in future tests:
+                family_abbrev = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family_int]
                 prediction_dict = {"location": "location1", "target": target_name, "class": "named",
-                                   "prediction": {"family": family_name, "param1": 1.1}}
-
-                if PARAM_TO_TARGET_EXP_COUNT[family_name][1] > 1:
-                    prediction_dict['prediction']["param2"] = 2.2
-                if PARAM_TO_TARGET_EXP_COUNT[family_name][1] > 2:
-                    prediction_dict['prediction']["param3"] = 3.3
-
+                                   "prediction": {"family": family_abbrev}}  # add paramN next based on ok_params:
+                ok_params = FAMILY_TO_TARGET_OK_BAD_PARAMS[family_abbrev][1]
+                prediction_dict['prediction']["param1"] = ok_params[0]  # all families have param1
+                if len(ok_params) > 1:
+                    prediction_dict['prediction']["param2"] = ok_params[1]
+                if len(ok_params) > 2:
+                    prediction_dict['prediction']["param3"] = ok_params[2]
                 if is_valid:  # valid: should not raise
                     try:
                         load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -80,8 +103,7 @@ class PredictionValidationTestCase(TestCase):
                 else:  # invalid: should raise
                     with self.assertRaises(RuntimeError) as context:
                         load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-                    self.assertIn(f"family {family_name!r} is not valid for "
-                                  f"{Target.str_for_target_type(target_type_int)!r} target types",
+                    self.assertIn(f"family {family_abbrev!r} is not valid for",
                                   str(context.exception))
 
 
@@ -249,46 +271,42 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
-    # `param1`, `param2`, `param3` (f)
-    def test_the_number_of_param_columns_with_non_null_entries_count_must_match_family_definition(self):
-        #  abbreviation | param1    | param2   | param3
-        #  ------------ | --------- | -------- | ------
-        #  `norm`       | mean      | sd>=0    |    -
-        #  `lnorm`      | mean      | sd>=0    |    -
-        #  `gamma`      | shape>0   | rate>0   |    -
-        #  `beta`       | a>0       | b>0      |    -
-        #  `binom`      | p??       | n??      |    -
-        #  `pois`       | mean??    | -        |    -
-        #  `nbinom`     | r>0       | 0<=p<=1  |    -
-        #  `nbinom2`    | mean>0    | disp>0   |    -
+    # # this is tested by test_parameters_for_each_distribution_must_be_within_valid_ranges()
+    # def test_the_number_of_param_columns_with_non_null_entries_count_must_match_family_definition(self):
+    #     pass
 
-        # recall that all params are floats, and all families require at least param1
-        for abbrev, (target, exp_count) in PARAM_TO_TARGET_EXP_COUNT.items():
-            # test valid parameter counts
+
+    # `param1`, `param2`, `param3` (f)
+    def test_parameters_for_each_distribution_must_be_within_valid_ranges(self):
+        for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
+            # test valid params
             try:
-                prediction_dict = {"location": "location1", "target": target, "class": "named",
-                                   "prediction": {"family": abbrev, "param1": 1.1}}
-                if exp_count > 1:
-                    prediction_dict['prediction']["param2"] = 2.2
-                if exp_count > 2:
-                    prediction_dict['prediction']["param3"] = 3.3
+                prediction_dict = {"location": "location1", "target": target_name, "class": "named",
+                                   "prediction": {"family": family_abbrev,
+                                                  "param1": ok_params[0]}}  # all have param1. add 2&3 next if needed
+                if len(ok_params) > 1:
+                    prediction_dict['prediction']["param2"] = ok_params[1]
+                if len(ok_params) > 2:
+                    prediction_dict['prediction']["param3"] = ok_params[2]
                 load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
             except Exception as ex:
                 self.fail(f"unexpected exception: {ex}")
 
-            # test invalid parameter counts: simply exp_count-1 :-) . this also tests the case where "param1" is omitted
-            with self.assertRaises(RuntimeError) as context:
-                prediction_dict = {"location": "location1", "target": target, "class": "named",
-                                   "prediction": {"family": abbrev}}  # no "param1"
-                if (exp_count - 1) > 0:
-                    prediction_dict['prediction']["param1"] = 1.1
-                if (exp_count - 1) > 1:
-                    prediction_dict['prediction']["param2"] = 2.2
-                if (exp_count - 1) > 2:
-                    prediction_dict['prediction']["param3"] = 3.3
-                load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-            self.assertIn(f"The number of param columns with non-NULL entries count must match family definition",
-                          str(context.exception))
+            # test invalid params. test by removing one param from bad_params
+            for bad_params in bad_params_list:
+                bad_params = bad_params[:-1]  # discard the first. list may now be [], so no default 'param1' in dict
+                with self.assertRaises(RuntimeError) as context:
+                    prediction_dict = {"location": "location1", "target": target_name, "class": "named",
+                                       "prediction": {"family": family_abbrev}}  # no 'param1'
+                    if len(bad_params) > 0:
+                        prediction_dict['prediction']["param1"] = bad_params[0]
+                    if len(bad_params) > 1:
+                        prediction_dict['prediction']["param2"] = bad_params[1]
+                    if len(bad_params) > 2:
+                        prediction_dict['prediction']["param3"] = bad_params[2]
+                    load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+                self.assertIn(f"The number of param columns with non-NULL entries count must match family definition",
+                              str(context.exception))
 
 
     #

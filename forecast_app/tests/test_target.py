@@ -192,8 +192,7 @@ class TargetTestCase(TestCase):
     def test_target_type_to_valid_named_families(self):
         target_type_to_exp_valid_named_families = {
             Target.CONTINUOUS_TARGET_TYPE: [NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST,
-                                            NamedDistribution.BINOM_DIST],  # todo xx here or DISCRETE?
+                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST],
             Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
                                           NamedDistribution.NBINOM2_DIST],
             Target.NOMINAL_TARGET_TYPE: [],  # n/a

@@ -187,7 +187,6 @@ class PredictionsTestCase(TestCase):
             ('lnorm', None, None, None, None),
             ('gamma', None, None, None, None),
             ('beta', None, None, None, None),
-            ('binom', None, None, None, None),
             ('pois', None, None, None, None),
             ('nbinom', None, None, None, None),
             ('nbinom2', None, None, None, None),

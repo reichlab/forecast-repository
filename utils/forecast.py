@@ -309,8 +309,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                    f"target types. prediction_dict={prediction_dict}")
 
             # validate: "The number of param columns with non-NULL entries count must match family definition"
-            param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'binom': 2, 'pois': 2, 'nbinom': 2,
-                                  'nbinom2': 2}
+            param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'pois': 1, 'nbinom': 2, 'nbinom2': 2}
             num_params = 0
             if 'param1' in prediction_data:
                 num_params += 1
