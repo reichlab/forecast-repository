@@ -503,8 +503,53 @@ class PredictionValidationTestCase(TestCase):
     # "continuous"
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    def test_any_values_in_point_or_sample_prediction_elements_should_be_numeric(self):
+        # 'pct next week': continuous
+        prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
+                           "prediction": {"value": '1.2'}}  # value not float
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
+                           "prediction": {"sample": [2.3, 6.5, 0.0, '10.0234', 0.0001]}}  # value not float
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `sample` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+
+    # if `range` is specified, any values in `Point` or `Sample` Prediction Elements should be contained within `range`
+    def test_any_values_in_point_or_sample_prediction_elements_should_be_contained_within_range(self):
+        # 'pct next week': continuous. range: [0.0, 100.0]
+        prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
+                           "prediction": {"value": 101.0}}  # 100.0 < 101.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Point`Prediction Elements should be contained within",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
+                           "prediction": {"value": -1}}  # -1 < 0.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Point`Prediction Elements should be contained within",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
+                           "prediction": {"sample": [2.3, 6.5, 101.0, 10.0234, 0.0001]}}  # 100.0 < 101.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
+                           "prediction": {"sample": [2.3, 6.5, -1, 10.0234, 0.0001]}}  # -1 < 0.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
+                      str(context.exception))
 
 
     #

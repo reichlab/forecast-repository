@@ -234,7 +234,7 @@ class Target(models.Model):
 
     def range_tuple(self):
         """
-        :return: either a 2-tuple () if I have a ranges, or None o/w
+        :return: either a 2-tuple () if I have a ranges, or None o/w. ordered by min, max
         """
         ranges_qs = self.ranges.all()
         if not ranges_qs.count():

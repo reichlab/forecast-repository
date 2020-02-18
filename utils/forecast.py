@@ -240,31 +240,24 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, target)
-
-            # valid
+            _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, target)  # raises o/w
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
                     bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
             family_abbrev = prediction_data['family']
-            _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict, target)
-
-            # valid
+            _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict,
+                                 target)  # raises o/w
             named_rows.append([location_name, target_name, family_abbrev,
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
-            _validate_point_rows(prediction_data, prediction_dict, target, value)
-
-            # valid
+            _validate_point_rows(prediction_data, prediction_dict, target, value)  # raises o/w
             point_rows.append([location_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
-            _validate_sample_rows(prediction_data, prediction_dict, target)
-
-            # valid
+            _validate_sample_rows(prediction_data, prediction_dict, target)  # raises o/w
             for sample in prediction_data['sample']:
                 sample_rows.append([location_name, target_name, sample])
         else:
@@ -304,12 +297,14 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
         raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
                            f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}, "
                            f"prediction_dict={prediction_dict}")
+
     # validate: "Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL` (case does
     # not matter)"
     cat_lower = [cat.lower() if isinstance(cat, str) else cat for cat in prediction_data['cat']]
     if ('' in cat_lower) or ('na' in cat_lower) or (None in cat_lower):
         raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
                            f"`NULL`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
+
     # validate: "The data format of `cat` should correspond or be translatable to the `type` as in the target
     # definition"
     is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)  # parses dates if necessary
@@ -318,6 +313,7 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
         raise RuntimeError(f"The data format of `cat` should correspond or be translatable to the `type` as "
                            f"in the target definition, but one of the cat values was not. "
                            f"cat_values={prediction_data['cat']}, prediction_dict={prediction_dict}")
+
     # validate: "Entries in `cat` must be a subset of `Target.cats` from the target definition".
     # note: for date targets we format as strings for the comparison (incoming are strings)
     cats_values = set(target.cats_values())  # datetime.date instances for date targets
@@ -328,6 +324,7 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
         raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
                            f"cat={prediction_data['cat']}, cats_values={cats_values}, "
                            f"prediction_dict={prediction_dict}")
+
     # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
     prob_types = set(map(type, prediction_data['prob']))
     if (prob_types != {int, float}) and (len(prob_types) != 1):
@@ -342,6 +339,7 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
     elif (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
         raise RuntimeError(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]. "
                            f"prob column={prediction_data['prob']}, prediction_dict={prediction_dict}")
+
     # validate: "For one prediction element, the values within prob must sum to 1.0 (values within +/- 0.001 of
     # 1 are acceptable)"
     prob_sum = sum(prediction_data['prob'])
@@ -358,11 +356,13 @@ def _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, p
         raise RuntimeError(f"family must be one of the abbreviations shown in the table below. "
                            f"family_abbrev={family_abbrev!r}, family_abbrevs={family_abbrevs}, "
                            f"prediction_dict={prediction_dict}")
+
     # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
     # are constrained; all other target_type/prediction_class combinations are valid
     if family_abbrev_to_int[family_abbrev] not in Target.valid_named_families(target.type):
         raise RuntimeError(f"family {family_abbrev!r} is not valid for {target.type_as_str()!r} "
                            f"target types. prediction_dict={prediction_dict}")
+
     # validate: "The number of param columns with non-NULL entries count must match family definition"
     param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'pois': 1, 'nbinom': 2, 'nbinom2': 2}
     num_params = 0
@@ -405,11 +405,21 @@ def _validate_point_rows(prediction_data, prediction_dict, target, value):
     if (value_lower == '') or (value_lower == 'na') or (value_lower is None):
         raise RuntimeError(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or "
                            f"`NULL`. cat={prediction_data['value']}, prediction_dict={prediction_dict}")
+
     # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
     # definition". note: for date targets we format as strings for the comparison (incoming are strings)
     if not Target.is_value_compatible_with_target_type(target.type, value):  # parses dates if necessary
         raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
                            f"in the target definition. value={value!r}, prediction_dict={prediction_dict}")
+
+    # validate: "if `range` is specified, any values in `Point` or `Sample` Prediction Elements should be contained
+    # within `range`". recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound,
+    # e.g. [a, b)."
+    range_tuple = target.range_tuple()
+    if range_tuple and not (range_tuple[0] <= value < range_tuple[1]):
+        raise RuntimeError(f"if `range` is specified, any values in `Point`Prediction Elements should be contained "
+                           f"within `range`. value={value!r}, range_tuple={range_tuple}, "
+                           f"prediction_dict={prediction_dict}")
 
 
 def _validate_sample_rows(prediction_data, prediction_dict, target):
@@ -420,14 +430,26 @@ def _validate_sample_rows(prediction_data, prediction_dict, target):
     if ('' in sample_lower) or ('na' in sample_lower) or (None in sample_lower):
         raise RuntimeError(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or "
                            f"`NULL`. cat={prediction_data['sample']}, prediction_dict={prediction_dict}")
+
     # validate: "The data format of `sample` should correspond or be translatable to the `type` as in the
     # target definition"
-    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)  # parses dates if necessary
-                             for cat in prediction_data['sample']])
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, sample)  # parses dates if nec
+                             for sample in prediction_data['sample']])
     if not is_all_compatible:
         raise RuntimeError(f"The data format of `sample` should correspond or be translatable to the `type` as "
                            f"in the target definition, but one of the sample values was not. "
                            f"sample_values={prediction_data['sample']}, prediction_dict={prediction_dict}")
+
+    # validate: "if `range` is specified, any values in `Point` or `Sample` Prediction Elements should be contained
+    # within `range`". recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound,
+    # e.g. [a, b)."
+    range_tuple = target.range_tuple()
+    if range_tuple:
+        is_all_in_range = all([range_tuple[0] <= sample < range_tuple[1] for sample in prediction_data['sample']])
+        if not is_all_in_range:
+            raise RuntimeError(f"if `range` is specified, any values in `Sample` Prediction Elements should be "
+                               f"contained within `range`. range_tuple={range_tuple}, "
+                               f"sample={prediction_data['sample']}, prediction_dict={prediction_dict}")
 
 
 def _load_bin_rows(forecast, rows, target_pk_to_object):
