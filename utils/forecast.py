@@ -298,7 +298,7 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
                            f"`NULL`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
     # validate: "The data format of `cat` should correspond or be translatable to the `type` as in the target
     # definition"
-    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)  # parses dates if necessary
                              for cat in prediction_data['cat']])
     if not is_all_compatible:
         raise RuntimeError(f"The data format of `cat` should correspond or be translatable to the `type` as "
@@ -309,7 +309,7 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
     cats_values = set(target.cats_values())  # datetime.date instances for date targets
     pred_data_cat_parsed = [datetime.datetime.strptime(cat, YYYY_MM_DD_DATE_FORMAT).date()
                             for cat in prediction_data['cat']] \
-        if target.type == Target.DATE_TARGET_TYPE else prediction_data['cat']  # fails if invalid
+        if target.type == Target.DATE_TARGET_TYPE else prediction_data['cat']  # valid - see is_all_compatible above
     if is_validate_cats and not (set(pred_data_cat_parsed) <= cats_values):
         raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
                            f"cat={prediction_data['cat']}, cats_values={cats_values}, "
@@ -388,12 +388,12 @@ def _validate_point_rows(prediction_data, prediction_dict, target, value):
     # validate: "Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL` (case does
     # not matter)"
     value_lower = value.lower() if isinstance(value, str) else value
-    if (value_lower == '') or (value_lower == 'na') or (value_lower == None):
+    if (value_lower == '') or (value_lower == 'na') or (value_lower is None):
         raise RuntimeError(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or "
                            f"`NULL`. cat={prediction_data['value']}, prediction_dict={prediction_dict}")
     # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
     # definition". note: for date targets we format as strings for the comparison (incoming are strings)
-    if not Target.is_value_compatible_with_target_type(target.type, value):
+    if not Target.is_value_compatible_with_target_type(target.type, value):  # parses dates if necessary
         raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
                            f"in the target definition. value={value!r}, prediction_dict={prediction_dict}")
 
@@ -408,7 +408,7 @@ def _validate_sample_rows(prediction_data, prediction_dict, target):
                            f"`NULL`. cat={prediction_data['sample']}, prediction_dict={prediction_dict}")
     # validate: "The data format of `sample` should correspond or be translatable to the `type` as in the
     # target definition"
-    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)  # parses dates if necessary
                              for cat in prediction_data['sample']])
     if not is_all_compatible:
         raise RuntimeError(f"The data format of `sample` should correspond or be translatable to the `type` as "
