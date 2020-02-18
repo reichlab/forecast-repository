@@ -274,8 +274,6 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                    f"cat={prediction_data['cat']}, cats_values={cats_values}, "
                                    f"prediction_dict={prediction_dict}")
 
-
-
             # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
             prob_types = set(map(type, prediction_data['prob']))
             if (prob_types != {int, float}) and (len(prob_types) != 1):
@@ -335,6 +333,27 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                    f"expected count={param_to_exp_count[family_abbrev]}, "
                                    f"prediction_dict={prediction_dict}")
 
+            # validate: Parameters for each distribution must be within valid ranges, which, if constraints exist, are
+            # specified in the table below
+            ge_0, gt_0, bw_0_1 = '>=0', '>0', '0<=&>=0'
+            family_abbrev_to_param1_2_constraint_type = {
+                'norm': (None, ge_0),  # | mean | sd>=0 | - |
+                'lnorm': (None, ge_0),  # | mean | sd>=0 | - |
+                'gamma': (gt_0, gt_0),  # | shape>0 |rate>0 | - |
+                'beta': (gt_0, gt_0),  # | a>0 | b>0 | - |
+                'pois': (gt_0, None),  # | rate>0 |  - | - |
+                'nbinom': (gt_0, bw_0_1),  # | r>0 | 0<=p<=1 | - |
+                'nbinom2': (gt_0, gt_0)  # | mean>0 | disp>0 | - |
+            }
+            p1_constr, p2_constr = family_abbrev_to_param1_2_constraint_type[family_abbrev]
+            if ((p1_constr == gt_0) and not (prediction_data['param1'] > 0)) or \
+                    ((p2_constr == ge_0) and not (prediction_data['param2'] >= 0)) or \
+                    ((p2_constr == gt_0) and not (prediction_data['param2'] > 0)) or \
+                    ((p2_constr == bw_0_1) and not (0 <= prediction_data['param2'] <= 1)):
+                raise RuntimeError(f"Parameters for each distribution must be within valid ranges: "
+                                   f"prediction_dict={prediction_dict}")
+
+            # valid
             named_rows.append([location_name, target_name, family_abbrev,
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),

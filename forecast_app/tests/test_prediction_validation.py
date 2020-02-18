@@ -20,26 +20,13 @@ from utils.utilities import get_or_create_super_po_mo_users
 # and 'cases next week' (discrete). comments before each family/key indicate params ('-' means no paramN)
 
 FAMILY_TO_TARGET_OK_BAD_PARAMS = {
-    # | mean | sd>=0 | - |
-    'norm': ('pct next week', (0.0, 0.0), [(0.0, -0.1)]),
-
-    # | mean | sd>=0 | - |
-    'lnorm': ('pct next week', (0.0, 0.0), [(0.0, -0.1)]),
-
-    # | shape>0 |rate>0 | - |
-    'gamma': ('pct next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)]),
-
-    # | a>0 | b>0 | - |
-    'beta': ('pct next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)]),
-
-    # | rate>0 |  - | - |
-    'pois': ('cases next week', (0.0,), [(-0.1,)]),
-
-    # | r>0 | 0<=p<=1 | - |
-    'nbinom': ('cases next week', (0.1, 0.1), [(0.0, 0.1), (0.1, -0.1), (0.0, -0.1)]),
-
-    # | mean>0 | disp>0 | - |
-    'nbinom2': ('cases next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)])
+    'norm': ('pct next week', (0.0, 0.0), [(0.0, -0.1)]),  # | mean | sd>=0 | - |
+    'lnorm': ('pct next week', (0.0, 0.0), [(0.0, -0.1)]),  # | mean | sd>=0 | - |
+    'gamma': ('pct next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)]),  # | shape>0 |rate>0 | - |
+    'beta': ('pct next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)]),  # | a>0 | b>0 | - |
+    'pois': ('cases next week', (0.1,), [(0,)]),  # | rate>0 |  - | - |
+    'nbinom': ('cases next week', (0.1, 0.1), [(0.0, 0.1), (0.1, -0.1), (0.0, -0.1)]),  # | r>0 | 0<=p<=1 | - |
+    'nbinom2': ('cases next week', (0.1, 0.1), [(0.0, 0.1), (0.1, 0.0), (0.0, 0.0)])  # | mean>0 | disp>0 | - |
 }
 
 
@@ -282,9 +269,9 @@ class PredictionValidationTestCase(TestCase):
 
 
     # `param1`, `param2`, `param3` (f)
-    def test_parameters_for_each_distribution_must_be_within_valid_ranges(self):
+    def test_parameters_for_each_distribution_must_be_within_valid_ranges_1(self):
         for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
-            # test valid params
+            # test valid params using ok_params
             try:
                 prediction_dict = {"location": "location1", "target": target_name, "class": "named",
                                    "prediction": {"family": family_abbrev,
@@ -297,20 +284,41 @@ class PredictionValidationTestCase(TestCase):
             except Exception as ex:
                 self.fail(f"unexpected exception: {ex}")
 
-            # test invalid params. test by removing one param from bad_params
+
+    # `param1`, `param2`, `param3` (f)
+    def test_parameters_for_each_distribution_must_be_within_valid_ranges_2(self):
+        for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
+            # test invalid param count by removing one param from ok_params
+            ok_params = ok_params[:-1]  # discard the first. list may now be [], so no default 'param1' in dict
+            with self.assertRaises(RuntimeError) as context:
+                prediction_dict = {"location": "location1", "target": target_name, "class": "named",
+                                   "prediction": {"family": family_abbrev}}  # no param1
+                if len(ok_params) > 0:
+                    prediction_dict['prediction']["param1"] = ok_params[0]
+                if len(ok_params) > 1:
+                    prediction_dict['prediction']["param2"] = ok_params[1]
+                if len(ok_params) > 2:
+                    prediction_dict['prediction']["param3"] = ok_params[2]
+                load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+            self.assertIn(f"The number of param columns with non-NULL entries count must match family definition",
+                          str(context.exception))
+
+
+    # `param1`, `param2`, `param3` (f)
+    def test_parameters_for_each_distribution_must_be_within_valid_ranges_3(self):
+        for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
+            # test invalid param range (but correct count) using bad_params
             for bad_params in bad_params_list:
-                bad_params = bad_params[:-1]  # discard the first. list may now be [], so no default 'param1' in dict
                 with self.assertRaises(RuntimeError) as context:
                     prediction_dict = {"location": "location1", "target": target_name, "class": "named",
-                                       "prediction": {"family": family_abbrev}}  # no 'param1'
-                    if len(bad_params) > 0:
-                        prediction_dict['prediction']["param1"] = bad_params[0]
+                                       "prediction": {"family": family_abbrev,
+                                                      "param1": bad_params[0]}}  # all have param1. add 2&3 next
                     if len(bad_params) > 1:
                         prediction_dict['prediction']["param2"] = bad_params[1]
                     if len(bad_params) > 2:
                         prediction_dict['prediction']["param3"] = bad_params[2]
                     load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-                self.assertIn(f"The number of param columns with non-NULL entries count must match family definition",
+                self.assertIn(f"Parameters for each distribution must be within valid ranges",
                               str(context.exception))
 
 
@@ -419,6 +427,7 @@ class PredictionValidationTestCase(TestCase):
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
+
 
     def test_the_data_format_of_sample_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(
             self):
