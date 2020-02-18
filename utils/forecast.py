@@ -348,6 +348,13 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
                            f"prob_sum={prob_sum}, delta={abs(1 - prob_sum)}, rel_tol={BIN_SUM_REL_TOL}, "
                            f"prediction_dict={prediction_dict}")
 
+    # validate: "for `Bin` Prediction Elements, there must be exactly two `cat` values labeled `true` and `false`. These
+    # are the two `cats` that are implied (but not allowed to be specified) by binary target types."
+    if (target.type == Target.BINARY_TARGET_TYPE) and (len(prediction_data['cat']) != 2):
+        raise RuntimeError(f"for `Bin` Prediction Elements, there must be exactly two `cat` values labeled `true` and "
+                           f"`false`. prediction_data['cat']={prediction_data['cat']}, "
+                           f"prediction_dict={prediction_dict}")
+
 
 def _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict, target):
     # validate: "`family`: must be one of the abbreviations shown in the table below"
@@ -417,7 +424,7 @@ def _validate_point_rows(prediction_data, prediction_dict, target, value):
     # e.g. [a, b)."
     range_tuple = target.range_tuple()
     if range_tuple and not (range_tuple[0] <= value < range_tuple[1]):
-        raise RuntimeError(f"if `range` is specified, any values in `Point`Prediction Elements should be contained "
+        raise RuntimeError(f"if `range` is specified, any values in `Point` Prediction Elements should be contained "
                            f"within `range`. value={value!r}, range_tuple={range_tuple}, "
                            f"prediction_dict={prediction_dict}")
 

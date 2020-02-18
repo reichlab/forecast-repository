@@ -240,9 +240,60 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
-    # # these cases are tested implicitly by: "Entries in `cat` must be a subset of `Target.cats`".
-    # def test_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
-    #     pass
+    def test_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
+        # 'pct next week': continuous
+        prediction_dict = {"location": "location2", "target": "pct next week", "class": "bin",
+                           "prediction": {"cat": [1.1, '2.2', 3.3],
+                                          "prob": [0.3, 0.2, 0.5]}}  # cat not float
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'cases next week: discrete
+        prediction_dict = {"location": "location3", "target": "cases next week", "class": "bin",
+                           "prediction": {"cat": [0, 2.2, 50],
+                                          "prob": [0.0, 0.1, 0.9]}}  # cat not int
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'season severity: nominal
+        prediction_dict = {"location": "location1", "target": "season severity", "class": "bin",
+                           "prediction": {"cat": ["mild", True, "severe"],
+                                          "prob": [0.0, 0.1, 0.9]}}  # cat not str
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'above baseline: binary
+        prediction_dict = {"location": "location2", "target": "above baseline", "class": "bin",
+                           "prediction": {"cat": [True, "not boolean"],
+                                          "prob": [0.9, 0.1]}}  # cat not boolean
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'Season peak week: date
+        prediction_dict = {"location": "location1", "target": "Season peak week", "class": "bin",
+                           "prediction": {"cat": ["2019-12-15", 1.1, "2019-12-29"],
+                                          "prob": [0.01, 0.1, 0.89]}}  # cat not date
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'Season peak week: date
+        prediction_dict = {"location": "location1", "target": "Season peak week", "class": "bin",
+                           "prediction": {"cat": ["2019-12-15", "x 2019-12-22", "2019-12-29"],
+                                          "prob": [0.01, 0.1, 0.89]}}  # cat not date format
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
 
 
     #
@@ -462,7 +513,15 @@ class PredictionValidationTestCase(TestCase):
 
         # 'Season peak week: date
         prediction_dict = {"location": "location1", "target": "Season peak week", "class": "sample",
-                           "prediction": {"sample": ["2020-01-05", "x 2019-12-15"]}}  # sample not date
+                           "prediction": {"sample": ["2020-01-05", 2.2]}}  # sample not date
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `sample` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'Season peak week: date
+        prediction_dict = {"location": "location1", "target": "Season peak week", "class": "sample",
+                           "prediction": {"sample": ["2020-01-05", "x 2019-12-15"]}}  # sample not date format
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"The data format of `sample` should correspond or be translatable to the `type` as in the",
@@ -505,38 +564,32 @@ class PredictionValidationTestCase(TestCase):
     # "continuous"
     #
 
-    def test_any_values_in_point_or_sample_prediction_elements_should_be_numeric(self):
-        # 'pct next week': continuous
-        prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
-                           "prediction": {"value": '1.2'}}  # value not float
-        with self.assertRaises(RuntimeError) as context:
-            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
-                      str(context.exception))
-
-        prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
-                           "prediction": {"sample": [2.3, 6.5, 0.0, '10.0234', 0.0001]}}  # value not float
-        with self.assertRaises(RuntimeError) as context:
-            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"The data format of `sample` should correspond or be translatable to the `type` as in the",
-                      str(context.exception))
+    # # tested in test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition():
+    # def test_any_values_in_point_or_sample_prediction_elements_should_be_numeric(self):
+    #     pass
 
 
-    # if `range` is specified, any values in `Point` or `Sample` Prediction Elements should be contained within `range`
-    def test_any_values_in_point_or_sample_prediction_elements_should_be_contained_within_range(self):
+    def test_if_range_is_specified_any_values_in_point_or_sample_prediction_elements_should_be_contained(self):
         # 'pct next week': continuous. range: [0.0, 100.0]
+        prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
+                           "prediction": {"value": -1}}  # -1 <= 0.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
+                      str(context.exception))
+
         prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
                            "prediction": {"value": 101.0}}  # 100.0 < 101.0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"if `range` is specified, any values in `Point`Prediction Elements should be contained within",
+        self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"location": "location1", "target": "pct next week", "class": "point",
-                           "prediction": {"value": -1}}  # -1 < 0.0
+        prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
+                           "prediction": {"sample": [2.3, 6.5, -1, 10.0234, 0.0001]}}  # -1 <= 0.0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
-        self.assertIn(f"if `range` is specified, any values in `Point`Prediction Elements should be contained within",
+        self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
                       str(context.exception))
 
         prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
@@ -546,8 +599,30 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"location": "location3", "target": "pct next week", "class": "sample",
-                           "prediction": {"sample": [2.3, 6.5, -1, 10.0234, 0.0001]}}  # -1 < 0.0
+        # cases next week: discrete. range: [0, 100000]
+        prediction_dict = {"location": "location2", "target": "cases next week", "class": "point",
+                           "prediction": {"value": -1}}  # -1 <= 0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location2", "target": "cases next week", "class": "point",
+                           "prediction": {"value": 100001}}  # 100000 < 100001
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location2", "target": "cases next week", "class": "sample",
+                           "prediction": {"sample": [0, -1, 5]}}  # -1 <= 0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
+                      str(context.exception))
+
+        prediction_dict = {"location": "location2", "target": "cases next week", "class": "sample",
+                           "prediction": {"sample": [0, 100001, 5]}}  # 100000 < 100001
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
@@ -557,6 +632,9 @@ class PredictionValidationTestCase(TestCase):
     def test_if_range_is_specified_any_named_prediction_element_should_have_negligible_probability_density(self):
         #  - if `range` is specified, any `Named` Prediction Element should have negligible probability density (no more than 0.001 density) outside of the range.
         # 'pct next week': continuous
+        self.fail()  # todo xx
+
+        # cases next week: discrete
         self.fail()  # todo xx
 
 
@@ -574,32 +652,62 @@ class PredictionValidationTestCase(TestCase):
     # "discrete"
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    # most tested above in "continuous"
+
+    # # tested in test_the_predictions_class_must_be_valid_for_its_targets_type():
+    # def test_for_named_prediction_elements_the_distribution_must_be_one_of_pois_nbinom_nbinom2(self):
+    #     pass
 
 
     #
     # "nominal"
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    # tested above in "continuous"
 
 
     #
     # "binary"
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    # # tested in test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition():
+    # def test_any_values_in_point_or_sample_prediction_elements_should_be_either_true_or_false(self):
+    #     pass
+
+
+    def test_for_bin_prediction_elements_there_must_be_exactly_two_cat_values_labeled_true_and_false(self):
+        #  - for `Bin` Prediction Elements, there must be exactly two `cat` values labeled `true` and `false`. These are the two `cats` that are implied (but not allowed to be specified) by binary target types.
+        # above baseline: binary
+
+        # case: cat value not being boolean. Note: this is tested in:
+        # test_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition()
+
+        # case: not exactly two booleans
+        prediction_dict = {"location": "location2", "target": "above baseline", "class": "bin",
+                           "prediction": {"cat": [True, False, True],
+                                          "prob": [0.8, 0.1, 0.1]}}  # cat not exactly two booleans
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"for `Bin` Prediction Elements, there must be exactly two `cat` values labeled `true` and",
+                      str(context.exception))
 
 
     #
     # "date"
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    # # tested in:
+    # # - test_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition()
+    # # - test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition()
+    # # - test_data_format_of_sample_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition()
+    # def test_any_values_in_point_or_sample_prediction_elements_should_be_string_that_can_be_interpreted_as_a_date_in_yyyy_mm_dd(self):
+    #     pass
+
+
+    # # tested in:
+    # # - test_entries_in_cat_must_be_a_subset_of_target_cats_from_the_target_definition()
+    # def test_for_bin_prediction_elements_the_submitted_set_of_cats_must_be_a_subset_of_the_valid_outcomes(self):
+    #     pass
 
 
     # ----
