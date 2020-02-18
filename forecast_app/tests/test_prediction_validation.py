@@ -473,20 +473,26 @@ class PredictionValidationTestCase(TestCase):
     # Tests for Predictions by Target Type
     # ----
 
-    #
-    # "continuous"
-    #
+    def test_within_one_prediction_there_can_be_at_most_one_of_the_following_prediction_elements_but_not_both(self):
+        # 'pct next week': continuous
+        prediction_dicts = [{"location": "location1", "target": "pct next week", "class": "named",
+                             "prediction": {"family": "norm", "param1": 1.1, "param2": 2.2}},
+                            {"location": "location1", "target": "pct next week", "class": "bin",
+                             "prediction": {"cat": [1.1, 2.2, 3.3], "prob": [0.3, 0.2, 0.5]}}]
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': prediction_dicts})
+        self.assertIn(f"Within one prediction, there can be at most one of the following prediction elements, but",
+                      str(context.exception))
 
-    def test_xx(self):
-        self.fail()  # todo xx
-
-
-    #
-    # "discrete"
-    #
-
-    def test_xx(self):
-        self.fail()  # todo xx
+        # 'cases next week': discrete
+        prediction_dicts = [{"location": "location1", "target": "cases next week", "class": "named",
+                             "prediction": {"family": "pois", "param1": 1.1}},
+                            {"location": "location1", "target": "cases next week", "class": "bin",
+                             "prediction": {"cat": [0, 2, 50], "prob": [0.0, 0.1, 0.9]}}]
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': prediction_dicts})
+        self.assertIn(f"Within one prediction, there can be at most one of the following prediction elements, but",
+                      str(context.exception))
 
 
     # ----

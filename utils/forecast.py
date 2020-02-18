@@ -2,7 +2,7 @@ import csv
 import datetime
 import io
 import math
-from collections import Counter
+from collections import defaultdict
 from itertools import groupby
 
 from django.db import connection, transaction
@@ -218,17 +218,16 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
     family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
                             in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
-    # this variable helps to validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same
-    # type". (recall the definition of "Prediction": "[a] group of a prediction elements(s) specific to a location and
-    # target"):
-    location_target_class_counts = Counter()  # keys: 3-tuples: (location_name, target_name, prediction_class)
+    # this variable helps to do "prediction"-level validations at the end of this function. it maps 2-tuples to a list
+    # of prediction classes (strs)
+    loc_targ_to_pred_classes = defaultdict(list)  # (location_name, target_name) -> [prediction_class1, ...]
     bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. set next
     for prediction_dict in prediction_dicts:
         location_name = prediction_dict['location']
         target_name = prediction_dict['target']
         prediction_class = prediction_dict['class']
         prediction_data = prediction_dict['prediction']
-        location_target_class_counts[(location_name, target_name, prediction_class)] += 1
+        loc_targ_to_pred_classes[(location_name, target_name)].append(prediction_class)
 
         # validate location and target names (applies to all prediction classes)
         if location_name not in location_name_to_obj:
@@ -273,12 +272,27 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}. "
                                f"prediction_dict={prediction_dict}")
 
-    # finally, validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type"
-    duplicate_location_target_pairs = [location_target_pair for location_target_pair in location_target_class_counts
-                                       if location_target_class_counts[location_target_pair] > 1]
-    if duplicate_location_target_pairs:
+    # finally, do "prediction"-level validation. recall that "prediction" is defined as "a group of a prediction
+    # elements(s) specific to a location and target"
+
+    # validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type".
+    duplicate_location_target_tuples = [(location, target, pred_classes) for (location, target), pred_classes
+                                        in loc_targ_to_pred_classes.items()
+                                        if len(pred_classes) != len(set(pred_classes))]
+    if duplicate_location_target_tuples:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                           f"Found these duplicate location/target pairs: {duplicate_location_target_pairs}.")
+                           f"Found these duplicate location/target tuples: {duplicate_location_target_tuples}.")
+
+    # validate: (for both continuous and discrete target types): Within one prediction, there can be at most one of the
+    # following prediction elements, but not both: {`Named`, `Bin`}.
+    named_bin_conflict_tuples = [(location, target, pred_classes) for (location, target), pred_classes
+                                 in loc_targ_to_pred_classes.items()
+                                 if (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in pred_classes)
+                                 and (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in pred_classes)]
+    if named_bin_conflict_tuples:
+        raise RuntimeError(f"Within one prediction, there can be at most one of the following prediction elements, "
+                           f"but not both: `Named`, `Bin`. Found these conflicting location/target tuples: "
+                           f"{named_bin_conflict_tuples}.")
 
     # done!
     return bin_rows, named_rows, point_rows, sample_rows
