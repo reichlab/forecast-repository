@@ -241,62 +241,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            # validate: "The number of elements in the `cat` and `prob` vectors should be identical"
-            if len(prediction_data['cat']) != len(prediction_data['prob']):
-                raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
-                                   f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}, "
-                                   f"prediction_dict={prediction_dict}")
-
-            # validate: "Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL` (case does
-            # not matter)"
-            cat_lower = [cat.lower() if isinstance(cat, str) else cat for cat in prediction_data['cat']]
-            if ('' in cat_lower) or ('na' in cat_lower) or (None in cat_lower):
-                raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
-                                   f"`NULL`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
-
-            # validate: "The data format of `cat` should correspond or be translatable to the `type` as in the target
-            # definition"
-            is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
-                                     for cat in prediction_data['cat']])
-            if not is_all_compatible:
-                raise RuntimeError(f"The data format of `cat` should correspond or be translatable to the `type` as "
-                                   f"in the target definition, but one of the cat values was not. "
-                                   f"cat_values={prediction_data['cat']}, prediction_dict={prediction_dict}")
-
-            # validate: "Entries in `cat` must be a subset of `Target.cats` from the target definition".
-            # note: for date targets we format as strings for the comparison (incoming are strings)
-            cats_values = set(target.cats_values())  # datetime.date instances for date targets
-            pred_data_cat_parsed = [datetime.datetime.strptime(cat, YYYY_MM_DD_DATE_FORMAT).date()
-                                    for cat in prediction_data['cat']] \
-                if target.type == Target.DATE_TARGET_TYPE else prediction_data['cat']  # fails if invalid
-            if is_validate_cats and not (set(pred_data_cat_parsed) <= cats_values):
-                raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
-                                   f"cat={prediction_data['cat']}, cats_values={cats_values}, "
-                                   f"prediction_dict={prediction_dict}")
-
-            # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
-            prob_types = set(map(type, prediction_data['prob']))
-            if (prob_types != {int, float}) and (len(prob_types) != 1):
-                raise RuntimeError(f"there was more than one data type in `prob` column, which should only contain "
-                                   f"numbers. prob column={prediction_data['prob']}, prob_types={prob_types}, "
-                                   f"prediction_dict={prediction_dict}")
-
-            prob_type = next(iter(prob_types))  # vs. pop()
-            if (prob_type != int) and (prob_type != float):
-                raise RuntimeError(f"wrong data type in `prob` column, which should only contain "
-                                   f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}, "
-                                   f"prediction_dict={prediction_dict}")
-            elif (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
-                raise RuntimeError(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]. "
-                                   f"prob column={prediction_data['prob']}, prediction_dict={prediction_dict}")
-
-            # validate: "For one prediction element, the values within prob must sum to 1.0 (values within +/- 0.001 of
-            # 1 are acceptable)"
-            prob_sum = sum(prediction_data['prob'])
-            if not math.isclose(1.0, prob_sum, rel_tol=BIN_SUM_REL_TOL):
-                raise RuntimeError(f"For one prediction element, the values within prob must sum to 1.0. "
-                                   f"prob_sum={prob_sum}, delta={abs(1 - prob_sum)}, rel_tol={BIN_SUM_REL_TOL}, "
-                                   f"prediction_dict={prediction_dict}")
+            _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, target)
 
             # valid
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
@@ -304,54 +249,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                     bin_rows.append([location_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
             family_abbrev = prediction_data['family']
-
-            # validate: "`family`: must be one of the abbreviations shown in the table below"
-            family_abbrevs = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()
-            if family_abbrev not in family_abbrevs:
-                raise RuntimeError(f"family must be one of the abbreviations shown in the table below. "
-                                   f"family_abbrev={family_abbrev!r}, family_abbrevs={family_abbrevs}, "
-                                   f"prediction_dict={prediction_dict}")
-
-            # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
-            # are constrained; all other target_type/prediction_class combinations are valid
-            if family_abbrev_to_int[family_abbrev] not in Target.valid_named_families(target.type):
-                raise RuntimeError(f"family {family_abbrev!r} is not valid for {target.type_as_str()!r} "
-                                   f"target types. prediction_dict={prediction_dict}")
-
-            # validate: "The number of param columns with non-NULL entries count must match family definition"
-            param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'pois': 1, 'nbinom': 2, 'nbinom2': 2}
-            num_params = 0
-            if 'param1' in prediction_data:
-                num_params += 1
-            if 'param2' in prediction_data:
-                num_params += 1
-            if 'param3' in prediction_data:
-                num_params += 1
-            if num_params != param_to_exp_count[family_abbrev]:
-                raise RuntimeError(f"The number of param columns with non-NULL entries count must match family "
-                                   f"definition. family_abbrev={family_abbrev!r}, num_params={num_params}, "
-                                   f"expected count={param_to_exp_count[family_abbrev]}, "
-                                   f"prediction_dict={prediction_dict}")
-
-            # validate: Parameters for each distribution must be within valid ranges, which, if constraints exist, are
-            # specified in the table below
-            ge_0, gt_0, bw_0_1 = '>=0', '>0', '0<=&>=0'
-            family_abbrev_to_param1_2_constraint_type = {
-                'norm': (None, ge_0),  # | mean | sd>=0 | - |
-                'lnorm': (None, ge_0),  # | mean | sd>=0 | - |
-                'gamma': (gt_0, gt_0),  # | shape>0 |rate>0 | - |
-                'beta': (gt_0, gt_0),  # | a>0 | b>0 | - |
-                'pois': (gt_0, None),  # | rate>0 |  - | - |
-                'nbinom': (gt_0, bw_0_1),  # | r>0 | 0<=p<=1 | - |
-                'nbinom2': (gt_0, gt_0)  # | mean>0 | disp>0 | - |
-            }
-            p1_constr, p2_constr = family_abbrev_to_param1_2_constraint_type[family_abbrev]
-            if ((p1_constr == gt_0) and not (prediction_data['param1'] > 0)) or \
-                    ((p2_constr == ge_0) and not (prediction_data['param2'] >= 0)) or \
-                    ((p2_constr == gt_0) and not (prediction_data['param2'] > 0)) or \
-                    ((p2_constr == bw_0_1) and not (0 <= prediction_data['param2'] <= 1)):
-                raise RuntimeError(f"Parameters for each distribution must be within valid ranges: "
-                                   f"prediction_dict={prediction_dict}")
+            _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict, target)
 
             # valid
             named_rows.append([location_name, target_name, family_abbrev,
@@ -360,38 +258,12 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
-            # validate: "Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL` (case does
-            # not matter)"
-            value_lower = value.lower() if isinstance(value, str) else value
-            if (value_lower == '') or (value_lower == 'na') or (value_lower == None):
-                raise RuntimeError(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or "
-                                   f"`NULL`. cat={prediction_data['value']}, prediction_dict={prediction_dict}")
-
-            # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
-            # definition". note: for date targets we format as strings for the comparison (incoming are strings)
-            if not Target.is_value_compatible_with_target_type(target.type, value):
-                raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
-                                   f"in the target definition. value={value!r}, prediction_dict={prediction_dict}")
+            _validate_point_rows(prediction_data, prediction_dict, target, value)
 
             # valid
             point_rows.append([location_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
-            # validate: "Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL` (case does
-            # not matter)"
-            sample_lower = [sample.lower() if isinstance(sample, str) else sample
-                            for sample in prediction_data['sample']]
-            if ('' in sample_lower) or ('na' in sample_lower) or (None in sample_lower):
-                raise RuntimeError(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or "
-                                   f"`NULL`. cat={prediction_data['sample']}, prediction_dict={prediction_dict}")
-
-            # validate: "The data format of `sample` should correspond or be translatable to the `type` as in the
-            # target definition"
-            is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
-                                     for cat in prediction_data['sample']])
-            if not is_all_compatible:
-                raise RuntimeError(f"The data format of `sample` should correspond or be translatable to the `type` as "
-                                   f"in the target definition, but one of the sample values was not. "
-                                   f"sample_values={prediction_data['sample']}, prediction_dict={prediction_dict}")
+            _validate_sample_rows(prediction_data, prediction_dict, target)
 
             # valid
             for sample in prediction_data['sample']:
@@ -410,6 +282,138 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
 
     # done!
     return bin_rows, named_rows, point_rows, sample_rows
+
+
+def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, target):
+    # validate: "The number of elements in the `cat` and `prob` vectors should be identical"
+    if len(prediction_data['cat']) != len(prediction_data['prob']):
+        raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
+                           f"|cat|={len(prediction_data['cat'])}, |prob|={len(prediction_data['prob'])}, "
+                           f"prediction_dict={prediction_dict}")
+    # validate: "Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL` (case does
+    # not matter)"
+    cat_lower = [cat.lower() if isinstance(cat, str) else cat for cat in prediction_data['cat']]
+    if ('' in cat_lower) or ('na' in cat_lower) or (None in cat_lower):
+        raise RuntimeError(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or "
+                           f"`NULL`. cat={prediction_data['cat']}, prediction_dict={prediction_dict}")
+    # validate: "The data format of `cat` should correspond or be translatable to the `type` as in the target
+    # definition"
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
+                             for cat in prediction_data['cat']])
+    if not is_all_compatible:
+        raise RuntimeError(f"The data format of `cat` should correspond or be translatable to the `type` as "
+                           f"in the target definition, but one of the cat values was not. "
+                           f"cat_values={prediction_data['cat']}, prediction_dict={prediction_dict}")
+    # validate: "Entries in `cat` must be a subset of `Target.cats` from the target definition".
+    # note: for date targets we format as strings for the comparison (incoming are strings)
+    cats_values = set(target.cats_values())  # datetime.date instances for date targets
+    pred_data_cat_parsed = [datetime.datetime.strptime(cat, YYYY_MM_DD_DATE_FORMAT).date()
+                            for cat in prediction_data['cat']] \
+        if target.type == Target.DATE_TARGET_TYPE else prediction_data['cat']  # fails if invalid
+    if is_validate_cats and not (set(pred_data_cat_parsed) <= cats_values):
+        raise RuntimeError(f"Entries in `cat` must be a subset of `Target.cats` from the target definition. "
+                           f"cat={prediction_data['cat']}, cats_values={cats_values}, "
+                           f"prediction_dict={prediction_dict}")
+    # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
+    prob_types = set(map(type, prediction_data['prob']))
+    if (prob_types != {int, float}) and (len(prob_types) != 1):
+        raise RuntimeError(f"there was more than one data type in `prob` column, which should only contain "
+                           f"numbers. prob column={prediction_data['prob']}, prob_types={prob_types}, "
+                           f"prediction_dict={prediction_dict}")
+    prob_type = next(iter(prob_types))  # vs. pop()
+    if (prob_type != int) and (prob_type != float):
+        raise RuntimeError(f"wrong data type in `prob` column, which should only contain "
+                           f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}, "
+                           f"prediction_dict={prediction_dict}")
+    elif (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
+        raise RuntimeError(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]. "
+                           f"prob column={prediction_data['prob']}, prediction_dict={prediction_dict}")
+    # validate: "For one prediction element, the values within prob must sum to 1.0 (values within +/- 0.001 of
+    # 1 are acceptable)"
+    prob_sum = sum(prediction_data['prob'])
+    if not math.isclose(1.0, prob_sum, rel_tol=BIN_SUM_REL_TOL):
+        raise RuntimeError(f"For one prediction element, the values within prob must sum to 1.0. "
+                           f"prob_sum={prob_sum}, delta={abs(1 - prob_sum)}, rel_tol={BIN_SUM_REL_TOL}, "
+                           f"prediction_dict={prediction_dict}")
+
+
+def _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict, target):
+    # validate: "`family`: must be one of the abbreviations shown in the table below"
+    family_abbrevs = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()
+    if family_abbrev not in family_abbrevs:
+        raise RuntimeError(f"family must be one of the abbreviations shown in the table below. "
+                           f"family_abbrev={family_abbrev!r}, family_abbrevs={family_abbrevs}, "
+                           f"prediction_dict={prediction_dict}")
+    # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
+    # are constrained; all other target_type/prediction_class combinations are valid
+    if family_abbrev_to_int[family_abbrev] not in Target.valid_named_families(target.type):
+        raise RuntimeError(f"family {family_abbrev!r} is not valid for {target.type_as_str()!r} "
+                           f"target types. prediction_dict={prediction_dict}")
+    # validate: "The number of param columns with non-NULL entries count must match family definition"
+    param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'pois': 1, 'nbinom': 2, 'nbinom2': 2}
+    num_params = 0
+    if 'param1' in prediction_data:
+        num_params += 1
+    if 'param2' in prediction_data:
+        num_params += 1
+    if 'param3' in prediction_data:
+        num_params += 1
+    if num_params != param_to_exp_count[family_abbrev]:
+        raise RuntimeError(f"The number of param columns with non-NULL entries count must match family "
+                           f"definition. family_abbrev={family_abbrev!r}, num_params={num_params}, "
+                           f"expected count={param_to_exp_count[family_abbrev]}, "
+                           f"prediction_dict={prediction_dict}")
+    # validate: Parameters for each distribution must be within valid ranges, which, if constraints exist, are
+    # specified in the table below
+    ge_0, gt_0, bw_0_1 = '>=0', '>0', '0<=&>=0'
+    family_abbrev_to_param1_2_constraint_type = {
+        'norm': (None, ge_0),  # | mean | sd>=0 | - |
+        'lnorm': (None, ge_0),  # | mean | sd>=0 | - |
+        'gamma': (gt_0, gt_0),  # | shape>0 |rate>0 | - |
+        'beta': (gt_0, gt_0),  # | a>0 | b>0 | - |
+        'pois': (gt_0, None),  # | rate>0 |  - | - |
+        'nbinom': (gt_0, bw_0_1),  # | r>0 | 0<=p<=1 | - |
+        'nbinom2': (gt_0, gt_0)  # | mean>0 | disp>0 | - |
+    }
+    p1_constr, p2_constr = family_abbrev_to_param1_2_constraint_type[family_abbrev]
+    if ((p1_constr == gt_0) and not (prediction_data['param1'] > 0)) or \
+            ((p2_constr == ge_0) and not (prediction_data['param2'] >= 0)) or \
+            ((p2_constr == gt_0) and not (prediction_data['param2'] > 0)) or \
+            ((p2_constr == bw_0_1) and not (0 <= prediction_data['param2'] <= 1)):
+        raise RuntimeError(f"Parameters for each distribution must be within valid ranges: "
+                           f"prediction_dict={prediction_dict}")
+
+
+def _validate_point_rows(prediction_data, prediction_dict, target, value):
+    # validate: "Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL` (case does
+    # not matter)"
+    value_lower = value.lower() if isinstance(value, str) else value
+    if (value_lower == '') or (value_lower == 'na') or (value_lower == None):
+        raise RuntimeError(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or "
+                           f"`NULL`. cat={prediction_data['value']}, prediction_dict={prediction_dict}")
+    # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
+    # definition". note: for date targets we format as strings for the comparison (incoming are strings)
+    if not Target.is_value_compatible_with_target_type(target.type, value):
+        raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
+                           f"in the target definition. value={value!r}, prediction_dict={prediction_dict}")
+
+
+def _validate_sample_rows(prediction_data, prediction_dict, target):
+    # validate: "Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL` (case does
+    # not matter)"
+    sample_lower = [sample.lower() if isinstance(sample, str) else sample
+                    for sample in prediction_data['sample']]
+    if ('' in sample_lower) or ('na' in sample_lower) or (None in sample_lower):
+        raise RuntimeError(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or "
+                           f"`NULL`. cat={prediction_data['sample']}, prediction_dict={prediction_dict}")
+    # validate: "The data format of `sample` should correspond or be translatable to the `type` as in the
+    # target definition"
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)
+                             for cat in prediction_data['sample']])
+    if not is_all_compatible:
+        raise RuntimeError(f"The data format of `sample` should correspond or be translatable to the `type` as "
+                           f"in the target definition, but one of the sample values was not. "
+                           f"sample_values={prediction_data['sample']}, prediction_dict={prediction_dict}")
 
 
 def _load_bin_rows(forecast, rows, target_pk_to_object):
