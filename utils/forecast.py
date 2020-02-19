@@ -274,7 +274,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
                                         if len(pred_classes) != len(set(pred_classes))]
     if duplicate_location_target_tuples:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                           f"Found these duplicate location/target tuples: {duplicate_location_target_tuples}.")
+                           f"Found these duplicate location/target tuples: {duplicate_location_target_tuples}")
 
     # validate: (for both continuous and discrete target types): Within one prediction, there can be at most one of the
     # following prediction elements, but not both: {`Named`, `Bin`}.
@@ -285,7 +285,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
     if named_bin_conflict_tuples:
         raise RuntimeError(f"Within one prediction, there can be at most one of the following prediction elements, "
                            f"but not both: `Named`, `Bin`. Found these conflicting location/target tuples: "
-                           f"{named_bin_conflict_tuples}.")
+                           f"{named_bin_conflict_tuples}")
 
     # done!
     return bin_rows, named_rows, point_rows, sample_rows
@@ -307,7 +307,7 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
 
     # validate: "The data format of `cat` should correspond or be translatable to the `type` as in the target
     # definition"
-    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)  # parses dates if necessary
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, cat)[0]  # is_compatible
                              for cat in prediction_data['cat']])
     if not is_all_compatible:
         raise RuntimeError(f"The data format of `cat` should correspond or be translatable to the `type` as "
@@ -415,7 +415,7 @@ def _validate_point_rows(prediction_data, prediction_dict, target, value):
 
     # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
     # definition". note: for date targets we format as strings for the comparison (incoming are strings)
-    if not Target.is_value_compatible_with_target_type(target.type, value):  # parses dates if necessary
+    if not Target.is_value_compatible_with_target_type(target.type, value)[0]:  # is_compatible
         raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
                            f"in the target definition. value={value!r}, prediction_dict={prediction_dict}")
 
@@ -440,7 +440,7 @@ def _validate_sample_rows(prediction_data, prediction_dict, target):
 
     # validate: "The data format of `sample` should correspond or be translatable to the `type` as in the
     # target definition"
-    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, sample)  # parses dates if nec
+    is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, sample)[0]  # is_compatible
                              for sample in prediction_data['sample']])
     if not is_all_compatible:
         raise RuntimeError(f"The data format of `sample` should correspond or be translatable to the `type` as "

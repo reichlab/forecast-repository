@@ -367,7 +367,7 @@ class ScoresTestCase(TestCase):
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')
         load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
 
-        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
 
         # test the scores - only ones with truth are created. see log-score-multi-bin-hand-calc.xlsx for how expected
         # values were verified

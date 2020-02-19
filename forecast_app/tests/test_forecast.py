@@ -428,7 +428,7 @@ class ForecastTestCase(TestCase):
             self.assertEqual(5, enqueue_mock.call_count)
 
         # loading truth should result in all Score/ForecastModel pairs being updated
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             Score.enqueue_update_scores_for_all_models(is_only_changed=True)
             self.assertEqual(5, enqueue_mock.call_count)

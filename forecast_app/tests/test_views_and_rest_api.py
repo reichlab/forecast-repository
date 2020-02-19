@@ -47,7 +47,8 @@ class ViewsTestCase(TestCase):
         make_cdc_locations_and_targets(cls.public_project)
 
         TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
-        load_truth_data(cls.public_project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(cls.public_project, Path('forecast_app/tests/truth_data/truths-ok.csv'),
+                        is_convert_na_none=True)
 
         cls.public_tz1 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 1),
                                                  data_version_date=None)

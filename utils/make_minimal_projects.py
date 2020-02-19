@@ -100,7 +100,7 @@ def fill_project(project, mo_user, is_public):
                             data_version_date=None)
 
     # load the truth data. todo xx file_name arg:
-    load_truth_data(project, Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'))
+    load_truth_data(project, Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'), is_convert_na_none=True)
 
     # create the models
     click.echo("creating ForecastModel")

@@ -190,26 +190,24 @@ class TargetTestCase(TestCase):
 
 
     def test_is_value_compatible_with_target_type(self):
-        target_type_value_is_compatibles = [(Target.CONTINUOUS_TARGET_TYPE, 1, True),
-                                            (Target.CONTINUOUS_TARGET_TYPE, 1.0, True),
-                                            (Target.CONTINUOUS_TARGET_TYPE, 'nan', False),
-                                            (Target.DISCRETE_TARGET_TYPE, 1, True),
-                                            (Target.DISCRETE_TARGET_TYPE, 1.0, False),
-                                            (Target.DISCRETE_TARGET_TYPE, 'a str', False),
-                                            (Target.NOMINAL_TARGET_TYPE, 'a str', True),
-                                            (Target.NOMINAL_TARGET_TYPE, 1, False),
-                                            (Target.BINARY_TARGET_TYPE, True, True),
-                                            (Target.BINARY_TARGET_TYPE, False, True),
-                                            (Target.BINARY_TARGET_TYPE, 'a str', False),
-                                            (Target.DATE_TARGET_TYPE, '2020-01-05', True),
-                                            (Target.DATE_TARGET_TYPE, '20200105', False),
-                                            (Target.DATE_TARGET_TYPE, datetime.date(2020, 1, 5), False),
-                                            (Target.DATE_TARGET_TYPE, 'x 2020-01-05', False)]
-        for target_type, value, is_compatible in target_type_value_is_compatibles:
-            if is_compatible:
-                self.assertTrue(Target.is_value_compatible_with_target_type(target_type, value))
-            else:
-                self.assertFalse(Target.is_value_compatible_with_target_type(target_type, value))
+        target_type_value_is_compatibles = [
+            (Target.CONTINUOUS_TARGET_TYPE, 1, (True, 1.0)),
+            (Target.CONTINUOUS_TARGET_TYPE, 1.0, (True, 1.0)),
+            (Target.CONTINUOUS_TARGET_TYPE, 'nan', (False, False)),
+            (Target.DISCRETE_TARGET_TYPE, 1, (True, True)),
+            (Target.DISCRETE_TARGET_TYPE, 1.0, (False, False)),
+            (Target.DISCRETE_TARGET_TYPE, 'a str', (False, False)),
+            (Target.NOMINAL_TARGET_TYPE, 'a str', (True, 'a str')),
+            (Target.NOMINAL_TARGET_TYPE, 1, (False, False)),
+            (Target.BINARY_TARGET_TYPE, True, (True, True)),
+            (Target.BINARY_TARGET_TYPE, False, (True, False)),
+            (Target.BINARY_TARGET_TYPE, 'a str', (False, False)),
+            (Target.DATE_TARGET_TYPE, '2020-01-05', (True, datetime.date(2020, 1, 5))),
+            (Target.DATE_TARGET_TYPE, '20200105', (False, False)),
+            (Target.DATE_TARGET_TYPE, datetime.date(2020, 1, 5), (False, False)),
+            (Target.DATE_TARGET_TYPE, 'x 2020-01-05', (False, False))]
+        for target_type, value, is_compatible_tuple in target_type_value_is_compatibles:
+            self.assertEqual(is_compatible_tuple, Target.is_value_compatible_with_target_type(target_type, value))
 
 
     def test_target_type_to_valid_named_families(self):

@@ -121,36 +121,69 @@ class Target(models.Model):
 
 
     @classmethod
-    def is_value_compatible_with_target_type(cls, target_type, value):
+    def is_value_compatible_with_target_type(cls, target_type, value, is_coerce=False, is_convert_na_none=False):
         """
-        Returns True if value's type is compatible with target_type. NB: for date target types, will try to parse first,
-        but will not raise an error if that fails.
+        Returns a 2-tuple indicating if value's type is compatible with target_type: (is_compatible, parsed_value).
+        parsed_value is None if not is_compatible, and is o/w the Python object resulting from parsing value as
+        target_type. is_coerce controls whether value is checked based on its Python data type (is_coerce=False) or on
+        whether it can be coerced into the correct type (is_coerce=True). Use is_coerce=False when you know the data
+        type is correct (such as when loading json), and use is_coerce=True when inputs are strs, such as when loading
+        csv. In either case, DATE_TARGET_TYPE is treated as a str and parsed in YYYY_MM_DD_DATE_FORMAT.
 
         :param target_type: one of my *_TARGET_TYPE values
         :param value: an int, float, str, or boolean
+        :param is_coerce: True if value is a str that should be parsed as the correct data type before checking
+            compatibility
+        :param is_convert_na_none: True if value should be converted to None for these cases: `""`, `NA` or `NULL`
+            (case does not matter). in that case (True, None) is returned
         """
-        value_type = type(value)
-        if (target_type == Target.CONTINUOUS_TARGET_TYPE) and \
-                ((value_type == Target.data_type_for_target_type(Target.CONTINUOUS_TARGET_TYPE)) or
-                 (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE))):
-            return True
-        elif (target_type == Target.DISCRETE_TARGET_TYPE) and \
-                (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE)):
-            return True
-        elif (target_type == Target.NOMINAL_TARGET_TYPE) and \
-                (value_type == Target.data_type_for_target_type(Target.NOMINAL_TARGET_TYPE)):
-            return True
-        elif (target_type == Target.BINARY_TARGET_TYPE) and \
-                (value_type == Target.data_type_for_target_type(Target.BINARY_TARGET_TYPE)):
-            return True
-        elif (target_type == Target.DATE_TARGET_TYPE) and (value_type == str):
+        if is_convert_na_none and ((value == '') or (value.lower() == 'na') or (value.lower() == 'null')):
+            return True, None
+        elif is_coerce:
             try:
-                datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
-                return True
+                if target_type == Target.CONTINUOUS_TARGET_TYPE:
+                    return True, float(value)
+                elif target_type == Target.DISCRETE_TARGET_TYPE:
+                    return True, int(value)
+                elif target_type == Target.NOMINAL_TARGET_TYPE:
+                    return True, str(value)
+                elif target_type == Target.BINARY_TARGET_TYPE:
+                    # recall that any non-empty string parses as True, e.g., '0' or 'False', or 'None'. we handle
+                    # only these two cases, per docs: `true` or `false`
+                    if value == 'true':
+                        return True, True
+                    elif value == 'false':
+                        return True, False
+                    else:
+                        return False, False
+                elif target_type == Target.DATE_TARGET_TYPE:
+                    return True, datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
+                else:
+                    raise RuntimeError(f"invalid target_type={target_type!r}")
             except ValueError:
-                return False
-
-        return False
+                return False, False
+        else:  # not is_coerce
+            value_type = type(value)
+            try:
+                if (target_type == Target.CONTINUOUS_TARGET_TYPE) and \
+                        ((value_type == Target.data_type_for_target_type(Target.CONTINUOUS_TARGET_TYPE)) or
+                         (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE))):
+                    return True, float(value)  # coerce in case int
+                elif (target_type == Target.DISCRETE_TARGET_TYPE) and \
+                        (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE)):
+                    return True, value
+                elif (target_type == Target.NOMINAL_TARGET_TYPE) and \
+                        (value_type == Target.data_type_for_target_type(Target.NOMINAL_TARGET_TYPE)):
+                    return True, value
+                elif (target_type == Target.BINARY_TARGET_TYPE) and \
+                        (value_type == Target.data_type_for_target_type(Target.BINARY_TARGET_TYPE)):
+                    return True, value
+                elif (target_type == Target.DATE_TARGET_TYPE) and (value_type == str):
+                    return True, datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
+                else:
+                    return False, False
+            except ValueError:
+                return False, False
 
 
     def set_cats(self, cats, extra_lwr=None):

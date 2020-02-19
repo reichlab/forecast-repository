@@ -89,7 +89,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
 
     # load the truth
     click.echo("- loading truth values")
-    load_truth_data(project, Path('utils/dengue-truth-table-script/truths.csv'))
+    load_truth_data(project, Path('utils/dengue-truth-table-script/truths.csv'), is_convert_na_none=True)
 
     # load data
     click.echo("* Loading forecasts")

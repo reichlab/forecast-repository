@@ -1,6 +1,5 @@
 import datetime
 import logging
-from collections import defaultdict
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,7 +36,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_load_truth_data(self):
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         self.assertEqual(7, self.project.truth_data_qs().count())
         self.assertTrue(self.project.is_truth_data_loaded())
         self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
@@ -48,15 +47,15 @@ class ProjectTestCase(TestCase):
 
         # csv references non-existent TimeZero in Project: should not raise error
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
-                        'truths-bad-timezero.csv')
+                        'truths-bad-timezero.csv', is_convert_na_none=True)
 
         # csv references non-existent location in Project: should not raise error
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
-                        'truths-bad-location.csv')
+                        'truths-bad-location.csv', is_convert_na_none=True)
 
         # csv references non-existent target in Project: should not raise error
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
-                        'truths-bad-target.csv')
+                        'truths-bad-target.csv', is_convert_na_none=True)
 
         project2 = Project.objects.create()
         make_cdc_locations_and_targets(project2)
@@ -64,7 +63,7 @@ class ProjectTestCase(TestCase):
         self.assertFalse(project2.is_truth_data_loaded())
 
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
-        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         self.assertEqual(7, project2.truth_data_qs().count())
 
         # test get_truth_data_preview()
@@ -82,7 +81,7 @@ class ProjectTestCase(TestCase):
     def test_load_truth_data_other_files(self):
         # test truth files that used to be in yyyymmdd or yyyyww (EW) formats
         # truths-ok.csv (2017-01-17-truths.csv would basically test the same)
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         exp_rows = [(datetime.date(2017, 1, 1), 'US National', '1 wk ahead', None, 0.73102, None, None, None),
                     (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', None, 0.688338, None, None, None),
                     (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', None, 0.732049, None, None, None),
@@ -100,7 +99,7 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create()
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
         make_cdc_locations_and_targets(project2)
-        load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
+        load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'), is_convert_na_none=True)
         exp_rows = [(datetime.date(2016, 10, 30), 'US National', '1 wk ahead', None, 1.55838, None, None, None),
                     (datetime.date(2016, 10, 30), 'US National', '2 wk ahead', None, 1.64639, None, None, None),
                     (datetime.date(2016, 10, 30), 'US National', '3 wk ahead', None, 1.91196, None, None, None),
@@ -119,7 +118,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_export_truth_data(self):
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         response = csv_response_for_project_truth_data(self.project)
         exp_content = ['timezero,location,target,value',
                        '2017-01-01,US National,1 wk ahead,0.73102',
@@ -158,7 +157,7 @@ class ProjectTestCase(TestCase):
         self.assertIsNotNone(self.project.score_csv_file_cache)
 
         # test CSV file gets created
-        load_truth_data(self.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
+        load_truth_data(self.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'), is_convert_na_none=True)
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score_for_model(self.forecast_model)
@@ -345,7 +344,8 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
+                        is_convert_na_none=True)
         exp_loc_tz_date_to_actual_vals = {
             'HHS Region 1': {
                 datetime.date(2017, 7, 23): None,
@@ -486,7 +486,7 @@ class ProjectTestCase(TestCase):
         # we omit 20170108
 
         self.project.delete_truth_data()
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'))
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'), is_convert_na_none=True)
 
         exp_loc_target_tz_date_to_truth = {
             'HHS Region 1': {
@@ -550,7 +550,8 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6),
                                 is_season_start=True, season_name='season2')
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 13))
-        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))  # 4004 rows
+        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
+                        is_convert_na_none=True)  # 4004 rows
 
         # test location_target_name_tz_date_to_truth() with above multiple seasons - done in this method b/c we've
         # set up some seasons :-)
@@ -573,7 +574,8 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
 
-        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'))
+        load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
+                        is_convert_na_none=True)
 
         # change '1 wk ahead' to '0 wk ahead' in Target and truth data. also tests that target names are not used
         # (ids or step_ahead_increment should be used)

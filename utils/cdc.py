@@ -186,6 +186,9 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
                                 ew_week = 1
                             monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
                             value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                    elif target_name in ['1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',
+                                         '5_biweek_ahead']:  # thai
+                        value = round(value)  # some point predictions are floats
                     elif value is None:
                         raise RuntimeError(f"None point values are only valid for 'Season onset' targets. "
                                            f"target_name={target_name}")

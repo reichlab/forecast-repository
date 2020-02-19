@@ -11,7 +11,6 @@ from django.db import transaction
 from forecast_app.models import Project, Location, Target
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-from utils.utilities import parse_value
 
 
 logger = logging.getLogger(__name__)
@@ -388,7 +387,7 @@ def create_project(project_dict, owner):
 #
 
 @transaction.atomic
-def load_truth_data(project, truth_file_path_or_fp, file_name=None):
+def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_na_none=False):
     """
     Loads the data in truth_file_path (see below for file format docs). Like load_csv_data(), uses direct SQL for
     performance, using a fast Postgres-specific routine if connected to it. Note that this method should be called
@@ -415,6 +414,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None):
     :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
         combination, OR an already-open file-like object
     :param file_name: name to use for the file
+    :param is_convert_na_none: is as passed to Target.is_value_compatible_with_target_type()
     """
     logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
                  f"file_name={file_name}")
@@ -427,10 +427,10 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None):
     logger.debug(f"load_truth_data(): calling _load_truth_data()")
     # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
     if isinstance(truth_file_path_or_fp, io.IOBase):
-        num_rows = _load_truth_data(project, truth_file_path_or_fp)
+        num_rows = _load_truth_data(project, truth_file_path_or_fp, is_convert_na_none)
     else:
         with open(str(truth_file_path_or_fp)) as cdc_csv_file_fp:
-            num_rows = _load_truth_data(project, cdc_csv_file_fp)
+            num_rows = _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none)
 
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
@@ -440,12 +440,13 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None):
     logger.debug(f"load_truth_data(): done")
 
 
-def _load_truth_data(project, cdc_csv_file_fp):
+def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
     from forecast_app.models import TruthData  # avoid circular imports
 
 
     with connection.cursor() as cursor:
-        rows = _load_truth_data_rows(project, cdc_csv_file_fp)  # validates, and replaces value to the five typed values
+        # validates, and replaces value to the five typed values:
+        rows = _load_truth_data_rows(project, cdc_csv_file_fp, is_convert_na_none)
         if not rows:
             return 0
 
@@ -476,7 +477,7 @@ def _load_truth_data(project, cdc_csv_file_fp):
     return len(rows)
 
 
-def _load_truth_data_rows(project, csv_file_fp):
+def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
     """
     Similar to _cleaned_rows_from_cdc_csv_file(), loads, validates, and cleans the rows in csv_file_fp. Replaces value
     with the five typed values.
@@ -492,7 +493,8 @@ def _load_truth_data_rows(project, csv_file_fp):
     header = orig_header
     header = [h.lower() for h in [i.replace('"', '') for i in header]]
     if header != TRUTH_CSV_HEADER:
-        raise RuntimeError("invalid header: {}".format(', '.join(orig_header)))
+        raise RuntimeError(f"invalid header. orig_header={orig_header!r}, "
+                           f"expected header={TRUTH_CSV_HEADER!r}")
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
     location_names_to_pks = {location.name: location.id for location in project.locations.all()}
@@ -524,16 +526,46 @@ def _load_truth_data_rows(project, csv_file_fp):
             target_to_missing_count[target_name] += 1
             continue
 
-        # replace value with the five typed values - similar to _replace_value_with_five_types()
-        data_type = target_name_to_object[target_name].data_type()
-        value = parse_value(value)  # parse_value() handles non-numeric cases like 'NA' and 'none'
-        value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
-        value_f = value if data_type == Target.FLOAT_DATA_TYPE else None
-        value_t = value if data_type == Target.TEXT_DATA_TYPE else None
-        value_d = value if data_type == Target.DATE_DATA_TYPE else None
-        value_b = value if data_type == Target.BOOLEAN_DATA_TYPE else None
+        # replace value with the five typed values - similar to _replace_value_with_five_types(). note that at this
+        # point value is a str, so we ask Target.is_value_compatible_with_target_type needs to try converting to the
+        # correct data type
+        target = target_name_to_object[target_name]
+        data_type = target.data_type()
+        is_compatible, parsed_value = Target.is_value_compatible_with_target_type(target.type, value, is_coerce=True,
+                                                                                  is_convert_na_none=is_convert_na_none)
+        if not is_compatible:
+            raise RuntimeError(f"value was not compatible with target data type. value={value!r}, "
+                               f"data_type={data_type}")
 
-        rows.append((time_zero.pk, location_names_to_pks[location_name], target_name_to_object[target_name].pk,
+        # validate: For `discrete` and `continuous` targets (if `range` is specified):
+        #  - The entry in the `value` column for a specific `target`-`location`-`timezero` combination must be contained
+        #    within the range of valid values for the target.
+        # Recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
+        range_tuple = target.range_tuple()
+        if (target.type in [Target.DISCRETE_TARGET_TYPE, Target.CONTINUOUS_TARGET_TYPE]) and range_tuple \
+                and not (range_tuple[0] <= parsed_value < range_tuple[1]):
+            raise RuntimeError(f"The entry in the `value` column for a specific `target`-`location`-`timezero` "
+                               f"combination must be contained within the range of valid values for the target. "
+                               f"value={parsed_value!r}, range_tuple={range_tuple}")
+
+        # validate: For `nominal` and `date` target_types:
+        #  - The entry in the `cat` column for a specific `target`-`location`-`timezero` combination must be contained
+        #    within the set of valid values for the target, as defined by the project config file.
+        cats_values = set(target.cats_values())  # datetime.date instances for date targets
+        if (target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]) and cats_values \
+                and (parsed_value not in cats_values):
+            raise RuntimeError(f"The entry in the `cat` column for a specific `target`-`location`-`timezero` "
+                               f"combination must be contained within the set of valid values for the target. "
+                               f"parsed_value={parsed_value}, cats_values={cats_values}")
+
+        # valid
+        value_i = parsed_value if data_type == Target.INTEGER_DATA_TYPE else None
+        value_f = parsed_value if data_type == Target.FLOAT_DATA_TYPE else None
+        value_t = parsed_value if data_type == Target.TEXT_DATA_TYPE else None
+        value_d = parsed_value if data_type == Target.DATE_DATA_TYPE else None
+        value_b = parsed_value if data_type == Target.BOOLEAN_DATA_TYPE else None
+
+        rows.append((time_zero.pk, location_names_to_pks[location_name], target.pk,
                      value_i, value_f, value_t, value_d, value_b))
 
     # report warnings

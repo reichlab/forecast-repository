@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution
 from utils.forecast import load_predictions_from_json_io_dict
-from utils.project import create_project_from_json
+from utils.project import create_project_from_json, load_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -38,9 +38,9 @@ class PredictionValidationTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        forecast_model = ForecastModel.objects.create(project=project)
-        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        cls.project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=cls.project)
+        time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         cls.forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
 
 
@@ -253,7 +253,7 @@ class PredictionValidationTestCase(TestCase):
         # 'cases next week: discrete
         prediction_dict = {"location": "location3", "target": "cases next week", "class": "bin",
                            "prediction": {"cat": [0, 2.2, 50],
-                                          "prob": [0.0, 0.1, 0.9]}}  # cat not int
+                                          "prob": [0.0, 0.1, 0.9]}}  # cat not translatable to int
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"The data format of `cat` should correspond or be translatable to the `type` as in the",
@@ -715,43 +715,12 @@ class PredictionValidationTestCase(TestCase):
     # ----
 
     #
-    # "continuous"
-    #
-
-    def test_xx(self):
-        self.fail()  # todo xx
-
-
-    #
-    # "discrete"
-    #
-
-    def test_xx(self):
-        self.fail()  # todo xx
-
-
-    #
-    # "nominal"
-    #
-
-    def test_xx(self):
-        self.fail()  # todo xx
-
-
-    #
-    # "binary"
-    #
-
-    def test_xx(self):
-        self.fail()  # todo xx
-
-
-    #
-    # "date"
-    #
-
-    def test_xx(self):
-        self.fail()  # todo xx
+    # these are all tested in test_target.py:
+    # - "continuous"
+    # - "discrete"
+    # - "nominal"
+    # - "binary"
+    # - "date"
 
 
     # ----
@@ -762,8 +731,83 @@ class PredictionValidationTestCase(TestCase):
     # For all ground truth files
     #
 
-    def test_xx(self):
-        self.fail()  # todo xx
+    def test_the_columns_are_timezero_location_target_and_value(self):
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-no-header.csv'))
+        self.assertIn(f"invalid header", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-bad-header.csv'))
+        self.assertIn(f"invalid header", str(context.exception))
+
+
+    # # this is tested elsewhere:
+    # def test_for_every_unique_target_location_timezero_combination_there_should_be_either_1_or_0_rows_of_truth(self):
+    #     pass
+
+
+    # # this is tested elsewhere:
+    # def test_every_value_of_timezero_target_location_must_be_in_list_of_valid_values_defined_by_project_config(self):
+    #     pass
+
+
+    def test_the_value_of_the_truth_data_cannot_be_empty_na_or_null(self):
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-na-value.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-empty-value.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
+
+
+    def test_the_value_of_truth_data_should_be_interpretable_as_the_corresponding_data_type_of_specified_target(self):
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))  # 14 rows
+        self.assertEqual(14, self.project.truth_data_qs().count())
+
+        exp_rows = [(datetime.date(2011, 10, 2), 'location1', 'pct next week', None, 4.5432, None, None, None),
+                    (datetime.date(2011, 10, 2), 'location1', 'cases next week', 10, None, None, None, None),
+                    (datetime.date(2011, 10, 2), 'location1', 'season severity', None, None, 'moderate', None, None),
+                    (datetime.date(2011, 10, 2), 'location1', 'above baseline', None, None, None, None, True),
+                    (datetime.date(2011, 10, 2), 'location1', 'Season peak week', None, None, None,
+                     datetime.date(2019, 12, 15), None),
+                    (datetime.date(2011, 10, 9), 'location2', 'pct next week', None, 99.9, None, None, None),
+                    (datetime.date(2011, 10, 9), 'location2', 'cases next week', 3, None, None, None, None),
+                    (datetime.date(2011, 10, 9), 'location2', 'season severity', None, None, 'severe', None, None),
+                    (datetime.date(2011, 10, 9), 'location2', 'above baseline', None, None, None, None, True),
+                    (datetime.date(2011, 10, 9), 'location2', 'Season peak week', None, None, None,
+                     datetime.date(2019, 12, 29), None),
+                    (datetime.date(2011, 10, 16), 'location1', 'pct next week', None, 0.0, None, None, None),
+                    (datetime.date(2011, 10, 16), 'location1', 'cases next week', 0, None, None, None, None),
+                    (datetime.date(2011, 10, 16), 'location1', 'above baseline', None, None, None, None, False),
+                    (datetime.date(2011, 10, 16), 'location1', 'Season peak week', None, None, None,
+                     datetime.date(2019, 12, 22), None)]
+        act_rows_qs = self.project.truth_data_qs() \
+            .values_list('time_zero__timezero_date', 'location__name', 'target__name',
+                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+        self.assertEqual(exp_rows, list(act_rows_qs))
+
+
+    def test_truth_value_not_compatible_with_target_data_type(self):
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-bad-date.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-bad-date.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-bad-continuous.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-bad-discrete.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
 
 
     #
@@ -771,15 +815,66 @@ class PredictionValidationTestCase(TestCase):
     #
 
     # For `binary` targets
-    def test_xx(self):
-        self.fail()  # todo xx
+    def test_entry_in_value_column_for_a_specific_target_location_timezero_must_be_either_true_or_false(self):
+        # "good" binary values are checked when loading docs-ground-truth.csv elsewhere
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-bad-binary.csv'))
+        self.assertIn(f"value was not compatible with target data type", str(context.exception))
 
 
     # For `discrete` and `continuous` targets (if `range` is specified)
-    def test_xx(self):
-        self.fail()  # todo xx
+    def test_entry_in_value_column_for_a_specific_target_location_timezero_must_be_contained_within_the_range(self):
+        # For `discrete` and `continuous` targets (if `range` is specified): The entry in the `value` column for a
+        # specific `target`-`location`-`timezero` combination must be contained within the range of valid values for the
+        # target. recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g.
+        # [a, b)."
+
+        # pct next week: continuous. range: [0.0, 100.0]
+        # - "good" continuous values are checked when loading docs-ground-truth.csv elsewhere
+        # - the case of the value being equal to the lower range value is also in that file
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-continuous-range-lt-lower.csv'))
+        self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-continuous-range-equal-upper.csv'))
+        self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
+                      str(context.exception))
+
+        # cases next week: discrete. range: [0, 100000]
+        # - "good" continuous values are checked when loading docs-ground-truth.csv elsewhere
+        # - the case of the value being equal to the lower range value is also in that file
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-discrete-range-lt-lower.csv'))
+        self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
+                      str(context.exception))
+
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-discrete-range-equal-upper.csv'))
+        self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
+                      str(context.exception))
 
 
     # For `nominal` and `date` target_types
-    def test_xx(self):
-        self.fail()  # todo xx
+    def test_entry_in_cat_column_for_a_specific_target_location_timezero_must_be_contained_within_the_set_of(self):
+        # The entry in the `cat` column for a specific `target`-`location`-`timezero` combination must be contained
+        # within the set of valid values for the target, as defined by the project config file.
+
+        # season severity: nominal. cats: ["high", "mild", "moderate", "severe"]
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-nominal-not-in-cats.csv'))
+        self.assertIn(f"The entry in the `cat` column for a specific `target`-`location`-`timezero` combination must",
+                      str(context.exception))
+
+        # Season peak week: date. cats: ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-date-not-in-cats.csv'))
+        self.assertIn(f"The entry in the `cat` column for a specific `target`-`location`-`timezero` combination must",
+                      str(context.exception))

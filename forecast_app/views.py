@@ -212,7 +212,7 @@ def update_all_scores(request, **kwargs):
         is_only_changed = kwargs['is_only_changed']
         enqueued_score_model_pks = Score.enqueue_update_scores_for_all_models(is_only_changed=is_only_changed)
         messages.success(request, f"Scheduled {len(enqueued_score_model_pks)} score updates for all projects. "
-                                  f"is_only_changed={is_only_changed}.")
+                                  f"is_only_changed={is_only_changed}")
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, f"Error updating scores: {ce}.")
     return redirect('zadmin')  # hard-coded
