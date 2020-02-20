@@ -294,15 +294,11 @@ class ProjectUtilTestCase(TestCase):
             project_dict['targets'] = [pct_next_week_target_dict]
 
         # loaded range is valid format: test that an error is not raised
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                project = create_project_from_json(project_dict, po_user)
-                project.delete()
-            except:
-                pass
-            else:
-                raise Exception
+        try:
+            project = create_project_from_json(project_dict, po_user)
+            project.delete()
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         # break range by setting to invalid format: test that an error is raised
         range_list = ["not float", True]  # not floats
@@ -328,15 +324,11 @@ class ProjectUtilTestCase(TestCase):
             project_dict['targets'] = [pct_next_week_target_dict]
 
         # loaded cats is valid format: test that an error is not raised
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                project = create_project_from_json(project_dict, po_user)
-                project.delete()
-            except:
-                pass
-            else:
-                raise Exception
+        try:
+            project = create_project_from_json(project_dict, po_user)
+            project.delete()
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         # break cats by setting to invalid format: test that an error is raised
         cats = ["not float", True, {}]  # not floats
@@ -355,15 +347,11 @@ class ProjectUtilTestCase(TestCase):
             project_dict['targets'] = [season_peak_week_target_dict]
 
         # loaded dates are in valid 'yyyy-mm-dd' format: test that an error is not raised
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                project = create_project_from_json(project_dict, po_user)
-                project.delete()
-            except Exception:
-                pass
-            else:
-                raise Exception
+        try:
+            project = create_project_from_json(project_dict, po_user)
+            project.delete()
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         # break dates by setting to invalid 'yyyymmdd' format: test that an error is raised
         season_peak_week_target_dict['cats'] = ['2019-12-15', '20191222']

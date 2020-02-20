@@ -72,14 +72,10 @@ class TargetTestCase(TestCase):
 
         # case: is_step_ahead=True, step_ahead_increment: 0
         model_init['step_ahead_increment'] = 0
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                Target.objects.create(**model_init)
-            except:
-                pass
-            else:
-                raise Exception
+        try:
+            Target.objects.create(**model_init)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         # case: is_step_ahead=False, step_ahead_increment: missing
         model_init['is_step_ahead'] = False
@@ -119,14 +115,10 @@ class TargetTestCase(TestCase):
                                        (Target.DISCRETE_TARGET_TYPE, (1, 2))]:  # unit valid for both
             model_init['type'] = target_type
             target = Target.objects.create(**model_init)
-            # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-            with self.assertRaises(Exception):
-                try:
-                    target.set_range(*the_range)
-                except:
-                    pass
-                else:
-                    raise Exception
+            try:
+                target.set_range(*the_range)
+            except Exception as ex:
+                self.fail(f"unexpected exception: {ex}")
 
         # case: invalid types
         for target_type in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
@@ -159,14 +151,10 @@ class TargetTestCase(TestCase):
             else:
                 model_init.pop('unit', None)
             target = Target.objects.create(**model_init)
-            # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-            with self.assertRaises(Exception):
-                try:
-                    target.set_cats(cats)
-                except:
-                    pass
-                else:
-                    raise Exception
+            try:
+                target.set_cats(cats)
+            except Exception as ex:
+                self.fail(f"unexpected exception: {ex}")
 
         # case: invalid type
         model_init['type'] = Target.BINARY_TARGET_TYPE
@@ -447,14 +435,10 @@ class TargetTestCase(TestCase):
         # case: valid unit
         for ok_unit in Target.DATE_UNITS:
             model_init['unit'] = ok_unit
-            # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-            with self.assertRaises(Exception):
-                try:
-                    Target.objects.create(**model_init)
-                except:
-                    pass
-                else:
-                    raise Exception
+            try:
+                Target.objects.create(**model_init)
+            except Exception as ex:
+                self.fail(f"unexpected exception: {ex}")
 
         # case: invalid unit
         model_init['unit'] = 'bad_unit'
@@ -474,14 +458,10 @@ class TargetTestCase(TestCase):
         target = Target.objects.create(**model_init)
 
         # case: valid format
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                target.set_cats(['2019-01-09', '2019-01-19'])
-            except Exception:
-                pass
-            else:
-                raise Exception
+        try:
+            target.set_cats(['2019-01-09', '2019-01-19'])
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         # case: invalid format
         with self.assertRaises(ValidationError) as context:

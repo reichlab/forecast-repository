@@ -162,16 +162,12 @@ class ForecastTestCase(TestCase):
         self.assertIn("Entries in the database rows in the `prob` column must be numbers in [0, 1]",
                       str(context.exception))
 
-        # via https://stackoverflow.com/questions/647900/python-test-that-succeeds-when-exception-is-not-raised
-        with self.assertRaises(Exception):
-            try:
-                # date-based Point row w/NA value is OK:
-                csv_file_path = Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv')  # EW01 2017
-                load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
-            except:
-                pass
-            else:
-                raise Exception
+        try:
+            # date-based Point row w/NA value is OK:
+            csv_file_path = Path('forecast_app/tests/EW1-ok-point-na-2017-01-17.csv')  # EW01 2017
+            load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
 
     @unittest.skip
