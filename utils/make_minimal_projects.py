@@ -1,4 +1,5 @@
 import datetime
+import json
 import timeit
 from pathlib import Path
 
@@ -8,11 +9,12 @@ import django
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
+from utils.forecast import load_predictions_from_json_io_dict
 
-from utils.project import load_truth_data
+from utils.project import load_truth_data, create_project_from_json
 
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
-from forecast_app.models import Project, TimeZero, ForecastModel
+from forecast_app.models import Project, TimeZero, ForecastModel, Forecast
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -26,29 +28,15 @@ MINIMAL_PROJECT_NAMES = ['public project', 'private project']
 @click.command()
 def make_minimal_projects_app():
     """
-    App to populate the Heroku database with fairly minimal data for simple browsing - one Project, two ForecastModels,
-    one with one Forecast and the other with no Forecasts. NB: requires DJANGO_SETTINGS_MODULE to be set. Final
-    projects:
+    App to populate the Heroku database with three small projects with a little data for browsing:
 
-    public_project (2016-2017_submission_template.csv)
-        targets: target1
-        time_zeros: time_zero1, time_zero2
-        models:
-            forecast_model1
-                time_zero1: forecast1 (EW1-KoTsarima-2017-01-17.csv)
-                time_zero2: not set
-            forecast_model2
-                time_zero1: not set
-                time_zero2: not set
+    1. a public CDC-based public_project using cdc-project.json
+    2. a private CDC project
+    3. a docs project using docs-project.json
 
-    private_project
+    NB: requires DJANGO_SETTINGS_MODULE to be set.
 
-
-    cd ~/IdeaProjects/forecast-repository/
-    export PYTHONPATH=.
-    pipenv shell
-    python3 utils/fix_owners.py
-
+    You might want to run this afterwards: $ python3 utils/fix_owners.py
     """
     click.echo("* started creating temp projects")
 
@@ -60,36 +48,35 @@ def make_minimal_projects_app():
 
     po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
-    click.echo("* creating Projects")
+    click.echo("* creating CDC projects")
     public_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[0], is_public=True)
     public_project.owner = po_user
     public_project.model_owners.add(mo_user)
     public_project.save()
-
-    # create a TimeZero so that this truth file can be loaded:
-    # public_project.load_truth_data(Path('forecast_app/tests/truth_data/truths-ok.csv'))
-    TimeZero.objects.create(project=public_project, timezero_date=datetime.date(2017, 1, 1))
 
     private_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[1], is_public=False)
     private_project.owner = po_user
     private_project.model_owners.add(mo_user)
     private_project.save()
 
-    fill_project(public_project, mo_user, is_public=True)
-    fill_project(private_project, mo_user, is_public=False)
+    fill_cdc_project(public_project, mo_user, is_public=True)  # uses cdc-project.json
+    fill_cdc_project(private_project, mo_user, is_public=False)  # ""
+
+    click.echo("* creating Docs project")
+    create_docs_project(po_user)
 
     click.echo("* Done")
 
 
-def fill_project(project, mo_user, is_public):
+def fill_cdc_project(project, mo_user, is_public):
     project.description = "description"
     project.home_url = "http://example.com/"
     project.core_data = "http://example.com/"
 
-    # make the Locations and Targets
+    # make the Locations and Targets via cdc-project.json (recall it has no timezeros)
     make_cdc_locations_and_targets(project)
 
-    # make a few TimeZeros that match the truth and forecast data
+    # make two TimeZeros - one for ground truth, and one for the forecast's data:
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))  # EW01 2017
     #   -> {'year': 2017, 'week': 3, 'day': 3}
     time_zero1 = TimeZero.objects.create(project=project,
@@ -99,10 +86,10 @@ def fill_project(project, mo_user, is_public):
                             timezero_date=datetime.date(2017, 1, 24),
                             data_version_date=None)
 
-    # load the truth data. todo xx file_name arg:
+    # load ground truth
     load_truth_data(project, Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'), is_convert_na_none=True)
 
-    # create the models
+    # create the two models
     click.echo("creating ForecastModel")
     forecast_model1 = ForecastModel.objects.create(project=project,
                                                    name=f'Test ForecastModel1 ({"public" if is_public else "private"})',
@@ -111,7 +98,7 @@ def fill_project(project, mo_user, is_public):
                                                    home_url='http://example.com',
                                                    owner=mo_user)
 
-    # load the forecasts using the small data file
+    # load the forecasts using a small data file
     csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
     click.echo("* loading forecast into forecast_model={}, csv_file_path={}".format(forecast_model1, csv_file_path))
     start_time = timeit.default_timer()
@@ -124,6 +111,32 @@ def fill_project(project, mo_user, is_public):
                                  description="a second ForecastModel for testing",
                                  home_url='http://example.com',
                                  owner=mo_user)
+
+
+def create_docs_project(po_user):
+    """
+    Creates a project based on docs-project.json with forecasts from docs-predictions.json.
+    """
+    project_name = "Docs Example Project"  # overrides the json file one
+
+    found_project = Project.objects.filter(name=project_name).first()
+    if found_project:
+        click.echo("* deleting previous project: {}".format(found_project))
+        found_project.delete()
+
+    project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+    project.name = project_name
+    project.save()
+
+    load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))
+
+    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
+    time_zero = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+    forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                       time_zero=time_zero)
+    with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        json_io_dict_in = json.load(fp)
+        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
 
 
 if __name__ == '__main__':
