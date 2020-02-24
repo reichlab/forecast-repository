@@ -491,9 +491,8 @@ def download_project_config(request, project_pk):
 
 def create_project_from_file(request):
     """
-    Creates a project from a project config dict valid for create_project_from_json(). Authorization: The logged-in user
-    must be a superuser, or must be in the group PROJECT_OWNER_GROUP_NAME. Runs in the calling thread and therefore
-    blocks.
+    Creates a project from a project config dict valid for create_project_from_json(). Authorization: Any logged-in
+    user. Runs in the calling thread and therefore blocks.
     """
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
@@ -517,8 +516,8 @@ def create_project_from_file(request):
 
 def create_project_from_form(request):
     """
-    Shows a form to add a new Project with the owner being request.user. Authorization: The logged-in user must be a
-    superuser, or must be in the group PROJECT_OWNER_GROUP_NAME. Runs in the calling thread and therefore blocks.
+    Shows a form to add a new Project with the owner being request.user. Authorization: Any logged-in user. Runs in the
+    calling thread and therefore blocks.
 
     :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
@@ -528,41 +527,14 @@ def create_project_from_form(request):
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
 
-    # set up inline formsets using a new (unsaved) Project
-    LocationInlineFormSet = forms.inlineformset_factory(
-        Project, Location, fields=('name',), extra=3,
-        widgets={'name': forms.TextInput()})
-    TargetInlineFormSet = forms.inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'),
-        extra=3, widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
-    TimeZeroInlineFormSet = forms.inlineformset_factory(
-        Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,
-        widgets={'timezero_date': forms.TextInput(), 'data_version_date': forms.TextInput(),
-                 'season_name': forms.TextInput()})
-
     new_project = Project(owner=request.user)
-
-    location_formset = LocationInlineFormSet(instance=new_project)
-    target_formset = TargetInlineFormSet(instance=new_project)
-    timezero_formset = TimeZeroInlineFormSet(instance=new_project,
-                                             queryset=new_project.timezeros.order_by("timezero_date"))
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=new_project)
-        location_formset = LocationInlineFormSet(request.POST, instance=new_project)
-        target_formset = TargetInlineFormSet(request.POST, instance=new_project)
-        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=new_project,
-                                                 queryset=new_project.timezeros.order_by("timezero_date"))
-        if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
-                and timezero_formset.is_valid():
+        if project_form.is_valid():
             new_project = project_form.save(commit=False)
             new_project.owner = request.user  # force the owner to the current user
             new_project.save()
             project_form.save_m2m()
-
-            location_formset.save()
-            target_formset.save()
-            timezero_formset.save()
-
             messages.success(request, "Created project '{}'.".format(new_project.name))
             return redirect('project-detail', pk=new_project.pk)
 
@@ -572,10 +544,7 @@ def create_project_from_form(request):
     return render(request, 'show_form.html',
                   context={'title': 'New Project',
                            'button_name': 'Create',
-                           'form': project_form,
-                           'location_formset': location_formset,
-                           'target_formset': target_formset,
-                           'timezero_formset': timezero_formset})
+                           'form': project_form})
 
 
 def edit_project(request, project_pk):
@@ -590,35 +559,10 @@ def edit_project(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied
 
-    # set up inline formsets
-    LocationInlineFormSet = forms.inlineformset_factory(
-        Project, Location, fields=('name',), extra=3,
-        widgets={'name': forms.TextInput()})
-    TargetInlineFormSet = forms.inlineformset_factory(
-        Project, Target, fields=('name', 'description', 'unit', 'is_step_ahead', 'step_ahead_increment'),
-        extra=3, widgets={'name': forms.TextInput(), 'description': forms.TextInput(), 'unit': forms.TextInput()})
-    TimeZeroInlineFormSet = forms.inlineformset_factory(
-        Project, TimeZero, fields=('timezero_date', 'data_version_date', 'is_season_start', 'season_name'), extra=3,
-        widgets={'timezero_date': forms.TextInput(), 'data_version_date': forms.TextInput(),
-                 'season_name': forms.TextInput()})
-    location_formset = LocationInlineFormSet(instance=project)
-    target_formset = TargetInlineFormSet(instance=project)
-    timezero_formset = TimeZeroInlineFormSet(instance=project,
-                                             queryset=project.timezeros.order_by("timezero_date"))
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=project)
-        location_formset = LocationInlineFormSet(request.POST, instance=project)
-        target_formset = TargetInlineFormSet(request.POST, instance=project)
-        timezero_formset = TimeZeroInlineFormSet(request.POST, instance=project,
-                                                 queryset=project.timezeros.order_by("timezero_date"))
-        if project_form.is_valid() and location_formset.is_valid() and target_formset.is_valid() \
-                and timezero_formset.is_valid():
+        if project_form.is_valid():
             project_form.save()
-
-            location_formset.save()
-            target_formset.save()
-            timezero_formset.save()
-
             messages.success(request, "Edited project '{}.'".format(project.name))
             return redirect('project-detail', pk=project.pk)
 
@@ -628,10 +572,7 @@ def edit_project(request, project_pk):
     return render(request, 'show_form.html',
                   context={'title': 'Edit Project',
                            'button_name': 'Save',
-                           'form': project_form,
-                           'location_formset': location_formset,
-                           'target_formset': target_formset,
-                           'timezero_formset': timezero_formset})
+                           'form': project_form})
 
 
 def delete_project(request, project_pk):

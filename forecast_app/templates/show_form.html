@@ -23,28 +23,13 @@
         }
     </style>
 
-    {% if form.errors or location_formset.errors or target_formset.errors or timezero_formset.errors %}
+    {% if form.errors %}
         <p class="text-danger">There were errors. Please correct them below.</p>
     {% endif %}
 
     <form class="form-horizontal" method="POST">
         {% csrf_token %}
         {% include 'form_snippet.html' %}
-
-        {% if location_formset %}
-            <h2>Locations</h2>
-            {% include 'formset_snippet.html' with formset=location_formset %}
-        {% endif %}
-
-        {% if target_formset %}
-            <h2>Targets</h2>
-            {% include 'formset_snippet.html' with formset=target_formset %}
-        {% endif %}
-
-        {% if timezero_formset %}
-            <h2>TimeZeros</h2>
-            {% include 'formset_snippet.html' with formset=timezero_formset %}
-        {% endif %}
 
         <button type="button" onclick="history.back()" class="btn btn-default">Cancel</button>
         <button type="submit" class="save btn btn-success">{{ button_name }}</button>
