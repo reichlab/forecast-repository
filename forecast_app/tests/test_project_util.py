@@ -154,7 +154,7 @@ class ProjectUtilTestCase(TestCase):
             Target.DATE_TARGET_TYPE: [('unit', 'month'), ('cats', ['2019-12-15', '2019-12-22'])]}
         type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
         for type_int, required_keys_and_values in target_type_int_to_required_keys_and_values.items():
-            test_target_dict = dict(minimal_target_dict)  # copy
+            test_target_dict = dict(minimal_target_dict)  # shallow copy
             project_dict['targets'] = [test_target_dict]
             test_target_dict['type'] = type_int_to_name[type_int]
             for required_key, value in required_keys_and_values:
@@ -435,7 +435,7 @@ class ProjectUtilTestCase(TestCase):
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
         input_target_dicts = project_dict['targets']
-        # does validate_and_create_targets() -> model_init = {...}  # required keys:
+        # does _validate_and_create_targets() -> model_init = {...}  # required keys:
         project = create_project_from_json(project_dict, po_user)
 
         # 2. Target -> target_dict

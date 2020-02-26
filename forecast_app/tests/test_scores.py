@@ -700,7 +700,7 @@ class ScoresTestCase(TestCase):
 
 def _update_scores_for_all_projects():
     """
-    Update all scores for all projects. Limited usefulness b/c runs in the calling thread and therefore blocks.
+    Update all scores for all projects. Useful mainly for tests b/c runs in the calling thread and therefore blocks.
     """
     for score in Score.objects.all():
         for project in Project.objects.all():

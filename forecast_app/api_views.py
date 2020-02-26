@@ -224,14 +224,16 @@ class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
             return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-def validate_and_create_timezero(project, timezero_config):
+def validate_and_create_timezero(project, timezero_config, is_validate_only=False):
     """
     Helper that validates and creates a TimeZero in project based on timezero_config.
 
     :param project: project to add the TimeZero to
     :param timezero_config: dict as documented above, with these fields:
         ['timezero_date', 'data_version_date', 'is_season_start', 'season_name']
-    :return: the new TimeZero
+    :param is_validate_only: controls whether objects are actually created (is_validate_only=False), or whether only
+        validation is done but no creation (is_validate_only=True)
+    :return: the new TimeZero, or None if is_validate_only
     """
     # validate timezero_config. optional keys are tested below
     all_keys = set(timezero_config.keys())
@@ -245,6 +247,10 @@ def validate_and_create_timezero(project, timezero_config):
     if timezero_config['is_season_start'] and ('season_name' not in timezero_config.keys()):
         raise RuntimeError(f"season_name not found but is required when is_season_start is passed. "
                            f"timezero_config={timezero_config}")
+
+    # valid
+    if is_validate_only:
+        return None
 
     # create the TimeZero
     tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYY_MM_DD_DATE_FORMAT)

@@ -131,22 +131,22 @@ def _target_dict_for_target(target):
 #
 
 @transaction.atomic
-def create_project_from_json(proj_config_file_path_or_dict, owner):
+def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_only=False):
     """
     Top-level function that creates a Project based on the json configuration file at json_file_path. Errors if one with
     that name already exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or
     load forecasts.
 
+    :param is_validate_only: controls whether objects are actually created (is_validate_only=False), or whether only
+        validation is done but no creation (is_validate_only=True)
     :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
         See https://docs.zoltardata.com/fileformats/#project-creation-configuration-json for details, and
         cdc-project.json for an example.
-    :param owner: the new Project's owner (a User)
-    :param is_validate: True if the input json should be validated. passed in case a project requires less stringent
-        validation
+    :param owner: the new Project's owner (a User). used only if not is_validate_only
     :return: the new Project
     """
     logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
-                f"{proj_config_file_path_or_dict}, owner={owner}")
+                f"{proj_config_file_path_or_dict}, owner={owner}, is_validate_only={is_validate_only}")
     if isinstance(proj_config_file_path_or_dict, dict):
         project_dict = proj_config_file_path_or_dict
     else:
@@ -161,49 +161,61 @@ def create_project_from_json(proj_config_file_path_or_dict, owner):
         raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ actual_keys}. "
                            f"expected={expected_keys}, actual={actual_keys}")
 
-    # error if project already exists
-    name = project_dict['name']
-    project = Project.objects.filter(name=name).first()  # None if doesn't exist
-    if project:
-        raise RuntimeError(f"found existing project. name={name}, project={project}")
+    if is_validate_only:
+        project = None
+        logger.info(f"- no created Project")
+    else:
+        # error if project already exists
+        name = project_dict['name']
+        project = Project.objects.filter(name=name).first()  # None if doesn't exist
+        if project:
+            raise RuntimeError(f"found existing project. name={name}, project={project}")
 
-    project = create_project(project_dict, owner)
-    logger.info(f"- created Project: {project}")
+        project = _create_project(project_dict, owner)
+        logger.info(f"- created Project: {project}")
 
-    locations = validate_and_create_locations(project, project_dict)
+    locations = _validate_and_create_locations(project, project_dict, is_validate_only)
     logger.info(f"- created {len(locations)} Locations: {locations}")
 
-    targets = validate_and_create_targets(project, project_dict)
+    targets = _validate_and_create_targets(project, project_dict, is_validate_only)
     logger.info(f"- created {len(targets)} Targets: {targets}")
 
-    timezeros = validate_and_create_timezeros(project, project_dict)
+    timezeros = _validate_and_create_timezeros(project, project_dict, is_validate_only)
     logger.info(f"- created {len(timezeros)} TimeZeros: {timezeros}")
 
     logger.info(f"* create_project_from_json(): done!")
     return project
 
 
-def validate_and_create_locations(project, project_dict):
-    try:
-        return [Location.objects.create(project=project, name=location_dict['name'])
-                for location_dict in project_dict['locations']]
-    except KeyError:
-        raise RuntimeError(f"one of the location_dicts had no 'name' field. locations={project_dict['locations']}")
+def _validate_and_create_locations(project, project_dict, is_validate_only=False):
+    locations = []  # returned instances
+    for location_dict in project_dict['locations']:
+        if 'name' not in location_dict:
+            raise RuntimeError(f"one of the location_dicts had no 'name' field. locations={project_dict['locations']}")
+
+        # valid
+        if not is_validate_only:
+            locations.append(Location.objects.create(project=project, name=location_dict['name']))
+    return locations
 
 
-def validate_and_create_timezeros(project, project_dict):
+def _validate_and_create_timezeros(project, project_dict, is_validate_only=False):
     from forecast_app.api_views import validate_and_create_timezero  # avoid circular imports
 
 
-    return [validate_and_create_timezero(project, timezero_config) for timezero_config in project_dict['timezeros']]
+    timezeros = [validate_and_create_timezero(project, timezero_config, is_validate_only)
+                 for timezero_config in project_dict['timezeros']]
+    return timezeros if not is_validate_only else []
 
 
 # todo xx integrate with API serialization!
-def validate_and_create_targets(project, project_dict):
+def _validate_and_create_targets(project, project_dict, is_validate_only=False):
     targets = []
     type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
     for target_dict in project_dict['targets']:
         type_name = _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
+        if is_validate_only:
+            continue
 
         # valid! create the Target and then supporting 'list' instances: TargetCat, TargetLwr, and TargetRange. atomic
         # so that Targets succeed only if others do too
@@ -354,7 +366,7 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
     return type_name
 
 
-def create_project(project_dict, owner):
+def _create_project(project_dict, owner):
     # validate time_interval_type - one of: 'week', 'biweek', or 'month'
     time_interval_type_input = project_dict['time_interval_type'].lower()
     time_interval_type = None

@@ -138,6 +138,8 @@ def create_docs_project(po_user):
         json_io_dict_in = json.load(fp)
         load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
 
+    return project
+
 
 if __name__ == '__main__':
     make_minimal_projects_app()

@@ -10,7 +10,7 @@ from django.db import transaction
 from forecast_app.models import PointPrediction, BinDistribution
 from forecast_app.models.forecast import Forecast
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-from utils.project import validate_and_create_locations, validate_and_create_targets
+from utils.project import _validate_and_create_locations, _validate_and_create_targets
 from utils.utilities import parse_value, YYYY_MM_DD_DATE_FORMAT
 
 
@@ -265,8 +265,8 @@ def make_cdc_locations_and_targets(project):
     """
     with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
         project_dict = json.load(fp)
-    validate_and_create_locations(project, project_dict)
-    validate_and_create_targets(project, project_dict)
+    _validate_and_create_locations(project, project_dict)
+    _validate_and_create_targets(project, project_dict)
 
 
 #
