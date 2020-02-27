@@ -289,7 +289,6 @@ def database_changes_for_project_config_diff(project, changes):
             num_bins = bins_qs.filter(location=location).count()
             num_samples = samples_qs.filter(location=location).count()
             num_truth = truth_qs.filter(location=location).count()
-            database_changes.append((change, num_points, num_named, num_bins, num_samples, num_truth))
         elif change.object_type == ObjectType.TARGET:  # removing a Target
             target = object_for_change(project, change, [])  # raises
             num_points = points_qs.filter(target=target).count()
@@ -297,7 +296,6 @@ def database_changes_for_project_config_diff(project, changes):
             num_bins = bins_qs.filter(target=target).count()
             num_samples = samples_qs.filter(target=target).count()
             num_truth = truth_qs.filter(target=target).count()
-            database_changes.append((change, num_points, num_named, num_bins, num_samples, num_truth))
         elif change.object_type == ObjectType.TIMEZERO:  # removing a TimeZero
             timezero = object_for_change(project, change, [])  # raises
             num_points = points_qs.filter(forecast__time_zero=timezero).count()
@@ -305,7 +303,7 @@ def database_changes_for_project_config_diff(project, changes):
             num_bins = bins_qs.filter(forecast__time_zero=timezero).count()
             num_samples = samples_qs.filter(forecast__time_zero=timezero).count()
             num_truth = truth_qs.filter(time_zero=timezero).count()
-            database_changes.append((change, num_points, num_named, num_bins, num_samples, num_truth))
+        database_changes.append((change, num_points, num_named, num_bins, num_samples, num_truth))
     return database_changes
 
 

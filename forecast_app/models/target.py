@@ -136,6 +136,7 @@ class Target(models.Model):
             compatibility
         :param is_convert_na_none: True if value should be converted to None for these cases: `""`, `NA` or `NULL`
             (case does not matter). in that case (True, None) is returned
+        :return: 2-tuple indicating if value's type is compatible with target_type: (is_compatible, parsed_value)
         """
         if is_convert_na_none and ((value == '') or (value.lower() == 'na') or (value.lower() == 'null')):
             return True, None

@@ -1,2 +1,15 @@
 timezero,location,target,value
-2011-10-02,location1,pct next week,null
+2011-10-02,location1,pct next week,NULL
+2011-10-02,location1,cases next week,NA
+2011-10-02,location1,season severity,moderate
+2011-10-02,location1,above baseline,true
+2011-10-02,location1,Season peak week,2019-12-15
+2011-10-09,location2,pct next week,99.9
+2011-10-09,location2,cases next week,3
+2011-10-09,location2,season severity,severe
+2011-10-09,location2,above baseline,true
+2011-10-09,location2,Season peak week,2019-12-29
+2011-10-16,location1,pct next week,0
+2011-10-16,location1,cases next week,0
+2011-10-16,location1,above baseline,false
+2011-10-16,location1,Season peak week,2019-12-22

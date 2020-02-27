@@ -426,7 +426,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
         combination, OR an already-open file-like object
     :param file_name: name to use for the file
-    :param is_convert_na_none: is as passed to Target.is_value_compatible_with_target_type()
+    :param is_convert_na_none: as passed to Target.is_value_compatible_with_target_type()
     """
     logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
                  f"file_name={file_name}")

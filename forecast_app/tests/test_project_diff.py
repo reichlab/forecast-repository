@@ -1,6 +1,8 @@
 import copy
 import datetime
+import json
 import logging
+from pathlib import Path
 
 from django.test import TestCase
 
@@ -15,7 +17,7 @@ from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_us
 logging.getLogger().setLevel(logging.ERROR)
 
 
-class ProjectUtilTestCase(TestCase):
+class ProjectDiffTestCase(TestCase):
     """
     """
 
@@ -185,8 +187,36 @@ class ProjectUtilTestCase(TestCase):
 
         changes = project_config_diff(out_config_dict, edit_config_dict)
         execute_project_config_diff(project, changes)
+        self._do_make_some_changes_tests(project)
 
-        # test database
+
+    def test_diff_from_file(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        out_config_dict = config_dict_from_project(project)
+
+        # this json file makes the same changes as _make_some_changes():
+        with open(Path('forecast_app/tests/project_diff/docs-project-edited.json')) as fp:
+            edited_config_dict = json.load(fp)
+        changes = project_config_diff(out_config_dict, edited_config_dict)
+
+        # # print a little report
+        # print(f"* Analyzed {len(changes)} changes. Results:")
+        # for change, num_points, num_named, num_bins, num_samples, num_truth in \
+        #         database_changes_for_project_config_diff(project, changes):
+        #     print(f"- {change.change_type.name} on {change.object_type.name} {change.object_pk!r} will delete:\n"
+        #           f"  = {num_points} point predictions\n"
+        #           f"  = {num_named} named predictions\n"
+        #           f"  = {num_bins} bin predictions\n"
+        #           f"  = {num_samples} samples\n"
+        #           f"  = {num_truth} truth rows")
+
+        # same tests as test_execute_project_config_diff():
+        execute_project_config_diff(project, changes)
+        self._do_make_some_changes_tests(project)
+
+
+    def _do_make_some_changes_tests(self, project):
         # Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', {'name': 'new project name', ...}]})
         self.assertEqual('new project name', project.name)
 

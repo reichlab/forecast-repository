@@ -99,7 +99,8 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create()
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
         make_cdc_locations_and_targets(project2)
-        load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'), is_convert_na_none=True)
+        load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'),
+                        is_convert_na_none=True)
         exp_rows = [(datetime.date(2016, 10, 30), 'US National', '1 wk ahead', None, 1.55838, None, None, None),
                     (datetime.date(2016, 10, 30), 'US National', '2 wk ahead', None, 1.64639, None, None, None),
                     (datetime.date(2016, 10, 30), 'US National', '3 wk ahead', None, 1.91196, None, None, None),
@@ -157,7 +158,8 @@ class ProjectTestCase(TestCase):
         self.assertIsNotNone(self.project.score_csv_file_cache)
 
         # test CSV file gets created
-        load_truth_data(self.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'), is_convert_na_none=True)
+        load_truth_data(self.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'),
+                        is_convert_na_none=True)
         Score.ensure_all_scores_exist()
         score = Score.objects.filter(abbreviation='abs_error').first()
         score.update_score_for_model(self.forecast_model)
@@ -486,7 +488,8 @@ class ProjectTestCase(TestCase):
         # we omit 20170108
 
         self.project.delete_truth_data()
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'), is_convert_na_none=True)
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'),
+                        is_convert_na_none=True)
 
         exp_loc_target_tz_date_to_truth = {
             'HHS Region 1': {
