@@ -56,10 +56,18 @@ urlpatterns = [
     # ---- CRUD-related form URLs ----
 
     # Project
-    url(r'^project/create_form/$', views.create_project_from_form, name='create-project-from-form'),
-    url(r'^project/create_file/$', views.create_project_from_file, name='create-project-from-file'),
-    url(r'^project/(?P<project_pk>\d+)/edit/$', views.edit_project, name='edit-project'),
-    url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project, name='delete-project'),
+    url(r'^project/create_proj_form/$', views.create_project_from_form,
+        name='create-project-from-form'),
+    url(r'^project/create_proj_file/$', views.create_project_from_file,
+        name='create-project-from-file'),
+    url(r'^project/(?P<project_pk>\d+)/edit_proj_from_form/$', views.edit_project_from_form,
+        name='edit-project-from-form'),
+    url(r'^project/(?P<project_pk>\d+)/edit_proj_file_preview/$', views.edit_project_from_file_preview,
+        name='edit-project-from-file-preview'),
+    url(r'^project/(?P<project_pk>\d+)/edit_proj_file_execute/$', views.edit_project_from_file_execute,
+        name='edit-project-from-file-execute'),
+    url(r'^project/(?P<project_pk>\d+)/delete/$', views.delete_project,
+        name='delete-project'),
 
     # User
     url(r'^user/(?P<user_pk>\d+)/edit/$', views.edit_user, name='edit-user'),

@@ -216,6 +216,79 @@ class ProjectDiffTestCase(TestCase):
         self._do_make_some_changes_tests(project)
 
 
+    def test_serialize_change_list(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        _update_scores_for_all_projects()
+
+        # make some changes
+        out_config_dict = config_dict_from_project(project)
+        edit_config_dict = copy.deepcopy(out_config_dict)
+        _make_some_changes(edit_config_dict)
+
+        # test round-trip for one Change
+        changes = sorted(project_config_diff(out_config_dict, edit_config_dict),
+                         key=lambda _: (_.object_type, _.object_pk, _.change_type))
+        exp_dict = {'object_type': ObjectType.PROJECT,
+                    'object_pk': None,
+                    'change_type': ChangeType.FIELD_EDITED,
+                    'field_name': 'name',
+                    'object_dict': edit_config_dict}
+        act_dict = changes[0].serialize_to_dict()
+        self.assertEqual(exp_dict, act_dict)
+        self.assertEqual(changes[0], Change.deserialize_dict(exp_dict))
+
+        # test serialize_to_dict() for all changes
+        exp_dicts = [
+            {'object_type': int(ObjectType.PROJECT), 'object_pk': None, 'change_type': int(ChangeType.FIELD_EDITED),
+             'field_name': 'name', 'object_dict': edit_config_dict},
+            {'object_type': int(ObjectType.LOCATION), 'object_pk': 'location3', 'change_type': ChangeType.OBJ_REMOVED,
+             'field_name': None, 'object_dict': None},
+            {'object_type': int(ObjectType.LOCATION), 'object_pk': 'location4', 'change_type': 0, 'field_name': None,
+             'object_dict': {'name': 'location4'}},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'cases next week',
+             'change_type': ChangeType.FIELD_EDITED, 'field_name': 'is_step_ahead',
+             'object_dict': {'type': 'discrete', 'name': 'cases next week',
+                             'description': 'A forecasted integer number of cases for a future week.',
+                             'is_step_ahead': False, 'unit': 'cases', 'range': [0, 100000], 'cats': [0, 2, 50]}},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'cases next week',
+             'change_type': ChangeType.FIELD_REMOVED, 'field_name': 'step_ahead_increment', 'object_dict': None},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'pct next week', 'change_type': 0, 'field_name': None,
+             'object_dict': {'type': 'discrete', 'name': 'pct next week', 'description': 'new descr',
+                             'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
+                             'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'pct next week', 'change_type': 0, 'field_name': None,
+             'object_dict': {'type': 'discrete', 'name': 'pct next week', 'description': 'new descr',
+                             'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
+                             'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_REMOVED,
+             'field_name': None, 'object_dict': None},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_REMOVED,
+             'field_name': None, 'object_dict': None},
+            {'object_type': int(ObjectType.TARGET), 'object_pk': 'pct next week',
+             'change_type': ChangeType.FIELD_EDITED, 'field_name': 'description',
+             'object_dict': {'type': 'discrete', 'name': 'pct next week', 'description': 'new descr',
+                             'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
+                             'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
+            {'object_type': int(ObjectType.TIMEZERO), 'object_pk': '2011-10-02', 'change_type': ChangeType.OBJ_REMOVED,
+             'field_name': None, 'object_dict': None},
+            {'object_type': int(ObjectType.TIMEZERO), 'object_pk': '2011-10-09', 'change_type': ChangeType.FIELD_EDITED,
+             'field_name': 'data_version_date',
+             'object_dict': {'timezero_date': '2011-10-09', 'data_version_date': '2011-10-19', 'is_season_start': False,
+                             'season_name': None}},
+            {'object_type': int(ObjectType.TIMEZERO), 'object_pk': '2011-10-22', 'change_type': 0, 'field_name': None,
+             'object_dict': {'timezero_date': '2011-10-22', 'data_version_date': None, 'is_season_start': True,
+                             'season_name': '2011-2012'}}
+        ]
+        self.assertEqual(exp_dicts, [change.serialize_to_dict() for change in changes])
+
+        # test round-trip for all changes
+        for change in changes:
+            serialized_change_dict = change.serialize_to_dict()
+            deserialized_change = Change.deserialize_dict(serialized_change_dict)
+            self.assertEqual(change, deserialized_change)
+
+
     def _do_make_some_changes_tests(self, project):
         # Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', {'name': 'new project name', ...}]})
         self.assertEqual('new project name', project.name)

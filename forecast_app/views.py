@@ -6,14 +6,13 @@ import time
 import django_rq
 import redis
 from django import db
-from django import forms
 from django.contrib import messages
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Count
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
@@ -21,7 +20,6 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
-from forecast_app.models.project import Location
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
@@ -31,6 +29,8 @@ from utils.flusight import flusight_location_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data
+from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
+    execute_project_config_diff, order_project_config_diff
 
 
 logger = logging.getLogger(__name__)
@@ -521,8 +521,6 @@ def create_project_from_form(request):
 
     :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
-    from forecast_app.models import Target  # avoid circular imports
-
 
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
@@ -547,14 +545,11 @@ def create_project_from_form(request):
                            'form': project_form})
 
 
-def edit_project(request, project_pk):
+def edit_project_from_form(request, project_pk):
     """
     Shows a form to edit a Project's basic information. Authorization: The logged-in user must be a superuser or the
     Project's owner.
     """
-    from forecast_app.models import Target  # avoid circular imports
-
-
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
         raise PermissionDenied
@@ -565,7 +560,6 @@ def edit_project(request, project_pk):
             project_form.save()
             messages.success(request, "Edited project '{}.'".format(project.name))
             return redirect('project-detail', pk=project.pk)
-
     else:  # GET
         project_form = ProjectForm(instance=project)
 
@@ -573,6 +567,61 @@ def edit_project(request, project_pk):
                   context={'title': 'Edit Project',
                            'button_name': 'Save',
                            'form': project_form})
+
+
+def edit_project_from_file_preview(request, project_pk):
+    """
+    Part 1/2 of editing a project via uploading a new configuration file, shows a report and confirmation form to edit a
+    Project's configuration via the diffs with an uploaded file. Authorization: The logged-in user must be a superuser
+    or the Project's owner.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_edit_project(request.user, project):
+        raise PermissionDenied
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest(f"only the POST method is supported")
+
+    is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
+    if is_error:
+        return is_error
+
+    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+    out_config_dict = config_dict_from_project(project)
+    edit_config_dict = json.load(data_file)
+    changes = order_project_config_diff(project_config_diff(out_config_dict, edit_config_dict))
+    database_changes = database_changes_for_project_config_diff(project, changes)
+
+    # we serialize Changes so they can be passed to the template as a json string that is posted back to the server on
+    # Submit for execute_project_config_diff()
+    changes_json = json.dumps([change.serialize_to_dict() for change in changes])
+    return render(request, 'project_diff_report.html',
+                  context={'project': project,
+                           'data_file': data_file,
+                           'changes': changes,
+                           'changes_json': changes_json,
+                           'database_changes': database_changes})
+
+
+def edit_project_from_file_execute(request, project_pk):
+    """
+    Part 2/2 of editing a project via uploading a new configuration file, executes
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_edit_project(request.user, project):
+        raise PermissionDenied
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest(f"only the POST method is supported")
+
+    changes_json = request.POST['changes_json']  # serialized Changes list from the project_diff_report.html form
+    deserialized_change_dicts = json.loads(changes_json)
+    changes = [Change.deserialize_dict(change_dict) for change_dict in deserialized_change_dicts]
+    logger.debug(f"edit_project_from_file_execute(): executing project config diff... changes={changes}")
+    execute_project_config_diff(project, changes)
+    logger.debug(f"edit_project_from_file_execute(): done")
+    messages.success(request, f"Successfully applied {len(changes)} change(s) to project '{project.name}'.")
+    return redirect('project-detail', pk=project_pk)
 
 
 def delete_project(request, project_pk):
@@ -592,7 +641,7 @@ def delete_project(request, project_pk):
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
-    return redirect('user-detail', pk=user.pk)
+    return redirect('projects')
 
 
 def edit_user(request, user_pk):

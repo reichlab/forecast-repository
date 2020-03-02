@@ -131,12 +131,12 @@ class ViewsTestCase(TestCase):
     # the following @patch calls stop CRUD calls from actually taking place. all we care about here is access permissions
     @patch('forecast_app.models.forecast.Forecast.delete')  # 'delete-forecast'
     # 'create-project-from-form' -> form
-    # 'edit-project' -> form
+    # 'edit-project-from-form' -> form
     @patch('utils.project.delete_project_iteratively')  # 'delete-project'
     # 'create-model' -> form
     # 'edit-model' -> form
     @patch('forecast_app.models.forecast_model.ForecastModel.delete')  # 'delete-model'
-    def test_url_access(self, mock_delete_model, mock_delete_project, mock_delete_forecast):
+    def test_url_get_general(self, mock_delete_model, mock_delete_project, mock_delete_forecast):
         url_to_exp_user_status_code_pairs = {
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
@@ -169,8 +169,8 @@ class ViewsTestCase(TestCase):
             reverse('project-config', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('create-project-from-form', args=[]): self.ONLY_PO_MO,
             reverse('create-project-from-file', args=[]): self.ONLY_PO_MO,
-            reverse('edit-project', args=[str(self.public_project.pk)]): self.ONLY_PO,
-            reverse('edit-project', args=[str(self.private_project.pk)]): self.ONLY_PO,
+            reverse('edit-project-from-form', args=[str(self.public_project.pk)]): self.ONLY_PO,
+            reverse('edit-project-from-form', args=[str(self.private_project.pk)]): self.ONLY_PO,
             reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
             reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
             reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
@@ -218,7 +218,7 @@ class ViewsTestCase(TestCase):
                 self.assertEqual(exp_status_code, response.status_code)
 
 
-    def test_edit_delete_upload_create_links(self):
+    def test_url_edit_delete_upload_create_links(self):
         url_to_exp_content = {
             # model detail page for public model
             reverse('model-detail', args=[str(self.public_model.pk)]): {
@@ -272,7 +272,7 @@ class ViewsTestCase(TestCase):
             },
             # project detail - public_project (has truth)
             reverse('project-detail', args=[str(self.public_project.pk)]): {
-                reverse('edit-project', args=[str(self.public_project.pk)]):
+                reverse('edit-project-from-form', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True)],
@@ -324,7 +324,31 @@ class ViewsTestCase(TestCase):
                         self.assertNotIn(exp_url, str(response.content))
 
 
-    def test_delete_project_iteractively(self):
+    def test_url_post_edit_project_from_file(self):
+        # for both 'edit-project-from-file-preview' and 'edit-project-from-file-execute', only po_user and superuser can
+        # POST, and to both public and private projects. anonymous and mo_user cannot POST to none
+        for url_name in ['edit-project-from-file-preview', 'edit-project-from-file-preview']:
+            for proj_pk in [self.public_project.pk, self.private_project.pk]:
+                url = reverse(url_name, args=[str(proj_pk)])
+
+                self.client.logout()  # AnonymousUser
+                response = self.client.post(url)
+                self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+                self.client.login(username=self.mo_user.username, password=self.mo_user_password)
+                response = self.client.post(url)
+                self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+                self.client.login(username=self.po_user.username, password=self.po_user_password)
+                response = self.client.post(url)
+                self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+                self.client.login(username=self.superuser.username, password=self.superuser_password)
+                response = self.client.post(url)
+                self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+
+    def test_delete_project_interactively(self):
         # delete_project_iteratively() should delete its project
         project2 = Project.objects.create(owner=self.po_user)
         self.assertIsNotNone(project2.pk)
@@ -344,7 +368,7 @@ class ViewsTestCase(TestCase):
         project2 = Project.objects.create(owner=self.po_user)
         with patch('utils.project.delete_project_iteratively') as del_proj_iter_mock:
             self.client.delete(reverse('delete-project', args=[str(project2.pk)]), {
-                'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+                'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
             })
             del_proj_iter_mock.assert_called_once()
             args = del_proj_iter_mock.call_args[0]
@@ -432,7 +456,7 @@ class ViewsTestCase(TestCase):
                     password = self.po_user_password if user == self.po_user \
                         else self.mo_user_password if user == self.mo_user \
                         else self.superuser_password
-                    self.authenticate_jwt_user(user, password)
+                    self._authenticate_jwt_user(user, password)
                 response = self.client.get(url)
                 self.assertEqual(exp_status_code, response.status_code)
 
@@ -448,7 +472,7 @@ class ViewsTestCase(TestCase):
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
 
         # authorized access: self.mo_user: self.public_project, self.private_project, self.public_project2
-        self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
+        self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
         response = self.client.get(reverse('api-project-list'), format='json')
         self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
@@ -515,7 +539,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
         # authorized self.mo_user: delete private_forecast2 (new Forecast) -> allowed
-        self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
+        self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
         self.assertEqual(1, self.private_model.forecasts.count())
 
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
@@ -540,7 +564,7 @@ class ViewsTestCase(TestCase):
             project_dict = json.load(fp)
         json_response = self.client.post(reverse('api-project-list'), {
             'project_config': project_dict,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
@@ -559,13 +583,13 @@ class ViewsTestCase(TestCase):
         # case: not authorized
         joe_user = User.objects.create_user(username='joe', password='password')
         response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
-            'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
         # case: blue sky
         response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         })
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
 
@@ -581,7 +605,7 @@ class ViewsTestCase(TestCase):
 
         # case: no 'model_config'
         json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
         self.assertEqual({'error': "No 'model_config' data."}, json_response.json())
@@ -591,7 +615,7 @@ class ViewsTestCase(TestCase):
         model_config = {}
         json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
             'model_config': model_config,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
@@ -601,7 +625,7 @@ class ViewsTestCase(TestCase):
                         'aux_data_url': 'http://example.com/'}
         json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
             'model_config': model_config,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(set(json_response.json().keys()),
@@ -624,13 +648,13 @@ class ViewsTestCase(TestCase):
         # case: not authorized
         joe_user = User.objects.create_user(username='joe', password='password')
         response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
-            'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
         # case: blue sky
         response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         })
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
 
@@ -646,7 +670,7 @@ class ViewsTestCase(TestCase):
 
         # case: no 'timezero_config'
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
         self.assertEqual({'error': "No 'timezero_config' data."}, json_response.json())
@@ -656,7 +680,7 @@ class ViewsTestCase(TestCase):
         timezero_config = {}
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
             'timezero_config': timezero_config,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
@@ -667,7 +691,7 @@ class ViewsTestCase(TestCase):
                            'season_name': 'tis the season'}
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
             'timezero_config': timezero_config,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(set(json_response.json().keys()),
@@ -680,7 +704,7 @@ class ViewsTestCase(TestCase):
                            'season_name': None}
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
             'timezero_config': timezero_config,
-            'Authorization': f'JWT {self.authenticate_jwt_user(self.po_user, self.po_user_password)}',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(set(json_response.json().keys()),
@@ -697,13 +721,13 @@ class ViewsTestCase(TestCase):
             # case: not authorized
             joe_user = User.objects.create_user(username='joe', password='password')
             json_response = self.client.post(upload_forecast_url, {
-                'Authorization': f'JWT {self.authenticate_jwt_user(joe_user, "password")}',
+                'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
             # case: no 'data_file'
-            jwt_token = self.authenticate_jwt_user(self.mo_user, self.mo_user_password)
+            jwt_token = self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
             json_response = self.client.post(upload_forecast_url, {
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
@@ -771,7 +795,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
 
-    def authenticate_jwt_user(self, user, password):
+    def _authenticate_jwt_user(self, user, password):
         jwt_auth_url = reverse('auth-jwt-get')
         jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password}, format='json')
         jwt_token = jwt_auth_resp.data['token']

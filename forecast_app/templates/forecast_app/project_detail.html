@@ -9,16 +9,27 @@
     <h2>
         {% include 'visibility_snippet.html' with project=project size="fa-xs" %}
         Project: {{ project.name }}
-    </h2>
-    <p class="lead">
         <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
         <a href="{% url 'project-config' project.pk %}" class="btn btn-success btn-sm" role="button">
             <i class="fas fa-cloud-download-alt"></i> Config</a>
+
         {% if is_user_ok_edit_project %}
-            {# Edit Project: a simple link to an edit form #}
-            <a href="{% url 'edit-project' project.pk %}" class="btn btn-success btn-sm" role="button">
-                <i class="fas fa-edit"></i>
-            </a>
+            {# Edit Project: show a dropdown button with options for editing basic data via form or full restructuring via a project configuration file #}
+            {# show the new project form with a button dropdown of options for creating: form or file #}
+            <form id="download_form" class="form-inline" style="display: inline-block;" method="POST">
+                {% csrf_token %}
+                <div class="dropdown">
+                    <button class="btn btn-success dropdown-toggle btn-sm" type="button" id="dropdownMenuButton"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Edit
+                    </button>
+                    <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                        <a class="dropdown-item" href="{% url 'edit-project-from-form' project.pk %}">From form...</a>
+                        <a class="dropdown-item" data-toggle="modal" data-target="#choose_project_config_modal"
+                           href="#">From file...</a>
+                    </div>
+                </div>
+            </form>
 
             {# Delete Project: a button that shows a hidden confirm modal when clicked #}
             <button type="submit" class="btn btn-danger btn-sm" data-toggle="modal"
@@ -26,11 +37,12 @@
                 <i class="fas fa-trash-alt"></i>
             </button>
 
-            {# the modal itself - hidden until above button shows it #}
+            {# the #confirmModal_* modal itself - hidden until above button shows it #}
             {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-project' %}
         {% endif %}
-    </p>
-
+    </h2>
+    {# the #choose_project_config_modal itself - hidden until above link shows it #}
+    {% include 'choose_project_config_snippet.html' with action_url='edit-project-from-file-preview' project=project %}
 
     <div class="row">
         {# left column: info table #}

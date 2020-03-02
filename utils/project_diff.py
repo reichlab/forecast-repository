@@ -41,24 +41,27 @@ class Change:
     Represents a change to a dict as returned by config_dict_from_project().
 
     'field_name' and 'object_dict' usage by 'change_type':
-     +---------------+------------+--------------------------+
-     | change_type   | field_name | object_dict              |
-     +---------------+------------+--------------------------+
-     | OBJ_ADDED     | n/a        | new object's contents    | # ala create_project_from_json()
-     | OBJ_REMOVED   | n/a        | n/a                      |
-     | FIELD_EDITED  | field name | edited object's contents |
-     | FIELD_ADDED   | field name | added object's contents  |
-     | FIELD_REMOVED | field name | n/a                      |
-     +---------------+------------+--------------------------+
+    +---------------+------------+--------------------------+
+    | change_type   | field_name | object_dict              |
+    +---------------+------------+--------------------------+
+    | OBJ_ADDED     | n/a        | new object's contents    | # ala create_project_from_json()
+    | OBJ_REMOVED   | n/a        | n/a                      |
+    | FIELD_EDITED  | field name | edited object's contents |
+    | FIELD_ADDED   | field name | added object's contents  |
+    | FIELD_REMOVED | field name | n/a                      |
+    +---------------+------------+--------------------------+
+
+    Note: Due to __hash__()'s ignoring of object_dict, be careful not to change object_dict after the fact. This
+    implementation is a quick-and-dirty way to allow using Change objects as dict keys, or in sets.
     """
 
 
     def __init__(self, object_type: ObjectType, object_pk: str, change_type: ChangeType,
                  field_name: str, object_dict: dict):
         super().__init__()
-        self.object_type = object_type
+        self.object_type = ObjectType(object_type)  # we cast b/c inputs might be plain ints
         self.object_pk = object_pk
-        self.change_type = change_type
+        self.change_type = ChangeType(change_type)  # ""
         self.field_name = field_name
         self.object_dict = object_dict
 
@@ -73,6 +76,22 @@ class Change:
         return basic_str(self)
 
 
+    # https://stackoverflow.com/questions/2909106/whats-a-correct-and-good-way-to-implement-hash
+    def __key(self):
+        return (self.object_type, self.object_pk, self.change_type, self.field_name)  # NB: we ignore self.object_dict
+
+
+    def __hash__(self):
+        return hash(self.__key())
+
+
+    #   # NB: this would ignore self.object_dict:
+    # def __eq__(self, other):
+    #     if isinstance(other, Change):
+    #         return self.__key() == other.__key()
+    #     return NotImplemented
+
+
     def __eq__(self, other):
         if not isinstance(other, Change):
             return NotImplemented
@@ -80,6 +99,36 @@ class Change:
         return (self.object_type == other.object_type) and (self.object_pk == other.object_pk) \
                and (self.change_type == other.change_type) and (self.field_name == other.field_name) \
                and (self.object_dict == other.object_dict)
+
+
+    def serialize_to_dict(self):
+        """
+        A poor man's JSON serializer. Should probably be done cleanly, e.g., via subcassing
+        https://docs.python.org/3.6/library/json.html#json.JSONEncoder (via
+        https://stackoverflow.com/questions/3768895/how-to-make-a-class-json-serializable ).
+
+        :return: a dict containing my content, suitable for json.dumps()
+        """
+        return {'object_type': int(self.object_type),
+                'object_pk': self.object_pk,
+                'change_type': int(self.change_type),
+                'field_name': self.field_name,
+                'object_dict': self.object_dict}
+
+
+    @classmethod
+    def deserialize_dict(cls, serialized_change_dict):
+        """
+        Sister to serialize_to_dict().
+
+        :param serialized_change_dict: as returned by serialize_to_dict()
+        :return: a Change from serialized_change
+        """
+        return Change(serialized_change_dict['object_type'],
+                      serialized_change_dict['object_pk'],
+                      serialized_change_dict['change_type'],
+                      serialized_change_dict['field_name'],
+                      serialized_change_dict['object_dict'])
 
 
 def project_config_diff(config_dict_1, config_dict_2):
@@ -279,7 +328,7 @@ def database_changes_for_project_config_diff(project, changes):
     truth_qs = TruthData.objects.filter(time_zero__project=project)
     database_changes = []  # return value. filled next
     for change in order_project_config_diff(changes):
-        if change.change_type != ChangeType.OBJ_REMOVED:
+        if (change.object_type == ObjectType.PROJECT) or (change.change_type != ChangeType.OBJ_REMOVED):
             continue
 
         if change.object_type == ObjectType.LOCATION:  # removing a Location
@@ -296,14 +345,15 @@ def database_changes_for_project_config_diff(project, changes):
             num_bins = bins_qs.filter(target=target).count()
             num_samples = samples_qs.filter(target=target).count()
             num_truth = truth_qs.filter(target=target).count()
-        elif change.object_type == ObjectType.TIMEZERO:  # removing a TimeZero
+        else:  # change.object_type == ObjectType.TIMEZERO:  # removing a TimeZero
             timezero = object_for_change(project, change, [])  # raises
             num_points = points_qs.filter(forecast__time_zero=timezero).count()
             num_named = named_qs.filter(forecast__time_zero=timezero).count()
             num_bins = bins_qs.filter(forecast__time_zero=timezero).count()
             num_samples = samples_qs.filter(forecast__time_zero=timezero).count()
             num_truth = truth_qs.filter(time_zero=timezero).count()
-        database_changes.append((change, num_points, num_named, num_bins, num_samples, num_truth))
+        if any([num_points, num_named, num_bins, num_samples, num_truth]):
+            database_changes.append((change, num_points, num_named, num_bins, num_samples, num_truth))
     return database_changes
 
 

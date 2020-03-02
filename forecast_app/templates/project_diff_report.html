@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Project configuration changes{% endblock %}
+
+{% block content %}
+
+    <h2>Confirm project configuration changes</h2>
+    <p>The uploaded project configuration file &ldquo;{{ data_file }}&rdquo; contains {{ changes|length }}
+        change{{ changes|length|pluralize }} to the project &ldquo;{{ project.name }}&rdquo;
+
+        {% if changes %}
+            {% if database_changes %}
+                , of which {{ database_changes|length }} will <span class="text-danger">delete data</span>
+            {% endif %}
+            . Please review them before submitting. You can find information about how changes are determined
+            <a href="https://docs.zoltardata.com" target="_blank">here</a>.
+        {% else %}
+            . Please select a project configuration file that has some changes and then re-run.
+        {% endif %}
+    </p>
+
+    {% if changes %}
+        <h2>All changes</h2>
+        <ul>
+            {% for change in changes %}
+                <li>{{ change.change_type.name }}: {{ change.object_type.name|title }}
+                    {% if change.object_pk %}&ldquo;{{ change.object_pk }}&rdquo;{% endif %}
+                    {% if change.field_name %}field &ldquo;{{ change.field_name }}&rdquo;{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+
+        {% if database_changes %}
+            <h2>Changes that will delete data</h2>
+            <ul>
+                {% for change, num_points, num_named, num_bins, num_samples, num_truth in database_changes %}
+                    <li>
+                        {{ change.change_type.name }}: {{ change.object_type.name|title }}
+                        &ldquo;{{ change.object_pk }}&rdquo;
+                        will <span class="text-danger">delete</span>:
+                        <ul>
+                            {% if num_points %}
+                                <li>{{ num_points }} point prediction{{ num_points|pluralize }}</li>{% endif %}
+                            {% if num_named %}
+                                <li>{{ num_named }} named prediction{{ num_named|pluralize }}</li>{% endif %}
+                            {% if num_bins %}
+                                <li>{{ num_bins }} bin prediction{{ num_bins|pluralize }}</li>{% endif %}
+                            {% if num_samples %}
+                                <li>{{ num_samples }} sample{{ num_samples|pluralize }}</li>{% endif %}
+                            {% if num_truth %}
+                                <li>{{ num_truth }} truth row{{ num_truth|pluralize }}</li>{% endif %}
+                        </ul>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form class="form-horizontal" method="POST" action="{% url 'edit-project-from-file-execute' project.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="changes_json" value='{{ changes_json|safe }}'>
+            <button type="submit" class="save btn btn-danger">Submit</button>
+            <a href="{% url 'project-detail' project.pk %}" class="btn btn-success" role="button">Cancel</a>
+        </form>
+
+    {% endif %}
+
+
+{% endblock %}
