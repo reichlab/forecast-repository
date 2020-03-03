@@ -63,7 +63,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
     click.echo("* Created project: {}".format(project))
 
     # make the model
-    forecast_model = make_model(project, mo_user, data_dir)
+    forecast_model = make_model(project, mo_user)
     click.echo("* created model: {}".format(forecast_model))
 
     # create TimeZeros. NB: we skip existing TimeZeros in case we are loading new forecasts. for is_season_start and
@@ -101,7 +101,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
     click.echo(f"* Done. time: {timeit.default_timer() - start_time}")
 
 
-def make_model(project, model_owner, data_dir):
+def make_model(project, model_owner):
     """
     Creates the gam_lag1_tops3 ForecastModel and its Forecast.
     """

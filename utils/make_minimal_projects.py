@@ -113,19 +113,24 @@ def fill_cdc_project(project, mo_user, is_public):
                                  owner=mo_user)
 
 
+#
+# create_docs_project()
+#
+
+DOCS_PROJECT_NAME = "Docs Example Project"  # overrides the json file one
+
+
 def create_docs_project(po_user):
     """
     Creates a project based on docs-project.json with forecasts from docs-predictions.json.
     """
-    project_name = "Docs Example Project"  # overrides the json file one
-
-    found_project = Project.objects.filter(name=project_name).first()
+    found_project = Project.objects.filter(name=DOCS_PROJECT_NAME).first()
     if found_project:
         click.echo("* deleting previous project: {}".format(found_project))
         found_project.delete()
 
     project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-    project.name = project_name
+    project.name = DOCS_PROJECT_NAME
     project.save()
 
     load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))
