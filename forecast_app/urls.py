@@ -71,6 +71,7 @@ urlpatterns = [
 
     # User
     url(r'^user/(?P<user_pk>\d+)/edit/$', views.edit_user, name='edit-user'),
+    url(r'^change_password/$', views.change_password, name='change-password'),
 
     # ForecastModel
     url(r'^project/(?P<project_pk>\d+)/models/create/$', views.create_model, name='create-model'),

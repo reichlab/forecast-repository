@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.models import User
 
 from forecast_app.models import ForecastModel
@@ -11,6 +12,7 @@ class ProjectForm(forms.ModelForm):
 
         fields = ('name', 'is_public', 'time_interval_type', 'description',
                   'home_url', 'core_data', 'logo_url', 'model_owners')
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -30,6 +32,14 @@ class UserModelForm(forms.ModelForm):
 
         fields = ('email', 'first_name', 'last_name')
 
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name, field in self.fields.items():
+            field.widget.attrs['class'] = 'form-control'
+
+
+class UserPasswordChangeForm(PasswordChangeForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field_name, field in self.fields.items():
@@ -42,6 +52,7 @@ class ForecastModelForm(forms.ModelForm):
 
         fields = ('name', 'abbreviation', 'team_name',
                   'description', 'home_url', 'aux_data_url')
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

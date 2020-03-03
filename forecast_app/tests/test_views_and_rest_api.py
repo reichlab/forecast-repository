@@ -143,6 +143,8 @@ class ViewsTestCase(TestCase):
             reverse('docs'): self.OK_ALL,
 
             reverse('user-detail', args=[str(self.po_user.pk)]): self.ONLY_PO,
+            reverse('edit-user', args=[str(self.po_user.pk)]): self.ONLY_PO,
+            reverse('change-password'): self.ONLY_PO_MO,
             reverse('upload-file-job-detail', args=[str(self.upload_file_job.pk)]): self.ONLY_PO,
 
             reverse('zadmin'): self.ONLY_SU_200,
@@ -301,6 +303,10 @@ class ViewsTestCase(TestCase):
             # user detail - public_project (has truth)
             reverse('user-detail', args=[str(self.po_user.pk)]): {
                 reverse('edit-user', args=[str(self.po_user.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True)],
+                reverse('change-password'):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True)],

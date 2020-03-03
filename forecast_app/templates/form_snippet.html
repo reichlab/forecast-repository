@@ -4,7 +4,7 @@
         <label class="control-label" for="id_{{ field.name }}">{{ field.label }}</label>
         <div class="controls">
             {{ field }}
-            <p class="text-muted">{{ field.help_text }} </p>
+            <p class="text-muted">{{ field.help_text|safe }} </p>
         </div>
     </fieldset>
 

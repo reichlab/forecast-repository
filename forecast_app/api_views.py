@@ -76,7 +76,7 @@ class ProjectList(generics.ListAPIView):
             required information as data, whereas others take their main data as a file in request.FILES, plus some
             additional data in request.data.
         """
-        if not is_user_ok_create_project(request.user):  # any logged-in user can create
+        if not request.user.is_authenticated:  # any logged-in user can create
             raise PermissionDenied
         elif 'project_config' not in request.data:
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)

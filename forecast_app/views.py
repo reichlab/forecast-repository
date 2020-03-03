@@ -7,6 +7,7 @@ import django_rq
 import redis
 from django import db
 from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
@@ -17,7 +18,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 
-from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm
+from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
@@ -521,7 +522,6 @@ def create_project_from_form(request):
 
     :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
-
     if not is_user_ok_create_project(request.user):
         raise PermissionDenied
 
@@ -650,7 +650,6 @@ def edit_user(request, user_pk):
     passed user_pk.
     """
     detail_user = get_object_or_404(User, pk=user_pk)  # user page being edited
-    # if not request.user.is_superuser or (detail_user != request.user):  # similar to UserDetail.test_func()
     if not is_user_ok_edit_user(request, detail_user):
         raise PermissionDenied
 
@@ -669,6 +668,29 @@ def edit_user(request, user_pk):
                   context={'title': 'Edit User',
                            'button_name': 'Save',
                            'form': user_model_form})
+
+
+def change_password(request):
+    """
+    Shows a form allowing the user to set her password.
+    """
+    if not request.user.is_authenticated:  # any authenticated user can edit her password
+        raise PermissionDenied
+
+    if request.method == 'POST':
+        password_form = UserPasswordChangeForm(request.user, request.POST)
+        if password_form.is_valid():
+            user = password_form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "Your password was successfully updated!")
+            return redirect('user-detail', pk=request.user.pk)
+    else:  # GET
+        password_form = UserPasswordChangeForm(request.user)
+
+    return render(request, 'show_form.html',
+                  context={'title': 'Change password',
+                           'button_name': 'Change',
+                           'form': password_form})
 
 
 def create_model(request, project_pk):
@@ -713,7 +735,6 @@ def edit_model(request, model_pk):
         forecast_model_form = ForecastModelForm(request.POST, instance=forecast_model)
         if forecast_model_form.is_valid():
             forecast_model_form.save()
-
             messages.success(request, "Edited model '{}'".format(forecast_model.name))
             return redirect('model-detail', pk=forecast_model.pk)
 
