@@ -733,8 +733,7 @@ class ViewsTestCase(TestCase):
         # case: blue sky:  yes data_version_date, no season
         timezero_config = {'timezero_date': '2017-12-01',
                            'data_version_date': '2017-12-02',
-                           'is_season_start': False,
-                           'season_name': None}
+                           'is_season_start': False}
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
             'timezero_config': timezero_config,
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',

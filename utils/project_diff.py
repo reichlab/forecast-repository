@@ -201,10 +201,22 @@ def project_config_diff(config_dict_1, config_dict_2):
     tz_date_1_to_dict = {timezero_dict['timezero_date']: timezero_dict for timezero_dict in config_dict_1['timezeros']}
     tz_date_2_to_dict = {timezero_dict['timezero_date']: timezero_dict for timezero_dict in config_dict_2['timezeros']}
     for timezero_date in timezero_dates_1 & timezero_dates_2:  # timezero_dates_both
-        for field_name in ['data_version_date', 'is_season_start', 'season_name']:
-            if tz_date_1_to_dict[timezero_date][field_name] != tz_date_2_to_dict[timezero_date][field_name]:
-                changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_EDITED,
-                                      field_name, tz_date_2_to_dict[timezero_date]))
+        for field_name in ['data_version_date', 'is_season_start', 'season_name']:  # season_name is only optional field
+            if (field_name in tz_date_1_to_dict[timezero_date]) and \
+                    (field_name not in tz_date_2_to_dict[timezero_date]):
+                # field_name removed
+                changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_REMOVED, field_name, None))
+            elif (field_name not in tz_date_1_to_dict[timezero_date]) and \
+                    (field_name in tz_date_2_to_dict[timezero_date]):
+                # field_name added
+                changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_ADDED, field_name,
+                                      tz_date_2_to_dict[timezero_date]))
+            elif (field_name in tz_date_1_to_dict[timezero_date]) and \
+                    (field_name in tz_date_2_to_dict[timezero_date]) and \
+                    (tz_date_1_to_dict[timezero_date][field_name] != tz_date_2_to_dict[timezero_date][field_name]):
+                # field_name edited
+                changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_EDITED, field_name,
+                                      tz_date_2_to_dict[timezero_date]))
 
     # check for targets added or removed
     target_names_1 = {target_dict['name'] for target_dict in config_dict_1['targets']}
@@ -229,8 +241,8 @@ def project_config_diff(config_dict_1, config_dict_2):
                 # field_name removed
                 if field_name in non_editable_fields:
                     changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_REMOVED, None, None))
-                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_ADDED,
-                                          None, targ_name_2_to_dict[target_name]))  # use 2nd dict in case other changes
+                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_ADDED, None,
+                                          targ_name_2_to_dict[target_name]))  # use 2nd dict in case other changes
                 else:
                     changes.append(Change(ObjectType.TARGET, target_name, ChangeType.FIELD_REMOVED, field_name, None))
             elif (field_name not in targ_name_1_to_dict[target_name]) and \
@@ -238,19 +250,19 @@ def project_config_diff(config_dict_1, config_dict_2):
                 # field_name added
                 if field_name in non_editable_fields:
                     changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_REMOVED, None, None))
-                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_ADDED,
-                                          None, targ_name_2_to_dict[target_name]))  # use 2nd dict in case other changes
+                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_ADDED, None,
+                                          targ_name_2_to_dict[target_name]))  # use 2nd dict in case other changes
                 else:
-                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.FIELD_ADDED,
-                                          field_name, targ_name_2_to_dict[target_name]))
+                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.FIELD_ADDED, field_name,
+                                          targ_name_2_to_dict[target_name]))
             elif (field_name in targ_name_1_to_dict[target_name]) and \
                     (field_name in targ_name_2_to_dict[target_name]) and \
                     (targ_name_1_to_dict[target_name][field_name] != targ_name_2_to_dict[target_name][field_name]):
                 # field_name edited
                 if field_name in non_editable_fields:
                     changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_REMOVED, None, None))
-                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_ADDED,
-                                          None, targ_name_2_to_dict[target_name]))  # use 2nd dict in case other changes
+                    changes.append(Change(ObjectType.TARGET, target_name, ChangeType.OBJ_ADDED, None,
+                                          targ_name_2_to_dict[target_name]))  # use 2nd dict in case other changes
                 else:
                     changes.append(Change(ObjectType.TARGET, target_name, ChangeType.FIELD_EDITED, field_name,
                                           targ_name_2_to_dict[target_name]))

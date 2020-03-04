@@ -64,19 +64,23 @@ def config_dict_from_project(project):
     """
     The twin of `create_project_from_json()`, returns a configuration dict for project as passed to that function.
     """
+    timezeros = []
+    for timezero in project.timezeros.all():
+        timezero_dict = {'timezero_date': timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                         'data_version_date': timezero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                         if timezero.data_version_date else None,
+                         'is_season_start': timezero.is_season_start}
+        if timezero.is_season_start:
+            timezero_dict['season_name'] = timezero.season_name
+        timezeros.append(timezero_dict)
+
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
             'locations': [{'name': location.name} for location in project.locations.all()],
             'targets': [_target_dict_for_target(target) for target in project.targets.all()],
-            'timezeros': [{'timezero_date': timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                           'data_version_date':
-                               timezero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                               if timezero.data_version_date else None,
-                           'is_season_start': timezero.is_season_start,
-                           'season_name': timezero.season_name}
-                          for timezero in project.timezeros.all()]}
+            'timezeros': timezeros}
 
 
 # todo xx integrate with API serialization!
