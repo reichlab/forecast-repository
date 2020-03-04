@@ -565,7 +565,7 @@ class ViewsTestCase(TestCase):
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
-        # case: blue sky
+        # case: authorized
         with open(Path('forecast_app/tests/projects/cdc-project.json'), 'rb') as fp:
             project_dict = json.load(fp)
         json_response = self.client.post(reverse('api-project-list'), {
@@ -593,11 +593,38 @@ class ViewsTestCase(TestCase):
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
-        # case: blue sky
+        # case: authorized
         response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         })
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
+
+
+    def test_api_edit_project(self):
+        # create a project to edit
+        project2 = Project.objects.create(owner=self.po_user)
+        self.assertEqual('', project2.name)
+
+        # case: not authorized
+        joe_user = User.objects.create_user(username='joe', password='password')
+        json_response = self.client.post(reverse('api-project-detail', args=[project2.pk]), {
+            'project_config': {},
+            'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: authorized
+        with open(Path('forecast_app/tests/project_diff/docs-project-edited.json')) as fp:
+            edited_config_dict = json.load(fp)  # makes the same changes as _make_some_changes()
+        json_response = self.client.post(reverse('api-project-detail', args=[project2.pk]), {
+            'project_config': edited_config_dict,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+
+        # spot-check response
+        proj_json = json_response.json()
+        self.assertEqual('new project name', proj_json['name'])
 
 
     def test_api_create_model(self):
@@ -625,7 +652,7 @@ class ViewsTestCase(TestCase):
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
-        # case: blue sky
+        # case: authorized
         model_config = {'name': 'a model_name', 'abbreviation': 'an abbreviation', 'team_name': 'a team_name',
                         'description': 'a description', 'home_url': 'http://example.com/',
                         'aux_data_url': 'http://example.com/'}
@@ -658,7 +685,7 @@ class ViewsTestCase(TestCase):
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
-        # case: blue sky
+        # case: authorized
         response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         })

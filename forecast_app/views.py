@@ -587,9 +587,9 @@ def edit_project_from_file_preview(request, project_pk):
         return is_error
 
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    out_config_dict = config_dict_from_project(project)
-    edit_config_dict = json.load(data_file)
-    changes = order_project_config_diff(project_config_diff(out_config_dict, edit_config_dict))
+    current_config_dict = config_dict_from_project(project)
+    new_config_dict = json.load(data_file)
+    changes = order_project_config_diff(project_config_diff(current_config_dict, new_config_dict))
     database_changes = database_changes_for_project_config_diff(project, changes)
 
     # we serialize Changes so they can be passed to the template as a json string that is posted back to the server on

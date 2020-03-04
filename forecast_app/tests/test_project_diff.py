@@ -25,40 +25,40 @@ class ProjectDiffTestCase(TestCase):
     def test_project_config_diff(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
-        out_config_dict = config_dict_from_project(project)
+        current_config_dict = config_dict_from_project(project)
 
         # project fields: edit
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         edit_config_dict['name'] = 'new name'
         self.assertEqual([Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', edit_config_dict)],
-                         project_config_diff(out_config_dict, edit_config_dict))
+                         project_config_diff(current_config_dict, edit_config_dict))
 
         # project fields: edit
         fields_new_values = [('name', 'new name'), ('is_public', False), ('description', 'new descr'),
                              ('home_url', 'new home_url'), ('logo_url', 'new logo_url'),
                              ('core_data', 'new core_data'), ('time_interval_type', 'Biweek'),
                              ('visualization_y_label', 'new visualization_y_label')]
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         for field_name, new_value in fields_new_values:
             edit_config_dict[field_name] = new_value
         exp_changes = [Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, field_name, edit_config_dict) for
                        field_name, new_value in fields_new_values]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project locations: remove 'location3', add 'location4'
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         edit_config_dict['locations'][2]['name'] = 'location4'  # 'location3'
         exp_changes = [Change(ObjectType.LOCATION, 'location3', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.LOCATION, 'location4', ChangeType.OBJ_ADDED, None,
                               edit_config_dict['locations'][2])]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project timezeros: remove '2011-10-02', add '2011-10-22', edit '2011-10-09' fields
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         edit_config_dict['timezeros'][0]['timezero_date'] = '2011-10-22'  # was '2011-10-02'
         edit_config_dict['timezeros'][1]['data_version_date'] = '2011-10-19'  # '2011-10-09'
         edit_config_dict['timezeros'][1]['is_season_start'] = True  # false
@@ -72,13 +72,13 @@ class ProjectDiffTestCase(TestCase):
                               edit_config_dict['timezeros'][1]),
                        Change(ObjectType.TIMEZERO, '2011-10-09', ChangeType.FIELD_EDITED, 'season_name',
                               edit_config_dict['timezeros'][1])]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: remove 'pct next week', add 'pct next week 2', edit 'cases next week' and 'Season peak week'
         # fields
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         edit_config_dict['targets'][0]['name'] = 'pct next week 2'  # was 'pct next week'
         edit_config_dict['targets'][1]['description'] = 'new descr'  # 'cases next week'
         edit_config_dict['targets'][1]['is_step_ahead'] = False
@@ -104,12 +104,12 @@ class ProjectDiffTestCase(TestCase):
                               edit_config_dict['targets'][4]),
                        Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'unit',
                               edit_config_dict['targets'][4])]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: edit 'pct next week' 'type' (non-editable) and 'description' (editable) fields
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         edit_config_dict['targets'][0]['type'] = 'discrete'  # 'pct next week'
         edit_config_dict['targets'][0]['description'] = 'new descr'
         exp_changes = [Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None),
@@ -117,27 +117,27 @@ class ProjectDiffTestCase(TestCase):
                               edit_config_dict['targets'][0]),
                        Change(ObjectType.TARGET, 'pct next week', ChangeType.FIELD_EDITED, 'description',
                               edit_config_dict['targets'][0])]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: edit 'cases next week': remove 'range' (non-editable)
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         del (edit_config_dict['targets'][1]['range'])  # 'cases next week
         exp_changes = [Change(ObjectType.TARGET, 'cases next week', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.TARGET, 'cases next week', ChangeType.OBJ_ADDED, None,
                               edit_config_dict['targets'][1])]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: edit 'season severity': edit 'cats' (non-editable)
-        edit_config_dict = copy.deepcopy(out_config_dict)
+        edit_config_dict = copy.deepcopy(current_config_dict)
         edit_config_dict['targets'][2]['cats'] = edit_config_dict['targets'][2]['cats'] + ['cat 2']  # 'season severity'
         exp_changes = [Change(ObjectType.TARGET, 'season severity', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.TARGET, 'season severity', ChangeType.OBJ_ADDED, None,
                               edit_config_dict['targets'][2])]
-        act_changes = project_config_diff(out_config_dict, edit_config_dict)
+        act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 

@@ -26,11 +26,11 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer
-from forecast_app.views import is_user_ok_create_project, is_user_ok_edit_project, is_user_ok_edit_model, \
-    is_user_ok_create_model
+from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json
+from utils.project import create_project_from_json, config_dict_from_project
+from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -58,7 +58,7 @@ class ProjectList(generics.ListAPIView):
     Note that this means API users have more limited access than the web home page, which lists all projects regardless
     of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
     it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
-    me too hard.
+    me too hard. POST to this view to create a new Project from a configuration file.
     """
     serializer_class = ProjectSerializer
 
@@ -90,6 +90,10 @@ class ProjectList(generics.ListAPIView):
 
 
 class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
+    """
+    View that returns a Project's details. DELETE to delete the project. POST to this view to edit a Project via "diffs"
+    from a configuration file.
+    """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
@@ -105,7 +109,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         Deletes this project. Runs in the calling thread and therefore blocks.
         """
         project = self.get_object()
-        if not is_user_ok_edit_project(request.user, project):
+        if not is_user_ok_edit_project(request.user, project):  # only the project owner can delete the project
             raise PermissionDenied
 
         # imported here so that test_delete_project_iteratively() can patch via mock:
@@ -116,6 +120,35 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         # instance.delete()
         delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+    def post(self, request, *args, **kwargs):
+        """
+        Edits a Project via "diffs" from a configuration file ala execute_project_config_diff(). Runs in the calling
+        thread and therefore blocks. POST form fields:
+        - request.data (required) must have a 'project_config' field containing a dict valid for
+            execute_project_config_diff(). NB: this is different from other API args in this file in that it takes all
+            required information as data, whereas others take their main data as a file in request.FILES, plus some
+            additional data in request.data.
+        """
+        project = self.get_object()
+        if not is_user_ok_edit_project(request.user, project):  # only the project owner can edit the project
+            raise PermissionDenied
+        elif 'project_config' not in request.data:
+            return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            current_config_dict = config_dict_from_project(project)
+            new_config_dict = request.data['project_config']
+            changes = project_config_diff(current_config_dict, new_config_dict)
+            # database_changes = database_changes_for_project_config_diff(project, changes)
+            logger.debug(f"ProjectDetail.post(): executing project config diff... changes={changes}")
+            execute_project_config_diff(project, changes)
+            logger.debug(f"ProjectDetail.post(): done")
+            project_serializer = ProjectSerializer(project, context={'request': request})
+            return JsonResponse(project_serializer.data)
+        except Exception as ex:
+            return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):
@@ -211,7 +244,7 @@ class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
         """
         # check authorization, 'timezero_config'
         project = Project.objects.get(pk=self.kwargs['pk'])
-        if not is_user_ok_edit_project(request.user, project):
+        if not is_user_ok_edit_project(request.user, project):  # only the project owner can add TimeZeros
             raise PermissionDenied
         elif 'timezero_config' not in request.data:
             return JsonResponse({'error': "No 'timezero_config' data."}, status=status.HTTP_400_BAD_REQUEST)
@@ -674,7 +707,8 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                             time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), timezero_to_season_name[time_zero],
+                             time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                             timezero_to_season_name[time_zero],
                              location.name, target.name]
                             + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")
