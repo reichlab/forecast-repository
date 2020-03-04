@@ -3,7 +3,8 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution
+from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution, Target
+from forecast_app.models.target import TargetRange
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.project import create_project_from_json, load_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
@@ -824,12 +825,13 @@ class PredictionValidationTestCase(TestCase):
 
     # For `discrete` and `continuous` targets (if `range` is specified)
     def test_entry_in_value_column_for_a_specific_target_location_timezero_must_be_contained_within_the_range(self):
-        # For `discrete` and `continuous` targets (if `range` is specified): The entry in the `value` column for a
-        # specific `target`-`location`-`timezero` combination must be contained within the range of valid values for the
-        # target. recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g.
-        # [a, b)."
+        # For `discrete` and `continuous` targets (if `range` is specified):
+        # - The entry in the `value` column for a specific `target`-`location`-`timezero` combination must be contained
+        #   within the `range` of valid values for the target. If `cats` is specified but `range` is not, then there is
+        #   an implicit range for the ground truth value, and that is between min(`cats`) and \infty.
+        # recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
 
-        # pct next week: continuous. range: [0.0, 100.0]
+        # pct next week: continuous. range: [0.0, 100.0]. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
         # - "good" continuous values are checked when loading docs-ground-truth.csv elsewhere
         # - the case of the value being equal to the lower range value is also in that file
         with self.assertRaises(RuntimeError) as context:
@@ -844,7 +846,24 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
                       str(context.exception))
 
-        # cases next week: discrete. range: [0, 100000]
+        # change pct next week (continuous): remove range, leave cats -> effective range is [0.0, \infty), which means:
+        # - docs-ground-truth-bad-continuous-range-lt-lower.csv:    still invalid
+        # - docs-ground-truth-bad-continuous-range-equal-upper.csv: is now valid
+        pct_next_week_target = Target.objects.filter(name='pct next week').first()
+        TargetRange.objects.filter(target=pct_next_week_target).delete()
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-continuous-range-lt-lower.csv'))
+        self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
+                      str(context.exception))
+
+        try:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-continuous-range-equal-upper.csv'))
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
+        # cases next week: discrete. range: [0, 100000]. cats: [0, 2, 50]
         # - "good" continuous values are checked when loading docs-ground-truth.csv elsewhere
         # - the case of the value being equal to the lower range value is also in that file
         with self.assertRaises(RuntimeError) as context:
@@ -858,6 +877,23 @@ class PredictionValidationTestCase(TestCase):
                                                'docs-ground-truth-bad-discrete-range-equal-upper.csv'))
         self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
                       str(context.exception))
+
+        # change cases next week (discrete): remove range, leave cats -> effective range is [0, \infty), which means:
+        # - docs-ground-truth-bad-discrete-range-lt-lower.csv:    still invalid
+        # - docs-ground-truth-bad-discrete-range-equal-upper.csv: is now valid
+        cases_next_week_target = Target.objects.filter(name='cases next week').first()
+        TargetRange.objects.filter(target=cases_next_week_target).delete()
+        with self.assertRaises(RuntimeError) as context:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-discrete-range-lt-lower.csv'))
+        self.assertIn(f"The entry in the `value` column for a specific `target`-`location`-`timezero` combination",
+                      str(context.exception))
+
+        try:
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data',
+                                               'docs-ground-truth-bad-discrete-range-equal-upper.csv'))
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
 
     # For `nominal` and `date` target_types

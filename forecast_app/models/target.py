@@ -272,7 +272,7 @@ class Target(models.Model):
         """
         ranges_qs = self.ranges.all()
         if not ranges_qs.count():
-            return
+            return None
 
         ranges_list = list(ranges_qs)
         ranges0 = ranges_list[0]

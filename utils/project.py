@@ -554,12 +554,14 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                                f"data_type={data_type}")
 
         # validate: For `discrete` and `continuous` targets (if `range` is specified):
-        #  - The entry in the `value` column for a specific `target`-`location`-`timezero` combination must be contained
-        #    within the range of valid values for the target.
-        # Recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
-        range_tuple = target.range_tuple()
+        # - The entry in the `value` column for a specific `target`-`location`-`timezero` combination must be contained
+        #   within the `range` of valid values for the target. If `cats` is specified but `range` is not, then there is
+        #   an implicit range for the ground truth value, and that is between min(`cats`) and \infty.
+        # recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
+        cats_values = target.cats_values()  # datetime.date instances for date targets
+        range_tuple = target.range_tuple() or (min(cats_values), float('inf')) if cats_values else None
         if (target.type in [Target.DISCRETE_TARGET_TYPE, Target.CONTINUOUS_TARGET_TYPE]) and range_tuple \
-                and not (range_tuple[0] <= parsed_value < range_tuple[1]):
+                and (parsed_value is not None) and not (range_tuple[0] <= parsed_value < range_tuple[1]):
             raise RuntimeError(f"The entry in the `value` column for a specific `target`-`location`-`timezero` "
                                f"combination must be contained within the range of valid values for the target. "
                                f"value={parsed_value!r}, range_tuple={range_tuple}")

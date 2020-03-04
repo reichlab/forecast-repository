@@ -576,7 +576,6 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 23))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 7, 30))
         TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 8, 6))
-
         load_truth_data(project, Path('utils/ensemble-truth-table-script/truths-2017-2018-reichlab.csv'),
                         is_convert_na_none=True)
 
