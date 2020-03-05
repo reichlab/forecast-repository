@@ -13,7 +13,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 
 from utils.project import load_truth_data, create_project_from_json
 
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from forecast_app.models import Project, TimeZero, ForecastModel, Forecast
 from utils.utilities import get_or_create_super_po_mo_users
 
@@ -73,8 +73,8 @@ def fill_cdc_project(project, mo_user, is_public):
     project.home_url = "http://example.com/"
     project.core_data = "http://example.com/"
 
-    # make the Locations and Targets via cdc-project.json (recall it has no timezeros)
-    make_cdc_locations_and_targets(project)
+    # make the Units and Targets via cdc-project.json (recall it has no timezeros)
+    make_cdc_units_and_targets(project)
 
     # make two TimeZeros - one for ground truth, and one for the forecast's data:
     # EW1-KoTsarima-2017-01-17-small.csv -> pymmwr.date_to_mmwr_week(datetime.date(2017, 1, 17))  # EW01 2017

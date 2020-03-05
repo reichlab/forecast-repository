@@ -14,7 +14,7 @@ class TruthData(models.Model):
     """
 
     time_zero = models.ForeignKey(TimeZero, on_delete=models.CASCADE)
-    location = models.ForeignKey('Location', blank=True, null=True, on_delete=models.CASCADE)
+    unit = models.ForeignKey('Unit', blank=True, null=True, on_delete=models.CASCADE)
     target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.CASCADE)
     value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
     value_f = models.FloatField(null=True)  # ""
@@ -24,7 +24,7 @@ class TruthData(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero.pk, self.location.pk, self.target.pk, '.',
+        return str((self.pk, self.time_zero.pk, self.unit.pk, self.target.pk, '.',
                     self.value_i, self.value_f, self.value_t, self.value_d, self.value_b))
 
 

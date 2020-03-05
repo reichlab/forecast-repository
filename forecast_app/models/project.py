@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files
 
-TRUTH_CSV_HEADER = ['timezero', 'location', 'target', 'value']
+TRUTH_CSV_HEADER = ['timezero', 'unit', 'target', 'value']
 
 
 class Project(models.Model):
@@ -297,9 +297,9 @@ class Project(models.Model):
             if first_forecast_num_rows else 0
 
 
-    def location_to_max_val(self, season_name, targets):
+    def unit_to_max_val(self, season_name, targets):
         """
-        :return: a dict mapping each location_name to the maximum point value across all my forecasts for season_name
+        :return: a dict mapping each unit_name to the maximum point value across all my forecasts for season_name
             and targets
         """
         from forecast_app.models import PointPrediction  # avoid circular imports
@@ -315,12 +315,12 @@ class Project(models.Model):
                     target__in=targets,
                     forecast__time_zero__timezero_date__gte=season_start_date,
                     forecast__time_zero__timezero_date__lte=season_end_date) \
-            .values('location__name') \
+            .values('unit__name') \
             .annotate(Max('value_i'), Max('value_f'))  # values() -> annotate() is a GROUP BY
-        # [{'location__name': 'HHS Region 1', 'value_i__max': None, 'value_f__max': 2.06145600601835}, ...]
+        # [{'unit__name': 'HHS Region 1', 'value_i__max': None, 'value_f__max': 2.06145600601835}, ...]
 
         # https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python
-        return {loc_max_val_dict['location__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
+        return {loc_max_val_dict['unit__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
                                                                       loc_max_val_dict['value_f__max']]))
                 for loc_max_val_dict in loc_max_val_qs}
 
@@ -360,16 +360,16 @@ class Project(models.Model):
     def get_truth_data_preview(self):
         """
         :return: view helper function that returns a preview of my truth data in the form of a table that's represented
-            as a nested list of rows. each row: [timezero_date, location_name, target_name, truth_value]
+            as a nested list of rows. each row: [timezero_date, unit_name, target_name, truth_value]
         """
         from forecast_app.models import PointPrediction  # avoid circular imports
 
 
-        rows = self.truth_data_qs().values_list('time_zero__timezero_date', 'location__name', 'target__name',
+        rows = self.truth_data_qs().values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                                                 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')[:10]
-        return [[timezero_date, location_name, target_name,
+        return [[timezero_date, unit_name, target_name,
                  PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)]
-                for timezero_date, location_name, target_name, value_i, value_f, value_t, value_d, value_b in rows]
+                for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b in rows]
 
 
     def get_num_truth_rows(self):
@@ -382,7 +382,7 @@ class Project(models.Model):
         """
         return list(self.truth_data_qs()
                     .order_by('id')
-                    .values_list('time_zero__timezero_date', 'location__name', 'target__name',
+                    .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                                  'value_i', 'value_f', 'value_t', 'value_d', 'value_b'))
 
 
@@ -413,23 +413,23 @@ class Project(models.Model):
         _About calculating 'actual' step-head values from truth data_: Loaded truth data contains actual values by way
         of the project's 'step ahead' targets. Some projects provide a zero step ahead target (whose
         step_ahead_increment is 0), which is what we need to get the an actual value for a particular
-        [location][timezero_date] combination: Just index in to the desired timezero_date. However, other projects
+        [unit][timezero_date] combination: Just index in to the desired timezero_date. However, other projects
         provide only non-zero targets, e.g., '1 wk ahead' (whose step_ahead_increment is 1). In these cases we need a
         'reference' target to use, which we then apply to move that many steps ahead in the project's TimeZeros (sorted
         by date) to get the actual (0 step ahead) value for that timezero_date. For example, if we wan the actual value
         for this truth data:
 
-            timezero   location       target       value
+            timezero   unit       target       value
             20170723   HHS Region 1   1 wk ahead   0.303222
             20170730   HHS Region 1   1 wk ahead   0.286054
 
         And if we are using '1 wk ahead' as our reference target, then to get the actual step-ahead value for the
-        [location][timezero_date] combination of ['20170730']['HHS Region 1'] we need to work backwards 1
+        [unit][timezero_date] combination of ['20170730']['HHS Region 1'] we need to work backwards 1
         step_ahead_increment to ['20170723']['HHS Region 1'] and use the '1 wk ahead' target's value, i.e., 0.303222. In
         our example above, there is actual step-ahead value for 20170723.
 
         Generally, the definition is:
-            actual[location][timezero_date] = truth[location][ref_target][timezero_date - ref_target_incr]
+            actual[unit][timezero_date] = truth[unit][ref_target][timezero_date - ref_target_incr]
         """
         from forecast_app.models import Target  # avoid circular imports
 
@@ -439,36 +439,36 @@ class Project(models.Model):
             .first()
 
 
-    def location_target_name_tz_date_to_truth(self, season_name=None):
+    def unit_target_name_tz_date_to_truth(self, season_name=None):
         """
         Returns my truth values as a dict that's organized for easy access, as in:
-        location_target_name_tz_date_to_truth[location_name][target_name][timezero_date]. Only includes data from
+        unit_target_name_tz_date_to_truth[unit_name][target_name][timezero_date]. Only includes data from
         season_name, which is None if I have no seasons.
         """
         from forecast_app.models import PointPrediction  # avoid circular imports
 
 
-        logger.debug(f"location_target_name_tz_date_to_truth(): entered. project={self}, season_name={season_name}")
+        logger.debug(f"unit_target_name_tz_date_to_truth(): entered. project={self}, season_name={season_name}")
         loc_target_tz_date_to_truth = {}
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
         truth_data_qs = self.truth_data_qs() \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__id', 'target__id', 'time_zero__timezero_date',
+            .order_by('unit__name', 'target__name') \
+            .values_list('unit__id', 'target__id', 'time_zero__timezero_date',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
             truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
                                                  time_zero__timezero_date__lte=season_end_date)
 
-        location_pks_to_names = {location.id: location.name for location in self.locations.all()}
+        unit_pks_to_names = {unit.id: unit.name for unit in self.units.all()}
         target_pks_to_names = {target.id: target.name for target in self.targets.all()}
-        for location_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
-            if location_id not in location_pks_to_names:
+        for unit_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+            if unit_id not in unit_pks_to_names:
                 continue
 
             target_tz_date_to_truth = {}
-            loc_target_tz_date_to_truth[location_pks_to_names[location_id]] = target_tz_date_to_truth
+            loc_target_tz_date_to_truth[unit_pks_to_names[unit_id]] = target_tz_date_to_truth
             for target_id, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
                 if target_id not in target_pks_to_names:
                     continue
@@ -478,7 +478,7 @@ class Project(models.Model):
                 for _, _, tz_date, value_i, value_f, value_t, value_d, value_b in target_tz_grouper:
                     value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
                     tz_date_to_truth[tz_date].append(value)
-        logger.debug(f"location_target_name_tz_date_to_truth(): done ({len(loc_target_tz_date_to_truth)}). "
+        logger.debug(f"unit_target_name_tz_date_to_truth(): done ({len(loc_target_tz_date_to_truth)}). "
                      f"project={self}, season_name={season_name}")
         return loc_target_tz_date_to_truth
 
@@ -487,10 +487,10 @@ class Project(models.Model):
     # actual data-related functions
     #
 
-    def location_timezero_date_to_actual_vals(self, season_name):
+    def unit_timezero_date_to_actual_vals(self, season_name):
         """
         Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:
-        location_timezero_date_to_actual_vals[location][timezero_date] . Returns {} if no
+        unit_timezero_date_to_actual_vals[unit][timezero_date] . Returns {} if no
         reference_target_for_actual_values().
 
         :param season_name: optional season. None means return all data
@@ -515,25 +515,25 @@ class Project(models.Model):
         tz_date_to_next_tz_date = dict(zip(tz_dates, tz_dates[ref_target.step_ahead_increment:]))
 
         # get loc_target_tz_date_to_truth(). we use all seasons b/c might need TimeZero from a previous season to get
-        # this one. recall: [location][target_name][timezero_date] -> truth
-        loc_target_tz_date_to_truth = self.location_target_name_tz_date_to_truth()  # target__id
-        loc_tz_date_to_actual_vals = {}  # [location][timezero_date] -> actual
-        for location in loc_target_tz_date_to_truth:
+        # this one. recall: [unit][target_name][timezero_date] -> truth
+        loc_target_tz_date_to_truth = self.unit_target_name_tz_date_to_truth()  # target__id
+        loc_tz_date_to_actual_vals = {}  # [unit][timezero_date] -> actual
+        for unit in loc_target_tz_date_to_truth:
             # default to None so that any TimeZeros missing from loc_target_tz_date_to_truth are present:
-            location_dict = {}
+            unit_dict = {}
             for timezero in tz_dates:
                 if not season_name or is_tz_date_in_season(timezero):
-                    location_dict[timezero] = None
-            loc_tz_date_to_actual_vals[location] = location_dict
-            for truth_tz_date in loc_target_tz_date_to_truth[location][ref_target.name]:
+                    unit_dict[timezero] = None
+            loc_tz_date_to_actual_vals[unit] = unit_dict
+            for truth_tz_date in loc_target_tz_date_to_truth[unit][ref_target.name]:
                 if truth_tz_date not in tz_date_to_next_tz_date:  # trying to project beyond last truth date
                     continue
 
                 actual_tz_date = tz_date_to_next_tz_date[truth_tz_date]
-                truth_value = loc_target_tz_date_to_truth[location][ref_target.name][truth_tz_date]
+                truth_value = loc_target_tz_date_to_truth[unit][ref_target.name][truth_tz_date]
                 is_actual_in_season = is_tz_date_in_season(actual_tz_date) if season_name else True
                 if is_actual_in_season:
-                    location_dict[actual_tz_date] = truth_value
+                    unit_dict[actual_tz_date] = truth_value
         return loc_tz_date_to_actual_vals
 
 
@@ -550,14 +550,14 @@ class Project(models.Model):
 
 
 #
-# ---- Location class ----
+# ---- Unit class ----
 #
 
-class Location(models.Model):
+class Unit(models.Model):
     """
-    Represents one of a project's locations - just a string naming the target.
+    Represents one of a project's units - just a string naming the target.
     """
-    project = models.ForeignKey(Project, related_name='locations', on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, related_name='units', on_delete=models.CASCADE)
     name = models.TextField()
 
 

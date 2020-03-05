@@ -35,7 +35,7 @@ def split_kot_models(submissions_kot_stable_dir, output_dir):
     [1] https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions/submissions-KoT-stable
     [2] https://github.com/reichlab/2016-2017-flu-contest-ensembles/tree/master/inst/submissions/kde-files
     
-    :param submissions_kot_stable_dir: location of cloned [1] dir
+    :param submissions_kot_stable_dir: unit of cloned [1] dir
     :param output_dir: dir containing three subdirs (ensemble, kcde, and sarima) that will hold split output predictions
     """
     submissions_kot_stable_dir = Path(submissions_kot_stable_dir)

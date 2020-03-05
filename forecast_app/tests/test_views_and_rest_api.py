@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
@@ -44,7 +44,7 @@ class ViewsTestCase(TestCase):
         cls.public_project = Project.objects.create(name='public project name', is_public=True, owner=cls.po_user)
         cls.public_project.model_owners.add(cls.mo_user)
         cls.public_project.save()
-        make_cdc_locations_and_targets(cls.public_project)
+        make_cdc_units_and_targets(cls.public_project)
 
         TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 1, 1))
         load_truth_data(cls.public_project, Path('forecast_app/tests/truth_data/truths-ok.csv'),
@@ -61,7 +61,7 @@ class ViewsTestCase(TestCase):
         cls.private_project = Project.objects.create(name='private project name', is_public=False, owner=cls.po_user)
         cls.private_project.model_owners.add(cls.mo_user)
         cls.private_project.save()
-        make_cdc_locations_and_targets(cls.private_project)
+        make_cdc_units_and_targets(cls.private_project)
         cls.private_tz1 = TimeZero.objects.create(project=cls.private_project,
                                                   timezero_date=datetime.date(2017, 12, 3),
                                                   data_version_date=None)
@@ -216,7 +216,7 @@ class ViewsTestCase(TestCase):
                         else self.mo_user_password if user == self.mo_user \
                         else self.superuser_password
                     self.client.login(username=user.username, password=password)
-                response = self.client.get(url, data={'location': None, 'target': None})
+                response = self.client.get(url, data={'unit': None, 'target': None})
                 self.assertEqual(exp_status_code, response.status_code)
 
 
@@ -392,8 +392,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response['Content-Type'], "application/json")
         self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
-        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
-        self.assertEqual(11, len(response_dict['meta']['locations']))
+        self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
+        self.assertEqual(11, len(response_dict['meta']['units']))
 
         # score data as CSV. a django.http.response.HttpResponse
         response = self.client.get(reverse('download-project-scores', args=[self.public_project.pk]))
@@ -500,7 +500,7 @@ class ViewsTestCase(TestCase):
         # 'api-project-detail' - a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
-                    'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros']
+                    'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data))
 
         # 'api-user-detail' - a rest_framework.response.Response:
@@ -535,7 +535,7 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]), format='json')
         response_dict = json.loads(response.content)
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
-        self.assertEqual({'forecast', 'locations', 'targets'}, set(response_dict['meta']))
+        self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
 
 
     def test_api_delete_forecast(self):
@@ -577,7 +577,7 @@ class ViewsTestCase(TestCase):
         # spot-check response
         proj_json = json_response.json()
         self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
-                          'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros'},
+                          'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros'},
                          set(proj_json.keys()))
         self.assertEqual('CDC Flu challenge', proj_json['name'])
 

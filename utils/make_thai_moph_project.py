@@ -16,7 +16,7 @@ django.setup()
 from utils.utilities import get_or_create_super_po_mo_users
 from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
-from utils.project import create_project_from_json, _validate_and_create_locations, _validate_and_create_targets, \
+from utils.project import create_project_from_json, _validate_and_create_units, _validate_and_create_targets, \
     delete_project_iteratively, load_truth_data
 from utils.cdc import load_cdc_csv_forecast_file
 
@@ -126,10 +126,10 @@ def make_model(project, model_owner):
 # ---- utilities ----
 #
 
-def create_thai_locations_and_targets(project):
+def create_thai_units_and_targets(project):
     with open(Path('forecast_app/tests/projects/thai-project.json')) as fp:
         project_dict = json.load(fp)
-    _validate_and_create_locations(project, project_dict)
+    _validate_and_create_units(project, project_dict)
 
     # !is_validate to bypass Impetus non-uniform bins: [0, 1), [1, 10), [10, 20), ..., [1990, 2000):
     _validate_and_create_targets(project, project_dict)

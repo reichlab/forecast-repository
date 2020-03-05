@@ -19,7 +19,7 @@ def _calculate_pit_score_values(score, forecast_model):
     _calc_bin_score(score, forecast_model, save_pit_score)
 
 
-def save_pit_score(score, forecast_pk, location_pk, target_pk, truth_value, lwrs, lwr_to_pred_val,
+def save_pit_score(score, forecast_pk, unit_pk, target_pk, truth_value, lwrs, lwr_to_pred_val,
                    true_lwr, true_bin_idx):
     lwrs_pre_truth = lwrs[:true_bin_idx]  # excluding true bin
     if truth_value is None:  # score degenerates to using only the predicted true value

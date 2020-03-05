@@ -220,13 +220,13 @@ class ScoreValue(models.Model):
     """
     score = models.ForeignKey(Score, related_name='values', on_delete=models.CASCADE)
     forecast = models.ForeignKey(Forecast, on_delete=models.CASCADE)
-    location = models.ForeignKey('Location', blank=True, null=True, on_delete=models.SET_NULL)
+    unit = models.ForeignKey('Unit', blank=True, null=True, on_delete=models.SET_NULL)
     target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.SET_NULL)
     value = models.FloatField(null=False)
 
 
     def __repr__(self):
-        return str((self.pk, self.score.pk, self.forecast.pk, self.location.pk, self.target.pk, self.value))
+        return str((self.pk, self.score.pk, self.forecast.pk, self.unit.pk, self.target.pk, self.value))
 
 
     def __str__(self):  # todo

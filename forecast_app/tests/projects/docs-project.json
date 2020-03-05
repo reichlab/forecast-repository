@@ -7,7 +7,7 @@
   "core_data": "",
   "time_interval_type": "Week",
   "visualization_y_label": "the scale for your variable of interest",
-  "locations": [
+  "units": [
     {"name": "location1"},
     {"name": "location2"},
     {"name": "location3"}

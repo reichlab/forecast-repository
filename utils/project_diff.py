@@ -4,10 +4,10 @@ from itertools import groupby
 
 from django.db import transaction
 
-from forecast_app.models import Location, Target, PointPrediction, NamedDistribution, BinDistribution, \
+from forecast_app.models import Unit, Target, PointPrediction, NamedDistribution, BinDistribution, \
     SampleDistribution, TruthData
 from forecast_app.models.project import TimeZero
-from utils.project import create_project_from_json, _validate_and_create_locations, _validate_and_create_targets, \
+from utils.project import create_project_from_json, _validate_and_create_units, _validate_and_create_targets, \
     _validate_and_create_timezeros
 from utils.utilities import basic_str
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # valid 'object_type' values:
 class ObjectType(IntEnum):  # IntEnum so tests can sort
     PROJECT = 0  # object_pk=project.name
-    LOCATION = 1  # object_pk=location.name
+    UNIT = 1  # object_pk=unit.name
     TARGET = 2  # object_pk=target.name
     TIMEZERO = 3  # object_pk=timezero.timezero_date formatted as YYYY_MM_DD_DATE_FORMAT
 
@@ -139,12 +139,12 @@ def project_config_diff(config_dict_1, config_dict_2):
     Project edits:
     - editable fields: 'name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type',
         'visualization_y_label'
-    - 'locations': add, remove
+    - 'units': add, remove
     - 'timezeros': add, remove, edit
     - 'targets': add, remove, edit
 
-    Location edits: fields:
-    - 'name': the Location's pk. therefore editing this field effectively removes the existing Location and adds a new
+    Unit edits: fields:
+    - 'name': the Unit's pk. therefore editing this field effectively removes the existing Unit and adds a new
         one to replace it
 
     TimeZero edits: fields:
@@ -178,15 +178,15 @@ def project_config_diff(config_dict_1, config_dict_2):
         if config_dict_1[field_name] != config_dict_2[field_name]:
             changes.append(Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, field_name, config_dict_2))
 
-    # check for locations added or removed
-    location_names_1 = {location_dict['name'] for location_dict in config_dict_1['locations']}
-    location_names_2 = {location_dict['name'] for location_dict in config_dict_2['locations']}
-    removed_loc_names = location_names_1 - location_names_2
-    added_loc_names = location_names_2 - location_names_1
-    changes.extend([Change(ObjectType.LOCATION, name, ChangeType.OBJ_REMOVED, None, None)
+    # check for units added or removed
+    unit_names_1 = {unit_dict['name'] for unit_dict in config_dict_1['units']}
+    unit_names_2 = {unit_dict['name'] for unit_dict in config_dict_2['units']}
+    removed_loc_names = unit_names_1 - unit_names_2
+    added_loc_names = unit_names_2 - unit_names_1
+    changes.extend([Change(ObjectType.UNIT, name, ChangeType.OBJ_REMOVED, None, None)
                     for name in removed_loc_names])
-    changes.extend([Change(ObjectType.LOCATION, location_dict['name'], ChangeType.OBJ_ADDED, None, location_dict)
-                    for location_dict in config_dict_2['locations'] if location_dict['name'] in added_loc_names])
+    changes.extend([Change(ObjectType.UNIT, unit_dict['name'], ChangeType.OBJ_ADDED, None, unit_dict)
+                    for unit_dict in config_dict_2['units'] if unit_dict['name'] in added_loc_names])
 
     # check for timezeros added or removed
     timezero_dates_1 = {timezero_dict['timezero_date'] for timezero_dict in config_dict_1['timezeros']}
@@ -324,10 +324,10 @@ def database_changes_for_project_config_diff(project, changes):
     Analyzes impact of `changes` on project with respect to deleted rows. The only impactful one is ChangeType.OBJ_REMOVED.
 
     Types of possibly-deleted data:
-    - Prediction.location (PointPrediction.location, NamedDistribution.location, BinDistribution.location,
-                           SampleDistribution.location)
-    - TruthData.location
-    x ScoreValue.location (we do not count this b/c scores are generated from above data)
+    - Prediction.unit (PointPrediction.unit, NamedDistribution.unit, BinDistribution.unit,
+                           SampleDistribution.unit)
+    - TruthData.unit
+    x ScoreValue.unit (we do not count this b/c scores are generated from above data)
 
     :param project: a Project whose data is being analyzed for changes
     :param changes: list of Changes as returned by project_config_diff()
@@ -343,13 +343,13 @@ def database_changes_for_project_config_diff(project, changes):
         if (change.object_type == ObjectType.PROJECT) or (change.change_type != ChangeType.OBJ_REMOVED):
             continue
 
-        if change.object_type == ObjectType.LOCATION:  # removing a Location
-            location = object_for_change(project, change, [])  # raises
-            num_points = points_qs.filter(location=location).count()
-            num_named = named_qs.filter(location=location).count()
-            num_bins = bins_qs.filter(location=location).count()
-            num_samples = samples_qs.filter(location=location).count()
-            num_truth = truth_qs.filter(location=location).count()
+        if change.object_type == ObjectType.UNIT:  # removing a Unit
+            unit = object_for_change(project, change, [])  # raises
+            num_points = points_qs.filter(unit=unit).count()
+            num_named = named_qs.filter(unit=unit).count()
+            num_bins = bins_qs.filter(unit=unit).count()
+            num_samples = samples_qs.filter(unit=unit).count()
+            num_truth = truth_qs.filter(unit=unit).count()
         elif change.object_type == ObjectType.TARGET:  # removing a Target
             target = object_for_change(project, change, [])  # raises
             num_points = points_qs.filter(target=target).count()
@@ -384,18 +384,18 @@ def execute_project_config_diff(project, changes):
     objects_to_save = []
     for change in order_project_config_diff(changes):
         if change.change_type == ChangeType.OBJ_ADDED:
-            if change.object_type == ObjectType.LOCATION:
-                _validate_and_create_locations(project, {'locations': [change.object_dict]})
+            if change.object_type == ObjectType.UNIT:
+                _validate_and_create_units(project, {'units': [change.object_dict]})
             elif change.object_type == ObjectType.TARGET:
                 _validate_and_create_targets(project, {'targets': [change.object_dict]})
             elif change.object_type == ObjectType.TIMEZERO:
                 _validate_and_create_timezeros(project, {'timezeros': [change.object_dict]})
         elif change.change_type == ChangeType.OBJ_REMOVED:
-            the_obj = object_for_change(project, change, objects_to_save)  # Project/Location/Target/TimeZero. raises
+            the_obj = object_for_change(project, change, objects_to_save)  # Project/Unit/Target/TimeZero. raises
             the_obj.delete()
         elif (change.change_type == ChangeType.FIELD_EDITED) or (change.change_type == ChangeType.FIELD_ADDED) \
                 or (change.change_type == ChangeType.FIELD_REMOVED):
-            the_obj = object_for_change(project, change, objects_to_save)  # Project/Location/Target/TimeZero. raises
+            the_obj = object_for_change(project, change, objects_to_save)  # Project/Unit/Target/TimeZero. raises
             setattr(the_obj, change.field_name,
                     None if change.change_type == ChangeType.FIELD_REMOVED else change.object_dict[change.field_name])
             # NB: do not save here b/c multiple FIELD_* changes might be required together to be valid, e.g., when
@@ -416,11 +416,11 @@ def object_for_change(project, change, objects_to_save):
     """
     if change.object_type == ObjectType.PROJECT:
         found_object = project
-    elif change.object_type == ObjectType.LOCATION:
+    elif change.object_type == ObjectType.UNIT:
         found_objects_to_save = [the_obj for the_obj in objects_to_save
-                                 if (type(the_obj) == Location) and (the_obj.name == change.object_pk)]
+                                 if (type(the_obj) == Unit) and (the_obj.name == change.object_pk)]
         found_object = found_objects_to_save[0] if found_objects_to_save \
-            else project.locations.filter(name=change.object_pk).first()
+            else project.units.filter(name=change.object_pk).first()
     elif change.object_type == ObjectType.TARGET:
         found_objects_to_save = [the_obj for the_obj in objects_to_save
                                  if (type(the_obj) == Target) and (the_obj.name == change.object_pk)]

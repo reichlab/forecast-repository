@@ -21,12 +21,12 @@ class Prediction(models.Model):
 
 
     forecast = models.ForeignKey('Forecast', on_delete=models.CASCADE, null=True)
-    location = models.ForeignKey('Location', blank=True, null=True, on_delete=models.SET_NULL)
+    unit = models.ForeignKey('Unit', blank=True, null=True, on_delete=models.SET_NULL)
     target = models.ForeignKey('Target', blank=True, null=True, on_delete=models.SET_NULL)
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk))
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk))
 
 
     def __str__(self):  # todo
@@ -69,7 +69,7 @@ class PointPrediction(Prediction):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
                     self.value_i, self.value_f, self.value_t, self.value_d, self.value_b))
 
 
@@ -146,7 +146,7 @@ class NamedDistribution(Prediction):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk,
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk,
                     self.family, '.', self.param1, self.param2, self.param3))
 
 
@@ -214,7 +214,7 @@ class BinDistribution(EmpiricalDistribution):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
                     self.cat_i, self.cat_f, self.cat_t, self.cat_d, self.cat_b, '.', self.prob))
 
 
@@ -237,5 +237,5 @@ class SampleDistribution(EmpiricalDistribution):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.location.pk, self.target.pk, '.',
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
                     self.sample_i, self.sample_f, self.sample_t, self.sample_d, self.sample_b))

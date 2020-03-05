@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.make_thai_moph_project import cdc_csv_filename_components
 
 
@@ -18,7 +18,7 @@ class UtilsTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create()
-        make_cdc_locations_and_targets(cls.project)
+        make_cdc_units_and_targets(cls.project)
 
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 

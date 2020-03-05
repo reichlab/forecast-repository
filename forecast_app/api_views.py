@@ -520,11 +520,11 @@ def csv_response_for_project_truth_data(project):
 
     writer = csv.writer(response)
     writer.writerow(TRUTH_CSV_HEADER)
-    for timezero_date, location_name, target_name, \
+    for timezero_date, unit_name, target_name, \
         value_i, value_f, value_t, value_d, value_b in project.get_truth_data_rows():
         timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-        writer.writerow([timezero_date, location_name, target_name, truth_value])
+        writer.writerow([timezero_date, unit_name, target_name, truth_value])
 
     return response
 
@@ -574,7 +574,7 @@ def json_response_for_forecast(request, forecast):
     # client side via something like:
     #   curl -H 'Accept: application/json; indent=4' http://127.0.0.p1:8000/api/project/1/template_data/
     # but when I tried this, returned a delimited string instead of JSON:
-    #   return Response(JSONRenderer().render(location_dicts))
+    #   return Response(JSONRenderer().render(unit_dicts))
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
     response = JsonResponse(json_io_dict_from_forecast(forecast))  # defaults to 'content_type' 'application/json'
     response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(get_valid_filename(forecast.source))
@@ -635,12 +635,12 @@ def _write_csv_score_data_for_project(csv_writer, project):
     Writes all ScoreValue data for project into csv_writer. There is one column per ScoreValue BUT: all Scores are on
     one line. Thus, the row 'key' is the (fixed) first five columns:
 
-        `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Location.name, Target.name`
+        `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Unit.name, Target.name`
 
     Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
     the header. An example header and first few rows:
 
-        model,           timezero,    season,    location,  target,          constant score,  Absolute Error
+        model,           timezero,    season,    unit,  target,          constant score,  Absolute Error
         gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
         gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
         gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
@@ -670,13 +670,13 @@ def _write_csv_score_data_for_project(csv_writer, project):
     # get the raw rows - sorted for groupby()
     logger.debug("_write_csv_score_data_for_project(): getting rows: project={}".format(project))
     sql = """
-        SELECT f.forecast_model_id, f.time_zero_id, sv.location_id, sv.target_id, sv.score_id, sv.value
+        SELECT f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id, sv.value
         FROM {scorevalue_table_name} AS sv
                INNER JOIN {score_table_name} s ON sv.score_id = s.id
                INNER JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
                INNER JOIN {forecastmodel_table_name} AS fm ON f.forecast_model_id = fm.id
         WHERE fm.project_id = %s
-        ORDER BY f.forecast_model_id, f.time_zero_id, sv.location_id, sv.target_id, sv.score_id;
+        ORDER BY f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id;
     """.format(scorevalue_table_name=ScoreValue._meta.db_table,
                score_table_name=Score._meta.db_table,
                forecast_table_name=Forecast._meta.db_table,
@@ -690,16 +690,16 @@ def _write_csv_score_data_for_project(csv_writer, project):
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezeros = project.timezeros.all()
     timezero_id_to_obj = {timezero.pk: timezero for timezero in timezeros}
-    location_id_to_obj = {location.pk: location for location in project.locations.all()}
+    unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
 
     logger.debug("_write_csv_score_data_for_project(): iterating")
-    for (forecast_model_id, time_zero_id, location_id, target_id), score_id_value_grouper \
+    for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
         forecast_model = forecast_model_id_to_obj[forecast_model_id]
         time_zero = timezero_id_to_obj[time_zero_id]
-        location = location_id_to_obj[location_id]
+        unit = unit_id_to_obj[unit_id]
         target = target_id_to_obj[target_id]
         # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
         #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
@@ -709,6 +709,6 @@ def _write_csv_score_data_for_project(csv_writer, project):
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
                              time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                              timezero_to_season_name[time_zero],
-                             location.name, target.name]
+                             unit.name, target.name]
                             + score_values)
     logger.debug("_write_csv_score_data_for_project(): done")

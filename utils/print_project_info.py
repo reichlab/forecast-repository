@@ -40,9 +40,9 @@ def print_project_info(project, verbosity):
     for target in project.targets.all():
         click.echo(f"- {target}")
 
-    click.echo(f"\n** Locations ({project.locations.count()})")
-    for location in project.locations.all().order_by('name'):
-        click.echo(f"- {location}")
+    click.echo(f"\n** Units ({project.units.count()})")
+    for unit in project.units.all().order_by('name'):
+        click.echo(f"- {unit}")
 
     click.echo(f"\n** TimeZeros ({project.timezeros.count()})")
     for timezero in project.timezeros.all():

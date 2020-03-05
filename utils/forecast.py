@@ -34,49 +34,49 @@ def json_io_dict_from_forecast(forecast):
     predictions in CDC CSV files. Does include the 'meta' section in the returned dict.
 
     :param forecast: a Forecast whose predictions are to be outputted
-    :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by location
+    :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by unit
         and target for visibility. see docs for details
     """
-    location_names, target_names, prediction_dicts = _locations_targets_pred_dicts_from_forecast(forecast)
+    unit_names, target_names, prediction_dicts = _units_targets_pred_dicts_from_forecast(forecast)
     return {
         'meta': {
             'forecast': _forecast_dict_for_forecast(forecast),
-            'locations': sorted([{'name': location_names} for location_names in location_names],
+            'units': sorted([{'name': unit_names} for unit_names in unit_names],
                                 key=lambda _: (_['name'])),
             'targets': sorted(
                 [_target_dict_for_target(target) for target in forecast.forecast_model.project.targets.all()],
                 key=lambda _: (_['name'])),
         },
-        'predictions': sorted(prediction_dicts, key=lambda _: (_['location'], _['target']))}
+        'predictions': sorted(prediction_dicts, key=lambda _: (_['unit'], _['target']))}
 
 
-def _locations_targets_pred_dicts_from_forecast(forecast):
+def _units_targets_pred_dicts_from_forecast(forecast):
     """
     json_io_dict_from_forecast() helper
 
     :param forecast: the Forecast to read predictions from
-    :return: a 3-tuple: (location_names, target_names, prediction_dicts) where the first two are sets of the Location
+    :return: a 3-tuple: (unit_names, target_names, prediction_dicts) where the first two are sets of the Unit
         names and Target names in forecast's Predictions, and the last is list of "prediction dicts" as documented
         elsewhere
     """
     # recall Django's limitations in handling abstract classes and polymorphic models - asking for all of a Forecast's
-    # Predictions returns base Prediction instances (forecast, location, and target) without subclass fields (e.g.,
+    # Predictions returns base Prediction instances (forecast, unit, and target) without subclass fields (e.g.,
     # PointPrediction.value). so we have to handle each Prediction subclass individually. this implementation loads
-    # all instances of each concrete subclass into memory, ordered by (location, target) for groupby(). note: b/c the
+    # all instances of each concrete subclass into memory, ordered by (unit, target) for groupby(). note: b/c the
     # code for each class is so similar, I had implemented an abstraction, but it turned out to be longer and more
     # complicated, and IMHO didn't warrant eliminating the duplication
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
 
-    location_names = set()
+    unit_names = set()
     target_names = set()
     prediction_dicts = []  # filled next for each Prediction subclass
 
     # PointPrediction
     point_qs = forecast.point_prediction_qs() \
         .order_by('pk') \
-        .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-    for location_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
+        .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    for unit_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
+        unit_names.add(unit_name)
         for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
             is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
             target_names.add(target_name)
@@ -86,16 +86,16 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
                 point_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
                 if is_date_target:
                     point_value = point_value.strftime(YYYY_MM_DD_DATE_FORMAT)
-                prediction_dicts.append({"location": location_name, "target": target_name,
+                prediction_dicts.append({"unit": unit_name, "target": target_name,
                                          "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
                                          "prediction": {"value": point_value}})
 
     # NamedDistribution
     named_qs = forecast.named_distribution_qs() \
         .order_by('pk') \
-        .values_list('location__name', 'target__name', 'family', 'param1', 'param2', 'param3')
-    for location_name, target_family_params_grouper in groupby(named_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
+        .values_list('unit__name', 'target__name', 'family', 'param1', 'param2', 'param3')
+    for unit_name, target_family_params_grouper in groupby(named_qs, key=lambda _: _[0]):
+        unit_names.add(unit_name)
         for target_name, family_params_grouper in groupby(target_family_params_grouper, key=lambda _: _[1]):
             target_names.add(target_name)
             for _, _, family, param1, param2, param3 in family_params_grouper:
@@ -109,16 +109,16 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
                     pred_dict_pred["param2"] = param2
                 if param3 is not None:
                     pred_dict_pred["param3"] = param3
-                prediction_dicts.append({"location": location_name, "target": target_name,
+                prediction_dicts.append({"unit": unit_name, "target": target_name,
                                          "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
                                          "prediction": pred_dict_pred})
 
     # BinDistribution. ordering by 'cat_*' for testing, but it's a slower query:
     bincat_qs = forecast.bin_distribution_qs() \
         .order_by('pk') \
-        .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-    for location_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
+        .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+    for unit_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
+        unit_names.add(unit_name)
         for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
             is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
             target_names.add(target_name)
@@ -129,16 +129,16 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
                     cat_value = cat_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                 bin_cats.append(cat_value)
                 bin_probs.append(prob)
-            prediction_dicts.append({'location': location_name, 'target': target_name,
+            prediction_dicts.append({'unit': unit_name, 'target': target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
                                      'prediction': {'cat': bin_cats, 'prob': bin_probs}})
 
     # SampleDistribution
     sample_qs = forecast.sample_distribution_qs() \
         .order_by('pk') \
-        .values_list('location__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
-    for location_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
-        location_names.add(location_name)
+        .values_list('unit__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
+    for unit_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
+        unit_names.add(unit_name)
         for target_name, sample_grouper in groupby(target_sample_grouper, key=lambda _: _[1]):
             is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
             target_names.add(target_name)
@@ -148,11 +148,11 @@ def _locations_targets_pred_dicts_from_forecast(forecast):
                 if is_date_target:
                     sample_value = sample_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                 sample_cats.append(sample_value)
-            prediction_dicts.append({'location': location_name, 'target': target_name,
+            prediction_dicts.append({'unit': unit_name, 'target': target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
                                      'prediction': {'sample': sample_cats}})
 
-    return location_names, target_names, prediction_dicts
+    return unit_names, target_names, prediction_dicts
 
 
 def _forecast_dict_for_forecast(forecast):
@@ -182,7 +182,7 @@ BIN_SUM_REL_TOL = 0.001  # hard-coded magic number for prediction probability su
 def load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=True):
     """
     Loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note that we ignore the
-    'meta' portion of json_io_dict. Errors if any referenced Locations and Targets do not exist in forecast's Project.
+    'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in forecast's Project.
 
     :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
     :param forecast: a Forecast to load json_io_dict's predictions into
@@ -214,25 +214,25 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
     :param prediction_dicts: the 'predictions' portion of a "JSON IO dict" as returned by
         json_io_dict_from_cdc_csv_file()
     """
-    location_name_to_obj = {location.name: location for location in forecast.forecast_model.project.locations.all()}
+    unit_name_to_obj = {unit.name: unit for unit in forecast.forecast_model.project.units.all()}
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
     family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
                             in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
     # this variable helps to do "prediction"-level validations at the end of this function. it maps 2-tuples to a list
     # of prediction classes (strs)
-    loc_targ_to_pred_classes = defaultdict(list)  # (location_name, target_name) -> [prediction_class1, ...]
+    loc_targ_to_pred_classes = defaultdict(list)  # (unit_name, target_name) -> [prediction_class1, ...]
     bin_rows, named_rows, point_rows, sample_rows = [], [], [], []  # return values. set next
     for prediction_dict in prediction_dicts:
-        location_name = prediction_dict['location']
+        unit_name = prediction_dict['unit']
         target_name = prediction_dict['target']
         prediction_class = prediction_dict['class']
         prediction_data = prediction_dict['prediction']
-        loc_targ_to_pred_classes[(location_name, target_name)].append(prediction_class)
+        loc_targ_to_pred_classes[(unit_name, target_name)].append(prediction_class)
 
-        # validate location and target names (applies to all prediction classes)
-        if location_name not in location_name_to_obj:
-            raise RuntimeError(f"prediction_dict referred to an undefined Location. location_name={location_name!r}. "
-                               f"existing_location_names={location_name_to_obj.keys()}")
+        # validate unit and target names (applies to all prediction classes)
+        if unit_name not in unit_name_to_obj:
+            raise RuntimeError(f"prediction_dict referred to an undefined Unit. unit_name={unit_name!r}. "
+                               f"existing_unit_names={unit_name_to_obj.keys()}")
         elif target_name not in target_name_to_obj:
             raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name!r}. "
                                f"existing_target_names={target_name_to_obj.keys()}")
@@ -243,48 +243,48 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
             _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, target)  # raises o/w
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
-                    bin_rows.append([location_name, target_name, cat, prob])
+                    bin_rows.append([unit_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
             family_abbrev = prediction_data['family']
             _validate_named_rows(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict,
                                  target)  # raises o/w
-            named_rows.append([location_name, target_name, family_abbrev,
+            named_rows.append([unit_name, target_name, family_abbrev,
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
             _validate_point_rows(prediction_data, prediction_dict, target, value)  # raises o/w
-            point_rows.append([location_name, target_name, value])
+            point_rows.append([unit_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
             _validate_sample_rows(prediction_data, prediction_dict, target)  # raises o/w
             for sample in prediction_data['sample']:
-                sample_rows.append([location_name, target_name, sample])
+                sample_rows.append([unit_name, target_name, sample])
         else:
             raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
                                f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}. "
                                f"prediction_dict={prediction_dict}")
 
     # finally, do "prediction"-level validation. recall that "prediction" is defined as "a group of a prediction
-    # elements(s) specific to a location and target"
+    # elements(s) specific to a unit and target"
 
     # validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type".
-    duplicate_location_target_tuples = [(location, target, pred_classes) for (location, target), pred_classes
+    duplicate_unit_target_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
                                         in loc_targ_to_pred_classes.items()
                                         if len(pred_classes) != len(set(pred_classes))]
-    if duplicate_location_target_tuples:
+    if duplicate_unit_target_tuples:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                           f"Found these duplicate location/target tuples: {duplicate_location_target_tuples}")
+                           f"Found these duplicate unit/target tuples: {duplicate_unit_target_tuples}")
 
     # validate: (for both continuous and discrete target types): Within one prediction, there can be at most one of the
     # following prediction elements, but not both: {`Named`, `Bin`}.
-    named_bin_conflict_tuples = [(location, target, pred_classes) for (location, target), pred_classes
+    named_bin_conflict_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
                                  in loc_targ_to_pred_classes.items()
                                  if (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in pred_classes)
                                  and (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in pred_classes)]
     if named_bin_conflict_tuples:
         raise RuntimeError(f"Within one prediction, there can be at most one of the following prediction elements, "
-                           f"but not both: `Named`, `Bin`. Found these conflicting location/target tuples: "
+                           f"but not both: `Named`, `Bin`. Found these conflicting unit/target tuples: "
                            f"{named_bin_conflict_tuples}")
 
     # done!
@@ -463,20 +463,20 @@ def _load_bin_rows(forecast, rows, target_pk_to_object):
     """
     Loads the rows in prediction_data_dict as BinCatDistributions.
     """
-    # incoming rows: [location_name, target_name, cat, prob]
+    # incoming rows: [unit_name, target_name, cat, prob]
 
-    # after this, rows will be: [location_id, target_id, cat, prob]:
-    _replace_location_target_names_with_pks(forecast, rows)
+    # after this, rows will be: [unit_id, target_id, cat, prob]:
+    _replace_unit_target_names_with_pks(forecast, rows)
 
-    # after this, rows will be: [location_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob]:
+    # after this, rows will be: [unit_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob]:
     _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last=True)
 
-    # after this, rows will be: [location_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob, self_pk]:
+    # after this, rows will be: [unit_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob, self_pk]:
     _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = BinDistribution
-    columns_names = [prediction_class._meta.get_field('location').column,
+    columns_names = [prediction_class._meta.get_field('unit').column,
                      prediction_class._meta.get_field('target').column,
                      prediction_class._meta.get_field('cat_i').column,
                      prediction_class._meta.get_field('cat_f').column,
@@ -493,23 +493,23 @@ def _load_named_rows(forecast, rows):
     Loads the rows in rows as NamedDistribution concrete subclasses. Recall that each subclass has different IVs,
     so we use a hard-coded mapping to decide the subclass based on the `family` column.
     """
-    # incoming rows: [location_name, target_name, family, param1, param2, param3]
+    # incoming rows: [unit_name, target_name, family, param1, param2, param3]
 
-    # after this, rows will be: [location_id, target_id, family, param1, param2, param3]:
-    _replace_location_target_names_with_pks(forecast, rows)
+    # after this, rows will be: [unit_id, target_id, family, param1, param2, param3]:
+    _replace_unit_target_names_with_pks(forecast, rows)
 
-    # after this, rows will be: [location_id, target_id, family_id, param1, param2, param3]:
+    # after this, rows will be: [unit_id, target_id, family_id, param1, param2, param3]:
     _replace_family_abbrev_with_id(rows)
 
-    # after this, rows will be: [location_id, target_id, family_id, param1_or_0, param2_or_0, param3_or_0]:
+    # after this, rows will be: [unit_id, target_id, family_id, param1_or_0, param2_or_0, param3_or_0]:
     # _replace_null_params_with_zeros(rows)  # todo xx temp!
 
-    # after this, rows will be: [location_id, target_id, family_id, param1, param2, param3, self_pk]:
+    # after this, rows will be: [unit_id, target_id, family_id, param1, param2, param3, self_pk]:
     _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = NamedDistribution
-    columns_names = [prediction_class._meta.get_field('location').column,
+    columns_names = [prediction_class._meta.get_field('unit').column,
                      prediction_class._meta.get_field('target').column,
                      prediction_class._meta.get_field('family').column,
                      prediction_class._meta.get_field('param1').column,
@@ -523,29 +523,29 @@ def _load_point_rows(forecast, rows, target_pk_to_object):
     """
     Validates and loads the rows in rows as PointPredictions.
     """
-    # incoming rows: [location_name, target_name, value]
+    # incoming rows: [unit_name, target_name, value]
 
-    # after this, rows will be: [location_id, target_id, value]:
-    _replace_location_target_names_with_pks(forecast, rows)
+    # after this, rows will be: [unit_id, target_id, value]:
+    _replace_unit_target_names_with_pks(forecast, rows)
 
     # # validate rows
-    # location_id_to_obj = {location.pk: location for location in forecast.forecast_model.project.locations.all()}
+    # unit_id_to_obj = {unit.pk: unit for unit in forecast.forecast_model.project.units.all()}
     # target_id_to_obj = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
-    # for location_id, target_id, value in rows:
+    # for unit_id, target_id, value in rows:
     #     target = target_id_to_obj[target_id]
     #     if (not target.is_date) and (value is None):
     #         raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, "
-    #                            f"location={location_id_to_obj[location_id]}, target={target}")
+    #                            f"unit={unit_id_to_obj[unit_id]}, target={target}")
 
-    # after this, rows will be: [location_id, target_id, value_i, value_f, value_t]:
+    # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t]:
     _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last=False)
 
-    # after this, rows will be: [location_id, target_id, value_i, value_f, value_t, self_pk]:
+    # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t, self_pk]:
     _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = PointPrediction
-    columns_names = [prediction_class._meta.get_field('location').column,
+    columns_names = [prediction_class._meta.get_field('unit').column,
                      prediction_class._meta.get_field('target').column,
                      prediction_class._meta.get_field('value_i').column,
                      prediction_class._meta.get_field('value_f').column,
@@ -560,20 +560,20 @@ def _load_sample_rows(forecast, rows, target_pk_to_object):
     """
     Loads the rows in rows as SampleDistribution. See SAMPLE_DISTRIBUTION_HEADER.
     """
-    # incoming rows: [location_name, target_name, sample]
+    # incoming rows: [unit_name, target_name, sample]
 
-    # after this, rows will be: [location_id, target_id, sample]:
-    _replace_location_target_names_with_pks(forecast, rows)
+    # after this, rows will be: [unit_id, target_id, sample]:
+    _replace_unit_target_names_with_pks(forecast, rows)
 
-    # after this, rows will be: [location_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b]:
+    # after this, rows will be: [unit_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b]:
     _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last=False)
 
-    # after this, rows will be: [location_id, target_id, sample, self_pk]:
+    # after this, rows will be: [unit_id, target_id, sample, self_pk]:
     _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     prediction_class = SampleDistribution
-    columns_names = [prediction_class._meta.get_field('location').column,
+    columns_names = [prediction_class._meta.get_field('unit').column,
                      prediction_class._meta.get_field('target').column,
                      prediction_class._meta.get_field('sample_i').column,
                      prediction_class._meta.get_field('sample_f').column,
@@ -584,18 +584,18 @@ def _load_sample_rows(forecast, rows, target_pk_to_object):
     _insert_prediction_rows(prediction_class, columns_names, rows)
 
 
-def _replace_location_target_names_with_pks(forecast, rows):
+def _replace_unit_target_names_with_pks(forecast, rows):
     """
-    Does an in-place rows replacement of target and location names with PKs.
+    Does an in-place rows replacement of target and unit names with PKs.
     """
     project = forecast.forecast_model.project
 
     # todo xx pass in:
-    location_name_to_pk = {location.name: location.id for location in project.locations.all()}
+    unit_name_to_pk = {unit.name: unit.id for unit in project.units.all()}
 
     target_name_to_pk = {target.name: target.id for target in project.targets.all()}
-    for row in rows:  # location_name, target_name, value, self_pk
-        row[0] = location_name_to_pk[row[0]]
+    for row in rows:  # unit_name, target_name, value, self_pk
+        row[0] = unit_name_to_pk[row[0]]
         row[1] = target_name_to_pk[row[1]]
 
 
@@ -605,11 +605,11 @@ def _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last):
     data_type. The values: value_i, value_f, value_t, value_d, value_b. Recall that exactly one will be non-NULL (i.e.,
     not None).
 
-    :param rows: a list of lists of the form: [location_id, target_id, value, [last_item]], where last_item is optional
+    :param rows: a list of lists of the form: [unit_id, target_id, value, [last_item]], where last_item is optional
         and is indicated by is_exclude_last
     :param is_exclude_last: True if the last item should be preserved, and False o/w
     :return: rows, but with the value_idx replaced with the above five type-specific values, i.e.,
-        [location_id, target_id, value_i, value_f, value_t, value_d, value_b, [last_item]]
+        [unit_id, target_id, value_i, value_f, value_t, value_d, value_b, [last_item]]
     """
     value_idx = 2
     for row in rows:
@@ -672,7 +672,7 @@ def _insert_prediction_rows(prediction_class, columns_names, rows):
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
             for row in rows:
-                location_id, target_id = row[0], row[1]
+                unit_id, target_id = row[0], row[1]
                 prediction_items = row[2:-1]
                 self_pk = row[-1]
 
@@ -681,7 +681,7 @@ def _insert_prediction_rows(prediction_class, columns_names, rows):
                     prediction_item = prediction_items[idx]
                     prediction_items[idx] = prediction_item if prediction_item is not None else POSTGRES_NULL_VALUE
 
-                csv_writer.writerow([location_id, target_id] + prediction_items + [self_pk])
+                csv_writer.writerow([unit_id, target_id] + prediction_items + [self_pk])
             string_io.seek(0)
             cursor.copy_from(string_io, table_name, columns=columns_names, sep=',', null=POSTGRES_NULL_VALUE)
         else:  # 'sqlite', etc.

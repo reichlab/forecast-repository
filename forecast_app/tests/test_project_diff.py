@@ -47,12 +47,12 @@ class ProjectDiffTestCase(TestCase):
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
-        # project locations: remove 'location3', add 'location4'
+        # project units: remove 'unit3', add 'unit4'
         edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['locations'][2]['name'] = 'location4'  # 'location3'
-        exp_changes = [Change(ObjectType.LOCATION, 'location3', ChangeType.OBJ_REMOVED, None, None),
-                       Change(ObjectType.LOCATION, 'location4', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['locations'][2])]
+        edit_config_dict['units'][2]['name'] = 'location4'  # 'unit3'
+        exp_changes = [Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None),
+                       Change(ObjectType.UNIT, 'location4', ChangeType.OBJ_ADDED, None,
+                              edit_config_dict['units'][2])]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
@@ -169,7 +169,7 @@ class ProjectDiffTestCase(TestCase):
 
         changes = project_config_diff(out_config_dict, edit_config_dict)
         self.assertEqual(  # change, num_points, num_named, num_bins, num_samples, num_truth
-            [(Change(ObjectType.LOCATION, 'location3', ChangeType.OBJ_REMOVED, None, None), 3, 0, 2, 10, 0),
+            [(Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None), 3, 0, 2, 10, 0),
              (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 3, 1, 3, 5, 3),
              (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 11, 2, 16, 23, 5)],
             database_changes_for_project_config_diff(project, changes))
@@ -242,9 +242,9 @@ class ProjectDiffTestCase(TestCase):
         exp_dicts = [
             {'object_type': ObjectType.PROJECT, 'object_pk': None, 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'name', 'object_dict': edit_config_dict},
-            {'object_type': ObjectType.LOCATION, 'object_pk': 'location3', 'change_type': ChangeType.OBJ_REMOVED,
+            {'object_type': ObjectType.UNIT, 'object_pk': 'location3', 'change_type': ChangeType.OBJ_REMOVED,
              'field_name': None, 'object_dict': None},
-            {'object_type': ObjectType.LOCATION, 'object_pk': 'location4', 'change_type': ChangeType.OBJ_ADDED,
+            {'object_type': ObjectType.UNIT, 'object_pk': 'location4', 'change_type': ChangeType.OBJ_ADDED,
              'field_name': None, 'object_dict': {'name': 'location4'}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'is_step_ahead',
@@ -296,11 +296,11 @@ class ProjectDiffTestCase(TestCase):
         # Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', {'name': 'new project name', ...}]})
         self.assertEqual('new project name', project.name)
 
-        # Change(ObjectType.LOCATION, 'location3', ChangeType.OBJ_REMOVED, None, None)
-        self.assertEqual(0, project.locations.filter(name='location3').count())
+        # Change(ObjectType.UNIT, 'unit3', ChangeType.OBJ_REMOVED, None, None)
+        self.assertEqual(0, project.units.filter(name='location3').count())
 
-        # Change(ObjectType.LOCATION, 'location4', ChangeType.OBJ_ADDED, None, {'name': 'location4'})
-        self.assertEqual(1, project.locations.filter(name='location4').count())
+        # Change(ObjectType.UNIT, 'unit4', ChangeType.OBJ_ADDED, None, {'name': 'unit4'})
+        self.assertEqual(1, project.units.filter(name='location4').count())
 
         # Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None)
         # NB: queries work b/c # str is Date.isoformat(), the default for models.DateField
@@ -330,7 +330,7 @@ class ProjectDiffTestCase(TestCase):
 def _make_some_changes(edit_config_dict):
     # makes a useful variety of changes to edit_config_dict for testing
     edit_config_dict['name'] = 'new project name'  # edit project 'name'
-    edit_config_dict['locations'][2]['name'] = 'location4'  # 'location3': remove and replace w/'location4'
+    edit_config_dict['units'][2]['name'] = 'location4'  # 'location3': remove and replace w/'location4'
     edit_config_dict['timezeros'][0]['timezero_date'] = '2011-10-22'  # '2011-10-02': remove and replace w/'2011-10-22'
     edit_config_dict['timezeros'][1]['data_version_date'] = '2011-10-19'  # '2011-10-09': edit 'data_version_date'
     edit_config_dict['targets'][0]['type'] = 'discrete'  # 'pct next week': remove 'pct next week' and add back in
@@ -346,8 +346,8 @@ def _make_some_changes(edit_config_dict):
     # - 'pct next week': wasted FIELD_EDITED and OBJ_REMOVED
     #
     # [Change(ObjectType.PROJECT,  None,              ChangeType.FIELD_EDITED,  'name',                 {'name': 'new project name', ...}]}),
-    #  Change(ObjectType.LOCATION, 'location3',       ChangeType.OBJ_REMOVED,    None,                  None),
-    #  Change(ObjectType.LOCATION, 'location4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'location4'}),
+    #  Change(ObjectType.UNIT, 'unit3',       ChangeType.OBJ_REMOVED,    None,                  None),
+    #  Change(ObjectType.UNIT, 'unit4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'unit4'}),
     #  Change(ObjectType.TIMEZERO, '2011-10-02',      ChangeType.OBJ_REMOVED,    None,                  None),
     #  Change(ObjectType.TIMEZERO, '2011-10-22',      ChangeType.OBJ_ADDED,      None,                  {'timezero_date': '2011-10-22', ...}),
     #  Change(ObjectType.TIMEZERO, '2011-10-09',      ChangeType.FIELD_EDITED,  'data_version_date',    {'timezero_date': '2011-10-09', ...}),

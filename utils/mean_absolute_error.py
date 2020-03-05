@@ -9,12 +9,12 @@ from forecast_app.models import Forecast, Score, ScoreValue, ForecastModel, Time
 logger = logging.getLogger(__name__)
 
 
-def location_to_mean_abs_error_rows_for_project(project, season_name):
+def unit_to_mean_abs_error_rows_for_project(project, season_name):
     """
     Called by the project_scores() view function, returns a dict containing a table of mean absolute errors for all
-    models and all locations in project for season_name, or for all timezeros if season_name=None. The dict maps:
+    models and all units in project for season_name, or for all timezeros if season_name=None. The dict maps:
 
-        {location_name: (mean_abs_error_rows, target_to_min_mae), ...}
+        {unit_name: (mean_abs_error_rows, target_to_min_mae), ...}
 
     where the 2-tuples are detailed next. Returns {} if no truth data or no appropriate target_names in project.
 
@@ -45,38 +45,38 @@ def location_to_mean_abs_error_rows_for_project(project, season_name):
 
     for forecast_model in project.models.all():
         if not forecast_model.forecasts.exists():
-            logger.warning("location_to_mean_abs_error_rows_for_project(): could not calculate absolute errors: model "
+            logger.warning("unit_to_mean_abs_error_rows_for_project(): could not calculate absolute errors: model "
                            "had no data: {}".format(forecast_model))
             continue
 
     # first build loc_to_model_to_target_to_mae
     score_value_rows = _score_value_rows_for_season(project, season_name)
-    location_id_to_obj = {location.pk: location for location in project.locations.all()}
+    unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     loc_to_model_to_target_to_mae = {}
-    for location_pk, model_target_avg_grouper in groupby(score_value_rows, key=lambda _: _[0]):
+    for unit_pk, model_target_avg_grouper in groupby(score_value_rows, key=lambda _: _[0]):
         model_to_target_to_mae = {}
         for forecast_model_pk, target_avg_grouper in groupby(model_target_avg_grouper, key=lambda _: _[1]):
             target_to_mae = {}
             for _, _, target_pk, mae in list(target_avg_grouper):
                 target_to_mae[target_id_to_obj[target_pk]] = mae
             model_to_target_to_mae[forecast_model_id_to_obj[forecast_model_pk]] = target_to_mae
-        loc_to_model_to_target_to_mae[location_id_to_obj[location_pk]] = model_to_target_to_mae
+        loc_to_model_to_target_to_mae[unit_id_to_obj[unit_pk]] = model_to_target_to_mae
 
     # done
-    return {location.name: (_mean_abs_error_rows_for_loc(loc_to_model_to_target_to_mae, location, targets),
-                            _target_to_min_mae_for_loc(loc_to_model_to_target_to_mae, location, targets))
-            for location in loc_to_model_to_target_to_mae}
+    return {unit.name: (_mean_abs_error_rows_for_loc(loc_to_model_to_target_to_mae, unit, targets),
+                            _target_to_min_mae_for_loc(loc_to_model_to_target_to_mae, unit, targets))
+            for unit in loc_to_model_to_target_to_mae}
 
 
-def _mean_abs_error_rows_for_loc(loc_to_model_to_target_to_mae, location, targets):
+def _mean_abs_error_rows_for_loc(loc_to_model_to_target_to_mae, unit, targets):
     """
     :return: the first tuple as described above
     """
     rows = [['Model', *[target.name for target in targets]]]  # header
-    # for forecast_model, target_to_mae in loc_to_model_to_target_to_mae[location].items():
-    model_to_target_to_mae = loc_to_model_to_target_to_mae[location]
+    # for forecast_model, target_to_mae in loc_to_model_to_target_to_mae[unit].items():
+    model_to_target_to_mae = loc_to_model_to_target_to_mae[unit]
     for forecast_model in sorted(model_to_target_to_mae.keys(), key=lambda model: model.name):
         target_to_mae = model_to_target_to_mae[forecast_model]
         model_row = [forecast_model.pk]
@@ -87,12 +87,12 @@ def _mean_abs_error_rows_for_loc(loc_to_model_to_target_to_mae, location, target
     return rows
 
 
-def _target_to_min_mae_for_loc(loc_to_model_to_target_to_mae, location, targets):
+def _target_to_min_mae_for_loc(loc_to_model_to_target_to_mae, unit, targets):
     """
     :return: the second tuple as described above
     """
     target_to_min_mae = {target.name: None for target in targets}  # tracks min MAE for bolding in table. filled next
-    for forecast_model, target_to_mae in loc_to_model_to_target_to_mae[location].items():
+    for forecast_model, target_to_mae in loc_to_model_to_target_to_mae[unit].items():
         for target, mae_val in target_to_mae.items():
             target_to_min_mae[target.name] = min(mae_val, target_to_min_mae[target.name]) \
                 if target_to_min_mae[target.name] else mae_val
@@ -110,7 +110,7 @@ def _score_value_rows_for_season(project, season_name):
     # rows are ordered so we can groupby()
     # todo xx use meta for column names
     sql_select = """
-        SELECT sv.location_id, model.id, sv.target_id, avg(sv.value)
+        SELECT sv.unit_id, model.id, sv.target_id, avg(sv.value)
         FROM {scorevalue_table_name} as sv
                LEFT JOIN {forecast_table_name} f on sv.forecast_id = f.id
                LEFT JOIN {forecastmodel_table_name} model on f.forecast_model_id = model.id
@@ -130,8 +130,8 @@ def _score_value_rows_for_season(project, season_name):
         """
 
     sql_group_order_by = """
-        GROUP BY sv.location_id, model.id, sv.target_id
-        ORDER BY sv.location_id, model.id, sv.target_id;
+        GROUP BY sv.unit_id, model.id, sv.target_id
+        ORDER BY sv.unit_id, model.id, sv.target_id;
     """
 
     sql = sql_select + sql_where + sql_group_order_by

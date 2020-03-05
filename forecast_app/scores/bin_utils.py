@@ -26,10 +26,10 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
     # collect all ScoreValue rows and then bulk insert them as an optimization, rather than create separate ORM
     # instances
-    score_values = []  # list of 5-tuples: (score.pk, forecast.pk, location.pk, target.pk, score_value)
+    score_values = []  # list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
 
     # collect errors so we don't log thousands of duplicate messages. dict format:
-    #   {(timezero_pk, location_pk, target_pk): count, ...}:
+    #   {(timezero_pk, unit_pk, target_pk): count, ...}:
     # note that the granularity is poor - there are multiple possible errors related to a particular 3-tuple
     tz_loc_targ_pks_to_error_count = defaultdict(int)  # helps eliminate duplicate warnings
 
@@ -37,56 +37,56 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     # 1/3 lwrs: [target_pk] -> [lwr_1, ...]:
     targ_pk_to_lwrs = _targ_pk_to_lwrs(forecast_model.project)
 
-    # 2/3 truth: [timezero_pk][location_pk][target_pk] -> true_lwr:
+    # 2/3 truth: [timezero_pk][unit_pk][target_pk] -> true_lwr:
     tz_loc_targ_pk_to_true_lwr = _tz_loc_targ_pk_to_true_lwr(forecast_model.project)
 
-    # 3/3 forecast: [timezero_pk][location_pk][target_pk][cat_value] -> predicted_value:
+    # 3/3 forecast: [timezero_pk][unit_pk][target_pk][cat_value] -> predicted_value:
     tz_loc_targ_pk_lwr_to_pred_val = _tz_loc_targ_pk_lwr_to_pred_val(forecast_model)
 
-    # it is convenient to iterate over truths to get all timezero/location/target combinations. this will omit forecasts
+    # it is convenient to iterate over truths to get all timezero/unit/target combinations. this will omit forecasts
     # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score. we use direct SQL
     # to work with PKs and avoid ORM object lookup overhead, mainly for TruthData -> TimeZero -> Forecast -> PK
-    for time_zero_pk, forecast_pk, location_pk, target_pk, truth_value in \
+    for time_zero_pk, forecast_pk, unit_pk, target_pk, truth_value in \
             _truth_data_pks_for_forecast_model(forecast_model):
         # get lwrs for this forecast
         try:
             lwrs = targ_pk_to_lwrs[target_pk]
         except KeyError:
-            error_key = (time_zero_pk, location_pk, target_pk)
+            error_key = (time_zero_pk, unit_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
             continue  # skip this forecast's contribution to the score
 
         # get and validate truth for this forecast
         try:
-            true_lwr = tz_loc_targ_pk_to_true_lwr[time_zero_pk][location_pk][target_pk]
+            true_lwr = tz_loc_targ_pk_to_true_lwr[time_zero_pk][unit_pk][target_pk]
             true_bin_idx = lwrs.index(true_lwr)  # NB: non-deterministic for (None, None) true bin keys!
         except (KeyError, ValueError):
-            error_key = (time_zero_pk, location_pk, target_pk)
+            error_key = (time_zero_pk, unit_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
             continue  # skip this forecast's contribution to the score
 
         # get forecast bins and predicted values for this forecast
         try:
-            lwr_to_pred_val = tz_loc_targ_pk_lwr_to_pred_val[time_zero_pk][location_pk][target_pk]
+            lwr_to_pred_val = tz_loc_targ_pk_lwr_to_pred_val[time_zero_pk][unit_pk][target_pk]
         except KeyError:
-            error_key = (time_zero_pk, location_pk, target_pk)
+            error_key = (time_zero_pk, unit_pk, target_pk)
             tz_loc_targ_pks_to_error_count[error_key] += 1
             continue  # skip this forecast's contribution to the score
 
         # dispatch to scoring function if we have any predicted values to work with
         if lwr_to_pred_val:
-            score_value = save_score_fcn(score, forecast_pk, location_pk, target_pk, truth_value, lwrs,
+            score_value = save_score_fcn(score, forecast_pk, unit_pk, target_pk, truth_value, lwrs,
                                          lwr_to_pred_val, true_lwr, true_bin_idx, **kwargs)
-            score_values.append((score.pk, forecast_pk, location_pk, target_pk, score_value))
+            score_values.append((score.pk, forecast_pk, unit_pk, target_pk, score_value))
 
     # insert the ScoreValues!
     _insert_score_values(score_values)
 
     # print errors
-    for (timezero_pk, location_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
-        count = tz_loc_targ_pks_to_error_count[timezero_pk, location_pk, target_pk]
+    for (timezero_pk, unit_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
+        count = tz_loc_targ_pks_to_error_count[timezero_pk, unit_pk, target_pk]
         logger.warning(f"_calc_bin_score(): missing {count} truth value(s): "
-                       f"timezero_pk={timezero_pk}, location_pk={location_pk}, target_pk={target_pk}")
+                       f"timezero_pk={timezero_pk}, unit_pk={unit_pk}, target_pk={target_pk}")
 
 
 def _truth_data_pks_for_forecast_model(forecast_model):
@@ -95,11 +95,11 @@ def _truth_data_pks_for_forecast_model(forecast_model):
 
     :param forecast_model: a ForecastModel
     :return: truth data in forecast_model as a list of 5-tuples where truth_value is the (first?) non-null truth value
-        in TruthData.value_i and TruthData.value_f: (time_zero_pk, forecast_pk, location_pk, target_pk, truth_value)
+        in TruthData.value_i and TruthData.value_f: (time_zero_pk, forecast_pk, unit_pk, target_pk, truth_value)
 
     """
     sql = f"""
-        SELECT truthd.time_zero_id, f.id, truthd.location_id, truthd.target_id, COALESCE(truthd.value_i, truthd.value_f)
+        SELECT truthd.time_zero_id, f.id, truthd.unit_id, truthd.target_id, COALESCE(truthd.value_i, truthd.value_f)
         FROM {TruthData._meta.db_table} AS truthd
                LEFT JOIN {TimeZero._meta.db_table} AS tz ON truthd.time_zero_id = tz.id
                LEFT JOIN {Forecast._meta.db_table} AS f ON tz.id = f.time_zero_id
@@ -116,12 +116,12 @@ def _insert_score_values(score_values):
     Called by _calc_bin_score(), does a bulk insert of score_values - creates ScoreValue instances. See docs in
     _insert_prediction_rows() for postgres-specific rationale.
 
-    :param score_values: a list of 5-tuples: (score.pk, forecast.pk, location.pk, target.pk, score_value)
+    :param score_values: a list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
     """
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
     columns_names = [ScoreValue._meta.get_field('score').column,
                      ScoreValue._meta.get_field('forecast').column,
-                     ScoreValue._meta.get_field('location').column,
+                     ScoreValue._meta.get_field('unit').column,
                      ScoreValue._meta.get_field('target').column,
                      ScoreValue._meta.get_field('value').column]
     scorevalue_table_name = ScoreValue._meta.db_table
@@ -151,13 +151,13 @@ def _tz_loc_targ_pk_to_true_lwr(project):
     """
     Returns project's TruthData merged with the project's TargetLwrs:
 
-        [timezero_pk][location_pk][target_pk] -> true_lwr
+        [timezero_pk][unit_pk][target_pk] -> true_lwr
 
     We need the TargetLwr to get lwr and upper for the truth.
     NB: Only compares TruthData.value_i and TruthData.value_f columns. todo xx should base this on Target.type?
     """
     sql = f"""
-        SELECT truthd.time_zero_id, truthd.location_id, truthd.target_id, targlwr.lwr
+        SELECT truthd.time_zero_id, truthd.unit_id, truthd.target_id, targlwr.lwr
         FROM {TruthData._meta.db_table} as truthd
                LEFT JOIN {TargetLwr._meta.db_table} as targlwr
                     ON truthd.target_id = targlwr.target_id
@@ -168,20 +168,20 @@ def _tz_loc_targ_pk_to_true_lwr(project):
                ((COALESCE(truthd.value_i, truthd.value_f) IS NULL) AND (targlwr.lwr IS NULL)))
           AND ((COALESCE(truthd.value_i, truthd.value_f) < targlwr.upper) OR
                ((COALESCE(truthd.value_i, truthd.value_f) IS NULL) AND (targlwr.upper IS NULL)))
-        ORDER BY truthd.time_zero_id, truthd.location_id, truthd.target_id, targlwr.lwr
+        ORDER BY truthd.time_zero_id, truthd.unit_id, truthd.target_id, targlwr.lwr
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
         rows = cursor.fetchall()
 
     # build the dict
-    tz_loc_targ_pks_to_true_lwr = {}  # {timezero_pk: {location_pk: {target_id: true_lwr}}}
+    tz_loc_targ_pks_to_true_lwr = {}  # {timezero_pk: {unit_pk: {target_id: true_lwr}}}
     for time_zero_id, loc_target_val_grouper in groupby(rows, key=lambda _: _[0]):
-        loc_targ_pks_to_truth_bin_start = {}  # {location_pk: {target_id: true_lwr}}
+        loc_targ_pks_to_truth_bin_start = {}  # {unit_pk: {target_id: true_lwr}}
         tz_loc_targ_pks_to_true_lwr[time_zero_id] = loc_targ_pks_to_truth_bin_start
-        for location_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+        for unit_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
             target_pk_to_truth = {}  # {target_id: true_lwr}
-            loc_targ_pks_to_truth_bin_start[location_id] = target_pk_to_truth
+            loc_targ_pks_to_truth_bin_start[unit_id] = target_pk_to_truth
             for _, _, target_id, true_lwr in target_val_grouper:
                 target_pk_to_truth[target_id] = true_lwr
 
@@ -211,7 +211,7 @@ def _tz_loc_targ_pk_lwr_to_pred_val(forecast_model):
     """
     Returns prediction data for all forecasts in forecast_model as a dict:
 
-        [timezero_pk][location_pk][target_pk][cat_value] -> predicted_value
+        [timezero_pk][unit_pk][target_pk][cat_value] -> predicted_value
 
     Only returns rows whose targets match numeric_targets().
     """
@@ -219,19 +219,19 @@ def _tz_loc_targ_pk_lwr_to_pred_val(forecast_model):
     forecast_data_qs = BinDistribution.objects \
         .filter(forecast__forecast_model=forecast_model,
                 target__in=targets) \
-        .order_by('forecast__time_zero__id', 'location__id', 'target__id') \
-        .values_list('forecast__time_zero__id', 'location__id', 'target__id', 'prob',
+        .order_by('forecast__time_zero__id', 'unit__id', 'target__id') \
+        .values_list('forecast__time_zero__id', 'unit__id', 'target__id', 'prob',
                      'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
 
-    # build the dict: {timezero_pk: {location_pk: {target_id: {lwr_1: predicted_value_1, ...}}}}:
+    # build the dict: {timezero_pk: {unit_pk: {target_id: {lwr_1: predicted_value_1, ...}}}}:
     tzltpk_to_forec_st_to_pred_val = {}
     for time_zero_id, loc_target_val_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
-        ltpk_to_forec_start_to_pred_val = {}  # {location_pk: {target_id: {lwr_1: predicted_value_1, ...}}}
+        ltpk_to_forec_start_to_pred_val = {}  # {unit_pk: {target_id: {lwr_1: predicted_value_1, ...}}}
         tzltpk_to_forec_st_to_pred_val[time_zero_id] = ltpk_to_forec_start_to_pred_val
-        for location_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+        for unit_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
             # {target_id: {lwr_1: predicted_value_1, ...}}:
             tpk_to_forec_start_to_pred_val = defaultdict(dict)
-            ltpk_to_forec_start_to_pred_val[location_id] = tpk_to_forec_start_to_pred_val
+            ltpk_to_forec_start_to_pred_val[unit_id] = tpk_to_forec_start_to_pred_val
             for _, _, target_id, pred_value, cat_i, cat_f, cat_t, cat_d, cat_b in target_val_grouper:
                 cat_value = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
                 tpk_to_forec_start_to_pred_val[target_id][cat_value] = pred_value

@@ -6,7 +6,7 @@ from .forecast_model import ForecastModel
 from .model_score_change import ModelScoreChange
 from .prediction import BinDistribution, Prediction, PointPrediction, NamedDistribution, EmpiricalDistribution, \
     SampleDistribution
-from .project import Project, TimeZero, Location
+from .project import Project, TimeZero, Unit
 from .row_count_cache import RowCountCache
 from .score import Score, ScoreValue, ScoreLastUpdate
 from .score_csv_file_cache import ScoreCsvFileCache

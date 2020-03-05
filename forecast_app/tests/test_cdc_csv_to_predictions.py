@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from forecast_app.models import PointPrediction, Project, ForecastModel, TimeZero, Forecast
 from utils.cdc import json_io_dict_from_cdc_csv_file, monday_date_from_ew_and_season_start_year, \
-    make_cdc_locations_and_targets
+    make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 
 
@@ -61,15 +61,15 @@ class CdcCsvToPredictionsTestCase(TestCase):
         # test a larger csv file
         with open('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde.csv') as cdc_csv_fp:
             act_json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
-            # each location/target pair has 2 prediction dicts: one point and one bin
-            # there are 11 locations and 7 targets = 77 * 2 = 154 dicts total
+            # each unit/target pair has 2 prediction dicts: one point and one bin
+            # there are 11 units and 7 targets = 77 * 2 = 154 dicts total
             self.assertEqual(154, len(act_json_io_dict['predictions']))
 
 
     def test_load_predictions_from_cdc_csv_file(self):
         # sanity-check that the predictions get converted and then loaded into the database
         project = Project.objects.create()
-        make_cdc_locations_and_targets(project)
+        make_cdc_units_and_targets(project)
 
         forecast_model = ForecastModel.objects.create(project=project)
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))

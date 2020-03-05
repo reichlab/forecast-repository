@@ -31,7 +31,7 @@ def _calc_log_bin_score_values(score, forecast_model, num_bins_one_side):
     _calc_bin_score(score, forecast_model, save_log_score, num_bins_one_side=num_bins_one_side)
 
 
-def save_log_score(score, forecast_pk, location_pk, target_pk, truth_value, lwrs, lwr_to_pred_val,
+def save_log_score(score, forecast_pk, unit_pk, target_pk, truth_value, lwrs, lwr_to_pred_val,
                    true_lwr, true_bin_idx, num_bins_one_side):
     if truth_value is None:  # score degenerates to the num_bins_one_side=0 'Log score (single bin)' calculation
         num_bins_one_side = 0

@@ -7,8 +7,8 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
-from utils.flusight import flusight_location_to_data_dict
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.flusight import flusight_unit_to_data_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 
 
@@ -19,7 +19,7 @@ class FlusightTestCase(TestCase):
 
     def test_d3_foresight(self):
         project = Project.objects.create()
-        make_cdc_locations_and_targets(project)
+        make_cdc_units_and_targets(project)
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 10, 23),
                                             # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}
@@ -39,13 +39,13 @@ class FlusightTestCase(TestCase):
             exp_json_template = Template(exp_json_template_str)
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model1.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_location_to_data_dict(project, None)
+            act_flusight_data_dict = flusight_unit_to_data_dict(project, None)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 
     def test_d3_foresight_out_of_season(self):
         project = Project.objects.create()
-        make_cdc_locations_and_targets(project)
+        make_cdc_units_and_targets(project)
         # pymmwr.mmwr_week_to_date(2016, 29) -> datetime.date(2016, 7, 17):
         time_zero = TimeZero.objects.create(project=project,
                                             timezero_date=datetime.date(2016, 7, 17),  # 29 < SEASON_START_EW_NUMBER
@@ -64,14 +64,14 @@ class FlusightTestCase(TestCase):
             exp_json_template = Template(exp_json_template_str)
             exp_json_str = exp_json_template.render(Context({'forecast_model_id': forecast_model.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_location_to_data_dict(project, '2017')
+            act_flusight_data_dict = flusight_unit_to_data_dict(project, '2017')
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)
 
 
     # straight from test_load_forecasts_from_dir():
     def test_d3_foresight_larger(self):
         project = Project.objects.create()
-        make_cdc_locations_and_targets(project)
+        make_cdc_units_and_targets(project)
         TimeZero.objects.create(project=project,
                                 timezero_date=datetime.date(2016, 10, 23),
                                 # 20161023-KoTstable-20161109.cdc.csv {'year': 2016, 'week': 43, 'day': 1}
@@ -95,5 +95,5 @@ class FlusightTestCase(TestCase):
             exp_json_str = exp_json_template.render(Context({'forecast_model1_id': forecast_model1.id,
                                                              'forecast_model2_id': forecast_model2.id}))
             exp_flusight_data_dict = json.loads(exp_json_str)
-            act_flusight_data_dict = flusight_location_to_data_dict(project, None)
+            act_flusight_data_dict = flusight_unit_to_data_dict(project, None)
             self.assertEqual(exp_flusight_data_dict, act_flusight_data_dict)

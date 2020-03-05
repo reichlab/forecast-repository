@@ -2,7 +2,7 @@
   "meta": {},
   "predictions": [
     {
-      "location": "US National",
+      "unit": "US National",
       "target": "Season onset",
       "class": "point",
       "prediction": {
@@ -10,7 +10,7 @@
       }
     },
     {
-      "location": "US National",
+      "unit": "US National",
       "target": "Season onset",
       "class": "bin",
       "prediction": {
@@ -19,7 +19,7 @@
       }
     },
     {
-      "location": "HHS Region 1",
+      "unit": "HHS Region 1",
       "target": "1 wk ahead",
       "class": "point",
       "prediction": {
@@ -27,7 +27,7 @@
       }
     },
     {
-      "location": "HHS Region 1",
+      "unit": "HHS Region 1",
       "target": "1 wk ahead",
       "class": "bin",
       "prediction": {

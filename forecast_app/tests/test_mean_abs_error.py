@@ -7,9 +7,9 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
-from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
+from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
 from utils.project import load_truth_data
 
 
@@ -24,7 +24,7 @@ class MAETestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create()
-        make_cdc_locations_and_targets(cls.project)
+        make_cdc_units_and_targets(cls.project)
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 1)))
@@ -59,7 +59,7 @@ class MAETestCase(TestCase):
 
     def test_mae(self):
         project2 = Project.objects.create()
-        make_cdc_locations_and_targets(project2)
+        make_cdc_units_and_targets(project2)
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23), is_season_start=True, season_name='s1')
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
@@ -73,22 +73,22 @@ class MAETestCase(TestCase):
         score.update_score_for_model(forecast_model2)
 
         score_value_rows_for_season = _score_value_rows_for_season(project2, 's1')
-        self.assertEqual(5 * 11, len(score_value_rows_for_season))  # 5 targets * 11 locations
+        self.assertEqual(5 * 11, len(score_value_rows_for_season))  # 5 targets * 11 units
 
-        # spot-check a location
+        # spot-check a unit
         exp_maes = [0.1830079332082548, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,
                     0.15125133156909953]
-        hhs1_loc = project2.locations.filter(name='HHS Region 1').first()
+        hhs1_loc = project2.units.filter(name='HHS Region 1').first()
         hhs1_loc_rows = filter(lambda row: row[0] == hhs1_loc.id, score_value_rows_for_season)
         act_maes = [row[-1] for row in hhs1_loc_rows]
         for exp_mae, act_mae in zip(exp_maes, act_maes):
             self.assertAlmostEqual(exp_mae, act_mae)
 
-        # test location_to_mean_abs_error_rows_for_project(), since we have a nice fixture
-        loc_to_mae_rows_no_season = location_to_mean_abs_error_rows_for_project(project2, None)
+        # test unit_to_mean_abs_error_rows_for_project(), since we have a nice fixture
+        loc_to_mae_rows_no_season = unit_to_mean_abs_error_rows_for_project(project2, None)
         self.assertEqual(loc_to_mae_rows_no_season,
-                         location_to_mean_abs_error_rows_for_project(project2, 's1'))  # season_name shouldn't matter
-        self.assertEqual(set(project2.locations.values_list('name', flat=True)), set(loc_to_mae_rows_no_season))
+                         unit_to_mean_abs_error_rows_for_project(project2, 's1'))  # season_name shouldn't matter
+        self.assertEqual(set(project2.units.values_list('name', flat=True)), set(loc_to_mae_rows_no_season))
 
         exp_rows = [['Model', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', 'Season peak percentage'],
                     [forecast_model2.pk, 0.127335480231265, 0.040631614561185525, 0.09119562794624952,

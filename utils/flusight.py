@@ -10,12 +10,12 @@ from forecast_app.models import ForecastModel, PointPrediction
 YYYYMMDD_DATE_FORMAT = '%Y%m%d'  # e.g., '20170117'
 
 
-def flusight_location_to_data_dict(project, season_name, request=None):
+def flusight_unit_to_data_dict(project, season_name, request=None):
     """
-    Returns a dict containing project's forecast_model's point forecasts for all locations in season_name, structured
-    according to https://github.com/reichlab/d3-foresight . Keys are the location names, and values are the individual
-    data dicts for each as expected by the component. Passing all locations this way allows only a single page load for
-    a particular season, with subsequent user selection of locations doing only a data replot in the component.
+    Returns a dict containing project's forecast_model's point forecasts for all units in season_name, structured
+    according to https://github.com/reichlab/d3-foresight . Keys are the unit names, and values are the individual
+    data dicts for each as expected by the component. Passing all units this way allows only a single page load for
+    a particular season, with subsequent user selection of units doing only a data replot in the component.
 
     Recall the format of the data dicts:
 
@@ -69,27 +69,27 @@ def flusight_location_to_data_dict(project, season_name, request=None):
 
     # set time_points. order_by -> matches ORDER BY in _flusight_point_value_rows_for_models():
     project_timezeros = project.timezeros_in_season(season_name)
-    model_to_location_timezero_points = _model_id_to_location_timezero_points(project, season_name, step_ahead_targets)
+    model_to_unit_timezero_points = _model_id_to_unit_timezero_points(project, season_name, step_ahead_targets)
 
-    # now that we have model_to_location_timezero_points, we can build the return value, extracting each
-    # location from all of the models
-    locations_to_flusight_data_dicts = {}  # return value. filled next
-    for location_name in project.locations.all().values_list('name', flat=True):
-        model_dicts = _model_dicts_for_location_to_timezero_points(project_timezeros, location_name,
-                                                                   model_to_location_timezero_points, request)
+    # now that we have model_to_unit_timezero_points, we can build the return value, extracting each
+    # unit from all of the models
+    units_to_flusight_data_dicts = {}  # return value. filled next
+    for unit_name in project.units.all().values_list('name', flat=True):
+        model_dicts = _model_dicts_for_unit_to_timezero_points(project_timezeros, unit_name,
+                                                                   model_to_unit_timezero_points, request)
         data_dict = {'timePoints': [timezero.timezero_date.strftime(YYYYMMDD_DATE_FORMAT)
                                     for timezero in project_timezeros],
                      'models': sorted(model_dicts, key=lambda _: _['meta']['name'])}
-        locations_to_flusight_data_dicts[location_name] = data_dict
-    return locations_to_flusight_data_dicts
+        units_to_flusight_data_dicts[unit_name] = data_dict
+    return units_to_flusight_data_dicts
 
 
-def _model_dicts_for_location_to_timezero_points(project_timezeros, location_name,
-                                                 model_to_location_timezero_points, request):
+def _model_dicts_for_unit_to_timezero_points(project_timezeros, unit_name,
+                                                 model_to_unit_timezero_points, request):
     model_dicts = []
-    for forecast_model, location_to_timezero_points in model_to_location_timezero_points.items():
-        timezero_to_points = location_to_timezero_points[location_name] \
-            if location_name in location_to_timezero_points else {}  # NB: ordered by timezero_date
+    for forecast_model, unit_to_timezero_points in model_to_unit_timezero_points.items():
+        timezero_to_points = unit_to_timezero_points[unit_name] \
+            if unit_name in unit_to_timezero_points else {}  # NB: ordered by timezero_date
         model_dict = {
             'id': forecast_model.name[:10] + '(' + str(forecast_model.id) + ')',
             'meta': {
@@ -119,12 +119,12 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
     return prediction_dicts
 
 
-def _model_id_to_location_timezero_points(project, season_name, step_ahead_targets):
+def _model_id_to_unit_timezero_points(project, season_name, step_ahead_targets):
     """
-    Similar to Project.location_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
+    Similar to Project.unit_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
     that's organized for easy access using these keys:
 
-        [forecast_model][location][timezero_date] -> point_values (a list)
+        [forecast_model][unit][timezero_date] -> point_values (a list)
 
     Note that some project TimeZeros have no predictions.
     """
@@ -141,29 +141,29 @@ def _model_id_to_location_timezero_points(project, season_name, step_ahead_targe
                 target__in=step_ahead_targets,
                 forecast__time_zero__timezero_date__gte=season_start_date,
                 forecast__time_zero__timezero_date__lte=season_end_date) \
-        .order_by('forecast__forecast_model__id', 'location__id', 'forecast__time_zero__timezero_date',
+        .order_by('forecast__forecast_model__id', 'unit__id', 'forecast__time_zero__timezero_date',
                   'target__step_ahead_increment') \
-        .values_list('forecast__forecast_model__id', 'location__name', 'forecast__time_zero__timezero_date',
+        .values_list('forecast__forecast_model__id', 'unit__name', 'forecast__time_zero__timezero_date',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')  # only one of value_* is non-None
 
     # build the dict
-    model_to_location_timezero_points = {}  # return value. filled next
+    model_to_unit_timezero_points = {}  # return value. filled next
     for model_pk, loc_tz_val_grouper in groupby(forecast_point_predictions_qs, key=lambda _: _[0]):
-        location_to_timezero_points_dict = {}
-        for location, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
+        unit_to_timezero_points_dict = {}
+        for unit, timezero_values_grouper in groupby(loc_tz_val_grouper, key=lambda _: _[1]):
             timezero_to_points_dict = {}
             for timezero_date, values_grouper in groupby(timezero_values_grouper, key=lambda _: _[2]):
                 point_values = [PointPrediction.first_non_none_value(_[3], _[4], _[5], _[6], _[7])
                                 for _ in list(values_grouper)]
                 timezero_to_points_dict[timezero_date] = point_values
-            location_to_timezero_points_dict[location] = timezero_to_points_dict
+            unit_to_timezero_points_dict[unit] = timezero_to_points_dict
         forecast_model = ForecastModel.objects.get(pk=model_pk)
-        model_to_location_timezero_points[forecast_model] = location_to_timezero_points_dict
+        model_to_unit_timezero_points[forecast_model] = unit_to_timezero_points_dict
 
     # b/c _flusight_point_value_rows_for_models() does not return any rows for models that don't have data for
     # season_name and step_ahead_targets, we need to add empty model entries for callers
     for forecast_model in project.models.all():
-        if forecast_model not in model_to_location_timezero_points:
-            model_to_location_timezero_points[forecast_model] = {}
+        if forecast_model not in model_to_unit_timezero_points:
+            model_to_unit_timezero_points[forecast_model] = {}
 
-    return model_to_location_timezero_points
+    return model_to_unit_timezero_points

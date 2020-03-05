@@ -161,11 +161,11 @@ def main():
 
     # Format and preprocess truths.csv
     df['cases'].fillna("NA", inplace=True)
-    df.columns = ['timezero', 'location', 'value', 'target']
-    df = df[['timezero','location','target','value']]
+    df.columns = ['timezero', 'unit', 'value', 'target']
+    df = df[['timezero','unit','target','value']]
     
 
-    df = df.sort_values(by=['timezero','location','target'])
+    df = df.sort_values(by=['timezero','unit','target'])
     df.to_csv('truths.csv', sep=',',index=False)
     # Uncomment below to print truth Dataframe:
     # print(tabulate(df, headers='keys', tablefmt='psql'))

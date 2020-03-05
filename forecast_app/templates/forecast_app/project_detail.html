@@ -114,7 +114,7 @@
                 </tr>
                 <tr>
                     <th
-                            title="A data file containing observed target values for time zeros and locations. Used to calculate scores, and extract the 'actual' data used in plots">
+                            title="A data file containing observed target values for time zeros and units. Used to calculate scores, and extract the 'actual' data used in plots">
                         Truth Data:
                     </th>
                     <td>
@@ -174,14 +174,14 @@
     {% include 'model_list_snippet.html' %}
 
 
-    <h2>Locations ({{ project.locations.all|length }})</h2>
+    <h2>Units ({{ project.units.all|length }})</h2>
 
-    {% if locations %}
-        {% for location in locations %}
-            <code>{{ location.name }}</code>{% if not forloop.last %},{% endif %}
+    {% if units %}
+        {% for unit in units %}
+            <code>{{ unit.name }}</code>{% if not forloop.last %},{% endif %}
         {% endfor %}
     {% else %}
-        <small class="text-muted">(No locations)</small>
+        <small class="text-muted">(No units)</small>
     {% endif %}
 
 

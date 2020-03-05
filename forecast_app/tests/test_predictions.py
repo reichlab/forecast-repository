@@ -7,7 +7,7 @@ from django.test import TestCase
 from forecast_app.models import Forecast
 from forecast_app.models import ForecastModel, TimeZero
 from forecast_app.models.prediction import calc_named_distribution
-from utils.cdc import make_cdc_locations_and_targets
+from utils.cdc import make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows
 from utils.project import create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users
@@ -78,11 +78,11 @@ class PredictionsTestCase(TestCase):
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero)
-        make_cdc_locations_and_targets(project)
+        make_cdc_units_and_targets(project)
 
         # see above: counts from docs-predictionsexp-rows.xlsx
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
-            prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'locations', and 'targets'
+            prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'units', and 'targets'
             bin_rows, named_rows, point_rows, sample_rows = \
                 _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, False)
         self.assertEqual(16, len(bin_rows))  # 18 - 2 zero prob
@@ -154,20 +154,20 @@ class PredictionsTestCase(TestCase):
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero)
-        make_cdc_locations_and_targets(project)
+        make_cdc_units_and_targets(project)
 
-        # test for invalid location
+        # test for invalid unit
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"location": "bad location", "target": "1 wk ahead", "class": "BinCat", "prediction": {}}
+                {"unit": "bad unit", "target": "1 wk ahead", "class": "BinCat", "prediction": {}}
             ]
             _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
-        self.assertIn('prediction_dict referred to an undefined Location', str(context.exception))
+        self.assertIn('prediction_dict referred to an undefined Unit', str(context.exception))
 
         # test for invalid target
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"location": "HHS Region 1", "target": "bad target", "class": "bad class", "prediction": {}}
+                {"unit": "HHS Region 1", "target": "bad target", "class": "bad class", "prediction": {}}
             ]
             _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('prediction_dict referred to an undefined Target', str(context.exception))
@@ -175,7 +175,7 @@ class PredictionsTestCase(TestCase):
         # test for invalid prediction_class
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"location": "HHS Region 1", "target": "1 wk ahead", "class": "bad class", "prediction": {}}
+                {"unit": "HHS Region 1", "target": "1 wk ahead", "class": "bad class", "prediction": {}}
             ]
             _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('invalid prediction_class', str(context.exception))

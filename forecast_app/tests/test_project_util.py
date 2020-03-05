@@ -45,12 +45,12 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual(Project.WEEK_TIME_INTERVAL_TYPE, project.time_interval_type)
         self.assertEqual('Weighted ILI (%)', project.visualization_y_label)
 
-        self.assertEqual(11, project.locations.count())
+        self.assertEqual(11, project.units.count())
         self.assertEqual(7, project.targets.count())
 
-        # spot-check a Location
-        location = project.locations.filter(name='US National').first()
-        self.assertIsNotNone(location)
+        # spot-check a Unit
+        unit = project.units.filter(name='US National').first()
+        self.assertIsNotNone(unit)
 
         # spot-check a Target
         target = project.targets.filter(name='1 wk ahead').first()
@@ -87,7 +87,7 @@ class ProjectUtilTestCase(TestCase):
 
         # test missing top level fields
         for field_name in ['name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data',
-                           'time_interval_type', 'visualization_y_label', 'locations', 'targets', 'timezeros']:
+                           'time_interval_type', 'visualization_y_label', 'units', 'targets', 'timezeros']:
             field_value = project_dict[field_name]
             with self.assertRaises(RuntimeError) as context:
                 del (project_dict[field_name])
@@ -95,16 +95,16 @@ class ProjectUtilTestCase(TestCase):
             self.assertIn("Wrong keys in project_dict", str(context.exception))
             project_dict[field_name] = field_value
 
-        # test locations
-        project_dict['locations'] = [{}]
+        # test units
+        project_dict['units'] = [{}]
         with self.assertRaises(RuntimeError) as context:
             create_project_from_json(project_dict, po_user)
-        self.assertIn("one of the location_dicts had no 'name' field", str(context.exception))
+        self.assertIn("one of the unit_dicts had no 'name' field", str(context.exception))
 
         # note: targets tested in test_create_project_from_json_target_validation()
 
         # test timezero missing fields
-        project_dict['locations'] = [{"name": "HHS Region 1"}]  # reset to valid
+        project_dict['units'] = [{"name": "HHS Region 1"}]  # reset to valid
         timezero_config = {'timezero_date': '2017-12-01',
                            'data_version_date': None,
                            'is_season_start': False}

@@ -20,12 +20,12 @@
     </div>
 
 
-    <h2>Location and Season</h2>
+    <h2>Unit and Season</h2>
 
     <!--
-    Show two forms to select location and season_name. The former is handled by JavaScript since that data is in-
-    memory (the view passes all locations for a particular season_name). The latter submits a GET to get new
-    location data for the (presumed) new season_name.
+    Show two forms to select unit and season_name. The former is handled by JavaScript since that data is in-
+    memory (the view passes all units for a particular season_name). The latter submits a GET to get new
+    unit data for the (presumed) new season_name.
 
     todo merge w/nearly identical div in project_visualizations.html (only diff is GET url)
     -->
@@ -33,10 +33,10 @@
         <div class="col-md-4">
             <form class="form-inline" action="#">
                 <div class="form-group">
-                    <label for="location_select">Location:</label>
-                    <select id="location_select" class="form-control" name="location_select_name">
-                        {% for location_option in locations %}
-                            <option {% if location_option == location %}selected="selected"{% endif %}>{{ location_option }}</option>
+                    <label for="unit_select">Unit:</label>
+                    <select id="unit_select" class="form-control" name="unit_select_name">
+                        {% for unit_option in units %}
+                            <option {% if unit_option == unit %}selected="selected"{% endif %}>{{ unit_option }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -64,13 +64,13 @@
         <a href="https://github.com/reichlab/flusight/wiki/Scoring#1-absolute-error" target="_blank">Absolute error</a>
         is the absolute value of difference between the eventually observed value and the point prediction. This page
         is an aggregate of scores that are currently in Zoltar, and only as up-to-date as they are. No scores are shown
-        for a particular location or target if the errors could not be calculated because not all truth values were
+        for a particular unit or target if the errors could not be calculated because not all truth values were
         available for it.
     </p>
 
 
     {# show a table similar to flusight's #}
-    {% if location_to_rows_and_mins and is_all_locations_have_rows %}
+    {% if unit_to_rows_and_mins and is_all_units_have_rows %}
 
         <table id="mae_table" class="table table-striped">
             <thead>
@@ -86,13 +86,13 @@
         <script type="text/javascript">
             $(function () {
 
-                function updateMaeTableForLocation() {
-                    // dynamically build #mae_table with location_to_rows_and_mins using current #location_select
+                function updateMaeTableForUnit() {
+                    // dynamically build #mae_table with unit_to_rows_and_mins using current #unit_select
 
-                    var location = $('#location_select').find(":selected").text();
-                    var locationToRowsAndMins = {{location_to_rows_and_mins|safe}};
-                    var mean_abs_error_rows = locationToRowsAndMins[location][0];
-                    var target_to_min_mae = locationToRowsAndMins[location][1];
+                    var unit = $('#unit_select').find(":selected").text();
+                    var unitToRowsAndMins = {{unit_to_rows_and_mins|safe}};
+                    var mean_abs_error_rows = unitToRowsAndMins[unit][0];
+                    var target_to_min_mae = unitToRowsAndMins[unit][1];
 
                     // add the header row
                     var $maeTableThead = $('#mae_table thead');
@@ -128,10 +128,10 @@
                     });
                 }
 
-                updateMaeTableForLocation();
+                updateMaeTableForUnit();
 
-                $("#location_select").change(function () {
-                    updateMaeTableForLocation();
+                $("#unit_select").change(function () {
+                    updateMaeTableForUnit();
                 });
 
             })

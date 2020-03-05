@@ -10,7 +10,7 @@ from django.db import transaction
 from forecast_app.models import PointPrediction, BinDistribution
 from forecast_app.models.forecast import Forecast
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-from utils.project import _validate_and_create_locations, _validate_and_create_targets
+from utils.project import _validate_and_create_units, _validate_and_create_targets
 from utils.utilities import parse_value, YYYY_MM_DD_DATE_FORMAT
 
 
@@ -79,7 +79,7 @@ def json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp):
 def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
     """
     Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
-    but does not check locations and targets. This is b/c Locations and Targets might not yet exist (if they're
+    but does not check units and targets. This is b/c Units and Targets might not yet exist (if they're
     dynamically created by this method's callers). Does *not* skip bin rows where the value is 0.
 
     :param cdc_csv_file_fp: the *.cdc.csv data file to load
@@ -111,7 +111,10 @@ def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
         if len(row) != 7:
             raise RuntimeError(f"Invalid row (wasn't 7 columns): {row!r}")
 
-        location_name, target_name, row_type, unit, bin_start_incl, bin_end_notincl, value = row  # unit ignored
+        # NB: 'unit' here is confusing because it's used two different ways:
+        # - in Zoltar, what was locations is called units
+        # - in cdc csv files there is both location and a 'unit' columns
+        location_name, target_name, row_type, unit, bin_start_incl, bin_end_notincl, value = row  # unit column ignored
 
         # validate row_type
         row_type = row_type.lower()
@@ -240,13 +243,13 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
                 raise RuntimeError(f"len(point_values) > 1: {point_values}")
 
             point_value = point_values[0]
-            prediction_dicts.append({"location": location_name,
+            prediction_dicts.append({"unit": location_name,
                                      "target": target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
                                      'prediction': {
                                          'value': point_value}})
         if bin_cats:
-            prediction_dicts.append({"location": location_name,
+            prediction_dicts.append({"unit": location_name,
                                      "target": target_name,
                                      'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
                                      'prediction': {
@@ -259,13 +262,13 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
 # ---- test utilities ----
 #
 
-def make_cdc_locations_and_targets(project):
+def make_cdc_units_and_targets(project):
     """
     Creates CDC standard Targets for project.
     """
     with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
         project_dict = json.load(fp)
-    _validate_and_create_locations(project, project_dict)
+    _validate_and_create_units(project, project_dict)
     _validate_and_create_targets(project, project_dict)
 
 

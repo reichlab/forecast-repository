@@ -7,7 +7,7 @@
   "core_data": "https://github.com/reichlab/dengue-data",
   "time_interval_type": "Biweek",
   "visualization_y_label": "DHF cases",
-  "locations": [
+  "units": [
     {"name": "TH01"},
     {"name": "TH02"},
     {"name": "TH03"},

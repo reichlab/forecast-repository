@@ -26,9 +26,9 @@ from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cach
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME
 from utils.cloud_file import delete_file, upload_file
-from utils.flusight import flusight_location_to_data_dict
+from utils.flusight import flusight_unit_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-from utils.mean_absolute_error import location_to_mean_abs_error_rows_for_project
+from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
@@ -235,46 +235,46 @@ def project_visualizations(request, project_pk):
     season_name = _param_val_from_request(request, 'season_name', seasons)
 
     # None if no targets in project:
-    logger.debug("project_visualizations(): 1/3 calling flusight_location_to_data_dict(): {}".format(project))
-    location_to_flusight_data_dict = flusight_location_to_data_dict(project, season_name, request)
+    logger.debug("project_visualizations(): 1/3 calling flusight_unit_to_data_dict(): {}".format(project))
+    unit_to_flusight_data_dict = flusight_unit_to_data_dict(project, season_name, request)
 
     time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
                                           Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
                                           Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
-    loc_tz_date_to_actual_vals = project.location_timezero_date_to_actual_vals(season_name)
-    location_to_actual_points = _location_to_actual_points(loc_tz_date_to_actual_vals)
-    logger.debug("project_visualizations(): 2/3 calling location_to_max_val(): {}".format(project))
-    location_to_max_val = project.location_to_max_val(season_name, project.step_ahead_targets())
+    loc_tz_date_to_actual_vals = project.unit_timezero_date_to_actual_vals(season_name)
+    unit_to_actual_points = _unit_to_actual_points(loc_tz_date_to_actual_vals)
+    logger.debug("project_visualizations(): 2/3 calling unit_to_max_val(): {}".format(project))
+    unit_to_max_val = project.unit_to_max_val(season_name, project.step_ahead_targets())
 
-    # correct location_to_max_val to account for max actual values
-    location_to_actual_max_val = _location_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
-    for location in location_to_max_val:
-        if (location_to_max_val[location]) \
-                and (location in location_to_actual_max_val) \
-                and (location_to_actual_max_val[location]):
-            location_to_max_val[location] = max(location_to_max_val[location], location_to_actual_max_val[location])
+    # correct unit_to_max_val to account for max actual values
+    unit_to_actual_max_val = _unit_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
+    for unit in unit_to_max_val:
+        if (unit_to_max_val[unit]) \
+                and (unit in unit_to_actual_max_val) \
+                and (unit_to_actual_max_val[unit]):
+            unit_to_max_val[unit] = max(unit_to_max_val[unit], unit_to_actual_max_val[unit])
 
-    location_names = sorted(project.locations.all().values_list('name', flat=True))
+    unit_names = sorted(project.units.all().values_list('name', flat=True))
     logger.debug("project_visualizations(): 3/3 rendering: {}".format(project))
     return render(
         request,
         'project_visualizations.html',
         context={'project': project,
-                 'location': location_names[0],
-                 'locations': location_names,
+                 'unit': unit_names[0],
+                 'units': unit_names,
                  'season_name': season_name,
                  'seasons': seasons,
-                 'location_to_flusight_data_dict': json.dumps(location_to_flusight_data_dict),
-                 'location_to_actual_points': json.dumps(location_to_actual_points),
-                 'location_to_max_val': json.dumps(location_to_max_val),
+                 'unit_to_flusight_data_dict': json.dumps(unit_to_flusight_data_dict),
+                 'unit_to_actual_points': json.dumps(unit_to_actual_points),
+                 'unit_to_max_val': json.dumps(unit_to_max_val),
                  'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
                  'y_axis_label': project.visualization_y_label})
 
 
-def _location_to_actual_points(loc_tz_date_to_actual_vals):
+def _unit_to_actual_points(loc_tz_date_to_actual_vals):
     """
-    :return: view function that returns a dict mapping location to a list of actual values found in
-        loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals(). it is what the D3
+    :return: view function that returns a dict mapping unit to a list of actual values found in
+        loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals(). it is what the D3
         component expects: "[a JavaScript] array of the same length as timePoints"
     """
 
@@ -284,15 +284,15 @@ def _location_to_actual_points(loc_tz_date_to_actual_vals):
                 for tz_date in sorted(tz_date_to_actual.keys())]
 
 
-    location_to_actual_points = {location: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                 for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-    return location_to_actual_points
+    unit_to_actual_points = {unit: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
+                                 for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+    return unit_to_actual_points
 
 
-def _location_to_actual_max_val(loc_tz_date_to_actual_vals):
+def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
     """
-    :return: view function that returns a dict mapping each location to the maximum value found in
-        loc_tz_date_to_actual_vals, which is as returned by location_timezero_date_to_actual_vals()
+    :return: view function that returns a dict mapping each unit to the maximum value found in
+        loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals()
     """
 
 
@@ -301,9 +301,9 @@ def _location_to_actual_max_val(loc_tz_date_to_actual_vals):
         return max(flat_values) if flat_values else None  # NB: None is arbitrary
 
 
-    location_to_actual_max = {location: max_from_tz_date_to_actual_dict(tz_date_to_actual)
-                              for location, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-    return location_to_actual_max
+    unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
+                              for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+    return unit_to_actual_max
 
 
 #
@@ -343,7 +343,7 @@ def project_scores(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    # NB: inner knowledge about the targets location_to_mean_abs_error_rows_for_project() uses:
+    # NB: inner knowledge about the targets unit_to_mean_abs_error_rows_for_project() uses:
     step_ahead_targets = project.step_ahead_targets()
     if not step_ahead_targets:
         return render(request, 'message.html',
@@ -353,18 +353,18 @@ def project_scores(request, project_pk):
     seasons = project.seasons()
     season_name = _param_val_from_request(request, 'season_name', seasons)
     try:
-        logger.debug("project_scores(): calling: location_to_mean_abs_error_rows_for_project(). project={}, "
+        logger.debug("project_scores(): calling: unit_to_mean_abs_error_rows_for_project(). project={}, "
                      "season_name={}".format(project, season_name))
-        location_to_rows_and_mins = location_to_mean_abs_error_rows_for_project(project, season_name)
-        is_all_locations_have_rows = location_to_rows_and_mins and all(location_to_rows_and_mins.values())
-        logger.debug("project_scores(): done: location_to_mean_abs_error_rows_for_project()")
+        unit_to_rows_and_mins = unit_to_mean_abs_error_rows_for_project(project, season_name)
+        is_all_units_have_rows = unit_to_rows_and_mins and all(unit_to_rows_and_mins.values())
+        logger.debug("project_scores(): done: unit_to_mean_abs_error_rows_for_project()")
     except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to calculate scores.",
                                'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
                                    rte)})
 
-    location_names = project.locations.all().order_by('name').values_list('name', flat=True)
+    unit_names = project.units.all().order_by('name').values_list('name', flat=True)
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
                                 for forecast_model in project.models.all()}
     return render(
@@ -374,10 +374,10 @@ def project_scores(request, project_pk):
                  'model_pk_to_name_and_url': model_pk_to_name_and_url,
                  'season_name': season_name,
                  'seasons': seasons,
-                 'location': location_names[0],
-                 'locations': location_names,
-                 'is_all_locations_have_rows': is_all_locations_have_rows,
-                 'location_to_rows_and_mins': json.dumps(location_to_rows_and_mins),  # converts None -> null
+                 'unit': unit_names[0],
+                 'units': unit_names,
+                 'is_all_units_have_rows': is_all_units_have_rows,
+                 'unit_to_rows_and_mins': json.dumps(unit_to_rows_and_mins),  # converts None -> null
                  })
 
 
@@ -808,7 +808,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
-        context['locations'] = project.locations.all().order_by('name')
+        context['units'] = project.units.all().order_by('name')
         context['targets'] = project.targets.all().order_by('name')
         return context
 

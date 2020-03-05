@@ -20,21 +20,21 @@
     </div>
 
 
-    <h2>Location and Season</h2>
+    <h2>Unit and Season</h2>
 
     <!--
-    Show two forms to select location and season_name. The former is handled by JavaScript since that data is in-
-    memory (the view passes all locations for a particular season_name). The latter submits a GET to get new
-    location data for the (presumed) new season_name.
+    Show two forms to select unit and season_name. The former is handled by JavaScript since that data is in-
+    memory (the view passes all units for a particular season_name). The latter submits a GET to get new
+    unit data for the (presumed) new season_name.
     -->
     <div class="row">
         <div class="col-md-4">
             <form class="form-inline" action="#">
                 <div class="form-group">
-                    <label for="location_select">Location:</label>
-                    <select id="location_select" class="form-control" name="location_select_name">
-                        {% for location_option in locations %}
-                            <option {% if location_option == location %}selected="selected"{% endif %}>{{ location_option }}</option>
+                    <label for="unit_select">Unit:</label>
+                    <select id="unit_select" class="form-control" name="unit_select_name">
+                        {% for unit_option in units %}
+                            <option {% if unit_option == unit %}selected="selected"{% endif %}>{{ unit_option }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -74,20 +74,20 @@
 
     <div id="timechart"></div>
 
-    {% if location_to_flusight_data_dict != 'null' %}
+    {% if unit_to_flusight_data_dict != 'null' %}
         <script type="text/javascript">
             $(function () {
-                updateChartForLocation();
+                updateChartForUnit();
 
-                function updateChartForLocation() {
-                    // because the y-axis domain max varies per location, we have to re-configure the component after
+                function updateChartForUnit() {
+                    // because the y-axis domain max varies per unit, we have to re-configure the component after
                     // each choice and then set the plot data. currently the component does not support post-
                     // instantiation reconfiguration, so we recreate it before plotting
-                    var location = $('#location_select').find(":selected").text();
+                    var unit = $('#unit_select').find(":selected").text();
 
                     // reconfigure for y-axis domain max
-                    var locationToMaxVal = {{location_to_max_val|safe}};
-                    var yAxisDomainMax = locationToMaxVal[location];
+                    var unitToMaxVal = {{unit_to_max_val|safe}};
+                    var yAxisDomainMax = unitToMaxVal[unit];
                     var config = configForTimeChart(yAxisDomainMax);
 
                     // re-configure and replace the component
@@ -96,10 +96,10 @@
                     var timeChart = new d3Foresight.TimeChart('#timechart', config);
 
                     // set the plot data
-                    var locationToData = {{location_to_flusight_data_dict|safe}};
-                    var data = locationToData[location];
-                    var locationToActual = {{location_to_actual_points|safe}};
-                    data['actual'] = locationToActual[location];
+                    var unitToData = {{unit_to_flusight_data_dict|safe}};
+                    var data = unitToData[unit];
+                    var unitToActual = {{unit_to_actual_points|safe}};
+                    data['actual'] = unitToActual[unit];
                     timeChart.plot(data);
                     timeChart.update(1);  // for some reason we have to do 1 before 0
                     timeChart.update(0);
@@ -120,8 +120,8 @@
                     };
                 }
 
-                $("#location_select").change(function () {
-                    updateChartForLocation();
+                $("#unit_select").change(function () {
+                    updateChartForUnit();
                 });
 
             })

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # corresponding function in the `forecast_app.scores.functions` (this) module - see `calc_<abbreviation>` documentation
 # in Score. in that sense, these abbreviations are the official names to use when looking up a particular score
 SCORE_ABBREV_TO_NAME_AND_DESCR = {
-    # 'const': ('Constant Value', "A debugging score that's 1.0 - only for first location and first target."),
+    # 'const': ('Constant Value', "A debugging score that's 1.0 - only for first unit and first target."),
     'error': ('Error', "The the truth value minus the model's point estimate."),
     'abs_error': ('Absolute Error', "The absolute value of the truth value minus the model's point estimate. "
                                     "Lower is better."),
@@ -36,21 +36,21 @@ SCORE_ABBREV_TO_NAME_AND_DESCR = {
 
 def calc_const(score, forecast_model):
     """
-    A simple demo that calculates 'Constant Value' scores for the first location and first target in forecast_model's
+    A simple demo that calculates 'Constant Value' scores for the first unit and first target in forecast_model's
     project. To activate it, add this entry to SCORE_ABBREV_TO_NAME_AND_DESCR:
 
-        'const': ('Constant Value', "A debugging score that scores 1.0 only for first location and first target."),
+        'const': ('Constant Value', "A debugging score that scores 1.0 only for first unit and first target."),
 
     """
-    first_location = forecast_model.project.locations.first()
+    first_unit = forecast_model.project.units.first()
     first_target = forecast_model.project.targets.first()
-    if (not first_location) or (not first_target):
-        logger.warning("calc_const(): no location or no target found. first_location={}, first_target={}"
-                       .format(first_location, first_target))
+    if (not first_unit) or (not first_target):
+        logger.warning("calc_const(): no unit or no target found. first_unit={}, first_target={}"
+                       .format(first_unit, first_target))
         return
 
     for forecast in Forecast.objects.filter(forecast_model=forecast_model):
-        ScoreValue.objects.create(score=score, forecast=forecast, location=first_location, target=first_target,
+        ScoreValue.objects.create(score=score, forecast=forecast, unit=first_unit, target=first_target,
                                   value=1.0)
 
 

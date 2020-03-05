@@ -5,16 +5,16 @@
     <thead>
     <tr>
         <th title="Time zero the truth value is for">timezero</th>
-        <th title="Location of forecast - either entire country or a particular region">location</th>
+        <th title="Unit of forecast - either entire country or a particular region">unit</th>
         <th title="Forecast target">target</th>
         <th title="Forecasted point value or probability assigned">value</th>
     </tr>
     </thead>
     <tbody>
-    {% for timezero_date, location, target_name, value in project.get_truth_data_preview %}
+    {% for timezero_date, unit, target_name, value in project.get_truth_data_preview %}
         <tr>
             <td>{{ timezero_date }}</td>
-            <td>{{ location }}</td>
+            <td>{{ unit }}</td>
             <td>{{ target_name }}</td>
             <td>{{ value }}</td>
         </tr>

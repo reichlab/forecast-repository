@@ -8,7 +8,7 @@ from collections import defaultdict
 from django.db import connection
 from django.db import transaction
 
-from forecast_app.models import Project, Location, Target
+from forecast_app.models import Project, Unit, Target
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -35,10 +35,10 @@ def delete_project_iteratively(project):
             forecast.delete()
         forecast_model.delete()
 
-    logger.info(f"delete_project_iteratively(): deleting locations")
-    for location in project.locations.iterator():
-        logger.info(f"- {location.pk}")
-        location.delete()
+    logger.info(f"delete_project_iteratively(): deleting units")
+    for unit in project.units.iterator():
+        logger.info(f"- {unit.pk}")
+        unit.delete()
 
     logger.info(f"delete_project_iteratively(): deleting targets")
     for target in project.targets.iterator():
@@ -78,7 +78,7 @@ def config_dict_from_project(project):
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
-            'locations': [{'name': location.name} for location in project.locations.all()],
+            'units': [{'name': unit.name} for unit in project.units.all()],
             'targets': [_target_dict_for_target(target) for target in project.targets.all()],
             'timezeros': timezeros}
 
@@ -160,7 +160,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
     # validate project_dict
     actual_keys = set(project_dict.keys())
     expected_keys = {'name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type',
-                     'visualization_y_label', 'locations', 'targets', 'timezeros'}
+                     'visualization_y_label', 'units', 'targets', 'timezeros'}
     if actual_keys != expected_keys:
         raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ actual_keys}. "
                            f"expected={expected_keys}, actual={actual_keys}")
@@ -178,8 +178,8 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
         project = _create_project(project_dict, owner)
         logger.info(f"- created Project: {project}")
 
-    locations = _validate_and_create_locations(project, project_dict, is_validate_only)
-    logger.info(f"- created {len(locations)} Locations: {locations}")
+    units = _validate_and_create_units(project, project_dict, is_validate_only)
+    logger.info(f"- created {len(units)} Units: {units}")
 
     targets = _validate_and_create_targets(project, project_dict, is_validate_only)
     logger.info(f"- created {len(targets)} Targets: {targets}")
@@ -191,16 +191,16 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
     return project
 
 
-def _validate_and_create_locations(project, project_dict, is_validate_only=False):
-    locations = []  # returned instances
-    for location_dict in project_dict['locations']:
-        if 'name' not in location_dict:
-            raise RuntimeError(f"one of the location_dicts had no 'name' field. locations={project_dict['locations']}")
+def _validate_and_create_units(project, project_dict, is_validate_only=False):
+    units = []  # returned instances
+    for unit_dict in project_dict['units']:
+        if 'name' not in unit_dict:
+            raise RuntimeError(f"one of the unit_dicts had no 'name' field. units={project_dict['units']}")
 
         # valid
         if not is_validate_only:
-            locations.append(Location.objects.create(project=project, name=location_dict['name']))
-    return locations
+            units.append(Unit.objects.create(project=project, name=unit_dict['name']))
+    return units
 
 
 def _validate_and_create_timezeros(project, project_dict, is_validate_only=False):
@@ -411,7 +411,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
 
     - TimeZeros "" b/c truth timezeros are validated against project ones
     - One csv file/project, which includes timezeros across all seasons.
-    - Columns: timezero, location, target, value . NB: There is no season information (see below). timezeros are
+    - Columns: timezero, unit, target, value . NB: There is no season information (see below). timezeros are
       formatted “yyyymmdd”. A header must be included.
     - Missing timezeros: If the program generating the csv file does not have information for a particular project
       timezero, then it should not generate a value for it. (The alternative would be to require the program to
@@ -424,10 +424,10 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     - Validation:
         - Every timezero in the csv file must have a matching one in the project. Note that the inverse is not
           necessarily true, such as in the case above of missing timezeros.
-        - Every location in the csv file must a matching one in the Project.
+        - Every unit in the csv file must a matching one in the Project.
         - Ditto for every target.
 
-    :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|location|target
+    :param truth_file_path_or_fp: Path to csv file with the truth data, one line per timezero|unit|target
         combination, OR an already-open file-like object
     :param file_name: name to use for the file
     :param is_convert_na_none: as passed to Target.is_value_compatible_with_target_type()
@@ -468,15 +468,15 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
 
         truth_data_table_name = TruthData._meta.db_table
         columns = [TruthData._meta.get_field('time_zero').column,
-                   TruthData._meta.get_field('location').column,
+                   TruthData._meta.get_field('unit').column,
                    TruthData._meta.get_field('target').column,
                    'value_i', 'value_f', 'value_t', 'value_d', 'value_b']  # only one of value_* is non-None
         if connection.vendor == 'postgresql':
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
-            for timezero, location_id, target_id, value_i, value_f, value_t, value_d, value_b in rows:
+            for timezero, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in rows:
                 # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
-                csv_writer.writerow([timezero, location_id, target_id,
+                csv_writer.writerow([timezero, unit_id, target_id,
                                      value_i if value_i is not None else POSTGRES_NULL_VALUE,
                                      value_f if value_f is not None else POSTGRES_NULL_VALUE,
                                      value_t if value_t is not None else POSTGRES_NULL_VALUE,
@@ -513,17 +513,17 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                            f"expected header={TRUTH_CSV_HEADER!r}")
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
-    location_names_to_pks = {location.name: location.id for location in project.locations.all()}
+    unit_names_to_pks = {unit.name: unit.id for unit in project.units.all()}
     target_name_to_object = {target.name: target for target in project.targets.all()}
     rows = []
     timezero_to_missing_count = defaultdict(int)  # to minimize warnings
-    location_to_missing_count = defaultdict(int)
+    unit_to_missing_count = defaultdict(int)
     target_to_missing_count = defaultdict(int)
     for row in csv_reader:
         if len(row) != 4:
             raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
 
-        timezero_date, location_name, target_name, value = row
+        timezero_date, unit_name, target_name, value = row
 
         # validate timezero_date
         # todo cache: time_zero_for_timezero_date() results - expensive?
@@ -533,9 +533,9 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
             timezero_to_missing_count[timezero_date] += 1
             continue
 
-        # validate location and target
-        if location_name not in location_names_to_pks:
-            location_to_missing_count[location_name] += 1
+        # validate unit and target
+        if unit_name not in unit_names_to_pks:
+            unit_to_missing_count[unit_name] += 1
             continue
 
         if target_name not in target_name_to_object:
@@ -554,7 +554,7 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                                f"data_type={data_type}")
 
         # validate: For `discrete` and `continuous` targets (if `range` is specified):
-        # - The entry in the `value` column for a specific `target`-`location`-`timezero` combination must be contained
+        # - The entry in the `value` column for a specific `target`-`unit`-`timezero` combination must be contained
         #   within the `range` of valid values for the target. If `cats` is specified but `range` is not, then there is
         #   an implicit range for the ground truth value, and that is between min(`cats`) and \infty.
         # recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
@@ -562,17 +562,17 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         range_tuple = target.range_tuple() or (min(cats_values), float('inf')) if cats_values else None
         if (target.type in [Target.DISCRETE_TARGET_TYPE, Target.CONTINUOUS_TARGET_TYPE]) and range_tuple \
                 and (parsed_value is not None) and not (range_tuple[0] <= parsed_value < range_tuple[1]):
-            raise RuntimeError(f"The entry in the `value` column for a specific `target`-`location`-`timezero` "
+            raise RuntimeError(f"The entry in the `value` column for a specific `target`-`unit`-`timezero` "
                                f"combination must be contained within the range of valid values for the target. "
                                f"value={parsed_value!r}, range_tuple={range_tuple}")
 
         # validate: For `nominal` and `date` target_types:
-        #  - The entry in the `cat` column for a specific `target`-`location`-`timezero` combination must be contained
+        #  - The entry in the `cat` column for a specific `target`-`unit`-`timezero` combination must be contained
         #    within the set of valid values for the target, as defined by the project config file.
         cats_values = set(target.cats_values())  # datetime.date instances for date targets
         if (target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]) and cats_values \
                 and (parsed_value not in cats_values):
-            raise RuntimeError(f"The entry in the `cat` column for a specific `target`-`location`-`timezero` "
+            raise RuntimeError(f"The entry in the `cat` column for a specific `target`-`unit`-`timezero` "
                                f"combination must be contained within the set of valid values for the target. "
                                f"parsed_value={parsed_value}, cats_values={cats_values}")
 
@@ -583,16 +583,16 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         value_d = parsed_value if data_type == Target.DATE_DATA_TYPE else None
         value_b = parsed_value if data_type == Target.BOOLEAN_DATA_TYPE else None
 
-        rows.append((time_zero.pk, location_names_to_pks[location_name], target.pk,
+        rows.append((time_zero.pk, unit_names_to_pks[unit_name], target.pk,
                      value_i, value_f, value_t, value_d, value_b))
 
     # report warnings
     for time_zero, count in timezero_to_missing_count.items():
         logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
                        .format(time_zero, count))
-    for location_name, count in location_to_missing_count.items():
-        logger.warning("_load_truth_data_rows(): Location not found in project: {!r}: {} row(s)"
-                       .format(location_name, count))
+    for unit_name, count in unit_to_missing_count.items():
+        logger.warning("_load_truth_data_rows(): Unit not found in project: {!r}: {} row(s)"
+                       .format(unit_name, count))
     for target_name, count in target_to_missing_count.items():
         logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
                        .format(target_name, count))

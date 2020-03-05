@@ -3,16 +3,16 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
-from forecast_app.models.project import Location
+from forecast_app.models.project import Unit
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user, \
     timezero_forecast_pairs_for_forecast_model
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
-class LocationSerializer(serializers.ModelSerializer):
+class UnitSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Location
+        model = Unit
         fields = ('name',)
 
 
@@ -41,7 +41,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     score_data = serializers.SerializerMethodField()
 
     models = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
-    locations = LocationSerializer(many=True, read_only=True)  # nested, no urls
+    units = UnitSerializer(many=True, read_only=True)  # nested, no urls
     targets = TargetSerializer(many=True, read_only=True)  # nested, no urls
     timezeros = TimeZeroSerializer(many=True, read_only=True)  # nested, no urls
 
@@ -49,7 +49,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
-                  'model_owners', 'score_data', 'models', 'locations', 'targets', 'timezeros')
+                  'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},

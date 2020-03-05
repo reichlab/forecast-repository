@@ -12,7 +12,7 @@ from forecast_app.models import Project, TimeZero, Score, NamedDistribution
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_locations_and_targets
+from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.project import load_truth_data, create_project_from_json
@@ -27,7 +27,7 @@ class ForecastTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.project = Project.objects.create()
-        make_cdc_locations_and_targets(cls.project)
+        make_cdc_units_and_targets(cls.project)
         cls.forecast_model = ForecastModel.objects.create(project=cls.project)
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
@@ -36,7 +36,7 @@ class ForecastTestCase(TestCase):
 
     def test_load_forecast_created_at_field(self):
         project2 = Project.objects.create()
-        make_cdc_locations_and_targets(project2)
+        make_cdc_units_and_targets(project2)
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
@@ -59,9 +59,9 @@ class ForecastTestCase(TestCase):
                       ('US National', 'Season peak percentage', None, 3.30854920241938, None, None, None),
                       ('US National', 'Season peak week', None, None, None, datetime.date(2017, 1, 30), None)]
         act_points_qs = self.forecast.point_prediction_qs() \
-            .filter(location__name='US National') \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+            .filter(unit__name='US National') \
+            .order_by('unit__name', 'target__name') \
+            .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(exp_points, list(act_points_qs))
 
         # test empty file
@@ -78,7 +78,7 @@ class ForecastTestCase(TestCase):
 
         # test load_forecast() with timezero not in the project
         project2 = Project.objects.create()  # no TimeZeros
-        make_cdc_locations_and_targets(project2)
+        make_cdc_units_and_targets(project2)
 
         forecast_model2 = ForecastModel.objects.create(project=project2)
         with self.assertRaises(RuntimeError) as context:
@@ -102,8 +102,8 @@ class ForecastTestCase(TestCase):
                     ('US National', 'Season onset', 0.1, None, None, 'cat2', None, None),
                     ('US National', 'Season onset', 0.9, None, None, 'cat3', None, None)]
         bin_distribution_qs = forecast2.bin_distribution_qs() \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+            .order_by('unit__name', 'target__name') \
+            .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
         self.assertEqual(4, bin_distribution_qs.count())
         self.assertEqual(exp_bins, list(bin_distribution_qs))
 
@@ -111,16 +111,16 @@ class ForecastTestCase(TestCase):
     def test_load_forecast_thai_point_json_type(self):
         # exposes a bug where 0-valued bin points are loaded as null
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
-        act_json_io_dict = json_io_dict_from_forecast(forecast2)  # recall json predictions are sorted by location, type
-        exp_pred_dict = {'location': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
+        act_json_io_dict = json_io_dict_from_forecast(forecast2)  # recall json predictions are sorted by unit, type
+        exp_pred_dict = {'unit': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
         act_pred_dict = [pred_dict for pred_dict in act_json_io_dict['predictions']
-                         if (pred_dict['location'] == 'TH01') and (pred_dict['target'] == '1_biweek_ahead')][0]
+                         if (pred_dict['unit'] == 'TH01') and (pred_dict['target'] == '1_biweek_ahead')][0]
         self.assertEqual(exp_pred_dict, act_pred_dict)
 
 
     def test_load_forecasts_from_dir(self):
         project2 = Project.objects.create()
-        make_cdc_locations_and_targets(project2)
+        make_cdc_units_and_targets(project2)
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 10, 23),  # 20161023-KoTstable-20161109.cdc.csv
                                 data_version_date=None)
@@ -191,11 +191,11 @@ class ForecastTestCase(TestCase):
     def test_forecast_data_and_accessors(self):
         # test points
         point_prediction_qs = self.forecast.point_prediction_qs() \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(77, point_prediction_qs.count())  # 11 locations x 7 targets x 1 point/location-target pair
+            .order_by('unit__name', 'target__name') \
+            .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+        self.assertEqual(77, point_prediction_qs.count())  # 11 units x 7 targets x 1 point/unit-target pair
 
-        # spot-check a location
+        # spot-check a unit
         exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None, None, None),  # _i, _f, _t, _d, _b
                       ('US National', '2 wk ahead', None, 2.72809349594878, None, None, None),
                       ('US National', '3 wk ahead', None, 2.5332588357381, None, None, None),
@@ -214,15 +214,15 @@ class ForecastTestCase(TestCase):
         # - EW05 in season_start_year is 2016 -> EW05 2017 (5 < SEASON_START_EW_NUMBER -> is in season_start_year + 1)
         # - EW05 2017 is the week ending Saturday 2/4/2017. that week's Monday is 1/30/2017, formatted as '2017-01-30'.
         #   it is a datetime.date b/c the target is date
-        self.assertEqual(exp_points, list(point_prediction_qs.filter(location__name='US National')))
+        self.assertEqual(exp_points, list(point_prediction_qs.filter(unit__name='US National')))
 
         # test bins
         bin_distribution_qs = self.forecast.bin_distribution_qs() \
-            .order_by('location__name', 'target__name') \
-            .values_list('location__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+            .order_by('unit__name', 'target__name') \
+            .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
         self.assertEqual(7942, bin_distribution_qs.count())
 
-        # spot-check a location and date-based target ('Season onset') which is actually nominal (text), but contains
+        # spot-check a unit and date-based target ('Season onset') which is actually nominal (text), but contains
         # date strings (due to 'none' values not being date objects)
         exp_bins = [
             # EW40 2016. Sat end: 10/8/2016 -> Mon: 10/3/2016:
@@ -264,13 +264,13 @@ class ForecastTestCase(TestCase):
             ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-15'),
             ('US National', 'Season onset', 1.22490002826229e-07, 'none')]
         bin_distribution_qs = self.forecast.bin_distribution_qs() \
-            .filter(location__name='US National', target__name='Season onset') \
-            .order_by('location__name', 'target__name', 'cat_t') \
-            .values_list('location__name', 'target__name', 'prob', 'cat_t')
+            .filter(unit__name='US National', target__name='Season onset') \
+            .order_by('unit__name', 'target__name', 'cat_t') \
+            .values_list('unit__name', 'target__name', 'prob', 'cat_t')
         self.assertEqual(34, bin_distribution_qs.count())
         self.assertEqual(exp_bins, list(bin_distribution_qs))
 
-        # spot-check a location an an actual date-based target ('Season peak week')
+        # spot-check a unit an an actual date-based target ('Season peak week')
         exp_bins = [
             # EW40 2016. Sat end: 10/8/2016 -> Mon: 10/3/2016:
             ('US National', 'Season peak week', 3.88312283001796e-05, datetime.date(2016, 10, 3)),
@@ -310,9 +310,9 @@ class ForecastTestCase(TestCase):
             # EW20 2017. Sat end: 5/20/2017 -> Mon: 5/15/2017:
             ('US National', 'Season peak week', 0.000581366927856728, datetime.date(2017, 5, 15))]
         bin_distribution_qs = self.forecast.bin_distribution_qs() \
-            .filter(location__name='US National', target__name='Season peak week') \
-            .order_by('location__name', 'target__name', 'cat_d') \
-            .values_list('location__name', 'target__name', 'prob', 'cat_d')
+            .filter(unit__name='US National', target__name='Season peak week') \
+            .order_by('unit__name', 'target__name', 'cat_d') \
+            .values_list('unit__name', 'target__name', 'prob', 'cat_d')
         self.assertEqual(33, bin_distribution_qs.count())
         self.assertEqual(exp_bins, list(bin_distribution_qs))
 
@@ -349,7 +349,7 @@ class ForecastTestCase(TestCase):
     def test_model_score_change_forecasts(self):
         # creating a new model should set its score_change.changed_at
         project2 = Project.objects.create()
-        make_cdc_locations_and_targets(project2)
+        make_cdc_units_and_targets(project2)
         time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
         forecast_model2 = ForecastModel.objects.create(project=project2)
         self.assertIsInstance(forecast_model2.score_change.changed_at, datetime.datetime)
@@ -380,7 +380,7 @@ class ForecastTestCase(TestCase):
 
     def test_model_score_change_truths(self):
         project2 = Project.objects.create()
-        make_cdc_locations_and_targets(project2)
+        make_cdc_units_and_targets(project2)
         # adding project truth should update all of its models' score_change.changed_at. test with no models -> ensure
         # Project._update_model_score_changes() is called
         with patch('forecast_app.models.Project._update_model_score_changes') as update_mock:
@@ -449,33 +449,33 @@ class ForecastTestCase(TestCase):
         del (json_io_dict_out['meta'])
 
         # delete the two zero probability bins in the input (they are discarded when loading predictions)
-        # - [10] "location": "location3", "target": "cases next week", "class": "bin"
-        # - [12] "location": "location1", "target": "season severity", "class": "bin"
+        # - [10] "unit": "location3", "target": "cases next week", "class": "bin"
+        # - [12] "unit": "location1", "target": "season severity", "class": "bin"
         del (json_io_dict_in['predictions'][10]['prediction']['cat'][0])  # 0
         del (json_io_dict_in['predictions'][10]['prediction']['prob'][0])  # 0.0
         del (json_io_dict_in['predictions'][12]['prediction']['cat'][0])  # 'mild'
         del (json_io_dict_in['predictions'][12]['prediction']['prob'][0])  # 0.0
 
-        json_io_dict_in['predictions'].sort(key=lambda _: (_['location'], _['target'], _['class']))
-        json_io_dict_out['predictions'].sort(key=lambda _: (_['location'], _['target'], _['class']))
+        json_io_dict_in['predictions'].sort(key=lambda _: (_['unit'], _['target'], _['class']))
+        json_io_dict_out['predictions'].sort(key=lambda _: (_['unit'], _['target'], _['class']))
 
         self.assertEqual(json_io_dict_out, json_io_dict_in)
 
         # spot-check some sample predictions
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                            if (pred_dict['location'] == 'location3')
+                            if (pred_dict['unit'] == 'location3')
                             and (pred_dict['target'] == 'pct next week')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual([2.3, 6.5, 0.0, 10.0234, 0.0001], sample_pred_dict['prediction']['sample'])
 
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                            if (pred_dict['location'] == 'location2')
+                            if (pred_dict['unit'] == 'location2')
                             and (pred_dict['target'] == 'season severity')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual(['moderate', 'severe', 'high', 'moderate', 'mild'], sample_pred_dict['prediction']['sample'])
 
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                            if (pred_dict['location'] == 'location1')
+                            if (pred_dict['unit'] == 'location1')
                             and (pred_dict['target'] == 'Season peak week')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual(['2020-01-05', '2019-12-15'], sample_pred_dict['prediction']['sample'])
