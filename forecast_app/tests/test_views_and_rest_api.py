@@ -388,8 +388,8 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
         response_dict = json.loads(response.content)  # will fail if not JSON
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response['Content-Type'], "application/json")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"')
+        self.assertEqual("application/json", response['Content-Type'])
+        self.assertEqual('attachment; filename="EW1-KoTsarima-2017-01-17.csv.json"', response['Content-Disposition'])
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
         self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
         self.assertEqual(11, len(response_dict['meta']['units']))
@@ -397,11 +397,11 @@ class ViewsTestCase(TestCase):
         # score data as CSV. a django.http.response.HttpResponse
         response = self.client.get(reverse('download-project-scores', args=[self.public_project.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response['Content-Type'], "text/csv")
-        self.assertEqual(response['Content-Disposition'], 'attachment; filename="public_project_name-scores.csv"')
+        self.assertEqual("text/csv", response['Content-Type'])
+        self.assertEqual('attachment; filename="public_project_name-scores.csv"', response['Content-Disposition'])
         split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(split_content[0], ','.join(SCORE_CSV_HEADER_PREFIX))
-        self.assertEqual(len(split_content), 2)  # no score data
+        self.assertEqual(','.join(['model', 'timezero', 'season', 'unit', 'target']), split_content[0])
+        self.assertEqual(2, len(split_content))  # no score data
 
 
     # https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test

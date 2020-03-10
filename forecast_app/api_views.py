@@ -585,7 +585,7 @@ def json_response_for_forecast(request, forecast):
 # Score data-related functions
 #
 
-SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'location', 'target']
+SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'unit', 'target']
 
 
 def _csv_filename_for_project_scores(project):

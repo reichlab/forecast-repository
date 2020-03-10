@@ -1,4 +1,4 @@
-model,timezero,season,location,target,error,abs_error,log_single_bin,log_multi_bin,pit
+model,timezero,season,unit,target,error,abs_error,log_single_bin,log_multi_bin,pit
 test model,2017-01-01,season1,HHS Region 1,Season peak percentage,-0.70779,0.70779, -999.0, -999.0, 1.0
 test model,2017-01-01,season1,HHS Region 1,1 wk ahead,-0.27589,0.27589, -999.0, -999.0, 1.0
 test model,2017-01-01,season1,HHS Region 1,2 wk ahead,-0.66013,0.66013, -999.0, -999.0, 1.0
