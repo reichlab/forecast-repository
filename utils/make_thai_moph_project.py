@@ -217,8 +217,8 @@ def cdc_csv_filename_components(cdc_csv_filename):
 CDC_CSV_FILENAME_EXTENSION = 'cdc.csv'
 
 #
-# The following defines this project's file naming standard, and defined in 'Forecast data file names' in
-# documentation.html, e.g., '<time_zero>-<model_name>[-<data_version_date>].cdc.csv' . For example:
+# The following defines this project's file naming standard: '<time_zero>-<model_name>[-<data_version_date>].cdc.csv' .
+# For example:
 #
 # - '20170419-gam_lag1_tops3-20170516.cdc.csv'
 # - '20161023-KoTstable-20161109.cdc.csv'

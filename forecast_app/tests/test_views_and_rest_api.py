@@ -140,7 +140,6 @@ class ViewsTestCase(TestCase):
         url_to_exp_user_status_code_pairs = {
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
-            reverse('docs'): self.OK_ALL,
 
             reverse('user-detail', args=[str(self.po_user.pk)]): self.ONLY_PO,
             reverse('edit-user', args=[str(self.po_user.pk)]): self.ONLY_PO,

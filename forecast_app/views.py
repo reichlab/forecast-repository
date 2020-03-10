@@ -53,10 +53,6 @@ def projects(request):
                  'is_user_ok_create_project': is_user_ok_create_project(request.user)})
 
 
-def documentation(request):
-    return render(request, 'documentation.html')
-
-
 #
 # ---- admin-related view functions ----
 #
