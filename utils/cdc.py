@@ -167,71 +167,22 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     rows.sort(key=lambda _: (_[0], _[1], _[2]))  # sorted for groupby()
     for (location_name, target_name, is_point_row), bin_start_end_val_grouper in \
             groupby(rows, key=lambda _: (_[0], _[1], _[2])):
-        # NB: should only be one point row per location/target pair, but collect all (i.e., don't validate here):
+        if target_name not in ['Season onset', 'Season peak week', 'Season peak percentage', '1 wk ahead', '2 wk ahead',
+                               '3 wk ahead', '4 wk ahead', '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead',
+                               '4_biweek_ahead', '5_biweek_ahead']:  # all CDC and Thai targets
+            raise RuntimeError(f"invalid target_name: {target_name!r}")
+
+        # fill values for points and bins. NB: should only be one point row per location/target pair, but collect all
+        # (i.e., don't validate here)
         point_values = []
         bin_cats, bin_probs = [], []
         for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:  # all 3 are numbers or None
             try:
-                if is_point_row:  # save value in point_values, possibly converted based on target
-                    if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
-                        if value is None:
-                            value = 'none'
-                        else:  # value is an EW week number (float)
-                            # note that value may be a fraction (e.g., 50.0012056690978, 4.96302456525203), so we round
-                            # the EW number to get an int, but this could cause boundary issues where the value is
-                            # invalid, either:
-                            #   1) < 1 (so use last EW in season_start_year), or:
-                            #   2) > the last EW in season_start_year (so use EW01 of season_start_year + 1)
-                            ew_week = round(value)
-                            if ew_week < 1:
-                                ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
-                            elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
-                                ew_week = 1
-                            monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
-                            value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                    elif target_name in ['1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',
-                                         '5_biweek_ahead']:  # thai
-                        value = round(value)  # some point predictions are floats
-                    elif value is None:
-                        raise RuntimeError(f"None point values are only valid for 'Season onset' targets. "
-                                           f"target_name={target_name}")
-                    elif target_name == 'Season peak week':  # date target. value: an EW Monday date
-                        # same 'wrapping' logic as above to handle rounding boundaries
-                        ew_week = round(value)
-                        if ew_week < 1:
-                            ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
-                        elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
-                            ew_week = 1
-                        monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
-                        value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                    point_values.append(value)
-                # is_bin_row:
-                elif target_name == 'Season onset':  # nominal target. start: None or an EW Monday date
-                    if (bin_start_incl is None) and (bin_end_notincl is None):  # "none" bin (probability of no onset)
-                        bin_cat = 'none'  # convert back from None to original 'none' input
-                    elif (bin_start_incl is not None) and (bin_end_notincl is not None):  # regular (non-"none") bin
-                        monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
-                        bin_cat = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                    else:
-                        raise RuntimeError(f"got 'Season onset' row but not both start and end were None. "
-                                           f"bin_start_incl={bin_start_incl}, bin_end_notincl={bin_end_notincl}")
-                    bin_cats.append(bin_cat)
-                    bin_probs.append(value)
-                elif (bin_start_incl is None) or (bin_end_notincl is None):
-                    raise RuntimeError(f"None bins are only valid for 'Season onset' targets. "
-                                       f"target_name={target_name}. bin_start_incl, bin_end_notincl: "
-                                       f"{bin_start_incl}, {bin_end_notincl}")
-                elif target_name == 'Season peak week':  # date target. start: an EW Monday date
-                    monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
-                    bin_cats.append(monday_date.strftime(YYYY_MM_DD_DATE_FORMAT))
-                    bin_probs.append(value)
-                elif target_name in ['Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead',
-                                     '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',  # thai
-                                     '5_biweek_ahead']:
-                    bin_cats.append(bin_start_incl)
-                    bin_probs.append(value)
+                if is_point_row:
+                    _process_csv_point_row(season_start_year, target_name, value, point_values)
                 else:
-                    raise RuntimeError(f"invalid target_name: {target_name!r}")
+                    _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, bin_end_notincl,
+                                         bin_cats, bin_probs)
             except ValueError as ve:
                 row = [location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value]
                 raise RuntimeError(f"could not coerce either bin_start_incl or value to float. bin_start_incl="
@@ -256,6 +207,66 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
                                          "cat": bin_cats,
                                          "prob": bin_probs}})
     return prediction_dicts
+
+
+def _process_csv_point_row(season_start_year, target_name, value, point_values):
+    if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
+        if value is None:
+            value = 'none'
+        else:  # value is an EW week number (float)
+            # note that value may be a fraction (e.g., 50.0012056690978, 4.96302456525203), so we round
+            # the EW number to get an int, but this could cause boundary issues where the value is
+            # invalid, either:
+            #   1) < 1 (so use last EW in season_start_year), or:
+            #   2) > the last EW in season_start_year (so use EW01 of season_start_year + 1)
+            ew_week = round(value)
+            if ew_week < 1:
+                ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
+            elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
+                ew_week = 1
+            monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
+            value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+    elif target_name in ['1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',
+                         '5_biweek_ahead']:  # thai
+        value = round(value)  # some point predictions are floats
+    elif value is None:
+        raise RuntimeError(f"None point values are only valid for 'Season onset' targets. "
+                           f"target_name={target_name}")
+    elif target_name == 'Season peak week':  # date target. value: an EW Monday date
+        # same 'wrapping' logic as above to handle rounding boundaries
+        ew_week = round(value)
+        if ew_week < 1:
+            ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
+        elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
+            ew_week = 1
+        monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
+        value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+    point_values.append(value)
+
+
+def _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, bin_end_notincl, bin_cats, bin_probs):
+    if target_name == 'Season onset':  # nominal target. start: None or an EW Monday date
+        if (bin_start_incl is None) and (bin_end_notincl is None):  # "none" bin (probability of no onset)
+            bin_cat = 'none'  # convert back from None to original 'none' input
+        elif (bin_start_incl is not None) and (bin_end_notincl is not None):  # regular (non-"none") bin
+            monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
+            bin_cat = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        else:
+            raise RuntimeError(f"got 'Season onset' row but not both start and end were None. "
+                               f"bin_start_incl={bin_start_incl}, bin_end_notincl={bin_end_notincl}")
+        bin_cats.append(bin_cat)
+        bin_probs.append(value)
+    elif (bin_start_incl is None) or (bin_end_notincl is None):
+        raise RuntimeError(f"None bins are only valid for 'Season onset' targets. "
+                           f"target_name={target_name}. bin_start_incl, bin_end_notincl: "
+                           f"{bin_start_incl}, {bin_end_notincl}")
+    elif target_name == 'Season peak week':  # date target. start: an EW Monday date
+        monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
+        bin_cats.append(monday_date.strftime(YYYY_MM_DD_DATE_FORMAT))
+        bin_probs.append(value)
+    else:  # 'Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',  # thai '5_biweek_ahead'
+        bin_cats.append(bin_start_incl)
+        bin_probs.append(value)
 
 
 #
