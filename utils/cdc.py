@@ -177,16 +177,14 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
         point_values = []
         bin_cats, bin_probs = [], []
         for _, _, _, bin_start_incl, bin_end_notincl, value in bin_start_end_val_grouper:  # all 3 are numbers or None
-            try:
-                if is_point_row:
-                    _process_csv_point_row(season_start_year, target_name, value, point_values)
-                else:
-                    _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, bin_end_notincl,
-                                         bin_cats, bin_probs)
-            except ValueError as ve:
-                row = [location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value]
-                raise RuntimeError(f"could not coerce either bin_start_incl or value to float. bin_start_incl="
-                                   f"{bin_start_incl}, value={value}, row={row}, error={ve}")
+            if is_point_row:
+                point_value = _process_csv_point_row(season_start_year, target_name, value)
+                point_values.append(point_value)
+            else:
+                bin_cat, bin_prob = _process_csv_bin_row(season_start_year, target_name, value,
+                                                         bin_start_incl, bin_end_notincl)
+                bin_cats.append(bin_cat)
+                bin_probs.append(bin_prob)
 
         # add the actual prediction dicts
         if point_values:
@@ -209,7 +207,8 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     return prediction_dicts
 
 
-def _process_csv_point_row(season_start_year, target_name, value, point_values):
+def _process_csv_point_row(season_start_year, target_name, value):
+    # returns: point value for the args
     if target_name == 'Season onset':  # nominal target. value: None or an EW Monday date
         if value is None:
             value = 'none'
@@ -241,10 +240,11 @@ def _process_csv_point_row(season_start_year, target_name, value, point_values):
             ew_week = 1
         monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
         value = monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-    point_values.append(value)
+    return value
 
 
-def _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, bin_end_notincl, bin_cats, bin_probs):
+def _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, bin_end_notincl):
+    # returns: 2-tuple for the args: (bin_cat, bin_prob)
     if target_name == 'Season onset':  # nominal target. start: None or an EW Monday date
         if (bin_start_incl is None) and (bin_end_notincl is None):  # "none" bin (probability of no onset)
             bin_cat = 'none'  # convert back from None to original 'none' input
@@ -254,19 +254,16 @@ def _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, 
         else:
             raise RuntimeError(f"got 'Season onset' row but not both start and end were None. "
                                f"bin_start_incl={bin_start_incl}, bin_end_notincl={bin_end_notincl}")
-        bin_cats.append(bin_cat)
-        bin_probs.append(value)
+        return bin_cat, value
     elif (bin_start_incl is None) or (bin_end_notincl is None):
         raise RuntimeError(f"None bins are only valid for 'Season onset' targets. "
                            f"target_name={target_name}. bin_start_incl, bin_end_notincl: "
                            f"{bin_start_incl}, {bin_end_notincl}")
     elif target_name == 'Season peak week':  # date target. start: an EW Monday date
         monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
-        bin_cats.append(monday_date.strftime(YYYY_MM_DD_DATE_FORMAT))
-        bin_probs.append(value)
+        return monday_date.strftime(YYYY_MM_DD_DATE_FORMAT), value
     else:  # 'Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',  # thai '5_biweek_ahead'
-        bin_cats.append(bin_start_incl)
-        bin_probs.append(value)
+        return bin_start_incl, value
 
 
 #
