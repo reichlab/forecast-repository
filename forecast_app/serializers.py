@@ -5,8 +5,7 @@ from rest_framework.reverse import reverse
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
 from forecast_app.models.project import Unit
 from forecast_app.models.upload_file_job import UploadFileJob
-from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user, \
-    timezero_forecast_pairs_for_forecast_model
+from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -135,7 +134,7 @@ class UploadFileJobSerializer(serializers.ModelSerializer):
 class ForecastModelSerializer(serializers.ModelSerializer):
     owner = serializers.HyperlinkedRelatedField(view_name='api-user-detail', read_only=True)
     project = serializers.HyperlinkedRelatedField(view_name='api-project-detail', read_only=True)
-    forecasts = serializers.SerializerMethodField()
+    forecasts = serializers.HyperlinkedRelatedField(view_name='api-forecast-detail', many=True, read_only=True)
 
 
     class Meta:
@@ -145,18 +144,6 @@ class ForecastModelSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'url': {'view_name': 'api-model-detail'},
         }
-
-
-    def get_forecasts(self, forecast_model):
-        request = self.context['request']
-        # customize these to use our standard format:
-        return [
-            {'timezero_date': timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-            if timezero.timezero_date else None,
-             'data_version_date': timezero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-             if timezero.data_version_date else None,
-             'forecast': reverse('api-forecast-detail', args=[forecast.pk], request=request) if forecast else None}
-            for timezero, forecast in timezero_forecast_pairs_for_forecast_model(forecast_model)]
 
 
 class ForecastSerializer(serializers.ModelSerializer):
