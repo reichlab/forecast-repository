@@ -8,7 +8,9 @@
 
     <p class="lead">User: {{ detail_user.username }}
         {% if detail_user == user %}<span class="text-muted small"> (you)</span>{% endif %}
-        <a href="{% url 'api-user-detail' detail_user.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'api-user-detail' detail_user.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% endif %}
         {% if is_user_ok_edit_user %}
             <a href="{% url 'edit-user' detail_user.pk %}" class="btn btn-success btn-sm" role="button">
                 <i class="fas fa-edit"></i>

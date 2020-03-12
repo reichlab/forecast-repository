@@ -6,7 +6,9 @@
 
     <p class="lead">Model: {% if forecastmodel.team_name %} {{ forecastmodel.team_name }}
         - {% endif %}{{ forecastmodel.name }}
-        <a href="{% url 'api-model-detail' forecastmodel.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'api-model-detail' forecastmodel.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% endif %}
         {% if is_user_ok_edit_model %}
             {# Edit ForecastModel: a simple link to an edit form #}
             <a href="{% url 'edit-model' forecastmodel.pk %}" class="btn btn-success btn-sm" role="button">

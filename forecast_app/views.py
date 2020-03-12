@@ -960,7 +960,7 @@ def download_forecast(request, forecast_pk):
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
 
-    return json_response_for_forecast(request, forecast)
+    return json_response_for_forecast(forecast)
 
 
 #

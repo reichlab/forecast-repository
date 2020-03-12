@@ -9,7 +9,9 @@
     <h2>
         {% include 'visibility_snippet.html' with project=project size="fa-xs" %}
         Project: {{ project.name }}
-        <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'api-project-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% endif %}
         <a href="{% url 'project-config' project.pk %}" class="btn btn-success btn-sm" role="button">
             <i class="fas fa-cloud-download-alt"></i> Config</a>
 

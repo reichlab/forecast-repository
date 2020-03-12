@@ -11,7 +11,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
@@ -70,7 +69,7 @@ class ViewsTestCase(TestCase):
                                                   data_version_date=None)
 
         cls.public_project2 = Project.objects.create(name='public project 2', is_public=True, owner=cls.po_user)
-        cls.public_project2.model_owners.add(cls.mo_user)
+        # cls.public_project2.model_owners.add(cls.mo_user)
         cls.public_project2.save()
 
         # public_model
@@ -382,9 +381,10 @@ class ViewsTestCase(TestCase):
 
     def test_data_download_formats(self):
         """
-        Test forecast_data().
+        Test forecast_data(). recall all API endpoints require an authorized user
         """
-        # forecast data as JSON. a django.http.response.JsonResponse:
+        # forecast data as JSON
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]))
         response_dict = json.loads(response.content)  # will fail if not JSON
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -394,7 +394,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
         self.assertEqual(11, len(response_dict['meta']['units']))
 
-        # score data as CSV. a django.http.response.HttpResponse
+        # score data as CSV
         response = self.client.get(reverse('download-project-scores', args=[self.public_project.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual("text/csv", response['Content-Type'])
@@ -425,31 +425,31 @@ class ViewsTestCase(TestCase):
     # update this when this changes: forecast_app/api_urls.py
     def test_api_get_endpoints(self):
         url_to_exp_user_status_code_pairs = {
-            reverse('api-root'): self.OK_ALL,
+            reverse('api-root'): self.ONLY_PO_MO,
             reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
             reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
-            reverse('api-project-list'): self.OK_ALL,
-            reverse('api-project-detail', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-project-list'): self.ONLY_PO_MO,
+            reverse('api-project-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-timezero-list', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-timezero-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-timezero-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-truth-detail', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-truth-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-truth-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-truth-data', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-truth-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-score-data', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-score-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-model-list', args=[self.public_project.pk]): self.OK_ALL,
+            reverse('api-model-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-model-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-model-detail', args=[self.public_model.pk]): self.OK_ALL,
+            reverse('api-model-detail', args=[self.public_model.pk]): self.ONLY_PO_MO,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-list', args=[self.public_model.pk]): self.OK_ALL,
+            reverse('api-forecast-list', args=[self.public_model.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-list', args=[self.private_model.pk]): self.ONLY_PO_MO,
-            reverse('api-timezero-detail', args=[self.public_tz1.pk]): self.OK_ALL,
+            reverse('api-timezero-detail', args=[self.public_tz1.pk]): self.ONLY_PO_MO,
             reverse('api-timezero-detail', args=[self.private_tz1.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.OK_ALL,
+            reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-data', args=[self.public_forecast.pk]): self.OK_ALL,
+            reverse('api-forecast-data', args=[self.public_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-data', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
         }
         for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
@@ -468,69 +468,67 @@ class ViewsTestCase(TestCase):
 
     def test_api_get_project_list_authorization(self):
         # verify filtering based on user authorization
+        # recall all API endpoints require an authorized user
 
-        # anonymous access: self.public_project, self.public_project2
-        self.client.logout()  # AnonymousUser
-        # a rest_framework.utils.serializer_helpers.ReturnDict:
+        # anonymous access: error
         response = self.client.get(reverse('api-project-list'), format='json')
-        self.assertEqual({self.public_project.id, self.public_project2.id},
-                         {proj_resp_dict['id'] for proj_resp_dict in response.data})
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
         # authorized access: self.mo_user: self.public_project, self.private_project, self.public_project2
-        self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
-        response = self.client.get(reverse('api-project-list'), format='json')
+        response = self.client.get(reverse('api-project-list'),
+                                   {
+                                       'Authorization': f'JWT {self._authenticate_jwt_user(self.mo_user, self.mo_user_password)}'},
+                                   format='json')
+        self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
+                         {proj_resp_dict['id'] for proj_resp_dict in response.data})
+
+        # authorized access: self.po_user: self.public_project, self.private_project, self.public_project2
+        response = self.client.get(reverse('api-project-list'),
+                                   {
+                                       'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}'},
+                                   format='json')
         self.assertEqual({self.public_project.id, self.private_project.id, self.public_project2.id},
                          {proj_resp_dict['id'] for proj_resp_dict in response.data})
 
 
     def test_api_get_endpoint_keys(self):
         """
-        Tests returned value keys as a content sanity check.
+        Tests returned value keys as a content sanity check. recall all API endpoints require an authorized user.
+        (per-user authorization tested in test_api_project_list_authorization())
         """
-        # 'api-root' - a rest_framework.response.Response:
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
         response = self.client.get(reverse('api-root'), format='json')
         self.assertEqual(['projects'], list(response.data))
 
-        # 'api-project-list' - a rest_framework.utils.serializer_helpers.ReturnList:
-        #  (per-user authorization tested in test_api_project_list_authorization())
         response = self.client.get(reverse('api-project-list'), format='json')
-        self.assertEqual(2, len(response.data))
+        self.assertEqual(3, len(response.data))
 
-        # 'api-project-detail' - a rest_framework.utils.serializer_helpers.ReturnDict:
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
                     'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-user-detail' - a rest_framework.response.Response:
-        # (o/w AttributeError: 'HttpResponseForbidden' object has no attribute 'data')
-        self.client.login(username=self.po_user.username, password=self.po_user_password)
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
         exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
-        self.client.logout()  # AnonymousUser
         self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-model-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
                     'forecasts']
         self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-forecast-list' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
         exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
         self.assertEqual(1, len(response_dicts))
         self.assertEqual(exp_keys, list(response_dicts[0]))
 
-        # 'api-forecast-detail' - a rest_framework.response.Response:
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
         exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
         self.assertEqual(exp_keys, list(response.data))
 
-        # 'api-forecast-data' - a django.http.response.JsonResponse:
-        # (note that we only check top-level keys b/c we know json_response_for_forecast() uses
-        # json_io_dict_from_forecast(), which is tested separately)
+        # note that we only check top-level keys b/c we know json_response_for_forecast() uses
+        # json_io_dict_from_forecast(), which is tested separately
         response = self.client.get(reverse('api-forecast-data', args=[self.public_forecast.pk]), format='json')
         response_dict = json.loads(response.content)
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
@@ -539,7 +537,6 @@ class ViewsTestCase(TestCase):
 
     def test_api_delete_forecast(self):
         # anonymous delete: self.public_forecast -> disallowed
-        self.client.logout()  # AnonymousUser
         response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 

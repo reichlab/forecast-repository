@@ -16,7 +16,9 @@
     </style>
 
     <h2>Projects
-        <a href="{% url 'api-project-list' %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'api-project-list' %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% endif %}
         {% if is_user_ok_create_project %}
             {# show the new project form with a button dropdown of options for creating: form or file #}
             <form id="download_form" class="form-inline" style="display: inline-block;" method="POST">

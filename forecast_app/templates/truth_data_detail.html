@@ -7,7 +7,9 @@
 {% block content %}
 
     <p class="lead">Project truth for &ldquo;{{ project.name }}&rdquo;
-        <a href="{% url 'api-truth-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'api-truth-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% endif %}
 
         {% if is_user_ok_edit_project and project.is_truth_data_loaded %}
             {# show a button inside a modal dialog for deleting the truth #}

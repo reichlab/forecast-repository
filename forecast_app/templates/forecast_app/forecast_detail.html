@@ -7,7 +7,9 @@
 {% block content %}
 
     <p class="lead">Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}
-        <a href="{% url 'api-forecast-detail' forecast.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% if user.is_authenticated %}
+            <a href="{% url 'api-forecast-detail' forecast.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
+        {% endif %}
     </p>
 
     <div class="row">
