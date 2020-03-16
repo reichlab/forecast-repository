@@ -12,13 +12,26 @@ from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
-        fields = ('name',)
+        fields = ('id', 'url', 'name',)
+        extra_kwargs = {
+            'url': {'view_name': 'api-unit-detail'},
+        }
 
 
 class TargetSerializer(serializers.ModelSerializer):
+    type = serializers.SerializerMethodField()
+
+
     class Meta:
         model = Target
-        fields = ('name', 'description')
+        fields = ('id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit')
+        extra_kwargs = {
+            'url': {'view_name': 'api-target-detail'},
+        }
+
+
+    def get_type(self, target):
+        return target.type_as_str()
 
 
 class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
@@ -36,24 +49,30 @@ class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
+    time_interval_type = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
     score_data = serializers.SerializerMethodField()
 
     models = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
-    units = UnitSerializer(many=True, read_only=True)  # nested, no urls
-    targets = TargetSerializer(many=True, read_only=True)  # nested, no urls
-    timezeros = TimeZeroSerializer(many=True, read_only=True)  # nested, no urls
+    units = serializers.HyperlinkedRelatedField(view_name='api-unit-detail', many=True, read_only=True)
+    targets = serializers.HyperlinkedRelatedField(view_name='api-target-detail', many=True, read_only=True)
+    timezeros = serializers.HyperlinkedRelatedField(view_name='api-timezero-detail', many=True, read_only=True)
 
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
-                  'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros')
+        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
+                  'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
+                  'targets', 'timezeros')
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},
             'model_owners': {'view_name': 'api-user-detail'},
         }
+
+
+    def get_time_interval_type(self, project):
+        return project.time_interval_type_as_str()
 
 
     def get_truth(self, project):
@@ -148,13 +167,13 @@ class ForecastModelSerializer(serializers.ModelSerializer):
 
 class ForecastSerializer(serializers.ModelSerializer):
     forecast_model = serializers.HyperlinkedRelatedField(view_name='api-model-detail', read_only=True)
-    time_zero = TimeZeroSerializer()  # nested, no urls
+    time_zero = serializers.HyperlinkedRelatedField(view_name='api-timezero-detail', read_only=True)
     forecast_data = serializers.SerializerMethodField()
 
 
     class Meta:
         model = Forecast
-        fields = ('id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data')
+        fields = ('id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'forecast_data')
         extra_kwargs = {
             'url': {'view_name': 'api-forecast-detail'},
         }

@@ -21,11 +21,11 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
-from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction
-from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero
+from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
+from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer
+    TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
@@ -59,17 +59,15 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
     """
     View that returns a list of Projects. Filters out those projects that the requesting user is not authorized to view.
     Note that this means API users have more limited access than the web home page, which lists all projects regardless
-    of whether the user is not authorized to view or not. Granted that a subset of fields is shown in this case, but
-    it's a discrepancy. I tried to implement a per-Project serialization that included the same subset, but DRF fought
-    me too hard. POST to this view to create a new Project from a configuration file.
+    of whether the user is not authorized to view or not. POST to this view to create a new Project from a configuration
+    file.
     """
     serializer_class = ProjectSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
 
 
     def get_queryset(self):
-        return [project for project in Project.objects.all()
-                if self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)]
+        return [project for project in Project.objects.all() if project.is_user_ok_to_view(self.request.user)]
 
 
     def test_func(self):
@@ -463,6 +461,28 @@ class ForecastDetail(UserPassesTestMixin, RetrieveDestroyAPIView):
 
         response = self.destroy(request, *args, **kwargs)
         return response
+
+
+class UnitDetail(UserPassesTestMixin, RetrieveAPIView):
+    queryset = Unit.objects.all()
+    serializer_class = UnitSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        unit = self.get_object()
+        return self.request.user.is_authenticated and unit.project.is_user_ok_to_view(self.request.user)
+
+
+class TargetDetail(UserPassesTestMixin, RetrieveAPIView):
+    queryset = Target.objects.all()
+    serializer_class = TargetSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        target = self.get_object()
+        return self.request.user.is_authenticated and target.project.is_user_ok_to_view(self.request.user)
 
 
 class TimeZeroDetail(UserPassesTestMixin, RetrieveAPIView):

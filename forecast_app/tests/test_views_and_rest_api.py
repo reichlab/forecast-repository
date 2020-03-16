@@ -504,8 +504,9 @@ class ViewsTestCase(TestCase):
         self.assertEqual(3, len(response.data))
 
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
-        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
-                    'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros']
+        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
+                    'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
+                    'targets', 'timezeros']
         self.assertEqual(exp_keys, list(response.data))
 
         response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
@@ -519,12 +520,12 @@ class ViewsTestCase(TestCase):
 
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
-        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'forecast_data']
         self.assertEqual(1, len(response_dicts))
         self.assertEqual(exp_keys, list(response_dicts[0]))
 
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
-        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'forecast_data']
         self.assertEqual(exp_keys, list(response.data))
 
         # note that we only check top-level keys b/c we know json_response_for_forecast() uses
@@ -572,8 +573,9 @@ class ViewsTestCase(TestCase):
 
         # spot-check response
         proj_json = json_response.json()
-        self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'core_data', 'truth',
-                          'model_owners', 'score_data', 'models', 'units', 'targets', 'timezeros'},
+        self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
+                          'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
+                          'targets', 'timezeros'},
                          set(proj_json.keys()))
         self.assertEqual('CDC Flu challenge', proj_json['name'])
 

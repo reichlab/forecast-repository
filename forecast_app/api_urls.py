@@ -19,10 +19,12 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)/score_data/$', api_views.score_data, name='api-score-data'),
     url(r'^project/(?P<pk>\d+)/models/$', api_views.ProjectForecastModelList.as_view(), name='api-model-list'),
 
+    url(r'^unit/(?P<pk>\d+)/$', api_views.UnitDetail.as_view(), name='api-unit-detail'),
+    url(r'^target/(?P<pk>\d+)/$', api_views.TargetDetail.as_view(), name='api-target-detail'),
+    url(r'^timezero/(?P<pk>\d+)/$', api_views.TimeZeroDetail.as_view(), name='api-timezero-detail'),
+
     url(r'^model/(?P<pk>\d+)/$', api_views.ForecastModelDetail.as_view(), name='api-model-detail'),
     url(r'^model/(?P<pk>\d+)/forecasts/$', api_views.ForecastModelForecastList.as_view(), name='api-forecast-list'),
-
-    url(r'^timezero/(?P<pk>\d+)/$', api_views.TimeZeroDetail.as_view(), name='api-timezero-detail'),
 
     url(r'^forecast/(?P<pk>\d+)/$', api_views.ForecastDetail.as_view(), name='api-forecast-detail'),
     url(r'^forecast/(?P<pk>\d+)/data/$', api_views.forecast_data, name='api-forecast-data'),
