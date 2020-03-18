@@ -219,6 +219,42 @@ class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):
             return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+class ProjectUnitList(UserPassesTestMixin, ListAPIView):
+    """
+    View that returns a list of Units in a Project, similar to ProjectTimeZeroList.
+    """
+    serializer_class = UnitSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+
+
+    def get_queryset(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return project.units
+
+
+class ProjectTargetList(UserPassesTestMixin, ListAPIView):
+    """
+    View that returns a list of Targets in a Project, similar to ProjectTimeZeroList.
+    """
+    serializer_class = TargetSerializer
+    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def test_func(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+
+
+    def get_queryset(self):
+        project = Project.objects.get(pk=self.kwargs['pk'])
+        return project.targets
+
+
 class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
     """
     View that returns a list of TimeZeros in a Project. This is different from other Views in this file b/c the

@@ -42,10 +42,7 @@ def parse_value(value_str):
     except ValueError as ve:
         pass
 
-    try:
-        return datetime.datetime.strptime(value_str, YYYY_MM_DD_DATE_FORMAT).date()
-    except ValueError as ve:
-        return None
+    return None
 
 
 #

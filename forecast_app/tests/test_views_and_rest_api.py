@@ -418,35 +418,50 @@ class ViewsTestCase(TestCase):
                                 format='json')
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertTrue('token' in resp.data)
-        token = resp.data['token']
-        # e.g., eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InByb2plY3Rfb3duZXIxIiwiZXhwIjoxNTM1MzgwMjM0LCJlbWFpbCI6IiJ9.T_mHlvd3EjeAPhKRZwipyLhklV5StBQ_tRJ9YR-v8sA
+        # e.g., eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6InByb2plY3Rfb3duZXIxIiwiZXhwIjoxNTg0NTY3NTY2LCJlbWFpbCI6IiJ9.ClTxMfIGcVxFoZKOLPEbZB54RgRksvZCxntY46m5bwQ
+        token_split = resp.data['token'].split('.')  # header.payload.signature. only header is deterministic
+        self.assertEqual('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9', token_split[0])
 
 
     # update this when this changes: forecast_app/api_urls.py
     def test_api_get_endpoints(self):
+        unit_us_nat = self.public_project.units.filter(name='US National').first()
+        target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
         url_to_exp_user_status_code_pairs = {
             reverse('api-root'): self.ONLY_PO_MO,
             reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
             reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
+
             reverse('api-project-list'): self.ONLY_PO_MO,
             reverse('api-project-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
+
+            reverse('api-unit-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
+            reverse('api-unit-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-unit-detail', args=[unit_us_nat.pk]): self.ONLY_PO_MO,
+
+            reverse('api-target-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
+            reverse('api-target-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-target-detail', args=[target_1wk.pk]): self.ONLY_PO_MO,
+
             reverse('api-timezero-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-timezero-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-timezero-detail', args=[self.public_tz1.pk]): self.ONLY_PO_MO,
+
             reverse('api-truth-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-truth-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-truth-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-score-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
+
             reverse('api-model-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-model-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
             reverse('api-model-detail', args=[self.public_model.pk]): self.ONLY_PO_MO,
             reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
+
             reverse('api-forecast-list', args=[self.public_model.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-list', args=[self.private_model.pk]): self.ONLY_PO_MO,
-            reverse('api-timezero-detail', args=[self.public_tz1.pk]): self.ONLY_PO_MO,
-            reverse('api-timezero-detail', args=[self.private_tz1.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
             reverse('api-forecast-data', args=[self.public_forecast.pk]): self.ONLY_PO_MO,
@@ -574,7 +589,8 @@ class ViewsTestCase(TestCase):
         # spot-check response
         proj_json = json_response.json()
         self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
-                          'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
+                          'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models',
+                          'units',
                           'targets', 'timezeros'},
                          set(proj_json.keys()))
         self.assertEqual('CDC Flu challenge', proj_json['name'])
