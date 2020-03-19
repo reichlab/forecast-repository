@@ -511,22 +511,64 @@ class ViewsTestCase(TestCase):
         Tests returned value keys as a content sanity check. recall all API endpoints require an authorized user.
         (per-user authorization tested in test_api_project_list_authorization())
         """
+        # todo xx why does this work for all tests here when they don't pass the token!?
         self._authenticate_jwt_user(self.po_user, self.po_user_password)
+
         response = self.client.get(reverse('api-root'), format='json')
         self.assertEqual(['projects'], list(response.data))
 
+        response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
+        self.assertEqual(['id', 'url', 'username', 'owned_models', 'projects_and_roles'],
+                         list(response.data))
+
+        response = self.client.get(reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]))
+        self.assertEqual(['id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
+                          'input_json', 'output_json'],
+                         list(response.data))
+
         response = self.client.get(reverse('api-project-list'), format='json')
-        self.assertEqual(3, len(response.data))
+        self.assertEqual(3, len(response.data))  # assume contents are checked below
 
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
-        exp_keys = ['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
-                    'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
-                    'targets', 'timezeros']
-        self.assertEqual(exp_keys, list(response.data))
+        self.assertEqual(['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
+                          'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models',
+                          'units', 'targets', 'timezeros'],
+                         list(response.data))
 
-        response = self.client.get(reverse('api-user-detail', args=[self.po_user.pk]), format='json')
-        exp_keys = ['id', 'url', 'username', 'owned_models', 'projects_and_roles']
-        self.assertEqual(exp_keys, list(response.data))
+        response = self.client.get(reverse('api-unit-list', args=[self.public_project.pk]), format='json')
+        self.assertEqual(11, len(response.data))  # assume contents are checked below
+
+        response = self.client.get(reverse('api-target-list', args=[self.public_project.pk]), format='json')
+        self.assertEqual(7, len(response.data))  # assume contents are checked below
+
+        response = self.client.get(reverse('api-timezero-list', args=[self.public_project.pk]), format='json')
+        self.assertEqual(3, len(response.data))  # assume contents are checked below
+
+        response = self.client.get(reverse('api-model-list', args=[self.public_project.pk]), format='json')
+        self.assertEqual(5, len(response.data))  # assume contents are checked below
+
+        response = self.client.get(reverse('api-truth-detail', args=[self.public_project.pk]), format='json')
+        self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_data'],
+                         list(response.data))
+
+        response = self.client.get(reverse('api-truth-data', args=[self.public_project.pk]), format='json')
+        self.assertEqual(341, len(response.content))
+
+        response = self.client.get(reverse('api-score-data', args=[self.public_project.pk]), format='json')
+        self.assertEqual(35, len(response.content))  # just SCORE_CSV_HEADER_PREFIX due to no scores
+
+        unit_us_nat = self.public_project.units.filter(name='US National').first()
+        response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))
+        self.assertEqual(['id', 'url', 'name'], list(response.data))
+
+        target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
+        response = self.client.get(reverse('api-target-detail', args=[target_1wk.pk]))
+        self.assertEqual(['id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit'],
+                         list(response.data))
+
+        response = self.client.get(reverse('api-timezero-detail', args=[self.public_tz1.pk]))
+        self.assertEqual(['id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'],
+                         list(response.data))
 
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
