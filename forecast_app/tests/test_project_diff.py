@@ -28,7 +28,7 @@ class ProjectDiffTestCase(TestCase):
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         current_config_dict = config_dict_from_project(project, request)
 
         # project fields: edit
@@ -153,7 +153,7 @@ class ProjectDiffTestCase(TestCase):
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
@@ -172,7 +172,7 @@ class ProjectDiffTestCase(TestCase):
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
@@ -193,7 +193,7 @@ class ProjectDiffTestCase(TestCase):
         # make some changes
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
@@ -208,7 +208,7 @@ class ProjectDiffTestCase(TestCase):
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         out_config_dict = config_dict_from_project(project, request)
 
         # this json file makes the same changes as _make_some_changes():
@@ -240,7 +240,7 @@ class ProjectDiffTestCase(TestCase):
         # make some changes
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
@@ -267,14 +267,14 @@ class ProjectDiffTestCase(TestCase):
              'field_name': None, 'object_dict': {'name': 'location4'}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'is_step_ahead',
-             'object_dict': {'type': 'discrete', 'name': 'cases next week',
+             'object_dict': {'name': 'cases next week', 'type': 'discrete',
                              'description': 'A forecasted integer number of cases for a future week.',
                              'is_step_ahead': False, 'unit': 'cases', 'range': [0, 100000], 'cats': [0, 2, 50]}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_REMOVED,
              'field_name': 'step_ahead_increment', 'object_dict': None},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_ADDED,
              'field_name': None,
-             'object_dict': {'type': 'discrete', 'name': 'pct next week', 'description': 'new descr',
+             'object_dict': {'name': 'pct next week', 'type': 'discrete', 'description': 'new descr',
                              'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
                              'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_ADDED,
@@ -288,7 +288,7 @@ class ProjectDiffTestCase(TestCase):
              'field_name': None, 'object_dict': None},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'description',
-             'object_dict': {'type': 'discrete', 'name': 'pct next week', 'description': 'new descr',
+             'object_dict': {'name': 'pct next week', 'type': 'discrete', 'description': 'new descr',
                              'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
                              'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
             {'object_type': ObjectType.TIMEZERO, 'object_pk': '2011-10-02', 'change_type': ChangeType.OBJ_REMOVED,
@@ -304,7 +304,8 @@ class ProjectDiffTestCase(TestCase):
         ]
         act_dicts = [change.serialize_to_dict() for change in changes]
         for act_dict in act_dicts:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
-            if (act_dict['object_type'] == ObjectType.TARGET) and act_dict['object_dict']:
+            if ((act_dict['object_type'] == ObjectType.TARGET) or (act_dict['object_type'] == ObjectType.TIMEZERO)) \
+                    and act_dict['object_dict']:
                 if 'id' in act_dict['object_dict']:  # deleted in previous iteration?
                     del act_dict['object_dict']['id']
                     del act_dict['object_dict']['url']

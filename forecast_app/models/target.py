@@ -97,7 +97,7 @@ class Target(models.Model):
         # a hack we use APIRequestFactory. the other way around this is to make the 'id' field dynamic, but that looks
         # like it could get complicated - see rest_framework.relations.HyperlinkedIdentityField,
         # rest_framework.serializers.ModelSerializer.build_url_field(), etc. so we deal with the hack for now :-)
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         target_dict = _target_dict_for_target(self, request)
 
         type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}

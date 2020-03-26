@@ -67,7 +67,6 @@ class Change:
 
 
     def __repr__(self):
-        # return str((self.object_type, self.object_pk, self.change_type, self.field_name, self.object_dict.keys() if self.object_dict else '{}'))
         return f"Change(ObjectType.{self.object_type.name}, {self.object_pk!r}, ChangeType.{self.change_type.name}, " \
                f"{self.field_name!r}, {self.object_dict})"
 

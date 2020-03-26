@@ -41,9 +41,9 @@ def json_io_dict_from_forecast(forecast, request):
     unit_names, target_names, prediction_dicts = _units_targets_pred_dicts_from_forecast(forecast)
     return {
         'meta': {
-            'forecast': _forecast_dict_for_forecast(forecast),
+            'forecast': _forecast_dict_for_forecast(forecast, request),
             'units': sorted([{'name': unit_names} for unit_names in unit_names],
-                                key=lambda _: (_['name'])),
+                            key=lambda _: (_['name'])),
             'targets': sorted(
                 [_target_dict_for_target(target, request) for target in forecast.forecast_model.project.targets.all()],
                 key=lambda _: (_['name'])),
@@ -156,20 +156,20 @@ def _units_targets_pred_dicts_from_forecast(forecast):
     return unit_names, target_names, prediction_dicts
 
 
-def _forecast_dict_for_forecast(forecast):
+def _forecast_dict_for_forecast(forecast, request):
     """
     json_io_dict_from_forecast() helper that returns a dict for the 'forecast' section of the exported json.
     See cdc-predictions.json for an example.
     """
+    from forecast_app.serializers import TimeZeroSerializer  # avoid circular imports
+
+
+    timezero_serializer = TimeZeroSerializer(forecast.time_zero, context={'request': request})
     return {'id': forecast.pk,
             'forecast_model_id': forecast.forecast_model.pk,
             'source': forecast.source,
             'created_at': forecast.created_at.isoformat(),
-            'time_zero': {
-                'timezero_date': forecast.time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                'data_version_date': forecast.time_zero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                if forecast.time_zero.data_version_date else None
-            }}
+            'time_zero': timezero_serializer.data}
 
 
 #
@@ -271,8 +271,8 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
 
     # validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type".
     duplicate_unit_target_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
-                                        in loc_targ_to_pred_classes.items()
-                                        if len(pred_classes) != len(set(pred_classes))]
+                                    in loc_targ_to_pred_classes.items()
+                                    if len(pred_classes) != len(set(pred_classes))]
     if duplicate_unit_target_tuples:
         raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
                            f"Found these duplicate unit/target tuples: {duplicate_unit_target_tuples}")

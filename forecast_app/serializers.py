@@ -27,9 +27,9 @@ class TargetSerializer(serializers.ModelSerializer):
         model = Target
 
         # always include these fields:
-        fields = ('id', 'url', 'name', 'type', 'description', 'is_step_ahead')
+        fields = ('id', 'url', 'name', 'type', 'description', 'is_step_ahead',)
 
-        # optionally/dynamically include these fields (see _target_dict_for_target() for logic):
+        # optionally/dynamically include these fields:
         # fields = ('step_ahead_increment', 'unit', 'range', 'cats')
 
         extra_kwargs = {
@@ -41,12 +41,11 @@ class TargetSerializer(serializers.ModelSerializer):
         return target.type_as_str()
 
 
-    # def to_representation(self, instance):
     def to_representation(self, target):
         # clear and re-cache the `self.fields` @cached_property for possible re-use by ListSerializer (many=True).
-        # (recall that a single TargetSerializer instance is re-used to generate all data in the ListSerializer
-        # queryset, but we need to re-generate fields each time due to their being dynamic). inspired
-        # per https://stackoverflow.com/questions/50290390/list-serializer-with-dynamic-fields-in-django-rest-framework
+        # (recall that a single Serializer instance is re-used to generate all data in the ListSerializer queryset, but
+        # we need to re-generate fields each time due to their being dynamic). implementation per
+        # https://stackoverflow.com/questions/50290390/list-serializer-with-dynamic-fields-in-django-rest-framework
         try:
             del self.fields
         except AttributeError:
@@ -58,11 +57,8 @@ class TargetSerializer(serializers.ModelSerializer):
 
 
     def add_optional_fields(self, target):
-        # dynamically add optional fields - see https://www.django-rest-framework.org/api-guide/serializers/#dynamically-modifying-fields
-        # notes:
-        # - see _target_dict_for_target() for the below logic re: which fields to add
-        # - we exclude 'niceties' like allow_null, help_text, required, style, etc.
-        # - the logic for adding fields is via _target_dict_for_target()
+        # dynamically add optional fields - see https://www.django-rest-framework.org/api-guide/serializers/#dynamically-modifying-fields .
+        # note: we exclude 'niceties' like allow_null, help_text, required, style, etc.
 
         # first clear all optional contexts for possible re-use by ListSerializer (many=True)
         if 'range' in self.context:
@@ -72,7 +68,6 @@ class TargetSerializer(serializers.ModelSerializer):
 
         # add step_ahead_increment
         if target.is_step_ahead and (target.step_ahead_increment is not None):
-            # target_dict['step_ahead_increment'] = target.step_ahead_increment
             self.fields['step_ahead_increment'] = IntegerField()
 
         # add unit
@@ -119,10 +114,40 @@ class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = TimeZero
-        fields = ('id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name')
+
+        # always include these fields:
+        fields = ('id', 'url', 'timezero_date', 'data_version_date', 'is_season_start',)
+
+        # optionally/dynamically include these fields:
+        # fields = ('season_name')
+
         extra_kwargs = {
             'url': {'view_name': 'api-timezero-detail'},
         }
+
+
+    def to_representation(self, timezero):
+        # clear and re-cache the `self.fields` @cached_property for possible re-use by ListSerializer (many=True).
+        # (recall that a single Serializer instance is re-used to generate all data in the ListSerializer queryset, but
+        # we need to re-generate fields each time due to their being dynamic). implementation per
+        # https://stackoverflow.com/questions/50290390/list-serializer-with-dynamic-fields-in-django-rest-framework
+        try:
+            del self.fields
+        except AttributeError:
+            pass
+        self.fields
+
+        self.add_optional_fields(timezero)
+        return super().to_representation(timezero)
+
+
+    def add_optional_fields(self, timezero):
+        # dynamically add optional fields - see https://www.django-rest-framework.org/api-guide/serializers/#dynamically-modifying-fields .
+        # note: we exclude 'niceties' like allow_null, help_text, required, style, etc.
+
+        # add season_name
+        if timezero.is_season_start:
+            self.fields['season_name'] = CharField()
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
@@ -140,7 +165,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         model = Project
         fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
                   'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
-                  'targets', 'timezeros')
+                  'targets', 'timezeros',)
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},
@@ -169,7 +194,7 @@ class TruthSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'project', 'truth_csv_filename', 'truth_data')
+        fields = ('id', 'url', 'project', 'truth_csv_filename', 'truth_data',)
         extra_kwargs = {
             'url': {'view_name': 'api-truth-detail'},
         }
@@ -192,7 +217,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'url', 'username', 'owned_models', 'projects_and_roles')
+        fields = ('id', 'url', 'username', 'owned_models', 'projects_and_roles',)
         extra_kwargs = {
             'url': {'view_name': 'api-user-detail'},
         }
@@ -221,7 +246,7 @@ class UploadFileJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = UploadFileJob
         fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
-                  'input_json', 'output_json')
+                  'input_json', 'output_json',)
         extra_kwargs = {
             'url': {'view_name': 'api-upload-file-job-detail'},
         }
@@ -236,7 +261,7 @@ class ForecastModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = ForecastModel
         fields = ('id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
-                  'forecasts')
+                  'forecasts',)
         extra_kwargs = {
             'url': {'view_name': 'api-model-detail'},
         }
@@ -250,7 +275,7 @@ class ForecastSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Forecast
-        fields = ('id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'forecast_data')
+        fields = ('id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'forecast_data',)
         extra_kwargs = {
             'url': {'view_name': 'api-forecast-detail'},
         }

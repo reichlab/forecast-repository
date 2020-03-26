@@ -313,7 +313,7 @@ def validate_and_create_timezero(project, timezero_config, is_validate_only=Fals
     """
     # validate timezero_config. optional keys are tested below
     all_keys = set(timezero_config.keys())
-    tested_keys = all_keys - {'season_name'}  # optional key
+    tested_keys = all_keys - {'id', 'url', 'season_name'}  # optional keys
     expected_keys = {'timezero_date', 'data_version_date', 'is_season_start'}  # required keys
     if tested_keys != expected_keys:
         raise RuntimeError(f"Wrong keys in timezero_config. difference={expected_keys ^ tested_keys}. "

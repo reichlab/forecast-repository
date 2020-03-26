@@ -114,7 +114,7 @@ class ForecastTestCase(TestCase):
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
         act_json_io_dict = json_io_dict_from_forecast(forecast2, request)
         # recall that json predictions are sorted by unit, type
         exp_pred_dict = {'unit': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
@@ -449,7 +449,7 @@ class ForecastTestCase(TestCase):
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
             # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
             #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-            request = APIRequestFactory().get('/')
+            request = APIRequestFactory().request()
             json_io_dict_out = json_io_dict_from_forecast(forecast, request)
 
         # test round trip. ignore meta:

@@ -66,28 +66,23 @@ def config_dict_from_project(project, request):
     :param project: a Project
     :param request: required for TargetSerializer's 'id' field
     """
-    timezeros = []
-    for timezero in project.timezeros.all():
-        timezero_dict = {'timezero_date': timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                         'data_version_date': timezero.data_version_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-                         if timezero.data_version_date else None,
-                         'is_season_start': timezero.is_season_start}
-        if timezero.is_season_start:
-            timezero_dict['season_name'] = timezero.season_name
-        timezeros.append(timezero_dict)
+    from forecast_app.serializers import TimeZeroSerializer  # avoid circular imports
 
+
+    tz_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
             'units': [{'name': unit.name} for unit in project.units.all()],
             'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
-            'timezeros': timezeros}
+            'timezeros': [dict(_) for _ in tz_serializer_multi.data]}  # replace OrderedDicts
 
 
 def _target_dict_for_target(target, request):
     # request is required for TargetSerializer's 'id' field
     from forecast_app.serializers import TargetSerializer  # avoid circular imports
+
 
     if target.type is None:
         raise RuntimeError(f"target has no type: {target}")

@@ -13,7 +13,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
-from forecast_app.serializers import TargetSerializer
+from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
@@ -568,8 +568,8 @@ class ViewsTestCase(TestCase):
                           'cats'], list(response.data))
 
         response = self.client.get(reverse('api-timezero-detail', args=[self.public_tz1.pk]))
-        self.assertEqual(['id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'],
-                         list(response.data))
+        self.assertEqual(['id', 'url', 'timezero_date', 'data_version_date', 'is_season_start'],
+                         list(response.data))  # no 'season_name'
 
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
         exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
@@ -592,6 +592,62 @@ class ViewsTestCase(TestCase):
         response_dict = json.loads(response.content)
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
         self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
+
+
+    def test_timezero_serialization_api_timezero_detail(self):
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), self.po_user)
+
+        # test 'api-timezero-detail' | '2011-10-02'
+        timezero = project.timezeros.filter(timezero_date='2011-10-02').first()
+        response = self.client.get(reverse('api-timezero-detail', args=[timezero.pk]))
+        # yes 'season_name' b/c 'is_season_start':
+        self.assertEqual({'is_season_start', 'season_name', 'data_version_date', 'id', 'timezero_date', 'url'},
+                         set(response.data))
+
+        # test 'api-timezero-detail' | '2011-10-09'
+        timezero = project.timezeros.filter(timezero_date='2011-10-09').first()
+        response = self.client.get(reverse('api-timezero-detail', args=[timezero.pk]))
+        # no 'season_name' b/c not 'is_season_start':
+        self.assertEqual({'timezero_date', 'id', 'data_version_date', 'is_season_start', 'url'}, set(response.data))
+
+
+    def test_timezero_serialization_api_timezero_list(self):
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), self.po_user)
+
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().request()
+
+        # test serializing multiple timezeros via direct instantiation
+        timezero_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
+        # -> <class 'rest_framework.serializers.ListSerializer'>
+        self.assertEqual(3, len(timezero_serializer_multi.data))  # 3 timezeros
+
+        # spot-check two of them
+        tz_2011_10_02_dict = [_ for _ in timezero_serializer_multi.data if _['timezero_date'] == '2011-10-02'][0]
+        # yes 'season_name' b/c 'is_season_start':
+        self.assertEqual({'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'},
+                         set(tz_2011_10_02_dict))
+
+        tz_2011_10_16_dict = [_ for _ in timezero_serializer_multi.data if _['timezero_date'] == '2011-10-16'][0]
+        # no 'season_name' b/c not 'is_season_start':
+        self.assertEqual({'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start'},
+                         set(tz_2011_10_16_dict))
+
+        # finally, test serializing multiple timezeros via endpoints
+        response = self.client.get(reverse('api-timezero-list', args=[project.pk]), format='json')
+        self.assertEqual(3, len(response.data))
+
+        # spot-check two of them
+        tz_2011_10_02_dict = [_ for _ in response.data if _['timezero_date'] == '2011-10-02'][0]
+        self.assertEqual({'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'},
+                         set(tz_2011_10_02_dict))
+
+        tz_2011_10_16_dict = [_ for _ in response.data if _['timezero_date'] == '2011-10-16'][0]
+        self.assertEqual({'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start'},
+                         set(tz_2011_10_16_dict))
 
 
     def test_target_serialization_api_target_detail(self):
@@ -634,7 +690,7 @@ class ViewsTestCase(TestCase):
         # test TargetSerializer being passed one vs. many instances - this drives complicated DRF functionality.
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().get('/')
+        request = APIRequestFactory().request()
 
         # test serializing a few single Targets ('pct next week' and 'Season peak week')
         pct_next_week_target = project.targets.filter(name='pct next week').first()
@@ -651,13 +707,13 @@ class ViewsTestCase(TestCase):
         self.assertEqual(f"http://testserver/api/target/{target_serializer.data['id']}/",
                          target_serializer.data['url'])  # sanity-check
 
-        # test serializing a multiple Targets
+        # test serializing multiple Targets
         target_serializer_multi = TargetSerializer(project.targets, many=True, context={'request': request})
         # -> <class 'rest_framework.serializers.ListSerializer'>
         self.assertEqual(5, len(target_serializer_multi.data))  # 5 targets
         self.assertEqual(target_serializer.data, target_serializer_multi.data[4])  # single matches multi
 
-        # finally, test serializing a multiple Targets via endpoints
+        # finally, test serializing multiple Targets via endpoints
         response = self.client.get(reverse('api-target-list', args=[project.pk]), format='json')
         self.assertEqual(5, len(response.data))
         self.assertEqual(target_serializer.data, response.data[4])  # single matches multi
@@ -866,7 +922,7 @@ class ViewsTestCase(TestCase):
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(set(json_response.json().keys()),
-                         {'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'})
+                         {'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start'})  # no 'season_name'
 
 
     def test_api_upload_forecast(self):

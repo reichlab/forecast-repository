@@ -11,7 +11,7 @@ class ProjectForm(forms.ModelForm):
         model = Project
 
         fields = ('name', 'is_public', 'time_interval_type', 'description',
-                  'home_url', 'core_data', 'logo_url', 'model_owners')
+                  'home_url', 'core_data', 'logo_url', 'model_owners',)
 
 
     def __init__(self, *args, **kwargs):
@@ -30,7 +30,7 @@ class UserModelForm(forms.ModelForm):
     class Meta:
         model = User
 
-        fields = ('email', 'first_name', 'last_name')
+        fields = ('email', 'first_name', 'last_name',)
 
 
     def __init__(self, *args, **kwargs):
@@ -50,8 +50,7 @@ class ForecastModelForm(forms.ModelForm):
     class Meta:
         model = ForecastModel
 
-        fields = ('name', 'abbreviation', 'team_name',
-                  'description', 'home_url', 'aux_data_url')
+        fields = ('name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url',)
 
 
     def __init__(self, *args, **kwargs):
