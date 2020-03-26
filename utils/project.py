@@ -59,10 +59,12 @@ def delete_project_iteratively(project):
 # config_dict_from_project()
 #
 
-# todo xx integrate with API serialization!
-def config_dict_from_project(project):
+def config_dict_from_project(project, request):
     """
     The twin of `create_project_from_json()`, returns a configuration dict for project as passed to that function.
+
+    :param project: a Project
+    :param request: required for TargetSerializer's 'id' field
     """
     timezeros = []
     for timezero in project.timezeros.all():
@@ -79,55 +81,19 @@ def config_dict_from_project(project):
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
             'units': [{'name': unit.name} for unit in project.units.all()],
-            'targets': [_target_dict_for_target(target) for target in project.targets.all()],
+            'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
             'timezeros': timezeros}
 
 
-# todo xx integrate with API serialization!
-def _target_dict_for_target(target):
+def _target_dict_for_target(target, request):
+    # request is required for TargetSerializer's 'id' field
+    from forecast_app.serializers import TargetSerializer  # avoid circular imports
+
     if target.type is None:
         raise RuntimeError(f"target has no type: {target}")
 
-    data_type = target.data_type()
-    type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
-
-    # start with required fields
-    target_dict = {'type': type_int_to_name[target.type],
-                   'name': target.name,
-                   'description': target.description,
-                   'is_step_ahead': target.is_step_ahead}  # required keys
-
-    # add optional fields, including 'list' ones. rather than basing whether they are available on target type (for
-    # example, 'continuous' targets /might/ have a range), we check for whether the optional field (including 'list'
-    # ones) is present. the exception is step_ahead_increment, for which we check is_step_ahead
-
-    # add is_step_ahead
-    if target.is_step_ahead and (target.step_ahead_increment is not None):
-        target_dict['step_ahead_increment'] = target.step_ahead_increment
-
-    # add unit
-    if target.unit is not None:
-        target_dict['unit'] = target.unit
-
-    # add range
-    target_ranges_qs = target.ranges  # target.value_i, target.value_f
-    if target_ranges_qs.count() != 0:  # s/b exactly 2
-        target_ranges = target_ranges_qs.values_list('value_i', flat=True) \
-            if data_type == Target.INTEGER_DATA_TYPE \
-            else target_ranges_qs.values_list('value_f', flat=True)
-        target_ranges = sorted(target_ranges)
-        target_dict['range'] = [target_ranges[0], target_ranges[1]]
-
-    # add cats
-    cats_values = target.cats_values()
-    if cats_values and (target.type != Target.BINARY_TARGET_TYPE):  # skip implicit binary that were added automatically
-        if data_type == Target.DATE_DATA_TYPE:
-            cats_values = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT) for cat_date in cats_values]
-        target_dict['cats'] = sorted(cats_values)
-    elif target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
-        # handle the case of required cats list that must have come in but was empty
-        target_dict['cats'] = []
-    return target_dict
+    serializer = TargetSerializer(target, context={'request': request})
+    return serializer.data
 
 
 #
@@ -261,7 +227,7 @@ def _validate_and_create_targets(project, project_dict, is_validate_only=False):
 def _validate_target_dict(target_dict, type_name_to_type_int):
     # check for keys required by all target types. optional keys are tested below
     all_keys = set(target_dict.keys())
-    tested_keys = all_keys - {'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
+    tested_keys = all_keys - {'id', 'url', 'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
     expected_keys = {'name', 'description', 'type', 'is_step_ahead'}
     if tested_keys != expected_keys:
         raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "

@@ -4,6 +4,7 @@ import itertools
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import BooleanField, IntegerField
+from rest_framework.test import APIRequestFactory
 
 from forecast_app.models import Project, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution
 from utils.utilities import basic_str, YYYY_MM_DD_DATE_FORMAT
@@ -92,9 +93,14 @@ class Target(models.Model):
 
 
         # validate by serializing to a dict so we can use _validate_target_dict(). note that Targets created without
-        # a name, description
+        # a name, description. request is required for TargetSerializer's 'id' field, but that field is ignored, so as
+        # a hack we use APIRequestFactory. the other way around this is to make the 'id' field dynamic, but that looks
+        # like it could get complicated - see rest_framework.relations.HyperlinkedIdentityField,
+        # rest_framework.serializers.ModelSerializer.build_url_field(), etc. so we deal with the hack for now :-)
+        request = APIRequestFactory().get('/')
+        target_dict = _target_dict_for_target(self, request)
+
         type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
-        target_dict = _target_dict_for_target(self)
         _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
 
         # done

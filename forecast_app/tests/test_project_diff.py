@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory
 
 from forecast_app.tests.test_scores import _update_scores_for_all_projects
 from utils.make_minimal_projects import create_docs_project
@@ -25,7 +26,10 @@ class ProjectDiffTestCase(TestCase):
     def test_project_config_diff(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
-        current_config_dict = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        current_config_dict = config_dict_from_project(project, request)
 
         # project fields: edit
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -147,7 +151,10 @@ class ProjectDiffTestCase(TestCase):
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
         _update_scores_for_all_projects()
 
-        out_config_dict = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
         changes = project_config_diff(out_config_dict, edit_config_dict)
@@ -163,7 +170,10 @@ class ProjectDiffTestCase(TestCase):
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
         _update_scores_for_all_projects()
 
-        out_config_dict = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 
@@ -181,7 +191,10 @@ class ProjectDiffTestCase(TestCase):
         _update_scores_for_all_projects()
 
         # make some changes
-        out_config_dict = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 
@@ -193,7 +206,10 @@ class ProjectDiffTestCase(TestCase):
     def test_diff_from_file(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
-        out_config_dict = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        out_config_dict = config_dict_from_project(project, request)
 
         # this json file makes the same changes as _make_some_changes():
         with open(Path('forecast_app/tests/project_diff/docs-project-edited.json')) as fp:
@@ -222,7 +238,10 @@ class ProjectDiffTestCase(TestCase):
         _update_scores_for_all_projects()
 
         # make some changes
-        out_config_dict = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        out_config_dict = config_dict_from_project(project, request)
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 
@@ -283,7 +302,13 @@ class ProjectDiffTestCase(TestCase):
              'object_dict': {'timezero_date': '2011-10-22', 'data_version_date': None, 'is_season_start': True,
                              'season_name': '2011-2012'}}
         ]
-        self.assertEqual(exp_dicts, [change.serialize_to_dict() for change in changes])
+        act_dicts = [change.serialize_to_dict() for change in changes]
+        for act_dict in act_dicts:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
+            if (act_dict['object_type'] == ObjectType.TARGET) and act_dict['object_dict']:
+                if 'id' in act_dict['object_dict']:  # deleted in previous iteration?
+                    del act_dict['object_dict']['id']
+                    del act_dict['object_dict']['url']
+        self.assertEqual(exp_dicts, act_dicts)
 
         # test round-trip for all changes
         for change in changes:

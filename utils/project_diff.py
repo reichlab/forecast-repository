@@ -101,6 +101,7 @@ class Change:
                and (self.object_dict == other.object_dict)
 
 
+    # todo xx integrate with API serialization!
     def serialize_to_dict(self):
         """
         A poor man's JSON serializer. Should probably be done cleanly, e.g., via subcassing
@@ -116,6 +117,7 @@ class Change:
                 'object_dict': self.object_dict}
 
 
+    # todo xx integrate with API serialization!
     @classmethod
     def deserialize_dict(cls, serialized_change_dict):
         """

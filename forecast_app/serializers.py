@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from rest_framework.fields import CharField, IntegerField
 from rest_framework.reverse import reverse
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
@@ -24,7 +25,13 @@ class TargetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Target
-        fields = ('id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit')
+
+        # always include these fields:
+        fields = ('id', 'url', 'name', 'type', 'description', 'is_step_ahead')
+
+        # optionally/dynamically include these fields (see _target_dict_for_target() for logic):
+        # fields = ('step_ahead_increment', 'unit', 'range', 'cats')
+
         extra_kwargs = {
             'url': {'view_name': 'api-target-detail'},
         }
@@ -32,6 +39,76 @@ class TargetSerializer(serializers.ModelSerializer):
 
     def get_type(self, target):
         return target.type_as_str()
+
+
+    # def to_representation(self, instance):
+    def to_representation(self, target):
+        # clear and re-cache the `self.fields` @cached_property for possible re-use by ListSerializer (many=True).
+        # (recall that a single TargetSerializer instance is re-used to generate all data in the ListSerializer
+        # queryset, but we need to re-generate fields each time due to their being dynamic). inspired
+        # per https://stackoverflow.com/questions/50290390/list-serializer-with-dynamic-fields-in-django-rest-framework
+        try:
+            del self.fields
+        except AttributeError:
+            pass
+        self.fields
+
+        self.add_optional_fields(target)
+        return super().to_representation(target)
+
+
+    def add_optional_fields(self, target):
+        # dynamically add optional fields - see https://www.django-rest-framework.org/api-guide/serializers/#dynamically-modifying-fields
+        # notes:
+        # - see _target_dict_for_target() for the below logic re: which fields to add
+        # - we exclude 'niceties' like allow_null, help_text, required, style, etc.
+        # - the logic for adding fields is via _target_dict_for_target()
+
+        # first clear all optional contexts for possible re-use by ListSerializer (many=True)
+        if 'range' in self.context:
+            del self.context['range']
+        if 'cats' in self.context:
+            del self.context['cats']
+
+        # add step_ahead_increment
+        if target.is_step_ahead and (target.step_ahead_increment is not None):
+            # target_dict['step_ahead_increment'] = target.step_ahead_increment
+            self.fields['step_ahead_increment'] = IntegerField()
+
+        # add unit
+        if target.unit is not None:
+            self.fields['unit'] = CharField()
+
+        # add range
+        data_type = target.data_type()
+        target_ranges_qs = target.ranges  # target.value_i, target.value_f
+        if target_ranges_qs.count() != 0:  # s/b exactly 2
+            target_ranges = target_ranges_qs.values_list('value_i', flat=True) \
+                if data_type == Target.INTEGER_DATA_TYPE \
+                else target_ranges_qs.values_list('value_f', flat=True)
+            target_ranges = sorted(target_ranges)
+            self.context['range'] = [target_ranges[0], target_ranges[1]]
+            self.fields['range'] = serializers.SerializerMethodField('get_range')
+
+        # add cats
+        cats_values = target.cats_values()
+        if cats_values and (target.type != Target.BINARY_TARGET_TYPE):  # skip implicit binary -  added automatically
+            if data_type == Target.DATE_DATA_TYPE:
+                cats_values = [cat_date.strftime(YYYY_MM_DD_DATE_FORMAT) for cat_date in cats_values]
+            self.context['cats'] = sorted(cats_values)
+        elif target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
+            # handle the case of required cats list that must have come in but was empty
+            self.context['cats'] = []
+        if 'cats' in self.context:
+            self.fields['cats'] = serializers.SerializerMethodField('get_cats')
+
+
+    def get_range(self, target):
+        return self.context['range']
+
+
+    def get_cats(self, target):
+        return self.context['cats']
 
 
 class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):

@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory
 
 from forecast_app.models import Project, Target
 from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target
@@ -23,7 +24,13 @@ class ProjectUtilTestCase(TestCase):
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
         project = create_project_from_json(input_project_dict, po_user)
-        output_project_config = config_dict_from_project(project)
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        output_project_config = config_dict_from_project(project, request)
+        for target_dict in output_project_config['targets']:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
+            del target_dict['id']
+            del target_dict['url']
         self.assertEqual(input_project_dict, output_project_config)
 
 
@@ -409,7 +416,7 @@ class ProjectUtilTestCase(TestCase):
                           (None, None, 'mild', None, None),
                           (None, None, 'moderate', None, None),
                           (None, None, 'severe', None, None)],
-            list(cats.values_list('cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')))
+                         list(cats.values_list('cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')))
 
         # test 'above baseline' target. binary, with two implicit boolean cats created behind-the-scenes
         target = project.targets.filter(name='above baseline').first()
@@ -440,7 +447,13 @@ class ProjectUtilTestCase(TestCase):
 
         # 2. Target -> target_dict
         # does target_dict() = {...}  # required keys:
-        output_target_dicts = [_target_dict_for_target(target) for target in project.targets.all()]
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        output_target_dicts = [_target_dict_for_target(target, request) for target in project.targets.all()]
 
         # 3. they should be equal
+        for target_dict in output_target_dicts:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
+            del target_dict['id']
+            del target_dict['url']
         self.assertEqual(input_target_dicts, output_target_dicts)

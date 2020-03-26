@@ -475,7 +475,7 @@ def download_project_config(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    project_config = config_dict_from_project(project)
+    project_config = config_dict_from_project(project, request)
     filename = get_valid_filename(f'{project.name}-config.json')
     response = JsonResponse(project_config)  # defaults to 'content_type' 'application/json'
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -583,7 +583,7 @@ def edit_project_from_file_preview(request, project_pk):
         return is_error
 
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    current_config_dict = config_dict_from_project(project)
+    current_config_dict = config_dict_from_project(project, request)
     new_config_dict = json.load(data_file)
     changes = order_project_config_diff(project_config_diff(current_config_dict, new_config_dict))
     database_changes = database_changes_for_project_config_diff(project, changes)
@@ -960,7 +960,7 @@ def download_forecast(request, forecast_pk):
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
 
-    return json_response_for_forecast(forecast)
+    return json_response_for_forecast(forecast, request)
 
 
 #

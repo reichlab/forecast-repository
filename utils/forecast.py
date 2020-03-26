@@ -26,7 +26,7 @@ PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
 # json_io_dict_from_forecast
 #
 
-def json_io_dict_from_forecast(forecast):
+def json_io_dict_from_forecast(forecast, request):
     """
     The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for exporting json (for
     example). See EW01-2011-ReichLab_kde_US_National.json for an example. Does not reuse that function's helper methods
@@ -34,6 +34,7 @@ def json_io_dict_from_forecast(forecast):
     predictions in CDC CSV files. Does include the 'meta' section in the returned dict.
 
     :param forecast: a Forecast whose predictions are to be outputted
+    :param request: required for TargetSerializer's 'id' field
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by unit
         and target for visibility. see docs for details
     """
@@ -44,7 +45,7 @@ def json_io_dict_from_forecast(forecast):
             'units': sorted([{'name': unit_names} for unit_names in unit_names],
                                 key=lambda _: (_['name'])),
             'targets': sorted(
-                [_target_dict_for_target(target) for target in forecast.forecast_model.project.targets.all()],
+                [_target_dict_for_target(target, request) for target in forecast.forecast_model.project.targets.all()],
                 key=lambda _: (_['name'])),
         },
         'predictions': sorted(prediction_dicts, key=lambda _: (_['unit'], _['target']))}

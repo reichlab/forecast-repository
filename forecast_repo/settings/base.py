@@ -228,7 +228,7 @@ if not S3_BUCKET_PREFIX:
     raise RuntimeError('base.py: S3_BUCKET_PREFIX not configured!')
 
 #
-# support for sending emails via https://www.sendinblue.com/ by way of https://github.com/anymail/django-anymail
+# support for sending emails per https://www.sendinblue.com/ by way of https://github.com/anymail/django-anymail
 #
 
 ANYMAIL = {

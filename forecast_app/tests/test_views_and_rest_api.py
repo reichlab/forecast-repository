@@ -9,12 +9,13 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, APIRequestFactory
 
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
+from forecast_app.serializers import TargetSerializer
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
-from utils.project import delete_project_iteratively, load_truth_data
+from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 
@@ -563,8 +564,8 @@ class ViewsTestCase(TestCase):
 
         target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
         response = self.client.get(reverse('api-target-detail', args=[target_1wk.pk]))
-        self.assertEqual(['id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit'],
-                         list(response.data))
+        self.assertEqual(['id', 'url', 'name', 'type', 'description', 'is_step_ahead', 'step_ahead_increment', 'unit',
+                          'cats'], list(response.data))
 
         response = self.client.get(reverse('api-timezero-detail', args=[self.public_tz1.pk]))
         self.assertEqual(['id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'],
@@ -591,6 +592,75 @@ class ViewsTestCase(TestCase):
         response_dict = json.loads(response.content)
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
         self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
+
+
+    def test_target_serialization_api_target_detail(self):
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), self.po_user)
+
+        # test 'api-target-detail' | 'pct next week'
+        pct_next_week_target = project.targets.filter(name='pct next week').first()
+        response = self.client.get(reverse('api-target-detail', args=[pct_next_week_target.pk]))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit',
+                          'range', 'cats'}, set(response.data))
+
+        # test 'api-target-detail' | 'cases next week'
+        cases_next_week_target = project.targets.filter(name='cases next week').first()
+        response = self.client.get(reverse('api-target-detail', args=[cases_next_week_target.pk]))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit',
+                          'range', 'cats'}, set(response.data))
+
+        # test 'api-target-detail' | 'season severity'
+        season_severity_target = project.targets.filter(name='season severity').first()
+        response = self.client.get(reverse('api-target-detail', args=[season_severity_target.pk]))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'cats'}, set(response.data))
+
+        # test 'api-target-detail' | 'above baseline'
+        above_baseline_target = project.targets.filter(name='above baseline').first()
+        response = self.client.get(reverse('api-target-detail', args=[above_baseline_target.pk]))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead'}, set(response.data))
+
+        # test 'api-target-detail' | 'Season peak week'
+        season_peak_week_target = project.targets.filter(name='Season peak week').first()
+        response = self.client.get(reverse('api-target-detail', args=[season_peak_week_target.pk]))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'unit', 'cats'},
+                         set(response.data))
+
+
+    def test_target_serialization_api_target_list(self):
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), self.po_user)
+
+        # test TargetSerializer being passed one vs. many instances - this drives complicated DRF functionality.
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+
+        # test serializing a few single Targets ('pct next week' and 'Season peak week')
+        pct_next_week_target = project.targets.filter(name='pct next week').first()
+        target_serializer = TargetSerializer(pct_next_week_target, context={'request': request})
+        # -> <class 'forecast_app.serializers.TargetSerializer'>
+        self.assertEqual({'name', 'id', 'step_ahead_increment', 'url', 'is_step_ahead', 'range', 'description', 'unit',
+                          'type', 'cats'}, set(target_serializer.data))
+        self.assertEqual([0.0, 100.0], target_serializer.data['range'])  # sanity-check
+
+        season_peak_week_target = project.targets.filter(name='Season peak week').first()
+        target_serializer = TargetSerializer(season_peak_week_target, context={'request': request})
+        self.assertEqual({'description', 'is_step_ahead', 'url', 'name', 'type', 'id', 'cats', 'unit'},
+                         set(target_serializer.data))
+        self.assertEqual(f"http://testserver/api/target/{target_serializer.data['id']}/",
+                         target_serializer.data['url'])  # sanity-check
+
+        # test serializing a multiple Targets
+        target_serializer_multi = TargetSerializer(project.targets, many=True, context={'request': request})
+        # -> <class 'rest_framework.serializers.ListSerializer'>
+        self.assertEqual(5, len(target_serializer_multi.data))  # 5 targets
+        self.assertEqual(target_serializer.data, target_serializer_multi.data[4])  # single matches multi
+
+        # finally, test serializing a multiple Targets via endpoints
+        response = self.client.get(reverse('api-target-list', args=[project.pk]), format='json')
+        self.assertEqual(5, len(response.data))
+        self.assertEqual(target_serializer.data, response.data[4])  # single matches multi
 
 
     def test_api_delete_forecast(self):

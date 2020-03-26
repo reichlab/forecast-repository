@@ -145,7 +145,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            current_config_dict = config_dict_from_project(project)
+            current_config_dict = config_dict_from_project(project, request)
             new_config_dict = request.data['project_config']
             changes = project_config_diff(current_config_dict, new_config_dict)
             # database_changes = database_changes_for_project_config_diff(project, changes)
@@ -624,11 +624,13 @@ def forecast_data(request, pk):
     if (not request.user.is_authenticated) or not forecast.forecast_model.project.is_user_ok_to_view(request.user):
         return HttpResponseForbidden()
 
-    return json_response_for_forecast(forecast)
+    return json_response_for_forecast(forecast, request)
 
 
-def json_response_for_forecast(forecast):
+def json_response_for_forecast(forecast, request):
     """
+    :param forecast: a Forecast
+    :param request: required for TargetSerializer's 'id' field
     :return: a JsonResponse for forecast
     """
     # note: I tried to use a rest_framework.response.Response, which is supposed to support pretty printing on the
@@ -637,7 +639,7 @@ def json_response_for_forecast(forecast):
     # but when I tried this, returned a delimited string instead of JSON:
     #   return Response(JSONRenderer().render(unit_dicts))
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
-    response = JsonResponse(json_io_dict_from_forecast(forecast))  # defaults to 'content_type' 'application/json'
+    response = JsonResponse(json_io_dict_from_forecast(forecast, request))  # default 'content_type': 'application/json'
     response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(get_valid_filename(forecast.source))
     return response
 

@@ -7,8 +7,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory
 
-from forecast_app.models import Project, TimeZero, Score, NamedDistribution
+from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.tests.test_scores import _make_thai_log_score_project
@@ -111,7 +112,11 @@ class ForecastTestCase(TestCase):
     def test_load_forecast_thai_point_json_type(self):
         # exposes a bug where 0-valued bin points are loaded as null
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
-        act_json_io_dict = json_io_dict_from_forecast(forecast2)  # recall json predictions are sorted by unit, type
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        request = APIRequestFactory().get('/')
+        act_json_io_dict = json_io_dict_from_forecast(forecast2, request)
+        # recall that json predictions are sorted by unit, type
         exp_pred_dict = {'unit': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
         act_pred_dict = [pred_dict for pred_dict in act_json_io_dict['predictions']
                          if (pred_dict['unit'] == 'TH01') and (pred_dict['target'] == '1_biweek_ahead')][0]
@@ -442,7 +447,10 @@ class ForecastTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
-            json_io_dict_out = json_io_dict_from_forecast(forecast)
+            # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+            #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+            request = APIRequestFactory().get('/')
+            json_io_dict_out = json_io_dict_from_forecast(forecast, request)
 
         # test round trip. ignore meta:
         del (json_io_dict_in['meta'])
