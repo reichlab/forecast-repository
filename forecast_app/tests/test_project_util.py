@@ -34,6 +34,9 @@ class ProjectUtilTestCase(TestCase):
         for target_dict in output_project_config['timezeros']:  # "" TimeZeroSerializer
             del target_dict['id']
             del target_dict['url']
+        for target_dict in output_project_config['units']:  # "" UnitSerializer
+            del target_dict['id']
+            del target_dict['url']
         self.assertEqual(input_project_dict, output_project_config)
 
 

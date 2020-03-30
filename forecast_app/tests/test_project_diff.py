@@ -304,8 +304,7 @@ class ProjectDiffTestCase(TestCase):
         ]
         act_dicts = [change.serialize_to_dict() for change in changes]
         for act_dict in act_dicts:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
-            if ((act_dict['object_type'] == ObjectType.TARGET) or (act_dict['object_type'] == ObjectType.TIMEZERO)) \
-                    and act_dict['object_dict']:
+            if act_dict['object_dict']:
                 if 'id' in act_dict['object_dict']:  # deleted in previous iteration?
                     del act_dict['object_dict']['id']
                     del act_dict['object_dict']['url']

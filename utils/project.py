@@ -66,15 +66,16 @@ def config_dict_from_project(project, request):
     :param project: a Project
     :param request: required for TargetSerializer's 'id' field
     """
-    from forecast_app.serializers import TimeZeroSerializer  # avoid circular imports
+    from forecast_app.serializers import UnitSerializer, TimeZeroSerializer  # avoid circular imports
 
 
+    unit_serializer_multi = UnitSerializer(project.units, many=True, context={'request': request})
     tz_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
             'visualization_y_label': project.visualization_y_label,
-            'units': [{'name': unit.name} for unit in project.units.all()],
+            'units': [dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
             'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
             'timezeros': [dict(_) for _ in tz_serializer_multi.data]}  # replace OrderedDicts
 
@@ -173,7 +174,7 @@ def _validate_and_create_timezeros(project, project_dict, is_validate_only=False
     return timezeros if not is_validate_only else []
 
 
-# todo xx integrate with API serialization!
+# todo xx integrate with API serialization?
 def _validate_and_create_targets(project, project_dict, is_validate_only=False):
     targets = []
     type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}

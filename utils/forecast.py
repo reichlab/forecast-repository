@@ -38,11 +38,16 @@ def json_io_dict_from_forecast(forecast, request):
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by unit
         and target for visibility. see docs for details
     """
+    from forecast_app.serializers import UnitSerializer  # avoid circular imports
+
+
+    unit_serializer_multi = UnitSerializer(forecast.forecast_model.project.units, many=True,
+                                           context={'request': request})
     unit_names, target_names, prediction_dicts = _units_targets_pred_dicts_from_forecast(forecast)
     return {
         'meta': {
             'forecast': _forecast_dict_for_forecast(forecast, request),
-            'units': sorted([{'name': unit_names} for unit_names in unit_names],
+            'units': sorted([dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
                             key=lambda _: (_['name'])),
             'targets': sorted(
                 [_target_dict_for_target(target, request) for target in forecast.forecast_model.project.targets.all()],
