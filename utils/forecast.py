@@ -38,15 +38,16 @@ def json_io_dict_from_forecast(forecast, request):
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by unit
         and target for visibility. see docs for details
     """
-    from forecast_app.serializers import UnitSerializer  # avoid circular imports
+    from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
 
 
     unit_serializer_multi = UnitSerializer(forecast.forecast_model.project.units, many=True,
                                            context={'request': request})
+    forecast_serializer = ForecastSerializer(forecast, context={'request': request})
     unit_names, target_names, prediction_dicts = _units_targets_pred_dicts_from_forecast(forecast)
     return {
         'meta': {
-            'forecast': _forecast_dict_for_forecast(forecast, request),
+            'forecast': forecast_serializer.data,
             'units': sorted([dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
                             key=lambda _: (_['name'])),
             'targets': sorted(
@@ -159,22 +160,6 @@ def _units_targets_pred_dicts_from_forecast(forecast):
                                      'prediction': {'sample': sample_cats}})
 
     return unit_names, target_names, prediction_dicts
-
-
-def _forecast_dict_for_forecast(forecast, request):
-    """
-    json_io_dict_from_forecast() helper that returns a dict for the 'forecast' section of the exported json.
-    See cdc-predictions.json for an example.
-    """
-    from forecast_app.serializers import TimeZeroSerializer  # avoid circular imports
-
-
-    timezero_serializer = TimeZeroSerializer(forecast.time_zero, context={'request': request})
-    return {'id': forecast.pk,
-            'forecast_model_id': forecast.forecast_model.pk,
-            'source': forecast.source,
-            'created_at': forecast.created_at.isoformat(),
-            'time_zero': timezero_serializer.data}
 
 
 #

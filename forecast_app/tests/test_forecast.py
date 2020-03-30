@@ -103,7 +103,7 @@ class ForecastTestCase(TestCase):
                     ('US National', 'Season onset', 0.1, None, None, 'cat2', None, None),
                     ('US National', 'Season onset', 0.9, None, None, 'cat3', None, None)]
         bin_distribution_qs = forecast2.bin_distribution_qs() \
-            .order_by('unit__name', 'target__name') \
+            .order_by('unit__name', 'target__name', 'prob') \
             .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
         self.assertEqual(4, bin_distribution_qs.count())
         self.assertEqual(exp_bins, list(bin_distribution_qs))
@@ -452,7 +452,16 @@ class ForecastTestCase(TestCase):
             request = APIRequestFactory().request()
             json_io_dict_out = json_io_dict_from_forecast(forecast, request)
 
-        # test round trip. ignore meta:
+        # test round trip. ignore meta, but spot-check it first
+        out_meta = json_io_dict_out['meta']
+        self.assertEqual({'targets', 'forecast', 'units'}, set(out_meta.keys()))
+        self.assertEqual({'cats', 'unit', 'name', 'is_step_ahead', 'type', 'description', 'id', 'url'},
+                         set(out_meta['targets'][0].keys()))
+        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'forecast_data', 'source', 'id', 'url'},
+                         set(out_meta['forecast'].keys()))
+        self.assertEqual({'id', 'name', 'url'}, set(out_meta['units'][0].keys()))
+        self.assertIsInstance(out_meta['forecast']['time_zero'], dict)  # test that time_zero is expanded, not URL
+
         del (json_io_dict_in['meta'])
         del (json_io_dict_out['meta'])
 

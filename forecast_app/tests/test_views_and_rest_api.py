@@ -843,9 +843,8 @@ class ViewsTestCase(TestCase):
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
-        self.assertEqual(set(json_response.json().keys()),
-                         {'project', 'home_url', 'forecasts', 'aux_data_url', 'abbreviation', 'description', 'owner',
-                          'url', 'id', 'name'})
+        self.assertEqual({'project', 'home_url', 'forecasts', 'aux_data_url', 'abbreviation', 'description', 'owner',
+                          'url', 'id', 'name'}, set(json_response.json().keys()))
 
         # spot-check response
         model_json = json_response.json()

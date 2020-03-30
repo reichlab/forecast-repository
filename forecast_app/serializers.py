@@ -107,7 +107,7 @@ class TargetSerializer(serializers.ModelSerializer):
 
 
 class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
-    # customize these to use our standard format
+    # customize to use our standard format
     timezero_date = serializers.DateField(format=YYYY_MM_DD_DATE_FORMAT, input_formats=[YYYY_MM_DD_DATE_FORMAT])
     data_version_date = serializers.DateField(format=YYYY_MM_DD_DATE_FORMAT, input_formats=[YYYY_MM_DD_DATE_FORMAT])
 
@@ -269,7 +269,7 @@ class ForecastModelSerializer(serializers.ModelSerializer):
 
 class ForecastSerializer(serializers.ModelSerializer):
     forecast_model = serializers.HyperlinkedRelatedField(view_name='api-model-detail', read_only=True)
-    time_zero = serializers.HyperlinkedRelatedField(view_name='api-timezero-detail', read_only=True)
+    time_zero = TimeZeroSerializer()
     forecast_data = serializers.SerializerMethodField()
 
 
