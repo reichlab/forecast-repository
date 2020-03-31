@@ -163,9 +163,9 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
-                  'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models', 'units',
-                  'targets', 'timezeros',)
+        fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
+                  'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
+                  'models', 'units', 'targets', 'timezeros',)
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},

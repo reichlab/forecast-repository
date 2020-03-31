@@ -204,9 +204,9 @@ class Target(models.Model):
         """
         # validate uniform data type
         data_type = self.data_type()
-        types_set = set(map(type, cats))
-        if len(types_set) != 1:
-            raise ValidationError(f"there was more than one data type in cats={cats}: {types_set}")
+        cats_set = set(map(type, cats))
+        if (cats_set != {int, float}) and (len(cats_set) != 1):
+            raise ValidationError(f"there was more than one data type in cats={cats}: {cats_set}")
 
         # before validating data type compatibility, try to replace date strings with actual date objects
         try:
@@ -216,8 +216,8 @@ class Target(models.Model):
             raise ValidationError(f"one or more cats were not in YYYY-MM-DD format. cats={cats}. exc={exc}")
 
         # validate data type compatibility
-        types_set = set(map(type, cats))
-        cats_type = next(iter(types_set))  # vs. pop()
+        cats_set = set(map(type, cats))
+        cats_type = next(iter(cats_set))  # vs. pop()
         if data_type != cats_type:
             raise ValidationError(f"cats data type did not match target data type. cats={cats}. cats_type={cats_type}, "
                                   f"data_type={data_type}")

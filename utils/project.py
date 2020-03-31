@@ -174,7 +174,6 @@ def _validate_and_create_timezeros(project, project_dict, is_validate_only=False
     return timezeros if not is_validate_only else []
 
 
-# todo xx integrate with API serialization?
 def _validate_and_create_targets(project, project_dict, is_validate_only=False):
     targets = []
     type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
