@@ -219,6 +219,48 @@ class ViewsTestCase(TestCase):
                 self.assertEqual(exp_status_code, response.status_code)
 
 
+    def test_projects_list_limited_visibility(self):
+        # test which projects in the projects list can be see by which users. expected:
+        #
+        # | AnonymousUser | [public_project, public_project2]                  | everyone can see public projects
+        # | temp_user     |            ""          ""                          | ""
+        # | superuser     | [          ""          ""       , private_project] | super can see all projects
+        # | po_user       |            ""          ""       ,      ""          | private_project project owner
+        # | mo_user       |            ""          ""       ,      ""          | private_project model owner
+        #
+        temp_user_password = 'p'
+        temp_user = User.objects.create_user(username="temp", password=temp_user_password)
+        user_to_password = {
+            temp_user: temp_user_password,
+            self.po_user: self.po_user_password,
+            self.superuser: self.superuser_password,
+            self.mo_user: self.mo_user_password,
+        }
+        projects_url = reverse('projects', args=[])
+        public_project_url = reverse('project-detail', args=[str(self.public_project.pk)])
+        public_project2_url = reverse('project-detail', args=[str(self.public_project2.pk)])
+        private_project_url = reverse('project-detail', args=[str(self.private_project.pk)])
+
+        # AnonymousUser and temp_user can only see self.public_project
+        self.client.logout()  # AnonymousUser
+        response = self.client.get(projects_url)
+        self.assertIn(public_project_url, str(response.content))
+        self.assertIn(public_project2_url, str(response.content))
+        self.assertNotIn(private_project_url, str(response.content))
+
+        self.client.login(username=temp_user.username, password=user_to_password[temp_user])
+        response = self.client.get(projects_url)
+        self.assertIn(public_project_url, str(response.content))
+        self.assertNotIn(private_project_url, str(response.content))
+
+        for user in [self.superuser, self.po_user, self.mo_user]:
+            self.client.login(username=user.username, password=user_to_password[user])
+            response = self.client.get(projects_url)
+            self.assertIn(public_project_url, str(response.content))
+            self.assertIn(public_project2_url, str(response.content))
+            self.assertIn(private_project_url, str(response.content))
+
+
     def test_url_edit_delete_upload_create_links(self):
         url_to_exp_content = {
             # model detail page for public model
@@ -531,9 +573,9 @@ class ViewsTestCase(TestCase):
         self.assertEqual(3, len(response.data))  # assume contents are checked below
 
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
-        self.assertEqual(['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
-                          'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models',
-                          'units', 'targets', 'timezeros'],
+        self.assertEqual(['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
+                          'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
+                          'models', 'units', 'targets', 'timezeros'],
                          list(response.data))
 
         response = self.client.get(reverse('api-unit-list', args=[self.public_project.pk]), format='json')
@@ -756,10 +798,9 @@ class ViewsTestCase(TestCase):
 
         # spot-check response
         proj_json = json_response.json()
-        self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'time_interval_type',
-                          'visualization_y_label', 'core_data', 'truth', 'model_owners', 'score_data', 'models',
-                          'units',
-                          'targets', 'timezeros'},
+        self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
+                          'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
+                          'models', 'units', 'targets', 'timezeros'},
                          set(proj_json.keys()))
         self.assertEqual('CDC Flu challenge', proj_json['name'])
 

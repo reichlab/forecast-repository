@@ -49,8 +49,10 @@ def projects(request):
     return render(
         request,
         'projects.html',
-        context={'projects': Project.objects.order_by('name'),
-                 'is_user_ok_create_project': is_user_ok_create_project(request.user)})
+        context={'projects': [project for project in Project.objects.all().order_by('name')
+                              if project.is_user_ok_to_view(request.user)],  # from api_views.ProjectList.get_queryset()
+                 'is_user_ok_create_project': is_user_ok_create_project(request.user),
+                 'total_num_projects': len(Project.objects.all())})
 
 
 #
@@ -281,7 +283,7 @@ def _unit_to_actual_points(loc_tz_date_to_actual_vals):
 
 
     unit_to_actual_points = {unit: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                                 for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+                             for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
     return unit_to_actual_points
 
 
@@ -298,7 +300,7 @@ def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
 
 
     unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
-                              for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
+                          for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
     return unit_to_actual_max
 
 

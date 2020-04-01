@@ -45,7 +45,8 @@
     {% endif %}
 
     {% if projects %}
-        <p class="help-block">The archive has {{ projects|length }} project{{ projects|length|pluralize }}:</p>
+        <p class="help-block">The archive has {{ total_num_projects }} total project{{ total_num_projects|pluralize }}
+            (some may be hidden):</p>
 
         <table class="table table-striped table-bordered">
             <tr>
