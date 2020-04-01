@@ -85,7 +85,7 @@ def _units_targets_pred_dicts_from_forecast(forecast):
     for unit_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
         unit_names.add(unit_name)
         for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
-            is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
+            is_date_target = (Target.DATE_DATA_TYPE in target_name_to_obj[target_name].data_types())
             target_names.add(target_name)
             for _, _, value_i, value_f, value_t, value_d, value_b in values_grouper:  # recall that exactly one will be non-NULL
                 # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
@@ -127,7 +127,7 @@ def _units_targets_pred_dicts_from_forecast(forecast):
     for unit_name, target_cat_prob_grouper in groupby(bincat_qs, key=lambda _: _[0]):
         unit_names.add(unit_name)
         for target_name, cat_prob_grouper in groupby(target_cat_prob_grouper, key=lambda _: _[1]):
-            is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
+            is_date_target = (Target.DATE_DATA_TYPE in target_name_to_obj[target_name].data_types())
             target_names.add(target_name)
             bin_cats, bin_probs = [], []
             for _, _, prob, cat_i, cat_f, cat_t, cat_d, cat_b in cat_prob_grouper:
@@ -147,7 +147,7 @@ def _units_targets_pred_dicts_from_forecast(forecast):
     for unit_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
         unit_names.add(unit_name)
         for target_name, sample_grouper in groupby(target_sample_grouper, key=lambda _: _[1]):
-            is_date_target = target_name_to_obj[target_name].data_type() == Target.DATE_DATA_TYPE
+            is_date_target = (Target.DATE_DATA_TYPE in target_name_to_obj[target_name].data_types())
             target_names.add(target_name)
             sample_cats, sample_probs = [], []
             for _, _, sample_i, sample_f, sample_t, sample_d, sample_b in sample_grouper:
@@ -605,7 +605,7 @@ def _replace_value_with_five_types(rows, target_pk_to_object, is_exclude_last):
     value_idx = 2
     for row in rows:
         target_pk = row[1]
-        data_type = target_pk_to_object[target_pk].data_type()
+        data_type = target_pk_to_object[target_pk].data_types()[0]  # the first is the preferred one
         value = row[value_idx]
         value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
         value_f = value if data_type == Target.FLOAT_DATA_TYPE else None

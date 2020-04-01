@@ -165,16 +165,16 @@ class TargetTestCase(TestCase):
         self.assertIn('cats data type did not match target data type', str(context.exception))
 
 
-    def test_data_type_for_target_type(self):
-        target_type_to_exp_data_type = {
-            Target.CONTINUOUS_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
-            Target.DISCRETE_TARGET_TYPE: Target.INTEGER_DATA_TYPE,
-            Target.NOMINAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
-            Target.BINARY_TARGET_TYPE: Target.BOOLEAN_DATA_TYPE,
-            Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
+    def test_data_types_for_target_type(self):
+        target_type_to_exp_data_types = {  # copied straight from data_types_for_target_type() :-)
+            Target.CONTINUOUS_TARGET_TYPE: [Target.FLOAT_DATA_TYPE, Target.INTEGER_DATA_TYPE],
+            Target.DISCRETE_TARGET_TYPE: [Target.INTEGER_DATA_TYPE],
+            Target.NOMINAL_TARGET_TYPE: [Target.TEXT_DATA_TYPE],
+            Target.BINARY_TARGET_TYPE: [Target.BOOLEAN_DATA_TYPE],
+            Target.DATE_TARGET_TYPE: [Target.DATE_DATA_TYPE],
         }
-        for target_type, exp_data_type in target_type_to_exp_data_type.items():
-            self.assertEqual(exp_data_type, Target.data_type_for_target_type(target_type))
+        for target_type, exp_data_type in target_type_to_exp_data_types.items():
+            self.assertEqual(exp_data_type, Target.data_types_for_target_type(target_type))
 
 
     def test_is_value_compatible_with_target_type(self):
@@ -245,12 +245,14 @@ class TargetTestCase(TestCase):
                                             .values_list('value_i', 'value_f')))
                 self.assertEqual(exp_range, target_ranges)
 
-        # test lower and upper types match - both each other, and the target type's data_type
+        # test lower and upper types match - both each other, and the target type's data_type. note that int is valid
+        # for continuous targets (floats) but not vice versa
         model_init['type'] = Target.CONTINUOUS_TARGET_TYPE
         target = Target.objects.create(**model_init)
-        with self.assertRaises(ValidationError) as context:
-            target.set_range(1, 2)  # should be floats
-        self.assertIn('lower and upper data type did not match target data type', str(context.exception))
+        try:
+            target.set_range(1, 2)  # ok to pass ints for floats
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         model_init['type'] = Target.DISCRETE_TARGET_TYPE
         target = Target.objects.create(**model_init)

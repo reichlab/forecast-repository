@@ -291,14 +291,14 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
         raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
 
     # validate 'range' if passed. values can be either ints or floats, and must match the target's data type
-    data_type = Target.data_type_for_target_type(type_int)  # python type
+    data_types = Target.data_types_for_target_type(type_int)  # python types. recall the first is the preferred one
     if 'range' in target_dict:
         for range_str in target_dict['range']:
             try:
-                data_type(range_str)  # try parsing as an int or float
+                data_types[0](range_str)  # try parsing as an int or float
             except ValueError as ve:
-                raise RuntimeError(f"range type did not match data_type. range_str={range_str!r}, "
-                                   f"data_type={data_type}, error: {ve}")
+                raise RuntimeError(f"range type did not match data_types. range_str={range_str!r}, "
+                                   f"data_types={data_types}, error: {ve}")
 
         if len(target_dict['range']) != 2:
             raise RuntimeError(f"range did not contain exactly two items: {target_dict['range']}")
@@ -311,15 +311,15 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
                 if type_int == Target.DATE_TARGET_TYPE:
                     datetime.datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
                 else:
-                    data_type(cat_str)  # try parsing as a string, int, or float
+                    data_types[0](cat_str)  # try parsing as a string, int, or float
             except ValueError as ve:
                 raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
-                                   f"data_type={data_type}, error: {ve}")
+                                   f"data_type={data_types[0]}, error: {ve}")
 
     # test range-cat relationships
     if ('cats' in target_dict) and ('range' in target_dict):
-        cats = [data_type(cat_str) for cat_str in target_dict['cats']]
-        the_range = [data_type(range_str) for range_str in target_dict['range']]
+        cats = [data_types[0](cat_str) for cat_str in target_dict['cats']]
+        the_range = [data_types[0](range_str) for range_str in target_dict['range']]
         if min(cats) != min(the_range):
             raise RuntimeError(f"the minimum cat ({min(cats)}) did not equal the range's lower bound "
                                f"({min(the_range)})")
@@ -507,12 +507,12 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         # point value is a str, so we ask Target.is_value_compatible_with_target_type needs to try converting to the
         # correct data type
         target = target_name_to_object[target_name]
-        data_type = target.data_type()
+        data_types = target.data_types()  # python types. recall the first is the preferred one
         is_compatible, parsed_value = Target.is_value_compatible_with_target_type(target.type, value, is_coerce=True,
                                                                                   is_convert_na_none=is_convert_na_none)
         if not is_compatible:
             raise RuntimeError(f"value was not compatible with target data type. value={value!r}, "
-                               f"data_type={data_type}")
+                               f"data_types={data_types}")
 
         # validate: For `discrete` and `continuous` targets (if `range` is specified):
         # - The entry in the `value` column for a specific `target`-`unit`-`timezero` combination must be contained
@@ -538,11 +538,11 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                                f"parsed_value={parsed_value}, cats_values={cats_values}")
 
         # valid
-        value_i = parsed_value if data_type == Target.INTEGER_DATA_TYPE else None
-        value_f = parsed_value if data_type == Target.FLOAT_DATA_TYPE else None
-        value_t = parsed_value if data_type == Target.TEXT_DATA_TYPE else None
-        value_d = parsed_value if data_type == Target.DATE_DATA_TYPE else None
-        value_b = parsed_value if data_type == Target.BOOLEAN_DATA_TYPE else None
+        value_i = parsed_value if data_types[0] == Target.INTEGER_DATA_TYPE else None
+        value_f = parsed_value if data_types[0] == Target.FLOAT_DATA_TYPE else None
+        value_t = parsed_value if data_types[0] == Target.TEXT_DATA_TYPE else None
+        value_d = parsed_value if data_types[0] == Target.DATE_DATA_TYPE else None
+        value_b = parsed_value if data_types[0] == Target.BOOLEAN_DATA_TYPE else None
 
         rows.append((time_zero.pk, unit_names_to_pks[unit_name], target.pk,
                      value_i, value_f, value_t, value_d, value_b))

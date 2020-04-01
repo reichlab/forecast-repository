@@ -52,7 +52,8 @@ def projects(request):
         context={'projects': [project for project in Project.objects.all().order_by('name')
                               if project.is_user_ok_to_view(request.user)],  # from api_views.ProjectList.get_queryset()
                  'is_user_ok_create_project': is_user_ok_create_project(request.user),
-                 'total_num_projects': len(Project.objects.all())})
+                 'num_public_projects': len(Project.objects.filter(is_public=True)),
+                 'num_private_projects': len(Project.objects.filter(is_public=False))})
 
 
 #

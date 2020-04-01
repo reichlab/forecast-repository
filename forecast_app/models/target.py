@@ -107,22 +107,24 @@ class Target(models.Model):
         super().save(*args, **kwargs)
 
 
-    def data_type(self):
-        return Target.data_type_for_target_type(self.type)
+    def data_types(self):
+        return Target.data_types_for_target_type(self.type)
 
 
     @classmethod
-    def data_type_for_target_type(cls, target_type):
+    def data_types_for_target_type(cls, target_type):
         """
         :param target_type: one of my *_TARGET_TYPE values
-        :return: the database data_type for target_type
+        :return: a list of database data_types for target_type. a list rather than a single type b/c continuous can be
+            either int OR float (no loss of information coercing int to float), but not vice versa. the first type in
+            the list is the preferred one, say for casting
         """
         return {
-            Target.CONTINUOUS_TARGET_TYPE: Target.FLOAT_DATA_TYPE,
-            Target.DISCRETE_TARGET_TYPE: Target.INTEGER_DATA_TYPE,
-            Target.NOMINAL_TARGET_TYPE: Target.TEXT_DATA_TYPE,
-            Target.BINARY_TARGET_TYPE: Target.BOOLEAN_DATA_TYPE,
-            Target.DATE_TARGET_TYPE: Target.DATE_DATA_TYPE,
+            Target.CONTINUOUS_TARGET_TYPE: [Target.FLOAT_DATA_TYPE, Target.INTEGER_DATA_TYPE],
+            Target.DISCRETE_TARGET_TYPE: [Target.INTEGER_DATA_TYPE],
+            Target.NOMINAL_TARGET_TYPE: [Target.TEXT_DATA_TYPE],
+            Target.BINARY_TARGET_TYPE: [Target.BOOLEAN_DATA_TYPE],
+            Target.DATE_TARGET_TYPE: [Target.DATE_DATA_TYPE],
         }[target_type]
 
 
@@ -173,17 +175,16 @@ class Target(models.Model):
             value_type = type(value)
             try:
                 if (target_type == Target.CONTINUOUS_TARGET_TYPE) and \
-                        ((value_type == Target.data_type_for_target_type(Target.CONTINUOUS_TARGET_TYPE)) or
-                         (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE))):
+                        (value_type in Target.data_types_for_target_type(Target.CONTINUOUS_TARGET_TYPE)):
                     return True, float(value)  # coerce in case int
                 elif (target_type == Target.DISCRETE_TARGET_TYPE) and \
-                        (value_type == Target.data_type_for_target_type(Target.DISCRETE_TARGET_TYPE)):
+                        (value_type in Target.data_types_for_target_type(Target.DISCRETE_TARGET_TYPE)):
                     return True, value
                 elif (target_type == Target.NOMINAL_TARGET_TYPE) and \
-                        (value_type == Target.data_type_for_target_type(Target.NOMINAL_TARGET_TYPE)):
+                        (value_type in Target.data_types_for_target_type(Target.NOMINAL_TARGET_TYPE)):
                     return True, value
                 elif (target_type == Target.BINARY_TARGET_TYPE) and \
-                        (value_type == Target.data_type_for_target_type(Target.BINARY_TARGET_TYPE)):
+                        (value_type in Target.data_types_for_target_type(Target.BINARY_TARGET_TYPE)):
                     return True, value
                 elif (target_type == Target.DATE_TARGET_TYPE) and (value_type == str):
                     return True, datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
@@ -203,7 +204,7 @@ class Target(models.Model):
             and range
         """
         # validate uniform data type
-        data_type = self.data_type()
+        data_type = self.data_types()[0]  # the first is the preferred one
         cats_set = set(map(type, cats))
         if (cats_set != {int, float}) and (len(cats_set) != 1):
             raise ValidationError(f"there was more than one data type in cats={cats}: {cats_set}")
@@ -255,21 +256,22 @@ class Target(models.Model):
             raise ValidationError(f"invalid target type '{self.type}'. range must be one of: {valid_target_types}")
 
         # validate lower, upper
-        data_type = self.data_type()
+        data_types = self.data_types()  # the first is the preferred one
         if type(lower) != type(upper):
             raise ValidationError(f"lower and upper were of different data types: {type(lower)} != {type(upper)}")
-        elif data_type != type(lower):
+        elif type(lower) not in data_types:  # arbitrarily test lower
             raise ValidationError(f"lower and upper data type did not match target data type. "
-                                  f"lower/upper type={type(lower)}, data_type={data_type}")
+                                  f"lower/upper type={type(lower)}, data_types={data_types}. lower, "
+                                  f"upper={lower, upper}")
 
         # delete and save the new TargetRanges
         TargetRange.objects.filter(target=self).delete()
         TargetRange.objects.create(target=self,
-                                   value_i=lower if (data_type == Target.INTEGER_DATA_TYPE) else None,
-                                   value_f=lower if (data_type == Target.FLOAT_DATA_TYPE) else None)
+                                   value_i=lower if (data_types[0] == Target.INTEGER_DATA_TYPE) else None,
+                                   value_f=lower if (data_types[0] == Target.FLOAT_DATA_TYPE) else None)
         TargetRange.objects.create(target=self,
-                                   value_i=upper if (data_type == Target.INTEGER_DATA_TYPE) else None,
-                                   value_f=upper if (data_type == Target.FLOAT_DATA_TYPE) else None)
+                                   value_i=upper if (data_types[0] == Target.INTEGER_DATA_TYPE) else None,
+                                   value_f=upper if (data_types[0] == Target.FLOAT_DATA_TYPE) else None)
 
 
     def range_tuple(self):
@@ -290,11 +292,11 @@ class Target(models.Model):
 
     def cats_values(self):
         """
-        A utility function used for validation. Returns a list of my cat values based on my data_type(), similar to what
-        PointPrediction.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get the
-        field corresponding to my type.
+        A utility function used for validation. Returns a list of my cat values based on my data_types(), similar to
+        what PointPrediction.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get
+        the field corresponding to my type.
         """
-        data_type = self.data_type()
+        data_type = self.data_types()[0]  # the first is the preferred one
         if data_type == Target.INTEGER_DATA_TYPE:
             values = self.cats.values_list('cat_i', flat=True)
         elif data_type == Target.FLOAT_DATA_TYPE:

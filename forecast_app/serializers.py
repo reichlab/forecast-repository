@@ -75,12 +75,11 @@ class TargetSerializer(serializers.ModelSerializer):
             self.fields['unit'] = CharField()
 
         # add range
-        data_type = target.data_type()
+        data_type = target.data_types()[0]  # the first is the preferred one
         target_ranges_qs = target.ranges  # target.value_i, target.value_f
         if target_ranges_qs.count() != 0:  # s/b exactly 2
-            target_ranges = target_ranges_qs.values_list('value_i', flat=True) \
-                if data_type == Target.INTEGER_DATA_TYPE \
-                else target_ranges_qs.values_list('value_f', flat=True)
+            value_column = 'value_i' if data_type == Target.INTEGER_DATA_TYPE else 'value_f'
+            target_ranges = target_ranges_qs.values_list(value_column, flat=True)
             target_ranges = sorted(target_ranges)
             self.context['range'] = [target_ranges[0], target_ranges[1]]
             self.fields['range'] = serializers.SerializerMethodField('get_range')
