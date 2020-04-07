@@ -203,35 +203,30 @@ class Target(models.Model):
         :param extra_lwr: an optional final upper lwr to use when creating TargetLwrs. used when a Target has both cats
             and range
         """
-        # validate uniform data type
-        data_type = self.data_types()[0]  # the first is the preferred one
-        cats_set = set(map(type, cats))
-        if (cats_set != {int, float}) and (len(cats_set) != 1):
-            raise ValidationError(f"there was more than one data type in cats={cats}: {cats_set}")
-
         # before validating data type compatibility, try to replace date strings with actual date objects
+        data_types_set = set(self.data_types())
         try:
-            if data_type == Target.DATE_DATA_TYPE:
+            if data_types_set == {Target.DATE_DATA_TYPE}:  # Target.DATE_TARGET_TYPE
                 cats = [datetime.datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date() for cat_str in cats]
         except ValueError as exc:
             raise ValidationError(f"one or more cats were not in YYYY-MM-DD format. cats={cats}. exc={exc}")
 
-        # validate data type compatibility
-        cats_set = set(map(type, cats))
-        cats_type = next(iter(cats_set))  # vs. pop()
-        if data_type != cats_type:
-            raise ValidationError(f"cats data type did not match target data type. cats={cats}. cats_type={cats_type}, "
-                                  f"data_type={data_type}")
+        # validate compatible data type(s)
+        cats_type_set = set(map(type, cats))
+        if not (cats_type_set <= data_types_set):
+            raise ValidationError(f"cats_type_set was not a subset of data_types_set. cats_type_set={cats_type_set}, "
+                                  f"data_types_set={data_types_set}")
 
         # delete and save the new TargetCats
         TargetCat.objects.filter(target=self).delete()
+        preferred_data_type = self.data_types()[0]
         for cat in cats:
             TargetCat.objects.create(target=self,
-                                     cat_i=cat if (data_type == Target.INTEGER_DATA_TYPE) else None,
-                                     cat_f=cat if (data_type == Target.FLOAT_DATA_TYPE) else None,
-                                     cat_t=cat if (data_type == Target.TEXT_DATA_TYPE) else None,
-                                     cat_d=cat if (data_type == Target.DATE_DATA_TYPE) else None,
-                                     cat_b=cat if (data_type == Target.BOOLEAN_DATA_TYPE) else None)
+                                     cat_i=cat if (preferred_data_type == Target.INTEGER_DATA_TYPE) else None,
+                                     cat_f=cat if (preferred_data_type == Target.FLOAT_DATA_TYPE) else None,
+                                     cat_t=cat if (preferred_data_type == Target.TEXT_DATA_TYPE) else None,
+                                     cat_d=cat if (preferred_data_type == Target.DATE_DATA_TYPE) else None,
+                                     cat_b=cat if (preferred_data_type == Target.BOOLEAN_DATA_TYPE) else None)
 
         # ditto for TargetLwrs for continuous and discrete cases (required for scoring), calculating `upper` via zip().
         # NB: we use infinity for the last bin's upper!

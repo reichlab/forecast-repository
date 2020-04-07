@@ -317,15 +317,10 @@ def _validate_bin_rows(is_validate_cats, prediction_data, prediction_dict, targe
                            f"prediction_dict={prediction_dict}")
 
     # validate: "Entries in the database rows in the `prob` column must be numbers in [0, 1]"
-    prob_types = set(map(type, prediction_data['prob']))
-    if (prob_types != {int, float}) and (len(prob_types) != 1):
-        raise RuntimeError(f"there was more than one data type in `prob` column, which should only contain "
-                           f"numbers. prob column={prediction_data['prob']}, prob_types={prob_types}, "
-                           f"prediction_dict={prediction_dict}")
-    prob_type = next(iter(prob_types))  # vs. pop()
-    if (prob_type != int) and (prob_type != float):
+    prob_types_set = set(map(type, prediction_data['prob']))
+    if not (prob_types_set <= {int, float}):
         raise RuntimeError(f"wrong data type in `prob` column, which should only contain "
-                           f"numbers. prob column={prediction_data['prob']}, prob_type={prob_type}, "
+                           f"ints or floats. prob column={prediction_data['prob']}, prob_types_set={prob_types_set}, "
                            f"prediction_dict={prediction_dict}")
     elif (min(prediction_data['prob']) < 0.0) or (max(prediction_data['prob']) > 1.0):
         raise RuntimeError(f"Entries in the database rows in the `prob` column must be numbers in [0, 1]. "

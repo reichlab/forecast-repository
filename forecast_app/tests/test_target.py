@@ -162,7 +162,7 @@ class TargetTestCase(TestCase):
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['2017-01-02', '2017-01-09'])
-        self.assertIn('cats data type did not match target data type', str(context.exception))
+        self.assertIn('cats_type_set was not a subset of data_types_set', str(context.exception))
 
 
     def test_data_types_for_target_type(self):
@@ -412,18 +412,18 @@ class TargetTestCase(TestCase):
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['cat4', 'cat5', 'cat6'])  # should be floats
-        self.assertIn('cats data type did not match target data type', str(context.exception))
+        self.assertIn('cats_type_set was not a subset of data_types_set', str(context.exception))
 
         model_init['type'] = Target.NOMINAL_TARGET_TYPE
         model_init.pop('unit', None)
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 2.2, 3.3])  # should be strings
-        self.assertIn('cats data type did not match target data type', str(context.exception))
+        self.assertIn('cats_type_set was not a subset of data_types_set', str(context.exception))
 
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 'cat5', 'cat6'])  # should be same type
-        self.assertIn('there was more than one data type in cats', str(context.exception))
+        self.assertIn('cats_type_set was not a subset of data_types_set', str(context.exception))
 
 
     def test_target_date_unit(self):
