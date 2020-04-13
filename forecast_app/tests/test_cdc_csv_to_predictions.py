@@ -80,7 +80,8 @@ class CdcCsvToPredictionsTestCase(TestCase):
             json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict, False)
         self.assertEqual(729, forecast.get_num_rows())
-        self.assertEqual(0, forecast.named_distribution_qs().count())
-        self.assertEqual(0, forecast.sample_distribution_qs().count())
-        self.assertEqual(7, forecast.point_prediction_qs().count())
         self.assertEqual(722, forecast.bin_distribution_qs().count())  # 729 - 7
+        self.assertEqual(0, forecast.named_distribution_qs().count())
+        self.assertEqual(7, forecast.point_prediction_qs().count())
+        self.assertEqual(0, forecast.sample_distribution_qs().count())
+        self.assertEqual(0, forecast.quantile_prediction_qs().count())

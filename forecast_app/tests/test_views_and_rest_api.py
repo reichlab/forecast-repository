@@ -660,10 +660,9 @@ class ViewsTestCase(TestCase):
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-
         # test serializing multiple timezeros via direct instantiation
-        timezero_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
+        timezero_serializer_multi = TimeZeroSerializer(project.timezeros, many=True,
+                                                       context={'request': (APIRequestFactory().request())})
         # -> <class 'rest_framework.serializers.ListSerializer'>
         self.assertEqual(3, len(timezero_serializer_multi.data))  # 3 timezeros
 

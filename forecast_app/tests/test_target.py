@@ -8,7 +8,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.test import TestCase
 
-from forecast_app.models import Target, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, Project
+from forecast_app.models import Target, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, \
+    Project, QuantileDistribution
 from forecast_app.models.target import TargetRange, TargetCat, TargetLwr
 from utils.project import create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users
@@ -213,12 +214,15 @@ class TargetTestCase(TestCase):
 
 
     def test_target_type_to_valid_prediction_types(self):
-        target_type_to_exp_pred_types = {
-            Target.CONTINUOUS_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution, NamedDistribution],
-            Target.DISCRETE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution, NamedDistribution],
+        target_type_to_exp_pred_types = {  # simply a duplicate of valid_prediction_types()
+            Target.CONTINUOUS_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
+                                            NamedDistribution, QuantileDistribution],
+            Target.DISCRETE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
+                                          NamedDistribution, QuantileDistribution],
             Target.NOMINAL_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.BINARY_TARGET_TYPE: [PointPrediction, SampleDistribution, NamedDistribution],
-            Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
+            Target.BINARY_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
+            Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
+                                      QuantileDistribution]
         }
         for target_type, exp_prediction_types in target_type_to_exp_pred_types.items():
             self.assertEqual(exp_prediction_types, Target.valid_prediction_types(target_type))

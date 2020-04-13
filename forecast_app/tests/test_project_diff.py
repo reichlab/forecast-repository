@@ -28,8 +28,7 @@ class ProjectDiffTestCase(TestCase):
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        current_config_dict = config_dict_from_project(project, request)
+        current_config_dict = config_dict_from_project(project, APIRequestFactory().request())
 
         # project fields: edit
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -153,8 +152,7 @@ class ProjectDiffTestCase(TestCase):
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        out_config_dict = config_dict_from_project(project, request)
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
         changes = project_config_diff(out_config_dict, edit_config_dict)
@@ -172,8 +170,7 @@ class ProjectDiffTestCase(TestCase):
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        out_config_dict = config_dict_from_project(project, request)
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 
@@ -193,8 +190,7 @@ class ProjectDiffTestCase(TestCase):
         # make some changes
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        out_config_dict = config_dict_from_project(project, request)
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 
@@ -208,8 +204,7 @@ class ProjectDiffTestCase(TestCase):
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        out_config_dict = config_dict_from_project(project, request)
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
 
         # this json file makes the same changes as _make_some_changes():
         with open(Path('forecast_app/tests/project_diff/docs-project-edited.json')) as fp:
@@ -240,8 +235,7 @@ class ProjectDiffTestCase(TestCase):
         # make some changes
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        out_config_dict = config_dict_from_project(project, request)
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 

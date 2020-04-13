@@ -114,8 +114,7 @@ class ForecastTestCase(TestCase):
         project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        act_json_io_dict = json_io_dict_from_forecast(forecast2, request)
+        act_json_io_dict = json_io_dict_from_forecast(forecast2, APIRequestFactory().request())
         # recall that json predictions are sorted by unit, type
         exp_pred_dict = {'unit': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
         act_pred_dict = [pred_dict for pred_dict in act_json_io_dict['predictions']
@@ -449,8 +448,7 @@ class ForecastTestCase(TestCase):
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
             # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
             #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-            request = APIRequestFactory().request()
-            json_io_dict_out = json_io_dict_from_forecast(forecast, request)
+            json_io_dict_out = json_io_dict_from_forecast(forecast, APIRequestFactory().request())
 
         # test round trip. ignore meta, but spot-check it first
         out_meta = json_io_dict_out['meta']
@@ -466,12 +464,12 @@ class ForecastTestCase(TestCase):
         del (json_io_dict_out['meta'])
 
         # delete the two zero probability bins in the input (they are discarded when loading predictions)
-        # - [10] "unit": "location3", "target": "cases next week", "class": "bin"
-        # - [12] "unit": "location1", "target": "season severity", "class": "bin"
-        del (json_io_dict_in['predictions'][10]['prediction']['cat'][0])  # 0
-        del (json_io_dict_in['predictions'][10]['prediction']['prob'][0])  # 0.0
-        del (json_io_dict_in['predictions'][12]['prediction']['cat'][0])  # 'mild'
-        del (json_io_dict_in['predictions'][12]['prediction']['prob'][0])  # 0.0
+        # - [11] "unit": "location3", "target": "cases next week", "class": "bin"
+        # - [14] "unit": "location1", "target": "season severity", "class": "bin"
+        del (json_io_dict_in['predictions'][11]['prediction']['cat'][0])  # 0
+        del (json_io_dict_in['predictions'][11]['prediction']['prob'][0])  # 0.0
+        del (json_io_dict_in['predictions'][14]['prediction']['cat'][0])  # 'mild'
+        del (json_io_dict_in['predictions'][14]['prediction']['prob'][0])  # 0.0
 
         json_io_dict_in['predictions'].sort(key=lambda _: (_['unit'], _['target'], _['class']))
         json_io_dict_out['predictions'].sort(key=lambda _: (_['unit'], _['target'], _['class']))
@@ -496,3 +494,18 @@ class ForecastTestCase(TestCase):
                             and (pred_dict['target'] == 'Season peak week')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual(['2020-01-05', '2019-12-15'], sample_pred_dict['prediction']['sample'])
+
+        # spot-check some quantile predictions
+        quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
+                              if (pred_dict['unit'] == 'location2')
+                              and (pred_dict['target'] == 'pct next week')
+                              and (pred_dict['class'] == 'quantile')][0]
+        self.assertEqual([0.025, 0.25, 0.5, 0.75, 0.975], quantile_pred_dict['prediction']['quantile'])
+        self.assertEqual([1.0, 2.2, 2.2, 5.0, 50.0], quantile_pred_dict['prediction']['value'])
+
+        quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
+                              if (pred_dict['unit'] == 'location2')
+                              and (pred_dict['target'] == 'Season peak week')
+                              and (pred_dict['class'] == 'quantile')][0]
+        self.assertEqual([0.5, 0.75, 0.975], quantile_pred_dict['prediction']['quantile'])
+        self.assertEqual(["2019-12-22", "2019-12-29", "2020-01-05"], quantile_pred_dict['prediction']['value'])

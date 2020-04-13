@@ -21,6 +21,7 @@ class PredictionsTestCase(TestCase):
     """
     """
 
+
     def test_concrete_subclasses(self):
         """
         this test makes sure the current set of concrete Prediction subclasses hasn't changed since the last time this
@@ -31,7 +32,8 @@ class PredictionsTestCase(TestCase):
 
 
         concrete_subclasses = Prediction.concrete_subclasses()
-        exp_subclasses = {'BinDistribution', 'NamedDistribution', 'PointPrediction', 'SampleDistribution'}
+        exp_subclasses = {'BinDistribution', 'NamedDistribution', 'PointPrediction', 'SampleDistribution',
+                          'QuantileDistribution'}
         self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
 
 
@@ -54,21 +56,22 @@ class PredictionsTestCase(TestCase):
         # = total rows: 67
         #
         # counts based on .json file:
-        # - 'pct next week':    point: 3, named: 1 , bin: 3, sample: 5 = 12
-        # - 'cases next week':  point: 2, named: 1 , bin: 3, sample: 3 = 10
-        # - 'season severity':  point: 2, named: 0 , bin: 3, sample: 5 = 10
-        # - 'above baseline':   point: 1, named: 0 , bin: 2, sample: 6 =  9
-        # - 'Season peak week': point: 3, named: 0 , bin: 7, sample: 4 = 13
-        # = total rows: 54 - 2 zero prob = 52
+        # - 'pct next week':    point: 3, named: 1 , bin: 3, sample: 5, quantile: 5 = 17
+        # - 'cases next week':  point: 2, named: 1 , bin: 3, sample: 3, quantile: 2 = 12
+        # - 'season severity':  point: 2, named: 0 , bin: 3, sample: 5, quantile: 0 = 10
+        # - 'above baseline':   point: 1, named: 0 , bin: 2, sample: 6, quantile: 0 =  9
+        # - 'Season peak week': point: 3, named: 0 , bin: 7, sample: 4, quantile: 3 = 16
+        # = total rows: 64 - 2 zero prob = 62
 
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict, False)
-        self.assertEqual(52, forecast.get_num_rows())
+        self.assertEqual(62, forecast.get_num_rows())
         self.assertEqual(16, forecast.bin_distribution_qs().count())  # 18 - 2 zero prob
         self.assertEqual(2, forecast.named_distribution_qs().count())
         self.assertEqual(11, forecast.point_prediction_qs().count())
         self.assertEqual(23, forecast.sample_distribution_qs().count())
+        self.assertEqual(10, forecast.quantile_prediction_qs().count())
 
 
     def test_prediction_dicts_to_db_rows(self):
@@ -83,12 +86,13 @@ class PredictionsTestCase(TestCase):
         # see above: counts from docs-predictionsexp-rows.xlsx
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'units', and 'targets'
-            bin_rows, named_rows, point_rows, sample_rows = \
+            bin_rows, named_rows, point_rows, sample_rows, quantile_rows = \
                 _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, False)
         self.assertEqual(16, len(bin_rows))  # 18 - 2 zero prob
         self.assertEqual(2, len(named_rows))
         self.assertEqual(11, len(point_rows))
         self.assertEqual(23, len(sample_rows))
+        self.assertEqual(10, len(quantile_rows))
         self.assertEqual([['location2', 'pct next week', 1.1, 0.3],
                           ['location2', 'pct next week', 2.2, 0.2],
                           ['location2', 'pct next week', 3.3, 0.5],
@@ -145,6 +149,17 @@ class PredictionsTestCase(TestCase):
                           ['location3', 'Season peak week', '2020-01-06'],
                           ['location3', 'Season peak week', '2019-12-16']],
                          sample_rows)
+        self.assertEqual([['location2', 'pct next week', 0.025, 1.0],
+                          ['location2', 'pct next week', 0.25, 2.2],
+                          ['location2', 'pct next week', 0.5, 2.2],
+                          ['location2', 'pct next week', 0.75, 5.0],
+                          ['location2', 'pct next week', 0.975, 50.0],
+                          ['location3', 'cases next week', 0.25, 0],
+                          ['location3', 'cases next week', 0.75, 50],
+                          ['location2', 'Season peak week', 0.5, '2019-12-22'],
+                          ['location2', 'Season peak week', 0.75, '2019-12-29'],
+                          ['location2', 'Season peak week', 0.975, '2020-01-05']],
+                         quantile_rows)
 
 
     def test_prediction_dicts_to_db_rows_invalid(self):

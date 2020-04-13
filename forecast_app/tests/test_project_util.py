@@ -26,8 +26,7 @@ class ProjectUtilTestCase(TestCase):
         project = create_project_from_json(input_project_dict, po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        output_project_config = config_dict_from_project(project, request)
+        output_project_config = config_dict_from_project(project, APIRequestFactory().request())
         for target_dict in output_project_config['targets']:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
             del target_dict['id']
             del target_dict['url']
@@ -455,8 +454,8 @@ class ProjectUtilTestCase(TestCase):
         # does target_dict() = {...}  # required keys:
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        request = APIRequestFactory().request()
-        output_target_dicts = [_target_dict_for_target(target, request) for target in project.targets.all()]
+        output_target_dicts = [_target_dict_for_target(target, APIRequestFactory().request()) for target in
+                               project.targets.all()]
 
         # 3. they should be equal
         for target_dict in output_target_dicts:  # remove 'id' and 'url' fields from TargetSerializer to ease testing

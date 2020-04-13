@@ -5,7 +5,7 @@ from .forecast import Forecast
 from .forecast_model import ForecastModel
 from .model_score_change import ModelScoreChange
 from .prediction import BinDistribution, Prediction, PointPrediction, NamedDistribution, EmpiricalDistribution, \
-    SampleDistribution
+    SampleDistribution, QuantileDistribution
 from .project import Project, TimeZero, Unit
 from .row_count_cache import RowCountCache
 from .score import Score, ScoreValue, ScoreLastUpdate

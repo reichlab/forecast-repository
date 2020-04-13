@@ -107,6 +107,13 @@ class Forecast(models.Model):
         return self._predictions_qs(SampleDistribution)
 
 
+    def quantile_prediction_qs(self):
+        from forecast_app.models import QuantileDistribution
+
+
+        return self._predictions_qs(QuantileDistribution)
+
+
     def _predictions_qs(self, prediction_subclass):
         # *_prediction_qs() helper that returns a QuerySet for all of my Predictions of type prediction_subclass
         return prediction_subclass.objects.filter(forecast=self)

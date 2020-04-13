@@ -6,7 +6,8 @@ from django.db import models
 from django.db.models import BooleanField, IntegerField
 from rest_framework.test import APIRequestFactory
 
-from forecast_app.models import Project, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution
+from forecast_app.models import Project, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, \
+    QuantileDistribution
 from utils.utilities import basic_str, YYYY_MM_DD_DATE_FORMAT
 
 
@@ -329,11 +330,14 @@ class Target(models.Model):
         :return: a list of valid concrete Prediction subclasses for target_type
         """
         return {
-            Target.CONTINUOUS_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution, NamedDistribution],
-            Target.DISCRETE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution, NamedDistribution],
+            Target.CONTINUOUS_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
+                                            NamedDistribution, QuantileDistribution],
+            Target.DISCRETE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
+                                          NamedDistribution, QuantileDistribution],
             Target.NOMINAL_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.BINARY_TARGET_TYPE: [PointPrediction, SampleDistribution, NamedDistribution],
-            Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
+            Target.BINARY_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
+            Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
+                                      QuantileDistribution]
         }[target_type]
 
 

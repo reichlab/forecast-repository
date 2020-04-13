@@ -200,7 +200,7 @@ class EmpiricalDistribution(Prediction):
 
 class BinDistribution(EmpiricalDistribution):
     """
-    Concrete class representing binned distribution with a category for each bin. Like PointPrediction, we compromise
+    Concrete class representing binned distribution with a category for each bin. Like PointPrediction, we trade off
     database design by having multiple fields/columns for required data/field types. For a particular object/record, all
     but one are NULL.
     """
@@ -224,9 +224,9 @@ class BinDistribution(EmpiricalDistribution):
 
 class SampleDistribution(EmpiricalDistribution):
     """
-    Concrete class representing character string samples from categories. Like PointPrediction, we compromise
-    database design by having multiple fields/columns for required data/field types. For a particular object/record, all
-    but one are NULL.
+    Concrete class representing character string samples from categories. Like PointPrediction, we trade off database
+    design by having multiple fields/columns for required data/field types. For a particular object/record, all but one
+    are NULL.
     """
 
     sample_i = models.IntegerField(null=True)  # NULL if any others non-NULL
@@ -239,3 +239,24 @@ class SampleDistribution(EmpiricalDistribution):
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
                     self.sample_i, self.sample_f, self.sample_t, self.sample_d, self.sample_b))
+
+
+#
+# ---- QuantileDistribution ----
+#
+
+class QuantileDistribution(EmpiricalDistribution):
+    """
+    Concrete class representing quantile distributions. Like PointPrediction, we trade off database design by having
+    multiple fields/columns for required data/field types. For a particular object/record, all but one are NULL.
+    """
+
+    quantile = models.FloatField()
+    value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    value_f = models.FloatField(null=True)  # ""
+    value_d = models.DateField(null=True)  # ""
+
+
+    def __repr__(self):
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
+                    self.quantile, '.', self.value_i, self.value_f, self.value_d))

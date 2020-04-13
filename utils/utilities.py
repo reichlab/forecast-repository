@@ -30,7 +30,7 @@ YYYY_MM_DD_DATE_FORMAT = '%Y-%m-%d'  # e.g., '2017-01-17'
 
 def parse_value(value_str):
     """
-    Tries to parse value_str (a string) in this order: int, float, or date in YYYY_MM_DD_DATE_FORMAT. Returns None o/w.
+    Tries to parse value_str (a string) in this order: int, float. Returns None o/w.
     """
     try:
         return int(value_str)

@@ -199,6 +199,15 @@ class PredictionValidationTestCase(TestCase):
 
     # `prob` (f): [0, 1]
     def test_entries_in_the_database_rows_in_the_prob_column_must_be_numbers_in_0_1(self):
+        # test precursor: prob column can only contain ints or floats
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
+                           "prediction": {"cat": [1.1, 2.2, 3.3],
+                                          "prob": [0.3, '0.2', 0.5]}}  # '0.2' not int or float
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"wrong data type in `prob` column, which should only contain ints or floats",
+                      str(context.exception))
+
         # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
         prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
                            "prediction": {"cat": [1.1, 2.2, 3.3],
@@ -379,7 +388,7 @@ class PredictionValidationTestCase(TestCase):
     #
 
     # `value` (i, f, t, d, b)
-    def test_entries_in_the_database_rows_in_the_value_column_cannot_be_empty_na_or_null(self):
+    def test_entries_in_the_database_rows_in_the_value_column_cannot_be_empty_na_or_null_point(self):
         prediction_dict = {"unit": "location1", "target": "season severity", "class": "point",
                            "prediction": {"value": ""}}  # empty
         with self.assertRaises(RuntimeError) as context:
@@ -402,7 +411,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
-    def test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
+    def test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_def_point(self):
         # 'pct next week': continuous
         prediction_dict = {"unit": "location1", "target": "pct next week", "class": "point",
                            "prediction": {"value": '1.2'}}  # value not float
@@ -526,6 +535,170 @@ class PredictionValidationTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"The data format of `sample` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+
+    #
+    # `Quantile` Prediction Elements
+    #
+
+    # `|quantile| = |value|`
+    def test_the_number_of_elements_in_quantile_and_value_should_be_identical(self):
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.25, 0.5, 0.75, 0.975],  # one fewer
+                                          "value": [1.0, 2.2, 2.2, 5.0, 50.0]}}
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The number of elements in the `quantile` and `value` vectors should be identical.",
+                      str(context.exception))
+
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
+                                          "value": [1.0, 2.2, 5.0, 50.0]}}  # one fewer
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The number of elements in the `quantile` and `value` vectors should be identical.",
+                      str(context.exception))
+
+
+    # `quantile` (f)
+    def test_entries_in_the_database_rows_in_the_quantile_column_must_be_numbers_in_0_1(self):
+        # test precursor: prob column can only contain ints or floats
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.025, '0.25', 0.5, 0.75, 0.975],  # '0.25' not int or float
+                                          "value": [1.0, 2.2, 2.2, 5.0, 50.0]}}
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"wrong data type in `quantile` column, which should only contain ints or floats",
+                      str(context.exception))
+
+        # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [-1.1, 0.25, 0.5, 0.75, 0.975],  # -1.1 not in [0, 1]
+                                          "value": [1.0, 2.2, 2.2, 5.0, 50.0]}}
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `quantile` column must be numbers in [0, 1].",
+                      str(context.exception))
+
+        # "cases next week": discrete. cats: [0, 2, 50]
+        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+                           "prediction": {"quantile": [0.25, 1.1],  # 1.1 not in [0, 1]
+                                          "value": [0, 50]}}
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in the database rows in the `quantile` column must be numbers in [0, 1].",
+                      str(context.exception))
+
+
+    # `quantile` (f)
+    def test_quantiles_must_be_unique(self):
+        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+                           "prediction": {"quantile": [0.5, 0.75, 0.75],  # 0.75 not unique
+                                          "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}}
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"`quantile`s must be unique.", str(context.exception))
+
+
+    # `value` (i, f, d)
+    def test_entries_in_value_must_be_non_decreasing_as_quantiles_increase(self):
+        # continuous target
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
+                                          "value": [1.0, 1.0, 2.2, 5.0, 4.9]}}  # last decreases
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
+
+        # discrete target
+        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+                           "prediction": {"quantile": [0.25, 0.75],
+                                          "value": [50, 0]}}  # last decreases
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
+
+        # date target
+        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+                           "prediction": {"quantile": [0.5, 0.75, 0.975],
+                                          "value": ["2019-12-22", "2019-12-21", "2020-01-05"]}}  # second decreases
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
+
+
+    # `value` (i, f, d)
+    def test_entries_in_value_must_obey_existing_ranges_for_targets(self):
+        # 'pct next week': continuous. range: [0.0, 100.0]
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
+                                          "value": [-0.1, 2.2, 2.2, 5.0, 50.0]}}  # first < 0.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
+
+        # 'pct next week': continuous. range: [0.0, 100.0]
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
+                                          "value": [1.0, 2.2, 2.2, 5.0, 101.0]}}  # last > 100.0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
+
+        # cases next week: discrete. range: [0, 100000]
+        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+                           "prediction": {"quantile": [0.25, 0.75],
+                                          "value": [-1, 50]}}  # first < 0
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
+
+        # cases next week: discrete. range: [0, 100000]
+        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+                           "prediction": {"quantile": [0.25, 0.75],
+                                          "value": [0, 100001]}}  # last > 100000
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
+
+
+    def test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_def_quant(self):
+        # 'pct next week': continuous
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
+                                          "value": [1.0, '2.2', 2.2, 5.0, 50.0]}}  # value not float
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'cases next week: discrete
+        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+                           "prediction": {"quantile": [0.25, 0.75],
+                                          "value": [0.1, 50]}}  # value not translatable to int
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'Season peak week: date
+        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+                           "prediction": {"quantile": [0.5, 0.75, 0.975],
+                               "value": ["2019-12-22", 20191229, "2020-01-05"]}}  # value not date
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
+                      str(context.exception))
+
+        # 'Season peak week: date
+        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+                           "prediction": {"quantile": [0.5, 0.75, 0.975],
+                                          "value": ["2019-12-22", "x 2019-12-29", "2020-01-05"]}
+                           }  # value not date format
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
                       str(context.exception))
 
 
