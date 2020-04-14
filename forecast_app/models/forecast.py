@@ -24,6 +24,12 @@ class Forecast(models.Model):
     # when this instance was created. basically the post-validation save date:
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # arbitrary information about this forecast
+    notes = models.TextField(null=True, blank=True,
+                             help_text="Text describing anything slightly different about a given forecast, e.g., a "
+                                       "changed set of assumptions or a comment about when the forecast was created. "
+                                       "Notes should be brief, typically less than 50 words.")
+
 
     def __repr__(self):
         return str((self.pk, self.time_zero, self.source))

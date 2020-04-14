@@ -44,6 +44,16 @@
                     <th>Upload Date:</th>
                     <td>{{ forecast.created_at|date:"Y-m-d h:i:s" }}</td>
                 </tr>
+                <tr>
+                    <th>Notes:</th>
+                    <td>
+                        {% if forecast.notes %}
+                            {{ forecast.notes }}
+                        {% else %}
+                            <small class="text-muted">(No notes)</small>
+                        {% endif %}
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>

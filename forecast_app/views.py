@@ -1125,8 +1125,9 @@ def process_upload_file_job__forecast(upload_file_job_pk):
                      f"forecast_model={forecast_model}, time_zero={time_zero}")
         with transaction.atomic():
             logger.debug(f"process_upload_file_job__forecast(): creating Forecast")
+            notes = upload_file_job.input_json.get('notes', '')
             new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
-                                                   source=upload_file_job.filename)
+                                                   source=upload_file_job.filename, notes=notes)
             json_io_dict = json.load(cloud_file_fp)
             logger.debug(f"process_upload_file_job__forecast(): loading predictions. "
                          f"#predictions={len(json_io_dict['predictions'])}")

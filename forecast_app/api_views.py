@@ -395,20 +395,20 @@ class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
             raise PermissionDenied
 
         # validate 'data_file'
-        if 'data_file' not in request.FILES:
+        if 'data_file' not in request.data:
             return JsonResponse({'error': "No 'data_file' form field."}, status=status.HTTP_400_BAD_REQUEST)
 
         # NB: if multiple files, just uses the first one:
-        data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+        data_file = request.data['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
         if data_file.size > MAX_UPLOAD_FILE_SIZE:
             message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
             return JsonResponse({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
         # validate 'timezero_date'
-        if 'timezero_date' not in request.POST:
+        if 'timezero_date' not in request.data:
             return JsonResponse({'error': "No 'timezero_date' form field."}, status=status.HTTP_400_BAD_REQUEST)
 
-        timezero_date_str = request.POST['timezero_date']
+        timezero_date_str = request.data['timezero_date']
         try:
             timezero_date_obj = datetime.datetime.strptime(timezero_date_str, YYYY_MM_DD_DATE_FORMAT)
         except ValueError as ve:
@@ -429,9 +429,10 @@ class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # upload to cloud and enqueue a job to process a new UploadFileJob
+        notes = request.data.get('notes', '')
         is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
                                                  forecast_model_pk=forecast_model.pk,
-                                                 timezero_pk=time_zero.pk)
+                                                 timezero_pk=time_zero.pk, notes=notes)
         if is_error:
             return JsonResponse({'error': "There was an error uploading the file. The error was: '{}'"
                                 .format(is_error)},

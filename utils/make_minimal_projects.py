@@ -138,7 +138,7 @@ def create_docs_project(po_user):
     forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
     time_zero = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
     forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
-                                       time_zero=time_zero)
+                                       time_zero=time_zero, notes="a small prediction file")
     with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
         json_io_dict_in = json.load(fp)
         load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)

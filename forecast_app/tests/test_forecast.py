@@ -455,7 +455,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual({'targets', 'forecast', 'units'}, set(out_meta.keys()))
         self.assertEqual({'cats', 'unit', 'name', 'is_step_ahead', 'type', 'description', 'id', 'url'},
                          set(out_meta['targets'][0].keys()))
-        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'forecast_data', 'source', 'id', 'url'},
+        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'notes', 'forecast_data', 'source', 'id', 'url'},
                          set(out_meta['forecast'].keys()))
         self.assertEqual({'id', 'name', 'url'}, set(out_meta['units'][0].keys()))
         self.assertIsInstance(out_meta['forecast']['time_zero'], dict)  # test that time_zero is expanded, not URL
