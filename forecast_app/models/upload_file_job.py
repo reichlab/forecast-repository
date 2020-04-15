@@ -165,7 +165,7 @@ def upload_file_job_cloud_file(upload_file_job_pk):
             upload_file_job.failure_message = "FAILED_PROCESS_FILE: exc={}, traceback={}" \
                 .format(exc, traceback.format_exc())
             upload_file_job.save()
-            logger.debug("upload_file_job_cloud_file(): FAILED_PROCESS_FILE: Error: {}. upload_file_job={}"
+            logger.error("upload_file_job_cloud_file(): FAILED_PROCESS_FILE: Error: {}. upload_file_job={}"
                          .format(exc, upload_file_job))
         finally:
             delete_file(upload_file_job)  # NB: in current thread

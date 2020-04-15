@@ -202,7 +202,9 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details
     """
     # validate predictions, convert them to class-specific quickly-loadable rows, and then load them by class
-    if 'predictions' not in json_io_dict:
+    if not isinstance(json_io_dict, dict):
+        raise RuntimeError(f"json_io_dict was not a dict: {json_io_dict!r}, type={type(json_io_dict)}")
+    elif 'predictions' not in json_io_dict:
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
 
     prediction_dicts = json_io_dict['predictions']
