@@ -478,52 +478,59 @@ def _validate_sample_predictions(prediction_data, prediction_dict, target):
 
 def _validate_quantile_predictions(prediction_data, prediction_dict, target):
     # validate: "The number of elements in the `quantile` and `value` vectors should be identical."
-    if len(prediction_data['quantile']) != len(prediction_data['value']):
+    pred_data_quantiles = prediction_data['quantile']
+    pred_data_values = prediction_data['value']
+    if len(pred_data_quantiles) != len(pred_data_values):
         raise RuntimeError(f"The number of elements in the `quantile` and `value` vectors should be identical. "
-                           f"|quantile|={len(prediction_data['quantile'])}, |value|={len(prediction_data['value'])}, "
+                           f"|quantile|={len(pred_data_quantiles)}, |value|={len(pred_data_values)}, "
                            f"prediction_dict={prediction_dict}")
 
     # validate: "Entries in the database rows in the `quantile` column must be numbers in [0, 1].
-    quantile_types_set = set(map(type, prediction_data['quantile']))
+    quantile_types_set = set(map(type, pred_data_quantiles))
     if not (quantile_types_set <= {int, float}):
         raise RuntimeError(f"wrong data type in `quantile` column, which should only contain ints or floats. "
-                           f"quantile column={prediction_data['quantile']}, quantile_types_set={quantile_types_set}, "
+                           f"quantile column={pred_data_quantiles}, quantile_types_set={quantile_types_set}, "
                            f"prediction_dict={prediction_dict}")
-    elif (min(prediction_data['quantile']) < 0.0) or (max(prediction_data['quantile']) > 1.0):
+    elif (min(pred_data_quantiles) < 0.0) or (max(pred_data_quantiles) > 1.0):
         raise RuntimeError(f"Entries in the database rows in the `quantile` column must be numbers in [0, 1]. "
-                           f"quantile column={prediction_data['quantile']}, prediction_dict={prediction_dict}")
+                           f"quantile column={pred_data_quantiles}, prediction_dict={prediction_dict}")
 
     # validate: `quantile`s must be unique."
-    if len(set(prediction_data['quantile'])) != len(prediction_data['quantile']):
-        raise RuntimeError(f"`quantile`s must be unique. quantile column={prediction_data['quantile']}, "
+    if len(set(pred_data_quantiles)) != len(pred_data_quantiles):
+        raise RuntimeError(f"`quantile`s must be unique. quantile column={pred_data_quantiles}, "
                            f"prediction_dict={prediction_dict}")
 
     # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
     # definition."
     is_all_compatible = all([Target.is_value_compatible_with_target_type(target.type, value)[0]  # is_compatible
-                             for value in prediction_data['value']])
+                             for value in pred_data_values])
     if not is_all_compatible:
         raise RuntimeError(f"The data format of `value` should correspond or be translatable to the `type` as "
                            f"in the target definition, but one of the value values was not. "
-                           f"values={prediction_data['value']}, prediction_dict={prediction_dict}")
+                           f"values={pred_data_values}, prediction_dict={prediction_dict}")
 
     # validate: "Entries in `value` must be non-decreasing as quantiles increase." (i.e., are monotonic).
-    # note: for date targets we format as strings for the comparison (incoming are strings)
-    pred_data_value_parsed = [datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
-                              for value in prediction_data['value']] \
-        if target.type == Target.DATE_TARGET_TYPE else prediction_data['value']  # valid - see is_all_compatible above
-    if not all([x <= y for x, y in zip(pred_data_value_parsed, pred_data_value_parsed[1:])]):
+    # note: for date targets we format as strings for the comparison (incoming are strings).
+    # note: we do not assume quantiles are sorted, so we first sort before checking for non-decreasing
+    pred_data_values = [datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
+                              for value in pred_data_values] \
+        if target.type == Target.DATE_TARGET_TYPE else pred_data_values  # valid - see is_all_compatible above
+
+    # per https://stackoverflow.com/questions/7558908/unpacking-a-list-tuple-of-pairs-into-two-lists-tuples
+    pred_data_quantiles, pred_data_values = zip(*sorted(zip(pred_data_quantiles, pred_data_values), key=lambda _: _[0]))
+
+    if not all([x <= y for x, y in zip(pred_data_values, pred_data_values[1:])]):
         raise RuntimeError(f"Entries in `value` must be non-decreasing as quantiles increase. "
-                           f"value column={pred_data_value_parsed}, prediction_dict={prediction_dict}")
+                           f"value column={pred_data_values}, prediction_dict={prediction_dict}")
 
     # validate: "Entries in `value` must obey existing ranges for targets." recall: "The range is assumed to be
     # inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
     range_tuple = target.range_tuple()
     if range_tuple:
-        is_all_in_range = all([range_tuple[0] <= sample < range_tuple[1] for sample in pred_data_value_parsed])
+        is_all_in_range = all([range_tuple[0] <= value < range_tuple[1] for value in pred_data_values])
         if not is_all_in_range:
             raise RuntimeError(f"Entries in `value` must obey existing ranges for targets. range_tuple={range_tuple}, "
-                               f"pred_data_value_parsed={pred_data_value_parsed}, prediction_dict={prediction_dict}")
+                               f"pred_data_values={pred_data_values}, prediction_dict={prediction_dict}")
 
 
 def _load_bin_rows(forecast, rows, target_pk_to_object):

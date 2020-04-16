@@ -606,7 +606,8 @@ class PredictionValidationTestCase(TestCase):
         # continuous target
         prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
-                                          "value": [1.0, 1.0, 2.2, 5.0, 4.9]}}  # last decreases
+                                          "value": [1.0, 1.0, 2.2, 5.0, 4.9]}}
+
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
@@ -626,6 +627,17 @@ class PredictionValidationTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
+
+        # continuous target: test that the two lists are sorted by quantile before testing for non-decreasing. in this
+        # case the value list itself is not non-decreasing unless it's sorted, and should not raise the exception
+        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+                           "prediction": {  # the order of these pairs is changed from the original:
+                               "quantile": [0.25, 0.025, 0.975, 0.75, 0.5, ],
+                               "value": [2.2, 1.0, 50.0, 5.0, 2.2, ]}}
+        try:
+            load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
 
     # `value` (i, f, d)
@@ -685,7 +697,7 @@ class PredictionValidationTestCase(TestCase):
         # 'Season peak week: date
         prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
                            "prediction": {"quantile": [0.5, 0.75, 0.975],
-                               "value": ["2019-12-22", 20191229, "2020-01-05"]}}  # value not date
+                                          "value": ["2019-12-22", 20191229, "2020-01-05"]}}  # value not date
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
