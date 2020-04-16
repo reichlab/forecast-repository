@@ -210,8 +210,10 @@ def project_config_diff(config_dict_1, config_dict_2):
                 # field_name added
                 changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_ADDED, field_name,
                                       tz_date_2_to_dict[timezero_date]))
+            # this test for `!= ''` matches this one below: "NB: here we convert '' to None to avoid errors like"
             elif (field_name in tz_date_1_to_dict[timezero_date]) and \
                     (field_name in tz_date_2_to_dict[timezero_date]) and \
+                    (tz_date_2_to_dict[timezero_date][field_name] != '') and \
                     (tz_date_1_to_dict[timezero_date][field_name] != tz_date_2_to_dict[timezero_date][field_name]):
                 # field_name edited
                 changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_EDITED, field_name,
@@ -395,13 +397,22 @@ def execute_project_config_diff(project, changes):
         elif (change.change_type == ChangeType.FIELD_EDITED) or (change.change_type == ChangeType.FIELD_ADDED) \
                 or (change.change_type == ChangeType.FIELD_REMOVED):
             the_obj = object_for_change(project, change, objects_to_save)  # Project/Unit/Target/TimeZero. raises
-            setattr(the_obj, change.field_name,
-                    None if change.change_type == ChangeType.FIELD_REMOVED else change.object_dict[change.field_name])
+            # NB: here we convert '' to None to avoid errors like when setting a timezero's data_version_date to '',
+            # say when users incorrectly pass '' instead of null in a project config JSON file
+            attr_value = None if (change.change_type == ChangeType.FIELD_REMOVED) \
+                                 or (change.object_dict[change.field_name] == '') \
+                else change.object_dict[change.field_name]
+            setattr(the_obj, change.field_name, attr_value)
             # NB: do not save here b/c multiple FIELD_* changes might be required together to be valid, e.g., when
             # changing Target.is_step_ahead to False, one must remove Target.step_ahead_increment (i.e., set it to None)
             objects_to_save.append(the_obj)
     for object_to_save in objects_to_save:
-        object_to_save.save()
+        try:
+            object_to_save.save()
+        except Exception as ex:
+            message = f"execute_project_config_diff(): Exception saving: ex={ex}, object_to_save={object_to_save}"
+            logger.error(message)
+            raise RuntimeError(message)
 
 
 def object_for_change(project, change, objects_to_save):

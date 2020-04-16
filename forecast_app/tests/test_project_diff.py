@@ -227,6 +227,21 @@ class ProjectDiffTestCase(TestCase):
         self._do_make_some_changes_tests(project)
 
 
+    def test_diff_from_file_empty_data_version_date_string(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
+        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
+        edited_config_dict = copy.deepcopy(out_config_dict)
+
+        # change '2011-10-02': None -> '' (incorrect, but we fix for users)
+        edited_config_dict['timezeros'][0]['data_version_date'] = ''
+
+        changes = project_config_diff(out_config_dict, edited_config_dict)
+        self.assertEqual(0, len(changes))  # is 1 without the fix "this test for `!= ''` matches this one below"
+
+
     def test_serialize_change_list(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json

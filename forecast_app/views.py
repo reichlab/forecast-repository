@@ -617,10 +617,16 @@ def edit_project_from_file_execute(request, project_pk):
     deserialized_change_dicts = json.loads(changes_json)
     changes = [Change.deserialize_dict(change_dict) for change_dict in deserialized_change_dicts]
     logger.debug(f"edit_project_from_file_execute(): executing project config diff... changes={changes}")
-    execute_project_config_diff(project, changes)
-    logger.debug(f"edit_project_from_file_execute(): done")
-    messages.success(request, f"Successfully applied {len(changes)} change(s) to project '{project.name}'.")
-    return redirect('project-detail', pk=project_pk)
+
+    try:
+        execute_project_config_diff(project, changes)
+        logger.debug(f"edit_project_from_file_execute(): done")
+        messages.success(request, f"Successfully applied {len(changes)} change(s) to project '{project.name}'.")
+        return redirect('project-detail', pk=project_pk)
+    except RuntimeError as rte:
+        return render(request, 'message.html',
+                      context={'title': "Got an error trying to execute changes.",
+                               'message': f"The error was: &ldquo;<span class=\"bg-danger\">{rte}</span>&rdquo;"})
 
 
 def delete_project(request, project_pk):
