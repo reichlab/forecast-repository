@@ -38,6 +38,22 @@
         {% endfor %}
     {% endif %}
 
+
+    {% comment %}
+        this adds a section that alerts when a superuser is logged in on production. there are various ways to detect
+        Heroku production - see https://stackoverflow.com/questions/9383450/how-can-i-detect-herokus-environment - but
+        I chose to simply test for the `debug` template variable, which depends on `DEBUG = True` being set by the *.py
+        files in forecast_repo/settings . it is False in heroku_production.py
+    {% endcomment %}
+    {% if request.user.is_superuser %}
+        <div class="alert {% if debug %}alert-warning{% else %}alert-danger{% endif %}" role="alert">
+            <strong>NOTE</strong>: You are logged in as <strong>SUPERUSER</strong> &ldquo;{{ request.user }}&rdquo;
+            on <strong>{% if debug %}LOCAL{% else %}PRODUCTION{% endif %}</strong> (<code>debug={{ debug }}</code>)
+        </div>
+    {% endif %}
+
+
+    {# insert the main content from child pages  #}
     {% block content %}
     {% endblock %}
 
