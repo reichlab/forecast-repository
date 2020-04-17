@@ -4,6 +4,7 @@ import io
 import json
 import logging
 from collections import defaultdict
+from pathlib import Path
 
 from django.db import connection
 from django.db import transaction
@@ -103,21 +104,27 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
     that name already exists. Does not set Project.model_owners, create TimeZeros, load truth data, create Models, or
     load forecasts.
 
+    :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
+        See https://docs.zoltardata.com/fileformats/#project-creation-configuration-json for details and
+        docs-project.json for an example.
+    :param owner: the new Project's owner (a User). used only if not is_validate_only
     :param is_validate_only: controls whether objects are actually created (is_validate_only=False), or whether only
         validation is done but no creation (is_validate_only=True)
-    :param proj_config_file_path_or_dict: either a Path to project config json file OR a dict as loaded from a file.
-        See https://docs.zoltardata.com/fileformats/#project-creation-configuration-json for details, and
-        cdc-project.json for an example.
-    :param owner: the new Project's owner (a User). used only if not is_validate_only
     :return: the new Project
     """
     logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
                 f"{proj_config_file_path_or_dict}, owner={owner}, is_validate_only={is_validate_only}")
     if isinstance(proj_config_file_path_or_dict, dict):
         project_dict = proj_config_file_path_or_dict
-    else:
+    elif isinstance(proj_config_file_path_or_dict, Path):
         with open(proj_config_file_path_or_dict) as fp:
-            project_dict = json.load(fp)
+            try:
+                project_dict = json.load(fp)
+            except Exception as ex:
+                raise RuntimeError(f"error loading json file. file={proj_config_file_path_or_dict}, ex={ex}")
+    else:
+        raise RuntimeError(f"proj_config_file_path_or_dict was neither a dict nor a Path. "
+                           f"type={type(proj_config_file_path_or_dict).__name__}")  # is blank w/o __name__. unsure why
 
     # validate project_dict
     actual_keys = set(project_dict.keys())

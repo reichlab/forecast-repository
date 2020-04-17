@@ -90,6 +90,26 @@ class ProjectUtilTestCase(TestCase):
         self.assertIn("found existing project", str(context.exception))
 
 
+    def test_create_project_from_json_bad_arg(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
+            project_dict = json.load(fp)
+            timezero_config = {'timezero_date': '2017-12-01',
+                               'data_version_date': None,
+                               'is_season_start': True,
+                               'season_name': 'tis the season'}
+            project_dict['timezeros'] = [timezero_config]
+
+        # note: blue sky args (dict or Path) are checked elsewhere
+        bad_arg_exp_error = [([1, 2], 'proj_config_file_path_or_dict was neither a dict nor a Path'),
+                             ('hi there', 'proj_config_file_path_or_dict was neither a dict nor a Path'),
+                             (Path('forecast_app/tests/truth_data/truths-ok.csv'), 'error loading json file')]
+        for bad_arg, exp_error in bad_arg_exp_error:
+            with self.assertRaises(RuntimeError) as context:
+                create_project_from_json(bad_arg, po_user)
+            self.assertIn(exp_error, str(context.exception))
+
+
     def test_create_project_from_json_project_validation(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:

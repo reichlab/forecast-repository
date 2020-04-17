@@ -5,6 +5,10 @@
 {% block content %}
 
     <h2>{{ title }}</h2>
-    <p>{{ message|safe }}</p>
+
+    <div class="alert alert-danger">
+        <strong>{{ message|safe }}</strong>
+    </div>
+
 
 {% endblock %}

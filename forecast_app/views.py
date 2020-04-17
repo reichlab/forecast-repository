@@ -510,8 +510,7 @@ def create_project_from_file(request):
     except RuntimeError as re:
         return render(request, 'message.html',
                       context={'title': "Error creating project from file.",
-                               'message': f"There was an error uploading the file. The error was: "
-                                          f"&ldquo;<span class=\"bg-danger\">{re}</span>&rdquo;"})
+                               'message': f"There was an error uploading the file. The error was: &ldquo;{re}&rdquo;"})
 
 
 def create_project_from_form(request):
@@ -1032,8 +1031,8 @@ def upload_truth(request, project_pk):
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
-                               'message': "There was an error uploading the file. The error was: "
-                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
+                               'message': f"There was an error uploading the file. The error was: "
+                                          f"&ldquo;{is_error}&rdquo;"})
 
     messages.success(request, "Queued the truth file '{}' for uploading.".format(data_file.name))
     return redirect('upload-file-job-detail', pk=upload_file_job.pk)
@@ -1106,8 +1105,8 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
-                               'message': "There was an error uploading the file. The error was: "
-                                          "&ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(is_error)})
+                               'message': f"There was an error uploading the file. The error was: "
+                                          f"&ldquo;{is_error}&rdquo;"})
 
     messages.success(request, "Queued the forecast file '{}' for uploading.".format(data_file.name))
     return redirect('upload-file-job-detail', pk=upload_file_job.pk)
