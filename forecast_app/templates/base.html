@@ -32,13 +32,6 @@
     <!-- hack to put vertical spacing above row, https://stackoverflow.com/questions/12273588/add-vertical-blank-space-using-twitter-bootstrap -->
     <ol style="visibility:hidden;"></ol>
 
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
-        {% endfor %}
-    {% endif %}
-
-
     {% comment %}
         this adds a section that alerts when a superuser is logged in on production. there are various ways to detect
         Heroku production - see https://stackoverflow.com/questions/9383450/how-can-i-detect-herokus-environment - but
@@ -50,6 +43,13 @@
             <strong>NOTE</strong>: You are logged in as <strong>SUPERUSER</strong> &ldquo;{{ request.user }}&rdquo;
             on <strong>{% if debug %}LOCAL{% else %}PRODUCTION{% endif %}</strong> (<code>debug={{ debug|yesno }}</code>)
         </div>
+    {% endif %}
+
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.level_tag }}">{{ message }}</div>
+        {% endfor %}
     {% endif %}
 
 
