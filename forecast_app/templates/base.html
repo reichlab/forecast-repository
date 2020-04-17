@@ -48,7 +48,7 @@
     {% if request.user.is_superuser %}
         <div class="alert {% if debug %}alert-warning{% else %}alert-danger{% endif %}" role="alert">
             <strong>NOTE</strong>: You are logged in as <strong>SUPERUSER</strong> &ldquo;{{ request.user }}&rdquo;
-            on <strong>{% if debug %}LOCAL{% else %}PRODUCTION{% endif %}</strong> (<code>debug={{ debug }}</code>)
+            on <strong>{% if debug %}LOCAL{% else %}PRODUCTION{% endif %}</strong> (<code>debug={{ debug|yesno }}</code>)
         </div>
     {% endif %}
 
