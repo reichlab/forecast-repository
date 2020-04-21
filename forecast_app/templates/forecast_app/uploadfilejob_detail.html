@@ -24,7 +24,7 @@
                 </tr>
                 <tr>
                     <th>Status:</th>
-                    <td>{{ upload_file_job.status_as_str }}</td>
+                    <td><span class="{{ upload_file_job.status_color }}">{{ upload_file_job.status_as_str }}</span></td>
                 </tr>
                 <tr>
                     <th>File Name:</th>

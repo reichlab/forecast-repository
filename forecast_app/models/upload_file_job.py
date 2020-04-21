@@ -78,6 +78,20 @@ class UploadFileJob(models.Model):
         return UploadFileJob.status_int_as_str(self.status)
 
 
+    def status_color(self):
+        """
+        Yes, this is mixing model and view code, but it makes it easy for templates to color-code status, so we fudge.
+
+        :return: a color for my status - https://getbootstrap.com/docs/4.0/utilities/colors/
+        """
+        return {UploadFileJob.PENDING: 'text-primary',
+                UploadFileJob.CLOUD_FILE_UPLOADED: 'text-secondary',
+                UploadFileJob.QUEUED: 'text-secondary',
+                UploadFileJob.CLOUD_FILE_DOWNLOADED: 'text-secondary',
+                UploadFileJob.SUCCESS: 'text-success',
+                UploadFileJob.FAILED: 'text-danger'}[self.status]
+
+
     @classmethod
     def status_int_as_str(cls, the_status_int):
         for status_int, status_name in cls.STATUS_CHOICES:
