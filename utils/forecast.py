@@ -258,28 +258,27 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            _validate_bin_predictions(is_validate_cats, prediction_data, prediction_dict, target)  # raises o/w
+            _validate_bin_predictions(is_validate_cats, prediction_dict, target)  # raises o/w
             for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
                 if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
                     bin_rows.append([unit_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
             family_abbrev = prediction_data['family']
-            _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict,
-                                        target)  # raises o/w
+            _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_dict, target)  # raises o/w
             named_rows.append([unit_name, target_name, family_abbrev,
                                prediction_data.get('param1', None),
                                prediction_data.get('param2', None),
                                prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
             value = prediction_data['value']
-            _validate_point_predictions(prediction_data, prediction_dict, target, value)  # raises o/w
+            _validate_point_predictions(prediction_dict, target, value)  # raises o/w
             point_rows.append([unit_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
-            _validate_sample_predictions(prediction_data, prediction_dict, target)  # raises o/w
+            _validate_sample_predictions(prediction_dict, target)  # raises o/w
             for sample in prediction_data['sample']:
                 sample_rows.append([unit_name, target_name, sample])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]:
-            _validate_quantile_predictions(prediction_data, prediction_dict, target)  # raises o/w
+            _validate_quantile_predictions(prediction_dict, target)  # raises o/w
             for quantile, value in zip(prediction_data['quantile'], prediction_data['value']):
                 quantile_rows.append([unit_name, target_name, quantile, value])
         else:
@@ -313,7 +312,9 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
     return bin_rows, named_rows, point_rows, sample_rows, quantile_rows
 
 
-def _validate_bin_predictions(is_validate_cats, prediction_data, prediction_dict, target):
+def _validate_bin_predictions(is_validate_cats, prediction_dict, target):
+    prediction_data = prediction_dict['prediction']
+
     # validate: "The number of elements in the `cat` and `prob` vectors should be identical"
     if len(prediction_data['cat']) != len(prediction_data['prob']):
         raise RuntimeError(f"The number of elements in the 'cat' and 'prob' vectors should be identical. "
@@ -373,7 +374,9 @@ def _validate_bin_predictions(is_validate_cats, prediction_data, prediction_dict
                            f"prediction_dict={prediction_dict}")
 
 
-def _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_data, prediction_dict, target):
+def _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_dict, target):
+    prediction_data = prediction_dict['prediction']
+
     # validate: "`family`: must be one of the abbreviations shown in the table below"
     family_abbrevs = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()
     if family_abbrev not in family_abbrevs:
@@ -422,7 +425,9 @@ def _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_
                            f"prediction_dict={prediction_dict}")
 
 
-def _validate_point_predictions(prediction_data, prediction_dict, target, value):
+def _validate_point_predictions(prediction_dict, target, value):
+    prediction_data = prediction_dict['prediction']
+
     # validate: "Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL` (case does
     # not matter)"
     value_lower = value.lower() if isinstance(value, str) else value
@@ -446,7 +451,9 @@ def _validate_point_predictions(prediction_data, prediction_dict, target, value)
                            f"prediction_dict={prediction_dict}")
 
 
-def _validate_sample_predictions(prediction_data, prediction_dict, target):
+def _validate_sample_predictions(prediction_dict, target):
+    prediction_data = prediction_dict['prediction']
+
     # validate: "Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL` (case does
     # not matter)"
     sample_lower = [sample.lower() if isinstance(sample, str) else sample
@@ -476,7 +483,9 @@ def _validate_sample_predictions(prediction_data, prediction_dict, target):
                                f"sample={prediction_data['sample']}, prediction_dict={prediction_dict}")
 
 
-def _validate_quantile_predictions(prediction_data, prediction_dict, target):
+def _validate_quantile_predictions(prediction_dict, target):
+    prediction_data = prediction_dict['prediction']
+
     # validate: "The number of elements in the `quantile` and `value` vectors should be identical."
     pred_data_quantiles = prediction_data['quantile']
     pred_data_values = prediction_data['value']

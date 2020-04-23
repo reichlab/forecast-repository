@@ -1201,9 +1201,9 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.input_json = kwargs
         upload_file_job.save()
         logger.debug("_upload_file(): 1/3 Created the UploadFileJob: {}".format(upload_file_job))
-    except Exception as exc:
-        logger.debug("_upload_file(): Error creating the UploadFileJob: {}".format(exc))
-        return "Error creating the UploadFileJob: {}".format(exc), None
+    except Exception as ex:
+        logger.debug("_upload_file(): Error creating the UploadFileJob: {}".format(ex))
+        return "Error creating the UploadFileJob: {}".format(ex), None
 
     # upload the file to cloud storage
     try:
@@ -1211,14 +1211,14 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.status = UploadFileJob.CLOUD_FILE_UPLOADED
         upload_file_job.save()
         logger.debug("_upload_file(): 2/3 Uploaded the file to cloud. upload_file_job={}".format(upload_file_job))
-    except Exception as exc:
+    except Exception as ex:
         failure_message = "_upload_file(): Error uploading file to cloud: {}. upload_file_job={}" \
-            .format(exc, upload_file_job)
+            .format(ex, upload_file_job)
         upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
         logger.debug(failure_message)
-        return "Error uploading file to cloud: {}. upload_file_job={}".format(exc, upload_file_job), None
+        return "Error uploading file to cloud: {}. upload_file_job={}".format(ex, upload_file_job), None
 
     # enqueue a worker
     try:
@@ -1227,15 +1227,15 @@ def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
         upload_file_job.status = UploadFileJob.QUEUED
         upload_file_job.save()
         logger.debug("_upload_file(): 3/3 Enqueued the job: {}. upload_file_job={}".format(rq_job, upload_file_job))
-    except Exception as exc:
+    except Exception as ex:
         failure_message = "_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {}. upload_file_job={}" \
-            .format(exc, upload_file_job)
+            .format(ex, upload_file_job)
         upload_file_job.status = UploadFileJob.FAILED
         upload_file_job.failure_message = failure_message
         upload_file_job.save()
         delete_file(upload_file_job)  # NB: in current thread
         logger.debug(failure_message)
-        return "Error enqueuing the job: {}. upload_file_job={}".format(exc, upload_file_job), None
+        return "Error enqueuing the job: {}. upload_file_job={}".format(ex, upload_file_job), None
 
     logger.debug("_upload_file(): done")
     return False, upload_file_job

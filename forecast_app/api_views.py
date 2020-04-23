@@ -675,8 +675,8 @@ def csv_response_for_cached_project_score_data(project):
             # response['Content-Length'] = os.path.getsize('/tmp/'+fname)
             response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
             return response
-        except Exception as exc:
-            logger.debug("csv_response_for_cached_project_score_data(): Error: {}. project={}".format(exc, project))
+        except Exception as ex:
+            logger.debug("csv_response_for_cached_project_score_data(): Error: {}. project={}".format(ex, project))
 
 
 def csv_response_for_project_score_data(project):

@@ -44,7 +44,7 @@ def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_p
         https://predict.cdc.gov/api/v1/attachments/flusight/flu_challenge_2016-17_update.docx
     :param time_zero: the TimeZero this forecast applies to
     :return returns a new Forecast for it
-    :raises RuntimeError if the data could not be loaded
+    :raises RuntimeError: if the data could not be loaded
     """
     if time_zero not in forecast_model.project.timezeros.all():
         raise RuntimeError(f"time_zero was not in project. time_zero={time_zero}, "
@@ -92,8 +92,8 @@ def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
         orig_header = next(csv_reader)
     except StopIteration:  # a kind of Exception, so much come first
         raise RuntimeError("empty file.")
-    except Exception as exc:
-        raise RuntimeError(f"error reading from cdc_csv_file_fp={cdc_csv_file_fp}. exc={exc}")
+    except Exception as ex:
+        raise RuntimeError(f"error reading from cdc_csv_file_fp={cdc_csv_file_fp}. ex={ex}")
 
     header = orig_header
     if (len(header) == 8) and (header[7] == ''):

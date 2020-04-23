@@ -209,8 +209,8 @@ class Target(models.Model):
         try:
             if data_types_set == {Target.DATE_DATA_TYPE}:  # Target.DATE_TARGET_TYPE
                 cats = [datetime.datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date() for cat_str in cats]
-        except ValueError as exc:
-            raise ValidationError(f"one or more cats were not in YYYY-MM-DD format. cats={cats}. exc={exc}")
+        except ValueError as ve:
+            raise ValidationError(f"one or more cats were not in YYYY-MM-DD format. cats={cats}. ve={ve}")
 
         # validate compatible data type(s)
         cats_type_set = set(map(type, cats))

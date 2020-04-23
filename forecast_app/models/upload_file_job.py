@@ -126,8 +126,8 @@ class UploadFileJob(models.Model):
             job = queue.fetch_job(self.rq_job_id())
             job.cancel()  # NB: just removes it from the queue and won't will kill it if is already executing
             logger.debug(f"cancel_rq_job(): done: {self}")
-        except Exception as exc:
-            logger.debug(f"cancel_rq_job(): Failed: {exc}, {self}")
+        except Exception as ex:
+            logger.debug(f"cancel_rq_job(): Failed: {ex}, {self}")
 
 
 #
@@ -153,11 +153,10 @@ def upload_file_job_cloud_file(upload_file_job_pk):
     """
     # __enter__()
     upload_file_job = get_object_or_404(UploadFileJob, pk=upload_file_job_pk)
-    logger.debug("upload_file_job_cloud_file(): Started. upload_file_job={}".format(upload_file_job))
+    logger.debug(f"upload_file_job_cloud_file(): Started. upload_file_job={upload_file_job}")
     with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:
-            logger.debug("upload_file_job_cloud_file(): Downloading from cloud. upload_file_job={}"
-                         .format(upload_file_job))
+            logger.debug(f"upload_file_job_cloud_file(): Downloading from cloud. upload_file_job={upload_file_job}")
             download_file(upload_file_job, cloud_file_fp)
             cloud_file_fp.seek(0)  # yes you have to do this!
             upload_file_job.status = UploadFileJob.CLOUD_FILE_DOWNLOADED
@@ -166,21 +165,20 @@ def upload_file_job_cloud_file(upload_file_job_pk):
             # make the context call. we need TextIOWrapper ('a buffered text stream over a BufferedIOBase binary
             # stream') b/c cloud_file_fp is a <class '_io.BufferedRandom'>. o/w csv ->
             # 'iterator should return strings, not bytes'
-            logger.debug("upload_file_job_cloud_file(): Calling context. upload_file_job={}".format(upload_file_job))
+            logger.debug(f"upload_file_job_cloud_file(): Calling context. upload_file_job={upload_file_job}")
             cloud_file_fp = io.TextIOWrapper(cloud_file_fp, 'utf-8')
             yield upload_file_job, cloud_file_fp
 
             # __exit__()
             upload_file_job.status = UploadFileJob.SUCCESS  # yay!
             upload_file_job.save()
-            logger.debug("upload_file_job_cloud_file(): Done. upload_file_job={}".format(upload_file_job))
-        except Exception as exc:
+            logger.debug(f"upload_file_job_cloud_file(): Done. upload_file_job={upload_file_job}")
+        except Exception as ex:
             upload_file_job.status = UploadFileJob.FAILED
-            upload_file_job.failure_message = "FAILED_PROCESS_FILE: exc={}, traceback={}" \
-                .format(exc, traceback.format_exc())
+            upload_file_job.failure_message = f"Failed to process the file: '{ex.args[0]}'"
             upload_file_job.save()
-            logger.error("upload_file_job_cloud_file(): FAILED_PROCESS_FILE: Error: {}. upload_file_job={}"
-                         .format(exc, upload_file_job))
+            logger.error(f"upload_file_job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. "
+                         f"upload_file_job={upload_file_job}")
         finally:
             delete_file(upload_file_job)  # NB: in current thread
 

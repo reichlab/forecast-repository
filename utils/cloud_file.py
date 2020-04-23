@@ -99,8 +99,8 @@ def delete_file(the_object):
         s3_resource = boto3.resource('s3')
         s3_resource.Object(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object)).delete()
         logger.debug("delete_file(): done: {}".format(the_object))
-    except Exception as exc:
-        logger.debug("delete_file(): failed: {}, {}".format(exc, the_object))
+    except Exception as ex:
+        logger.debug("delete_file(): failed: {}, {}".format(ex, the_object))
 
 
 def download_file(the_object, data_file):

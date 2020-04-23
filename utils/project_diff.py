@@ -422,7 +422,7 @@ def object_for_change(project, change, objects_to_save):
     :param objects_to_save: a list of objects as returned by this function. used to reuse already-loaded objects rather
         than reloading the from the database and thus wiping out any unsaved in-memory changes
     :return: the first object that matches change's object_type and object_pk
-    :raises: RuntimeError if not found
+    :raises: RuntimeError: if not found
     """
     if change.object_type == ObjectType.PROJECT:
         found_object = project
