@@ -952,7 +952,7 @@ class ViewsTestCase(TestCase):
                          {'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start', 'season_name'})
 
         # case: blue sky:  yes data_version_date, no season
-        timezero_config = {'timezero_date': '2017-12-01',
+        timezero_config = {'timezero_date': '2017-12-02',  # different from above, else errors
                            'data_version_date': '2017-12-02',
                            'is_season_start': False}
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {

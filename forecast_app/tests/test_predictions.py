@@ -81,7 +81,6 @@ class PredictionsTestCase(TestCase):
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero)
-        make_cdc_units_and_targets(project)
 
         # see above: counts from docs-predictionsexp-rows.xlsx
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
@@ -169,7 +168,6 @@ class PredictionsTestCase(TestCase):
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero)
-        make_cdc_units_and_targets(project)
 
         # test for invalid unit
         with self.assertRaises(RuntimeError) as context:
@@ -182,7 +180,7 @@ class PredictionsTestCase(TestCase):
         # test for invalid target
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"unit": "HHS Region 1", "target": "bad target", "class": "bad class", "prediction": {}}
+                {"unit": "location1", "target": "bad target", "class": "bad class", "prediction": {}}
             ]
             _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('prediction_dict referred to an undefined Target', str(context.exception))
@@ -190,7 +188,7 @@ class PredictionsTestCase(TestCase):
         # test for invalid prediction_class
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"unit": "HHS Region 1", "target": "1 wk ahead", "class": "bad class", "prediction": {}}
+                {"unit": "location1", "target": "pct next week", "class": "bad class", "prediction": {}}
             ]
             _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
         self.assertIn('invalid prediction_class', str(context.exception))

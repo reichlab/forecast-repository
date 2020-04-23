@@ -317,6 +317,39 @@ class ProjectUtilTestCase(TestCase):
             self.assertIn(f"'cats' passed but is invalid for type_name={target_type}", str(context.exception))
 
 
+    def test_create_project_from_json_duplicate_timezero(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            project_dict = json.load(fp)
+            project_dict['timezeros'].append(project_dict['timezeros'][0])
+
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn("found existing TimeZero for timezero_date", str(context.exception))
+
+
+    def test_create_project_from_json_duplicate_unit(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            project_dict = json.load(fp)
+            project_dict['units'].append(project_dict['units'][0])
+
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn("found existing Unit for name", str(context.exception))
+
+
+    def test_create_project_from_json_duplicate_target(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            project_dict = json.load(fp)
+            project_dict['targets'].append(project_dict['targets'][0])
+
+        with self.assertRaises(RuntimeError) as context:
+            create_project_from_json(project_dict, po_user)
+        self.assertIn("found existing Target for name", str(context.exception))
+
+
     def test_create_project_from_json_target_range_format(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:

@@ -328,9 +328,12 @@ def validate_and_create_timezero(project, timezero_config, is_validate_only=Fals
     if is_validate_only:
         return None
 
-    # create the TimeZero
-    tz_datetime = datetime.datetime.strptime(timezero_config['timezero_date'], YYYY_MM_DD_DATE_FORMAT)
-    timezero_date = datetime.date(tz_datetime.year, tz_datetime.month, tz_datetime.day)
+    # create the TimeZero, first checking for an existing one
+    timezero_date = datetime.datetime.strptime(timezero_config['timezero_date'], YYYY_MM_DD_DATE_FORMAT).date()
+    existing_timezero = project.timezeros.filter(timezero_date=timezero_date).first()
+    if existing_timezero:
+        raise RuntimeError(f"found existing TimeZero for timezero_date={timezero_date}")
+
     dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYY_MM_DD_DATE_FORMAT) \
         if timezero_config['data_version_date'] else None
     data_version_date = datetime.date(dvd_datetime.year, dvd_datetime.month, dvd_datetime.day) \

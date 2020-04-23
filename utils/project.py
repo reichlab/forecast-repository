@@ -168,7 +168,13 @@ def _validate_and_create_units(project, project_dict, is_validate_only=False):
 
         # valid
         if not is_validate_only:
-            units.append(Unit.objects.create(project=project, name=unit_dict['name']))
+            # create the Unit, first checking for an existing one
+            unit_name = unit_dict['name']
+            existing_unit = project.units.filter(name=unit_name).first()
+            if existing_unit:
+                raise RuntimeError(f"found existing Unit for name={unit_name}")
+
+            units.append(Unit.objects.create(project=project, name=unit_name))
     return units
 
 
@@ -206,7 +212,11 @@ def _validate_and_create_targets(project, project_dict, is_validate_only=False):
             if 'unit' in target_dict:
                 model_init['unit'] = target_dict['unit']
 
-            # instantiate the new Target
+            # instantiate the new Target, first checking for an existing one
+            existing_target = project.targets.filter(name=target_dict['name']).first()
+            if existing_target:
+                raise RuntimeError(f"found existing Target for name={target_dict['name']}")
+
             target = Target.objects.create(**model_init)
             targets.append(target)
 
