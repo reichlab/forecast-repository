@@ -1,7 +1,6 @@
 import io
 import logging
 import tempfile
-import traceback
 from contextlib import contextmanager
 
 import django_rq
