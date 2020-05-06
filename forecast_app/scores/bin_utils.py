@@ -216,19 +216,19 @@ def _tz_loc_targ_pk_lwr_to_pred_val(forecast_model):
     Only returns rows whose targets match numeric_targets().
     """
     targets = forecast_model.project.numeric_targets()
-    forecast_data_qs = BinDistribution.objects \
+    bin_dist_qs = BinDistribution.objects \
         .filter(forecast__forecast_model=forecast_model,
                 target__in=targets) \
         .order_by('forecast__time_zero__id', 'unit__id', 'target__id') \
         .values_list('forecast__time_zero__id', 'unit__id', 'target__id', 'prob',
-                     'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+                     'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')  # only one of cat_* is non-None
 
     # build the dict: {timezero_pk: {unit_pk: {target_id: {lwr_1: predicted_value_1, ...}}}}:
     tzltpk_to_forec_st_to_pred_val = {}
-    for time_zero_id, loc_target_val_grouper in groupby(forecast_data_qs, key=lambda _: _[0]):
+    for time_zero_id, unit_target_val_grouper in groupby(bin_dist_qs, key=lambda _: _[0]):
         ltpk_to_forec_start_to_pred_val = {}  # {unit_pk: {target_id: {lwr_1: predicted_value_1, ...}}}
         tzltpk_to_forec_st_to_pred_val[time_zero_id] = ltpk_to_forec_start_to_pred_val
-        for unit_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+        for unit_id, target_val_grouper in groupby(unit_target_val_grouper, key=lambda _: _[1]):
             # {target_id: {lwr_1: predicted_value_1, ...}}:
             tpk_to_forec_start_to_pred_val = defaultdict(dict)
             ltpk_to_forec_start_to_pred_val[unit_id] = tpk_to_forec_start_to_pred_val

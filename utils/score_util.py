@@ -1,3 +1,5 @@
+import logging
+
 import click
 import django
 import django_rq
@@ -8,8 +10,10 @@ from django.shortcuts import get_object_or_404
 django.setup()
 
 from forecast_app.models.score import _update_model_scores
-
 from forecast_app.models import Score, ScoreValue, Project, ForecastModel
+
+
+logger = logging.getLogger(__name__)
 
 
 # https://stackoverflow.com/questions/44051647/get-params-sent-to-a-subcommand-of-a-click-group
@@ -23,7 +27,7 @@ class MyGroup(click.Group):
 @click.pass_context
 def cli(ctx):
     args = ctx.obj
-    click.echo('cli: {} {}'.format(ctx.invoked_subcommand, ' '.join(args)))
+    logger.info('cli: {} {}'.format(ctx.invoked_subcommand, ' '.join(args)))
 
 
 @cli.command(name="print")
@@ -33,11 +37,11 @@ def print_scores():
     """
     Score.ensure_all_scores_exist()
 
-    click.echo("\n* Scores:")
+    logger.info("\n* Scores:")
     for score in Score.objects.all():
-        click.echo(f"- {score} | {ScoreValue.objects.filter(score=score).count()}")
+        logger.info(f"- {score} | {ScoreValue.objects.filter(score=score).count()}")
 
-    click.echo("\n* Score Forecasts:")
+    logger.info("\n* Score Forecasts:")
     for score in Score.objects.all().order_by('name'):
         for project in Project.objects.all():
             for forecast_model in project.models.all().order_by('project__name', 'name'):
@@ -46,9 +50,9 @@ def print_scores():
                 last_update_str = '{:%Y-%m-%d %H:%M:%S}'.format(score_last_update.updated_at) if score_last_update \
                     else '[no updated_at]'
                 # e.g.,  + (score=5) 'pit' | 3135 | 2019-11-14 16:18:53 . (proj=46, model=127) 'SARIMA model with seasonal differencing'
-                click.echo(f"  + (score={score.pk}) '{score.abbreviation}' | {score_values_qs.count()} | "
-                           f"{last_update_str} . (proj={forecast_model.project.pk}, model={forecast_model.pk}) "
-                           f"'{forecast_model.name}'")
+                logger.info(f"  + (score={score.pk}) '{score.abbreviation}' | {score_values_qs.count()} | "
+                            f"{last_update_str} . (proj={forecast_model.project.pk}, model={forecast_model.pk}) "
+                            f"'{forecast_model.name}'")
 
 
 @cli.command()
@@ -64,9 +68,9 @@ def clear(score_pk):
 
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     for score in scores:
-        click.echo("clearing {}".format(score))
+        logger.info("clearing {}".format(score))
         score.clear()
-    click.echo("clear done")
+    logger.info("clear done")
 
 
 @cli.command()
@@ -91,17 +95,16 @@ def update(score_pk, model_pk, no_enqueue):
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
     models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
     for score in scores:
-        print(score)
+        logger.info(f"* {score}")
         for forecast_model in models:
-            print('  ', forecast_model)
             if no_enqueue:
-                click.echo(f"(no enqueue) calculating score={score}, forecast_model={forecast_model}")
+                logger.info(f"** (no enqueue) calculating score={score}, forecast_model={forecast_model}")
                 _update_model_scores(score.pk, forecast_model.pk)
             else:
-                click.echo(f"enqueuing score={score}, forecast_model={forecast_model}")
+                logger.info(f"** enqueuing score={score}, forecast_model={forecast_model}")
                 queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
                 queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
-    click.echo("update done")
+    logger.info("update done")
 
 
 @cli.command()
@@ -113,10 +116,10 @@ def update_all_changed(dry_run):
 
     :param dry_run: True means just print a report of Score/ForecastModel pairs that would be updated
     """
-    click.echo(f"searching for changed Score/ForecastModel pairs. dry_run={dry_run}")
+    logger.info(f"searching for changed Score/ForecastModel pairs. dry_run={dry_run}")
     enqueued_score_model_pks = Score.enqueue_update_scores_for_all_models(is_only_changed=True, dry_run=dry_run)
-    click.echo(f"enqueuing done. dry_run={dry_run}. {len(enqueued_score_model_pks)} Score/ForecastModel pairs. "
-               f"enqueued_score_model_pks={enqueued_score_model_pks}")
+    logger.info(f"enqueuing done. dry_run={dry_run}. {len(enqueued_score_model_pks)} Score/ForecastModel pairs. "
+                f"enqueued_score_model_pks={enqueued_score_model_pks}")
 
 
 if __name__ == '__main__':

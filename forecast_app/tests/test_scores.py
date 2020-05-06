@@ -1,6 +1,7 @@
 import csv
 import datetime
 import io
+import json
 import logging
 import math
 from pathlib import Path
@@ -8,17 +9,21 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.api_views import _write_csv_score_data_for_project
-from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr
+from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_to_lwrs, \
     _tz_loc_targ_pk_lwr_to_pred_val
 from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
+from forecast_app.scores.calc_interval import _calculate_interval_score_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.forecast import load_predictions_from_json_io_dict
+from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
-from utils.project import load_truth_data
+from utils.project import load_truth_data, create_project_from_json
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -49,7 +54,7 @@ class ScoresTestCase(TestCase):
         Score.ensure_all_scores_exist()
 
         # test creation of the current Scores/types
-        self.assertEqual(5, Score.objects.count())
+        self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), Score.objects.count())
         self.assertEqual(set(SCORE_ABBREV_TO_NAME_AND_DESCR),
                          set([score.abbreviation for score in Score.objects.all()]))
 
@@ -60,12 +65,11 @@ class ScoresTestCase(TestCase):
 
     def test_absolute_error_score(self):
         Score.ensure_all_scores_exist()
-
-        # sanity-test 'abs_error'
         abs_error_score = Score.objects.filter(abbreviation='abs_error').first()
-        abs_error_score.update_score_for_model(self.forecast_model)
+        self.assertIsNotNone(abs_error_score)
 
         # test creation of a ScoreLastUpdate entry. we don't test score_last_update.updated_at
+        abs_error_score.update_score_for_model(self.forecast_model)
         score_last_update = abs_error_score.last_update_for_forecast_model(self.forecast_model)
         self.assertIsNotNone(score_last_update)
 
@@ -90,13 +94,12 @@ class ScoresTestCase(TestCase):
 
     def test_log_single_bin_score(self):
         Score.ensure_all_scores_exist()
-
         log_single_bin_score = Score.objects.filter(abbreviation='log_single_bin').first()
         self.assertIsNotNone(log_single_bin_score)
 
         # creation of a ScoreLastUpdate entry is tested above
 
-        project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
+        project2, forecast_model2, forecast2, _ = _make_cdc_log_score_project()
 
         # truth from truths-2016-2017-reichlab-small.csv: 20161030, US National, 1 wk ahead -> 1.55838
         # -> corresponding bin in 20161030-KoTstable-20161114-small.cdc.csv:
@@ -158,7 +161,7 @@ class ScoresTestCase(TestCase):
         Score.ensure_all_scores_exist()
         log_multi_bin_score = Score.objects.filter(abbreviation='log_multi_bin').first()
 
-        project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
+        _, forecast_model2, forecast2, _ = _make_cdc_log_score_project()
 
         # delete the last forecast bin row that's within the window of 5, which should change the calculation. the row:
         #   US National	1 wk ahead	Bin	percent	2	2.1	0.0196988816334531
@@ -186,7 +189,7 @@ class ScoresTestCase(TestCase):
         # drive data structures needed for new score algorithm
         Score.ensure_all_scores_exist()
 
-        project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
+        project2, forecast_model2, _, time_zero2 = _make_cdc_log_score_project()
         loc_us_nat = project2.units.filter(name='US National').first()
         target_name_to_pk = {target.name: target.pk for target in project2.targets.all()}
 
@@ -246,11 +249,10 @@ class ScoresTestCase(TestCase):
     def test_log_multi_bin_score(self):
         # see log-score-multi-bin-hand-calc.xlsx for expected values for the cases
         Score.ensure_all_scores_exist()
-
         log_multi_bin_score = Score.objects.filter(abbreviation='log_multi_bin').first()
         self.assertIsNotNone(log_multi_bin_score)
 
-        project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
+        project2, forecast_model2, _, _ = _make_cdc_log_score_project()
 
         # case 1: calculate the score and test results using actual truth:
         #   20161030,US National,1 wk ahead,1.55838  ->  bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
@@ -317,7 +319,7 @@ class ScoresTestCase(TestCase):
     def test_log_multi_bin_score_truth_none_cases(self):
         Score.ensure_all_scores_exist()
 
-        project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
+        project2, forecast_model2, forecast2, _ = _make_cdc_log_score_project()
 
         # case: truth = None, but no forecast bin start/end that's None -> no matching bin -> use zero for predicted
         # value (rather than not generating a ScoreValue at all). this test also tests the
@@ -444,7 +446,7 @@ class ScoresTestCase(TestCase):
         self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, _tz_loc_targ_pk_to_true_lwr(project2))
 
         # test CDC project
-        project2, forecast_model2, forecast2, time_zero2 = _make_cdc_log_score_project()
+        project2, _, _, time_zero2 = _make_cdc_log_score_project()
 
         loc_us = Unit.objects.filter(project=project2, name='US National').first()
 
@@ -464,8 +466,10 @@ class ScoresTestCase(TestCase):
 
     def test_pit_score(self):
         Score.ensure_all_scores_exist()
-        project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
         pit_score = Score.objects.filter(abbreviation='pit').first()
+        self.assertIsNotNone(pit_score)
+
+        _, forecast_model2, _, _ = _make_thai_log_score_project()
         pit_score.update_score_for_model(forecast_model2)
         exp_loc_targ_val = [('TH01', '1_biweek_ahead', 0.7879999999999999),
                             ('TH01', '2_biweek_ahead', 0.166),
@@ -495,7 +499,7 @@ class ScoresTestCase(TestCase):
         Score.ensure_all_scores_exist()
 
         # NB: using thai, not CDC (which test_log_multi_bin_score_truth_none_cases() uses):
-        project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
+        project2, forecast_model2, forecast2, _ = _make_thai_log_score_project()
 
         # case: truth = None, but no bin start/end that's None -> no matching bin -> no ScoreValue created.
         # we'll change this row:
@@ -540,6 +544,141 @@ class ScoresTestCase(TestCase):
 
 
     #
+    # test 'calc_interval_02'
+    #
+
+    def test_calc_interval_02_alpha_no_matching_quantiles(self):
+        # test that no scores are calculated when there are no quantiles corresponding to alpha's lower and upper.
+        # we use alpha=0.22 -> l=0.11, u=0.89 , which match no quantiles in 2020-04-26-CU-80contact-small.csv.json
+        # (... 0.1, 0.15 ... 0.8, 0.85, 0.9 ...)
+        Score.ensure_all_scores_exist()
+        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
+        self.assertIsNotNone(interval_02_score)
+
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, forecast_model, _ = \
+            _make_covid19_project(po_user, 'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        _calculate_interval_score_values(interval_02_score, forecast_model, 0.22)
+        self.assertEqual(0, interval_02_score.values.count())
+
+
+    def test_calc_interval_02_not_exactly_two_quantile_values(self):
+        # test to expose bug: "not exactly two quantile values (no match for both lower and upper)"
+        Score.ensure_all_scores_exist()
+        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
+        self.assertIsNotNone(interval_02_score)
+
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, _ = \
+            _make_covid19_project(po_user, 'forecast_app/tests/scores/2020-04-26-CU-60contact-small.csv.json')
+
+        try:
+            interval_02_score.update_score_for_model(forecast_model)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
+        # the above exposed a bug that raised that exception, and we'd like another test that exposes it after the fix,
+        # but that would require an invalid quantile that has two values for the same quantile, e.g., (0.1, 1) and
+        # (0.1, 2), which loading invalidates
+
+
+    def test_calc_interval_02_docs_project(self):
+        # test score values for the seven cases in docs-predictions-quantile-exported-hand-calc.xlsx . note that all use
+        # alpha=0.5
+        Score.ensure_all_scores_exist()
+        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
+        self.assertIsNotNone(interval_02_score)
+
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        unit_loc2 = project.units.filter(name='location2').first()
+        targ_pct_next_wk = project.targets.filter(name='pct next week').first()  # continuous
+        unit_loc3 = project.units.filter(name='location3').first()
+        targ_cases_next_wk = project.targets.filter(name='cases next week').first()  # discrete
+        for unit, target, truth, exp_score in [
+            (unit_loc2, targ_pct_next_wk, 1, 7.6),  # case 1/7) truth < l
+            (unit_loc2, targ_pct_next_wk, 2.2, 2.8),  # case 2/7) truth == l
+            # (unit_loc2, targ_pct_next_wk, 2.2, 2.8),  # case 3/7) 1 < truth < u. but different quantile, same value -> same score
+            (unit_loc2, targ_pct_next_wk, 5, 2.8),  # case 4/7) truth == u
+            (unit_loc2, targ_pct_next_wk, 50, 182.8),  # case 5/7) truth == l
+            (unit_loc3, targ_cases_next_wk, 0, 50),  # case 6/7) truth == u
+            (unit_loc3, targ_cases_next_wk, 50, 50),  # case 7/7) truth == u
+        ]:
+            project.delete_truth_data()
+            # NB: use correct value column for target type
+            TruthData.objects.create(time_zero=time_zero, unit=unit, target=target,
+                                     value_i=truth if target == targ_cases_next_wk else None,
+                                     value_f=truth if target == targ_pct_next_wk else None)
+            ScoreValue.objects \
+                .filter(score=interval_02_score, forecast__forecast_model=forecast_model) \
+                .delete()  # usually done by update_score_for_model()
+            _calculate_interval_score_values(interval_02_score, forecast_model, 0.5)
+            self.assertEqual(1, interval_02_score.values.count())
+
+            score_value = interval_02_score.values.first()
+            self.assertEqual(unit, score_value.unit)
+            self.assertEqual(target, score_value.target)
+            self.assertAlmostEqual(exp_score, score_value.value)
+
+        # add two truths that result in two ScoreValues
+        project.delete_truth_data()
+        TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        ScoreValue.objects \
+            .filter(score=interval_02_score, forecast__forecast_model=forecast_model) \
+            .delete()  # usually done by update_score_for_model()
+        _calculate_interval_score_values(interval_02_score, forecast_model, 0.5)
+        self.assertEqual(2, interval_02_score.values.count())
+        self.assertEqual([2.8, 50], sorted(interval_02_score.values.all().values_list('value', flat=True)))
+
+        # add a second forecast for a new timezero
+        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
+        forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                           time_zero=time_zero2, notes="a small prediction file")
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
+        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        ScoreValue.objects \
+            .filter(score=interval_02_score, forecast__forecast_model=forecast_model) \
+            .delete()  # usually done by update_score_for_model()
+        _calculate_interval_score_values(interval_02_score, forecast_model, 0.5)
+        self.assertEqual(4, interval_02_score.values.count())
+
+
+    def test_calc_interval_02(self):
+        # test score values for the five cases in 2020-04-26-CU-80contact-small-hand-calc.xlsx . note that all use
+        # alpha=0.2
+        Score.ensure_all_scores_exist()
+        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
+        self.assertIsNotNone(interval_02_score)
+
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, _ = \
+            _make_covid19_project(po_user, 'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        unit = project.units.filter(name='US').first()
+        target = project.targets.filter(name='1 day ahead cum death').first()
+        for truth, exp_score in [
+            (51565, 2615),  # case 1/5) truth < l
+            (51730, 965),  # case 2/5) truth == l
+            (52072, 965),  # case 3/5a) 1 < truth < u. a) truth == an actual value
+            (52073, 965),  # case 3/5b) 1 < truth < u. b) truth != an actual value
+            (52695, 965),  # case 4/5) truth == u
+            (52919, 3205),  # case 5/5) truth > u
+        ]:
+            project.delete_truth_data()
+            TruthData.objects.create(time_zero=time_zero, unit=unit, target=target, value_i=truth)
+            interval_02_score.update_score_for_model(forecast_model)
+            self.assertEqual(1, interval_02_score.values.count())
+
+            score_value = interval_02_score.values.first()
+            self.assertEqual(unit, score_value.unit)
+            self.assertEqual(target, score_value.target)
+            self.assertEqual(exp_score, score_value.value)
+
+
+    #
     # other tests
     #
 
@@ -568,7 +707,7 @@ class ScoresTestCase(TestCase):
         act_csv_reader = csv.reader(string_io, delimiter=',')
         act_rows = list(act_csv_reader)
         with open('forecast_app/tests/scores/EW1-KoTsarima-2017-01-17_exp-download.csv', 'r') as fp:
-            # model,timezero,season,unit,target,error,abs_error,log_single_bin,log_multi_bin
+            # model,timezero,season,unit,target,error,abs_error,log_single_bin,log_multi_bin,interval_02
             exp_csv_reader = csv.reader(fp, delimiter=',')
             exp_rows = list(exp_csv_reader)
             for idx, (exp_row, act_row) in enumerate(zip(exp_rows, act_rows)):
@@ -733,3 +872,21 @@ def _make_thai_log_score_project():
 
     load_truth_data(project2, Path('forecast_app/tests/scores/dengue-truths-small.csv'))
     return project2, forecast_model2, forecast2, time_zero2
+
+
+def _make_covid19_project(user, predictions_file):
+    # NB: does not load any truth
+    covid19_project_name = 'covid_19_project'  # from covid19-project.json
+    found_project = Project.objects.filter(name=covid19_project_name).first()
+    if found_project:
+        found_project.delete()
+    project = create_project_from_json(Path('forecast_app/tests/projects/covid19-project.json'), user)
+    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
+    time_zero = project.timezeros.all().first()
+    forecast = Forecast.objects.create(forecast_model=forecast_model,
+                                       source='2020-04-26-CU-80contact-small.csv.json',
+                                       time_zero=time_zero)
+    with open(predictions_file) as fp:
+        json_io_dict_in = json.load(fp)
+        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
+    return project, time_zero, forecast_model, forecast

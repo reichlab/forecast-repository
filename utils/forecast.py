@@ -483,6 +483,14 @@ def _validate_sample_predictions(prediction_dict, target):
                                f"sample={prediction_data['sample']}, prediction_dict={prediction_dict}")
 
 
+def _le_with_tolerance(a, b):  # a <= b ?
+    # `_validate_quantile_predictions()` helper
+    if type(a) in {int, float}:
+        return True if math.isclose(a, b, rel_tol=1e-05) else a <= b  # default: rel_tol=1e-09
+    else:  # date
+        return a <= b
+
+
 def _validate_quantile_predictions(prediction_dict, target):
     prediction_data = prediction_dict['prediction']
 
@@ -522,15 +530,17 @@ def _validate_quantile_predictions(prediction_dict, target):
     # note: for date targets we format as strings for the comparison (incoming are strings).
     # note: we do not assume quantiles are sorted, so we first sort before checking for non-decreasing
     pred_data_values = [datetime.datetime.strptime(value, YYYY_MM_DD_DATE_FORMAT).date()
-                              for value in pred_data_values] \
+                        for value in pred_data_values] \
         if target.type == Target.DATE_TARGET_TYPE else pred_data_values  # valid - see is_all_compatible above
 
     # per https://stackoverflow.com/questions/7558908/unpacking-a-list-tuple-of-pairs-into-two-lists-tuples
     pred_data_quantiles, pred_data_values = zip(*sorted(zip(pred_data_quantiles, pred_data_values), key=lambda _: _[0]))
 
-    if not all([x <= y for x, y in zip(pred_data_values, pred_data_values[1:])]):
+    is_le_values = [_le_with_tolerance(a, b) for a, b in zip(pred_data_values, pred_data_values[1:])]
+    if not all(is_le_values):
         raise RuntimeError(f"Entries in `value` must be non-decreasing as quantiles increase. "
-                           f"value column={pred_data_values}, prediction_dict={prediction_dict}")
+                           f"value column={pred_data_values}, is_le_values={is_le_values}, "
+                           f"prediction_dict={prediction_dict}")
 
     # validate: "Entries in `value` must obey existing ranges for targets." recall: "The range is assumed to be
     # inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."

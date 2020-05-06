@@ -12,6 +12,7 @@ from rest_framework.test import APIRequestFactory
 from forecast_app.models import Project, TimeZero, Score
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
+from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from forecast_app.tests.test_scores import _make_thai_log_score_project
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
@@ -412,7 +413,7 @@ class ForecastTestCase(TestCase):
         # test that with ModelScoreChanges but no ScoreLastUpdate, all Score/ForecastModel pairs are updated
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             Score.enqueue_update_scores_for_all_models(is_only_changed=True)
-            self.assertEqual(5, enqueue_mock.call_count)  # 5 scores * 1 model
+            self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), enqueue_mock.call_count)  # 6 scores * 1 model
 
         # make all ScoreLastUpdates be after self.forecast_model's update, which means none should update
         Score.ensure_all_scores_exist()
@@ -425,13 +426,13 @@ class ForecastTestCase(TestCase):
         # same, but pass is_only_changed=False -> all Score/ForecastModel pairs should update
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             Score.enqueue_update_scores_for_all_models(is_only_changed=False)
-            self.assertEqual(5, enqueue_mock.call_count)
+            self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), enqueue_mock.call_count)
 
         # loading truth should result in all Score/ForecastModel pairs being updated
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             Score.enqueue_update_scores_for_all_models(is_only_changed=True)
-            self.assertEqual(5, enqueue_mock.call_count)
+            self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), enqueue_mock.call_count)
 
 
     def test_json_io_dict_from_forecast(self):

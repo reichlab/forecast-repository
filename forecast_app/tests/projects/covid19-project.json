@@ -1,0 +1,63 @@
+{
+  "name": "COVID-19 Death Forecasts",
+  "is_public": true,
+  "description": "The goal of this repository is to create a standardized set of data on forecasts from experienced teams making projections of cumulative and incident deaths due to COVID-19 in the United States.",
+  "home_url": "https://github.com/reichlab/covid19-death-forecasts",
+  "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
+  "core_data": "https://github.com/reichlab/covid19-death-forecasts/tree/master/data-processed",
+  "time_interval_type": "Week",
+  "visualization_y_label": "Weighted ILI (%)",
+  "units": [
+    {
+      "id": 335,
+      "url": "https://www.zoltardata.com/api/unit/335/",
+      "name": "US"
+    },
+    {
+      "id": 386,
+      "url": "https://www.zoltardata.com/api/unit/386/",
+      "name": "56"
+    }
+  ],
+  "targets": [
+    {
+      "id": 464,
+      "url": "https://www.zoltardata.com/api/target/464/",
+      "name": "1 day ahead cum death",
+      "type": "discrete",
+      "description": "One- to seven-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
+      "is_step_ahead": true,
+      "step_ahead_increment": 1,
+      "unit": "cumulative deaths"
+    },
+    {
+      "id": 488,
+      "url": "https://www.zoltardata.com/api/target/488/",
+      "name": "10 day ahead cum death",
+      "type": "discrete",
+      "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
+      "is_step_ahead": true,
+      "step_ahead_increment": 10,
+      "unit": "cumulative deaths"
+    },
+    {
+      "id": 489,
+      "url": "https://www.zoltardata.com/api/target/489/",
+      "name": "10 day ahead inc death",
+      "type": "discrete",
+      "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
+      "is_step_ahead": true,
+      "step_ahead_increment": 10,
+      "unit": "incident deaths"
+    }
+  ],
+  "timezeros": [
+    {
+      "id": 584,
+      "url": "https://www.zoltardata.com/api/timezero/584/",
+      "timezero_date": "2020-12-28",
+      "data_version_date": null,
+      "is_season_start": false
+    }
+  ]
+}

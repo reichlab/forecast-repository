@@ -63,7 +63,7 @@ def make_minimal_projects_app():
     fill_cdc_project(private_project, mo_user, is_public=False)  # ""
 
     click.echo("* creating Docs project")
-    create_docs_project(po_user)
+    _make_docs_project(po_user)
 
     click.echo("* Done")
 
@@ -114,13 +114,13 @@ def fill_cdc_project(project, mo_user, is_public):
 
 
 #
-# create_docs_project()
+# _make_docs_project()
 #
 
 DOCS_PROJECT_NAME = "Docs Example Project"  # overrides the json file one
 
 
-def create_docs_project(po_user):
+def _make_docs_project(user):
     """
     Creates a project based on docs-project.json with forecasts from docs-predictions.json.
     """
@@ -129,21 +129,21 @@ def create_docs_project(po_user):
         click.echo("* deleting previous project: {}".format(found_project))
         found_project.delete()
 
-    project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+    project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), user)
     project.name = DOCS_PROJECT_NAME
     project.save()
 
     load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))
 
-    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
     time_zero = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
     forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                        time_zero=time_zero, notes="a small prediction file")
     with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
         json_io_dict_in = json.load(fp)
         load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
 
-    return project
+    return project, time_zero, forecast_model, forecast
 
 
 if __name__ == '__main__':

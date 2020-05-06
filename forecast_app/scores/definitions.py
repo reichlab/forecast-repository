@@ -2,6 +2,7 @@ import logging
 
 from forecast_app.models import Forecast, ScoreValue
 from forecast_app.scores.calc_error import _calculate_error_score_values
+from forecast_app.scores.calc_interval import _calculate_interval_score_values
 from forecast_app.scores.calc_log import _calc_log_bin_score_values
 from forecast_app.scores.calc_pit import _calculate_pit_score_values
 
@@ -25,8 +26,11 @@ SCORE_ABBREV_TO_NAME_AND_DESCR = {
                                                  "better."),
     'log_multi_bin': ('Log score (multi bin)', "This is calculated by finding the natural log of probability "
                                                "assigned to the true and a few neighbouring bins. Higher is better."),
+    # from nick re: pit lower/higher is better: "one individual score is not meaningful/interpretable in this way":
     'pit': ('Probability Integral Transform (PIT)', "The probability integral transform (PIT) is a metric commonly "
                                                     "used to evaluate the calibration of probabilistic forecasts."),
+    'interval_02': ('Interval score (alpha=0.2)', "The interval score is a proper score used to assess calibration and "
+                                                  "sharpness of quantile forecasts. Lower is better."),
 }
 
 
@@ -101,6 +105,17 @@ def calc_pit(score, forecast_model):
     Calculates 'pit' score.
     """
     _calculate_pit_score_values(score, forecast_model)
+
+
+#
+# ---- 'pit' calculation functions ----
+#
+
+def calc_interval_02(score, forecast_model):
+    """
+    Calculates 'interval_02' score.
+    """
+    _calculate_interval_score_values(score, forecast_model, 0.2)
 
 
 #

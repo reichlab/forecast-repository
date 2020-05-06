@@ -8,7 +8,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from forecast_app.tests.test_scores import _update_scores_for_all_projects
-from utils.make_minimal_projects import create_docs_project
+from utils.make_minimal_projects import _make_docs_project
 from utils.project import config_dict_from_project
 from utils.project_diff import project_config_diff, Change, order_project_config_diff, execute_project_config_diff, \
     database_changes_for_project_config_diff, ObjectType, ChangeType
@@ -25,7 +25,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_project_config_diff(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         current_config_dict = config_dict_from_project(project, APIRequestFactory().request())
@@ -147,7 +147,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_order_project_config_diff(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
@@ -165,7 +165,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_database_changes_for_project_config_diff(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
@@ -184,7 +184,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_execute_project_config_diff(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
         # make some changes
@@ -201,7 +201,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_diff_from_file(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
@@ -229,7 +229,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_diff_from_file_empty_data_version_date_string(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
@@ -244,7 +244,7 @@ class ProjectDiffTestCase(TestCase):
 
     def test_serialize_change_list(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_docs_project(po_user)  # docs-project.json, docs-ground-truth.csv, docs-predictions.json
+        project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
         # make some changes
