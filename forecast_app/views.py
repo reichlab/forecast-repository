@@ -1170,7 +1170,7 @@ def delete_forecast(request, forecast_pk):
 # See for more: https://devcenter.heroku.com/articles/s3#file-uploads .
 
 
-MAX_UPLOAD_FILE_SIZE = 5E+06
+MAX_UPLOAD_FILE_SIZE = 10E+06
 
 
 def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
