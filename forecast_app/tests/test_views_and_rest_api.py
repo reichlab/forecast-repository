@@ -493,8 +493,9 @@ class ViewsTestCase(TestCase):
 
             reverse('api-truth-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-truth-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-truth-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-download-truth-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
+            reverse('api-download-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
+
             reverse('api-score-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
 
@@ -594,7 +595,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_data'],
                          list(response.data))
 
-        response = self.client.get(reverse('api-truth-data', args=[self.public_project.pk]), format='json')
+        response = self.client.get(reverse('api-download-truth-data', args=[self.public_project.pk]), format='json')
         self.assertEqual(341, len(response.content))
 
         response = self.client.get(reverse('api-score-data', args=[self.public_project.pk]), format='json')
@@ -962,6 +963,47 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(set(json_response.json().keys()),
                          {'id', 'url', 'timezero_date', 'data_version_date', 'is_season_start'})  # no 'season_name'
+
+
+    def test_api_upload_truth(self):
+        # to avoid the requirement of RQ, redis, and S3, we patch _upload_file() to return (is_error, upload_file_job)
+        # with desired return args
+        with patch('forecast_app.views._upload_file') as upload_file_mock:
+            # upload_truth_url = reverse('api-upload-truth-data', args=[str(self.public_project.pk)])
+            upload_truth_url = reverse('api-truth-detail', args=[str(self.public_project.pk)])
+            data_file = SimpleUploadedFile('file.json', b'file_content', content_type='application/csv')
+
+            # case: not authorized
+            joe_user = User.objects.create_user(username='joe', password='password')
+            json_response = self.client.post(upload_truth_url, {
+                'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+            # case: no 'data_file'
+            jwt_token = self._authenticate_jwt_user(self.po_user, self.po_user_password)
+            json_response = self.client.post(upload_truth_url, {
+                'Authorization': f'JWT {jwt_token}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: _upload_file() -> is_error
+            upload_file_mock.return_value = True, None  # is_error, upload_file_job
+            json_response = self.client.post(upload_truth_url, {
+                'data_file': data_file,
+                'Authorization': f'JWT {jwt_token}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+            # case: blue sky: _upload_file() -> NOT is_error
+            upload_file_job_return_value = UploadFileJob.objects.create()
+            upload_file_mock.return_value = False, upload_file_job_return_value  # is_error, upload_file_job
+            json_response = self.client.post(upload_truth_url, {
+                'data_file': data_file,
+                'Authorization': f'JWT {jwt_token}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+            self.assertEqual(upload_file_job_return_value.id, json_response.json()['id'])
 
 
     def test_api_upload_forecast(self):

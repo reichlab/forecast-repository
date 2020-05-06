@@ -1008,7 +1008,7 @@ def delete_truth(request, project_pk):
 
 def upload_truth(request, project_pk):
     """
-    Uploads the passed data into a the project's truth.
+    Uploads the passed data into a the project's truth, replacing any existing truth data.
     Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
