@@ -14,8 +14,7 @@ from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.generics import get_object_or_404, RetrieveDestroyAPIView, ListCreateAPIView, ListAPIView, \
-    RetrieveAPIView
+from rest_framework.generics import get_object_or_404
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -26,7 +25,8 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
-from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model
+from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
+    process_upload_file_job__truth
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project
@@ -158,7 +158,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
             return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):
+class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
     """
     View that returns a list of ForecastModels in a Project. This is different from other Views in this file b/c the
     serialized instances returned (ForecastModelSerializer) are different from this class's serializer_class
@@ -219,7 +219,7 @@ class ProjectForecastModelList(UserPassesTestMixin, ListAPIView):
             return JsonResponse({'error': str(ex)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProjectUnitList(UserPassesTestMixin, ListAPIView):
+class ProjectUnitList(UserPassesTestMixin, generics.ListAPIView):
     """
     View that returns a list of Units in a Project, similar to ProjectTimeZeroList.
     """
@@ -237,7 +237,7 @@ class ProjectUnitList(UserPassesTestMixin, ListAPIView):
         return project.units
 
 
-class ProjectTargetList(UserPassesTestMixin, ListAPIView):
+class ProjectTargetList(UserPassesTestMixin, generics.ListAPIView):
     """
     View that returns a list of Targets in a Project, similar to ProjectTimeZeroList.
     """
@@ -255,7 +255,7 @@ class ProjectTargetList(UserPassesTestMixin, ListAPIView):
         return project.targets
 
 
-class ProjectTimeZeroList(UserPassesTestMixin, ListAPIView):
+class ProjectTimeZeroList(UserPassesTestMixin, generics.ListAPIView):
     """
     View that returns a list of TimeZeros in a Project. This is different from other Views in this file b/c the
     serialized instances returned (TimeZeroSerializer) are different from this class's serializer_class
@@ -358,7 +358,7 @@ class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return self.request.user.is_superuser or (detail_user == self.request.user)
 
 
-class ForecastModelForecastList(UserPassesTestMixin, ListCreateAPIView):
+class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView):
     """
     View that returns a list of Forecasts in a ForecastModel
     """
@@ -479,7 +479,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         return response
 
 
-class ForecastDetail(UserPassesTestMixin, RetrieveDestroyAPIView):
+class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -503,7 +503,7 @@ class ForecastDetail(UserPassesTestMixin, RetrieveDestroyAPIView):
         return response
 
 
-class UnitDetail(UserPassesTestMixin, RetrieveAPIView):
+class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -514,7 +514,7 @@ class UnitDetail(UserPassesTestMixin, RetrieveAPIView):
         return self.request.user.is_authenticated and unit.project.is_user_ok_to_view(self.request.user)
 
 
-class TargetDetail(UserPassesTestMixin, RetrieveAPIView):
+class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Target.objects.all()
     serializer_class = TargetSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -525,7 +525,7 @@ class TargetDetail(UserPassesTestMixin, RetrieveAPIView):
         return self.request.user.is_authenticated and target.project.is_user_ok_to_view(self.request.user)
 
 
-class TimeZeroDetail(UserPassesTestMixin, RetrieveAPIView):
+class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = TimeZero.objects.all()
     serializer_class = TimeZeroSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -547,13 +547,53 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
 
 
+    def post(self, request, *args, **kwargs):
+        """
+        Enqueues the uploading of the passed data into the project's truth, replacing any existing truth data.
+        POST form fields:
+        - 'data_file' (required): The data file to upload. NB: 'data_file' is our naming convention. it could be
+            renamed. If multiple files, just uses the first one.
+        """
+        # todo xx merge below with views.upload_forecast() and views.validate_data_file()
+
+        # imported here so that test_api_upload_forecast() can patch via mock:
+        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file
+
+
+        # check authorization
+        project = self.get_object()
+        if not is_user_ok_edit_project(request.user, project):  # only the project owner can edit the project's truth
+            raise PermissionDenied
+
+        # validate 'data_file'
+        if 'data_file' not in request.data:
+            return JsonResponse({'error': "No 'data_file' form field."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # NB: if multiple files, just uses the first one:
+        data_file = request.data['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+        if data_file.size > MAX_UPLOAD_FILE_SIZE:
+            message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
+            return JsonResponse({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+
+        # upload to cloud and enqueue a job to process a new UploadFileJob
+        data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+        is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__truth,
+                                                 project_pk=project.pk)
+        if is_error:
+            return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        upload_file_job_serializer = UploadFileJobSerializer(upload_file_job, context={'request': request})
+        return JsonResponse(upload_file_job_serializer.data)
+
+
 #
 # Truth data-related views
 #
 
 @api_view(['GET'])
 @renderer_classes((BrowsableAPIRenderer, CSVRenderer))
-def truth_data(request, pk):
+def download_truth_data(request, pk):
     """
     :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
     """

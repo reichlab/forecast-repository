@@ -20,7 +20,8 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)/models/$', api_views.ProjectForecastModelList.as_view(), name='api-model-list'),
 
     url(r'^project/(?P<pk>\d+)/truth/$', api_views.TruthDetail.as_view(), name='api-truth-detail'),
-    url(r'^project/(?P<pk>\d+)/truth_data/$', api_views.truth_data, name='api-truth-data'),
+    url(r'^project/(?P<pk>\d+)/truth_data_download/$', api_views.download_truth_data, name='api-download-truth-data'),
+
     url(r'^project/(?P<pk>\d+)/score_data/$', api_views.score_data, name='api-score-data'),
 
     url(r'^unit/(?P<pk>\d+)/$', api_views.UnitDetail.as_view(), name='api-unit-detail'),

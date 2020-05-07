@@ -206,7 +206,7 @@ class TruthSerializer(serializers.ModelSerializer):
 
     def get_truth_data(self, project):
         request = self.context['request']
-        return reverse('api-truth-data', args=[project.pk], request=request)
+        return reverse('api-download-truth-data', args=[project.pk], request=request)
 
 
 class UserSerializer(serializers.ModelSerializer):
