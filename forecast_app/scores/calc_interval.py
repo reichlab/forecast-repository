@@ -4,7 +4,7 @@ from itertools import groupby
 
 from django.db.models import Q
 
-from forecast_app.models import QuantileDistribution, PointPrediction, Forecast
+from forecast_app.models import QuantileDistribution, PointPrediction, TimeZero
 
 
 logger = logging.getLogger(__name__)
@@ -28,10 +28,8 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
     lower_interval_quantile = alpha / 2
     upper_interval_quantile = 1 - (alpha / 2)
 
-    # collect errors so we don't log thousands of duplicate messages. dict format:
-    #   {(timezero_pk, unit_pk, target_pk): count, ...}:
-    # note that the granularity is poor - there are multiple possible errors related to a particular 3-tuple
-    tz_loc_targ_pks_to_error_count = defaultdict(int)  # helps eliminate duplicate warnings
+    # collect errors so we don't log tons of messages. format: {timezero_pk: count, ...}
+    timezero_pk_to_error_count = defaultdict(int)
 
     # step 1/2: build dict tz_unit_targ_pk_to_l_u_vals:
     #   [timezero_id][unit_id][target_id] -> (lower_interval_value, upper_interval_value)
@@ -67,7 +65,7 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
             lower_upper_interval_values = tz_unit_targ_pk_to_l_u_vals[timezero_id][unit_id][target_id]
             if not lower_upper_interval_values:
                 # defaultdict(list) -> [] result if match [timezero_id][unit_id] but not target_id
-                tz_loc_targ_pks_to_error_count[(timezero_id, unit_id, target_id)] += 1
+                timezero_pk_to_error_count[timezero_id] += 1
                 continue  # skip this forecast's contribution to the score
             elif len(lower_upper_interval_values) != 2:
                 raise RuntimeError(f"not exactly two quantile values (no match for both lower and upper): "
@@ -81,14 +79,13 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
             score_value = interval_width + penalty_l + penalty_u
             score_values.append((score.pk, timezero_id_to_forecast_id[timezero_id], unit_id, target_id, score_value))
         except KeyError:  # no lower/upper values for one of timezero_id, unit_id, target_id
-            tz_loc_targ_pks_to_error_count[(timezero_id, unit_id, target_id)] += 1
+            timezero_pk_to_error_count[timezero_id] += 1
             continue  # skip this forecast's contribution to the score
 
     # insert the ScoreValues!
     _insert_score_values(score_values)
 
     # print errors
-    for (timezero_pk, unit_pk, target_pk) in sorted(tz_loc_targ_pks_to_error_count.keys()):
-        count = tz_loc_targ_pks_to_error_count[timezero_pk, unit_pk, target_pk]
-        logger.warning(f"_calculate_interval_score_values(): missing {count} truth value(s): "
-                       f"timezero_pk={timezero_pk}, unit_pk={unit_pk}, target_pk={target_pk}")
+    for timezero_pk, error_count in sorted(timezero_pk_to_error_count.items()):
+        time_zero = TimeZero.objects.get(id=timezero_pk)
+        logger.warning(f"skipped quantiles: {time_zero.timezero_date}: {error_count}")
