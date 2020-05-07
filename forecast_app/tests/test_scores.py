@@ -556,8 +556,9 @@ class ScoresTestCase(TestCase):
         self.assertIsNotNone(interval_02_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        _, _, forecast_model, _ = \
-            _make_covid19_project(po_user, 'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        project, forecast_model = _make_covid19_project(po_user)
+        forecast = _load_forecast_(forecast_model, '2020-04-26',
+                                   'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
         _calculate_interval_score_values(interval_02_score, forecast_model, 0.22)
         self.assertEqual(0, interval_02_score.values.count())
 
@@ -569,17 +570,21 @@ class ScoresTestCase(TestCase):
         self.assertIsNotNone(interval_02_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, _ = \
-            _make_covid19_project(po_user, 'forecast_app/tests/scores/2020-04-26-CU-60contact-small.csv.json')
-
+        project, forecast_model = _make_covid19_project(po_user)
+        load_truth_data(project, Path('forecast_app/tests/scores/zoltar-truth-2020-04-24.csv'))
+        _load_forecast_(forecast_model, '2020-04-24', 'forecast_app/tests/scores/2020-04-24-JHU_IDD-CovidSP.csv.json')
         try:
+            # there is only one matching quantile with truth: 2020-04-24, 'US', '1 wk ahead cum death'
             interval_02_score.update_score_for_model(forecast_model)
+            self.assertEqual(1, interval_02_score.values.count())
+            score_value = interval_02_score.values.first()
+            unit_us = project.units.filter(name='US').first()
+            targ_1_wk_ahead_cum_death = project.targets.filter(name='1 wk ahead cum death').first()
+            self.assertEqual(unit_us, score_value.unit)
+            self.assertEqual(targ_1_wk_ahead_cum_death, score_value.target)
+            self.assertAlmostEqual(138337.40000000002, score_value.value)
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
-
-        # the above exposed a bug that raised that exception, and we'd like another test that exposes it after the fix,
-        # but that would require an invalid quantile that has two values for the same quantile, e.g., (0.1, 1) and
-        # (0.1, 2), which loading invalidates
 
 
     def test_calc_interval_02_docs_project(self):
@@ -655,8 +660,9 @@ class ScoresTestCase(TestCase):
         self.assertIsNotNone(interval_02_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, _ = \
-            _make_covid19_project(po_user, 'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        project, forecast_model = _make_covid19_project(po_user)
+        forecast = _load_forecast_(forecast_model, '2020-04-26',
+                                   'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
         unit = project.units.filter(name='US').first()
         target = project.targets.filter(name='1 day ahead cum death').first()
         for truth, exp_score in [
@@ -668,7 +674,7 @@ class ScoresTestCase(TestCase):
             (52919, 3205),  # case 5/5) truth > u
         ]:
             project.delete_truth_data()
-            TruthData.objects.create(time_zero=time_zero, unit=unit, target=target, value_i=truth)
+            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_02_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_02_score.values.count())
 
@@ -874,19 +880,27 @@ def _make_thai_log_score_project():
     return project2, forecast_model2, forecast2, time_zero2
 
 
-def _make_covid19_project(user, predictions_file):
-    # NB: does not load any truth
-    covid19_project_name = 'covid_19_project'  # from covid19-project.json
-    found_project = Project.objects.filter(name=covid19_project_name).first()
-    if found_project:
-        found_project.delete()
-    project = create_project_from_json(Path('forecast_app/tests/projects/covid19-project.json'), user)
-    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
-    time_zero = project.timezeros.all().first()
-    forecast = Forecast.objects.create(forecast_model=forecast_model,
-                                       source='2020-04-26-CU-80contact-small.csv.json',
-                                       time_zero=time_zero)
+def _load_forecast_(forecast_model, timezero_date, predictions_file):
+    """
+    :return: new Forecast in forecast_model associated with the project's TimeZero for timezero_date, loaded from
+        predictions_file
+    """
+    time_zero = forecast_model.project.timezeros.filter(timezero_date=timezero_date).first()
+    forecast = Forecast.objects.create(forecast_model=forecast_model, source='', time_zero=time_zero)
     with open(predictions_file) as fp:
         json_io_dict_in = json.load(fp)
         load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
-    return project, time_zero, forecast_model, forecast
+    return forecast
+
+
+def _make_covid19_project(user):
+    """
+    :return: 2-tuple: (project, forecast_model). does not load truth or predictions
+    """
+    covid19_project_name = 'COVID-19 Forecasts'  # from COVID-19_Forecasts-config.json
+    found_project = Project.objects.filter(name=covid19_project_name).first()
+    if found_project:
+        found_project.delete()
+    project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), user)
+    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
+    return project, forecast_model

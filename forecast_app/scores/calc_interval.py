@@ -57,19 +57,21 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
     # an optimization, rather than create separate ORM instances
     score_values = []  # list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
     timezero_id_to_forecast_id = {forecast.time_zero.pk: forecast.pk for forecast in forecast_model.forecasts.all()}
-    timezero_ids = list(Forecast.objects.filter(forecast_model=forecast_model).values_list('time_zero__id', flat=True))
     truth_data_qs = forecast_model.project.truth_data_qs() \
-        .filter(Q(target__in=targets),  # AND
-                Q(time_zero__in=timezero_ids)) \
+        .filter(target__in=targets) \
         .values_list('time_zero__id', 'unit__id', 'target__id', 'value_i', 'value_f', 'value_t', 'value_d',
                      'value_b')  # only one of value_* is non-None
     for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in truth_data_qs:
         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
         try:
             lower_upper_interval_values = tz_unit_targ_pk_to_l_u_vals[timezero_id][unit_id][target_id]
-            if len(lower_upper_interval_values) != 2:
+            if not lower_upper_interval_values:
+                # defaultdict(list) -> [] result if match [timezero_id][unit_id] but not target_id
+                tz_loc_targ_pks_to_error_count[(timezero_id, unit_id, target_id)] += 1
+                continue  # skip this forecast's contribution to the score
+            elif len(lower_upper_interval_values) != 2:
                 raise RuntimeError(f"not exactly two quantile values (no match for both lower and upper): "
-                                   f"timezero_id={timezero_id}, unit_id={unit_id}, target_id={target_id},"
+                                   f"timezero_id={timezero_id}, unit_id={unit_id}, target_id={target_id}, "
                                    f"quantile values={lower_upper_interval_values}")
 
             lower_interval_value, upper_interval_value = lower_upper_interval_values
@@ -79,8 +81,7 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
             score_value = interval_width + penalty_l + penalty_u
             score_values.append((score.pk, timezero_id_to_forecast_id[timezero_id], unit_id, target_id, score_value))
         except KeyError:  # no lower/upper values for one of timezero_id, unit_id, target_id
-            error_key = (timezero_id, unit_id, target_id)
-            tz_loc_targ_pks_to_error_count[error_key] += 1
+            tz_loc_targ_pks_to_error_count[(timezero_id, unit_id, target_id)] += 1
             continue  # skip this forecast's contribution to the score
 
     # insert the ScoreValues!

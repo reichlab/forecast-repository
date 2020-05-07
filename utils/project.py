@@ -452,9 +452,9 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
         if connection.vendor == 'postgresql':
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
-            for timezero, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in rows:
+            for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in rows:
                 # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
-                csv_writer.writerow([timezero, unit_id, target_id,
+                csv_writer.writerow([timezero_id, unit_id, target_id,
                                      value_i if value_i is not None else POSTGRES_NULL_VALUE,
                                      value_f if value_f is not None else POSTGRES_NULL_VALUE,
                                      value_t if value_t is not None else POSTGRES_NULL_VALUE,
