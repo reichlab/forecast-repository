@@ -11,6 +11,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
+from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
@@ -442,8 +443,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual("text/csv", response['Content-Type'])
         self.assertEqual('attachment; filename="public_project_name-scores.csv"', response['Content-Disposition'])
-        split_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(','.join(['model', 'timezero', 'season', 'unit', 'target']), split_content[0])
+        split_content = response.content.decode().split('\r\n')
+        self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), split_content[0])
         self.assertEqual(2, len(split_content))  # no score data
 
 
@@ -599,7 +600,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(341, len(response.content))
 
         response = self.client.get(reverse('api-score-data', args=[self.public_project.pk]), format='json')
-        self.assertEqual(35, len(response.content))  # just SCORE_CSV_HEADER_PREFIX due to no scores
+        # just SCORE_CSV_HEADER_PREFIX due to no scores:
+        self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), response.content.decode().strip())
 
         unit_us_nat = self.public_project.units.filter(name='US National').first()
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))

@@ -31,7 +31,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         return
 
     # cache truth values: [timezero_pk][unit_pk][target_id] -> truth_values (a list):
-    tz_loc_targ_pks_to_truth_vals = _timezero_loc_target_pks_to_truth_values(forecast_model)
+    tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(forecast_model.project)
 
     # get predicted point values. NB: b/c PointPrediction has three value types (only one of which is non-None), we will
     # get an error below when predicted_value is text (Target.POINT_TEXT). NB: we retrieve and max() only the two
@@ -49,7 +49,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         pred_value_b in forecast_point_predictions_qs:
         predicted_value = PointPrediction.first_non_none_value(pred_value_i, pred_value_f, pred_value_t, pred_value_d,
                                                                pred_value_b)
-        true_value, error_string = _validate_truth(tz_loc_targ_pks_to_truth_vals, timezero_pk, unit_pk, target_pk)
+        true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, timezero_pk, unit_pk, target_pk)
         if error_string:
             error_key = (forecast_pk, timezero_pk, unit_pk, target_pk)
             if error_key not in forec_tz_loc_targ_pk_to_error_str:
@@ -73,28 +73,28 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
                                target_pk))
 
 
-def _timezero_loc_target_pks_to_truth_values(forecast_model):
+def _tz_unit_targ_pks_to_truth_values(project):
     """
-    Similar to Project.unit_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
+    Similar to Project.unit_target_name_tz_date_to_truth(), returns project's truth values as a nested dict
     that's organized for easy access using these keys: [timezero_pk][unit_pk][target_id] -> truth_values (a list).
     """
-    truth_data_qs = forecast_model.project.truth_data_qs() \
+    truth_data_qs = project.truth_data_qs() \
         .order_by('time_zero__id', 'unit__id', 'target__id') \
         .values_list('time_zero__id', 'unit__id', 'target__id',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
 
-    tz_loc_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
-    for time_zero_id, loc_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
-        loc_targ_pks_to_truth = {}  # {unit_pk: {target_id: truth_value}}
-        tz_loc_targ_pks_to_truth_vals[time_zero_id] = loc_targ_pks_to_truth
-        for unit_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+    tz_unit_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
+    for time_zero_id, unit_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+        unit_targ_pks_to_truth = {}  # {unit_pk: {target_id: truth_value}}
+        tz_unit_targ_pks_to_truth_vals[time_zero_id] = unit_targ_pks_to_truth
+        for unit_id, target_val_grouper in groupby(unit_target_val_grouper, key=lambda _: _[1]):
             target_pk_to_truth = defaultdict(list)  # {target_id: truth_value}
-            loc_targ_pks_to_truth[unit_id] = target_pk_to_truth
+            unit_targ_pks_to_truth[unit_id] = target_pk_to_truth
             for _, _, target_id, value_i, value_f, value_t, value_d, value_b in target_val_grouper:
                 value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
                 target_pk_to_truth[target_id].append(value)
 
-    return tz_loc_targ_pks_to_truth_vals
+    return tz_unit_targ_pks_to_truth_vals
 
 
 def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, unit_pk, target_pk):

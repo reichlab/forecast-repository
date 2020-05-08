@@ -14,7 +14,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_to_lwrs, \
     _tz_loc_targ_pk_lwr_to_pred_val
-from forecast_app.scores.calc_error import _timezero_loc_target_pks_to_truth_values
+from forecast_app.scores.calc_error import _tz_unit_targ_pks_to_truth_values
 from forecast_app.scores.calc_interval import _calculate_interval_score_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
@@ -741,7 +741,7 @@ class ScoresTestCase(TestCase):
                 test_float_or_empty(exp_row[8], act_row[8])  # 'log_multi_bin'   # ""
 
 
-    def test_timezero_loc_target_pks_to_truth_values(self):
+    def test__tz_unit_targ_pks_to_truth_values(self):
         tz_pk = self.time_zero.pk
         loc1_pk = Unit.objects.filter(name='HHS Region 1').first().pk
         loc2_pk = Unit.objects.filter(name='HHS Region 2').first().pk
@@ -785,7 +785,7 @@ class ScoresTestCase(TestCase):
                            target4_pk: [2.15197], target5_pk: [3.25108], target6_pk: [2.51434], target7_pk: [2.28634]},
                 loc11_pk: {target1_pk: ['2016-12-11'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [5.06094],
                            target4_pk: [3.07623], target5_pk: [3.50708], target6_pk: [3.79872], target7_pk: [4.43601]}}}
-        act_dict = _timezero_loc_target_pks_to_truth_values(self.forecast_model)
+        act_dict = _tz_unit_targ_pks_to_truth_values(self.forecast_model.project)
         self.assertEqual(exp_dict, act_dict)
 
 

@@ -2,6 +2,7 @@ import csv
 import datetime
 import logging
 import tempfile
+from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
 from wsgiref.util import FileWrapper
@@ -23,6 +24,7 @@ from rest_framework_csv.renderers import CSVRenderer
 from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.models.upload_file_job import UploadFileJob
+from forecast_app.scores.calc_error import _tz_unit_targ_pks_to_truth_values, _validate_truth
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
@@ -692,7 +694,7 @@ def json_response_for_forecast(forecast, request):
 # Score data-related functions
 #
 
-SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'unit', 'target']
+SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'unit', 'target', 'truth']
 
 
 def _csv_filename_for_project_scores(project):
@@ -776,18 +778,15 @@ def _write_csv_score_data_for_project(csv_writer, project):
 
     # get the raw rows - sorted for groupby()
     logger.debug("_write_csv_score_data_for_project(): getting rows: project={}".format(project))
-    sql = """
+    sql = f"""
         SELECT f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id, sv.value
-        FROM {scorevalue_table_name} AS sv
-               INNER JOIN {score_table_name} s ON sv.score_id = s.id
-               INNER JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
-               INNER JOIN {forecastmodel_table_name} AS fm ON f.forecast_model_id = fm.id
+        FROM {ScoreValue._meta.db_table} AS sv
+            INNER JOIN {Score._meta.db_table} s ON sv.score_id = s.id
+            INNER JOIN {Forecast._meta.db_table} AS f ON sv.forecast_id = f.id
+            INNER JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
         WHERE fm.project_id = %s
         ORDER BY f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id;
-    """.format(scorevalue_table_name=ScoreValue._meta.db_table,
-               score_table_name=Score._meta.db_table,
-               forecast_table_name=Forecast._meta.db_table,
-               forecastmodel_table_name=ForecastModel._meta.db_table)
+    """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
         rows = cursor.fetchall()
@@ -801,9 +800,19 @@ def _write_csv_score_data_for_project(csv_writer, project):
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
 
+    # collect errors so we don't log tons of messages. format: {timezero_pk: count, ...}
+    timezero_pk_to_error_count = defaultdict(int)
+
     logger.debug("_write_csv_score_data_for_project(): iterating")
+    tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
     for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
+        # get truth. should be only one value
+        true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, time_zero_id, unit_id, target_id)
+        if error_string:
+            timezero_pk_to_error_count[time_zero_id] += 1
+            continue  # skip this (forecast_model_id, time_zero_id, unit_id, target_id) combination's score row
+
         forecast_model = forecast_model_id_to_obj[forecast_model_id]
         time_zero = timezero_id_to_obj[time_zero_id]
         unit = unit_id_to_obj[unit_id]
@@ -816,6 +825,12 @@ def _write_csv_score_data_for_project(csv_writer, project):
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
                              time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                              timezero_to_season_name[time_zero],
-                             unit.name, target.name]
+                             unit.name, target.name,  true_value]
                             + score_values)
+
+    # print errors
+    for timezero_pk, error_count in sorted(timezero_pk_to_error_count.items()):
+        time_zero = timezero_id_to_obj[timezero_pk]
+        logger.warning(f"skipped scores: {time_zero.timezero_date}: {error_count}")
+
     logger.debug("_write_csv_score_data_for_project(): done")
