@@ -755,7 +755,6 @@ class ScoresTestCase(TestCase):
         act_csv_reader = csv.reader(string_io, delimiter=',')
         act_rows = list(act_csv_reader)
         with open('forecast_app/tests/scores/EW1-KoTsarima-2017-01-17_exp-download.csv', 'r') as fp:
-            # model,timezero,season,unit,target,error,abs_error,log_single_bin,log_multi_bin,interval_02
             exp_csv_reader = csv.reader(fp, delimiter=',')
             exp_rows = list(exp_csv_reader)
             for idx, (exp_row, act_row) in enumerate(zip(exp_rows, act_rows)):

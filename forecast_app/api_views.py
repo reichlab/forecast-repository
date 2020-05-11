@@ -642,7 +642,7 @@ def csv_response_for_project_truth_data(project):
 
 @api_view(['GET'])
 @renderer_classes((BrowsableAPIRenderer, CSVRenderer))
-def score_data(request, pk):
+def download_score_data(request, pk):
     """
     :return: the Project's score data as CSV
     """

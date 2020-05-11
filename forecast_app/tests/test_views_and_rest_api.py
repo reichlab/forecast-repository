@@ -497,8 +497,8 @@ class ViewsTestCase(TestCase):
             reverse('api-download-truth-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-download-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
 
-            reverse('api-score-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            reverse('api-download-score-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
+            reverse('api-download-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
 
             reverse('api-model-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
             reverse('api-model-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
@@ -599,7 +599,7 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-download-truth-data', args=[self.public_project.pk]), format='json')
         self.assertEqual(341, len(response.content))
 
-        response = self.client.get(reverse('api-score-data', args=[self.public_project.pk]), format='json')
+        response = self.client.get(reverse('api-download-score-data', args=[self.public_project.pk]), format='json')
         # just SCORE_CSV_HEADER_PREFIX due to no scores:
         self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), response.content.decode().strip())
 
