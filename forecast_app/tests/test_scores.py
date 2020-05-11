@@ -544,30 +544,30 @@ class ScoresTestCase(TestCase):
 
 
     #
-    # test 'calc_interval_02'
+    # test 'calc_interval_20'
     #
 
-    def test_calc_interval_02_alpha_no_matching_quantiles(self):
+    def test_calc_interval_20_alpha_no_matching_quantiles(self):
         # test that no scores are calculated when there are no quantiles corresponding to alpha's lower and upper.
         # we use alpha=0.22 -> l=0.11, u=0.89 , which match no quantiles in 2020-04-26-CU-80contact-small.csv.json
         # (... 0.1, 0.15 ... 0.8, 0.85, 0.9 ...)
         Score.ensure_all_scores_exist()
-        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
-        self.assertIsNotNone(interval_02_score)
+        interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
+        self.assertIsNotNone(interval_20_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
-        forecast = _load_forecast_(forecast_model, '2020-04-26',
-                                   'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
-        _calculate_interval_score_values(interval_02_score, forecast_model, 0.22)
-        self.assertEqual(0, interval_02_score.values.count())
+        _load_forecast_(forecast_model, '2020-04-26',
+                        'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        _calculate_interval_score_values(interval_20_score, forecast_model, 0.22)
+        self.assertEqual(0, interval_20_score.values.count())
 
 
-    def test_calc_interval_02_not_exactly_two_quantile_values(self):
+    def test_calc_interval_20_not_exactly_two_quantile_values(self):
         # test to expose bug: "not exactly two quantile values (no match for both lower and upper)"
         Score.ensure_all_scores_exist()
-        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
-        self.assertIsNotNone(interval_02_score)
+        interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
+        self.assertIsNotNone(interval_20_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
@@ -575,9 +575,9 @@ class ScoresTestCase(TestCase):
         _load_forecast_(forecast_model, '2020-04-24', 'forecast_app/tests/scores/2020-04-24-JHU_IDD-CovidSP.csv.json')
         try:
             # there is only one matching quantile with truth: 2020-04-24, 'US', '1 wk ahead cum death'
-            interval_02_score.update_score_for_model(forecast_model)
-            self.assertEqual(1, interval_02_score.values.count())
-            score_value = interval_02_score.values.first()
+            interval_20_score.update_score_for_model(forecast_model)
+            self.assertEqual(1, interval_20_score.values.count())
+            score_value = interval_20_score.values.first()
             unit_us = project.units.filter(name='US').first()
             targ_1_wk_ahead_cum_death = project.targets.filter(name='1 wk ahead cum death').first()
             self.assertEqual(unit_us, score_value.unit)
@@ -587,12 +587,12 @@ class ScoresTestCase(TestCase):
             self.fail(f"unexpected exception: {ex}")
 
 
-    def test_calc_interval_02_docs_project(self):
+    def test_calc_interval_20_docs_project(self):
         # test score values for the seven cases in docs-predictions-quantile-exported-hand-calc.xlsx . note that all use
         # alpha=0.5
         Score.ensure_all_scores_exist()
-        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
-        self.assertIsNotNone(interval_02_score)
+        interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
+        self.assertIsNotNone(interval_20_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
@@ -615,12 +615,12 @@ class ScoresTestCase(TestCase):
                                      value_i=truth if target == targ_cases_next_wk else None,
                                      value_f=truth if target == targ_pct_next_wk else None)
             ScoreValue.objects \
-                .filter(score=interval_02_score, forecast__forecast_model=forecast_model) \
+                .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
                 .delete()  # usually done by update_score_for_model()
-            _calculate_interval_score_values(interval_02_score, forecast_model, 0.5)
-            self.assertEqual(1, interval_02_score.values.count())
+            _calculate_interval_score_values(interval_20_score, forecast_model, 0.5)
+            self.assertEqual(1, interval_20_score.values.count())
 
-            score_value = interval_02_score.values.first()
+            score_value = interval_20_score.values.first()
             self.assertEqual(unit, score_value.unit)
             self.assertEqual(target, score_value.target)
             self.assertAlmostEqual(exp_score, score_value.value)
@@ -630,11 +630,11 @@ class ScoresTestCase(TestCase):
         TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
         TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
-            .filter(score=interval_02_score, forecast__forecast_model=forecast_model) \
+            .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
-        _calculate_interval_score_values(interval_02_score, forecast_model, 0.5)
-        self.assertEqual(2, interval_02_score.values.count())
-        self.assertEqual([2.8, 50], sorted(interval_02_score.values.all().values_list('value', flat=True)))
+        _calculate_interval_score_values(interval_20_score, forecast_model, 0.5)
+        self.assertEqual(2, interval_20_score.values.count())
+        self.assertEqual([2.8, 50], sorted(interval_20_score.values.all().values_list('value', flat=True)))
 
         # add a second forecast for a new timezero
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
@@ -646,18 +646,18 @@ class ScoresTestCase(TestCase):
         TruthData.objects.create(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
         TruthData.objects.create(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
-            .filter(score=interval_02_score, forecast__forecast_model=forecast_model) \
+            .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
-        _calculate_interval_score_values(interval_02_score, forecast_model, 0.5)
-        self.assertEqual(4, interval_02_score.values.count())
+        _calculate_interval_score_values(interval_20_score, forecast_model, 0.5)
+        self.assertEqual(4, interval_20_score.values.count())
 
 
-    def test_calc_interval_02(self):
+    def test_calc_interval_20(self):
         # test score values for the five cases in 2020-04-26-CU-80contact-small-hand-calc.xlsx . note that all use
         # alpha=0.2
         Score.ensure_all_scores_exist()
-        interval_02_score = Score.objects.filter(abbreviation='interval_02').first()
-        self.assertIsNotNone(interval_02_score)
+        interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
+        self.assertIsNotNone(interval_20_score)
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
@@ -675,10 +675,52 @@ class ScoresTestCase(TestCase):
         ]:
             project.delete_truth_data()
             TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
-            interval_02_score.update_score_for_model(forecast_model)
-            self.assertEqual(1, interval_02_score.values.count())
+            interval_20_score.update_score_for_model(forecast_model)
+            self.assertEqual(1, interval_20_score.values.count())
 
-            score_value = interval_02_score.values.first()
+            score_value = interval_20_score.values.first()
+            self.assertEqual(unit, score_value.unit)
+            self.assertEqual(target, score_value.target)
+            self.assertEqual(exp_score, score_value.value)
+
+
+    #
+    # test alphas other than 0.2
+    #
+
+    def test_other_interval_scores(self):
+        # first, simply ensure they exist
+        Score.ensure_all_scores_exist()
+
+        score_abbrevs = ['interval_2', 'interval_5', 'interval_10', 'interval_20', 'interval_30', 'interval_40',
+                         'interval_50', 'interval_60', 'interval_70', 'interval_80', 'interval_90']
+        for score_abbrev in score_abbrevs:
+            score = Score.objects.filter(abbreviation=score_abbrev).first()
+            self.assertIsNotNone(score)
+
+        # spot-check one interval: 0.5
+        interval_50_score = Score.objects.filter(abbreviation='interval_50').first()
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, forecast_model = _make_covid19_project(po_user)
+        forecast = _load_forecast_(forecast_model, '2020-04-26',
+                                   'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        unit = project.units.filter(name='US').first()
+        target = project.targets.filter(name='1 day ahead cum death').first()
+
+        # test truth cases
+        for truth, exp_score in [
+            (51903, 714.0),  # case 1/5) truth < l
+            (51969, 450.0),  # case 2/5) truth == l
+            (52189, 450.0),  # case 3/5) 1 < truth < u
+            (52419, 450.0),  # case 4/5) truth == u
+            (52507, 802.0),  # case 5/5) truth > u
+        ]:
+            project.delete_truth_data()
+            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            interval_50_score.update_score_for_model(forecast_model)
+            self.assertEqual(1, interval_50_score.values.count())
+
+            score_value = interval_50_score.values.first()
             self.assertEqual(unit, score_value.unit)
             self.assertEqual(target, score_value.target)
             self.assertEqual(exp_score, score_value.value)

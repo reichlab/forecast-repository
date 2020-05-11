@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from itertools import groupby
 
-from forecast_app.models import PointPrediction, ScoreValue
+from forecast_app.models import PointPrediction, ScoreValue, TimeZero
 
 
 logger = logging.getLogger(__name__)
@@ -42,18 +42,16 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         .values_list('forecast__id', 'forecast__time_zero__id', 'unit__id', 'target__id',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')  # only one of value_* is non-None
 
-    # calculate scores for all combinations of unit and target. keep a list of errors so we don't log thousands of
-    # duplicate messages. dict format: {(forecast_pk, timezero_pk, unit_pk, target_pk): error_string, ...}:
-    forec_tz_loc_targ_pk_to_error_str = {}
+    # calculate scores for all combinations of unit and target.
+    # collect errors so we don't log tons of messages. format: {timezero_pk: count, ...}
+    timezero_pk_to_error_count = defaultdict(int)
     for forecast_pk, timezero_pk, unit_pk, target_pk, pred_value_i, pred_value_f, pred_value_t, pred_value_d, \
         pred_value_b in forecast_point_predictions_qs:
         predicted_value = PointPrediction.first_non_none_value(pred_value_i, pred_value_f, pred_value_t, pred_value_d,
                                                                pred_value_b)
         true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, timezero_pk, unit_pk, target_pk)
         if error_string:
-            error_key = (forecast_pk, timezero_pk, unit_pk, target_pk)
-            if error_key not in forec_tz_loc_targ_pk_to_error_str:
-                forec_tz_loc_targ_pk_to_error_str[error_key] = error_string
+            timezero_pk_to_error_count[timezero_pk] += 1
             continue  # skip this forecast's contribution to the score
 
         if (true_value is None) or (predicted_value is None):
@@ -66,11 +64,9 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
                                   if is_absolute_error else true_value - predicted_value)
 
     # print errors
-    for (forecast_pk, timezero_pk, unit_pk, target_pk), error_string in forec_tz_loc_targ_pk_to_error_str.items():
-        logger.warning("_calculate_error_score_values(): truth validation error: {!r}: "
-                       "score_pk={}, forecast_model_pk={}, forecast_pk={}, timezero_pk={}, unit_pk={}, target_pk={}"
-                       .format(error_string, score.pk, forecast_model.pk, forecast_pk, timezero_pk, unit_pk,
-                               target_pk))
+    for timezero_pk, error_count in sorted(timezero_pk_to_error_count.items()):
+        time_zero = TimeZero.objects.get(id=timezero_pk)
+        logger.warning(f"errors validating truth: {time_zero.timezero_date}: {error_count}")
 
 
 def _tz_unit_targ_pks_to_truth_values(project):

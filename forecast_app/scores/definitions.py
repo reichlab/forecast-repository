@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 # each Score's abbreviation to a 2-tuple: (name, description). recall that the abbreviation is used to look up the
 # corresponding function in the `forecast_app.scores.functions` (this) module - see `calc_<abbreviation>` documentation
 # in Score. in that sense, these abbreviations are the official names to use when looking up a particular score
+INTERVAL_SCORE_DESCRIPTION = "The interval score is a proper score used to assess calibration and sharpness of " \
+                             "quantile forecasts. Lower is better."
 SCORE_ABBREV_TO_NAME_AND_DESCR = {
     # 'const': ('Constant Value', "A debugging score that's 1.0 - only for first unit and first target."),
     'error': ('Error', "The the truth value minus the model's point estimate."),
@@ -29,8 +31,17 @@ SCORE_ABBREV_TO_NAME_AND_DESCR = {
     # from nick re: pit lower/higher is better: "one individual score is not meaningful/interpretable in this way":
     'pit': ('Probability Integral Transform (PIT)', "The probability integral transform (PIT) is a metric commonly "
                                                     "used to evaluate the calibration of probabilistic forecasts."),
-    'interval_02': ('Interval score (alpha=0.2)', "The interval score is a proper score used to assess calibration and "
-                                                  "sharpness of quantile forecasts. Lower is better."),
+    'interval_2': ('Interval score (alpha=0.02)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_5': ('Interval score (alpha=0.05)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_10': ('Interval score (alpha=0.1)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_20': ('Interval score (alpha=0.2)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_30': ('Interval score (alpha=0.3)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_40': ('Interval score (alpha=0.4)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_50': ('Interval score (alpha=0.5)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_60': ('Interval score (alpha=0.6)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_70': ('Interval score (alpha=0.7)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_80': ('Interval score (alpha=0.8)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_90': ('Interval score (alpha=0.9)', INTERVAL_SCORE_DESCRIPTION),
 }
 
 
@@ -108,14 +119,51 @@ def calc_pit(score, forecast_model):
 
 
 #
-# ---- 'pit' calculation functions ----
+# ---- 'interval_**' calculation functions ----
 #
 
-def calc_interval_02(score, forecast_model):
-    """
-    Calculates 'interval_02' score.
-    """
+def calc_interval_2(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.02)
+
+
+def calc_interval_5(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.05)
+
+
+def calc_interval_10(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.1)
+
+
+def calc_interval_20(score, forecast_model):
     _calculate_interval_score_values(score, forecast_model, 0.2)
+
+
+def calc_interval_30(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.3)
+
+
+def calc_interval_40(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.4)
+
+
+def calc_interval_50(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.5)
+
+
+def calc_interval_60(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.6)
+
+
+def calc_interval_70(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.7)
+
+
+def calc_interval_80(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.8)
+
+
+def calc_interval_90(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 0.9)
 
 
 #

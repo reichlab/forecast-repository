@@ -794,8 +794,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     # write grouped rows
     logger.debug("_write_csv_score_data_for_project(): preparing to iterate")
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
-    timezeros = project.timezeros.all()
-    timezero_id_to_obj = {timezero.pk: timezero for timezero in timezeros}
+    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
