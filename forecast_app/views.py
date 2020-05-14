@@ -230,44 +230,49 @@ def project_visualizations(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    seasons = project.seasons()
-    season_name = _param_val_from_request(request, 'season_name', seasons)
+    return render(request, 'message.html',
+                  context={'title': f"Project visualizations for '{project.name}'",
+                           'message': "Zoltar visualization is under construction."})
 
-    # None if no targets in project:
-    logger.debug("project_visualizations(): 1/3 calling flusight_unit_to_data_dict(): {}".format(project))
-    unit_to_flusight_data_dict = flusight_unit_to_data_dict(project, season_name, request)
 
-    time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
-                                          Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
-                                          Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
-    loc_tz_date_to_actual_vals = project.unit_timezero_date_to_actual_vals(season_name)
-    unit_to_actual_points = _unit_to_actual_points(loc_tz_date_to_actual_vals)
-    logger.debug("project_visualizations(): 2/3 calling unit_to_max_val(): {}".format(project))
-    unit_to_max_val = project.unit_to_max_val(season_name, project.step_ahead_targets())
-
-    # correct unit_to_max_val to account for max actual values
-    unit_to_actual_max_val = _unit_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
-    for unit in unit_to_max_val:
-        if (unit_to_max_val[unit]) \
-                and (unit in unit_to_actual_max_val) \
-                and (unit_to_actual_max_val[unit]):
-            unit_to_max_val[unit] = max(unit_to_max_val[unit], unit_to_actual_max_val[unit])
-
-    unit_names = sorted(project.units.all().values_list('name', flat=True))
-    logger.debug("project_visualizations(): 3/3 rendering: {}".format(project))
-    return render(
-        request,
-        'project_visualizations.html',
-        context={'project': project,
-                 'unit': unit_names[0],
-                 'units': unit_names,
-                 'season_name': season_name,
-                 'seasons': seasons,
-                 'unit_to_flusight_data_dict': json.dumps(unit_to_flusight_data_dict),
-                 'unit_to_actual_points': json.dumps(unit_to_actual_points),
-                 'unit_to_max_val': json.dumps(unit_to_max_val),
-                 'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
-                 'y_axis_label': project.visualization_y_label})
+    # seasons = project.seasons()
+    # season_name = _param_val_from_request(request, 'season_name', seasons)
+    #
+    # # None if no targets in project:
+    # print("project_visualizations(): 1/3 calling flusight_unit_to_data_dict(): {}".format(project))
+    # unit_to_flusight_data_dict = flusight_unit_to_data_dict(project, season_name, request)
+    #
+    # time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
+    #                                       Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
+    #                                       Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
+    # loc_tz_date_to_actual_vals = project.unit_timezero_date_to_actual_vals(season_name)
+    # unit_to_actual_points = _unit_to_actual_points(loc_tz_date_to_actual_vals)
+    # print("project_visualizations(): 2/3 calling unit_to_max_val(): {}".format(project))
+    # unit_to_max_val = project.unit_to_max_val(season_name, project.step_ahead_targets())
+    #
+    # # correct unit_to_max_val to account for max actual values
+    # unit_to_actual_max_val = _unit_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
+    # for unit in unit_to_max_val:
+    #     if (unit_to_max_val[unit]) \
+    #             and (unit in unit_to_actual_max_val) \
+    #             and (unit_to_actual_max_val[unit]):
+    #         unit_to_max_val[unit] = max(unit_to_max_val[unit], unit_to_actual_max_val[unit])
+    #
+    # unit_names = sorted(project.units.all().values_list('name', flat=True))
+    # print("project_visualizations(): 3/3 rendering: {}".format(project))
+    # return render(
+    #     request,
+    #     'project_visualizations.html',
+    #     context={'project': project,
+    #              'unit': unit_names[0],
+    #              'units': unit_names,
+    #              'season_name': season_name,
+    #              'seasons': seasons,
+    #              'unit_to_flusight_data_dict': json.dumps(unit_to_flusight_data_dict),
+    #              'unit_to_actual_points': json.dumps(unit_to_actual_points),
+    #              'unit_to_max_val': json.dumps(unit_to_max_val),
+    #              'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
+    #              'y_axis_label': project.visualization_y_label})
 
 
 def _unit_to_actual_points(loc_tz_date_to_actual_vals):
