@@ -45,7 +45,7 @@ class ScoresTestCase(TestCase):
         load_truth_data(cls.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         # use default abbreviation (""):
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model', abbreviation='abbrev')
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
@@ -730,7 +730,20 @@ class ScoresTestCase(TestCase):
     # other tests
     #
 
-    def test_download_scores(self):
+    def test_download_scores_empty_abbrev(self):
+        # the abbreviation for self.forecast_model is the default (""). in this case the model name is used for the
+        # 'model' column value
+        self.download_scores_internal_test(self.forecast_model.name)
+
+
+    def test_download_scores_non_empty_abbrev(self):
+        self.forecast_model.abbreviation = 'model_abbrev'
+        self.forecast_model.save()
+        # since there is a non-empty abbreviation, it should be used instead of the model name
+        self.download_scores_internal_test(self.forecast_model.abbreviation)
+
+
+    def download_scores_internal_test(self, exp_model_column_value):
         Score.ensure_all_scores_exist()
         _update_scores_for_all_projects()
         string_io = io.StringIO()
@@ -750,7 +763,7 @@ class ScoresTestCase(TestCase):
                     continue
 
                 # test non-numeric columns
-                self.assertEqual(self.forecast_model.name, act_row[0])  # model
+                self.assertEqual(exp_model_column_value, act_row[0])  # model
                 self.assertEqual(exp_row[1], act_row[1])  # timezero. format: YYYY_MM_DD_DATE_FORMAT
                 self.assertEqual(exp_row[2], act_row[2])  # season
                 self.assertEqual(exp_row[3], act_row[3])  # unit
