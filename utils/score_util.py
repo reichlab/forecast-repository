@@ -75,15 +75,17 @@ def clear(score_pk):
 
 @cli.command()
 @click.option('--score-pk')
+@click.option('--project-pk')
 @click.option('--model-pk')
 @click.option('--no-enqueue', is_flag=True, default=False)
-def update(score_pk, model_pk, no_enqueue):
+def update(score_pk, project_pk, model_pk, no_enqueue):
     """
     A subcommand that enqueues or (executes immediately) updating model scores, controlled by the args. NB: Does NOT
     exclude those that do not need updating according to how ForecastModel.forecasts_changed_at compares to
     ScoreLastUpdate.updated_at .
 
     :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are updated
+    :param project_pk: if a valid Project pk then only that project's models are updated. o/w defers to `model_pk` arg
     :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are updated
     :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
@@ -93,7 +95,17 @@ def update(score_pk, model_pk, no_enqueue):
     Score.ensure_all_scores_exist()
 
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
-    models = [get_object_or_404(ForecastModel, pk=model_pk)] if model_pk else ForecastModel.objects.all()
+
+    # set models
+    project = get_object_or_404(Project, pk=project_pk) if project_pk else None
+    model = get_object_or_404(ForecastModel, pk=model_pk) if model_pk else None
+    if project:
+        models = project.models.all()
+    elif model:
+        models = [model]
+    else:
+        models = ForecastModel.objects.all()
+
     for score in scores:
         logger.info(f"* {score}")
         for forecast_model in models:
