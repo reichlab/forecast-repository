@@ -24,9 +24,8 @@ from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Scor
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
-from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME
+from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME
 from utils.cloud_file import delete_file, upload_file
-from utils.flusight import flusight_unit_to_data_dict
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data
@@ -1148,20 +1147,36 @@ def process_upload_file_job__forecast(upload_file_job_pk):
 
 def delete_forecast(request, forecast_pk):
     """
-    Does the actual deletion of a Forecast. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
+    Enqueues the deletion of a Forecast. Assumes that confirmation has already been given by the caller. Users are not
+    notified when the updates are done, and we do not have a UploadFileJob equivalent, and so they must refresh to see
+    the status (that is, the forecast being gone from the list of them).
 
     :return: redirect to the forecast's forecast_model detail page
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    is_allowed_to_delete = forecast.is_user_ok_to_delete(request.user)
-    if not is_allowed_to_delete:
+    if not forecast.is_user_ok_to_delete(request.user):
         raise PermissionDenied
 
+    forecast_timezero = forecast.time_zero  # get before deleted
     forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
-    forecast.delete()
-    messages.success(request, "Deleted the forecast.")
+    enqueue_delete_forecast(forecast)
+    messages.success(request, f"Scheduled deleting the forecast for time_zero '{forecast_timezero.timezero_date}.'")
     return redirect('model-detail', pk=forecast_model_pk)
+
+
+def enqueue_delete_forecast(forecast):
+    queue = django_rq.get_queue(DELETE_FORECAST_QUEUE_NAME)
+    queue.enqueue(_delete_forecast, forecast.pk)
+
+
+def _delete_forecast(forecast_pk):
+    """
+    Enqueue helper function.
+    """
+    forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    logger.debug(f"_delete_forecast(): started. forecast_pk={forecast_pk}, forecast={forecast}")
+    forecast.delete()
+    logger.debug(f"_delete_forecast(): done. forecast_pk={forecast_pk}")
 
 
 #

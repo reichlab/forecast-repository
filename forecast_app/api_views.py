@@ -28,7 +28,7 @@ from forecast_app.scores.calc_error import _tz_unit_targ_pks_to_truth_values, _v
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
-    process_upload_file_job__truth
+    process_upload_file_job__truth, enqueue_delete_forecast
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project
@@ -501,8 +501,9 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         if not forecast.is_user_ok_to_delete(request.user):
             raise PermissionDenied
 
-        response = self.destroy(request, *args, **kwargs)
-        return response
+        # 202 per https://stackoverflow.com/questions/2342579/http-status-code-for-update-and-delete
+        enqueue_delete_forecast(forecast)
+        return Response(status=status.HTTP_202_ACCEPTED)
 
 
 class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -824,7 +825,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
                              time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                              timezero_to_season_name[time_zero],
-                             unit.name, target.name,  true_value]
+                             unit.name, target.name, true_value]
                             + score_values)
 
     # print errors

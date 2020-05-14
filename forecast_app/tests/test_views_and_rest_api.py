@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
-from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
+from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
@@ -772,14 +772,15 @@ class ViewsTestCase(TestCase):
         self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
         self.assertEqual(1, self.private_model.forecasts.count())
 
+        # note: b/c ForecastDetail.delete enqueues the deletion, there could be a possible race condition in this test.
+        # so we just test that delete() calls enqueue_delete_forecast(), and trust that enqueue_delete_forecast()
+        # enqueues a _delete_forecast() call (to simple to fail)
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
-        private_forecast2_pk = private_forecast2.pk
-        self.assertEqual(2, self.private_model.forecasts.count())
-
-        response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))
-        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
-        self.assertIsNone(Forecast.objects.filter(pk=private_forecast2_pk).first())  # is deleted
-        self.assertEqual(1, self.private_model.forecasts.count())  # is no longer in list
+        with patch('rq.queue.Queue.enqueue') as mock:
+            response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
+            self.assertEqual(status.HTTP_202_ACCEPTED, response.status_code)
+            mock.assert_called_once()
+            self.assertEqual('_delete_forecast', mock.call_args[0][0].__name__)
 
 
     def test_api_create_project(self):
