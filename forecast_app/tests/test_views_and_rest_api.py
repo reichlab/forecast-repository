@@ -15,6 +15,7 @@ from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
+from forecast_app.views import _delete_forecast
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
@@ -776,11 +777,31 @@ class ViewsTestCase(TestCase):
         # so we just test that delete() calls enqueue_delete_forecast(), and trust that enqueue_delete_forecast()
         # enqueues a _delete_forecast() call (to simple to fail)
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
+        private_forecast2_pk = private_forecast2.pk
         with patch('rq.queue.Queue.enqueue') as mock:
-            response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
-            self.assertEqual(status.HTTP_202_ACCEPTED, response.status_code)
+            json_response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
+            proj_json = json_response.json()  # JobSerializer
             mock.assert_called_once()
             self.assertEqual('_delete_forecast', mock.call_args[0][0].__name__)
+
+            self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+            self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
+                              'input_json', 'output_json'}, set(proj_json.keys()))
+            self.assertEqual(Job.QUEUED, proj_json['status'])
+            self.assertEqual(private_forecast2_pk, proj_json['input_json']['forecast_pk'])
+
+        # test _delete_forecast() itself (which is called by workers)
+        private_forecast3 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
+        job = Job.objects.create(user=self.mo_user)  # status = PENDING
+        job.input_json = {'forecast_pk': private_forecast3.pk}
+        job.save()
+        with patch('django.db.models.Model.delete') as mock:
+            _delete_forecast(job.pk)
+            mock.assert_called_once()
+
+            # refresh_from_db() per https://stackoverflow.com/questions/35330693/django-testcase-not-saving-my-models :
+            job.refresh_from_db()
+            self.assertEqual(Job.SUCCESS, job.status)
 
 
     def test_api_create_project(self):

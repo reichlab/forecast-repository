@@ -1,7 +1,5 @@
-import io
 import json
 import logging
-import time
 
 import django_rq
 import redis
@@ -1147,36 +1145,53 @@ def process_upload_forecast_job(job_pk):
 
 def delete_forecast(request, forecast_pk):
     """
-    Enqueues the deletion of a Forecast. Assumes that confirmation has already been given by the caller. Users are not
-    notified when the updates are done, and we do not have a Job equivalent, and so they must refresh to see
-    the status (that is, the forecast being gone from the list of them).
-
-    :return: redirect to the forecast's forecast_model detail page
+    Enqueues the deletion of a Forecast, returning a Job for it. Assumes that confirmation has already been given by the
+    caller.
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     if not forecast.is_user_ok_to_delete(request.user):
         raise PermissionDenied
 
-    forecast_timezero = forecast.time_zero  # get before deleted
-    forecast_model_pk = forecast.forecast_model.pk  # in case can't access after delete() <- todo possible?
-    enqueue_delete_forecast(forecast)
-    messages.success(request, f"Scheduled deleting the forecast for time_zero '{forecast_timezero.timezero_date}.'")
-    return redirect('model-detail', pk=forecast_model_pk)
+    job = enqueue_delete_forecast(request.user, forecast)
+    messages.success(request, f"Queued deleting the forecast: {forecast}.")
+    return redirect('job-detail', pk=job.pk)
 
 
-def enqueue_delete_forecast(forecast):
+def enqueue_delete_forecast(user, forecast):
+    job = Job.objects.create(user=user)  # status = PENDING
+    job.input_json = {'forecast_pk': forecast.pk}
+    job.save()
+
     queue = django_rq.get_queue(DELETE_FORECAST_QUEUE_NAME)
-    queue.enqueue(_delete_forecast, forecast.pk)
+    queue.enqueue(_delete_forecast, job.pk)
+    job.status = Job.QUEUED
+    job.save()
+
+    return job
 
 
-def _delete_forecast(forecast_pk):
+def _delete_forecast(job_pk):
     """
     Enqueue helper function.
     """
-    forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    logger.debug(f"_delete_forecast(): started. forecast_pk={forecast_pk}, forecast={forecast}")
+    job = get_object_or_404(Job, pk=job_pk)
+    if 'forecast_pk' not in job.input_json:
+        job.status = Job.FAILED
+        job.failure_message = f"_delete_forecast: did not find 'forecast_pk' in job={job}"
+        job.save()
+        return
+
+    forecast_pk = job.input_json['forecast_pk']
+    forecast = Forecast.objects.filter(id=forecast_pk).first()
+    if not forecast:
+        job.status = Job.FAILED
+        job.failure_message = f"_delete_forecast: did not find a Forecast with forecast_pk={forecast_pk}. job={job}"
+        job.save()
+        return
+
     forecast.delete()
-    logger.debug(f"_delete_forecast(): done. forecast_pk={forecast_pk}")
+    job.status = Job.SUCCESS
+    job.save()
 
 
 #

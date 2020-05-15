@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Upload File Job: {{ job.id }}{% endblock %}
+{% block title %}Job: {{ job.id }}{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Upload File Job: {{ job.id }}
+    <p class="lead">Job: {{ job.id }}
         <a href="{% url 'api-job-detail' job.pk %}" class="btn btn-primary btn-sm" role="button">
             API
         </a>

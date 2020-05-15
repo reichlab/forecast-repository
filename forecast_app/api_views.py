@@ -494,15 +494,15 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         """
-        Deletes this forecast. Runs in the calling thread and therefore blocks.
+        Enqueues the deletion of a Forecast, returning a Job for it.
         """
         forecast = self.get_object()
         if not forecast.is_user_ok_to_delete(request.user):
             raise PermissionDenied
 
-        # 202 per https://stackoverflow.com/questions/2342579/http-status-code-for-update-and-delete
-        enqueue_delete_forecast(forecast)
-        return Response(status=status.HTTP_202_ACCEPTED)
+        job = enqueue_delete_forecast(request.user, forecast)
+        job_serializer = JobSerializer(job, context={'request': request})
+        return JsonResponse(job_serializer.data)
 
 
 class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
