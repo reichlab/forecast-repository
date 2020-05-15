@@ -22,10 +22,10 @@ logging.getLogger("boto3.resources.action").setLevel(logging.INFO)
 #
 # Naming conventions: To simplify the code we use a simple naming convention with a single 'folder' namespace
 # (comparable to S3 buckets) and a filename based on the PK of the class of object involved. Naming assumes there's a
-# class corresponding to each type of file to be managed. Currently this includes UploadFileJob and ScoreCsvFileCache.
+# class corresponding to each type of file to be managed. Currently this includes Job and ScoreCsvFileCache.
 #
 # Folder names: To get the folder name we use the corresponding class name in lower case, e.g.,
-# UploadFileJob -> 'uploadfilejob'. Note that for S3, this is then used as a postfix to dotted naming convention we've
+# Job -> 'job'. Note that for S3, this is then used as a postfix to dotted naming convention we've
 # adopted, i.e., 'reichlab.zoltarapp.<folder_name>'. These buckets are created manually.
 #
 # File names: Our filename convention is to use the relevant object's PK to name files, i.e., str(the_obj.pk). Note that
@@ -34,9 +34,9 @@ logging.getLogger("boto3.resources.action").setLevel(logging.INFO)
 #
 # The currently supported classes:
 #
-# UploadFileJob:
-# - folder name: 'uploadfilejob' (S3 bucket: 'reichlab.zoltarapp.uploadfilejob')
-# - filename: UploadFileJob.pk as a string
+# Job:
+# - folder name: 'job' (S3 bucket: 'reichlab.zoltarapp.job')
+# - filename: Job.pk as a string
 #
 # ScoreCsvFileCache:
 # - folder name: 'scorecsvfilecache' (S3 bucket: 'reichlab.zoltarapp.scorecsvfilecache')
@@ -78,7 +78,7 @@ def upload_file(the_object, data_file):
     bucket = s3_resource.Bucket(_s3_bucket_name_for_object(the_object))
     # todo use chunks? for chunk in data_file.chunks(): print(chunk):
 
-    # bucket.put_object(Key=upload_file_job.s3_key(), Body=data_file, ContentType='text/csv')  # todo xx nope
+    # bucket.put_object(Key=job.s3_key(), Body=data_file, ContentType='text/csv')  # todo xx nope
     bucket.put_object(Key=_file_name_for_object(the_object), Body=data_file)
 
 

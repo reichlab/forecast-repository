@@ -20,7 +20,7 @@ from utils.utilities import basic_str
 logger = logging.getLogger(__name__)
 
 
-class UploadFileJob(models.Model):
+class Job(models.Model):
     """
     Holds information about user file uploads. Accessed by worker jobs when processing those files.
     """
@@ -43,14 +43,14 @@ class UploadFileJob(models.Model):
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
 
     # User who submitted the job:
-    user = models.ForeignKey(User, related_name='upload_file_jobs', on_delete=models.SET_NULL, blank=True, null=True)
+    user = models.ForeignKey(User, related_name='jobs', on_delete=models.SET_NULL, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)  # when this instance was created. basically the submit date
     updated_at = models.DateTimeField(auto_now=True)  # time of last save(). basically last time status changed
     failure_message = models.TextField()  # non-empty message if status == FAILED
     filename = models.TextField()  # original name of the uploaded file
 
-    # app-specific data passed to the UploadFileJob from the request. ex: 'model_pk':
+    # app-specific data passed to the Job from the request. ex: 'model_pk':
     input_json = JSONField(null=True, blank=True)
 
     # app-specific results from a successful completion of the upload. ex: 'forecast_pk':
@@ -70,11 +70,11 @@ class UploadFileJob(models.Model):
 
 
     def is_failed(self):
-        return self.status == UploadFileJob.FAILED
+        return self.status == Job.FAILED
 
 
     def status_as_str(self):
-        return UploadFileJob.status_int_as_str(self.status)
+        return Job.status_int_as_str(self.status)
 
 
     def status_color(self):
@@ -83,12 +83,12 @@ class UploadFileJob(models.Model):
 
         :return: a color for my status - https://getbootstrap.com/docs/4.0/utilities/colors/
         """
-        return {UploadFileJob.PENDING: 'text-primary',
-                UploadFileJob.CLOUD_FILE_UPLOADED: 'text-secondary',
-                UploadFileJob.QUEUED: 'text-secondary',
-                UploadFileJob.CLOUD_FILE_DOWNLOADED: 'text-secondary',
-                UploadFileJob.SUCCESS: 'text-success',
-                UploadFileJob.FAILED: 'text-danger'}[self.status]
+        return {Job.PENDING: 'text-primary',
+                Job.CLOUD_FILE_UPLOADED: 'text-secondary',
+                Job.QUEUED: 'text-secondary',
+                Job.CLOUD_FILE_DOWNLOADED: 'text-secondary',
+                Job.SUCCESS: 'text-success',
+                Job.FAILED: 'text-danger'}[self.status]
 
 
     @classmethod
@@ -134,60 +134,60 @@ class UploadFileJob(models.Model):
 #
 
 @contextmanager
-def upload_file_job_cloud_file(upload_file_job_pk):
+def job_cloud_file(job_pk):
     """
     A context manager for use by django_rq.enqueue() calls by views._upload_file().
 
     Does the following setup:
-    - get the UploadFileJob for upload_file_job_pk
-    - download the corresponding cloud file data into a temporary file, setting the UploadFileJob's status to
+    - get the Job for job_pk
+    - download the corresponding cloud file data into a temporary file, setting the Job's status to
       CLOUD_FILE_DOWNLOADED
     - pass the temporary file's fp to this context's caller
-    - set the UploadFileJob's status to SUCCESS
+    - set the Job's status to SUCCESS
 
     Does this cleanup:
     - delete the cloud object, regardless of success or failure
 
-    :param upload_file_job_pk: PK of the corresponding UploadFileJob instance
+    :param job_pk: PK of the corresponding Job instance
     """
     # __enter__()
-    upload_file_job = get_object_or_404(UploadFileJob, pk=upload_file_job_pk)
-    logger.debug(f"upload_file_job_cloud_file(): Started. upload_file_job={upload_file_job}")
+    job = get_object_or_404(Job, pk=job_pk)
+    logger.debug(f"job_cloud_file(): Started. job={job}")
     with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:
-            logger.debug(f"upload_file_job_cloud_file(): Downloading from cloud. upload_file_job={upload_file_job}")
-            download_file(upload_file_job, cloud_file_fp)
+            logger.debug(f"job_cloud_file(): Downloading from cloud. job={job}")
+            download_file(job, cloud_file_fp)
             cloud_file_fp.seek(0)  # yes you have to do this!
-            upload_file_job.status = UploadFileJob.CLOUD_FILE_DOWNLOADED
-            upload_file_job.save()
+            job.status = Job.CLOUD_FILE_DOWNLOADED
+            job.save()
 
             # make the context call. we need TextIOWrapper ('a buffered text stream over a BufferedIOBase binary
             # stream') b/c cloud_file_fp is a <class '_io.BufferedRandom'>. o/w csv ->
             # 'iterator should return strings, not bytes'
-            logger.debug(f"upload_file_job_cloud_file(): Calling context. upload_file_job={upload_file_job}")
+            logger.debug(f"job_cloud_file(): Calling context. job={job}")
             cloud_file_fp = io.TextIOWrapper(cloud_file_fp, 'utf-8')
-            yield upload_file_job, cloud_file_fp
+            yield job, cloud_file_fp
 
             # __exit__()
-            upload_file_job.status = UploadFileJob.SUCCESS  # yay!
-            upload_file_job.save()
-            logger.debug(f"upload_file_job_cloud_file(): Done. upload_file_job={upload_file_job}")
+            job.status = Job.SUCCESS  # yay!
+            job.save()
+            logger.debug(f"job_cloud_file(): Done. job={job}")
         except Exception as ex:
-            upload_file_job.status = UploadFileJob.FAILED
-            upload_file_job.failure_message = f"Failed to process the file: '{ex.args[0]}'"
-            upload_file_job.save()
-            logger.error(f"upload_file_job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. "
-                         f"upload_file_job={upload_file_job}")
+            job.status = Job.FAILED
+            job.failure_message = f"Failed to process the file: '{ex.args[0]}'"
+            job.save()
+            logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. "
+                         f"job={job}")
         finally:
-            delete_file(upload_file_job)  # NB: in current thread
+            delete_file(job)  # NB: in current thread
 
 
 #
-# set up a signal to try to delete an UploadFileJob's S3 object before deleting the UploadFileJob
+# set up a signal to try to delete an Job's S3 object before deleting the Job
 #
 
-@receiver(pre_delete, sender=UploadFileJob)
-def delete_file_for_upload_file_job(sender, instance, using, **kwargs):
+@receiver(pre_delete, sender=Job)
+def delete_file_for_job(sender, instance, using, **kwargs):
     instance.cancel_rq_job()  # in case it's still in the queue
     delete_file(instance)
 
@@ -196,39 +196,39 @@ def delete_file_for_upload_file_job(sender, instance, using, **kwargs):
 # set up a signal to try notifying the user of SUCCESS or FAILURE
 #
 
-@receiver(post_save, sender=UploadFileJob)
-def send_notification_for_upload_file_job(sender, instance, using, **kwargs):
+@receiver(post_save, sender=Job)
+def send_notification_for_job(sender, instance, using, **kwargs):
     # imported here so that test_email_notification() can patch via mock:
     from forecast_app.notifications import send_notification_email
 
 
-    if instance.status == UploadFileJob.FAILED:
-        address, subject, message = address_subject_message_for_upload_file_job(instance)
+    if instance.status == Job.FAILED:
+        address, subject, message = address_subject_message_for_job(instance)
         send_notification_email(address, subject, message)
 
 
-def address_subject_message_for_upload_file_job(upload_file_job):
+def address_subject_message_for_job(job):
     """
-    An email notification helper function that constructs an email subject line and body for the passed upload_file_job.
+    An email notification helper function that constructs an email subject line and body for the passed job.
 
-    :param upload_file_job: an UploadFileJob
+    :param job: an Job
     :return: email_address, subject, message
     """
-    subject = "UploadFileJob #{} result: {}".format(upload_file_job.pk, upload_file_job.status_as_str())
+    subject = "Job #{} result: {}".format(job.pk, job.status_as_str())
     message_template_str = """A <a href="zoltardata.com">Zoltar</a> user with your email address uploaded a file with this result:
 <ul>
-    <li>UploadFileJob ID: {{upload_file_job.pk}}</li>
-    <li>Status: {{upload_file_job.status_as_str}}</li>
-    <li>User: {{upload_file_job.user}}</li>
-    <li>Filename: {% if upload_file_job.filename %}{{ upload_file_job.filename }}{% else %}(No filename){% endif %}</li>
-    <li>Created_at: {{upload_file_job.created_at}}</li>
-    <li>Updated_at: {{upload_file_job.updated_at}}</li>
-    <li>Failure_message: {% if upload_file_job.failure_message %}{{ upload_file_job.failure_message }}{% else %}(No message){% endif %}</li>
-    <li>Input_json: {{upload_file_job.input_json}}</li>
-    <li>Output_json: {{upload_file_job.output_json}}</li>
+    <li>Job ID: {{job.pk}}</li>
+    <li>Status: {{job.status_as_str}}</li>
+    <li>User: {{job.user}}</li>
+    <li>Filename: {% if job.filename %}{{ job.filename }}{% else %}(No filename){% endif %}</li>
+    <li>Created_at: {{job.created_at}}</li>
+    <li>Updated_at: {{job.updated_at}}</li>
+    <li>Failure_message: {% if job.failure_message %}{{ job.failure_message }}{% else %}(No message){% endif %}</li>
+    <li>Input_json: {{job.input_json}}</li>
+    <li>Output_json: {{job.output_json}}</li>
 </ul>
 
 Thanks! -- Zoltar"""
     message_template = Template(message_template_str)
-    message = message_template.render(Context({'upload_file_job': upload_file_job}))
-    return upload_file_job.user.email, subject, message
+    message = message_template.render(Context({'job': job}))
+    return job.user.email, subject, message

@@ -12,6 +12,6 @@ from .score import Score, ScoreValue, ScoreLastUpdate
 from .score_csv_file_cache import ScoreCsvFileCache
 from .target import Target, TargetCat, TargetLwr, TargetRange
 from .truth_data import TruthData
-from .upload_file_job import UploadFileJob
+from .job import Job
 
 # __all__ = ['Article', 'Publication']

@@ -2,18 +2,18 @@
 
 {% load humanize %}
 
-{% block title %}Zoltar Admin: UploadFileJobs{% endblock %}
+{% block title %}Zoltar Admin: Jobs{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Zoltar Admin: UploadFileJobs </p>
+    <p class="lead">Zoltar Admin: Jobs </p>
 
 
-    <h2>UploadFileJobs</h2>
+    <h2>Jobs</h2>
 
-    {% if upload_file_jobs %}
+    {% if jobs %}
         <br>
-        {% include 'upload_file_job_table_snippet.html' with upload_file_jobs=upload_file_jobs %}
+        {% include 'job_table_snippet.html' with jobs=jobs %}
     {% else %}
         <p>
             <small class="text-muted">(No jobs)</small>

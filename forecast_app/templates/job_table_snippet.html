@@ -1,0 +1,35 @@
+<table class="table table-striped table-bordered">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>User</th>
+        <th>Status</th>
+        <th>File Name</th>
+        <th>Failure</th>
+        <th>&Delta;T</th>
+        <th>Created</th>
+        <th>Updated</th>
+        <th>JSON In</th>
+        <th>JSON Out</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for job in jobs %}
+        <tr>
+            <td><a href="{% url 'job-detail' job.pk %}">{{ job.pk }}</a></td>
+            <td>
+                <a href="{% url 'user-detail' job.user.pk %}">{{ job.user.username }}</a>
+            </td>
+            <td><span class="{{ job.status_color }}">{{ job.status_as_str }}</span></td>
+            <td>{{ job.filename }}</td>
+            <td>{% if job.is_failed %}{{ job.failure_message|truncatechars:40 }}{% else %}
+                None{% endif %}</td>
+            <td>{{ job.elapsed_time }}</td>
+            <td>{{ job.created_at|date:"Y-m-d h:i:s" }}</td>
+            <td>{{ job.updated_at|date:"Y-m-d h:i:s" }}</td>
+            <td>{{ job.input_json }}</td>
+            <td>{{ job.output_json }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

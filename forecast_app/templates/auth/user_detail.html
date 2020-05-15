@@ -127,12 +127,12 @@
 
     <h2>Upload File Jobs</h2>
 
-    {% if detail_user.upload_file_jobs.all %}
+    {% if detail_user.jobs.all %}
         <p class="help-block">Upload file jobs created by {{ detail_user }}:</p>
 
         <div class="row">
             <div class="col-md-12">
-                {% include 'upload_file_job_table_snippet.html' with upload_file_jobs=upload_file_jobs %}
+                {% include 'job_table_snippet.html' with jobs=jobs %}
             </div>
         </div>
     {% else %}

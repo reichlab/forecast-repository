@@ -5,7 +5,7 @@ from rest_framework.reverse import reverse
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
 from forecast_app.models.project import Unit
-from forecast_app.models.upload_file_job import UploadFileJob
+from forecast_app.models.job import Job
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -236,18 +236,18 @@ class UserSerializer(serializers.ModelSerializer):
                 for project, role in projects_and_roles_for_user(user)]
 
 
-class UploadFileJobSerializer(serializers.ModelSerializer):
+class JobSerializer(serializers.ModelSerializer):
     user = serializers.HyperlinkedRelatedField(view_name='api-user-detail', read_only=True)
     input_json = serializers.JSONField()  # per https://github.com/dmkoch/django-jsonfield/issues/188
     output_json = serializers.JSONField()  # ""
 
 
     class Meta:
-        model = UploadFileJob
+        model = Job
         fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
                   'input_json', 'output_json',)
         extra_kwargs = {
-            'url': {'view_name': 'api-upload-file-job-detail'},
+            'url': {'view_name': 'api-job-detail'},
         }
 
 

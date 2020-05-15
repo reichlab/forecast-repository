@@ -5,7 +5,7 @@ import click
 import requests
 
 # ZOLTAR_HOST = 'http://127.0.0.1:8000'
-from forecast_app.models.upload_file_job import UploadFileJob
+from forecast_app.models.job import Job
 
 
 # ---- Variables ----
@@ -113,12 +113,12 @@ def demo_zoltar_api_app(forecast_csv_file):
     #
     # upload a new forecast
     #
-    # from UploadFileJob:
-    upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
-    print('- upload_file_job 1', UploadFileJob.status_as_str([upload_file_job['status']]), upload_file_job)
+    # from Job:
+    job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
+    print('- job 1', Job.status_as_str([job['status']]), job)
     # example:
     # {'id': 50,
-    #  'url': 'http://localhost:8000/api/uploadfilejob/50/',
+    #  'url': 'http://localhost:8000/api/job/50/',
     #  'status': 2,
     #  'user': 'http://localhost:8000/api/user/3/',
     #  'created_at': '2018-09-05T09:18:21.346093-04:00',
@@ -127,7 +127,7 @@ def demo_zoltar_api_app(forecast_csv_file):
     #  'filename': 'EW1-KoTsarima-2017-01-17-small.csv',
     #  'input_json': "{'forecast_model_pk': 3, 'timezero_pk': 4}",
     #  'output_json': None}
-    upload_file_job = do_busy_poll(mo1_token, upload_file_job)
+    job = do_busy_poll(mo1_token, job)
 
     #
     # print the model's forecasts again - see the new url for '20170117'?
@@ -136,9 +136,9 @@ def demo_zoltar_api_app(forecast_csv_file):
     print('- updated model forecasts', model['forecasts'])
 
     #
-    # get the new forecast from the upload_file_job by parsing the generic 'output_json' field
+    # get the new forecast from the job by parsing the generic 'output_json' field
     #
-    new_forecast_pk = upload_file_job['output_json']['forecast_pk']
+    new_forecast_pk = job['output_json']['forecast_pk']
     new_forecast = get_forecast(ZOLTAR_HOST, mo1_token, new_forecast_pk)
     print('- new forecast', new_forecast_pk, new_forecast)
 
@@ -163,9 +163,9 @@ def demo_zoltar_api_app(forecast_csv_file):
 
     # todo delete_resource(timezero_uri, mo1_token)
 
-    upload_file_job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
-    print('- upload_file_job 2', UploadFileJob.status_as_str([upload_file_job['status']]), upload_file_job)
-    do_busy_poll(mo1_token, upload_file_job)
+    job = upload_forecast(model_uri, mo1_token, timezero_date, forecast_csv_file)
+    print('- job 2', Job.status_as_str([job['status']]), job)
+    do_busy_poll(mo1_token, job)
 
     # done
     print('- done')
@@ -175,14 +175,14 @@ def demo_zoltar_api_app(forecast_csv_file):
 # ---- REST and other utility functions ----
 #
 
-def do_busy_poll(token, upload_file_job):
+def do_busy_poll(token, job):
     #
     # get the updated status via polling (busy wait every 1 second)
     #
-    print('- polling for status change. upload_file_job pk:', upload_file_job['id'])
+    print('- polling for status change. job pk:', job['id'])
     while True:
-        upload_file_job = get_upload_file_job(ZOLTAR_HOST, token, upload_file_job['id'])
-        status = UploadFileJob.status_as_str([upload_file_job['status']])
+        job = get_job(ZOLTAR_HOST, token, job['id'])
+        status = Job.status_as_str([job['status']])
         print('  =', status)
         if status == 'FAILED':
             print('  x failed')
@@ -190,7 +190,7 @@ def do_busy_poll(token, upload_file_job):
         if status == 'SUCCESS':
             break
         time.sleep(1)
-    return upload_file_job
+    return job
 
 
 def get_resource(uri, token):
@@ -219,7 +219,7 @@ def upload_forecast(model_uri, token, timezero_date, file):  # timezero_date for
                              headers={'Authorization': 'JWT {}'.format(token)},
                              data={'timezero_date': timezero_date},
                              files={'data_file': open(file, 'rb')})
-    return response.json()  # UploadFileJobSerializer
+    return response.json()  # JobSerializer
 
 
 def get_projects(host, token):
@@ -230,8 +230,8 @@ def get_project(host, token, project_pk):
     return get_resource(host + '/api/project/{}/'.format(project_pk), token)
 
 
-def get_upload_file_job(host, token, upload_file_pk):
-    return get_resource(host + '/api/uploadfilejob/{}/'.format(upload_file_pk), token)
+def get_job(host, token, upload_file_pk):
+    return get_resource(host + '/api/job/{}/'.format(upload_file_pk), token)
 
 
 def get_project_from_obj_list(project_list, name):

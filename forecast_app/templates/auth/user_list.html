@@ -10,14 +10,14 @@
         <table class="table table-striped table-bordered">
             <tr>
                 <th>Name</th>
-                <th># UploadFileJobs</th>
+                <th># Jobs</th>
                 <th># Projects</th>
                 <th># Models</th>
             </tr>
             {% for user, num_projs, num_models in user_projs_models %}
                 <tr>
                     <td><a href="{% url 'user-detail' user.pk %}">{{ user.username }}</a></td>
-                    <td>{{ user.upload_file_jobs.count }}</td>
+                    <td>{{ user.jobs.count }}</td>
                     <td>{{ num_projs }}</td>
                     <td>{{ num_models }}</td>
                 </tr>

@@ -322,7 +322,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(exp_bins, list(bin_distribution_qs))
 
 
-    def test_forecast_delete(self):
+    def test_delete_forecast(self):
         # add a second forecast, check its rows were added, delete it, and test that the data was deleted (via CASCADE)
         self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
         self.assertEqual(8019, self.forecast.get_num_rows())  # ""

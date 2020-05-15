@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Upload File Job: {{ upload_file_job.id }}{% endblock %}
+{% block title %}Upload File Job: {{ job.id }}{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Upload File Job: {{ upload_file_job.id }}
-        <a href="{% url 'api-upload-file-job-detail' upload_file_job.pk %}" class="btn btn-primary btn-sm" role="button">
+    <p class="lead">Upload File Job: {{ job.id }}
+        <a href="{% url 'api-job-detail' job.pk %}" class="btn btn-primary btn-sm" role="button">
             API
         </a>
     </p>
@@ -19,41 +19,41 @@
                 <tr>
                     <th>User:</th>
                     <td>
-                        <a href="{% url 'user-detail' upload_file_job.user.pk %}">{{ upload_file_job.user.username }}</a>
+                        <a href="{% url 'user-detail' job.user.pk %}">{{ job.user.username }}</a>
                     </td>
                 </tr>
                 <tr>
                     <th>Status:</th>
-                    <td><span class="{{ upload_file_job.status_color }}">{{ upload_file_job.status_as_str }}</span></td>
+                    <td><span class="{{ job.status_color }}">{{ job.status_as_str }}</span></td>
                 </tr>
                 <tr>
                     <th>File Name:</th>
-                    <td>{{ upload_file_job.filename }}</td>
+                    <td>{{ job.filename }}</td>
                 </tr>
                 <tr>
                     <th>Failure</th>
-                    <td>{% if upload_file_job.is_failed %}{{ upload_file_job.failure_message }}{% else %}
+                    <td>{% if job.is_failed %}{{ job.failure_message }}{% else %}
                         None{% endif %}</td>
                 </tr>
                 <tr>
                     <th>&Delta;T:</th>
-                    <td>{{ upload_file_job.elapsed_time }}</td>
+                    <td>{{ job.elapsed_time }}</td>
                 </tr>
                 <tr>
                     <th>Created:</th>
-                    <td>{{ upload_file_job.created_at|date:"Y-m-d h:i:s" }}</td>
+                    <td>{{ job.created_at|date:"Y-m-d h:i:s" }}</td>
                 </tr>
                 <tr>
                     <th>Updated:</th>
-                    <td>{{ upload_file_job.updated_at|date:"Y-m-d h:i:s" }}</td>
+                    <td>{{ job.updated_at|date:"Y-m-d h:i:s" }}</td>
                 </tr>
                 <tr>
                     <th>JSON In:</th>
-                    <td>{{ upload_file_job.input_json }}</td>
+                    <td>{{ job.input_json }}</td>
                 </tr>
                 <tr>
                     <th>JSON Out:</th>
-                    <td>{{ upload_file_job.output_json }}</td>
+                    <td>{{ job.output_json }}</td>
                 </tr>
                 </tbody>
             </table>

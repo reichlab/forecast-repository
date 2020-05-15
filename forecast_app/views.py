@@ -21,9 +21,9 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
+from forecast_app.models.job import Job, job_cloud_file
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
-from forecast_app.models.upload_file_job import UploadFileJob, upload_file_job_cloud_file
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME
 from utils.cloud_file import delete_file, upload_file
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
@@ -59,10 +59,10 @@ def projects(request):
 # ---- admin-related view functions ----
 #
 
-def zadmin_upload_file_jobs(request):
+def zadmin_jobs(request):
     return render(
-        request, 'zadmin_upload_file_jobs.html',
-        context={'upload_file_jobs': UploadFileJob.objects.all().order_by('-updated_at')})
+        request, 'zadmin_jobs.html',
+        context={'jobs': Job.objects.all().order_by('-updated_at')})
 
 
 def zadmin_score_last_updates(request):
@@ -111,14 +111,14 @@ def zadmin(request):
                  'scores_sort_pk': Score.objects.all().order_by('pk')})
 
 
-def delete_upload_file_jobs(request):
+def delete_jobs(request):
     if not is_user_ok_admin(request.user):
         raise PermissionDenied
 
     # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding cloud file (the uploaded
     # file)
-    UploadFileJob.objects.all().delete()
-    messages.success(request, "Deleted all UploadFileJobs.")
+    Job.objects.all().delete()
+    messages.success(request, "Deleted all Jobs.")
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
 
 
@@ -889,7 +889,7 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
-        context['upload_file_jobs'] = detail_user.upload_file_jobs.all().order_by('-updated_at')
+        context['jobs'] = detail_user.jobs.all().order_by('-updated_at')
         return context
 
 
@@ -940,16 +940,16 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         return context
 
 
-class UploadFileJobDetailView(UserPassesTestMixin, DetailView):
-    model = UploadFileJob
+class JobDetailView(UserPassesTestMixin, DetailView):
+    model = Job
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
-    context_object_name = 'upload_file_job'
+    context_object_name = 'job'
 
 
     def test_func(self):  # return True if the current user can access the view
-        upload_file_job = self.get_object()
-        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
+        job = self.get_object()
+        return self.request.user.is_superuser or (job.user == self.request.user)
 
 
 #
@@ -1028,10 +1028,10 @@ def upload_truth(request, project_pk):
     if is_error:
         return is_error
 
-    # upload to cloud and enqueue a job to process a new UploadFileJob
+    # upload to cloud and enqueue a job to process a new Job
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__truth,
-                                             project_pk=project_pk)
+    is_error, job = _upload_file(request.user, data_file, process_upload_truth_job,
+                                 project_pk=project_pk)
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
@@ -1039,22 +1039,22 @@ def upload_truth(request, project_pk):
                                           f"&ldquo;{is_error}&rdquo;"})
 
     messages.success(request, "Queued the truth file '{}' for uploading.".format(data_file.name))
-    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
+    return redirect('job-detail', pk=job.pk)
 
 
-def process_upload_file_job__truth(upload_file_job_pk):
+def process_upload_truth_job(job_pk):
     """
     An _upload_file() enqueue() function that loads a truth file. Called by upload_truth().
 
-    - Expected UploadFileJob.input_json key(s): 'project_pk' - passed to _upload_file()
-    - Saves UploadFileJob.output_json key(s): None
+    - Expected Job.input_json key(s): 'project_pk' - passed to _upload_file()
+    - Saves Job.output_json key(s): None
 
-    :param upload_file_job_pk: the UploadFileJob's pk
+    :param job_pk: the Job's pk
     """
-    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
-        project_pk = upload_file_job.input_json['project_pk']
+    with job_cloud_file(job_pk) as (job, cloud_file_fp):
+        project_pk = job.input_json['project_pk']
         project = get_object_or_404(Project, pk=project_pk)
-        load_truth_data(project, cloud_file_fp, file_name=upload_file_job.filename)
+        load_truth_data(project, cloud_file_fp, file_name=job.filename)
 
 
 def download_truth(request, project_pk):
@@ -1102,10 +1102,10 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "existing data and then upload again. You may need to refresh the page to "
                                           "see the delete button.".format(time_zero.timezero_date, data_file.name)})
 
-    # upload to cloud and enqueue a job to process a new UploadFileJob
-    is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
-                                             forecast_model_pk=forecast_model_pk,
-                                             timezero_pk=timezero_pk)
+    # upload to cloud and enqueue a job to process a new Job
+    is_error, job = _upload_file(request.user, data_file, process_upload_forecast_job,
+                                 forecast_model_pk=forecast_model_pk,
+                                 timezero_pk=timezero_pk)
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
@@ -1113,42 +1113,42 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           f"&ldquo;{is_error}&rdquo;"})
 
     messages.success(request, "Queued the forecast file '{}' for uploading.".format(data_file.name))
-    return redirect('upload-file-job-detail', pk=upload_file_job.pk)
+    return redirect('job-detail', pk=job.pk)
 
 
-def process_upload_file_job__forecast(upload_file_job_pk):
+def process_upload_forecast_job(job_pk):
     """
     An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast().
 
-    - Expected UploadFileJob.input_json key(s): 'forecast_model_pk', 'timezero_pk' - passed to _upload_file()
-    - Saves UploadFileJob.output_json key(s): 'forecast_pk'
+    - Expected Job.input_json key(s): 'forecast_model_pk', 'timezero_pk' - passed to _upload_file()
+    - Saves Job.output_json key(s): 'forecast_pk'
 
-    :param upload_file_job_pk: the UploadFileJob's pk
+    :param job_pk: the Job's pk
     """
-    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
-        forecast_model_pk = upload_file_job.input_json['forecast_model_pk']
+    with job_cloud_file(job_pk) as (job, cloud_file_fp):
+        forecast_model_pk = job.input_json['forecast_model_pk']
         forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
-        timezero_pk = upload_file_job.input_json['timezero_pk']
+        timezero_pk = job.input_json['timezero_pk']
         time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-        logger.debug(f"process_upload_file_job__forecast(): upload_file_job={upload_file_job}, "
+        logger.debug(f"process_upload_forecast_job(): job={job}, "
                      f"forecast_model={forecast_model}, time_zero={time_zero}")
         with transaction.atomic():
-            logger.debug(f"process_upload_file_job__forecast(): creating Forecast")
-            notes = upload_file_job.input_json.get('notes', '')
+            logger.debug(f"process_upload_forecast_job(): creating Forecast")
+            notes = job.input_json.get('notes', '')
             new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
-                                                   source=upload_file_job.filename, notes=notes)
+                                                   source=job.filename, notes=notes)
             json_io_dict = json.load(cloud_file_fp)
-            logger.debug(f"process_upload_file_job__forecast(): loading predictions. json_io_dict={json_io_dict!r}")
+            logger.debug(f"process_upload_forecast_job(): loading predictions. json_io_dict={json_io_dict!r}")
             load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
-            upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
-            upload_file_job.save()
-            logger.debug(f"process_upload_file_job__forecast(): done")
+            job.output_json = {'forecast_pk': new_forecast.pk}
+            job.save()
+            logger.debug(f"process_upload_forecast_job(): done")
 
 
 def delete_forecast(request, forecast_pk):
     """
     Enqueues the deletion of a Forecast. Assumes that confirmation has already been given by the caller. Users are not
-    notified when the updates are done, and we do not have a UploadFileJob equivalent, and so they must refresh to see
+    notified when the updates are done, and we do not have a Job equivalent, and so they must refresh to see
     the status (that is, the forecast being gone from the list of them).
 
     :return: redirect to the forecast's forecast_model detail page
@@ -1193,93 +1193,72 @@ def _delete_forecast(forecast_pk):
 MAX_UPLOAD_FILE_SIZE = 10E+06
 
 
-def _upload_file(user, data_file, process_upload_file_job_fcn, **kwargs):
+def _upload_file(user, data_file, process_job_fcn, **kwargs):
     """
-    Accepts a file uploaded to this app by the user. Creates a UploadFileJob to track the job, saves data_file in cloud
-    storage, then enqueues process_upload_file_job_fcn to process the file by an RQ worker.
+    Accepts a file uploaded to this app by the user. Creates a Job to track the job, saves data_file in cloud
+    storage, then enqueues process_job_fcn to process the file by an RQ worker.
 
     :param user: the User from request.User
     :param data_file: the data file to use as found in request.FILES . it is an UploadedFile (e.g.,
         InMemoryUploadedFile or TemporaryUploadedFile)
-    :param process_upload_file_job_fcn: a function of one arg (upload_file_job_pk) that is passed to
-        django_rq.enqueue(). NB: It MUST use the upload_file_job_cloud_file context to have access to the file that was
+    :param process_job_fcn: a function of one arg (job_pk) that is passed to
+        django_rq.enqueue(). NB: It MUST use the job_cloud_file context to have access to the file that was
         uploaded to cloud, e.g.,
-            with upload_file_job_cloud_file() as cloud_file_fp: ...
-        NB: If it needs to save upload_file_job.output_json, make sure to call save(), e.g.,
-            upload_file_job.output_json = {'forecast_pk': new_forecast.pk}
-            upload_file_job.save()
-    :param kwargs: saved in the new UploadFileJob's input_json
-    :return a 2-tuple: (is_error, upload_file_job) where:
+            with job_cloud_file() as cloud_file_fp: ...
+        NB: If it needs to save job.output_json, make sure to call save(), e.g.,
+            job.output_json = {'forecast_pk': new_forecast.pk}
+            job.save()
+    :param kwargs: saved in the new Job's input_json
+    :return a 2-tuple: (is_error, job) where:
         - is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the user
-        - upload_file_job the new UploadFileJob instance if not is_error. None o/w
+        - job the new Job instance if not is_error. None o/w
     """
-    # create the UploadFileJob
+    # create the Job
     logger.debug("_upload_file(): Got data_file: name={!r}, size={}, content_type={}"
                  .format(data_file.name, data_file.size, data_file.content_type))
     try:
-        upload_file_job = UploadFileJob.objects.create(user=user, filename=data_file.name)  # status = PENDING
-        upload_file_job.input_json = kwargs
-        upload_file_job.save()
-        logger.debug("_upload_file(): 1/3 Created the UploadFileJob: {}".format(upload_file_job))
+        job = Job.objects.create(user=user, filename=data_file.name)  # status = PENDING
+        job.input_json = kwargs
+        job.save()
+        logger.debug("_upload_file(): 1/3 Created the Job: {}".format(job))
     except Exception as ex:
-        logger.debug("_upload_file(): Error creating the UploadFileJob: {}".format(ex))
-        return "Error creating the UploadFileJob: {}".format(ex), None
+        logger.debug("_upload_file(): Error creating the Job: {}".format(ex))
+        return "Error creating the Job: {}".format(ex), None
 
     # upload the file to cloud storage
     try:
-        upload_file(upload_file_job, data_file)
-        upload_file_job.status = UploadFileJob.CLOUD_FILE_UPLOADED
-        upload_file_job.save()
-        logger.debug("_upload_file(): 2/3 Uploaded the file to cloud. upload_file_job={}".format(upload_file_job))
+        upload_file(job, data_file)
+        job.status = Job.CLOUD_FILE_UPLOADED
+        job.save()
+        logger.debug("_upload_file(): 2/3 Uploaded the file to cloud. job={}".format(job))
     except Exception as ex:
-        failure_message = "_upload_file(): Error uploading file to cloud: {}. upload_file_job={}" \
-            .format(ex, upload_file_job)
-        upload_file_job.status = UploadFileJob.FAILED
-        upload_file_job.failure_message = failure_message
-        upload_file_job.save()
+        failure_message = "_upload_file(): Error uploading file to cloud: {}. job={}" \
+            .format(ex, job)
+        job.status = Job.FAILED
+        job.failure_message = failure_message
+        job.save()
         logger.debug(failure_message)
-        return "Error uploading file to cloud: {}. upload_file_job={}".format(ex, upload_file_job), None
+        return "Error uploading file to cloud: {}. job={}".format(ex, job), None
 
     # enqueue a worker
     try:
         queue = django_rq.get_queue(UPLOAD_FILE_QUEUE_NAME)
-        rq_job = queue.enqueue(process_upload_file_job_fcn, upload_file_job.pk, job_id=upload_file_job.rq_job_id())
-        upload_file_job.status = UploadFileJob.QUEUED
-        upload_file_job.save()
-        logger.debug("_upload_file(): 3/3 Enqueued the job: {}. upload_file_job={}".format(rq_job, upload_file_job))
+        rq_job = queue.enqueue(process_job_fcn, job.pk, job_id=job.rq_job_id())
+        job.status = Job.QUEUED
+        job.save()
+        logger.debug("_upload_file(): 3/3 Enqueued the job: {}. job={}".format(rq_job, job))
     except Exception as ex:
-        failure_message = "_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {}. upload_file_job={}" \
-            .format(ex, upload_file_job)
-        upload_file_job.status = UploadFileJob.FAILED
-        upload_file_job.failure_message = failure_message
-        upload_file_job.save()
-        delete_file(upload_file_job)  # NB: in current thread
+        failure_message = "_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {}. job={}" \
+            .format(ex, job)
+        job.status = Job.FAILED
+        job.failure_message = failure_message
+        job.save()
+        delete_file(job)  # NB: in current thread
         logger.debug(failure_message)
-        return "Error enqueuing the job: {}. upload_file_job={}".format(ex, upload_file_job), None
+        return "Error enqueuing the job: {}. job={}".format(ex, job), None
 
     logger.debug("_upload_file(): done")
-    return False, upload_file_job
-
-
-def process_upload_file_job__noop(upload_file_job_pk):
-    """
-    A demonstration _upload_file() enqueue() function that does nothing. Expected UploadFileJob.input_json keys: none.
-
-    :param upload_file_job_pk: the UploadFileJob's pk
-    """
-    logger.debug("process_upload_file_job__noop(): entered. upload_file_job_pk={}".format(upload_file_job_pk))
-    with upload_file_job_cloud_file(upload_file_job_pk) as (upload_file_job, cloud_file_fp):
-        # show that we can access the file's data
-        file_size = cloud_file_fp.seek(0, io.SEEK_END)
-        cloud_file_fp.seek(0)
-        lines = cloud_file_fp.readlines()
-        cloud_file_fp.seek(0)
-        logger.debug(
-            "process_upload_file_job__noop(): upload_file_job={}, cloud_file_fp={}.\n\t-> from cloud_file_fp: {}, {}, {}"
-                .format(upload_file_job, cloud_file_fp, file_size, len(lines), repr(lines[0:2])))
-
-        # simulate a long-running operation
-        time.sleep(5)
+    return False, job
 
 
 def validate_data_file(request):

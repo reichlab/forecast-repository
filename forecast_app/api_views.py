@@ -22,12 +22,12 @@ from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
+from forecast_app.models.job import Job
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
-from forecast_app.models.upload_file_job import UploadFileJob
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
+    TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
-    process_upload_file_job__truth, enqueue_delete_forecast
+    process_upload_truth_job, enqueue_delete_forecast
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project
@@ -389,7 +389,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
         # imported here so that test_api_upload_forecast() can patch via mock:
-        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_file_job__forecast, \
+        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_forecast_job, \
             is_user_ok_upload_forecast
 
 
@@ -432,29 +432,29 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
                                 .format(time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), data_file.name)},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        # upload to cloud and enqueue a job to process a new UploadFileJob
+        # upload to cloud and enqueue a job to process a new Job
         notes = request.data.get('notes', '')
-        is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__forecast,
-                                                 forecast_model_pk=forecast_model.pk,
-                                                 timezero_pk=time_zero.pk, notes=notes)
+        is_error, job = _upload_file(request.user, data_file, process_upload_forecast_job,
+                                     forecast_model_pk=forecast_model.pk,
+                                     timezero_pk=time_zero.pk, notes=notes)
         if is_error:
             return JsonResponse({'error': "There was an error uploading the file. The error was: '{}'"
                                 .format(is_error)},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        upload_file_job_serializer = UploadFileJobSerializer(upload_file_job, context={'request': request})
-        return JsonResponse(upload_file_job_serializer.data)
+        job_serializer = JobSerializer(job, context={'request': request})
+        return JsonResponse(job_serializer.data)
 
 
-class UploadFileJobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
-    queryset = UploadFileJob.objects.all()
-    serializer_class = UploadFileJobSerializer
+class JobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
+    queryset = Job.objects.all()
+    serializer_class = JobSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
 
     def test_func(self):
-        upload_file_job = self.get_object()
-        return self.request.user.is_superuser or (upload_file_job.user == self.request.user)
+        job = self.get_object()
+        return self.request.user.is_superuser or (job.user == self.request.user)
 
 
 class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
@@ -577,16 +577,16 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
             message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
             return JsonResponse({'error': message}, status=status.HTTP_400_BAD_REQUEST)
 
-        # upload to cloud and enqueue a job to process a new UploadFileJob
+        # upload to cloud and enqueue a job to process a new Job
         data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-        is_error, upload_file_job = _upload_file(request.user, data_file, process_upload_file_job__truth,
-                                                 project_pk=project.pk)
+        is_error, job = _upload_file(request.user, data_file, process_upload_truth_job,
+                                     project_pk=project.pk)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        upload_file_job_serializer = UploadFileJobSerializer(upload_file_job, context={'request': request})
-        return JsonResponse(upload_file_job_serializer.data)
+        job_serializer = JobSerializer(job, context={'request': request})
+        return JsonResponse(job_serializer.data)
 
 
 #

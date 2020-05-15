@@ -10,14 +10,14 @@ urlpatterns = [
     url(r'^projects$', views.projects, name='projects'),
 
     url(r'^zadmin$', views.zadmin, name='zadmin'),
-    url(r'^zadmin/upload_file_jobs$', views.zadmin_upload_file_jobs, name='zadmin-upload-file-jobs'),
+    url(r'^zadmin/jobs$', views.zadmin_jobs, name='zadmin-jobs'),
     url(r'^zadmin/score_last_updates$', views.zadmin_score_last_updates, name='zadmin-score-last-updates'),
     url(r'^zadmin/model_score_changes$', views.zadmin_model_score_changes, name='zadmin-model-score-changes'),
     url(r'^clear_row_count_caches$', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches$', views.update_row_count_caches, name='update-row-count-caches'),
     url(r'^clear_score_csv_file_caches$', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
     url(r'^update_score_csv_file_caches$', views.update_score_csv_file_caches, name='update-score-csv-file-caches'),
-    url(r'^delete_upload_file_jobs/$', views.delete_upload_file_jobs, name='delete-file-jobs'),
+    url(r'^delete_jobs/$', views.delete_jobs, name='delete-file-jobs'),
 
     url(r'^update_all_scores$', views.update_all_scores, {'is_only_changed': False},
         name='update-all-scores'),
@@ -46,7 +46,7 @@ urlpatterns = [
 
     url(r'^user/(?P<pk>\d+)$', views.UserDetailView.as_view(), name='user-detail'),
 
-    url(r'^uploadfilejob/(?P<pk>\d+)$', views.UploadFileJobDetailView.as_view(), name='upload-file-job-detail'),
+    url(r'^job/(?P<pk>\d+)$', views.JobDetailView.as_view(), name='job-detail'),
 
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
     url(r'^forecast/(?P<forecast_pk>\d+)/download$', views.download_forecast, name='download-forecast'),

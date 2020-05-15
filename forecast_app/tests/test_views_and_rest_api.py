@@ -13,7 +13,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
 from forecast_app.models import Project, ForecastModel, TimeZero
-from forecast_app.models.upload_file_job import UploadFileJob
+from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
@@ -56,7 +56,7 @@ class ViewsTestCase(TestCase):
         cls.public_tz2 = TimeZero.objects.create(project=cls.public_project, timezero_date=datetime.date(2017, 12, 2),
                                                  data_version_date=None)
 
-        cls.upload_file_job = UploadFileJob.objects.create(user=cls.po_user)
+        cls.job = Job.objects.create(user=cls.po_user)
 
         # private_project
         cls.private_project = Project.objects.create(name='private project name', is_public=False, owner=cls.po_user)
@@ -145,7 +145,7 @@ class ViewsTestCase(TestCase):
             reverse('user-detail', args=[str(self.po_user.pk)]): self.ONLY_PO,
             reverse('edit-user', args=[str(self.po_user.pk)]): self.ONLY_PO,
             reverse('change-password'): self.ONLY_PO_MO,
-            reverse('upload-file-job-detail', args=[str(self.upload_file_job.pk)]): self.ONLY_PO,
+            reverse('job-detail', args=[str(self.job.pk)]): self.ONLY_PO,
 
             reverse('zadmin'): self.ONLY_SU_200,
             reverse('clear-row-count-caches'): self.ONLY_SU_302,
@@ -474,7 +474,7 @@ class ViewsTestCase(TestCase):
         url_to_exp_user_status_code_pairs = {
             reverse('api-root'): self.ONLY_PO_MO,
             reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
-            reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]): self.ONLY_PO,
+            reverse('api-job-detail', args=[self.job.pk]): self.ONLY_PO,
 
             reverse('api-project-list'): self.ONLY_PO_MO,
             reverse('api-project-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
@@ -566,7 +566,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(['id', 'url', 'username', 'owned_models', 'projects_and_roles'],
                          list(response.data))
 
-        response = self.client.get(reverse('api-upload-file-job-detail', args=[self.upload_file_job.pk]))
+        response = self.client.get(reverse('api-job-detail', args=[self.job.pk]))
         self.assertEqual(['id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
                           'input_json', 'output_json'],
                          list(response.data))
@@ -969,7 +969,7 @@ class ViewsTestCase(TestCase):
 
 
     def test_api_upload_truth(self):
-        # to avoid the requirement of RQ, redis, and S3, we patch _upload_file() to return (is_error, upload_file_job)
+        # to avoid the requirement of RQ, redis, and S3, we patch _upload_file() to return (is_error, job)
         # with desired return args
         with patch('forecast_app.views._upload_file') as upload_file_mock:
             # upload_truth_url = reverse('api-upload-truth-data', args=[str(self.public_project.pk)])
@@ -991,7 +991,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
             # case: _upload_file() -> is_error
-            upload_file_mock.return_value = True, None  # is_error, upload_file_job
+            upload_file_mock.return_value = True, None  # is_error, job
             json_response = self.client.post(upload_truth_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
@@ -999,18 +999,18 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
             # case: blue sky: _upload_file() -> NOT is_error
-            upload_file_job_return_value = UploadFileJob.objects.create()
-            upload_file_mock.return_value = False, upload_file_job_return_value  # is_error, upload_file_job
+            job_return_value = Job.objects.create()
+            upload_file_mock.return_value = False, job_return_value  # is_error, job
             json_response = self.client.post(upload_truth_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
             }, format='multipart')
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
-            self.assertEqual(upload_file_job_return_value.id, json_response.json()['id'])
+            self.assertEqual(job_return_value.id, json_response.json()['id'])
 
 
     def test_api_upload_forecast(self):
-        # to avoid the requirement of RQ, redis, and S3, we patch _upload_file() to return (is_error, upload_file_job)
+        # to avoid the requirement of RQ, redis, and S3, we patch _upload_file() to return (is_error, job)
         # with desired return args
         with patch('forecast_app.views._upload_file') as upload_file_mock:
             upload_forecast_url = reverse('api-forecast-list', args=[str(self.public_model.pk)])
@@ -1056,7 +1056,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
             # case: blue sky: _upload_file() -> NOT is_error
-            upload_file_mock.return_value = False, UploadFileJob.objects.create()  # is_error, upload_file_job
+            upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
@@ -1074,7 +1074,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual(self.public_tz2.timezero_date, act_time_zero.timezero_date)
 
             # case: _upload_file() -> is_error
-            upload_file_mock.return_value = True, None  # is_error, upload_file_job
+            upload_file_mock.return_value = True, None  # is_error, job
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
@@ -1083,7 +1083,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
             # case: error: time_zero not found. (does not auto-create)
-            upload_file_mock.return_value = False, UploadFileJob.objects.create()  # is_error, upload_file_job
+            upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
             new_timezero_date = '19621022'
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
