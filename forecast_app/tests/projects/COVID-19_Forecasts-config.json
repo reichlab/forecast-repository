@@ -4633,6 +4633,20 @@
   ],
   "timezeros": [
     {
+      "id": 738,
+      "url": "https://www.zoltardata.com/api/timezero/738/",
+      "timezero_date": "2020-05-09",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 737,
+      "url": "https://www.zoltardata.com/api/timezero/737/",
+      "timezero_date": "2020-05-10",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
       "id": 703,
       "url": "https://www.zoltardata.com/api/timezero/703/",
       "timezero_date": "2020-03-15",

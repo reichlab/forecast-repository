@@ -24,15 +24,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
         logger.warning(rte)
         return
 
-    # collect all ScoreValue rows and then bulk insert them as an optimization, rather than create separate ORM
-    # instances
-    score_values = []  # list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
-
-    # collect errors so we don't log tons of messages. format: {timezero_pk: count, ...}
-    timezero_pk_to_error_count = defaultdict(int)
-
-    # cache the three necessary bins and values - lwrs, truth, and forecasts
-    # 1/3 lwrs: [target_pk] -> [lwr_1, ...]:
+    # cache the three necessary bins and values - lwrs, truth, and forecasts 1/3 lwrs: [target_pk] -> [lwr_1, ...]:
     targ_pk_to_lwrs = _targ_pk_to_lwrs(forecast_model.project)
 
     # 2/3 truth: [timezero_pk][unit_pk][target_pk] -> true_lwr:
@@ -43,14 +35,18 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
     # it is convenient to iterate over truths to get all timezero/unit/target combinations. this will omit forecasts
     # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score. we use direct SQL
-    # to work with PKs and avoid ORM object lookup overhead, mainly for TruthData -> TimeZero -> Forecast -> PK
+    # to work with PKs and avoid ORM object lookup overhead, mainly for TruthData -> TimeZero -> Forecast -> PK.
+    # we collect all ScoreValue rows and then bulk insert them as an optimization, rather than create separate ORM
+    # instances:
+    score_values = []  # list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
+    num_warnings = 0
     for time_zero_pk, forecast_pk, unit_pk, target_pk, truth_value in \
             _truth_data_pks_for_forecast_model(forecast_model):
         # get lwrs for this forecast
         try:
             lwrs = targ_pk_to_lwrs[target_pk]
         except KeyError:
-            timezero_pk_to_error_count[time_zero_pk] += 1
+            num_warnings += 1
             continue  # skip this forecast's contribution to the score
 
         # get and validate truth for this forecast
@@ -58,14 +54,14 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
             true_lwr = tz_loc_targ_pk_to_true_lwr[time_zero_pk][unit_pk][target_pk]
             true_bin_idx = lwrs.index(true_lwr)  # NB: non-deterministic for (None, None) true bin keys!
         except (KeyError, ValueError):
-            timezero_pk_to_error_count[time_zero_pk] += 1
+            num_warnings += 1
             continue  # skip this forecast's contribution to the score
 
         # get forecast bins and predicted values for this forecast
         try:
             lwr_to_pred_val = tz_loc_targ_pk_lwr_to_pred_val[time_zero_pk][unit_pk][target_pk]
         except KeyError:
-            timezero_pk_to_error_count[time_zero_pk] += 1
+            num_warnings += 1
             continue  # skip this forecast's contribution to the score
 
         # dispatch to scoring function if we have any predicted values to work with
@@ -77,10 +73,8 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
     # insert the ScoreValues!
     _insert_score_values(score_values)
 
-    # print errors
-    for timezero_pk, error_count in sorted(timezero_pk_to_error_count.items()):
-        time_zero = TimeZero.objects.get(id=timezero_pk)
-        logger.warning(f"skipped bins: {time_zero.timezero_date}: {error_count}")
+    # print warning count
+    logger.warning(f"_calc_bin_score(): num_warnings={num_warnings}")
 
 
 def _truth_data_pks_for_forecast_model(forecast_model):

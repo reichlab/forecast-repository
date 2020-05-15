@@ -24,7 +24,6 @@ from rest_framework_csv.renderers import CSVRenderer
 from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.models.upload_file_job import UploadFileJob
-from forecast_app.scores.calc_error import _tz_unit_targ_pks_to_truth_values, _validate_truth
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, UploadFileJobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
@@ -800,17 +799,15 @@ def _write_csv_score_data_for_project(csv_writer, project):
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
 
-    # collect errors so we don't log tons of messages. format: {timezero_pk: count, ...}
-    timezero_pk_to_error_count = defaultdict(int)
-
     logger.debug("_write_csv_score_data_for_project(): iterating")
     tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
+    num_warnings = 0
     for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
         # get truth. should be only one value
         true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, time_zero_id, unit_id, target_id)
         if error_string:
-            timezero_pk_to_error_count[time_zero_id] += 1
+            num_warnings += 1
             continue  # skip this (forecast_model_id, time_zero_id, unit_id, target_id) combination's score row
 
         forecast_model = forecast_model_id_to_obj[forecast_model_id]
@@ -828,9 +825,50 @@ def _write_csv_score_data_for_project(csv_writer, project):
                              unit.name, target.name, true_value]
                             + score_values)
 
-    # print errors
-    for timezero_pk, error_count in sorted(timezero_pk_to_error_count.items()):
-        time_zero = timezero_id_to_obj[timezero_pk]
-        logger.warning(f"skipped scores: {time_zero.timezero_date}: {error_count}")
+    # print warning count
+    logger.debug(f"_write_csv_score_data_for_project(): done. num_warnings={num_warnings}")
 
-    logger.debug("_write_csv_score_data_for_project(): done")
+
+def _tz_unit_targ_pks_to_truth_values(project):
+    """
+    Similar to Project.unit_target_name_tz_date_to_truth(), returns project's truth values as a nested dict
+    that's organized for easy access using these keys: [timezero_pk][unit_pk][target_id] -> truth_values (a list).
+    """
+    truth_data_qs = project.truth_data_qs() \
+        .order_by('time_zero__id', 'unit__id', 'target__id') \
+        .values_list('time_zero__id', 'unit__id', 'target__id',
+                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+
+    tz_unit_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
+    for time_zero_id, unit_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+        unit_targ_pks_to_truth = {}  # {unit_pk: {target_id: truth_value}}
+        tz_unit_targ_pks_to_truth_vals[time_zero_id] = unit_targ_pks_to_truth
+        for unit_id, target_val_grouper in groupby(unit_target_val_grouper, key=lambda _: _[1]):
+            target_pk_to_truth = defaultdict(list)  # {target_id: truth_value}
+            unit_targ_pks_to_truth[unit_id] = target_pk_to_truth
+            for _, _, target_id, value_i, value_f, value_t, value_d, value_b in target_val_grouper:
+                value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+                target_pk_to_truth[target_id].append(value)
+
+    return tz_unit_targ_pks_to_truth_vals
+
+
+def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, unit_pk, target_pk):
+    """
+    :return: 2-tuple of the form: (truth_value, error_string) where error_string is non-None if the inputs were invalid.
+        in that case, truth_value is None. o/w truth_value is valid
+    """
+    if timezero_pk not in timezero_loc_target_pks_to_truth_values:
+        return None, 'timezero_pk not in truth'
+    elif unit_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
+        return None, 'unit_pk not in truth'
+    elif target_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk][unit_pk]:
+        return None, 'target_pk not in truth'
+
+    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][unit_pk][target_pk]
+    if len(truth_values) == 0:  # truth not available
+        return None, 'truth value not found'
+    elif len(truth_values) > 1:
+        return None, '>1 truth values found'
+
+    return truth_values[0], None

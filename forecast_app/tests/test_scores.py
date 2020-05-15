@@ -8,13 +8,12 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.api_views import _write_csv_score_data_for_project
+from forecast_app.api_views import _write_csv_score_data_for_project, _tz_unit_targ_pks_to_truth_values
 from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_to_lwrs, \
     _tz_loc_targ_pk_lwr_to_pred_val
-from forecast_app.scores.calc_error import _tz_unit_targ_pks_to_truth_values
 from forecast_app.scores.calc_interval import _calculate_interval_score_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
@@ -45,7 +44,7 @@ class ScoresTestCase(TestCase):
         load_truth_data(cls.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         # use default abbreviation (""):
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model')
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model', abbreviation='')
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
@@ -733,17 +732,17 @@ class ScoresTestCase(TestCase):
     def test_download_scores_empty_abbrev(self):
         # the abbreviation for self.forecast_model is the default (""). in this case the model name is used for the
         # 'model' column value
-        self.download_scores_internal_test(self.forecast_model.name)
+        self._download_scores_internal_test(self.forecast_model.name)
 
 
     def test_download_scores_non_empty_abbrev(self):
         self.forecast_model.abbreviation = 'model_abbrev'
         self.forecast_model.save()
         # since there is a non-empty abbreviation, it should be used instead of the model name
-        self.download_scores_internal_test(self.forecast_model.abbreviation)
+        self._download_scores_internal_test(self.forecast_model.abbreviation)
 
 
-    def download_scores_internal_test(self, exp_model_column_value):
+    def _download_scores_internal_test(self, exp_model_column_value):
         Score.ensure_all_scores_exist()
         _update_scores_for_all_projects()
         string_io = io.StringIO()
@@ -885,9 +884,7 @@ class ScoresTestCase(TestCase):
 #
 
 def _update_scores_for_all_projects():
-    """
-    Update all scores for all projects. Useful mainly for tests b/c runs in the calling thread and therefore blocks.
-    """
+    # update all scores for all projects. useful mainly for tests b/c runs in the calling thread and therefore blocks
     for score in Score.objects.all():
         for project in Project.objects.all():
             for forecast_model in project.models.all():

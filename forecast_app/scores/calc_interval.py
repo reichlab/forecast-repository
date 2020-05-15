@@ -4,7 +4,7 @@ from itertools import groupby
 
 from django.db.models import Q
 
-from forecast_app.models import QuantileDistribution, PointPrediction, TimeZero
+from forecast_app.models import QuantileDistribution, PointPrediction
 
 
 logger = logging.getLogger(__name__)
@@ -28,11 +28,8 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
     lower_interval_quantile = alpha / 2
     upper_interval_quantile = 1 - (alpha / 2)
 
-    # collect errors so we don't log tons of messages. format: {timezero_pk: count, ...}
-    timezero_pk_to_error_count = defaultdict(int)
-
     # step 1/2: build dict tz_unit_targ_pk_to_l_u_vals:
-    #   [timezero_id][unit_id][target_id] -> (lower_interval_value, upper_interval_value)
+    #   [timezero_id][unit_id][target_id] -> (lower_interval_value, upper_interval_value):
     tz_unit_targ_pk_to_l_u_vals = {}
     quantile_predictions_qs = QuantileDistribution.objects \
         .filter(Q(forecast__forecast_model=forecast_model),  # AND
@@ -59,13 +56,14 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
         .filter(target__in=targets) \
         .values_list('time_zero__id', 'unit__id', 'target__id', 'value_i', 'value_f', 'value_t', 'value_d',
                      'value_b')  # only one of value_* is non-None
+    num_warnings = 0
     for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in truth_data_qs:
         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
         try:
             lower_upper_interval_values = tz_unit_targ_pk_to_l_u_vals[timezero_id][unit_id][target_id]
             if not lower_upper_interval_values:
                 # defaultdict(list) -> [] result if match [timezero_id][unit_id] but not target_id
-                timezero_pk_to_error_count[timezero_id] += 1
+                num_warnings += 1
                 continue  # skip this forecast's contribution to the score
             elif len(lower_upper_interval_values) != 2:
                 raise RuntimeError(f"not exactly two quantile values (no match for both lower and upper): "
@@ -79,13 +77,11 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
             score_value = interval_width + penalty_l + penalty_u
             score_values.append((score.pk, timezero_id_to_forecast_id[timezero_id], unit_id, target_id, score_value))
         except KeyError:  # no lower/upper values for one of timezero_id, unit_id, target_id
-            timezero_pk_to_error_count[timezero_id] += 1
+            num_warnings += 1
             continue  # skip this forecast's contribution to the score
 
     # insert the ScoreValues!
     _insert_score_values(score_values)
 
-    # print errors
-    for timezero_pk, error_count in sorted(timezero_pk_to_error_count.items()):
-        time_zero = TimeZero.objects.get(id=timezero_pk)
-        logger.warning(f"skipped quantiles: {time_zero.timezero_date}: {error_count}")
+    # print warning count
+    logger.warning(f"_calculate_interval_score_values(): num_warnings={num_warnings}")
