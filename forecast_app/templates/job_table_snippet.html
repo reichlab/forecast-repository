@@ -4,7 +4,6 @@
         <th>ID</th>
         <th>User</th>
         <th>Status</th>
-        <th>File Name</th>
         <th>Failure</th>
         <th>&Delta;T</th>
         <th>Created</th>
@@ -21,7 +20,6 @@
                 <a href="{% url 'user-detail' job.user.pk %}">{{ job.user.username }}</a>
             </td>
             <td><span class="{{ job.status_color }}">{{ job.status_as_str }}</span></td>
-            <td>{{ job.filename }}</td>
             <td>{% if job.is_failed %}{{ job.failure_message|truncatechars:40 }}{% else %}
                 None{% endif %}</td>
             <td>{{ job.elapsed_time }}</td>

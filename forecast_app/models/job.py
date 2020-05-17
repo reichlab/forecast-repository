@@ -48,7 +48,6 @@ class Job(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)  # when this instance was created. basically the submit date
     updated_at = models.DateTimeField(auto_now=True)  # time of last save(). basically last time status changed
     failure_message = models.TextField()  # non-empty message if status == FAILED
-    filename = models.TextField()  # original name of the uploaded file
 
     # app-specific data passed to the Job from the request. ex: 'model_pk':
     input_json = JSONField(null=True, blank=True)
@@ -58,8 +57,7 @@ class Job(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.user,
-                    self.status_as_str(), self.filename,
+        return str((self.pk, self.user, self.status_as_str(),
                     self.is_failed(), self.failure_message[:30],
                     self.created_at, self.updated_at,
                     self.input_json, self.output_json))
@@ -176,8 +174,7 @@ def job_cloud_file(job_pk):
             job.status = Job.FAILED
             job.failure_message = f"Failed to process the file: '{ex.args[0]}'"
             job.save()
-            logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. "
-                         f"job={job}")
+            logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. job={job}")
         finally:
             delete_file(job)  # NB: in current thread
 
@@ -220,7 +217,6 @@ def address_subject_message_for_job(job):
     <li>Job ID: {{job.pk}}</li>
     <li>Status: {{job.status_as_str}}</li>
     <li>User: {{job.user}}</li>
-    <li>Filename: {% if job.filename %}{{ job.filename }}{% else %}(No filename){% endif %}</li>
     <li>Created_at: {{job.created_at}}</li>
     <li>Updated_at: {{job.updated_at}}</li>
     <li>Failure_message: {% if job.failure_message %}{{ job.failure_message }}{% else %}(No message){% endif %}</li>

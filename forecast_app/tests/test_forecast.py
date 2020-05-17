@@ -9,11 +9,12 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
-from forecast_app.models import Project, TimeZero, Score
+from forecast_app.models import Project, TimeZero, Score, Job
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from forecast_app.tests.test_scores import _make_thai_log_score_project
+from forecast_app.views import process_upload_forecast_job
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
@@ -510,3 +511,44 @@ class ForecastTestCase(TestCase):
                               and (pred_dict['class'] == 'quantile')][0]
         self.assertEqual([0.5, 0.75, 0.975], quantile_pred_dict['prediction']['quantile'])
         self.assertEqual(["2019-12-22", "2019-12-29", "2020-01-05"], quantile_pred_dict['prediction']['value'])
+
+
+    def test_process_upload_forecast_job(self):
+        # test `process_upload_forecast_job()` error conditions. this test is complicated by that function's use of
+        # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
+        with patch('forecast_app.models.job.job_cloud_file') as mock:  # returns 2-tuple: (job, cloud_file_fp)
+            job = Job.objects.create()
+            job.input_json = {}  # no 'forecast_model_pk'
+            job.save()
+            mock.return_value.__enter__.return_value = (job, None)
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_forecast_job(job.pk)
+            self.assertIn("missing 'forecast_model_pk' in job", str(context.exception))
+
+            # test no 'timezero_pk'
+            job.input_json = {'forecast_model_pk': None}  # no 'timezero_pk'
+            job.save()
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_forecast_job(job.pk)
+            self.assertIn("missing 'timezero_pk' in job", str(context.exception))
+
+            # test no 'filename'
+            job.input_json = {'forecast_model_pk': None, 'timezero_pk': None}  # no 'filename'
+            job.save()
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_forecast_job(job.pk)
+            self.assertIn("missing 'filename' in job", str(context.exception))
+
+            # test bad 'forecast_model_pk'
+            job.input_json = {'forecast_model_pk': -1, 'timezero_pk': None, 'filename': None}
+            job.save()
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_forecast_job(job.pk)
+            self.assertIn("no ForecastModel found for forecast_model_pk", str(context.exception))
+
+            # test bad 'timezero_pk'
+            job.input_json = {'forecast_model_pk': self.forecast_model.pk, 'timezero_pk': -1, 'filename': None}
+            job.save()
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_forecast_job(job.pk)
+            self.assertIn("no TimeZero found for timezero_pk", str(context.exception))

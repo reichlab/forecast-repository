@@ -568,8 +568,8 @@ class ViewsTestCase(TestCase):
                          list(response.data))
 
         response = self.client.get(reverse('api-job-detail', args=[self.job.pk]))
-        self.assertEqual(['id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
-                          'input_json', 'output_json'],
+        self.assertEqual(['id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'input_json',
+                          'output_json'],
                          list(response.data))
 
         response = self.client.get(reverse('api-project-list'), format='json')
@@ -785,7 +785,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual('_delete_forecast', mock.call_args[0][0].__name__)
 
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
-            self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
+            self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message',
                               'input_json', 'output_json'}, set(proj_json.keys()))
             self.assertEqual(Job.QUEUED, proj_json['status'])
             self.assertEqual(private_forecast2_pk, proj_json['input_json']['forecast_pk'])

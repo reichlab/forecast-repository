@@ -244,7 +244,7 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message', 'filename',
+        fields = ('id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message',
                   'input_json', 'output_json',)
         extra_kwargs = {
             'url': {'view_name': 'api-job-detail'},

@@ -27,10 +27,6 @@
                     <td><span class="{{ job.status_color }}">{{ job.status_as_str }}</span></td>
                 </tr>
                 <tr>
-                    <th>File Name:</th>
-                    <td>{{ job.filename }}</td>
-                </tr>
-                <tr>
                     <th>Failure</th>
                     <td>{% if job.is_failed %}{{ job.failure_message }}{% else %}
                         None{% endif %}</td>

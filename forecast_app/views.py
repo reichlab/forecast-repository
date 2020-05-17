@@ -19,7 +19,8 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
-from forecast_app.models.job import Job, job_cloud_file
+# from forecast_app.models.job import Job, job_cloud_file
+from forecast_app.models.job import Job
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME
@@ -1049,10 +1050,26 @@ def process_upload_truth_job(job_pk):
 
     :param job_pk: the Job's pk
     """
+    # imported here so that test_process_upload_truth_job() can patch via mock:
+    from forecast_app.models.job import job_cloud_file
+
+
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
+        if 'project_pk' not in job.input_json:
+            raise RuntimeError(f"process_upload_truth_job(): missing 'project_pk' in job={job}, "
+                               f"input_json={job.input_json}")
+        elif 'filename' not in job.input_json:
+            raise RuntimeError(f"process_upload_truth_job(): missing 'filename' in job={job}, "
+                               f"input_json={job.input_json}")
+
         project_pk = job.input_json['project_pk']
-        project = get_object_or_404(Project, pk=project_pk)
-        load_truth_data(project, cloud_file_fp, file_name=job.filename)
+        filename = job.input_json['filename']
+
+        project = Project.objects.filter(pk=project_pk).first()  # None if doesn't exist
+        if not project:
+            raise RuntimeError(f"no Project found for project_pk={project_pk}")
+
+        load_truth_data(project, cloud_file_fp, file_name=filename)
 
 
 def download_truth(request, project_pk):
@@ -1123,18 +1140,39 @@ def process_upload_forecast_job(job_pk):
 
     :param job_pk: the Job's pk
     """
+    # imported here so that test_process_upload_forecast_job() can patch via mock:
+    from forecast_app.models.job import job_cloud_file
+
+
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
+        if 'forecast_model_pk' not in job.input_json:
+            raise RuntimeError(f"process_upload_forecast_job(): missing 'forecast_model_pk' in job={job}, "
+                               f"input_json={job.input_json}")
+        elif 'timezero_pk' not in job.input_json:
+            raise RuntimeError(f"process_upload_forecast_job(): missing 'timezero_pk' in job={job}, "
+                               f"input_json={job.input_json}")
+        elif 'filename' not in job.input_json:
+            raise RuntimeError(f"process_upload_forecast_job(): missing 'filename' in job={job}, "
+                               f"input_json={job.input_json}")
+
         forecast_model_pk = job.input_json['forecast_model_pk']
-        forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
         timezero_pk = job.input_json['timezero_pk']
-        time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
-        logger.debug(f"process_upload_forecast_job(): job={job}, "
-                     f"forecast_model={forecast_model}, time_zero={time_zero}")
+        filename = job.input_json['filename']
+
+        forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
+        time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
+        if not forecast_model:
+            raise RuntimeError(f"no ForecastModel found for forecast_model_pk={forecast_model_pk}")
+        elif not time_zero:
+            raise RuntimeError(f"no TimeZero found for timezero_pk={timezero_pk}")
+
+        logger.debug(f"process_upload_forecast_job(): job={job}, forecast_model={forecast_model}, "
+                     f"time_zero={time_zero}")
         with transaction.atomic():
             logger.debug(f"process_upload_forecast_job(): creating Forecast")
             notes = job.input_json.get('notes', '')
-            new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
-                                                   source=job.filename, notes=notes)
+            new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=filename,
+                                                   notes=notes)
             json_io_dict = json.load(cloud_file_fp)
             logger.debug(f"process_upload_forecast_job(): loading predictions. json_io_dict={json_io_dict!r}")
             load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
@@ -1229,10 +1267,11 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     # create the Job
-    logger.debug("_upload_file(): Got data_file: name={!r}, size={}, content_type={}"
-                 .format(data_file.name, data_file.size, data_file.content_type))
+    logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "
+                 f"content_type={data_file.content_type}")
     try:
-        job = Job.objects.create(user=user, filename=data_file.name)  # status = PENDING
+        job = Job.objects.create(user=user)  # status = PENDING
+        kwargs['filename'] = data_file.name
         job.input_json = kwargs
         job.save()
         logger.debug("_upload_file(): 1/3 Created the Job: {}".format(job))
@@ -1245,10 +1284,9 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         upload_file(job, data_file)
         job.status = Job.CLOUD_FILE_UPLOADED
         job.save()
-        logger.debug("_upload_file(): 2/3 Uploaded the file to cloud. job={}".format(job))
+        logger.debug(f"_upload_file(): 2/3 Uploaded the file to cloud. job={job}")
     except Exception as ex:
-        failure_message = "_upload_file(): Error uploading file to cloud: {}. job={}" \
-            .format(ex, job)
+        failure_message = f"_upload_file(): Error uploading file to cloud: {ex}. job={job}"
         job.status = Job.FAILED
         job.failure_message = failure_message
         job.save()
@@ -1263,14 +1301,13 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         job.save()
         logger.debug("_upload_file(): 3/3 Enqueued the job: {}. job={}".format(rq_job, job))
     except Exception as ex:
-        failure_message = "_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {}. job={}" \
-            .format(ex, job)
+        failure_message = f"_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {ex}. job={job}"
         job.status = Job.FAILED
         job.failure_message = failure_message
         job.save()
         delete_file(job)  # NB: in current thread
         logger.debug(failure_message)
-        return "Error enqueuing the job: {}. job={}".format(ex, job), None
+        return f"Error enqueuing the job: {ex}. job={job}", None
 
     logger.debug("_upload_file(): done")
     return False, job

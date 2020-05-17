@@ -7,9 +7,10 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from forecast_app.api_views import csv_response_for_project_truth_data
-from forecast_app.models import Project, TimeZero, Target, Score
+from forecast_app.models import Project, TimeZero, Target, Score, Job
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.views import ProjectDetailView, _unit_to_actual_points, _unit_to_actual_max_val
+from forecast_app.views import ProjectDetailView, _unit_to_actual_points, _unit_to_actual_max_val, \
+    process_upload_truth_job
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.make_thai_moph_project import create_thai_units_and_targets
 from utils.project import create_project_from_json, load_truth_data
@@ -276,11 +277,11 @@ class ProjectTestCase(TestCase):
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, forecast_model, csv_file_path, time_zero3)
         exp_unit_to_max_val = {'HHS Region 1': 2.06145600601835, 'HHS Region 10': 2.89940153907353,
-                                   'HHS Region 2': 4.99776594895244, 'HHS Region 3': 2.99944727598047,
-                                   'HHS Region 4': 2.62168214634388, 'HHS Region 5': 2.19233072084465,
-                                   'HHS Region 6': 4.41926018901693, 'HHS Region 7': 2.79371802884364,
-                                   'HHS Region 8': 1.69920709944699, 'HHS Region 9': 3.10232205135854,
-                                   'US National': 3.00101461253164}
+                               'HHS Region 2': 4.99776594895244, 'HHS Region 3': 2.99944727598047,
+                               'HHS Region 4': 2.62168214634388, 'HHS Region 5': 2.19233072084465,
+                               'HHS Region 6': 4.41926018901693, 'HHS Region 7': 2.79371802884364,
+                               'HHS Region 8': 1.69920709944699, 'HHS Region 9': 3.10232205135854,
+                               'US National': 3.00101461253164}
         act_unit_to_max_val = project2.unit_to_max_val('season1', project2.step_ahead_targets())
         self.assertEqual(exp_unit_to_max_val, act_unit_to_max_val)
 
@@ -398,31 +399,31 @@ class ProjectTestCase(TestCase):
 
         # test _unit_to_actual_points()
         exp_unit_to_actual_points = {'HHS Region 1': [None, 0.303222, 0.286054],
-                                         'HHS Region 10': [None, 0.364459, 0.240377],
-                                         'HHS Region 2': [None, 1.32634, 1.34713],
-                                         'HHS Region 3': [None, 0.797999, 0.586092],
-                                         'HHS Region 4': [None, 0.476357, 0.483647],
-                                         'HHS Region 5': [None, 0.602327, 0.612967],
-                                         'HHS Region 6': [None, 1.15229, 0.96867],
-                                         'HHS Region 7': [None, 0.174172, 0.115888],
-                                         'HHS Region 8': [None, 0.33984, 0.359646],
-                                         'HHS Region 9': [None, 0.892872, 0.912778],
-                                         'US National': [None, 0.73102, 0.688338]}
+                                     'HHS Region 10': [None, 0.364459, 0.240377],
+                                     'HHS Region 2': [None, 1.32634, 1.34713],
+                                     'HHS Region 3': [None, 0.797999, 0.586092],
+                                     'HHS Region 4': [None, 0.476357, 0.483647],
+                                     'HHS Region 5': [None, 0.602327, 0.612967],
+                                     'HHS Region 6': [None, 1.15229, 0.96867],
+                                     'HHS Region 7': [None, 0.174172, 0.115888],
+                                     'HHS Region 8': [None, 0.33984, 0.359646],
+                                     'HHS Region 9': [None, 0.892872, 0.912778],
+                                     'US National': [None, 0.73102, 0.688338]}
         self.assertEqual(exp_unit_to_actual_points, _unit_to_actual_points(exp_loc_tz_date_to_actual_vals))
 
         # test _unit_to_actual_max_val()
         exp_unit_to_actual_max_val = {'HHS Region 1': 0.303222, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
-                                          'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
-                                          'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
-                                          'HHS Region 9': 0.912778, 'US National': 0.73102}
+                                      'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
+                                      'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
+                                      'HHS Region 9': 0.912778, 'US National': 0.73102}
         self.assertEqual(exp_unit_to_actual_max_val, _unit_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
 
         del exp_loc_tz_date_to_actual_vals['HHS Region 1'][datetime.date(2017, 7, 30)]  # leave only None
         del exp_loc_tz_date_to_actual_vals['HHS Region 1'][datetime.date(2017, 8, 6)]  # ""
         exp_unit_to_actual_max_val = {'HHS Region 1': None, 'HHS Region 10': 0.364459, 'HHS Region 2': 1.34713,
-                                          'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
-                                          'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
-                                          'HHS Region 9': 0.912778, 'US National': 0.73102}
+                                      'HHS Region 3': 0.797999, 'HHS Region 4': 0.483647, 'HHS Region 5': 0.612967,
+                                      'HHS Region 6': 1.15229, 'HHS Region 7': 0.174172, 'HHS Region 8': 0.359646,
+                                      'HHS Region 9': 0.912778, 'US National': 0.73102}
         self.assertEqual(exp_unit_to_actual_max_val, _unit_to_actual_max_val(exp_loc_tz_date_to_actual_vals))
 
         # test 2 step ahead target first one not available
@@ -628,11 +629,31 @@ class ProjectTestCase(TestCase):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
-# # converts innermost dicts to defaultdicts, which are what unit_target_name_tz_date_to_truth() returns
-# def _conv_loc_target_tz_date_to_truth_to_default_dict(loc_target_tz_date_to_truth):
-#     for unit, target_tz_dict in loc_target_tz_date_to_truth.items():
-#         for target_name, tz_date_truth in target_tz_dict.items():
-#             loc_target_tz_date_to_truth[unit][target_name] = defaultdict(list, tz_date_truth)
+    def test_process_upload_truth_job(self):
+        # test `process_upload_truth_job()` error conditions. this test is complicated by that function's use of
+        # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
+        with patch('forecast_app.models.job.job_cloud_file') as mock:  # returns 2-tuple: (job, cloud_file_fp)
+            job = Job.objects.create()
+            job.input_json = {}  # no 'project_pk'
+            job.save()
+            mock.return_value.__enter__.return_value = (job, None)
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_truth_job(job.pk)
+            self.assertIn("missing 'project_pk' in job", str(context.exception))
+
+            # test no 'filename'
+            job.input_json = {'project_pk': None}  # no 'filename'
+            job.save()
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_truth_job(job.pk)
+            self.assertIn("missing 'filename' in job", str(context.exception))
+
+            # test bad 'project_pk'
+            job.input_json = {'project_pk': -1, 'filename': None}
+            job.save()
+            with self.assertRaises(RuntimeError) as context:
+                process_upload_truth_job(job.pk)
+            self.assertIn("no Project found for project_pk", str(context.exception))
 
 
 def _exp_loc_tz_date_to_actual_vals_season_1a():
