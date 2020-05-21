@@ -9,8 +9,9 @@ from pathlib import Path
 from django.db import connection
 from django.db import transaction
 
-from forecast_app.models import Project, Unit, Target
-from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER
+from forecast_app.models import Project, Unit, Target, Forecast, PointPrediction, ForecastModel, BinDistribution, \
+    NamedDistribution, SampleDistribution, QuantileDistribution
+from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -577,3 +578,211 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
 
     # done
     return rows
+
+
+#
+# query_forecasts()
+#
+
+# todo xx following should eventually merge w/zoltpy's `zoltpy.csv_io.csv_rows_from_json_io_dict()`
+
+CSV_HEADER = ['unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile', 'family', 'param1', 'param2',
+              'param3']
+
+
+def query_forecasts_for_project(project, query):
+    """
+    Top-level function for querying forecasts within project. Runs in the calling thread and therefore blocks.
+
+    Returns a list of rows in a Zoltar-specific CSV row format. The columns are defined in CSV_HEADER. Note that the
+    csv is 'sparse': not every row uses all columns, and unused ones are empty (''). However, the first four columns
+    are always non-empty, i.e., every prediction has them.
+
+    The 'class' of each row is named to be the same as Zoltar's utils.forecast.PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+    variable. Column ordering is CSV_HEADER.
+
+    `query` is documented at https://docs.zoltardata.com/, but briefly it is a dict that contains up to five keys. The
+    first four are object IDs corresponding to each one's class, and the last is a list of strings:
+
+    - 'models': optional list of ForecastModel IDs
+    - 'units': "" Unit IDs
+    - 'targets': "" Target IDs
+    - 'timezeros': "" TimeZero IDs
+    - 'types': optional list of str types as defined in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS keys
+
+    :param project: a Project
+    :param query: a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation, and above
+        for a summary
+    :return: a list of CSV rows including header - see CSV_HEADER
+    """
+    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+
+
+    # validate query and set query defaults ("all in project") if necessary
+    logger.debug(f"query_forecasts_for_project(): validating query: {query}. project={project}")
+    error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types) = validate_forecasts_query(project, query)
+    if not model_ids:
+        model_ids = project.models.all().values_list('id', flat=True)  # default to all ForecastModels in Project
+    if not unit_ids:
+        unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
+    if not target_ids:
+        target_ids = project.targets.all().values_list('id', flat=True)  # "" Targets ""
+    if not timezero_ids:
+        timezero_ids = project.timezeros.all().values_list('id', flat=True)  # "" TimeZeros ""
+
+    # get Forecasts to be included, applying query's constraints
+    forecast_ids = Forecast.objects.filter(forecast_model__id__in=model_ids,
+                                           time_zero__id__in=timezero_ids) \
+        .values_list('id', flat=True)
+
+    # add rows for each Prediction subclass
+    rows = [CSV_HEADER]  # return value. filled next
+
+    # add BinDistributions
+    logger.debug(f"query_forecasts_for_project(): getting BinDistributions")
+    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in types):
+        # class-specific columns all default to empty:
+        value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
+        qs = BinDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                            unit__id__in=unit_ids,
+                                            target__id__in=target_ids) \
+            .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+        for unit_name, target_name, prob, cat_i, cat_f, cat_t, cat_d, cat_b in qs:
+            cat = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
+            cat = cat.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(cat, datetime.date) else cat
+            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
+                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+
+    # add NamedDistributions
+    logger.debug(f"query_forecasts_for_project(): getting NamedDistributions")
+    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in types):
+        # class-specific columns all default to empty:
+        value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
+        qs = NamedDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                              unit__id__in=unit_ids,
+                                              target__id__in=target_ids) \
+            .values_list('unit__name', 'target__name', 'family', 'param1', 'param2', 'param3')
+        for unit_name, target_name, family, param1, param2, param3 in qs:
+            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
+                         value, cat, prob, sample, quantile, NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family],
+                         param1, param2, param3])
+
+    # add PointPredictions
+    logger.debug(f"query_forecasts_for_project(): getting PointPredictions")
+    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction] in types):
+        # class-specific columns all default to empty:
+        value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
+        qs = PointPrediction.objects.filter(forecast__id__in=forecast_ids,
+                                            unit__id__in=unit_ids,
+                                            target__id__in=target_ids) \
+            .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+        for unit_name, target_name, value_i, value_f, value_t, value_d, value_b in qs:
+            value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+            value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
+            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
+                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+
+    # add SampleDistribution
+    logger.debug(f"query_forecasts_for_project(): getting SampleDistributions")
+    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution] in types):
+        # class-specific columns all default to empty:
+        value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
+        qs = SampleDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                               unit__id__in=unit_ids,
+                                               target__id__in=target_ids) \
+            .values_list('unit__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
+        for unit_name, target_name, sample_i, sample_f, sample_t, sample_d, sample_b in qs:
+            sample = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
+            sample = sample.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(sample, datetime.date) else sample
+            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
+                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+
+    # add QuantileDistribution
+    logger.debug(f"query_forecasts_for_project(): getting QuantileDistributions")
+    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution] in types):
+        # class-specific columns all default to empty:
+        value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
+        qs = QuantileDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                                 unit__id__in=unit_ids,
+                                                 target__id__in=target_ids) \
+            .values_list('unit__name', 'target__name', 'quantile', 'value_i', 'value_f', 'value_d')
+        for unit_name, target_name, quantile, value_i, value_f, value_d in qs:
+            value = PointPrediction.first_non_none_value(value_i, value_f, None, value_d, None)
+            value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
+            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution],
+                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+
+    # NB: we do not sort b/c it's expensive
+    logger.debug(f"query_forecasts_for_project(): done: {len(rows)} rows")
+    return rows
+
+
+def validate_forecasts_query(project, query):
+    """
+    Validates `query` according to the parameters documented at https://docs.zoltardata.com/ .
+
+    :param project: as passed from `query_forecasts_for_project()`
+    :param query: ""
+    :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)) . notice the second
+        element is itself a 5-tuple of validated object IDs
+    """
+    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+
+
+    # return value. filled next
+    error_messages, model_ids, unit_ids, target_ids, timezero_ids, types = [], [], [], [], [], []
+
+    # validate query type
+    if not isinstance(query, dict):
+        error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+    # validate keys
+    actual_keys = set(query.keys())
+    expected_keys = {'models', 'units', 'targets', 'timezeros', 'types'}
+    if not (actual_keys <= expected_keys):
+        error_messages.append(f"one or more query keys was invalid. query={query}, actual_keys={actual_keys}, "
+                              f"expected_keys={expected_keys}")
+        # return even though we could technically continue
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+    # validate object IDs
+    if 'models' in query:
+        model_ids = query['models']
+        error_messages.extend(_validate_object_ids('models', model_ids, project, ForecastModel))
+    if 'units' in query:
+        unit_ids = query['units']
+        error_messages.extend(_validate_object_ids('units', unit_ids, project, Unit))
+    if 'timezeros' in query:
+        timezero_ids = query['timezeros']
+        error_messages.extend(_validate_object_ids('timezeros', timezero_ids, project, TimeZero))
+    if 'targets' in query:
+        target_ids = query['targets']
+        error_messages.extend(_validate_object_ids('targets', target_ids, project, Target))
+
+    # validate Prediction types
+    if 'types' in query:
+        types = query['types']
+        if not (set(types) <= set(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())):
+            error_messages.append(f"one or more types were invalid prediction types. types={types}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+    # valid!
+    return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+
+def _validate_object_ids(query_key, object_ids, project, model_class):
+    """
+    Helper function that validates a list of object ideas of type `model_class`. Returns error_messages.
+    """
+    error_messages = []  # return value. filled next
+    if not all(map(lambda _: isinstance(_, int), object_ids)):
+        error_messages.append(f"`{query_key}` contained non-int value(s): {object_ids!r}")
+    else:
+        is_exist_ids = [model_class.objects.filter(project_id=project.pk, pk=model_id).exists()
+                        for model_id in object_ids]
+        if not all(is_exist_ids):
+            missing_ids = [model_id for is_exist_id, model_id in zip(is_exist_ids, object_ids) if is_exist_id]
+            error_messages.append(f"`{query_key}` contained ID(s) of objects that don't exist in project: "
+                                  f"{missing_ids}")
+    return error_messages

@@ -1,5 +1,6 @@
 import csv
 import datetime
+import io
 import logging
 import tempfile
 from collections import defaultdict
@@ -7,6 +8,7 @@ from itertools import groupby
 from pathlib import Path
 from wsgiref.util import FileWrapper
 
+import django_rq
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.db import connection
@@ -27,10 +29,11 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
-    process_upload_truth_job, enqueue_delete_forecast
+    _upload_truth_worker, enqueue_delete_forecast
+from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json, config_dict_from_project
+from utils.project import create_project_from_json, config_dict_from_project, query_forecasts_for_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -389,7 +392,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
         # imported here so that test_api_upload_forecast() can patch via mock:
-        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, process_upload_forecast_job, \
+        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, _upload_forecast_worker, \
             is_user_ok_upload_forecast
 
 
@@ -434,7 +437,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
 
         # upload to cloud and enqueue a job to process a new Job
         notes = request.data.get('notes', '')
-        is_error, job = _upload_file(request.user, data_file, process_upload_forecast_job,
+        is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
                                      forecast_model_pk=forecast_model.pk,
                                      timezero_pk=time_zero.pk, notes=notes)
         if is_error:
@@ -551,7 +554,9 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def post(self, request, *args, **kwargs):
         """
-        Enqueues the uploading of the passed data into the project's truth, replacing any existing truth data.
+        Enqueues the uploading of the passed data into the project's truth, replacing any existing truth data. Returns
+        the Job.
+
         POST form fields:
         - 'data_file' (required): The data file to upload. NB: 'data_file' is our naming convention. it could be
             renamed. If multiple files, just uses the first one.
@@ -579,7 +584,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
         # upload to cloud and enqueue a job to process a new Job
         data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-        is_error, job = _upload_file(request.user, data_file, process_upload_truth_job,
+        is_error, job = _upload_file(request.user, data_file, _upload_truth_worker,
                                      project_pk=project.pk)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'"},
@@ -587,6 +592,109 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
         job_serializer = JobSerializer(job, context={'request': request})
         return JsonResponse(job_serializer.data)
+
+
+@api_view(['POST'])
+def query_forecasts_endpoint(request, pk):
+    """
+    Enqueues a query of the project's forecasts.
+
+    POST form fields:
+    - 'query' (required): a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation
+
+    :param request: a request
+    :param pk: a Project's pk
+    :return: the serialized Job
+    """
+    # imported here so that test_api_forecast_queries() can patch via mock:
+    from utils.project import validate_forecasts_query
+
+
+    if request.method != 'POST':
+        return Response(f"Only POST is allowed at this endpoint", status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    # check authorization
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not project.is_user_ok_to_view(request.user):
+        return HttpResponseForbidden()
+
+    # validate 'query'
+    if 'query' not in request.data:
+        return JsonResponse({'error': "No 'query' form field."}, status=status.HTTP_400_BAD_REQUEST)
+
+    query = request.data['query']
+    error_messages, _ = validate_forecasts_query(project, query)
+    if error_messages:
+        return JsonResponse({'error': f"Invalid query. error_messages='{error_messages}', query={query}"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    # create the job
+    job = Job.objects.create(user=request.user)  # status = PENDING
+    job.input_json = {'project_pk': pk, 'query': query}
+    job.save()
+
+    queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)
+    queue.enqueue(_query_forecasts_worker, job.pk)
+    job.status = Job.QUEUED
+    job.save()
+
+    job_serializer = JobSerializer(job, context={'request': request})
+    return JsonResponse(job_serializer.data)
+
+
+def _query_forecasts_worker(job_pk):
+    """
+    enqueue() helper function
+
+    assumes these input_json fields are present and valid:
+    - 'project_pk'
+    - 'query' (assume has passed `validate_forecasts_query()`)
+    """
+    # imported here so that test__query_forecasts_worker() can patch via mock:
+    from utils.cloud_file import upload_file
+
+
+    # run the query
+    job = get_object_or_404(Job, pk=job_pk)
+    project = get_object_or_404(Project, pk=job.input_json['project_pk'])
+    query = job.input_json['query']
+    try:
+        logger.debug(f"_query_forecasts_worker(): querying rows. query={query}. job={job}")
+        rows = query_forecasts_for_project(project, query)
+    except RuntimeError as rte:
+        job.status = Job.FAILED
+        job.failure_message = f"_query_forecasts_worker(): error running query: '{rte}'. job={job}"
+        job.save()
+        return
+
+    # upload the file to cloud storage
+    try:
+        # we need a BytesIO for upload_file() (o/w it errors: "Unicode-objects must be encoded before hashing"), but
+        # writerows() needs a StringIO (o/w "a bytes-like object is required, not 'str'" error), so we use
+        # TextIOWrapper. BUT: https://docs.python.org/3.6/library/io.html#io.TextIOWrapper :
+        #     Text I/O over a binary storage (such as a file) is significantly slower than binary I/O over the same
+        #     storage, because it requires conversions between unicode and binary data using a character codec. This can
+        #     become noticeable handling huge amounts of text data like large log files.
+
+        # note: using a context is required o/w is closed and becomes unusable:
+        # per https://stackoverflow.com/questions/59079354/how-to-write-utf-8-csv-into-bytesio-in-python3 :
+        with io.BytesIO() as bytes_io:
+            logger.debug(f"_query_forecasts_worker(): writing {len(rows)} rows. job={job}")
+            text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
+            csv.writer(text_io_wrapper).writerows(rows)
+            text_io_wrapper.flush()
+            bytes_io.seek(0)
+
+            logger.debug(f"_query_forecasts_worker(): uploading file. job={job}")
+            upload_file(job, bytes_io)
+            job.status = Job.SUCCESS
+            job.output_json = {'num_rows': len(rows)}  # todo xx temp
+            job.save()
+            logger.debug(f"_query_forecasts_worker(): done. job={job}")
+    except Exception as ex:
+        job.status = Job.FAILED
+        job.failure_message = f"_query_forecasts_worker(): error uploading file to cloud: '{ex}'. job={job}"
+        job.save()
 
 
 #

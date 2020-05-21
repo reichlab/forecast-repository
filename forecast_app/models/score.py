@@ -196,14 +196,14 @@ class Score(models.Model):
                             f"{model_score_change.changed_at} > "
                             f"{score_last_update.updated_at if score_last_update else '(no score_last_update)'}")
                 if not dry_run:
-                    queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+                    queue.enqueue(_update_model_scores_worker, score.pk, forecast_model.pk)
                 enqueued_score_models.append((score, forecast_model))
         return enqueued_score_models
 
 
-def _update_model_scores(score_pk, forecast_model_pk):
+def _update_model_scores_worker(score_pk, forecast_model_pk):
     """
-    Enqueue helper function.
+    enqueue() helper function
     """
     score = get_object_or_404(Score, pk=score_pk)
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)

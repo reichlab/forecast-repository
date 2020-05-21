@@ -510,10 +510,10 @@ def create_project_from_file(request):
         new_project = create_project_from_json(project_dict, request.user)
         messages.success(request, f"Created project '{new_project.name}'")
         return redirect('project-detail', pk=new_project.pk)
-    except RuntimeError as re:
+    except RuntimeError as rte:
         return render(request, 'message.html',
                       context={'title': "Error creating project from file.",
-                               'message': f"There was an error uploading the file. The error was: &ldquo;{re}&rdquo;"})
+                               'message': f"There was an error uploading the file. The error was: &ldquo;{rte}&rdquo;"})
 
 
 def create_project_from_form(request):
@@ -1029,7 +1029,7 @@ def upload_truth(request, project_pk):
 
     # upload to cloud and enqueue a job to process a new Job
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error, job = _upload_file(request.user, data_file, process_upload_truth_job,
+    is_error, job = _upload_file(request.user, data_file, _upload_truth_worker,
                                  project_pk=project_pk)
     if is_error:
         return render(request, 'message.html',
@@ -1041,7 +1041,7 @@ def upload_truth(request, project_pk):
     return redirect('job-detail', pk=job.pk)
 
 
-def process_upload_truth_job(job_pk):
+def _upload_truth_worker(job_pk):
     """
     An _upload_file() enqueue() function that loads a truth file. Called by upload_truth().
 
@@ -1056,10 +1056,10 @@ def process_upload_truth_job(job_pk):
 
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
         if 'project_pk' not in job.input_json:
-            raise RuntimeError(f"process_upload_truth_job(): missing 'project_pk' in job={job}, "
+            raise RuntimeError(f"_upload_truth_worker(): missing 'project_pk' in job={job}, "
                                f"input_json={job.input_json}")
         elif 'filename' not in job.input_json:
-            raise RuntimeError(f"process_upload_truth_job(): missing 'filename' in job={job}, "
+            raise RuntimeError(f"_upload_truth_worker(): missing 'filename' in job={job}, "
                                f"input_json={job.input_json}")
 
         project_pk = job.input_json['project_pk']
@@ -1118,7 +1118,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           "see the delete button.".format(time_zero.timezero_date, data_file.name)})
 
     # upload to cloud and enqueue a job to process a new Job
-    is_error, job = _upload_file(request.user, data_file, process_upload_forecast_job,
+    is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
                                  forecast_model_pk=forecast_model_pk,
                                  timezero_pk=timezero_pk)
     if is_error:
@@ -1131,7 +1131,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     return redirect('job-detail', pk=job.pk)
 
 
-def process_upload_forecast_job(job_pk):
+def _upload_forecast_worker(job_pk):
     """
     An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast().
 
@@ -1146,13 +1146,13 @@ def process_upload_forecast_job(job_pk):
 
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
         if 'forecast_model_pk' not in job.input_json:
-            raise RuntimeError(f"process_upload_forecast_job(): missing 'forecast_model_pk' in job={job}, "
+            raise RuntimeError(f"_upload_forecast_worker(): missing 'forecast_model_pk' in job={job}, "
                                f"input_json={job.input_json}")
         elif 'timezero_pk' not in job.input_json:
-            raise RuntimeError(f"process_upload_forecast_job(): missing 'timezero_pk' in job={job}, "
+            raise RuntimeError(f"_upload_forecast_worker(): missing 'timezero_pk' in job={job}, "
                                f"input_json={job.input_json}")
         elif 'filename' not in job.input_json:
-            raise RuntimeError(f"process_upload_forecast_job(): missing 'filename' in job={job}, "
+            raise RuntimeError(f"_upload_forecast_worker(): missing 'filename' in job={job}, "
                                f"input_json={job.input_json}")
 
         forecast_model_pk = job.input_json['forecast_model_pk']
@@ -1166,19 +1166,19 @@ def process_upload_forecast_job(job_pk):
         elif not time_zero:
             raise RuntimeError(f"no TimeZero found for timezero_pk={timezero_pk}")
 
-        logger.debug(f"process_upload_forecast_job(): job={job}, forecast_model={forecast_model}, "
+        logger.debug(f"_upload_forecast_worker(): job={job}, forecast_model={forecast_model}, "
                      f"time_zero={time_zero}")
         with transaction.atomic():
-            logger.debug(f"process_upload_forecast_job(): creating Forecast")
+            logger.debug(f"_upload_forecast_worker(): creating Forecast")
             notes = job.input_json.get('notes', '')
             new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=filename,
                                                    notes=notes)
             json_io_dict = json.load(cloud_file_fp)
-            logger.debug(f"process_upload_forecast_job(): loading predictions. json_io_dict={json_io_dict!r}")
+            logger.debug(f"_upload_forecast_worker(): loading predictions. json_io_dict={json_io_dict!r}")
             load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
             job.output_json = {'forecast_pk': new_forecast.pk}
             job.save()
-            logger.debug(f"process_upload_forecast_job(): done")
+            logger.debug(f"_upload_forecast_worker(): done")
 
 
 def delete_forecast(request, forecast_pk):
@@ -1201,21 +1201,21 @@ def enqueue_delete_forecast(user, forecast):
     job.save()
 
     queue = django_rq.get_queue(DELETE_FORECAST_QUEUE_NAME)
-    queue.enqueue(_delete_forecast, job.pk)
+    queue.enqueue(_delete_forecast_worker, job.pk)
     job.status = Job.QUEUED
     job.save()
 
     return job
 
 
-def _delete_forecast(job_pk):
+def _delete_forecast_worker(job_pk):
     """
-    Enqueue helper function.
+    enqueue() helper function
     """
     job = get_object_or_404(Job, pk=job_pk)
     if 'forecast_pk' not in job.input_json:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast: did not find 'forecast_pk' in job={job}"
+        job.failure_message = f"_delete_forecast_worker: did not find 'forecast_pk' in job={job}"
         job.save()
         return
 
@@ -1223,7 +1223,7 @@ def _delete_forecast(job_pk):
     forecast = Forecast.objects.filter(id=forecast_pk).first()
     if not forecast:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast: did not find a Forecast with forecast_pk={forecast_pk}. job={job}"
+        job.failure_message = f"_delete_forecast_worker: did not find a Forecast with forecast_pk={forecast_pk}. job={job}"
         job.save()
         return
 

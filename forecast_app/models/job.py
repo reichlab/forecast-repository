@@ -200,8 +200,10 @@ def send_notification_for_job(sender, instance, using, **kwargs):
 
 
     if instance.status == Job.FAILED:
-        address, subject, message = address_subject_message_for_job(instance)
-        send_notification_email(address, subject, message)
+        address_subject_message = address_subject_message_for_job(instance)
+        if address_subject_message:
+            address, subject, message = address_subject_message
+            send_notification_email(address, subject, message)
 
 
 def address_subject_message_for_job(job):
@@ -209,8 +211,11 @@ def address_subject_message_for_job(job):
     An email notification helper function that constructs an email subject line and body for the passed job.
 
     :param job: an Job
-    :return: email_address, subject, message
+    :return: email_address, subject, message. return None if not possible to send due to no job.user, or no user email
     """
+    if (not job.user) or (not job.user.email):
+        return None
+
     subject = "Job #{} result: {}".format(job.pk, job.status_as_str())
     message_template_str = """A <a href="zoltardata.com">Zoltar</a> user with your email address uploaded a file with this result:
 <ul>

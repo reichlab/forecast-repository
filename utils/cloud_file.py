@@ -70,8 +70,8 @@ def upload_file(the_object, data_file):
     """
     Uploads data_file to the S3 bucket corresponding to the_object.
 
-    :param data_file: a file-like object
     :param the_object: a Model
+    :param data_file: a file-like object
     :raises: S3 exceptions
     """
     s3_resource = boto3.resource('s3')

@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
+import django_rq
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -11,11 +12,12 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
-from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX
+from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX, _query_forecasts_worker
 from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
-from forecast_app.views import _delete_forecast
+from forecast_app.views import _delete_forecast_worker
+from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
@@ -472,48 +474,44 @@ class ViewsTestCase(TestCase):
     def test_api_get_endpoints(self):
         unit_us_nat = self.public_project.units.filter(name='US National').first()
         target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
-        url_to_exp_user_status_code_pairs = {
-            reverse('api-root'): self.ONLY_PO_MO,
-            reverse('api-user-detail', args=[self.po_user.pk]): self.ONLY_PO,
-            reverse('api-job-detail', args=[self.job.pk]): self.ONLY_PO,
+        url_exp_user_status_code_pairs = [
+            (reverse('api-root'), self.ONLY_PO_MO),
 
-            reverse('api-project-list'): self.ONLY_PO_MO,
-            reverse('api-project-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-project-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
+            (reverse('api-project-list'), self.ONLY_PO_MO),
+            (reverse('api-project-detail', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-project-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-unit-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-unit-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-target-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-target-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-timezero-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-timezero-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-model-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-model-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-truth-detail', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-truth-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-truth-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-truth-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-score-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-score-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
 
-            reverse('api-unit-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-unit-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-unit-detail', args=[unit_us_nat.pk]): self.ONLY_PO_MO,
+            (reverse('api-user-detail', args=[self.po_user.pk]), self.ONLY_PO),
+            (reverse('api-job-detail', args=[self.job.pk]), self.ONLY_PO),
+            (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO),
+            (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO),
+            (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO),
 
-            reverse('api-target-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-target-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-target-detail', args=[target_1wk.pk]): self.ONLY_PO_MO,
+            (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO),
+            (reverse('api-model-detail', args=[self.private_model.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-list', args=[self.public_model.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-list', args=[self.private_model.pk]), self.ONLY_PO_MO),
 
-            reverse('api-timezero-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-timezero-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-timezero-detail', args=[self.public_tz1.pk]): self.ONLY_PO_MO,
-
-            reverse('api-truth-detail', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-truth-detail', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-download-truth-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-download-truth-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-
-            reverse('api-download-score-data', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-download-score-data', args=[self.private_project.pk]): self.ONLY_PO_MO,
-
-            reverse('api-model-list', args=[self.public_project.pk]): self.ONLY_PO_MO,
-            reverse('api-model-list', args=[self.private_project.pk]): self.ONLY_PO_MO,
-            reverse('api-model-detail', args=[self.public_model.pk]): self.ONLY_PO_MO,
-            reverse('api-model-detail', args=[self.private_model.pk]): self.ONLY_PO_MO,
-
-            reverse('api-forecast-list', args=[self.public_model.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-list', args=[self.private_model.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-detail', args=[self.public_forecast.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-detail', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-data', args=[self.public_forecast.pk]): self.ONLY_PO_MO,
-            reverse('api-forecast-data', args=[self.private_forecast.pk]): self.ONLY_PO_MO,
-        }
-        for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
+            (reverse('api-forecast-detail', args=[self.public_forecast.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-detail', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-data', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
+        ]
+        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
             for user, exp_status_code in user_exp_status_code_list:
                 # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
                 # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
@@ -597,10 +595,10 @@ class ViewsTestCase(TestCase):
         self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_data'],
                          list(response.data))
 
-        response = self.client.get(reverse('api-download-truth-data', args=[self.public_project.pk]), format='json')
+        response = self.client.get(reverse('api-truth-data-download', args=[self.public_project.pk]), format='json')
         self.assertEqual(341, len(response.content))
 
-        response = self.client.get(reverse('api-download-score-data', args=[self.public_project.pk]), format='json')
+        response = self.client.get(reverse('api-score-data-download', args=[self.public_project.pk]), format='json')
         # just SCORE_CSV_HEADER_PREFIX due to no scores:
         self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), response.content.decode().strip())
 
@@ -739,29 +737,35 @@ class ViewsTestCase(TestCase):
 
         # test serializing a few single Targets ('pct next week' and 'Season peak week')
         pct_next_week_target = project.targets.filter(name='pct next week').first()
-        target_serializer = TargetSerializer(pct_next_week_target, context={'request': request})
+        pct_next_week_serializer = TargetSerializer(pct_next_week_target, context={'request': request})
         # -> <class 'forecast_app.serializers.TargetSerializer'>
         self.assertEqual({'name', 'id', 'step_ahead_increment', 'url', 'is_step_ahead', 'range', 'description', 'unit',
-                          'type', 'cats'}, set(target_serializer.data))
-        self.assertEqual([0.0, 100.0], target_serializer.data['range'])  # sanity-check
+                          'type', 'cats'}, set(pct_next_week_serializer.data))
+        self.assertEqual([0.0, 100.0], pct_next_week_serializer.data['range'])  # sanity-check
 
         season_peak_week_target = project.targets.filter(name='Season peak week').first()
-        target_serializer = TargetSerializer(season_peak_week_target, context={'request': request})
+        season_peak_week_serializer = TargetSerializer(season_peak_week_target, context={'request': request})
         self.assertEqual({'description', 'is_step_ahead', 'url', 'name', 'type', 'id', 'cats', 'unit'},
-                         set(target_serializer.data))
-        self.assertEqual(f"http://testserver/api/target/{target_serializer.data['id']}/",
-                         target_serializer.data['url'])  # sanity-check
+                         set(season_peak_week_serializer.data))
+        self.assertEqual(f"http://testserver/api/target/{season_peak_week_serializer.data['id']}/",
+                         season_peak_week_serializer.data['url'])  # sanity-check
 
         # test serializing multiple Targets
         target_serializer_multi = TargetSerializer(project.targets, many=True, context={'request': request})
         # -> <class 'rest_framework.serializers.ListSerializer'>
         self.assertEqual(5, len(target_serializer_multi.data))  # 5 targets
-        self.assertEqual(target_serializer.data, target_serializer_multi.data[4])  # single matches multi
+
+        season_peak_week_data = [serialized_data for serialized_data in target_serializer_multi.data
+                                 if serialized_data['name'] == 'Season peak week'][0]
+        self.assertEqual(season_peak_week_serializer.data, season_peak_week_data)  # single matches multi
 
         # finally, test serializing multiple Targets via endpoints
         response = self.client.get(reverse('api-target-list', args=[project.pk]), format='json')
         self.assertEqual(5, len(response.data))
-        self.assertEqual(target_serializer.data, response.data[4])  # single matches multi
+
+        season_peak_week_data = [serialized_data for serialized_data in response.data
+                                 if serialized_data['name'] == 'Season peak week'][0]
+        self.assertEqual(season_peak_week_serializer.data, season_peak_week_data)  # single matches multi
 
 
     def test_api_delete_forecast(self):
@@ -775,31 +779,30 @@ class ViewsTestCase(TestCase):
 
         # note: b/c ForecastDetail.delete enqueues the deletion, there could be a possible race condition in this test.
         # so we just test that delete() calls enqueue_delete_forecast(), and trust that enqueue_delete_forecast()
-        # enqueues a _delete_forecast() call (to simple to fail)
+        # enqueues a _delete_forecast_worker() call (to simple to fail)
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
         private_forecast2_pk = private_forecast2.pk
         with patch('rq.queue.Queue.enqueue') as mock:
             json_response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
-            proj_json = json_response.json()  # JobSerializer
+            response_json = json_response.json()  # JobSerializer
             mock.assert_called_once()
-            self.assertEqual('_delete_forecast', mock.call_args[0][0].__name__)
+            self.assertEqual('_delete_forecast_worker', mock.call_args[0][0].__name__)
 
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
             self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message',
-                              'input_json', 'output_json'}, set(proj_json.keys()))
-            self.assertEqual(Job.QUEUED, proj_json['status'])
-            self.assertEqual(private_forecast2_pk, proj_json['input_json']['forecast_pk'])
+                              'input_json', 'output_json'}, set(response_json.keys()))
+            self.assertEqual(Job.QUEUED, response_json['status'])
+            self.assertEqual(private_forecast2_pk, response_json['input_json']['forecast_pk'])
 
-        # test _delete_forecast() itself (which is called by workers)
+        # test _delete_forecast_worker() itself (which is called by workers)
         private_forecast3 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
         job = Job.objects.create(user=self.mo_user)  # status = PENDING
         job.input_json = {'forecast_pk': private_forecast3.pk}
         job.save()
         with patch('django.db.models.Model.delete') as mock:
-            _delete_forecast(job.pk)
+            _delete_forecast_worker(job.pk)
             mock.assert_called_once()
 
-            # refresh_from_db() per https://stackoverflow.com/questions/35330693/django-testcase-not-saving-my-models :
             job.refresh_from_db()
             self.assertEqual(Job.SUCCESS, job.status)
 
@@ -821,12 +824,12 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
         # spot-check response
-        proj_json = json_response.json()
+        response_json = json_response.json()
         self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
                           'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
                           'models', 'units', 'targets', 'timezeros'},
-                         set(proj_json.keys()))
-        self.assertEqual('CDC Flu challenge', proj_json['name'])
+                         set(response_json.keys()))
+        self.assertEqual('CDC Flu challenge', response_json['name'])
 
 
     def test_api_delete_project(self):
@@ -870,8 +873,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
         # spot-check response
-        proj_json = json_response.json()
-        self.assertEqual('new project name', proj_json['name'])
+        response_json = json_response.json()
+        self.assertEqual('new project name', response_json['name'])
 
 
     def test_api_create_model(self):
@@ -912,11 +915,11 @@ class ViewsTestCase(TestCase):
                           'url', 'id', 'name'}, set(json_response.json().keys()))
 
         # spot-check response
-        model_json = json_response.json()
+        response_json = json_response.json()
         self.assertEqual({'id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url',
                           'aux_data_url', 'forecasts'},
-                         set(model_json.keys()))
-        self.assertEqual('a model_name', model_json['name'])
+                         set(response_json.keys()))
+        self.assertEqual('a model_name', response_json['name'])
 
 
     def test_api_delete_model(self):
@@ -1112,6 +1115,86 @@ class ViewsTestCase(TestCase):
                 'timezero_date': new_timezero_date,  # doesn't exist
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+
+
+    def test_api_forecast_queries(self):
+        forecast_queries_url = reverse('api-forecast-queries', args=[str(self.public_project.pk)])
+        jwt_token = self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
+
+        # test that GET is not accepted
+        response = self.client.get(forecast_queries_url)
+        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
+
+        # case: no 'query'
+        response = self.client.post(forecast_queries_url, {
+            'Authorization': f'JWT {jwt_token}',
+            # 'query': {},
+        }, format='json')
+        response_json = response.json()  # 'error'
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual({'error': "No 'query' form field."}, response_json)
+
+        # ensure `validate_forecasts_query()` is called. the actual validate is tested in test_project.py
+        with patch('utils.project.validate_forecasts_query', return_value=([], None)) as mock:
+            self.client.post(forecast_queries_url, {
+                'Authorization': f'JWT {jwt_token}',
+                'query': {'hi': 1},
+            }, format='json')
+            mock.assert_called_once_with(self.public_project, {'hi': 1})
+
+        # case: blue sky: test that POST enqueues and returns a Job. we tried patching 'rq.queue.Queue.enqueue' but
+        # couldn't get it to work, so instead we check the queue directly
+        queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)
+        queue.empty()
+        json_response = self.client.post(forecast_queries_url, {
+            'Authorization': f'JWT {jwt_token}',
+            'query': {},
+        }, format='json')
+        response_json = json_response.json()  # JobSerializer
+        self.assertEqual(1, len(queue.jobs))
+        self.assertEqual('forecast_app.api_views._query_forecasts_worker', queue.jobs[0].func_name)
+        self.assertEqual(response_json['id'], queue.jobs[0].args[0])  # Job.id
+
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertEqual(Job.QUEUED, response_json['status'])
+
+        # case: unauthenticated user (authenticated tested above)
+        self.client.logout()  # AnonymousUser
+        json_response = self.client.post(forecast_queries_url, {
+            'query': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+
+    def test__query_forecasts_worker(self):
+        # tests the worker directly. above test verifies that it's called from `query_forecasts_endpoint()`
+
+        # case: upload_file() does not error
+        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.public_project.pk, 'query': {}})
+        with patch('utils.cloud_file.upload_file') as mock:
+            _query_forecasts_worker(job.pk)
+            mock.assert_called_once()
+
+            job.refresh_from_db()
+            self.assertEqual(Job.SUCCESS, job.status)
+
+        # case: upload_file() errors
+        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.public_project.pk, 'query': {}})
+        with patch('utils.cloud_file.upload_file', side_effect=Exception('foo!')) as mock, \
+                patch('forecast_app.notifications.send_notification_email'):
+            # patch('forecast_app.models.job.send_notification_for_job'):
+            _query_forecasts_worker(job.pk)
+            mock.assert_called_once()
+
+            job.refresh_from_db()
+            self.assertEqual(Job.FAILED, job.status)
+            self.assertIn("_query_forecasts_worker(): error uploading file to cloud", job.failure_message)
+
+        # case: allow actual utils.cloud_file.upload_file(), which calls Bucket.put_object(). we don't actually do this
+        # in this test b/c we don't want to hit S3, but it's commented here for debugging:
+        # _query_forecasts_worker(job.pk)
+        # job.refresh_from_db()
+        # self.assertEqual(Job.SUCCESS, job.status)
 
 
     def _authenticate_jwt_user(self, user, password):

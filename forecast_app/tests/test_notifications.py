@@ -33,3 +33,11 @@ class NotificationTestCase(TestCase):
             job = Job.objects.create(user=mo_user, status=Job.FAILED)
             address, subject, message = address_subject_message_for_job(job)
             send_email_mock.assert_called_once_with(address, subject, message)
+
+        # test no user or no user email
+        mo_user.email = ''
+        mo_user.save()
+        self.assertIsNone(address_subject_message_for_job(job))
+
+        job = Job.objects.create(status=Job.FAILED)  # no user
+        self.assertIsNone(address_subject_message_for_job(job))

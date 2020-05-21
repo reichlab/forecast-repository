@@ -183,7 +183,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_score_data(self, project):
         request = self.context['request']
-        return reverse('api-download-score-data', args=[project.pk], request=request)
+        return reverse('api-score-data-download', args=[project.pk], request=request)
 
 
 class TruthSerializer(serializers.ModelSerializer):
@@ -206,7 +206,7 @@ class TruthSerializer(serializers.ModelSerializer):
 
     def get_truth_data(self, project):
         request = self.context['request']
-        return reverse('api-download-truth-data', args=[project.pk], request=request)
+        return reverse('api-truth-data-download', args=[project.pk], request=request)
 
 
 class UserSerializer(serializers.ModelSerializer):

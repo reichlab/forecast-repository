@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from forecast_app.models.score import _update_model_scores
+from forecast_app.models.score import _update_model_scores_worker
 from forecast_app.models import Score, ScoreValue, Project, ForecastModel
 
 
@@ -111,11 +111,11 @@ def update(score_pk, project_pk, model_pk, no_enqueue):
         for forecast_model in models:
             if no_enqueue:
                 logger.info(f"** (no enqueue) calculating score={score}, forecast_model={forecast_model}")
-                _update_model_scores(score.pk, forecast_model.pk)
+                _update_model_scores_worker(score.pk, forecast_model.pk)
             else:
                 logger.info(f"** enqueuing score={score}, forecast_model={forecast_model}")
                 queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
-                queue.enqueue(_update_model_scores, score.pk, forecast_model.pk)
+                queue.enqueue(_update_model_scores_worker, score.pk, forecast_model.pk)
     logger.info("update done")
 
 

@@ -85,12 +85,12 @@ class ScoreCsvFileCache(models.Model):
 def enqueue_score_csv_file_cache_all_projs():
     for project in Project.objects.all():
         queue = django_rq.get_queue(UPDATE_PROJECT_SCORE_CSV_FILE_CACHE_QUEUE_NAME)
-        queue.enqueue(_update_project_score_csv_file_cache, project.pk)
+        queue.enqueue(_update_project_score_csv_file_cache_worker, project.pk)
 
 
-def _update_project_score_csv_file_cache(project_pk):
+def _update_project_score_csv_file_cache_worker(project_pk):
     """
-    Enqueue helper function.
+    enqueue() helper function
     """
     project = get_object_or_404(Project, pk=project_pk)
     project.score_csv_file_cache.update_score_csv_file_cache()

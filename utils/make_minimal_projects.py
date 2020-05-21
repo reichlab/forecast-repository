@@ -135,8 +135,8 @@ def _make_docs_project(user):
 
     load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))
 
+    forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model')
     time_zero = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
     forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                        time_zero=time_zero, notes="a small prediction file")
     with open('forecast_app/tests/predictions/docs-predictions.json') as fp:

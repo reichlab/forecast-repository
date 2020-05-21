@@ -7,7 +7,7 @@ django.setup()
 
 from forecast_app.models import Project
 
-from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs, _update_project_row_count_cache
+from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs, _update_project_row_count_cache_worker
 
 
 @click.group()
@@ -51,7 +51,7 @@ def update(no_enqueue):
     if no_enqueue:
         for project in Project.objects.all():
             click.echo("(no enqueue) updating RowCountCache for project={}".format(project))
-            _update_project_row_count_cache(project.pk)
+            _update_project_row_count_cache_worker(project.pk)
             click.echo("update done")
     else:
         click.echo("enqueuing RowCountCache updates for all projects")

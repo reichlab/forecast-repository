@@ -117,8 +117,7 @@ def _insert_score_values(score_values):
         if connection.vendor == 'postgresql':
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
-            for row in score_values:
-                csv_writer.writerow(row)
+            csv_writer.writerows(score_values)
             string_io.seek(0)
             cursor.copy_from(string_io, scorevalue_table_name, columns=columns_names, sep=',', null=POSTGRES_NULL_VALUE)
         else:
