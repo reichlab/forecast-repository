@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import django_rq
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models.signals import pre_delete, post_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
@@ -177,16 +177,6 @@ def job_cloud_file(job_pk):
             logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. job={job}")
         finally:
             delete_file(job)  # NB: in current thread
-
-
-#
-# set up a signal to try to delete an Job's S3 object before deleting the Job
-#
-
-@receiver(pre_delete, sender=Job)
-def delete_file_for_job(sender, instance, using, **kwargs):
-    instance.cancel_rq_job()  # in case it's still in the queue
-    delete_file(instance)
 
 
 #

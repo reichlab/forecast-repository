@@ -590,7 +590,7 @@ CSV_HEADER = ['unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quan
               'param3']
 
 
-def query_forecasts_for_project(project, query):
+def query_forecasts_for_project(project, query, max_num_rows=100_000):
     """
     Top-level function for querying forecasts within project. Runs in the calling thread and therefore blocks.
 
@@ -613,7 +613,8 @@ def query_forecasts_for_project(project, query):
     :param project: a Project
     :param query: a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation, and above
         for a summary
-    :return: a list of CSV rows including header - see CSV_HEADER
+    :param max_num_rows: the number of rows at which this function raises a RuntimeError
+    :return: a list of CSV rows including CSV_HEADER
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
 
@@ -630,83 +631,107 @@ def query_forecasts_for_project(project, query):
     if not timezero_ids:
         timezero_ids = project.timezeros.all().values_list('id', flat=True)  # "" TimeZeros ""
 
+    # get which types to include
+    is_include_bin = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in types)
+    is_include_named = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in types)
+    is_include_point = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction] in types)
+    is_include_sample = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution] in types)
+    is_include_quantile = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution] in types)
+
     # get Forecasts to be included, applying query's constraints
     forecast_ids = Forecast.objects.filter(forecast_model__id__in=model_ids,
                                            time_zero__id__in=timezero_ids) \
         .values_list('id', flat=True)
 
+    # create queries for each prediction type, but don't execute them yet. first check # rows and limit if necessary.
+    # note that not all will be executed, depending on the 'types' key
+    bin_qs = BinDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                            unit__id__in=unit_ids,
+                                            target__id__in=target_ids) \
+        .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+    named_qs = NamedDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                                unit__id__in=unit_ids,
+                                                target__id__in=target_ids) \
+        .values_list('unit__name', 'target__name', 'family', 'param1', 'param2', 'param3')
+    point_qs = PointPrediction.objects.filter(forecast__id__in=forecast_ids,
+                                              unit__id__in=unit_ids,
+                                              target__id__in=target_ids) \
+        .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    sample_qs = SampleDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                                  unit__id__in=unit_ids,
+                                                  target__id__in=target_ids) \
+        .values_list('unit__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
+    quantile_qs = QuantileDistribution.objects.filter(forecast__id__in=forecast_ids,
+                                                      unit__id__in=unit_ids,
+                                                      target__id__in=target_ids) \
+        .values_list('unit__name', 'target__name', 'quantile', 'value_i', 'value_f', 'value_d')
+
+    # count number of rows to query
+    is_include_query_set_pred_types = [(is_include_bin, bin_qs, 'bin'),
+                                       (is_include_named, named_qs, 'named'),
+                                       (is_include_point, point_qs, 'point'),
+                                       (is_include_sample, sample_qs, 'sample'),
+                                       (is_include_quantile, quantile_qs, 'quantile')]
+    pred_type_counts = [(pred_type, query_set.count()) for is_include, query_set, pred_type
+                        in is_include_query_set_pred_types if is_include]
+    num_rows = sum([_[1] for _ in pred_type_counts])
+    logger.debug(f"query_forecasts_for_project(): preparing to query. pred_type_counts={pred_type_counts}. total "
+                 f"num_rows={num_rows}")
+    if num_rows > max_num_rows:
+        raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
+
     # add rows for each Prediction subclass
     rows = [CSV_HEADER]  # return value. filled next
 
     # add BinDistributions
-    logger.debug(f"query_forecasts_for_project(): getting BinDistributions")
-    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in types):
+    if is_include_bin:
+        logger.debug(f"query_forecasts_for_project(): getting BinDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        qs = BinDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                            unit__id__in=unit_ids,
-                                            target__id__in=target_ids) \
-            .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-        for unit_name, target_name, prob, cat_i, cat_f, cat_t, cat_d, cat_b in qs:
+        for unit_name, target_name, prob, cat_i, cat_f, cat_t, cat_d, cat_b in bin_qs:
             cat = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
             cat = cat.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(cat, datetime.date) else cat
             rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add NamedDistributions
-    logger.debug(f"query_forecasts_for_project(): getting NamedDistributions")
-    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in types):
+    if is_include_named:
+        logger.debug(f"query_forecasts_for_project(): getting NamedDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        qs = NamedDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                              unit__id__in=unit_ids,
-                                              target__id__in=target_ids) \
-            .values_list('unit__name', 'target__name', 'family', 'param1', 'param2', 'param3')
-        for unit_name, target_name, family, param1, param2, param3 in qs:
+        for unit_name, target_name, family, param1, param2, param3 in named_qs:
             rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
                          value, cat, prob, sample, quantile, NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family],
                          param1, param2, param3])
 
     # add PointPredictions
-    logger.debug(f"query_forecasts_for_project(): getting PointPredictions")
-    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction] in types):
+    if is_include_point:
+        logger.debug(f"query_forecasts_for_project(): getting PointPredictions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        qs = PointPrediction.objects.filter(forecast__id__in=forecast_ids,
-                                            unit__id__in=unit_ids,
-                                            target__id__in=target_ids) \
-            .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        for unit_name, target_name, value_i, value_f, value_t, value_d, value_b in qs:
+        for unit_name, target_name, value_i, value_f, value_t, value_d, value_b in point_qs:
             value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
             value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
             rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add SampleDistribution
-    logger.debug(f"query_forecasts_for_project(): getting SampleDistributions")
-    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution] in types):
+    if is_include_sample:
+        logger.debug(f"query_forecasts_for_project(): getting SampleDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        qs = SampleDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                               unit__id__in=unit_ids,
-                                               target__id__in=target_ids) \
-            .values_list('unit__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
-        for unit_name, target_name, sample_i, sample_f, sample_t, sample_d, sample_b in qs:
+        for unit_name, target_name, sample_i, sample_f, sample_t, sample_d, sample_b in sample_qs:
             sample = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
             sample = sample.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(sample, datetime.date) else sample
             rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add QuantileDistribution
-    logger.debug(f"query_forecasts_for_project(): getting QuantileDistributions")
-    if (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution] in types):
+    if is_include_quantile:
+        logger.debug(f"query_forecasts_for_project(): getting QuantileDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        qs = QuantileDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                                 unit__id__in=unit_ids,
-                                                 target__id__in=target_ids) \
-            .values_list('unit__name', 'target__name', 'quantile', 'value_i', 'value_f', 'value_d')
-        for unit_name, target_name, quantile, value_i, value_f, value_d in qs:
+        for unit_name, target_name, quantile, value_i, value_f, value_d in quantile_qs:
             value = PointPrediction.first_non_none_value(value_i, value_f, None, value_d, None)
             value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
             rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution],

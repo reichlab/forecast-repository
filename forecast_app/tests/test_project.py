@@ -821,6 +821,22 @@ class ProjectTestCase(TestCase):
                          len(rows))
 
 
+    def test_query_forecasts_for_project_max_num_rows(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, _, _, _ = _make_docs_project(po_user)
+        rows = query_forecasts_for_project(project, {})
+        self.assertEqual(63, len(rows))  # all forecasts in project, plus header
+
+        try:
+            query_forecasts_for_project(project, {}, max_num_rows=62)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
+        with self.assertRaises(RuntimeError) as context:
+            query_forecasts_for_project(project, {}, max_num_rows=10)
+        self.assertIn("number of rows exceeded maximum", str(context.exception))
+
+
     def test__validate_forecasts_query(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)

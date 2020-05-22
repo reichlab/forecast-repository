@@ -37,7 +37,7 @@ heroku config:set \
 
 These keys must enable read, write, and list operations on a bucket named S3_BUCKET_PREFIX + object type in that
 account. (See cloud_file.py for details re: our bucket naming convention.) For development that account was configured
-thus:
+as follows. In addition, the `Job` buckets were configured to delete all files after one day.
 
 - (IAM) Zoltar app user:
   - no groups
