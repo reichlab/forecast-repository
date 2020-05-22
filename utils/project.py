@@ -584,10 +584,8 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
 # query_forecasts()
 #
 
-# todo xx following should eventually merge w/zoltpy's `zoltpy.csv_io.csv_rows_from_json_io_dict()`
-
-CSV_HEADER = ['unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile', 'family', 'param1', 'param2',
-              'param3']
+CSV_HEADER = ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+              'family', 'param1', 'param2', 'param3']
 
 
 def query_forecasts_for_project(project, query, max_num_rows=100_000):
@@ -648,25 +646,30 @@ def query_forecasts_for_project(project, query, max_num_rows=100_000):
     bin_qs = BinDistribution.objects.filter(forecast__id__in=forecast_ids,
                                             unit__id__in=unit_ids,
                                             target__id__in=target_ids) \
-        .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
+        .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
+                     'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
     named_qs = NamedDistribution.objects.filter(forecast__id__in=forecast_ids,
                                                 unit__id__in=unit_ids,
                                                 target__id__in=target_ids) \
-        .values_list('unit__name', 'target__name', 'family', 'param1', 'param2', 'param3')
+        .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
+                     'family', 'param1', 'param2', 'param3')
     point_qs = PointPrediction.objects.filter(forecast__id__in=forecast_ids,
                                               unit__id__in=unit_ids,
                                               target__id__in=target_ids) \
-        .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+        .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
+                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
     sample_qs = SampleDistribution.objects.filter(forecast__id__in=forecast_ids,
                                                   unit__id__in=unit_ids,
                                                   target__id__in=target_ids) \
-        .values_list('unit__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
+        .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
+                     'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
     quantile_qs = QuantileDistribution.objects.filter(forecast__id__in=forecast_ids,
                                                       unit__id__in=unit_ids,
                                                       target__id__in=target_ids) \
-        .values_list('unit__name', 'target__name', 'quantile', 'value_i', 'value_f', 'value_d')
+        .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
+                     'quantile', 'value_i', 'value_f', 'value_d')
 
-    # count number of rows to query
+    # count number of rows to query, and error if too many
     is_include_query_set_pred_types = [(is_include_bin, bin_qs, 'bin'),
                                        (is_include_named, named_qs, 'named'),
                                        (is_include_point, point_qs, 'point'),
@@ -682,16 +685,22 @@ def query_forecasts_for_project(project, query, max_num_rows=100_000):
 
     # add rows for each Prediction subclass
     rows = [CSV_HEADER]  # return value. filled next
+    forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
+    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
+    timezero_to_season_name = project.timezero_to_season_name()
 
     # add BinDistributions
     if is_include_bin:
         logger.debug(f"query_forecasts_for_project(): getting BinDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        for unit_name, target_name, prob, cat_i, cat_f, cat_t, cat_d, cat_b in bin_qs:
+        for forecast_model_id, timezero_id, unit_name, target_name, prob, cat_i, cat_f, cat_t, cat_d, cat_b in bin_qs:
+            model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
+                forecast_model_id_to_obj[forecast_model_id], timezero_id_to_obj[timezero_id], timezero_to_season_name,
+                BinDistribution)
             cat = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
             cat = cat.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(cat, datetime.date) else cat
-            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
+            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add NamedDistributions
@@ -699,20 +708,27 @@ def query_forecasts_for_project(project, query, max_num_rows=100_000):
         logger.debug(f"query_forecasts_for_project(): getting NamedDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        for unit_name, target_name, family, param1, param2, param3 in named_qs:
-            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
-                         value, cat, prob, sample, quantile, NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family],
-                         param1, param2, param3])
+        for forecast_model_id, timezero_id, unit_name, target_name, family, param1, param2, param3 in named_qs:
+            model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
+                forecast_model_id_to_obj[forecast_model_id], timezero_id_to_obj[timezero_id], timezero_to_season_name,
+                NamedDistribution)
+            family = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
+            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
+                         value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add PointPredictions
     if is_include_point:
         logger.debug(f"query_forecasts_for_project(): getting PointPredictions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        for unit_name, target_name, value_i, value_f, value_t, value_d, value_b in point_qs:
+        for forecast_model_id, timezero_id, unit_name, target_name, value_i, value_f, value_t, value_d, value_b \
+                in point_qs:
+            model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
+                forecast_model_id_to_obj[forecast_model_id], timezero_id_to_obj[timezero_id], timezero_to_season_name,
+                PointPrediction)
             value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
             value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
+            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add SampleDistribution
@@ -720,10 +736,14 @@ def query_forecasts_for_project(project, query, max_num_rows=100_000):
         logger.debug(f"query_forecasts_for_project(): getting SampleDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        for unit_name, target_name, sample_i, sample_f, sample_t, sample_d, sample_b in sample_qs:
+        for forecast_model_id, timezero_id, unit_name, target_name, \
+            sample_i, sample_f, sample_t, sample_d, sample_b in sample_qs:
+            model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
+                forecast_model_id_to_obj[forecast_model_id], timezero_id_to_obj[timezero_id], timezero_to_season_name,
+                SampleDistribution)
             sample = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
             sample = sample.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(sample, datetime.date) else sample
-            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
+            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # add QuantileDistribution
@@ -731,15 +751,29 @@ def query_forecasts_for_project(project, query, max_num_rows=100_000):
         logger.debug(f"query_forecasts_for_project(): getting QuantileDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        for unit_name, target_name, quantile, value_i, value_f, value_d in quantile_qs:
+        for forecast_model_id, timezero_id, unit_name, target_name, quantile, value_i, value_f, value_d in quantile_qs:
+            model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
+                forecast_model_id_to_obj[forecast_model_id], timezero_id_to_obj[timezero_id], timezero_to_season_name,
+                QuantileDistribution)
             value = PointPrediction.first_non_none_value(value_i, value_f, None, value_d, None)
             value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-            rows.append([unit_name, target_name, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution],
+            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # NB: we do not sort b/c it's expensive
     logger.debug(f"query_forecasts_for_project(): done: {len(rows)} rows")
     return rows
+
+
+def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, prediction_class):
+    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+
+
+    model_str = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
+    timezero_str = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+    season = timezero_to_season_name[time_zero]
+    class_str = PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[prediction_class]
+    return model_str, timezero_str, season, class_str
 
 
 def validate_forecasts_query(project, query):

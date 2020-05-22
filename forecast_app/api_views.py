@@ -12,7 +12,8 @@ import django_rq
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.db import connection
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
+    HttpResponseServerError
 from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
@@ -815,6 +816,9 @@ def csv_response_for_cached_project_score_data(project):
     :param project:
     :return:
     """
+    from utils.cloud_file import download_file
+
+
     with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:
             download_file(project.score_csv_file_cache, cloud_file_fp)
@@ -1023,3 +1027,4 @@ def download_job_data(request, pk):
             return response
         except Exception as ex:
             logger.debug(f"download_job_data(): error downloading data: ex={ex}. job={job}")
+            return HttpResponseServerError(f"there was an error downloading the job data. ex={ex}, job={job}")

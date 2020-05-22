@@ -19,7 +19,7 @@ from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
 from utils.project import create_project_from_json, load_truth_data, query_forecasts_for_project, \
     validate_forecasts_query, CSV_HEADER
-from utils.utilities import get_or_create_super_po_mo_users
+from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -663,117 +663,123 @@ class ProjectTestCase(TestCase):
 
     def test_query_forecasts_for_project(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, _, _, _ = _make_docs_project(po_user)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        model = forecast_model.name
+        tz = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        timezero_to_season_name = project.timezero_to_season_name()
+        seas = timezero_to_season_name[time_zero]
 
-        # ---- case: all BinDistributions in project. sanity-check cat and prob columns ----
+        # ---- case: all BinDistributions in project. check cat and prob columns ----
         rows = query_forecasts_for_project(project,
                                            {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]]})
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
-        exp_rows_bin = [('location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
-                        ('location1', 'Season peak week', 'bin', '2019-12-22', 0.1),
-                        ('location1', 'Season peak week', 'bin', '2019-12-29', 0.89),
-                        ('location1', 'season severity', 'bin', 'moderate', 0.1),
-                        ('location1', 'season severity', 'bin', 'severe', 0.9),
-                        ('location2', 'Season peak week', 'bin', '2019-12-15', 0.01),
-                        ('location2', 'Season peak week', 'bin', '2019-12-22', 0.05),
-                        ('location2', 'Season peak week', 'bin', '2019-12-29', 0.05),
-                        ('location2', 'Season peak week', 'bin', '2020-01-05', 0.89),
-                        ('location2', 'above baseline', 'bin', False, 0.1),
-                        ('location2', 'above baseline', 'bin', True, 0.9),
-                        ('location2', 'pct next week', 'bin', 1.1, 0.3),
-                        ('location2', 'pct next week', 'bin', 2.2, 0.2),
-                        ('location2', 'pct next week', 'bin', 3.3, 0.5),
-                        ('location3', 'cases next week', 'bin', 2, 0.1),
-                        ('location3', 'cases next week', 'bin', 50, 0.9)]  # sorted
-        # unit, target, class, cat, prob:
-        act_rows = [(row[0], row[1], row[2], row[4], row[5]) for row in rows]
+        exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
+                        (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-22', 0.1),
+                        (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-29', 0.89),
+                        (model, tz, seas, 'location1', 'season severity', 'bin', 'moderate', 0.1),
+                        (model, tz, seas, 'location1', 'season severity', 'bin', 'severe', 0.9),
+                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-15', 0.01),
+                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-22', 0.05),
+                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-29', 0.05),
+                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2020-01-05', 0.89),
+                        (model, tz, seas, 'location2', 'above baseline', 'bin', False, 0.1),
+                        (model, tz, seas, 'location2', 'above baseline', 'bin', True, 0.9),
+                        (model, tz, seas, 'location2', 'pct next week', 'bin', 1.1, 0.3),
+                        (model, tz, seas, 'location2', 'pct next week', 'bin', 2.2, 0.2),
+                        (model, tz, seas, 'location2', 'pct next week', 'bin', 3.3, 0.5),
+                        (model, tz, seas, 'location3', 'cases next week', 'bin', 2, 0.1),
+                        (model, tz, seas, 'location3', 'cases next week', 'bin', 50, 0.9)]  # sorted
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[7], row[8]) for row in rows]
         self.assertEqual(exp_rows_bin, sorted(act_rows))
 
-        # ----  case: all NamedDistributions in project. sanity-check family, and param1, 2, and 3 columns ----
+        # ----  case: all NamedDistributions in project. check family, and param1, 2, and 3 columns ----
         rows = query_forecasts_for_project(project,
                                            {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]]})
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
-        exp_rows_named = [('location1', 'cases next week', 'named',
+        exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named',
                            NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.POIS_DIST], 1.1, None,
                            None),
-                          ('location1', 'pct next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.NORM_DIST], 1.1, 2.2,
-                           None)]  # sorted
-        # unit, target, class, family, param1, param2, param3:
-        act_rows = [(row[0], row[1], row[2], row[8], row[9], row[10], row[11]) for row in rows]
+                          (model, tz, seas, 'location1', 'pct next week', 'named',
+                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.NORM_DIST], 1.1, 2.2, None)
+                          ]  # sorted
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[11], row[12], row[13], row[14])
+                    for row in rows]
         self.assertEqual(exp_rows_named, sorted(act_rows))
 
-        # ---- case: all PointPredictions in project. sanity-check value column ----
+        # ---- case: all PointPredictions in project. check value column ----
         rows = query_forecasts_for_project(project,
                                            {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]})
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
-        exp_rows_point = [('location1', 'Season peak week', 'point', '2019-12-22'),
-                          ('location1', 'above baseline', 'point', True),
-                          ('location1', 'pct next week', 'point', 2.1),
-                          ('location1', 'season severity', 'point', 'mild'),
-                          ('location2', 'Season peak week', 'point', '2020-01-05'),
-                          ('location2', 'cases next week', 'point', 5),
-                          ('location2', 'pct next week', 'point', 2.0),
-                          ('location2', 'season severity', 'point', 'moderate'),
-                          ('location3', 'Season peak week', 'point', '2019-12-29'),
-                          ('location3', 'cases next week', 'point', 10),
-                          ('location3', 'pct next week', 'point', 3.567)]  # sorted
-        # unit, target, class, value:
-        act_rows = [(row[0], row[1], row[2], row[3]) for row in rows]
+        exp_rows_point = [
+            (model, tz, seas, 'location1', 'Season peak week', 'point', '2019-12-22'),
+            (model, tz, seas, 'location1', 'above baseline', 'point', True),
+            (model, tz, seas, 'location1', 'pct next week', 'point', 2.1),
+            (model, tz, seas, 'location1', 'season severity', 'point', 'mild'),
+            (model, tz, seas, 'location2', 'Season peak week', 'point', '2020-01-05'),
+            (model, tz, seas, 'location2', 'cases next week', 'point', 5),
+            (model, tz, seas, 'location2', 'pct next week', 'point', 2.0),
+            (model, tz, seas, 'location2', 'season severity', 'point', 'moderate'),
+            (model, tz, seas, 'location3', 'Season peak week', 'point', '2019-12-29'),
+            (model, tz, seas, 'location3', 'cases next week', 'point', 10),
+            (model, tz, seas, 'location3', 'pct next week', 'point', 3.567)]  # sorted
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
         self.assertEqual(exp_rows_point, sorted(act_rows))
 
-        # ---- case: all SampleDistributions in project. sanity-check sample column ----
+        # ---- case: all SampleDistributions in project. check sample column ----
         rows = query_forecasts_for_project(project,
                                            {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]]})
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
-        exp_rows_sample = [('location1', 'Season peak week', 'sample', '2019-12-15'),
-                           ('location1', 'Season peak week', 'sample', '2020-01-05'),
-                           ('location2', 'above baseline', 'sample', False),
-                           ('location2', 'above baseline', 'sample', True),
-                           ('location2', 'above baseline', 'sample', True),
-                           ('location2', 'cases next week', 'sample', 0),
-                           ('location2', 'cases next week', 'sample', 2),
-                           ('location2', 'cases next week', 'sample', 5),
-                           ('location2', 'season severity', 'sample', 'high'),
-                           ('location2', 'season severity', 'sample', 'mild'),
-                           ('location2', 'season severity', 'sample', 'moderate'),
-                           ('location2', 'season severity', 'sample', 'moderate'),
-                           ('location2', 'season severity', 'sample', 'severe'),
-                           ('location3', 'Season peak week', 'sample', '2019-12-16'),
-                           ('location3', 'Season peak week', 'sample', '2020-01-06'),
-                           ('location3', 'above baseline', 'sample', False),
-                           ('location3', 'above baseline', 'sample', True),
-                           ('location3', 'above baseline', 'sample', True),
-                           ('location3', 'pct next week', 'sample', 0.0),
-                           ('location3', 'pct next week', 'sample', 0.0001),
-                           ('location3', 'pct next week', 'sample', 2.3),
-                           ('location3', 'pct next week', 'sample', 6.5),
-                           ('location3', 'pct next week', 'sample', 10.0234)]  # sorted
-        # unit, target, class, sample:
-        act_rows = [(row[0], row[1], row[2], row[6]) for row in rows]
+        exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
+                           (model, tz, seas, 'location1', 'Season peak week', 'sample', '2020-01-05'),
+                           (model, tz, seas, 'location2', 'above baseline', 'sample', False),
+                           (model, tz, seas, 'location2', 'above baseline', 'sample', True),
+                           (model, tz, seas, 'location2', 'above baseline', 'sample', True),
+                           (model, tz, seas, 'location2', 'cases next week', 'sample', 0),
+                           (model, tz, seas, 'location2', 'cases next week', 'sample', 2),
+                           (model, tz, seas, 'location2', 'cases next week', 'sample', 5),
+                           (model, tz, seas, 'location2', 'season severity', 'sample', 'high'),
+                           (model, tz, seas, 'location2', 'season severity', 'sample', 'mild'),
+                           (model, tz, seas, 'location2', 'season severity', 'sample', 'moderate'),
+                           (model, tz, seas, 'location2', 'season severity', 'sample', 'moderate'),
+                           (model, tz, seas, 'location2', 'season severity', 'sample', 'severe'),
+                           (model, tz, seas, 'location3', 'Season peak week', 'sample', '2019-12-16'),
+                           (model, tz, seas, 'location3', 'Season peak week', 'sample', '2020-01-06'),
+                           (model, tz, seas, 'location3', 'above baseline', 'sample', False),
+                           (model, tz, seas, 'location3', 'above baseline', 'sample', True),
+                           (model, tz, seas, 'location3', 'above baseline', 'sample', True),
+                           (model, tz, seas, 'location3', 'pct next week', 'sample', 0.0),
+                           (model, tz, seas, 'location3', 'pct next week', 'sample', 0.0001),
+                           (model, tz, seas, 'location3', 'pct next week', 'sample', 2.3),
+                           (model, tz, seas, 'location3', 'pct next week', 'sample', 6.5),
+                           (model, tz, seas, 'location3', 'pct next week', 'sample', 10.0234)]  # sorted
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[9]) for row in rows]
         self.assertEqual(exp_rows_sample, sorted(act_rows))
 
-        # ---- case: all QuantileDistributions in project. sanity-check quantile and value columns ----
+        # ---- case: all QuantileDistributions in project. check quantile and value columns ----
         rows = query_forecasts_for_project(project,
                                            {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]]})
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
-        exp_rows_quantile = [('location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
-                             ('location2', 'Season peak week', 'quantile', 0.75, '2019-12-29'),
-                             ('location2', 'Season peak week', 'quantile', 0.975, '2020-01-05'),
-                             ('location2', 'pct next week', 'quantile', 0.025, 1.0),
-                             ('location2', 'pct next week', 'quantile', 0.25, 2.2),
-                             ('location2', 'pct next week', 'quantile', 0.5, 2.2),
-                             ('location2', 'pct next week', 'quantile', 0.75, 5.0),
-                             ('location2', 'pct next week', 'quantile', 0.975, 50.0),
-                             ('location3', 'cases next week', 'quantile', 0.25, 0),
-                             ('location3', 'cases next week', 'quantile', 0.75, 50)]  # sorted
-        # unit, target, class, quantile, value:
-        act_rows = [(row[0], row[1], row[2], row[7], row[3]) for row in rows]
+        exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
+                             (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.75, '2019-12-29'),
+                             (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.975, '2020-01-05'),
+                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.025, 1.0),
+                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.25, 2.2),
+                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.5, 2.2),
+                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.75, 5.0),
+                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.975, 50.0),
+                             (model, tz, seas, 'location3', 'cases next week', 'quantile', 0.25, 0),
+                             (model, tz, seas, 'location3', 'cases next week', 'quantile', 0.75, 50)]  # sorted
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[10], row[6]) for row in rows]
         self.assertEqual(exp_rows_quantile, sorted(act_rows))
 
         # ---- case: empty query -> all forecasts in project ----
@@ -794,7 +800,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual(9, len(rows))
 
         # following two tests require a second model, timezero, and forecast
-        forecast_model2 = ForecastModel.objects.create(project=project, name='docs forecast model')
+        forecast_model2 = ForecastModel.objects.create(project=project, name=model)
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 22))
         forecast2 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
                                             time_zero=time_zero2, notes="a small prediction file")
