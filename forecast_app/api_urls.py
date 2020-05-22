@@ -21,10 +21,12 @@ urlpatterns = [
 
     # other object detail
     url(r'^user/(?P<pk>\d+)/$', api_views.UserDetail.as_view(), name='api-user-detail'),
-    url(r'^job/(?P<pk>\d+)/$', api_views.JobDetailView.as_view(), name='api-job-detail'),
     url(r'^unit/(?P<pk>\d+)/$', api_views.UnitDetail.as_view(), name='api-unit-detail'),
     url(r'^target/(?P<pk>\d+)/$', api_views.TargetDetail.as_view(), name='api-target-detail'),
     url(r'^timezero/(?P<pk>\d+)/$', api_views.TimeZeroDetail.as_view(), name='api-timezero-detail'),
+
+    url(r'^job/(?P<pk>\d+)/$', api_views.JobDetailView.as_view(), name='api-job-detail'),
+    url(r'^job/(?P<pk>\d+)/data/$', api_views.download_job_data, name='api-job-data-download'),
 
     url(r'^model/(?P<pk>\d+)/$', api_views.ForecastModelDetail.as_view(), name='api-model-detail'),
     url(r'^model/(?P<pk>\d+)/forecasts/$', api_views.ForecastModelForecastList.as_view(), name='api-forecast-list'),

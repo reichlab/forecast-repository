@@ -12,7 +12,7 @@ import django_rq
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.db import connection
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest
 from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
@@ -31,7 +31,6 @@ from forecast_app.serializers import ProjectSerializer, UserSerializer, Forecast
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
     _upload_truth_worker, enqueue_delete_forecast
 from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
-from utils.cloud_file import download_file
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project, query_forecasts_for_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
@@ -702,7 +701,7 @@ def _query_forecasts_worker(job_pk):
 #
 
 @api_view(['GET'])
-@renderer_classes((BrowsableAPIRenderer, CSVRenderer))
+@renderer_classes((BrowsableAPIRenderer, CSVRenderer))  # todo xx BrowsableAPIRenderer needed?
 def download_truth_data(request, pk):
     """
     :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
@@ -749,7 +748,7 @@ def csv_response_for_project_truth_data(project):
 #
 
 @api_view(['GET'])
-@renderer_classes((BrowsableAPIRenderer, CSVRenderer))
+@renderer_classes((BrowsableAPIRenderer, CSVRenderer))  # todo xx BrowsableAPIRenderer needed?
 def download_score_data(request, pk):
     """
     :return: the Project's score data as CSV
@@ -769,7 +768,7 @@ def download_score_data(request, pk):
 #
 
 @api_view(['GET'])
-@renderer_classes((JSONRenderer, BrowsableAPIRenderer))
+@renderer_classes((BrowsableAPIRenderer, JSONRenderer))  # todo xx BrowsableAPIRenderer needed?
 def forecast_data(request, pk):
     """
     :return: a Forecast's data as JSON - see load_predictions_from_json_io_dict() for the format
@@ -980,3 +979,47 @@ def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, unit_p
         return None, '>1 truth values found'
 
     return truth_values[0], None
+
+
+#
+# Job data-related functions
+#
+
+@api_view(['GET'])
+# @renderer_classes((BrowsableAPIRenderer, CSVRenderer))    # todo xx BrowsableAPIRenderer needed?
+@renderer_classes((CSVRenderer,))
+def download_job_data(request, pk):
+    """
+    A note regarding Job "type": Currently there is no Job.type IV, so we have to infer it from Job.input_json, which
+    will have a 'query' key if it was created by `query_forecasts_endpoint()`.
+
+    :return: a Job's data as CSV
+    """
+    # imported here so that test_api_job_data_download() can patch via mock:
+    from utils.cloud_file import download_file, _file_name_for_object
+
+
+    job = get_object_or_404(Job, pk=pk)
+    is_authenticated = request.user.is_authenticated
+    is_superuser = request.user.is_superuser
+    is_job_user = request.user == job.user
+    if (not is_authenticated) or ((not is_superuser) and (not is_job_user)):
+        return HttpResponseForbidden()
+
+    if (not isinstance(job.input_json, dict)) or ('query' not in job.input_json):
+        return HttpResponseBadRequest(f"job.input_json did not contain a `query` key. job={job}")
+
+    with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
+        try:
+            download_file(job, cloud_file_fp)
+            cloud_file_fp.seek(0)  # yes you have to do this!
+
+            # https://stackoverflow.com/questions/16538210/downloading-files-from-amazon-s3-using-django
+            csv_filename = get_valid_filename(f'job-{_file_name_for_object(job)}-data.csv')
+            wrapper = FileWrapper(cloud_file_fp)
+            response = HttpResponse(wrapper, content_type='text/csv')
+            # response['Content-Length'] = os.path.getsize('/tmp/'+fname)
+            response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+            return response
+        except Exception as ex:
+            logger.debug(f"download_job_data(): error downloading data: ex={ex}. job={job}")

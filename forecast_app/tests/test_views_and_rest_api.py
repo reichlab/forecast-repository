@@ -1197,6 +1197,64 @@ class ViewsTestCase(TestCase):
         # self.assertEqual(Job.SUCCESS, job.status)
 
 
+    def test_api_job_data_download(self):
+        job_data_download_url = reverse('api-job-data-download', args=[self.job.pk])  # owner self.po_user
+
+        # case: unauthorized: anonymous
+        self.client.logout()  # AnonymousUser
+        response = self.client.get(job_data_download_url)
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # case: unauthorized: mo_user
+        jwt_token = self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
+        response = self.client.get(job_data_download_url, {
+            'Authorization': f'JWT {jwt_token}',
+        })
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # case: no Job.input_json
+        jwt_token = self._authenticate_jwt_user(self.superuser, self.superuser_password)
+        response = self.client.get(job_data_download_url, {
+            'Authorization': f'JWT {jwt_token}',
+        })
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
+        # case: no 'query' in Job.input_json
+        job = Job.objects.create(user=self.po_user, input_json={})
+        job_data_download_url = reverse('api-job-data-download', args=[job.pk])
+        jwt_token = self._authenticate_jwt_user(self.superuser, self.superuser_password)
+        response = self.client.get(job_data_download_url, {
+            'Authorization': f'JWT {jwt_token}',
+        })
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
+        # case: authorized: superuser + actual utils.cloud_file.download_file(), which calls Bucket.download_fileobj().
+        # we don't actually do this in this test b/c we don't want to hit S3, but it's commented here for debugging:
+        # job = Job.objects.create(user=self.po_user, input_json={'query': {}})
+        # job_data_download_url = reverse('api-job-data-download', args=[job.pk])
+        # jwt_token = self._authenticate_jwt_user(self.superuser, self.superuser_password)
+        # response = self.client.get(job_data_download_url, {
+        #     'Authorization': f'JWT {jwt_token}',
+        # })
+        # self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+        # case: authorized: superuser + mocked utils.cloud_file.download_file() (no S3 hit)
+        with patch('utils.cloud_file.download_file') as mock:
+            job = Job.objects.create(user=self.po_user, input_json={'query': {}})
+            job_data_download_url = reverse('api-job-data-download', args=[job.pk])
+            jwt_token = self._authenticate_jwt_user(self.superuser, self.superuser_password)
+            response = self.client.get(job_data_download_url, {
+                'Authorization': f'JWT {jwt_token}',
+            })
+            mock.assert_called_once()
+            self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+        # case: authorized: self.po_user
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        response = self.client.get(job_data_download_url)
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+
     def _authenticate_jwt_user(self, user, password):
         jwt_auth_url = reverse('auth-jwt-get')
         jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password}, format='json')
