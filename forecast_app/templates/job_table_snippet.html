@@ -23,8 +23,8 @@
             <td>{% if job.is_failed %}{{ job.failure_message|truncatechars:40 }}{% else %}
                 None{% endif %}</td>
             <td>{{ job.elapsed_time }}</td>
-            <td>{{ job.created_at|date:"Y-m-d h:i:s" }}</td>
-            <td>{{ job.updated_at|date:"Y-m-d h:i:s" }}</td>
+            <td>{{ job.created_at|date:"Y-m-d h:i:s T" }}</td>
+            <td>{{ job.updated_at|date:"Y-m-d h:i:s T" }}</td>
             <td>{{ job.input_json }}</td>
             <td>{{ job.output_json }}</td>
         </tr>
