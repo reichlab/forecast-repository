@@ -25,8 +25,8 @@
             <td>{% if upload_file_job.is_failed %}{{ upload_file_job.failure_message|truncatechars:40 }}{% else %}
                 None{% endif %}</td>
             <td>{{ upload_file_job.elapsed_time }}</td>
-            <td>{{ upload_file_job.created_at|date:"Y-m-d h:i:s" }}</td>
-            <td>{{ upload_file_job.updated_at|date:"Y-m-d h:i:s" }}</td>
+            <td>{{ upload_file_job.created_at|date:"Y-m-d h:i:s T" }}</td>
+            <td>{{ upload_file_job.updated_at|date:"Y-m-d h:i:s T" }}</td>
             <td>{{ upload_file_job.input_json }}</td>
             <td>{{ upload_file_job.output_json }}</td>
         </tr>
