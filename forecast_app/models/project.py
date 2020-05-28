@@ -61,14 +61,13 @@ class Project(models.Model):
     visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
 
     truth_csv_filename = models.TextField(help_text="Name of the truth csv file that was uploaded.")
+    truth_updated_at = models.DateTimeField(blank=True, null=True, help_text="The last time the truth was updated.")
 
     description = models.TextField(help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
 
     home_url = models.URLField(help_text="The project's home site.")
-
     logo_url = models.URLField(blank=True, null=True, help_text="The project's optional logo image.")
-
     core_data = models.URLField(
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
                   "the challenge, including supplemental data like Google queries or weather.")
@@ -399,6 +398,7 @@ class Project(models.Model):
     def delete_truth_data(self):
         self.truth_data_qs().delete()
         self.truth_csv_filename = ''
+        self.truth_updated_at = None
         self.save()
         self._update_model_score_changes()
 

@@ -44,6 +44,16 @@
                         {% endif %}
                     </td>
                 </tr>
+                <tr>
+                    <th>Truth Data Updated At:</th>
+                    <td>
+                        {% if project.truth_updated_at %}
+                            {{ project.truth_updated_at|date:"Y-m-d H:i:s T" }}
+                        {% else %}
+                            <small class="text-muted">(No update date found)</small>
+                        {% endif %}
+                    </td>
+                </tr>
                 </tbody>
             </table>
         </div>

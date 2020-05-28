@@ -115,8 +115,7 @@
                     <td><a href="{{ project.core_data }}">{{ project.core_data }}</a></td>
                 </tr>
                 <tr>
-                    <th
-                            title="A data file containing observed target values for time zeros and units. Used to calculate scores, and extract the 'actual' data used in plots">
+                    <th title="A data file containing observed target values for time zeros and units. Used to calculate scores, and extract the 'actual' data used in plots">
                         Truth Data:
                     </th>
                     <td>
@@ -124,6 +123,7 @@
                             {# show a link to the truth detail #}
                             <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_csv_filename }}</a>
                             <small class="text-muted">({{ project.get_num_truth_rows|intword|intcomma }} rows)</small>
+                            {% if project.truth_updated_at %}<small class="text-muted">{{ project.truth_updated_at|date:"Y-m-d H:i:s T" }}</small>{% endif %}
                         {% else %}
                             {# show that there's no truth data, optionally with upload button #}
                             {% if is_user_ok_edit_project %}

@@ -591,7 +591,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(5, len(response.data))  # assume contents are checked below
 
         response = self.client.get(reverse('api-truth-detail', args=[self.public_project.pk]), format='json')
-        self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_data'],
+        self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_updated_at', 'truth_data'],
                          list(response.data))
 
         response = self.client.get(reverse('api-truth-data-download', args=[self.public_project.pk]), format='json')

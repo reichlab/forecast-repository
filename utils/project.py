@@ -8,6 +8,7 @@ from pathlib import Path
 
 from django.db import connection
 from django.db import transaction
+from django.utils import timezone
 
 from forecast_app.models import Project, Unit, Target, Forecast, PointPrediction, ForecastModel, BinDistribution, \
     NamedDistribution, SampleDistribution, QuantileDistribution
@@ -430,6 +431,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
     project.truth_csv_filename = file_name or truth_file_path_or_fp.name
+    project.truth_updated_at = timezone.now()
     project.save()
     project._update_model_score_changes()
     logger.debug(f"load_truth_data(): done")

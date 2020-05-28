@@ -46,10 +46,12 @@ class ProjectTestCase(TestCase):
         self.assertEqual(7, self.project.truth_data_qs().count())
         self.assertTrue(self.project.is_truth_data_loaded())
         self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
+        self.assertIsInstance(self.project.truth_updated_at, datetime.datetime)
 
         self.project.delete_truth_data()
         self.assertFalse(self.project.is_truth_data_loaded())
         self.assertFalse(self.project.truth_csv_filename)
+        self.assertIsNone(self.project.truth_updated_at)
 
         # csv references non-existent TimeZero in Project: should not raise error
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),

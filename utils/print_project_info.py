@@ -29,7 +29,8 @@ def main(verbosity):
 
 def print_project_info(project, verbosity):
     # verbosity == 1
-    click.echo(f"\n\n* {project}. truth: {project.truth_data_qs().count()}. owner={project.owner}, "
+    click.echo(f"\n\n* {project}. truth: # rows={project.truth_data_qs().count()}, "
+               f"updated_at={project.truth_updated_at}. owner={project.owner}, "
                f"model_owners={project.model_owners.all()}, (num_models, num_forecasts, num_rows): "
                f"{project.get_summary_counts()}")
     if verbosity == 1:
