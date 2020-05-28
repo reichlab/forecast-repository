@@ -31,7 +31,7 @@ class ForecastTestCase(TestCase):
     def setUpTestData(cls):
         cls.project = Project.objects.create()
         make_cdc_units_and_targets(cls.project)
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project)
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='name', abbreviation='abbrev')
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
@@ -41,7 +41,7 @@ class ForecastTestCase(TestCase):
         project2 = Project.objects.create()
         make_cdc_units_and_targets(project2)
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         forecast2 = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
         self.assertIsNotNone(forecast2.created_at)
@@ -83,7 +83,7 @@ class ForecastTestCase(TestCase):
         project2 = Project.objects.create()  # no TimeZeros
         make_cdc_units_and_targets(project2)
 
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         with self.assertRaises(RuntimeError) as context:
             csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
             load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, self.time_zero)
@@ -136,7 +136,7 @@ class ForecastTestCase(TestCase):
         TimeZero.objects.create(project=project2,
                                 timezero_date=datetime.date(2016, 11, 6),  # 20161106-KoTstable-20161121.cdc.csv
                                 data_version_date=None)
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
 
         # copy the two files from 'forecast_app/tests/load_forecasts' to a temp dir, run the loader, and then copy a
         # third file over to test that it skips already-loaded ones
@@ -357,7 +357,7 @@ class ForecastTestCase(TestCase):
         project2 = Project.objects.create()
         make_cdc_units_and_targets(project2)
         time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         self.assertIsInstance(forecast_model2.score_change.changed_at, datetime.datetime)
 
         # adding a forecast should update its model's score_change.changed_at
@@ -394,7 +394,7 @@ class ForecastTestCase(TestCase):
             self.assertEqual(2, update_mock.call_count)  # called once each: delete_truth_data(), load_truth_data()
 
         # adding project truth should update all of its models' score_change.changed_at. test with one model
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         before_changed_at = forecast_model2.score_change.changed_at
         load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
         forecast_model2.score_change.refresh_from_db()
@@ -439,7 +439,7 @@ class ForecastTestCase(TestCase):
         # tests that the json_io_dict_from_forecast()'s output order for SampleDistributions is preserved
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        forecast_model = ForecastModel.objects.create(project=project)
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero)

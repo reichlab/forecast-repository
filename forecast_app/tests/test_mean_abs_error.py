@@ -25,7 +25,7 @@ class MAETestCase(TestCase):
     def setUpTestData(cls):
         cls.project = Project.objects.create()
         make_cdc_units_and_targets(cls.project)
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project)
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='name', abbreviation='abbrev')
 
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 1)))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
@@ -64,7 +64,7 @@ class MAETestCase(TestCase):
                                 timezero_date=datetime.date(2016, 10, 23), is_season_start=True, season_name='s1')
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 11, 6))
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         load_cdc_csv_forecasts_from_dir(forecast_model2, Path('forecast_app/tests/load_forecasts'), 2016)
         load_truth_data(project2, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 

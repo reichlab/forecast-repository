@@ -40,7 +40,7 @@ class PredictionValidationTestCase(TestCase):
     def setUpTestData(cls):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         cls.project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        forecast_model = ForecastModel.objects.create(project=cls.project)
+        forecast_model = ForecastModel.objects.create(project=cls.project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         cls.forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
 

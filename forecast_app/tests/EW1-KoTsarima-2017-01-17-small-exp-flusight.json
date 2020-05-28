@@ -3,8 +3,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 3.2}, {"point": 3.3}, {"point": 3.3}, {"point": 3.2}], "dataVersionTime": "20161022"},
           null
         ]
@@ -15,8 +15,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 1.8}, {"point": 2.4}, {"point": 2.4}, {"point": 2.5}], "dataVersionTime": "20161022"},
           null
         ]
@@ -27,8 +27,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 6.1}, {"point": 6.0}, {"point": 5.9}, {"point": 5.9}], "dataVersionTime": "20161022"},
           null
         ]
@@ -39,8 +39,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 2.8}, {"point": 3.1}, {"point": 3.0}, {"point": 2.6}], "dataVersionTime": "20161022"},
           null
         ]
@@ -51,8 +51,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 2.5}, {"point": 2.8}, {"point": 2.7}, {"point": 2.8}], "dataVersionTime": "20161022"},
           null
         ]
@@ -63,8 +63,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 2.0}, {"point": 2.0}, {"point": 1.9}, {"point": 2.1}], "dataVersionTime": "20161022"},
           null
         ]
@@ -75,8 +75,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 4.6}, {"point": 4.4}, {"point": 4.5}, {"point": 4.4}], "dataVersionTime": "20161022"},
           null
         ]
@@ -87,8 +87,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 2.3}, {"point": 2.5}, {"point": 2.5}, {"point": 2.1}], "dataVersionTime": "20161022"},
           null
         ]
@@ -99,8 +99,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 1.7}, {"point": 1.6}, {"point": 1.6}, {"point": 1.7}], "dataVersionTime": "20161022"},
           null
         ]
@@ -111,8 +111,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [{"series": [{"point": 3.2}, {"point": 3.6}, {"point": 3.7}, {"point": 3.8}], "dataVersionTime": "20161022"},
           null
         ]
@@ -123,8 +123,8 @@
     "timePoints": ["20161023", "20161030"],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
-        "meta": {"name": "", "description": "", "url": ""},
+        "id": "forecast_m({{forecast_model_id}})",
+        "meta": {"name": "forecast_model1 name", "description": "", "url": ""},
         "predictions": [
           {"series": [{"point": 3.35}, {"point": 3.1}, {"point": 2.6}, {"point": 2.3}], "dataVersionTime": "20161022"},
           null

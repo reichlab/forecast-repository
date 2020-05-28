@@ -36,7 +36,7 @@ class ProjectTestCase(TestCase):
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         make_cdc_units_and_targets(cls.project)
 
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1')
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
@@ -280,7 +280,7 @@ class ProjectTestCase(TestCase):
                          project3.start_end_dates_for_season(None))
 
         # test unit_to_max_val()
-        forecast_model = ForecastModel.objects.create(project=project2)
+        forecast_model = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, forecast_model, csv_file_path, time_zero3)
         exp_unit_to_max_val = {'HHS Region 1': 2.06145600601835, 'HHS Region 10': 2.89940153907353,
@@ -666,7 +666,7 @@ class ProjectTestCase(TestCase):
     def test_query_forecasts_for_project(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        model = forecast_model.name
+        model = forecast_model.abbreviation
         tz = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
         timezero_to_season_name = project.timezero_to_season_name()
         seas = timezero_to_season_name[time_zero]
@@ -802,7 +802,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual(9, len(rows))
 
         # following two tests require a second model, timezero, and forecast
-        forecast_model2 = ForecastModel.objects.create(project=project, name=model)
+        forecast_model2 = ForecastModel.objects.create(project=project, name=model, abbreviation='abbrev')
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 22))
         forecast2 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
                                             time_zero=time_zero2, notes="a small prediction file")

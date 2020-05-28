@@ -44,7 +44,7 @@ class ScoresTestCase(TestCase):
         load_truth_data(cls.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         # use default abbreviation (""):
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model', abbreviation='')
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='test model', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
@@ -364,7 +364,7 @@ class ScoresTestCase(TestCase):
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
         make_cdc_units_and_targets(project2)
 
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')
         load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
 
@@ -729,16 +729,11 @@ class ScoresTestCase(TestCase):
     # other tests
     #
 
-    def test_download_scores_empty_abbrev(self):
-        # the abbreviation for self.forecast_model is the default (""). in this case the model name is used for the
-        # 'model' column value
-        self._download_scores_internal_test(self.forecast_model.name)
+    def test_download_scores_model_column_name(self):
+        self._download_scores_internal_test(self.forecast_model.abbreviation)  # 'abbrev'
 
-
-    def test_download_scores_non_empty_abbrev(self):
         self.forecast_model.abbreviation = 'model_abbrev'
         self.forecast_model.save()
-        # since there is a non-empty abbreviation, it should be used instead of the model name
         self._download_scores_internal_test(self.forecast_model.abbreviation)
 
 
@@ -836,7 +831,7 @@ class ScoresTestCase(TestCase):
         time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 4, 23))
         create_thai_units_and_targets(project2)
 
-        forecast_model2 = ForecastModel.objects.create(project=project2)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv')
         load_cdc_csv_forecast_file(None, forecast_model2, csv_file_path, time_zero2)  # no season_start_year
         load_truth_data(project2, Path('forecast_app/tests/scores/dengue-truths-small.csv'))
@@ -898,7 +893,7 @@ def _make_cdc_log_score_project():
     time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
     load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'))
 
-    forecast_model2 = ForecastModel.objects.create(project=project2, name='test model')
+    forecast_model2 = ForecastModel.objects.create(project=project2, name='test model', abbreviation='abbrev')
     csv_file_path = Path('forecast_app/tests/scores/20161030-KoTstable-20161114-small.cdc.csv')
     forecast2 = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero2)
 
@@ -910,7 +905,7 @@ def _make_thai_log_score_project():
     time_zero2 = TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 4, 23))
     create_thai_units_and_targets(project2)
 
-    forecast_model2 = ForecastModel.objects.create(project=project2)
+    forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
     csv_file_path = Path('forecast_app/tests/scores/20170423-gam_lag1_tops3-20170525-small.cdc.csv')
     forecast2 = load_cdc_csv_forecast_file(None, forecast_model2, csv_file_path, time_zero2)  # no season_start_year
 
@@ -940,5 +935,5 @@ def _make_covid19_project(user):
     if found_project:
         found_project.delete()
     project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), user)
-    forecast_model = ForecastModel.objects.create(name='docs forecast model', project=project)
+    forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model', abbreviation='abbrev')
     return project, forecast_model

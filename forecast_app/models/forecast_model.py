@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 
@@ -33,6 +34,25 @@ class ForecastModel(models.Model):
 
     def __str__(self):  # todo
         return basic_str(self)
+
+
+    def save(self, *args, **kwargs):
+        """
+        Validates my name and abbreviation for uniqueness within my project.
+        """
+        if (not self.name) or (not self.abbreviation):
+            raise ValidationError(f"both name and abbreviation are required. one or both was not found. "
+                                  f"name={self.name!r}, abbreviation={self.abbreviation!r}")
+
+        for forecast_model in self.project.models.all():
+            if (forecast_model != self) and ((self.name == forecast_model.name) or
+                                             (self.abbreviation == forecast_model.abbreviation)):
+                raise ValidationError(f"both name and abbreviation must be unique. one or both was a duplicate of "
+                                      f"this model: {forecast_model}. name={self.name!r}, "
+                                      f"abbreviation={self.abbreviation!r}")
+
+        # done
+        super().save(*args, **kwargs)
 
 
     def get_absolute_url(self):

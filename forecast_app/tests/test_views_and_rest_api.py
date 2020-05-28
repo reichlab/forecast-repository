@@ -80,23 +80,23 @@ class ViewsTestCase(TestCase):
 
         # create some models to bump up ID in case of accidental passing where model IDs == project IDs :-)
         ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
-                                     home_url='http://example.com', owner=cls.mo_user)
-        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
-                                     home_url='http://example.com', owner=cls.mo_user)
-        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
-                                     home_url='http://example.com', owner=cls.mo_user)
+                                     abbreviation='abbrev', home_url='http://example.com', owner=cls.mo_user)
+        ForecastModel.objects.create(project=cls.public_project, name='public model2', description='',
+                                     abbreviation='abbrev2', home_url='http://example.com', owner=cls.mo_user)
+        ForecastModel.objects.create(project=cls.public_project, name='public model3', description='',
+                                     abbreviation='abbrev3', home_url='http://example.com', owner=cls.mo_user)
 
-        ForecastModel.objects.create(project=cls.public_project, name='public model', description='',
-                                     home_url='http://example.com', owner=cls.mo_user)
-        cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model',
-                                                        description='', home_url='http://example.com',
-                                                        owner=cls.mo_user)
+        ForecastModel.objects.create(project=cls.public_project, name='public model4', description='',
+                                     abbreviation='abbrev4', home_url='http://example.com', owner=cls.mo_user)
+        cls.public_model = ForecastModel.objects.create(project=cls.public_project, name='public model5',
+                                                        abbreviation='abbrev5', description='',
+                                                        home_url='http://example.com', owner=cls.mo_user)
         cls.public_forecast = load_cdc_csv_forecast_file(2016, cls.public_model, cls.csv_file_path, cls.public_tz1)
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
-                                                         description='', home_url='http://example.com',
-                                                         owner=cls.mo_user)
+                                                         abbreviation='abbrev', description='',
+                                                         home_url='http://example.com', owner=cls.mo_user)
         cls.private_forecast = load_cdc_csv_forecast_file(2016, cls.private_model, cls.csv_file_path, cls.private_tz1)
 
         # user/response pairs for testing authorization
@@ -925,7 +925,8 @@ class ViewsTestCase(TestCase):
     def test_api_delete_model(self):
         # create a model to delete
         project2 = Project.objects.create(owner=self.po_user)
-        forecast_model2 = ForecastModel.objects.create(project=project2, owner=self.po_user)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev',
+                                                       owner=self.po_user)
 
         # case: not authorized
         joe_user = User.objects.create_user(username='joe', password='password')

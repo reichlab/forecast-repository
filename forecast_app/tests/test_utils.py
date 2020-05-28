@@ -20,7 +20,7 @@ class UtilsTestCase(TestCase):
         cls.project = Project.objects.create()
         make_cdc_units_and_targets(cls.project)
 
-        cls.forecast_model = ForecastModel.objects.create(project=cls.project)
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='name', abbreviation='abbrev')
 
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=(pymmwr.mmwr_week_to_date(2017, 1)))

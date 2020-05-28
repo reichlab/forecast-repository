@@ -93,6 +93,7 @@ def fill_cdc_project(project, mo_user, is_public):
     click.echo("creating ForecastModel")
     forecast_model1 = ForecastModel.objects.create(project=project,
                                                    name=f'Test ForecastModel1 ({"public" if is_public else "private"})',
+                                                   abbreviation='model1_abbrev',
                                                    team_name='ForecastModel1 team',
                                                    description="a ForecastModel for testing",
                                                    home_url='http://example.com',
@@ -107,6 +108,7 @@ def fill_cdc_project(project, mo_user, is_public):
 
     ForecastModel.objects.create(project=project,
                                  name=f'Test ForecastModel2 ({"public" if is_public else "private"})',
+                                 abbreviation='model2_abbrev',
                                  # team_name='ForecastModel2 team',  # leave default ('')
                                  description="a second ForecastModel for testing",
                                  home_url='http://example.com',
@@ -135,7 +137,7 @@ def _make_docs_project(user):
 
     load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))
 
-    forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model')
+    forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model', abbreviation='docs_mod')
     time_zero = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
     forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                        time_zero=time_zero, notes="a small prediction file")

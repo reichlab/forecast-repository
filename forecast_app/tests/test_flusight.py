@@ -28,7 +28,8 @@ class FlusightTestCase(TestCase):
                                 timezero_date=datetime.date(2016, 10, 30),
                                 # 20161030-KoTstable-20161114.cdc.csv {'year': 2016, 'week': 44, 'day': 1}
                                 data_version_date=datetime.date(2016, 10, 29))
-        forecast_model1 = ForecastModel.objects.create(project=project)
+        forecast_model1 = ForecastModel.objects.create(project=project, name='forecast_model1 name',
+                                                       abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, forecast_model1, csv_file_path, time_zero)
 
@@ -56,7 +57,8 @@ class FlusightTestCase(TestCase):
                                 timezero_date=datetime.date(2016, 10, 30),
                                 data_version_date=None,
                                 is_season_start=True, season_name='2017')  # season has no forecast data
-        forecast_model = ForecastModel.objects.create(project=project)
+        forecast_model = ForecastModel.objects.create(project=project, name='forecast_model1 name',
+                                                      abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, forecast_model, csv_file_path, time_zero)
         with open('forecast_app/tests/EW1-KoTsarima-2017-01-17-small-exp-flusight-no-points.json', 'r') as fp:
@@ -84,8 +86,8 @@ class FlusightTestCase(TestCase):
                                 timezero_date=datetime.date(2016, 11, 6),
                                 # 20161106-KoTstable-20161121.cdc.csv {'year': 2016, 'week': 45, 'day': 1}
                                 data_version_date=None)
-        forecast_model1 = ForecastModel.objects.create(name='forecast_model1', project=project)
-        forecast_model2 = ForecastModel.objects.create(name='forecast_model2', project=project)
+        forecast_model1 = ForecastModel.objects.create(project=project, name='forecast_model1', abbreviation='model1')
+        forecast_model2 = ForecastModel.objects.create(project=project, name='forecast_model2', abbreviation='model2')
         forecast_dir = Path('forecast_app/tests/load_forecasts')
         load_cdc_csv_forecasts_from_dir(forecast_model1, forecast_dir, 2016)
         load_cdc_csv_forecasts_from_dir(forecast_model2, forecast_dir / 'third-file', 2016)

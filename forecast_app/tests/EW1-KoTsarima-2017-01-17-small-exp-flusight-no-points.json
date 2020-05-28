@@ -5,9 +5,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -23,9 +23,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -41,9 +41,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -59,9 +59,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -77,9 +77,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -95,9 +95,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -113,9 +113,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -131,9 +131,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -149,9 +149,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -167,9 +167,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },
@@ -185,9 +185,9 @@
     ],
     "models": [
       {
-        "id": "({{forecast_model_id}})",
+        "id": "forecast_m({{forecast_model_id}})",
         "meta": {
-          "name": "",
+          "name": "forecast_model1 name",
           "description": "",
           "url": ""
         },

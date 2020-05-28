@@ -933,6 +933,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
         score_groups = list(score_id_value_grouper)
         score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
         score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
+        # while name and abbreviation are now both required to be non-empty, we leave the check here just in case:
         csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
                              time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                              timezero_to_season_name[time_zero],
