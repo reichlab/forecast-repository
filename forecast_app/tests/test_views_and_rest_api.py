@@ -4,7 +4,6 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
-import django_rq
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -17,7 +16,6 @@ from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
-from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
@@ -140,7 +138,8 @@ class ViewsTestCase(TestCase):
     # 'create-model' -> form
     # 'edit-model' -> form
     @patch('forecast_app.models.forecast_model.ForecastModel.delete')  # 'delete-model'
-    def test_url_get_general(self, mock_delete_model, mock_delete_project, mock_delete_forecast):
+    @patch('rq.queue.Queue.enqueue')
+    def test_url_get_general(self, mock_delete_model, mock_delete_project, mock_delete_forecast, enqueue_mock):
         url_to_exp_user_status_code_pairs = {
             reverse('index'): self.OK_ALL,
             reverse('about'): self.OK_ALL,
@@ -768,7 +767,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(season_peak_week_serializer.data, season_peak_week_data)  # single matches multi
 
 
-    def test_api_delete_forecast(self):
+    @patch('rq.queue.Queue.enqueue')
+    def test_api_delete_forecast(self, enqueue_mock):
         # anonymous delete: self.public_forecast -> disallowed
         response = self.client.delete(reverse('api-forecast-detail', args=[self.public_forecast.pk]))
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
@@ -1117,7 +1117,8 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
 
 
-    def test_api_forecast_queries(self):
+    @patch('rq.queue.Queue.enqueue')
+    def test_api_forecast_queries(self, enqueue_mock):
         forecast_queries_url = reverse('api-forecast-queries', args=[str(self.public_project.pk)])
         jwt_token = self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
 
@@ -1142,18 +1143,14 @@ class ViewsTestCase(TestCase):
             }, format='json')
             mock.assert_called_once_with(self.public_project, {'hi': 1})
 
-        # case: blue sky: test that POST enqueues and returns a Job. we tried patching 'rq.queue.Queue.enqueue' but
-        # couldn't get it to work, so instead we check the queue directly
-        queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)
-        queue.empty()
+        # case: blue sky: test that POST enqueues and returns a Job
+        enqueue_mock.reset_mock()
         json_response = self.client.post(forecast_queries_url, {
             'Authorization': f'JWT {jwt_token}',
             'query': {},
         }, format='json')
         response_json = json_response.json()  # JobSerializer
-        self.assertEqual(1, len(queue.jobs))
-        self.assertEqual('forecast_app.api_views._query_forecasts_worker', queue.jobs[0].func_name)
-        self.assertEqual(response_json['id'], queue.jobs[0].args[0])  # Job.id
+        self.assertEqual(1, enqueue_mock.call_count)
 
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(Job.QUEUED, response_json['status'])
