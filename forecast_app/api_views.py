@@ -25,7 +25,8 @@ from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
-from forecast_app.models.job import Job
+from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
+    JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
@@ -438,6 +439,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         # upload to cloud and enqueue a job to process a new Job
         notes = request.data.get('notes', '')
         is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
+                                     type=JOB_TYPE_UPLOAD_FORECAST,
                                      forecast_model_pk=forecast_model.pk,
                                      timezero_pk=time_zero.pk, notes=notes)
         if is_error:
@@ -585,6 +587,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         # upload to cloud and enqueue a job to process a new Job
         data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
         is_error, job = _upload_file(request.user, data_file, _upload_truth_worker,
+                                     type=JOB_TYPE_UPLOAD_TRUTH,
                                      project_pk=project.pk)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'"},
@@ -630,7 +633,7 @@ def query_forecasts_endpoint(request, pk):
 
     # create the job
     job = Job.objects.create(user=request.user)  # status = PENDING
-    job.input_json = {'project_pk': pk, 'query': query}
+    job.input_json = {'type': JOB_TYPE_QUERY_FORECAST, 'project_pk': pk, 'query': query}
     job.save()
 
     queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)

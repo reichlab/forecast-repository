@@ -19,6 +19,25 @@ from utils.utilities import basic_str
 
 logger = logging.getLogger(__name__)
 
+#
+# Job "types"
+#
+# Used by methods that create Jobs to save a 'type' key in Job.input_json. There is nothing formal about this; it's
+# currently simply a convention for visual idenfication by people. We considered adding a Job.type, but we could not
+# justify the overhead of having to change the class (and the resulting migration) every time new types are added (an
+# unknown frequency, BTW). That is, informal means we can add new types without having to migrate. By convention the
+# members are verbs.
+#
+
+JOB_TYPE_QUERY_FORECAST = 'QUERY_FORECAST'
+JOB_TYPE_DELETE_FORECAST = 'DELETE_FORECAST'
+JOB_TYPE_UPLOAD_TRUTH = 'UPLOAD_TRUTH'
+JOB_TYPE_UPLOAD_FORECAST = 'UPLOAD_FORECAST'
+
+
+#
+# Job
+#
 
 class Job(models.Model):
     """

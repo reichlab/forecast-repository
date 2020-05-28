@@ -20,7 +20,8 @@ from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, Us
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
 # from forecast_app.models.job import Job, job_cloud_file
-from forecast_app.models.job import Job
+from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
+    JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME
@@ -1030,6 +1031,7 @@ def upload_truth(request, project_pk):
     # upload to cloud and enqueue a job to process a new Job
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
     is_error, job = _upload_file(request.user, data_file, _upload_truth_worker,
+                                 type=JOB_TYPE_UPLOAD_TRUTH,
                                  project_pk=project_pk)
     if is_error:
         return render(request, 'message.html',
@@ -1119,6 +1121,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
     # upload to cloud and enqueue a job to process a new Job
     is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
+                                 type=JOB_TYPE_UPLOAD_FORECAST,
                                  forecast_model_pk=forecast_model_pk,
                                  timezero_pk=timezero_pk)
     if is_error:
@@ -1197,7 +1200,7 @@ def delete_forecast(request, forecast_pk):
 
 def enqueue_delete_forecast(user, forecast):
     job = Job.objects.create(user=user)  # status = PENDING
-    job.input_json = {'forecast_pk': forecast.pk}
+    job.input_json = {'type': JOB_TYPE_DELETE_FORECAST, 'forecast_pk': forecast.pk}
     job.save()
 
     queue = django_rq.get_queue(DELETE_FORECAST_QUEUE_NAME)
@@ -1261,7 +1264,7 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         NB: If it needs to save job.output_json, make sure to call save(), e.g.,
             job.output_json = {'forecast_pk': new_forecast.pk}
             job.save()
-    :param kwargs: saved in the new Job's input_json
+    :param kwargs: saved in the new Job's input_json. it is recommended that 'type' be one of them, as found in JobType
     :return a 2-tuple: (is_error, job) where:
         - is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the user
         - job the new Job instance if not is_error. None o/w
