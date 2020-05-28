@@ -28,7 +28,7 @@
                     </td>
                     <td><a href="{% url 'model-detail' forecast_model.pk %}">{{ forecast_model.name }}</a></td>
                     <td>{{ updated_at|date:"Y-m-d h:i:s" }}</td>
-                    <td>{{ forecast_model.score_change.changed_at|date:"Y-m-d h:i:s" }}</td>
+                    <td>{{ forecast_model.score_change.changed_at|date:"Y-m-d H:i:s T" }}</td>
                     <td>{% if is_needs_update %}<i class="fas fa-edit"></i>{% else %}{% endif %}</td>
                 </tr>
             {% endfor %}

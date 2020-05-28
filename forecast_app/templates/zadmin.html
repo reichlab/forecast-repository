@@ -74,7 +74,7 @@
                             <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
                         </td>
                         <td>
-                            {{ project.row_count_cache.updated_at|date:"Y-m-d h:i:s" }}
+                            {{ project.row_count_cache.updated_at|date:"Y-m-d H:i:s T" }}
                         </td>
                         <td>
                             {{ project.row_count_cache.row_count|intcomma }}
@@ -116,7 +116,7 @@
                         <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
                     </td>
                     <td>
-                        {{ project.score_csv_file_cache.updated_at|date:"Y-m-d h:i:s" }}
+                        {{ project.score_csv_file_cache.updated_at|date:"Y-m-d H:i:s T" }}
                     </td>
                     <td>
                         {{ project.score_csv_file_cache.is_file_exists|yesno:"v,x" }}
