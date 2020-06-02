@@ -24,6 +24,8 @@
         <li>Database Name: &ldquo;{{ django_db_name }}&rdquo;</li>
         <li>Database Vendor: &ldquo;{{ django_conn.vendor }}&rdquo;</li>
         <li>S3_BUCKET_PREFIX: &ldquo;{{ s3_bucket_prefix }}&rdquo;</li>
+        <li>MAX_NUM_QUERY_ROWS: {{ max_num_query_rows|intcomma }}</li>
+        <li>MAX_UPLOAD_FILE_SIZE: {{ max_upload_file_size|intcomma }}</li>
     </ul>
 
 
@@ -100,6 +102,8 @@
         <button type="submit" class="btn btn-success">Update All</button>
     </form>
 
+    <hr> {# hack to get buttons to group visually with content above them #}
+
 
     <h2>ScoreCsvFileCaches</h2>
 
@@ -140,6 +144,8 @@
     {% else %}
         <small class="text-muted">(No projects)</small>
     {% endif %}
+
+    <hr> {# hack to get buttons to group visually with content above them #}
 
 
     <h2>Scores</h2>

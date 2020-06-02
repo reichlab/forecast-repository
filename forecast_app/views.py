@@ -24,7 +24,8 @@ from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLO
     JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
-from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME
+from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
+    MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.cloud_file import delete_file, upload_file
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
@@ -105,6 +106,8 @@ def zadmin(request):
         context={'django_db_name': django_db_name,
                  'django_conn': connection,
                  's3_bucket_prefix': S3_BUCKET_PREFIX,
+                 'max_num_query_rows': MAX_NUM_QUERY_ROWS,
+                 'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
                  'projects_sort_pk': projects_sort_pk,
                  'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
                  'scores_sort_name': Score.objects.all().order_by('name'),

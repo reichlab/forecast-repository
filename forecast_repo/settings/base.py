@@ -275,7 +275,7 @@ COMPRESS_OFFLINE = True  # "". default: False
 LIBSASS_OUTPUT_STYLE = 'compressed'  # default: 'nested'
 
 #
-# set cofigurable zoltar variables
+# set configurable zoltar variables
 #
 
 # number of rows beyond which `query_forecasts_for_project()` raises a "too many rows" error
