@@ -590,7 +590,7 @@ CSV_HEADER = ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value',
               'family', 'param1', 'param2', 'param3']
 
 
-def query_forecasts_for_project(project, query, max_num_rows=100_000):
+def query_forecasts_for_project(project, query, max_num_rows=200_000):
     """
     Top-level function for querying forecasts within project. Runs in the calling thread and therefore blocks.
 
