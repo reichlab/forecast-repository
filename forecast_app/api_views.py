@@ -393,8 +393,8 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
         # imported here so that test_api_upload_forecast() can patch via mock:
-        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file, _upload_forecast_worker, \
-            is_user_ok_upload_forecast
+        from forecast_app.views import _upload_file, _upload_forecast_worker, is_user_ok_upload_forecast
+        from forecast_repo.settings.base import MAX_UPLOAD_FILE_SIZE
 
 
         # check authorization
@@ -566,7 +566,8 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
         # imported here so that test_api_upload_forecast() can patch via mock:
-        from forecast_app.views import MAX_UPLOAD_FILE_SIZE, _upload_file
+        from forecast_app.views import _upload_file
+        from forecast_repo.settings.base import MAX_UPLOAD_FILE_SIZE
 
 
         # check authorization

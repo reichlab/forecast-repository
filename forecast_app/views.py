@@ -1245,10 +1245,6 @@ def _delete_forecast_worker(job_pk):
 # use simple (but limited) pass-through uploading, rather than more efficient direct uploading, but this is a todo.
 # See for more: https://devcenter.heroku.com/articles/s3#file-uploads .
 
-
-MAX_UPLOAD_FILE_SIZE = 10E+06
-
-
 def _upload_file(user, data_file, process_job_fcn, **kwargs):
     """
     Accepts a file uploaded to this app by the user. Creates a Job to track the job, saves data_file in cloud

@@ -22,7 +22,6 @@ from django.conf import settings
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
@@ -136,7 +135,6 @@ USE_TZ = True
 if not settings.DEBUG:  # NB: requires "children" settings to set DEBUG before importing
     SECURE_SSL_REDIRECT = True
 
-
 #
 # set up logging - https://stackoverflow.com/questions/5137042/how-can-i-get-django-to-print-the-debug-information-to-the-console
 # note: According to docs, I should not have to specify this - default should be to log everything INFO and higher to
@@ -166,7 +164,6 @@ LOGGING = {
     }
 }
 
-
 #
 # https://docs.djangoproject.com/en/1.11/ref/settings/#std:setting-LOGIN_REDIRECT_URL
 #
@@ -174,12 +171,10 @@ LOGGING = {
 # Redirect to home URL after login (Default redirects to /accounts/profile/)
 LOGIN_REDIRECT_URL = '/'
 
-
 #
 # https://django-debug-toolbar.readthedocs.io/en/stable/installation.html#internal-ips
 #
 INTERNAL_IPS = ['127.0.0.1']
-
 
 #
 # set tags to match Bootstrap 3, https://coderwall.com/p/wekglq/bootstrap-and-django-messages-play-well-together
@@ -195,7 +190,6 @@ MESSAGE_TAGS = {
     # message_constants.WARNING: 'warning',
     message_constants.ERROR: 'danger',  # the only one that needs correcting, i.e., the only one different from default
 }
-
 
 #
 # ---- Django-RQ queue name variables. used by "inheriting" settings files ----
@@ -241,7 +235,6 @@ EMAIL_BACKEND = 'anymail.backends.sendinblue.EmailBackend'
 
 DEFAULT_FROM_EMAIL = 'admin@zoltardata.com'
 
-
 #
 # ---- static files config ----
 #
@@ -268,7 +261,6 @@ STATICFILES_FINDERS = [
     'compressor.finders.CompressorFinder'  # Django-Compressor
 ]
 
-
 #
 # Django Compressor
 #
@@ -281,3 +273,30 @@ COMPRESS_STORAGE = 'compressor.storage.GzipCompressorFileStorage'
 COMPRESS_OFFLINE = True  # "". default: False
 
 LIBSASS_OUTPUT_STYLE = 'compressed'  # default: 'nested'
+
+#
+# set cofigurable zoltar variables
+#
+
+# number of rows beyond which `query_forecasts_for_project()` raises a "too many rows" error
+MAX_NUM_QUERY_ROWS = 200_000
+
+if 'MAX_NUM_QUERY_ROWS' in os.environ:
+    max_num_query_rows_value = os.environ.get('MAX_NUM_QUERY_ROWS')
+    try:
+        MAX_NUM_QUERY_ROWS = float(max_num_query_rows_value)
+    except ValueError:
+        raise RuntimeError(f"base.py: MAX_NUM_QUERY_ROWS config var could not be coerced to float: "
+                           f"{max_num_query_rows_value!r}")
+
+# used by file uploading methods to limit them from being too large:
+MAX_UPLOAD_FILE_SIZE = 10E+06
+
+if 'MAX_UPLOAD_FILE_SIZE' in os.environ:
+    max_upload_file_size_value = os.environ.get('MAX_UPLOAD_FILE_SIZE')
+    try:
+        MAX_UPLOAD_FILE_SIZE = float(max_upload_file_size_value)
+    except ValueError:
+        raise RuntimeError(
+            f"base.py: MAX_UPLOAD_FILE_SIZE config var could not be coerced to float: "
+            f"{max_upload_file_size_value!r}")

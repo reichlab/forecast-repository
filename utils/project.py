@@ -13,6 +13,7 @@ from django.utils import timezone
 from forecast_app.models import Project, Unit, Target, Forecast, PointPrediction, ForecastModel, BinDistribution, \
     NamedDistribution, SampleDistribution, QuantileDistribution
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
+from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -590,7 +591,7 @@ CSV_HEADER = ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value',
               'family', 'param1', 'param2', 'param3']
 
 
-def query_forecasts_for_project(project, query, max_num_rows=200_000):
+def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     """
     Top-level function for querying forecasts within project. Runs in the calling thread and therefore blocks.
 
