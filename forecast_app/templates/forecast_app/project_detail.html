@@ -195,22 +195,27 @@
         <small class="text-muted">(No units)</small>
     {% endif %}
 
+    <hr> {# hack to add space before next #}
+
 
     <h2>Targets ({{ targets|length }})</h2>
 
     {% if targets %}
-        <table class="table table-striped table-bordered">
+        <table id="targets_table" class="table table-striped table-bordered">
+            <thead>
             <tr>
                 <th>Name</th>
                 <th>Description</th>
                 <th>Type</th>
                 <th>Unit</th>
                 <th title="Integer value indicating # steps ahead relative to a time zero. Used for time chart plots, and to extract 'actual' values from the truth data.">
-                    Step Ahead?
+                    Step&nbsp;ahead?
                 </th>
                 <th>Range</th>
                 <th>Cats</th>
             </tr>
+            </thead>
+            <tbody>
             {% for target in targets %}
                 <tr>
                     <td>{{ target.name }}</td>
@@ -226,10 +231,13 @@
                     <td>{{ target.cats.all.count|intword|intcomma }}</td>
                 </tr>
             {% endfor %}
+            </tbody>
         </table>
     {% else %}
         <small class="text-muted">(No targets)</small>
     {% endif %}
+
+    <hr> {# hack to add space before next #}
 
 
     <h2>Time zeros ({{ project.timezeros.all|length }})</h2>
@@ -237,7 +245,8 @@
     {% if project.timezeros.all %}
         <div class="row">
             <div class="col-sm-8">
-                <table class="table table-striped table-bordered">
+                <table id="timezeros_table" class="table table-striped table-bordered">
+                    <thead>
                     <tr>
                         <th
                                 title="The date from which a forecast originates and to which targets are relative. Every forecast has a time zero.">
@@ -250,6 +259,8 @@
                         <th># Forecasts</th>
                         <th>Starts Season</th>
                     </tr>
+                    </thead>
+                    <tbody>
                     {% for timezero, num_forecasts in timezeros_num_forecasts %}
                         <tr>
                             <td>{{ timezero.timezero_date|date:"Y-m-d" }}</td>
@@ -268,11 +279,20 @@
                             </td>
                         </tr>
                     {% endfor %}
+                    </tbody>
                 </table>
             </div>
         </div>
     {% else %}
         <small class="text-muted">(No time zeros)</small>
     {% endif %}
+
+    <!-- activate the https://datatables.net/ -->
+    <script>
+        $(document).ready(function () {
+            $('#targets_table').dataTable();
+            $('#timezeros_table').dataTable();
+        });
+    </script>
 
 {% endblock %}
