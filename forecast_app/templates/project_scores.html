@@ -1,26 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Project Scores: {{ project.name }}{% endblock %}
+{% block title %}Aggregate Scores: {{ project.name }}{% endblock %}
 
 {% block content %}
 
-    <p class="lead">Project scores for &ldquo;{{ project.name }}&rdquo;</p>
-
-    <div class="row">
-        <div class="col-md-8">
-            <table class="table table-bordered">
-                <tbody>
-                <tr>
-                    <th>Project:</th>
-                    <td><a href="{{ project.get_absolute_url }}"> {{ project.name }}</a></td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-
-    <h2>Unit and Season</h2>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">Aggregate scores</li>
+        </ol>
+    </nav>
 
     <!--
     Show two forms to select unit and season_name. The former is handled by JavaScript since that data is in-
@@ -57,8 +47,10 @@
         </div>
     </div>
 
+    <hr> {# hack to get buttons to group visually with content above them #}
 
-    <h2>Mean Absolute Error</h2>
+
+    <h4>Mean Absolute Error</h4>
 
     <p class="help-block">
         <a href="https://github.com/reichlab/flusight/wiki/Scoring#1-absolute-error" target="_blank">Absolute error</a>

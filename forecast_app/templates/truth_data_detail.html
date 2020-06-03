@@ -6,7 +6,15 @@
 
 {% block content %}
 
-    <p class="lead">Project truth for &ldquo;{{ project.name }}&rdquo;
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">{{ project.truth_csv_filename }}</li>
+        </ol>
+    </nav>
+
+    <h2>Project truth for &ldquo;{{ project.name }}&rdquo;
         {% if user.is_authenticated %}
             <a href="{% url 'api-truth-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
         {% endif %}
@@ -23,7 +31,7 @@
             {# the modal itself - hidden until above button shows it #}
             {% include 'delete_modal_snippet.html' with delete_object=project delete_url='delete-truth' delete_question='Delete truth?' %}
         {% endif %}
-    </p>
+    </h2>
 
 
     <div class="row">
@@ -31,11 +39,7 @@
             <table class="table table-bordered">
                 <tbody>
                 <tr>
-                    <th>Project:</th>
-                    <td><a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a></td>
-                </tr>
-                <tr>
-                    <th>Truth Data Filename:</th>
+                    <th>Upload filename:</th>
                     <td>
                         {% if project.is_truth_data_loaded %}
                             {{ project.truth_csv_filename }}
@@ -45,7 +49,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Truth Data Updated At:</th>
+                    <th>Updated at:</th>
                     <td>
                         {% if project.truth_updated_at %}
                             {{ project.truth_updated_at|date:"Y-m-d H:i:s T" }}
@@ -68,8 +72,8 @@
             <button type="submit" class="btn btn-primary">Download CSV</button>
         </form>
     {% else %}
-        <h2>Preview of {{ project.get_num_truth_rows|intword|intcomma }}
-            row{{ project.get_num_truth_rows|pluralize }}</h2>
+        <h4>Preview of {{ project.get_num_truth_rows|intword|intcomma }}
+            row{{ project.get_num_truth_rows|pluralize }}</h4>
         <small class="text-muted">(No data)</small>
     {% endif %}
 
