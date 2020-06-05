@@ -63,7 +63,20 @@
     </div>
 
 
-    <h2>Forecast has {{ forecast.get_num_rows|intword|intcomma }} prediction{{ forecast.get_num_rows|pluralize }}:</h2>
+    <h4>Unit{{ found_units|pluralize }}</h4>
+    <ul>
+        <li><strong>{{ found_units|length|intword|intcomma }}</strong>
+            (out of <strong>{{ forecast.forecast_model.project.units.all|length }}</strong>)</li>
+    </ul>
+
+    <h4>Target{{ found_targets|pluralize }}</h4>
+    <ul>
+        <li><strong>{{ found_targets|length|intword|intcomma }}</strong>
+            (out of <strong>{{ forecast.forecast_model.project.targets.all|length }}</strong>)</li>
+    </ul>
+
+    <h4>Prediction{{ forecast.get_num_rows|pluralize }} <small>({{ forecast.get_num_rows|intword|intcomma }})</small>
+    </h4>
     {% for pred_type, count in pred_type_count_pairs %}
         <ul>
             <li><code>{{ pred_type }}</code>: {{ count|intword|intcomma }} row{{ count|pluralize }}</li>

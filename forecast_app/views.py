@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 
@@ -32,6 +33,7 @@ from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -814,8 +816,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
-
         context = super().get_context_data(**kwargs)
+        context['models_rows'] = sorted(_models_summary_table_rows(project), key=lambda _: _[0].name)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
@@ -841,6 +843,94 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
             tz_to_num_forecasts[time_zero] = row['tz_count']
         return [(k, tz_to_num_forecasts[k])
                 for k in sorted(tz_to_num_forecasts.keys(), key=lambda timezero: timezero.timezero_date)]
+
+
+def _models_summary_table_rows(project):
+    """
+    :return: a list of rows suitable for rendering as a table
+        each row contains: [forecast_model_id, num_forecasts,
+                            oldest_forecast_tz_date, newest_forecast_tz_date,
+                            oldest_forecast_id, newest_forecast_id]
+        NB: the dates are strings
+    """
+    # the self-join allows gives us the actual ID of the max timezero's forecast's ID. NB: does *not* include models
+    # with no forecasts!
+    # per https://stackoverflow.com/questions/18725168/sql-group-by-minimum-value-in-one-field-while-selecting-distinct-rows
+    sql = f"""
+        SELECT aggr_sel.fm_id, aggr_sel.fm_count, aggr_sel.min_tz_date, aggr_sel.max_tz_date, f2.id, f3.id
+        FROM (SELECT fm1.id                 AS fm_id,
+                     count(fm1.id)          AS fm_count,
+                     min(tz1.timezero_date) AS min_tz_date,
+                     max(tz1.timezero_date) AS max_tz_date
+              FROM {ForecastModel._meta.db_table} fm1
+                       JOIN {Forecast._meta.db_table} AS f1 ON f1.forecast_model_id = fm1.id
+                       JOIN {TimeZero._meta.db_table} AS tz1 ON f1.time_zero_id = tz1.id
+              WHERE fm1.project_id = %s
+              GROUP BY fm1.id) AS aggr_sel
+                 JOIN {TimeZero._meta.db_table} AS tz2 ON tz2.timezero_date = aggr_sel.min_tz_date
+                 JOIN {TimeZero._meta.db_table} AS tz3 ON tz3.timezero_date = aggr_sel.max_tz_date
+                 JOIN {Forecast._meta.db_table} AS f2 ON f2.forecast_model_id = aggr_sel.fm_id AND tz2.id = f2.time_zero_id
+                 JOIN {Forecast._meta.db_table} AS f3 ON f3.forecast_model_id = aggr_sel.fm_id AND tz3.id = f3.time_zero_id
+        WHERE tz2.project_id = %s;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk, project.pk,))
+        rows = cursor.fetchall()
+
+        # add model IDs with no forecasts (omitted by query)
+        missing_model_ids = project.models \
+            .exclude(id__in=[_[0] for _ in rows]) \
+            .values_list('id', flat=True)
+        for missing_model_id in missing_model_ids:
+            rows.append((missing_model_id, 0, None, None, None, None))  # caller/view handles Nones
+
+        forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
+
+        # replace forecast_model_ids (row[0]) with objects, and replace datetime.dates (row[2], rows[3]) with strings
+        # (depends on database whether this is necessary)
+        rows = [(forecast_model_id_to_obj[row[0]], row[1],
+                 row[2].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[2], datetime.date) else row[2],
+                 row[3].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[3], datetime.date) else row[3],
+                 row[4], row[5]) for row in rows]
+        return rows
+
+
+# # todo xx slow!
+# def _num_units_for_forecast_ids_py(forecast_ids):
+#     """
+#     :param forecast_ids: list of Forecast IDs
+#     :return: a dict that maps: forecast_id -> num_units (unique)
+#     """
+#     forecast_id_to_num_units = {}  # return value. set next
+#     for forecast_id in forecast_ids:
+#         for pred_class in Prediction.concrete_subclasses():
+#             units = pred_class.objects.filter(forecast__id=forecast_id).values_list('unit').distinct()
+#             forecast_id_to_num_units[forecast_id] = len(units)
+#     return forecast_id_to_num_units
+#
+#
+# # todo xx even slower!
+# def _num_units_for_forecast_ids_sql(forecast_ids):
+#     """
+#     :param forecast_ids: list of Forecast IDs
+#     :return: a dict that maps: forecast_id -> num_units (unique)
+#     """
+#     # todo xx generalize to all five concrete prediction types
+#     param_str = ', '.join(['%s'] * len(forecast_ids))
+#     sql = f"""
+#         SELECT s.f_id, COUNT(*)
+#         FROM (SELECT forecast_id AS f_id, unit_id AS unit_id
+#               FROM {PointPrediction._meta.db_table}
+#               WHERE forecast_id in ({param_str})
+#               UNION
+#               SELECT forecast_id AS f_id, unit_id AS unit_id
+#               FROM {QuantileDistribution._meta.db_table}
+#               WHERE forecast_id in ({param_str})) AS s
+#         GROUP BY s.f_id;
+#     """
+#     with connection.cursor() as cursor:
+#         cursor.execute(sql, (forecast_ids * 2))
+#         return {forecast_id: num_units for forecast_id, num_units in cursor.fetchall()}
 
 
 def forecast_models_owned_by_user(user):
@@ -933,13 +1023,36 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
         forecast = self.get_object()
+
+        # set pred_type_count_pairs
         pred_type_count_pairs = [
             (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[concrete_prediction_class],
              concrete_prediction_class.objects.filter(forecast=forecast).count())
             for concrete_prediction_class in Prediction.concrete_subclasses()]
+
+        # set units and targets
+        all_units = forecast.forecast_model.project.units.all()
+        unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
+        found_unit_ids = set()
+        for pred_class in Prediction.concrete_subclasses():
+            pred_class_units = pred_class.objects.filter(forecast=forecast).values_list('unit', flat=True).distinct()
+            found_unit_ids.update(pred_class_units)
+        found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
+
+        all_targets = forecast.forecast_model.project.targets.all()
+        target_i_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
+        found_target_ids = set()
+        for pred_class in Prediction.concrete_subclasses():
+            pred_class_targets = pred_class.objects.filter(forecast=forecast).values_list('target',
+                                                                                          flat=True).distinct()
+            found_target_ids.update(pred_class_targets)
+        found_targets = [target_i_to_object[target_id] for target_id in found_target_ids]
+
+        context = super().get_context_data(**kwargs)
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
+        context['found_units'] = sorted(found_units, key=lambda _: _.name)
+        context['found_targets'] = sorted(found_targets, key=lambda _: _.name)
         return context
 
 
