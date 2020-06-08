@@ -848,7 +848,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 def _models_summary_table_rows(project):
     """
     :return: a list of rows suitable for rendering as a table
-        each row contains: [forecast_model_id, num_forecasts,
+        each row contains: [forecast_model, num_forecasts,
                             oldest_forecast_tz_date, newest_forecast_tz_date,
                             oldest_forecast_id, newest_forecast_id]
         NB: the dates are strings
@@ -893,44 +893,6 @@ def _models_summary_table_rows(project):
                  row[3].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[3], datetime.date) else row[3],
                  row[4], row[5]) for row in rows]
         return rows
-
-
-# # todo xx slow!
-# def _num_units_for_forecast_ids_py(forecast_ids):
-#     """
-#     :param forecast_ids: list of Forecast IDs
-#     :return: a dict that maps: forecast_id -> num_units (unique)
-#     """
-#     forecast_id_to_num_units = {}  # return value. set next
-#     for forecast_id in forecast_ids:
-#         for pred_class in Prediction.concrete_subclasses():
-#             units = pred_class.objects.filter(forecast__id=forecast_id).values_list('unit').distinct()
-#             forecast_id_to_num_units[forecast_id] = len(units)
-#     return forecast_id_to_num_units
-#
-#
-# # todo xx even slower!
-# def _num_units_for_forecast_ids_sql(forecast_ids):
-#     """
-#     :param forecast_ids: list of Forecast IDs
-#     :return: a dict that maps: forecast_id -> num_units (unique)
-#     """
-#     # todo xx generalize to all five concrete prediction types
-#     param_str = ', '.join(['%s'] * len(forecast_ids))
-#     sql = f"""
-#         SELECT s.f_id, COUNT(*)
-#         FROM (SELECT forecast_id AS f_id, unit_id AS unit_id
-#               FROM {PointPrediction._meta.db_table}
-#               WHERE forecast_id in ({param_str})
-#               UNION
-#               SELECT forecast_id AS f_id, unit_id AS unit_id
-#               FROM {QuantileDistribution._meta.db_table}
-#               WHERE forecast_id in ({param_str})) AS s
-#         GROUP BY s.f_id;
-#     """
-#     with connection.cursor() as cursor:
-#         cursor.execute(sql, (forecast_ids * 2))
-#         return {forecast_id: num_units for forecast_id, num_units in cursor.fetchall()}
 
 
 def forecast_models_owned_by_user(user):
