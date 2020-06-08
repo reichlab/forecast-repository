@@ -38,18 +38,16 @@ class ForecastModel(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Validates my name and abbreviation for uniqueness within my project.
+        Validates my abbreviation for uniqueness within my project.
         """
         if (not self.name) or (not self.abbreviation):
             raise ValidationError(f"both name and abbreviation are required. one or both was not found. "
                                   f"name={self.name!r}, abbreviation={self.abbreviation!r}")
 
         for forecast_model in self.project.models.all():
-            if (forecast_model != self) and ((self.name == forecast_model.name) or
-                                             (self.abbreviation == forecast_model.abbreviation)):
-                raise ValidationError(f"both name and abbreviation must be unique. one or both was a duplicate of "
-                                      f"this model: {forecast_model}. name={self.name!r}, "
-                                      f"abbreviation={self.abbreviation!r}")
+            if (forecast_model != self) and (self.abbreviation == forecast_model.abbreviation):
+                raise ValidationError(f"abbreviation must be unique but was a duplicate of this model: "
+                                      f"{forecast_model}. name={self.name!r} abbreviation={self.abbreviation!r}")
 
         # done
         super().save(*args, **kwargs)
