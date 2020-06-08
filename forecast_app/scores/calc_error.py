@@ -57,13 +57,16 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     num_warnings = 0
     for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in truth_data_qs:
         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+        if truth_value is None:
+            num_warnings += 1
+            continue  # skip this timezero's contribution to the score
         try:
             predicted_value = tz_unit_targ_pk_to_pt_pred_value[timezero_id][unit_id][target_id]
             score_value = abs(truth_value - predicted_value) if is_absolute_error else truth_value - predicted_value
             score_values.append((score.pk, timezero_id_to_forecast_id[timezero_id], unit_id, target_id, score_value))
         except KeyError as ke:  # no predicted value for one of timezero_id, unit_id, target_id
             num_warnings += 1
-            continue  # skip this forecast's contribution to the score
+            continue  # skip this timezero's contribution to the score
 
     # insert the ScoreValues!
     _insert_score_values(score_values)
