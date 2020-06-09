@@ -3,6 +3,7 @@ import datetime
 import io
 import json
 import logging
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -848,3 +849,59 @@ def _validate_object_ids(query_key, object_ids, project, model_class):
             error_messages.append(f"`{query_key}` contained ID(s) of objects that don't exist in project: "
                                   f"{missing_ids}")
     return error_messages
+
+
+#
+# group_targets()
+#
+
+def group_targets(project):
+    """
+    A utility that groups related targets in `project`. Only groups is_step_ahead ones, treating others as their own
+    group. Uses a simple algorithm to determine relatedness, one that assumes that the actual step_ahead_increment is in
+    the related targets' names. For example, "0 day ahead cum death" (step_ahead_increment=0) "1 day ahead cum death"
+    (step_ahead_increment=1) would be grouped together. Similar are "1 wk ahead" and "2 wk ahead", and "1_biweek_ahead"
+    and "2_biweek_ahead".
+
+    :param project:
+    :return: a dict that maps group_name -> group_targets. for 1-target groups, group_name=target.name
+    """
+    # approach: split target names using a few hopefully-common characters, find the index of each one's
+    # step_ahead_increment, remove that item from the split, and group based on the remaining items in the split. use
+    # the split sans step_ahead_increment as the group name
+    name_type_unit_to_targets = defaultdict(list)  # maps: (group_name, target_type, target_unit) -> target_list
+    for target in project.targets.all():
+        group_name = _group_name_for_target(target) if target.is_step_ahead else target.name
+        name_type_unit_to_targets[(group_name, target.type, target.unit)].append(target)
+
+    # create return value, replacing 3-tuple keys with unique strings. must handle case of same group_name but different
+    # target_type or target_unit. by convention we add an integer to the end to differentiate. first build a counter
+    # dict to help manage duplicate names
+    group_name_to_count = defaultdict(int)
+    for group_name, _, _ in name_type_unit_to_targets.keys():
+        group_name_to_count[group_name] += 1
+
+    group_name_to_targets = {}  # return value. filled next
+    for (group_name, target_type, target_unit), target_list in name_type_unit_to_targets.items():
+        # if group_name in name_type_unit_to_targets:  # duplicate
+        if group_name_to_count[group_name] != 1:  # duplicate
+            new_group_name = f'{group_name} {group_name_to_count[group_name]}'
+            group_name_to_count[group_name] -= 1  # for next one
+            group_name_to_targets[new_group_name] = target_list
+        else:  # no duplicate
+            group_name_to_targets[group_name] = target_list
+    return group_name_to_targets
+
+
+def _group_name_for_target(target):
+    split = list(filter(None, re.split(r'[ _\-]+', target.name)))  # our target naming convention
+    if len(split) == 1:
+        return target.name
+    elif str(target.step_ahead_increment) not in split:
+        return target.name
+    else:
+        try:
+            split.remove(str(target.step_ahead_increment))
+            return ' '.join(split)  # by convention we use ' ' for the group name
+        except ValueError:  # index() failed
+            return target.name

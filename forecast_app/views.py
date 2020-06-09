@@ -30,7 +30,7 @@ from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME
 from utils.cloud_file import delete_file, upload_file
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
-from utils.project import config_dict_from_project, create_project_from_json, load_truth_data
+from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
@@ -816,13 +816,20 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
+
+        # set target_groups: change from dict to 2-tuples
+        target_groups = group_targets(project)  # group_name -> group_targets
+        target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
+                               key=lambda _: _[0])  # [(group_name, group_targets), ...]
+
         context = super().get_context_data(**kwargs)
         context['models_rows'] = sorted(_models_summary_table_rows(project), key=lambda _: _[0].name)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
         context['units'] = project.units.all().order_by('name')
-        context['targets'] = project.targets.all().order_by('name')
+        context['target_groups'] = target_groups
+        context['num_targets'] = project.targets.count()
         return context
 
 

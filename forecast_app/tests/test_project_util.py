@@ -7,7 +7,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from forecast_app.models import Project, Target
-from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target
+from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target, group_targets
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -27,7 +27,8 @@ class ProjectUtilTestCase(TestCase):
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         output_project_config = config_dict_from_project(project, APIRequestFactory().request())
-        for target_dict in output_project_config['targets']:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
+        for target_dict in output_project_config[
+            'targets']:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
             del target_dict['id']
             del target_dict['url']
         for target_dict in output_project_config['timezeros']:  # "" TimeZeroSerializer
@@ -515,3 +516,86 @@ class ProjectUtilTestCase(TestCase):
             del target_dict['id']
             del target_dict['url']
         self.assertEqual(input_target_dicts, output_target_dicts)
+
+
+    def test_group_targets(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+
+        # case: target names with step_ahead_increment at start of name
+        project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), po_user)
+        grouped_targets = group_targets(project)
+        # group 1: "x day ahead cum death" | 0 day ahead cum death, 1 day ahead cum death, ..., 130 day ahead cum death
+        # group 2: "x day ahead inc death" | ""
+        # group 3: "x day ahead inc hosp"  | ""
+        # group 4: "x wk ahead cum death"  | 1 wk ahead cum death, 2 wk ahead cum death, ..., 20 wk ahead cum death
+        # group 5: "x wk ahead inc death"  | ""
+        self.assertEqual(5, len(grouped_targets))
+        self.assertEqual({'day ahead inc hosp', 'day ahead inc death', 'day ahead cum death', 'wk ahead inc death',
+                          'wk ahead cum death'},
+                         set(grouped_targets.keys()))
+        self.assertEqual(131, len(grouped_targets['day ahead inc hosp']))
+        self.assertEqual(131, len(grouped_targets['day ahead inc death']))
+        self.assertEqual(131, len(grouped_targets['day ahead cum death']))
+        self.assertEqual(20, len(grouped_targets['wk ahead inc death']))
+        self.assertEqual(20, len(grouped_targets['wk ahead cum death']))
+
+        # case: mix of target names with step_ahead_increment at start of name, and others
+        project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
+        grouped_targets = group_targets(project)
+        # group 1: "Season onset"
+        # group 2: "Season peak week"
+        # group 3: "Season peak percentage"
+        # group 4: "x wk ahead" | 1 wk ahead, 2 wk ahead, 3 wk ahead, 4 wk ahead
+        self.assertEqual(4, len(grouped_targets))
+        self.assertEqual({'Season onset', 'Season peak week', 'Season peak percentage', 'wk ahead'},
+                         set(grouped_targets.keys()))
+        self.assertEqual(4, len(grouped_targets['wk ahead']))
+
+        # case: target names with step_ahead_increment inside the name (i.e., not at start)
+        project = Project.objects.create()
+        for step_ahead_increment in range(2):
+            target_init = {'project': project, 'name': f'wk {step_ahead_increment} ahead',
+                           'type': Target.CONTINUOUS_TARGET_TYPE, 'is_step_ahead': True,
+                           'step_ahead_increment': step_ahead_increment, 'unit': 'cases'}
+            Target.objects.create(**target_init)
+        grouped_targets = group_targets(project)
+        # group 1: 'wk x ahead'
+        self.assertEqual(1, len(grouped_targets))
+        self.assertEqual({'wk ahead'}, set(grouped_targets.keys()))
+        self.assertEqual(2, len(grouped_targets['wk ahead']))
+
+        # case: targets with no word boundaries
+        project = create_project_from_json(Path('forecast_app/tests/projects/thai-project.json'), po_user)
+        grouped_targets = group_targets(project)
+        # group 1: "x_biweek_ahead" | 1_biweek_ahead, 2_biweek_ahead, 3_biweek_ahead, 4_biweek_ahead, 5_biweek_ahead
+        self.assertEqual(1, len(grouped_targets))
+        self.assertEqual({'biweek ahead'}, set(grouped_targets.keys()))
+        self.assertEqual(5, len(grouped_targets['biweek ahead']))
+
+        # case: similar names, different types
+        project = Project.objects.create()
+        for step_ahead_increment, target_type in [(0, Target.CONTINUOUS_TARGET_TYPE),
+                                                  (1, Target.DISCRETE_TARGET_TYPE)]:
+            target_init = {'project': project, 'name': f'wk {step_ahead_increment} ahead',
+                           'type': target_type, 'is_step_ahead': True,
+                           'step_ahead_increment': step_ahead_increment, 'unit': 'cases'}
+            Target.objects.create(**target_init)
+        grouped_targets = group_targets(project)
+        # group 1: 'wk ahead' (discrete)
+        # group 2: 'wk ahead 2' (continuous)
+        self.assertEqual(2, len(grouped_targets))
+        self.assertEqual({'wk ahead', 'wk ahead 2'}, set(grouped_targets.keys()))
+
+        # case: similar names, different units
+        project = Project.objects.create()
+        for step_ahead_increment, target_unit in [(0, 'unit 1'),
+                                                  (1, 'unit 2')]:
+            target_init = {'project': project, 'name': f'wk {step_ahead_increment} ahead',
+                           'type': Target.CONTINUOUS_TARGET_TYPE, 'is_step_ahead': True,
+                           'step_ahead_increment': step_ahead_increment, 'unit': target_unit}
+            Target.objects.create(**target_init)
+        grouped_targets = group_targets(project)
+        # group 1: 'wk ahead' ('unit 2')
+        # group 2: 'wk ahead 2' ('unit 1')
+        self.assertEqual(2, len(grouped_targets))
+        self.assertEqual({'wk ahead', 'wk ahead 2'}, set(grouped_targets.keys()))

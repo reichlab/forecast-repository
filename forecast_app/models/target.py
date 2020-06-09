@@ -66,7 +66,7 @@ class Target(models.Model):
 
     def __repr__(self):
         return str((self.pk, self.name, Target.str_for_target_type(self.type),
-                    self.is_step_ahead, self.step_ahead_increment))
+                    self.is_step_ahead, self.step_ahead_increment, self.unit))
 
 
     def __str__(self):  # todo
