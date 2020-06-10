@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from collections import defaultdict
+from itertools import groupby
 from pathlib import Path
 
 from django.db import connection
@@ -12,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from forecast_app.models import Project, Unit, Target, Forecast, PointPrediction, ForecastModel, BinDistribution, \
-    NamedDistribution, SampleDistribution, QuantileDistribution
+    NamedDistribution, SampleDistribution, QuantileDistribution, Prediction, TimeZero
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
@@ -857,11 +858,11 @@ def _validate_object_ids(query_key, object_ids, project, model_class):
 
 def group_targets(project):
     """
-    A utility that groups related targets in `project`. Only groups is_step_ahead ones, treating others as their own
-    group. Uses a simple algorithm to determine relatedness, one that assumes that the actual step_ahead_increment is in
-    the related targets' names. For example, "0 day ahead cum death" (step_ahead_increment=0) "1 day ahead cum death"
-    (step_ahead_increment=1) would be grouped together. Similar are "1 wk ahead" and "2 wk ahead", and "1_biweek_ahead"
-    and "2_biweek_ahead".
+    A utility for the `forecast_app.views.ProjectDetailView` class that groups related targets in `project`. Only groups
+    is_step_ahead ones, treating others as their own group. Uses a simple algorithm to determine relatedness, one that
+    assumes that the actual step_ahead_increment is in the related targets' names. For example, "0 day ahead cum death"
+    (step_ahead_increment=0) "1 day ahead cum death" (step_ahead_increment=1) would be grouped together. Similar are "1
+    wk ahead" and "2 wk ahead", and "1_biweek_ahead" and "2_biweek_ahead".
 
     :param project:
     :return: a dict that maps group_name -> group_targets. for 1-target groups, group_name=target.name
@@ -905,3 +906,159 @@ def _group_name_for_target(target):
             return ' '.join(split)  # by convention we use ' ' for the group name
         except ValueError:  # index() failed
             return target.name
+
+
+#
+# models_summary_table_rows_for_project()
+#
+
+def models_summary_table_rows_for_project(project):
+    """
+    :return: a list of rows suitable for rendering as a table
+        each row contains: [forecast_model, num_forecasts,
+                            oldest_forecast_tz_date, newest_forecast_tz_date,
+                            oldest_forecast_id, newest_forecast_id]
+        NB: the dates are strings
+    """
+    # the self-join allows gives us the actual ID of the max timezero's forecast's ID.
+    # per https://stackoverflow.com/questions/18725168/sql-group-by-minimum-value-in-one-field-while-selecting-distinct-rows
+    sql = f"""
+        SELECT aggr_sel.fm_id, aggr_sel.fm_count, aggr_sel.min_tz_date, aggr_sel.max_tz_date, f2.id, f3.id
+        FROM (SELECT fm1.id                 AS fm_id,
+                     count(fm1.id)          AS fm_count,
+                     min(tz1.timezero_date) AS min_tz_date,
+                     max(tz1.timezero_date) AS max_tz_date
+              FROM {ForecastModel._meta.db_table} fm1
+                       JOIN {Forecast._meta.db_table} AS f1 ON f1.forecast_model_id = fm1.id
+                       JOIN {TimeZero._meta.db_table} AS tz1 ON f1.time_zero_id = tz1.id
+              WHERE fm1.project_id = %s
+              GROUP BY fm1.id) AS aggr_sel
+                 JOIN {TimeZero._meta.db_table} AS tz2 ON tz2.timezero_date = aggr_sel.min_tz_date
+                 JOIN {TimeZero._meta.db_table} AS tz3 ON tz3.timezero_date = aggr_sel.max_tz_date
+                 JOIN {Forecast._meta.db_table} AS f2 ON f2.forecast_model_id = aggr_sel.fm_id AND tz2.id = f2.time_zero_id
+                 JOIN {Forecast._meta.db_table} AS f3 ON f3.forecast_model_id = aggr_sel.fm_id AND tz3.id = f3.time_zero_id
+        WHERE tz2.project_id = %s;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk, project.pk,))
+        rows = cursor.fetchall()
+
+        # add model IDs with no forecasts (omitted by query)
+        missing_model_ids = project.models \
+            .exclude(id__in=[_[0] for _ in rows]) \
+            .values_list('id', flat=True)
+        for missing_model_id in missing_model_ids:
+            rows.append((missing_model_id, 0, None, None, None, None))  # caller/view handles Nones
+
+        forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
+
+        # replace forecast_model_ids (row[0]) with objects, and replace datetime.dates (row[2], rows[3]) with strings
+        # (depends on database whether this is necessary)
+        rows = [(forecast_model_id_to_obj[row[0]], row[1],
+                 row[2].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[2], datetime.date) else row[2],
+                 row[3].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[3], datetime.date) else row[3],
+                 row[4], row[5]) for row in rows]
+        return rows
+
+
+#
+# unit_rows_for_project()
+#
+
+def unit_rows_for_project(project):
+    """
+    A utility for the `forecast_app.views.project_explorer()` function.
+
+    :param project: a Project
+    :return: a list of 6-tuples for each model in `project`:
+        (model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
+         missing_unit_names). the last two are summarized if more than 7
+    """
+    # model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names:
+    unit_rows = _project_explorer_unit_rows(project)
+
+    # add count column, and replace sets with strings, truncating if too long
+    num_units = project.units.count()
+
+
+    def unit_string(unit_names):
+        if len(unit_names) == num_units:
+            return "(all)"
+        elif len(unit_names) > 7:  # magic number
+            return f"({len(unit_names)} units)"
+        else:
+            return ', '.join(sorted(unit_names))
+
+
+    # add num_present_unit_names and change: (present_unit_names, missing_unit_names) to: summaries. -> becomes:
+    # (model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
+    #  missing_unit_names):
+    unit_rows = [(model, newest_forecast_tz_date, newest_forecast_id,
+                  len(present_unit_names), unit_string(present_unit_names), unit_string(missing_unit_names))
+                 for model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names in
+                 unit_rows]
+    return unit_rows
+
+
+def _project_explorer_unit_rows(project):
+    """
+    :param project: a Project
+    :return: list of 5-tuples of the form:
+        (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
+    """
+
+    # get 3-tuples from models_summary_table_rows_for_project(): (model, newest_forecast_tz_date, newest_forecast_id) tuples.
+    # from: [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date,
+    #        oldest_forecast_id, newest_forecast_id]
+    models_rows = [(row[0], row[3], row[5]) for row in
+                   sorted(models_summary_table_rows_for_project(project), key=lambda _: _[0].name)]
+
+    # get corresponding unique Unit IDs for newest_forecast_ids
+    forecast_id_to_unit_id_set = _forecast_ids_to_unit_id_sets([_[-1] for _ in models_rows if _[-1] is not None])
+
+    # combine into 5-tuple: (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
+    unit_id_to_obj = {unit.id: unit for unit in project.units.all()}
+    all_unit_ids = set(project.units.values_list('id', flat=True))
+    rows = []  # return value. filled next
+    for model, newest_forecast_tz_date, newest_forecast_id in models_rows:
+        present_unit_ids = forecast_id_to_unit_id_set[newest_forecast_id] \
+            if newest_forecast_id in forecast_id_to_unit_id_set else set()
+        missing_unit_ids = all_unit_ids - present_unit_ids
+        rows.append((model, newest_forecast_tz_date, newest_forecast_id,
+                     {unit_id_to_obj[_].name for _ in present_unit_ids},
+                     {unit_id_to_obj[_].name for _ in missing_unit_ids}))
+
+    return rows
+
+
+def _forecast_ids_to_unit_id_sets(forecast_ids):
+    """
+    :param forecast_ids: a list of Forecast IDs
+    :return: a dict mapping each forecast_id to a set of its unit ids: {forecast_id -> set(unit_ids)}
+    """
+    # NB: this query is somewhat expensive
+
+    # build up sql for all prediction types - each combined via UNION
+    param_str = ', '.join(['%s'] * len(forecast_ids))
+    pred_class_selects = []
+    for concrete_prediction_class in Prediction.concrete_subclasses():
+        sql = f"""
+            SELECT DISTINCT f.id AS f_id, p.unit_id AS pred_unit_id
+            FROM {Forecast._meta.db_table} AS f
+                     JOIN {concrete_prediction_class._meta.db_table} AS p
+                          ON f.id = p.forecast_id
+            WHERE f.id IN ({param_str})
+        """
+        pred_class_selects.append(sql)
+    sql = '\nUNION\n'.join(pred_class_selects)
+    sql += '\nORDER BY f_id;'
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast_ids * len(Prediction.concrete_subclasses())))
+        rows = cursor.fetchall()
+
+    # build the return value
+    forecast_id_to_unit_id_set = {}
+    for forecast_id, unit_id_grouper in groupby(rows, key=lambda _: _[0]):
+        forecast_id_to_unit_id_set[forecast_id] = {_[1] for _ in unit_id_grouper}
+
+    return forecast_id_to_unit_id_set

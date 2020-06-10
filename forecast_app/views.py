@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 
@@ -30,10 +29,10 @@ from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME
 from utils.cloud_file import delete_file, upload_file
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
-from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets
+from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets, \
+    unit_rows_for_project, models_summary_table_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -312,6 +311,27 @@ def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
     unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
                           for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
     return unit_to_actual_max
+
+
+#
+# ---- visualization-related view functions ----
+#
+
+def project_explorer(request, project_pk):
+    """
+    View function to render various exploration tabs for a particular project.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_ok_to_view(request.user):
+        raise PermissionDenied
+
+    # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names, missing_unit_names:
+    unit_rows = unit_rows_for_project(project)
+    return render(
+        request,
+        'project_explorer.html',
+        context={'project': project,
+                 'unit_rows': unit_rows})
 
 
 #
@@ -823,7 +843,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
 
         context = super().get_context_data(**kwargs)
-        context['models_rows'] = sorted(_models_summary_table_rows(project), key=lambda _: _[0].name)
+        context['models_rows'] = models_summary_table_rows_for_project(project)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
@@ -850,56 +870,6 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
             tz_to_num_forecasts[time_zero] = row['tz_count']
         return [(k, tz_to_num_forecasts[k])
                 for k in sorted(tz_to_num_forecasts.keys(), key=lambda timezero: timezero.timezero_date)]
-
-
-def _models_summary_table_rows(project):
-    """
-    :return: a list of rows suitable for rendering as a table
-        each row contains: [forecast_model, num_forecasts,
-                            oldest_forecast_tz_date, newest_forecast_tz_date,
-                            oldest_forecast_id, newest_forecast_id]
-        NB: the dates are strings
-    """
-    # the self-join allows gives us the actual ID of the max timezero's forecast's ID. NB: does *not* include models
-    # with no forecasts!
-    # per https://stackoverflow.com/questions/18725168/sql-group-by-minimum-value-in-one-field-while-selecting-distinct-rows
-    sql = f"""
-        SELECT aggr_sel.fm_id, aggr_sel.fm_count, aggr_sel.min_tz_date, aggr_sel.max_tz_date, f2.id, f3.id
-        FROM (SELECT fm1.id                 AS fm_id,
-                     count(fm1.id)          AS fm_count,
-                     min(tz1.timezero_date) AS min_tz_date,
-                     max(tz1.timezero_date) AS max_tz_date
-              FROM {ForecastModel._meta.db_table} fm1
-                       JOIN {Forecast._meta.db_table} AS f1 ON f1.forecast_model_id = fm1.id
-                       JOIN {TimeZero._meta.db_table} AS tz1 ON f1.time_zero_id = tz1.id
-              WHERE fm1.project_id = %s
-              GROUP BY fm1.id) AS aggr_sel
-                 JOIN {TimeZero._meta.db_table} AS tz2 ON tz2.timezero_date = aggr_sel.min_tz_date
-                 JOIN {TimeZero._meta.db_table} AS tz3 ON tz3.timezero_date = aggr_sel.max_tz_date
-                 JOIN {Forecast._meta.db_table} AS f2 ON f2.forecast_model_id = aggr_sel.fm_id AND tz2.id = f2.time_zero_id
-                 JOIN {Forecast._meta.db_table} AS f3 ON f3.forecast_model_id = aggr_sel.fm_id AND tz3.id = f3.time_zero_id
-        WHERE tz2.project_id = %s;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk, project.pk,))
-        rows = cursor.fetchall()
-
-        # add model IDs with no forecasts (omitted by query)
-        missing_model_ids = project.models \
-            .exclude(id__in=[_[0] for _ in rows]) \
-            .values_list('id', flat=True)
-        for missing_model_id in missing_model_ids:
-            rows.append((missing_model_id, 0, None, None, None, None))  # caller/view handles Nones
-
-        forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
-
-        # replace forecast_model_ids (row[0]) with objects, and replace datetime.dates (row[2], rows[3]) with strings
-        # (depends on database whether this is necessary)
-        rows = [(forecast_model_id_to_obj[row[0]], row[1],
-                 row[2].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[2], datetime.date) else row[2],
-                 row[3].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[3], datetime.date) else row[3],
-                 row[4], row[5]) for row in rows]
-        return rows
 
 
 def forecast_models_owned_by_user(user):

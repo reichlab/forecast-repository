@@ -635,7 +635,7 @@ class ScoresTestCase(TestCase):
         self.assertEqual(2, interval_20_score.values.count())
         self.assertEqual([2.8, 50], sorted(interval_20_score.values.all().values_list('value', flat=True)))
 
-        # add a second forecast for a new timezero
+        # add a second forecast for a newer timezero
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero2, notes="a small prediction file")

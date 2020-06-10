@@ -158,6 +158,7 @@
                 <tr>
                     <th>Analysis:</th>
                     <td><a href="{% url 'project-visualizations' project.pk %}">Visualizations</a>,
+                        <a href="{% url 'project-explorer' project.pk %}">Project explorer</a>,
                         <a href="{% url 'project-scores' project.pk %}">Aggregate scores</a>,
                         <a href="{% url 'project-score-data' project.pk %}">Score data</a>
                     </td>
@@ -187,6 +188,7 @@
             <thead>
             <tr>
                 <th>Name</th>
+                <th>Team</th>
                 <th>Abbreviation</th>
                 <th>#&nbsp;Forecasts</th>
                 <th>Oldest</th>
@@ -197,6 +199,7 @@
             {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id, newest_forecast_id in models_rows %}
                 <tr>
                     <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></td>
+                    <td>{{ forecast_model.team_name }}</td>
                     <td>{{ forecast_model.abbreviation }}</td>
                     <td>{{ num_forecasts }}</td>
                     <td>
@@ -313,6 +316,7 @@
     {% else %}
         <small class="text-muted">(No time zeros)</small>
     {% endif %}
+
 
     <!-- activate the https://datatables.net/ -->
     <script>

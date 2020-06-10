@@ -31,6 +31,7 @@ urlpatterns = [
 
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
+    url(r'^project/(?P<project_pk>\d+)/project_explorer', views.project_explorer, name='project-explorer'),
     url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
     url(r'^project/(?P<project_pk>\d+)/score_data$', views.project_score_data, name='project-score-data'),
     url(r'^project/(?P<project_pk>\d+)/download_score_data$', views.download_project_scores,

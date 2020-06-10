@@ -12,12 +12,11 @@ from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX, _query_forecasts_worker
-from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
+from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
-from forecast_app.views import _delete_forecast_worker, _models_summary_table_rows
+from forecast_app.views import _delete_forecast_worker
 from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
-from utils.make_minimal_projects import _make_docs_project
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
@@ -164,6 +163,8 @@ class ViewsTestCase(TestCase):
             reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('project-explorer', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('project-explorer', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-score-data', args=[str(self.public_project.pk)]): self.OK_ALL,
@@ -1234,30 +1235,6 @@ class ViewsTestCase(TestCase):
             self._authenticate_jwt_user(self.po_user, self.po_user_password)
             response = self.client.get(job_data_download_url)
             self.assertEqual(status.HTTP_200_OK, response.status_code)
-
-
-    def test__models_summary_table_rows(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-
-        # test with just one forecast - oldest and newest forecast is the same
-        exp_row = (forecast_model, forecast_model.forecasts.count(),  # forecast_model_id, num_forecasts
-                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # oldest_forecast_tz_date
-                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # newest_forecast_tz_date
-                   forecast.id, forecast.id)  # oldest_forecast_id, newest_forecast_id
-        act_rows = _models_summary_table_rows(project)
-        self.assertEqual([exp_row], act_rows)
-
-        # test a second forecast
-        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
-                                            time_zero=time_zero2)
-        exp_row = (forecast_model, forecast_model.forecasts.count(),  # forecast_model_id, num_forecasts
-                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # oldest_forecast_tz_date
-                   time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # newest_forecast_tz_date
-                   forecast.id, forecast2.id)  # oldest_forecast_id, newest_forecast_id
-        act_rows = _models_summary_table_rows(project)
-        self.assertEqual([exp_row], act_rows)
 
 
     def _authenticate_jwt_user(self, user, password):

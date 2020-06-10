@@ -6,9 +6,12 @@ from pathlib import Path
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
-from forecast_app.models import Project, Target
-from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target, group_targets
-from utils.utilities import get_or_create_super_po_mo_users
+from forecast_app.models import Project, Target, ForecastModel, TimeZero, Forecast
+from utils.forecast import load_predictions_from_json_io_dict
+from utils.make_minimal_projects import _make_docs_project
+from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target, group_targets, \
+    unit_rows_for_project, models_summary_table_rows_for_project
+from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -599,3 +602,69 @@ class ProjectUtilTestCase(TestCase):
         # group 2: 'wk ahead 2' ('unit 1')
         self.assertEqual(2, len(grouped_targets))
         self.assertEqual({'wk ahead', 'wk ahead 2'}, set(grouped_targets.keys()))
+
+
+    def test_models_summary_table_rows_for_project(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+
+        # test with just one forecast - oldest and newest forecast is the same
+        exp_row = (forecast_model, forecast_model.forecasts.count(),  # forecast_model_id, num_forecasts
+                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # oldest_forecast_tz_date
+                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # newest_forecast_tz_date
+                   forecast.id, forecast.id)  # oldest_forecast_id, newest_forecast_id
+        act_rows = models_summary_table_rows_for_project(project)
+        self.assertEqual([exp_row], act_rows)
+
+        # test a second forecast
+        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                            time_zero=time_zero2)
+        exp_row = (forecast_model, forecast_model.forecasts.count(),  # forecast_model_id, num_forecasts
+                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # oldest_forecast_tz_date
+                   time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # newest_forecast_tz_date
+                   forecast.id, forecast2.id)  # oldest_forecast_id, newest_forecast_id
+        act_rows = models_summary_table_rows_for_project(project)
+        self.assertEqual([exp_row], act_rows)
+
+
+    def test_unit_rows_for_project(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # 2011, 10, 2
+
+        # case: one model with one timezero. recall rows:
+        # (model, newest_forecast_tz_date, newest_forecast_id,
+        #  num_present_unit_names, present_unit_names, missing_unit_names):
+        exp_rows = [(forecast_model, time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast.id,
+                     3, '(all)', '')]
+        self.assertEqual(exp_rows, unit_rows_for_project(project))
+
+        # case: add a second forecast for a newer timezero
+        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                            time_zero=time_zero2, notes="a small prediction file")
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+        exp_rows = [(forecast_model, time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast2.id,
+                     3, '(all)', '')]
+        self.assertEqual(exp_rows, unit_rows_for_project(project))
+
+        # case: add a second model with only forecasts for one unit
+        forecast_model2 = ForecastModel.objects.create(project=project, name=forecast_model.name + '2',
+                                                       abbreviation=forecast_model.abbreviation + '2')
+        time_zero3 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 4))
+        forecast3 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
+                                            time_zero=time_zero3, notes="a small prediction file")
+        json_io_dict = {
+            "meta": {},
+            "predictions": [{"unit": "location1",
+                             "target": "pct next week",
+                             "class": "point",
+                             "prediction": {"value": 2.1}}]}
+        load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
+        exp_rows = [(forecast_model, time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast2.id,
+                     3, '(all)', ''),
+                    (forecast_model2, time_zero3.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast3.id,
+                     1, 'location1', 'location2, location3')]
+        self.assertEqual(exp_rows, unit_rows_for_project(project))
