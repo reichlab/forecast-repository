@@ -526,7 +526,7 @@ class ProjectUtilTestCase(TestCase):
 
         # case: target names with step_ahead_increment at start of name
         project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), po_user)
-        grouped_targets = group_targets(project)
+        grouped_targets = group_targets(project.targets.all())
         # group 1: "x day ahead cum death" | 0 day ahead cum death, 1 day ahead cum death, ..., 130 day ahead cum death
         # group 2: "x day ahead inc death" | ""
         # group 3: "x day ahead inc hosp"  | ""
@@ -544,7 +544,7 @@ class ProjectUtilTestCase(TestCase):
 
         # case: mix of target names with step_ahead_increment at start of name, and others
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
-        grouped_targets = group_targets(project)
+        grouped_targets = group_targets(project.targets.all())
         # group 1: "Season onset"
         # group 2: "Season peak week"
         # group 3: "Season peak percentage"
@@ -561,7 +561,7 @@ class ProjectUtilTestCase(TestCase):
                            'type': Target.CONTINUOUS_TARGET_TYPE, 'is_step_ahead': True,
                            'step_ahead_increment': step_ahead_increment, 'unit': 'cases'}
             Target.objects.create(**target_init)
-        grouped_targets = group_targets(project)
+        grouped_targets = group_targets(project.targets.all())
         # group 1: 'wk x ahead'
         self.assertEqual(1, len(grouped_targets))
         self.assertEqual({'wk ahead'}, set(grouped_targets.keys()))
@@ -569,7 +569,7 @@ class ProjectUtilTestCase(TestCase):
 
         # case: targets with no word boundaries
         project = create_project_from_json(Path('forecast_app/tests/projects/thai-project.json'), po_user)
-        grouped_targets = group_targets(project)
+        grouped_targets = group_targets(project.targets.all())
         # group 1: "x_biweek_ahead" | 1_biweek_ahead, 2_biweek_ahead, 3_biweek_ahead, 4_biweek_ahead, 5_biweek_ahead
         self.assertEqual(1, len(grouped_targets))
         self.assertEqual({'biweek ahead'}, set(grouped_targets.keys()))
@@ -583,7 +583,7 @@ class ProjectUtilTestCase(TestCase):
                            'type': target_type, 'is_step_ahead': True,
                            'step_ahead_increment': step_ahead_increment, 'unit': 'cases'}
             Target.objects.create(**target_init)
-        grouped_targets = group_targets(project)
+        grouped_targets = group_targets(project.targets.all())
         # group 1: 'wk ahead' (discrete)
         # group 2: 'wk ahead 2' (continuous)
         self.assertEqual(2, len(grouped_targets))
@@ -597,7 +597,7 @@ class ProjectUtilTestCase(TestCase):
                            'type': Target.CONTINUOUS_TARGET_TYPE, 'is_step_ahead': True,
                            'step_ahead_increment': step_ahead_increment, 'unit': target_unit}
             Target.objects.create(**target_init)
-        grouped_targets = group_targets(project)
+        grouped_targets = group_targets(project.targets.all())
         # group 1: 'wk ahead' ('unit 2')
         # group 2: 'wk ahead 2' ('unit 1')
         self.assertEqual(2, len(grouped_targets))

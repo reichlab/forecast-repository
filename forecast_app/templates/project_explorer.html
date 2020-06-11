@@ -34,26 +34,26 @@
             <tr>
                 <th>Model</th>
                 <th>Team</th>
-                <th>Forecast&nbsp;date</th>
-                <th>#&nbsp;Units</th>
-                <th>Present&nbsp;units</th>
-                <th>Missing&nbsp;units</th>
+                <th>Forecast date</th>
+                <th># Units</th>
+                <th>Present</th>
+                <th>Missing</th>
             </tr>
             </thead>
             <tfoot>
             <tr>
                 <th>Model</th>
                 <th>Team</th>
-                <th>Forecast&nbsp;date</th>
-                <th>#&nbsp;Units</th>
-                <th>Present&nbsp;units</th>
-                <th>Missing&nbsp;units</th>
+                <th>Forecast date</th>
+                <th># Units</th>
+                <th>Present</th>
+                <th>Missing</th>
             </tr>
             </tfoot>
             <tbody>
             {% for forecast_model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names, missing_unit_names in unit_rows %}
                 <tr>
-                    <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></td>
+                    <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
                     <td>{{ forecast_model.team_name }}</td>
                     <td>
                         {% if newest_forecast_tz_date %}
@@ -77,17 +77,17 @@
         // Setup - add a text input to each footer cell
         $('#units_table tfoot th').each(function () {
             var title = $(this).text();
-            $(this).html('<input type="text" placeholder="Search ' + title + '" />');
+            $(this).html('<input type="text" class="form-control" placeholder="Search ' + title + '" />');
         });
 
         // DataTable
         $(document).ready(function () {
             $('#units_table').DataTable({
+                order: [[ 2, "desc" ]],  // Forecast date
                 initComplete: function () {
                     // Apply the search
                     this.api().columns().every(function () {
                         var that = this;
-
                         $('input', this.footer()).on('keyup change clear', function () {
                             if (that.search() !== this.value) {
                                 that

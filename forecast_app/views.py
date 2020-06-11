@@ -838,7 +838,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         project = self.get_object()
 
         # set target_groups: change from dict to 2-tuples
-        target_groups = group_targets(project)  # group_name -> group_targets
+        target_groups = group_targets(project.targets.all())  # group_name -> group_targets
         target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
 
@@ -970,8 +970,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
              concrete_prediction_class.objects.filter(forecast=forecast).count())
             for concrete_prediction_class in Prediction.concrete_subclasses()]
 
-        # set units and targets
-        all_units = forecast.forecast_model.project.units.all()
+        # set found units and targets
         unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
         found_unit_ids = set()
         for pred_class in Prediction.concrete_subclasses():
@@ -979,7 +978,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             found_unit_ids.update(pred_class_units)
         found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
 
-        all_targets = forecast.forecast_model.project.targets.all()
         target_i_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
         found_target_ids = set()
         for pred_class in Prediction.concrete_subclasses():
@@ -988,10 +986,17 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             found_target_ids.update(pred_class_targets)
         found_targets = [target_i_to_object[target_id] for target_id in found_target_ids]
 
+        # set target_groups: change from dict to 2-tuples
+        target_groups = group_targets(found_targets)  # group_name -> group_targets
+        target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
+                               key=lambda _: _[0])  # [(group_name, group_targets), ...]
+
+        # done
         context = super().get_context_data(**kwargs)
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
-        context['found_units'] = sorted(found_units, key=lambda _: _.name)
-        context['found_targets'] = sorted(found_targets, key=lambda _: _.name)
+        context['units'] = sorted(found_units, key=lambda _: _.name)
+        context['found_targets'] = found_targets
+        context['target_groups'] = target_groups
         return context
 
 

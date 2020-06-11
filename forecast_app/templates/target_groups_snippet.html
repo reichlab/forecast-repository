@@ -1,0 +1,26 @@
+<table id="targets_table" class="table table-striped table-bordered">
+    <thead>
+    <tr>
+        <th>Target Group</th>
+        <th># Targets</th>
+        <th>Type</th>
+        <th>Unit</th>
+        <th>Step&nbsp;ahead?</th>
+        <th>Example Target</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for group_name, targets in target_groups %}
+        {% with first_target=targets.0 %}
+            <tr>
+                <td>{{ group_name }}</td>
+                <td>{{ targets|length }}</td>
+                <td><em>{{ first_target.type_as_str }}</em></td>
+                <td>{% if first_target.unit is not None %} {{ first_target.unit }} {% endif %}</td>
+                <td>{% if first_target.is_step_ahead %}<i class="fas fa-check"></i>{% else %}{% endif %}</td>
+                <td>&ldquo;{{ first_target.name }}&rdquo;</td>
+            </tr>
+        {% endwith %}
+    {% endfor %}
+    </tbody>
+</table>

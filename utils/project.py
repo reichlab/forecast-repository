@@ -856,22 +856,22 @@ def _validate_object_ids(query_key, object_ids, project, model_class):
 # group_targets()
 #
 
-def group_targets(project):
+def group_targets(targets):
     """
-    A utility for the `forecast_app.views.ProjectDetailView` class that groups related targets in `project`. Only groups
+    A utility for the `forecast_app.views.ProjectDetailView` class that groups related targets in `targets`. Only groups
     is_step_ahead ones, treating others as their own group. Uses a simple algorithm to determine relatedness, one that
     assumes that the actual step_ahead_increment is in the related targets' names. For example, "0 day ahead cum death"
     (step_ahead_increment=0) "1 day ahead cum death" (step_ahead_increment=1) would be grouped together. Similar are "1
     wk ahead" and "2 wk ahead", and "1_biweek_ahead" and "2_biweek_ahead".
 
-    :param project:
+    :param targets: list of Targets from the same Project
     :return: a dict that maps group_name -> group_targets. for 1-target groups, group_name=target.name
     """
     # approach: split target names using a few hopefully-common characters, find the index of each one's
     # step_ahead_increment, remove that item from the split, and group based on the remaining items in the split. use
     # the split sans step_ahead_increment as the group name
     name_type_unit_to_targets = defaultdict(list)  # maps: (group_name, target_type, target_unit) -> target_list
-    for target in project.targets.all():
+    for target in targets:
         group_name = _group_name_for_target(target) if target.is_step_ahead else target.name
         name_type_unit_to_targets[(group_name, target.type, target.unit)].append(target)
 
