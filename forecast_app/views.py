@@ -19,6 +19,7 @@ from django.views.generic import DetailView, ListView
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange
+# from forecast_app.models.job import Job, job_cloud_file
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
@@ -26,7 +27,9 @@ from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cach
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.cloud_file import delete_file, upload_file
-from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+from utils.csv_io import csv_rows_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, \
+    json_io_dict_from_forecast
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets, \
     unit_rows_for_project, models_summary_table_rows_for_project
