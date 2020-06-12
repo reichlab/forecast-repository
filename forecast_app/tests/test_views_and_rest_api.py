@@ -617,8 +617,8 @@ class ViewsTestCase(TestCase):
                          list(response.data))  # no 'season_name'
 
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
-        exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'description', 'home_url', 'aux_data_url',
-                    'forecasts']
+        exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description', 'home_url',
+                    'aux_data_url', 'forecasts']
         self.assertEqual(exp_keys, list(response.data))
 
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
