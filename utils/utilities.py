@@ -1,4 +1,3 @@
-import datetime
 import logging
 
 
@@ -22,27 +21,6 @@ def basic_str(obj):
 #
 
 YYYY_MM_DD_DATE_FORMAT = '%Y-%m-%d'  # e.g., '2017-01-17'
-
-
-#
-# numeric functions
-#
-
-def parse_value(value_str):
-    """
-    Tries to parse value_str (a string) in this order: int, float. Returns None o/w.
-    """
-    try:
-        return int(value_str)
-    except ValueError as ve:
-        pass
-
-    try:
-        return float(value_str)
-    except ValueError as ve:
-        pass
-
-    return None
 
 
 #

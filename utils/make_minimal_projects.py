@@ -13,7 +13,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 
 from utils.project import load_truth_data, create_project_from_json
 
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from forecast_app.models import Project, TimeZero, ForecastModel, Forecast
 from utils.utilities import get_or_create_super_po_mo_users
 

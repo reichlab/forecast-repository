@@ -17,7 +17,7 @@ from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_
 from forecast_app.scores.calc_interval import _calculate_interval_score_values
 from forecast_app.scores.calc_log import LOG_SINGLE_BIN_NEGATIVE_INFINITY
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets

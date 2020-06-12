@@ -5,14 +5,13 @@ from pathlib import Path
 from django.test import TestCase
 
 from forecast_app.models import PointPrediction, Project, ForecastModel, TimeZero, Forecast
-from utils.cdc import json_io_dict_from_cdc_csv_file, monday_date_from_ew_and_season_start_year, \
-    make_cdc_units_and_targets
+from utils.cdc_io import json_io_dict_from_cdc_csv_file, make_cdc_units_and_targets, \
+    _monday_date_from_ew_and_season_start_year
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 
 
-class CdcCsvToPredictionsTestCase(TestCase):
+class CdcIOTestCase(TestCase):
     """
-    Tests loading and converting CDC CSV files into prediction dicts and ultimately into data rows.
     """
 
 
@@ -21,7 +20,7 @@ class CdcCsvToPredictionsTestCase(TestCase):
         cls.cdc_csv_path = Path('forecast_app/tests/cdc-csv-predictions/EW01-2011-ReichLab_kde_US_National.csv')
 
 
-    def test_monday_date_from_ew_and_season_start_year(self):
+    def test__monday_date_from_ew_and_season_start_year(self):
         ew_week_ss_year_exp_monday_date = [(1, 2010, datetime.date(2011, 1, 3)),  # Monday of: EW01 2011
                                            (29, 2010, datetime.date(2011, 7, 18)),  # "" EW29 2011
                                            (30, 2010, datetime.date(2010, 7, 26)),  # "" EW30 2010
@@ -33,7 +32,7 @@ class CdcCsvToPredictionsTestCase(TestCase):
                                            (31, 2011, datetime.date(2011, 8, 1)),  # "" EW31 2011
                                            (52, 2011, datetime.date(2011, 12, 26))]  # "" EW52 2011
         for ew_week, season_start_year, exp_monday_date in ew_week_ss_year_exp_monday_date:
-            self.assertEqual(exp_monday_date, monday_date_from_ew_and_season_start_year(ew_week, season_start_year))
+            self.assertEqual(exp_monday_date, _monday_date_from_ew_and_season_start_year(ew_week, season_start_year))
 
 
     def test_json_io_dict_from_cdc_csv_file_points(self):

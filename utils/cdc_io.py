@@ -11,8 +11,12 @@ from forecast_app.models import PointPrediction, BinDistribution
 from forecast_app.models.forecast import Forecast
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
 from utils.project import _validate_and_create_units, _validate_and_create_targets
-from utils.utilities import parse_value, YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
+
+#
+# CDC IO utilities. NB: this is a copy of that of zoltpy. todo delete from here when zoltpy is stable
+#
 
 #
 # *.cdc.csv file variables
@@ -61,9 +65,9 @@ def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_p
 
 def json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp):
     """
-    Utility that extracts the two types of predictions found in CDC CSV files (PointPredictions, BinDistributions),
+    Utility that extracts the two types of predictions found in CDC CSV files (PointPredictions and BinDistributions),
     returning them as a "JSON IO dict" suitable for loading into the database (see
-    load_predictions_from_json_io_dict()). Note that the returned dict's "meta" section is empty.
+    `load_predictions_from_json_io_dict()`). Note that the returned dict's "meta" section is empty.
 
     :param season_start_year
     :param cdc_csv_file_fp: an open cdc csv file-like object. the CDC CSV file format is documented at
@@ -122,10 +126,10 @@ def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
             raise RuntimeError(f"row_type was neither '{CDC_POINT_ROW_TYPE}' nor '{CDC_BIN_ROW_TYPE}': {row_type!r}")
         is_point_row = (row_type == CDC_POINT_ROW_TYPE.lower())
 
-        # parse_value() handles non-numeric cases like 'NA' and 'none', which it turns into None. o/w it's a number
-        bin_start_incl = parse_value(bin_start_incl)
-        bin_end_notincl = parse_value(bin_end_notincl)
-        value = parse_value(value)
+        # _parse_value() handles non-numeric cases like 'NA' and 'none', which it turns into None. o/w it's a number
+        bin_start_incl = _parse_value(bin_start_incl)
+        bin_end_notincl = _parse_value(bin_end_notincl)
+        value = _parse_value(value)
         rows.append([location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value])
 
     return rows
@@ -223,7 +227,7 @@ def _process_csv_point_row(season_start_year, target_name, value):
                 ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
             elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
                 ew_week = 1
-            monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
+            monday_date = _monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
             return monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
     elif target_name in ['1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',
                          '5_biweek_ahead']:  # thai
@@ -238,7 +242,7 @@ def _process_csv_point_row(season_start_year, target_name, value):
             ew_week = pymmwr.mmwr_weeks_in_year(season_start_year)  # wrap back to previous EW
         elif ew_week > pymmwr.mmwr_weeks_in_year(season_start_year):  # wrap forward to next EW
             ew_week = 1
-        monday_date = monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
+        monday_date = _monday_date_from_ew_and_season_start_year(ew_week, season_start_year)
         return monday_date.strftime(YYYY_MM_DD_DATE_FORMAT)
     else:  # 'Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',  # thai '5_biweek_ahead'
         return value
@@ -250,7 +254,7 @@ def _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, 
         if (bin_start_incl is None) and (bin_end_notincl is None):  # "none" bin (probability of no onset)
             return 'none', value  # convert back from None to original 'none' input
         elif (bin_start_incl is not None) and (bin_end_notincl is not None):  # regular (non-"none") bin
-            monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
+            monday_date = _monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
             return monday_date.strftime(YYYY_MM_DD_DATE_FORMAT), value
         else:
             raise RuntimeError(f"got 'Season onset' row but not both start and end were None. "
@@ -260,7 +264,7 @@ def _process_csv_bin_row(season_start_year, target_name, value, bin_start_incl, 
                            f"target_name={target_name}. bin_start_incl, bin_end_notincl: "
                            f"{bin_start_incl}, {bin_end_notincl}")
     elif target_name == 'Season peak week':  # date target. start: an EW Monday date
-        monday_date = monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
+        monday_date = _monday_date_from_ew_and_season_start_year(bin_start_incl, season_start_year)
         return monday_date.strftime(YYYY_MM_DD_DATE_FORMAT), value
     else:  # 'Season peak percentage', '1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead', '1_biweek_ahead', '2_biweek_ahead', '3_biweek_ahead', '4_biweek_ahead',  # thai '5_biweek_ahead'
         return bin_start_incl, value
@@ -281,10 +285,41 @@ def make_cdc_units_and_targets(project):
 
 
 #
+# utility functions
+#
+
+def _parse_date(value_str):
+    """
+    Tries to parse value_str as a date in YYYY_MM_DD_DATE_FORMAT. Returns a datetime.date if valid, or None o/w
+    """
+    try:
+        return datetime.datetime.strptime(value_str, YYYY_MM_DD_DATE_FORMAT).date()
+    except ValueError:
+        return None
+
+
+def _parse_value(value_str):
+    """
+    Tries to parse value_str (a string) in this order: int, float, or date in YYYY_MM_DD_DATE_FORMAT. Returns None o/w.
+    """
+    try:
+        return int(value_str)
+    except ValueError:
+        pass
+
+    try:
+        return float(value_str)
+    except ValueError:
+        pass
+
+    return _parse_date(value_str)
+
+
+#
 # ---- CDC EW utilities ----
 #
 
-def monday_date_from_ew_and_season_start_year(ew_week, season_start_year):
+def _monday_date_from_ew_and_season_start_year(ew_week, season_start_year):
     """
     :param ew_week: an epi week from within a cdc csv forecast file. e.g., 1, 30, 52
     :param season_start_year

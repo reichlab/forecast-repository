@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.flusight import flusight_unit_to_data_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 

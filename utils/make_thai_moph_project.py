@@ -18,7 +18,7 @@ from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
 from utils.project import create_project_from_json, _validate_and_create_units, _validate_and_create_targets, \
     delete_project_iteratively, load_truth_data
-from utils.cdc import load_cdc_csv_forecast_file
+from utils.cdc_io import load_cdc_csv_forecast_file
 
 
 #

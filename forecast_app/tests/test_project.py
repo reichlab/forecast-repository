@@ -13,7 +13,7 @@ from forecast_app.models import Project, TimeZero, Target, Score, Job, BinDistri
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _unit_to_actual_points, _unit_to_actual_max_val, \
     _upload_truth_worker
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets

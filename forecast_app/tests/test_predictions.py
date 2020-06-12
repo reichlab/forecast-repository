@@ -7,7 +7,6 @@ from django.test import TestCase
 from forecast_app.models import Forecast
 from forecast_app.models import ForecastModel, TimeZero
 from forecast_app.models.prediction import calc_named_distribution
-from utils.cdc import make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows
 from utils.project import create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users

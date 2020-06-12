@@ -6,7 +6,7 @@ from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.make_thai_moph_project import cdc_csv_filename_components
 
 

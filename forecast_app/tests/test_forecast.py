@@ -15,7 +15,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
 from forecast_app.tests.test_scores import _make_thai_log_score_project
 from forecast_app.views import _upload_forecast_worker
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.project import load_truth_data, create_project_from_json

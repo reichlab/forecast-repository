@@ -8,7 +8,7 @@ import django
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.cdc import json_io_dict_from_cdc_csv_file
+from utils.cdc_io import json_io_dict_from_cdc_csv_file
 
 
 #

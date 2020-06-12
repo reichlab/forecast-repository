@@ -16,7 +16,7 @@ from forecast_app.models import Project, ForecastModel, TimeZero
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
-from utils.cdc import load_cdc_csv_forecast_file, make_cdc_units_and_targets
+from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
