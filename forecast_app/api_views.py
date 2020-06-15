@@ -627,6 +627,7 @@ def query_forecasts_endpoint(request, pk):
         return JsonResponse({'error': "No 'query' form field."}, status=status.HTTP_400_BAD_REQUEST)
 
     query = request.data['query']
+    logger.debug(f"query_forecasts_endpoint(): query={query}")
     error_messages, _ = validate_forecasts_query(project, query)
     if error_messages:
         return JsonResponse({'error': f"Invalid query. error_messages='{error_messages}', query={query}"},
@@ -643,6 +644,7 @@ def query_forecasts_endpoint(request, pk):
     job.save()
 
     job_serializer = JobSerializer(job, context={'request': request})
+    logger.debug(f"query_forecasts_endpoint(): query enqueued. job={job}")
     return JsonResponse(job_serializer.data)
 
 

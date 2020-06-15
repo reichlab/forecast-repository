@@ -810,18 +810,34 @@ def validate_forecasts_query(project, query):
         # return even though we could technically continue
         return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
-    # validate object IDs
+    # validate keys are correct type (lists), and validate object IDs
     if 'models' in query:
         model_ids = query['models']
+        if not isinstance(model_ids, list):
+            error_messages.append(f"'models' was not a list. models={model_ids}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
         error_messages.extend(_validate_object_ids('models', model_ids, project, ForecastModel))
     if 'units' in query:
         unit_ids = query['units']
+        if not isinstance(unit_ids, list):
+            error_messages.append(f"'units' was not a list. units={unit_ids}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
         error_messages.extend(_validate_object_ids('units', unit_ids, project, Unit))
     if 'timezeros' in query:
         timezero_ids = query['timezeros']
+        if not isinstance(timezero_ids, list):
+            error_messages.append(f"'timezeros' was not a list. timezeros={timezero_ids}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
         error_messages.extend(_validate_object_ids('timezeros', timezero_ids, project, TimeZero))
     if 'targets' in query:
         target_ids = query['targets']
+        if not isinstance(target_ids, list):
+            error_messages.append(f"'targets' was not a list. targets={target_ids}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
         error_messages.extend(_validate_object_ids('targets', target_ids, project, Target))
 
     # validate Prediction types

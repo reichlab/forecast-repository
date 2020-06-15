@@ -845,17 +845,25 @@ class ProjectTestCase(TestCase):
         self.assertIn("number of rows exceeded maximum", str(context.exception))
 
 
-    def test__validate_forecasts_query(self):
+    def test_validate_forecasts_query(self):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
         # case: query not a dict
-        validate_forecasts_query(project, -1)
+        error_messages, _ = validate_forecasts_query(project, -1)
+        self.assertEqual(1, len(error_messages))
+        self.assertIn("query was not a dict", error_messages[0])
 
         # case: query contains invalid keys
         error_messages, _ = validate_forecasts_query(project, {'foo': -1})
         self.assertEqual(1, len(error_messages))
         self.assertIn("one or more query keys was invalid", error_messages[0])
+
+        # case: query keys are not correct type (lists)
+        for key_name in ['models', 'units', 'targets', 'timezeros']:
+            error_messages, _ = validate_forecasts_query(project, {key_name: -1})
+            self.assertEqual(1, len(error_messages))
+            self.assertIn(f"'{key_name}' was not a list", error_messages[0])
 
         # case: bad object id
         for key_name in ['models', 'units', 'targets', 'timezeros']:
