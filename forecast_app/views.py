@@ -46,11 +46,18 @@ def about(request):
 
 
 def projects(request):
+    # we cache Project.last_update() to avoid duplicate calls. recall last_update can be None.
+    # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
+    projects_last_updates = sorted([(project, project.last_update()) for project in Project.objects.all()
+                                    if project.is_user_ok_to_view(request.user)],
+                                   reverse=True, key=lambda _: (_[1] is not None, _[1]))
+
     return render(
         request,
         'projects.html',
-        context={'projects': [project for project in Project.objects.all().order_by('name')
-                              if project.is_user_ok_to_view(request.user)],  # from api_views.ProjectList.get_queryset()
+        # authorization same as api_views.ProjectList.get_queryset().
+        # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
+        context={'projects': [_[0] for _ in projects_last_updates],
                  'is_user_ok_create_project': is_user_ok_create_project(request.user),
                  'num_public_projects': len(Project.objects.filter(is_public=True)),
                  'num_private_projects': len(Project.objects.filter(is_public=False))})

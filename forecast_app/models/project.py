@@ -253,6 +253,20 @@ class Project(models.Model):
         return dict(Project.TIME_INTERVAL_TYPE_CHOICES)[self.time_interval_type].lower()
 
 
+    def last_update(self):
+        """
+        Returns the datetime.datetime of the last time this project was "updated". currently only uses
+        Project.truth_updated_at, and Forecast.created_at for all models in me.
+        """
+        from .forecast import Forecast  # avoid circular imports
+
+
+        latest_forecast = Forecast.objects.filter(forecast_model__project=self).order_by('-created_at').first()
+        update_dates = [self.truth_updated_at, latest_forecast.created_at if latest_forecast else None]
+        # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
+        return sorted(update_dates, key=lambda _: (_ is not None, _))[-1]
+
+
     #
     # count-related functions
     #
@@ -320,7 +334,7 @@ class Project(models.Model):
 
         # https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python
         return {loc_max_val_dict['unit__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
-                                                                      loc_max_val_dict['value_f__max']]))
+                                                                  loc_max_val_dict['value_f__max']]))
                 for loc_max_val_dict in loc_max_val_qs}
 
 

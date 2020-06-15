@@ -889,6 +889,42 @@ class ProjectTestCase(TestCase):
         self.assertEqual(0, len(error_messages))
 
 
+    def test_last_update(self):
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+
+        # one truth and one forecast (yes truth, yes forecasts)
+        self.assertEqual(forecast.created_at, project.last_update())
+
+        # add a second forecast for a newer timezero (yes truth, yes forecasts)
+        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                            time_zero=time_zero2, notes="a small prediction file")
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+        self.assertEqual(forecast2.created_at, project.last_update())
+
+        # update truth (yes truth, yes forecasts)
+        project.truth_updated_at = forecast2.created_at + datetime.timedelta(days=1)
+        project.save()
+        self.assertEqual(project.truth_updated_at, project.last_update())
+
+        # delete truth (no truth, yes forecasts)
+        project.delete_truth_data()
+        self.assertEqual(forecast2.created_at, project.last_update())
+
+        # delete forecasts (no truth, no forecasts)
+        forecast.delete()
+        forecast2.delete()
+        self.assertEqual(None, project.last_update())
+
+        # yes truth, no forecasts
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        forecast.delete()
+        self.assertEqual(project.truth_updated_at, project.last_update())
+
+
 def _exp_loc_tz_date_to_actual_vals_season_1a():
     return {
         'HHS Region 1': {'1 wk ahead': {datetime.date(2017, 7, 23): [0.303222],
