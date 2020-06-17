@@ -894,7 +894,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
     csv_writer.writerow(score_csv_header)
 
     # get the raw rows - sorted for groupby()
-    logger.debug("_write_csv_score_data_for_project(): getting rows: project={}".format(project))
+    logger.debug(f"_write_csv_score_data_for_project(): getting rows: project={project}")
     sql = f"""
         SELECT f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id, sv.value
         FROM {ScoreValue._meta.db_table} AS sv
@@ -909,14 +909,14 @@ def _write_csv_score_data_for_project(csv_writer, project):
         rows = cursor.fetchall()
 
     # write grouped rows
-    logger.debug("_write_csv_score_data_for_project(): preparing to iterate")
+    logger.debug(f"_write_csv_score_data_for_project(): preparing to iterate. project={project}")
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
 
-    logger.debug("_write_csv_score_data_for_project(): iterating")
+    logger.debug(f"_write_csv_score_data_for_project(): iterating. project={project}")
     tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
     num_warnings = 0
     for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
@@ -944,7 +944,7 @@ def _write_csv_score_data_for_project(csv_writer, project):
                             + score_values)
 
     # print warning count
-    logger.debug(f"_write_csv_score_data_for_project(): done. num_warnings={num_warnings}")
+    logger.debug(f"_write_csv_score_data_for_project(): done. project={project}, num_warnings={num_warnings}")
 
 
 def _tz_unit_targ_pks_to_truth_values(project):

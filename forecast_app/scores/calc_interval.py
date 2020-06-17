@@ -22,7 +22,8 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
     try:
         targets = _validate_score_targets_and_data(forecast_model)
     except RuntimeError as rte:
-        logger.warning(rte)
+        logger.warning(f"_calculate_interval_score_values(): _validate_score_targets_and_data() failed. "
+                       f"rte={repr(rte)}, score={score}, forecast_model={forecast_model}")
         return
 
     lower_interval_quantile = alpha / 2
@@ -65,12 +66,15 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
                 # defaultdict(list) -> [] result if match [timezero_id][unit_id] but not target_id
                 num_warnings += 1
                 continue  # skip this forecast's contribution to the score
-            elif len(lower_upper_interval_values) != 2:
-                raise RuntimeError(f"not exactly two quantile values (no match for both lower and upper): "
-                                   f"timezero_id={timezero_id}, unit_id={unit_id}, target_id={target_id}, "
-                                   f"quantile values={lower_upper_interval_values}")
+            elif len(lower_upper_interval_values) == 1:  # median quantile (alpha = 1.0) has same lower and upper
+                lower_interval_value = upper_interval_value = lower_upper_interval_values[0]
+            elif len(lower_upper_interval_values) == 2:  # median quantile (alpha = 1.0) has same lower and upper
+                lower_interval_value, upper_interval_value = lower_upper_interval_values
+            else:
+                # should never happen (?) given `_validate_quantile_predictions()` catches "quantile`s must be unique"
+                raise RuntimeError(f">2 lower_upper_interval_values: {lower_upper_interval_values}. "
+                                   f"timezero_id={timezero_id}, unit_id={unit_id}, target_id={target_id}")
 
-            lower_interval_value, upper_interval_value = lower_upper_interval_values
             interval_width = upper_interval_value - lower_interval_value
             penalty_l = (2 / alpha) * max(lower_interval_value - truth_value, 0)
             penalty_u = (2 / alpha) * max(truth_value - upper_interval_value, 0)
@@ -84,4 +88,5 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
     _insert_score_values(score_values)
 
     # print warning count
-    logger.warning(f"_calculate_interval_score_values(): num_warnings={num_warnings}")
+    logger.warning(f"_calculate_interval_score_values(): done. score={score}, forecast_model={forecast_model}, "
+                   f"num_warnings={num_warnings}")

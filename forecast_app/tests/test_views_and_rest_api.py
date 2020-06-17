@@ -1057,14 +1057,20 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
+            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual(['error'], list(response_dict.keys()))
+            self.assertIn("No 'data_file' form field", response_dict['error'])
 
             # case: no 'timezero_date'
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
             }, format='multipart')
+            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual(['error'], list(response_dict.keys()))
+            self.assertIn("No 'timezero_date' form field.", response_dict['error'])
 
             # case: invalid 'timezero_date' format - YYYY_MM_DD_DATE_FORMAT
             json_response = self.client.post(upload_forecast_url, {
@@ -1072,15 +1078,32 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': 'x20171202',
             }, format='multipart')
+            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual(['error'], list(response_dict.keys()))
+            self.assertIn("Badly formatted 'timezero_date' form field", response_dict['error'])
+
+            # case: timezero not found
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': f'JWT {jwt_token}',
+                'timezero_date': '2017-12-03',  # NOT public_tz1 or public_tz2
+            }, format='multipart')
+            response_dict = json.loads(json_response.content)
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual(['error'], list(response_dict.keys()))
+            self.assertIn("TimeZero not found for 'timezero_date' form field", response_dict['error'])
 
             # case: existing_forecast_for_time_zero
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
-                'timezero_date': self.public_tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # public_tz1
+                'timezero_date': '2017-12-01',  # public_tz1
             }, format='multipart')
+            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual(['error'], list(response_dict.keys()))
+            self.assertIn("A forecast already exists", response_dict['error'])
 
             # case: blue sky: _upload_file() -> NOT is_error
             upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
@@ -1089,7 +1112,10 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
+            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+            self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message',
+                              'input_json', 'output_json'}, set(response_dict.keys()))
 
             call_dict = upload_file_mock.call_args[1]
             self.assertIn('forecast_model_pk', call_dict)

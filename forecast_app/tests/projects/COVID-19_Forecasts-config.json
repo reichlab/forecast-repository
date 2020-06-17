@@ -3,7 +3,7 @@
   "is_public": true,
   "description": "The goal of this repository is to create a standardized set of data on forecasts from experienced teams making projections of cumulative and incident deaths due to COVID-19 in the United States.",
   "home_url": "https://github.com/reichlab/covid19-forecast-hub/tree/master/data-processed",
-  "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
+  "logo_url": "https://github.com/reichlab/covid19-forecast-hub-web/raw/master/images/forecast-hub-logo_DARKBLUE.png",
   "core_data": "https://github.com/reichlab/covid19-death-forecasts/tree/master/data-processed",
   "time_interval_type": "Week",
   "visualization_y_label": "Weighted ILI (%)",
@@ -4632,6 +4632,230 @@
     }
   ],
   "timezeros": [
+    {
+      "id": 812,
+      "url": "https://www.zoltardata.com/api/timezero/812/",
+      "timezero_date": "2020-06-16",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 811,
+      "url": "https://www.zoltardata.com/api/timezero/811/",
+      "timezero_date": "2020-06-14",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 810,
+      "url": "https://www.zoltardata.com/api/timezero/810/",
+      "timezero_date": "2020-06-13",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 809,
+      "url": "https://www.zoltardata.com/api/timezero/809/",
+      "timezero_date": "2020-06-12",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 808,
+      "url": "https://www.zoltardata.com/api/timezero/808/",
+      "timezero_date": "2020-06-11",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 807,
+      "url": "https://www.zoltardata.com/api/timezero/807/",
+      "timezero_date": "2020-06-10",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 803,
+      "url": "https://www.zoltardata.com/api/timezero/803/",
+      "timezero_date": "2020-06-09",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 802,
+      "url": "https://www.zoltardata.com/api/timezero/802/",
+      "timezero_date": "2020-06-06",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 801,
+      "url": "https://www.zoltardata.com/api/timezero/801/",
+      "timezero_date": "2020-06-05",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 800,
+      "url": "https://www.zoltardata.com/api/timezero/800/",
+      "timezero_date": "2020-06-07",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 799,
+      "url": "https://www.zoltardata.com/api/timezero/799/",
+      "timezero_date": "2020-06-04",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 798,
+      "url": "https://www.zoltardata.com/api/timezero/798/",
+      "timezero_date": "2020-06-03",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 797,
+      "url": "https://www.zoltardata.com/api/timezero/797/",
+      "timezero_date": "2020-06-02",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 796,
+      "url": "https://www.zoltardata.com/api/timezero/796/",
+      "timezero_date": "2020-05-30",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 795,
+      "url": "https://www.zoltardata.com/api/timezero/795/",
+      "timezero_date": "2020-05-27",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 794,
+      "url": "https://www.zoltardata.com/api/timezero/794/",
+      "timezero_date": "2020-05-26",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 793,
+      "url": "https://www.zoltardata.com/api/timezero/793/",
+      "timezero_date": "2020-05-31",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 792,
+      "url": "https://www.zoltardata.com/api/timezero/792/",
+      "timezero_date": "2020-05-29",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 791,
+      "url": "https://www.zoltardata.com/api/timezero/791/",
+      "timezero_date": "2020-04-14",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 790,
+      "url": "https://www.zoltardata.com/api/timezero/790/",
+      "timezero_date": "2020-05-28",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 762,
+      "url": "https://www.zoltardata.com/api/timezero/762/",
+      "timezero_date": "2020-05-22",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 761,
+      "url": "https://www.zoltardata.com/api/timezero/761/",
+      "timezero_date": "2020-05-19",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 760,
+      "url": "https://www.zoltardata.com/api/timezero/760/",
+      "timezero_date": "2020-05-20",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 759,
+      "url": "https://www.zoltardata.com/api/timezero/759/",
+      "timezero_date": "2020-05-23",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 758,
+      "url": "https://www.zoltardata.com/api/timezero/758/",
+      "timezero_date": "2020-05-24",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 757,
+      "url": "https://www.zoltardata.com/api/timezero/757/",
+      "timezero_date": "2020-05-21",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 744,
+      "url": "https://www.zoltardata.com/api/timezero/744/",
+      "timezero_date": "2020-05-15",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 743,
+      "url": "https://www.zoltardata.com/api/timezero/743/",
+      "timezero_date": "2020-05-16",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 742,
+      "url": "https://www.zoltardata.com/api/timezero/742/",
+      "timezero_date": "2020-05-13",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 741,
+      "url": "https://www.zoltardata.com/api/timezero/741/",
+      "timezero_date": "2020-05-17",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 740,
+      "url": "https://www.zoltardata.com/api/timezero/740/",
+      "timezero_date": "2020-05-12",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "id": 739,
+      "url": "https://www.zoltardata.com/api/timezero/739/",
+      "timezero_date": "2020-05-14",
+      "data_version_date": null,
+      "is_season_start": false
+    },
     {
       "id": 738,
       "url": "https://www.zoltardata.com/api/timezero/738/",

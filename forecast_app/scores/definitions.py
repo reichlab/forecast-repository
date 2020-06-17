@@ -42,6 +42,7 @@ SCORE_ABBREV_TO_NAME_AND_DESCR = {
     'interval_70': ('Interval score (alpha=0.7)', INTERVAL_SCORE_DESCRIPTION),
     'interval_80': ('Interval score (alpha=0.8)', INTERVAL_SCORE_DESCRIPTION),
     'interval_90': ('Interval score (alpha=0.9)', INTERVAL_SCORE_DESCRIPTION),
+    'interval_100': ('Interval score (alpha=1.0)', INTERVAL_SCORE_DESCRIPTION),
 }
 
 
@@ -164,6 +165,10 @@ def calc_interval_80(score, forecast_model):
 
 def calc_interval_90(score, forecast_model):
     _calculate_interval_score_values(score, forecast_model, 0.9)
+
+
+def calc_interval_100(score, forecast_model):
+    _calculate_interval_score_values(score, forecast_model, 1.0)
 
 
 #

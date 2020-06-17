@@ -979,16 +979,21 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         # set found units and targets
         unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
         found_unit_ids = set()
-        for pred_class in Prediction.concrete_subclasses():
-            pred_class_units = pred_class.objects.filter(forecast=forecast).values_list('unit', flat=True).distinct()
+        for concrete_prediction_class in Prediction.concrete_subclasses():
+            pred_class_units = concrete_prediction_class.objects\
+                .filter(forecast=forecast)\
+                .values_list('unit', flat=True)\
+                .distinct()
             found_unit_ids.update(pred_class_units)
         found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
 
         target_i_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
         found_target_ids = set()
-        for pred_class in Prediction.concrete_subclasses():
-            pred_class_targets = pred_class.objects.filter(forecast=forecast).values_list('target',
-                                                                                          flat=True).distinct()
+        for concrete_prediction_class in Prediction.concrete_subclasses():
+            pred_class_targets = concrete_prediction_class.objects\
+                .filter(forecast=forecast)\
+                .values_list('target', flat=True)\
+                .distinct()
             found_target_ids.update(pred_class_targets)
         found_targets = [target_i_to_object[target_id] for target_id in found_target_ids]
 
@@ -1243,7 +1248,7 @@ def _upload_forecast_worker(job_pk):
             new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=filename,
                                                    notes=notes)
             json_io_dict = json.load(cloud_file_fp)
-            logger.debug(f"_upload_forecast_worker(): loading predictions. json_io_dict={json_io_dict!r}")
+            logger.debug(f"_upload_forecast_worker(): loading predictions")
             load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
             job.output_json = {'forecast_pk': new_forecast.pk}
             job.save()

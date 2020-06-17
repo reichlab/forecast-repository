@@ -8,7 +8,8 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.api_views import _write_csv_score_data_for_project, _tz_unit_targ_pks_to_truth_values
+from forecast_app.api_views import _write_csv_score_data_for_project, _tz_unit_targ_pks_to_truth_values, \
+    csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
@@ -21,7 +22,7 @@ from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
-from utils.project import load_truth_data, create_project_from_json
+from utils.project import load_truth_data, create_project_from_json, query_forecasts_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -595,6 +596,7 @@ class ScoresTestCase(TestCase):
 
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+
         unit_loc2 = project.units.filter(name='location2').first()
         targ_pct_next_wk = project.targets.filter(name='pct next week').first()  # continuous
         unit_loc3 = project.units.filter(name='location3').first()
@@ -678,6 +680,34 @@ class ScoresTestCase(TestCase):
             self.assertEqual(1, interval_20_score.values.count())
 
             score_value = interval_20_score.values.first()
+            self.assertEqual(unit, score_value.unit)
+            self.assertEqual(target, score_value.target)
+            self.assertEqual(exp_score, score_value.value)
+
+
+    def test_calc_interval_100(self):
+        # handbased on the three cases in 2020-04-26-CU-80contact-small-hand-calc-alpha=1.xlsx
+        Score.ensure_all_scores_exist()
+        interval_100_score = Score.objects.filter(abbreviation='interval_100').first()
+        self.assertIsNotNone(interval_100_score)
+
+        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, forecast_model = _make_covid19_project(po_user)
+        forecast = _load_forecast_(forecast_model, '2020-04-26',
+                                   'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
+        unit = project.units.filter(name='US').first()
+        target = project.targets.filter(name='1 day ahead cum death').first()
+        for truth, exp_score in [
+            (52102, 174),  # case 1/3) truth < l/u
+            (52189, 0),  # case 2/3) truth = l/u
+            (52239, 100),  # case 3/3) truth > l/u
+        ]:
+            project.delete_truth_data()
+            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            interval_100_score.update_score_for_model(forecast_model)
+            self.assertEqual(1, interval_100_score.values.count())
+
+            score_value = interval_100_score.values.first()
             self.assertEqual(unit, score_value.unit)
             self.assertEqual(target, score_value.target)
             self.assertEqual(exp_score, score_value.value)
@@ -937,3 +967,15 @@ def _make_covid19_project(user):
     project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), user)
     forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model', abbreviation='abbrev')
     return project, forecast_model
+
+
+def _dump_predictions(project):
+    print('* truth')
+    response = csv_response_for_project_truth_data(project)
+    for row in response.content.split(b'\n'):
+        print(row.decode().replace(',', '\t'))
+
+    print('* rows')
+    rows = query_forecasts_for_project(project, {})
+    for row in rows:
+        print(*row, sep='\t')

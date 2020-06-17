@@ -191,9 +191,9 @@ def job_cloud_file(job_pk):
             logger.debug(f"job_cloud_file(): Done. job={job}")
         except Exception as ex:
             job.status = Job.FAILED
-            job.failure_message = f"Failed to process the file: '{ex.args[0]}'"
+            job.failure_message = f"Failed to process the file: '{repr(ex)}'"
             job.save()
-            logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {ex}. job={job}")
+            logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {repr(ex)}. job={job}")
         finally:
             delete_file(job)  # NB: in current thread
 

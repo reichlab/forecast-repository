@@ -125,9 +125,9 @@
     {% endif %}
 
 
-    <h2>Jobs</h2>
+    <h2>Jobs <small>({{ jobs|length }})</small></h2>
 
-    {% if detail_user.jobs.all %}
+    {% if jobs %}
         <p class="help-block">Jobs created by {{ detail_user }}:</p>
 
         <div class="row">
