@@ -438,29 +438,15 @@ def project_score_data(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    # set model_score_count_rows. we order by model.name then score.name, which we do in two passes: 1) look up objects
-    # for PKs, and 2) iterate over sort, including only the first model in the rows
-    model_score_counts = []
-    for forecast_model_id, score_id, count in _model_score_count_rows_for_project(project):
-        forecast_model = ForecastModel.objects.filter(pk=forecast_model_id).first()
-        score = Score.objects.filter(pk=score_id).first()
-        model_score_counts.append([forecast_model, score, count])
-
-    # score, num_score_values, last_update:
+    # set score_summaries
     score_summaries = [(score,
                         score.num_score_values_for_project(project),
                         score.last_update_for_project(project))
                        for score in sorted(Score.objects.all(), key=lambda score: score.name)]
 
-    model_score_count_rows = []  # forecast_model, score, count
-    for forecast_model, score, count in sorted(model_score_counts, key=lambda row: (row[0].name, row[1].name)):
-        model_score_count_rows.append([forecast_model, score, count])
-
     return render(request, 'project_score_data.html',
                   context={'project': project,
-                           'score_summaries': score_summaries,
-                           'model_score_count_rows': model_score_count_rows,
-                           })
+                           'score_summaries': score_summaries})
 
 
 def _model_score_count_rows_for_project(project):
@@ -980,9 +966,9 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
         found_unit_ids = set()
         for concrete_prediction_class in Prediction.concrete_subclasses():
-            pred_class_units = concrete_prediction_class.objects\
-                .filter(forecast=forecast)\
-                .values_list('unit', flat=True)\
+            pred_class_units = concrete_prediction_class.objects \
+                .filter(forecast=forecast) \
+                .values_list('unit', flat=True) \
                 .distinct()
             found_unit_ids.update(pred_class_units)
         found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
@@ -990,9 +976,9 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         target_i_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
         found_target_ids = set()
         for concrete_prediction_class in Prediction.concrete_subclasses():
-            pred_class_targets = concrete_prediction_class.objects\
-                .filter(forecast=forecast)\
-                .values_list('target', flat=True)\
+            pred_class_targets = concrete_prediction_class.objects \
+                .filter(forecast=forecast) \
+                .values_list('target', flat=True) \
                 .distinct()
             found_target_ids.update(pred_class_targets)
         found_targets = [target_i_to_object[target_id] for target_id in found_target_ids]

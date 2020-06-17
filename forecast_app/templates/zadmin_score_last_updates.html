@@ -11,7 +11,8 @@
     <h2>ScoreLastUpdates</h2>
 
     {% if score_last_update_rows %}
-        <table class="table table-striped table-bordered">
+        <table id="score_last_updates_table" class="table table-striped table-bordered">
+            <thead>
             <tr>
                 <th>Score</th>
                 <th>Project</th>
@@ -20,6 +21,8 @@
                 <th>Model changed_at</th>
                 <th>Needs update?</th>
             </tr>
+            </thead>
+            <tbody>
             {% for forecast_model, score, updated_at, is_needs_update in score_last_update_rows %}
                 <tr>
                     <td>{{ score.abbreviation }}</td>
@@ -32,6 +35,7 @@
                     <td>{% if is_needs_update %}<i class="fas fa-edit"></i>{% else %}{% endif %}</td>
                 </tr>
             {% endfor %}
+            </tbody>
         </table>
 
         <form class="form-inline" style="display: inline-block;" method="POST"
@@ -44,5 +48,13 @@
             <small class="text-muted">(No score updates)</small>
         </p>
     {% endif %}
+
+
+    <!-- activate the https://datatables.net/ -->
+    <script>
+        $(document).ready(function () {
+            $('#score_last_updates_table').DataTable();
+        });
+    </script>
 
 {% endblock %}

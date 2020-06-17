@@ -12,16 +12,20 @@
         </ol>
     </nav>
 
+
     <h4>Scores (all models)</h4>
 
     {% if score_summaries %}
-        <table class="table table-striped table-bordered">
+        <table id="score_summaries_table" class="table table-striped table-bordered">
+            <thead>
             <tr>
                 <th>Name</th>
                 <th>Description</th>
                 <th>Last Update</th>
                 <th># Score Values</th>
             </tr>
+            </thead>
+            <tbody>
             {% for score, num_score_values, last_update in score_summaries %}
                 <tr>
                     <td>{{ score.name }}</td>
@@ -30,6 +34,7 @@
                     <td>{{ num_score_values }}</td>
                 </tr>
             {% endfor %}
+            </tbody>
         </table>
     {% else %}
         <p>
@@ -47,43 +52,12 @@
         {% endif %}
     </form>
 
-    <hr> {# hack to get button to group visually with content above them #}
 
-
-    <h4>Score Counts (per model)</h4>
-
-    {% if model_score_count_rows %}
-        <div class="row">
-            <div class="col-md-8">
-                <table class="table table-striped table-bordered">
-                    <tr>
-                        <th>Model</th>
-                        <th>Score</th>
-                        <th># Score Values</th>
-                    </tr>
-                    {% for forecast_model, score, count in model_score_count_rows %}
-                        <tr>
-                            <td>
-                                {% if forecast_model %}
-                                    <a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a>
-                                {% else %}{% endif %}
-                            </td>
-                            <td>
-                                {{ score.name }}
-                            </td>
-                            <td>
-                                {{ count }}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </table>
-            </div>
-        </div>
-    {% else %}
-        <p>
-            <small class="text-muted">(No score data)</small>
-        </p>
-    {% endif %}
-
+    <!-- activate the https://datatables.net/ -->
+    <script>
+        $(document).ready(function () {
+            $('#score_summaries_table').DataTable();
+        });
+    </script>
 
 {% endblock %}

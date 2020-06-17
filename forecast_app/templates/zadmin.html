@@ -151,13 +151,16 @@
     <h2>Scores</h2>
 
     {% if scores_sort_name %}
-        <table class="table table-striped table-bordered">
+        <table id="scores_table" class="table table-striped table-bordered">
+            <thead>
             <tr>
                 <th>Name</th>
                 <th>Abbreviation</th>
                 <th>Description</th>
                 <th># Score Values</th>
             </tr>
+            </thead>
+            <tbody>
             {% for score in scores_sort_name %}
                 <tr>
                     <td>{{ score.name }}</td>
@@ -166,6 +169,7 @@
                     <td>{{ score.num_score_values }}</td>
                 </tr>
             {% endfor %}
+            </tbody>
         </table>
 
         <form class="form-inline" style="display: inline-block;" method="POST"
@@ -190,5 +194,13 @@
         {% csrf_token %}
         <button type="submit" class="btn btn-success">Update Changed</button>
     </form>
+
+
+    <!-- activate the https://datatables.net/ -->
+    <script>
+        $(document).ready(function () {
+            $('#scores_table').DataTable();
+        });
+    </script>
 
 {% endblock %}
