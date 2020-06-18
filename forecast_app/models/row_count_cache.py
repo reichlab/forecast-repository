@@ -29,7 +29,7 @@ class RowCountCache(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.project, self.updated_at, self.row_count, self.updated_at))
+        return str((self.pk, self.project, str(self.updated_at), self.row_count))
 
 
     def __str__(self):  # todo

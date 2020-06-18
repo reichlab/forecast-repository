@@ -19,7 +19,7 @@ class ModelScoreChange(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast_model.pk, self.changed_at))
+        return str((self.pk, self.forecast_model.pk, str(self.changed_at)))
 
 
     def __str__(self):  # todo

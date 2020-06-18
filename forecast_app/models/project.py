@@ -611,7 +611,8 @@ class TimeZero(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.timezero_date, self.data_version_date, self.is_season_start, self.season_name))
+        return str((self.pk, str(self.timezero_date), str(self.data_version_date),
+                    self.is_season_start, self.season_name))
 
 
     def __str__(self):  # todo

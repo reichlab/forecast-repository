@@ -28,7 +28,7 @@ class ScoreCsvFileCache(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.project, self.updated_at))
+        return str((self.pk, self.project, str(self.updated_at)))
 
 
     def __str__(self):  # todo

@@ -249,7 +249,7 @@ class ScoreLastUpdate(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast_model, self.updated_at, self.score))
+        return str((self.pk, self.forecast_model, str(self.updated_at), self.score))
 
 
     def __str__(self):  # todo

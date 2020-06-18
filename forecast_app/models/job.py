@@ -78,7 +78,7 @@ class Job(models.Model):
     def __repr__(self):
         return str((self.pk, self.user, self.status_as_str(),
                     self.is_failed(), self.failure_message[:30],
-                    self.created_at, self.updated_at,
+                    str(self.created_at), str(self.updated_at),
                     self.input_json, self.output_json))
 
 
