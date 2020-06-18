@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-django = "==1.11.28"
+django = "==1.11.29"
 click = "*"
 requests = "*"
 jsonfield = "*"
