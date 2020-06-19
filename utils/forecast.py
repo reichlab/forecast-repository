@@ -194,8 +194,9 @@ BIN_SUM_REL_TOL = 0.001  # hard-coded magic number for prediction probability su
 @transaction.atomic
 def load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=True):
     """
-    Loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note that we ignore the
-    'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in forecast's Project.
+    Top-level function that loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note
+    that we ignore the 'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in
+    forecast's Project.
 
     :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
     :param forecast: a Forecast to load json_io_dict's predictions into
@@ -826,3 +827,100 @@ def _insert_prediction_rows(prediction_class, columns_names, rows):
                     VALUES ({values_percent_s});
                     """
             cursor.executemany(sql, rows)
+
+
+#
+# data_rows_from_forecast()
+#
+
+# todo xx TDD!
+def data_rows_from_forecast(forecast, unit, target):
+    """
+    Returns rows for each concrete prediction type that are suitable tabular display.
+
+    :param forecast: a Forecast to constrain to
+    :param unit: a Unit ""
+    :param target: a Target ""
+    :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
+    """
+
+
+    # NB: for simplicity we use five separate queries. one big UNION got messy due to many NULLs (sparse)
+    def coalesce_values(value_i, value_f, value_t, value_d, value_b):
+        value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+        return value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
+
+
+    # bin
+    sql = f"""
+        SELECT u.name, t.name, pred.prob, pred.cat_b, pred.cat_d, pred.cat_f, pred.cat_i, pred.cat_t
+        FROM {BinDistribution._meta.db_table} AS pred
+                 JOIN forecast_app_unit u on pred.unit_id = u.id
+                 JOIN forecast_app_target t on pred.target_id = t.id
+        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
+        ORDER BY unit_id, target_id, pred.id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
+        data_rows_bin = [(row[0], row[1], row[2], coalesce_values(row[3], row[4], row[5], row[6], row[7]))
+                         for row in cursor.fetchall()]
+
+    # named
+    sql = f"""
+        SELECT u.name, t.name, pred.family, pred.param1, pred.param2, pred.param3
+        FROM {NamedDistribution._meta.db_table} AS pred
+                 JOIN forecast_app_unit u on pred.unit_id = u.id
+                 JOIN forecast_app_target t on pred.target_id = t.id
+        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
+        ORDER BY unit_id, target_id, pred.id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
+        data_rows_named = [(row[0], row[1], NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[row[2]],
+                            row[3], row[4], row[5])
+                           for row in cursor.fetchall()]
+
+    # point
+    sql = f"""
+        SELECT u.name, t.name, pred.value_b, pred.value_d, pred.value_f, pred.value_i, pred.value_t
+        FROM {PointPrediction._meta.db_table} AS pred
+                 JOIN forecast_app_unit u on pred.unit_id = u.id
+                 JOIN forecast_app_target t on pred.target_id = t.id
+        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
+        ORDER BY unit_id, target_id, pred.id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
+        data_rows_point = [(row[0], row[1], coalesce_values(row[2], row[3], row[4], row[5], row[6]))
+                           for row in cursor.fetchall()]
+
+    # quantile
+    sql = f"""
+        SELECT u.name, t.name, pred.quantile, pred.value_d, pred.value_f, pred.value_i
+        FROM {QuantileDistribution._meta.db_table} AS pred
+                 JOIN forecast_app_unit u on pred.unit_id = u.id
+                 JOIN forecast_app_target t on pred.target_id = t.id
+        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
+        ORDER BY unit_id, target_id, pred.id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
+        data_rows_quantile = [(row[0], row[1], row[2], coalesce_values(row[3], row[4], None, row[5], None))
+                              for row in cursor.fetchall()]
+
+    # sample
+    sql = f"""
+        SELECT u.name, t.name, pred.sample_b, pred.sample_d, pred.sample_f, pred.sample_i, pred.sample_t
+        FROM {SampleDistribution._meta.db_table} AS pred
+                 JOIN forecast_app_unit u on pred.unit_id = u.id
+                 JOIN forecast_app_target t on pred.target_id = t.id
+        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
+        ORDER BY unit_id, target_id, pred.id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
+        data_rows_sample = [(row[0], row[1], coalesce_values(row[2], row[3], row[4], row[5], row[6]))
+                            for row in cursor.fetchall()]
+
+    # done
+    return data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample

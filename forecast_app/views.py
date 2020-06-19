@@ -18,7 +18,7 @@ from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
-    Prediction, ModelScoreChange
+    Prediction, ModelScoreChange, Unit, Target
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
@@ -26,7 +26,8 @@ from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cach
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.cloud_file import delete_file, upload_file
-from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, \
+    data_rows_from_forecast
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets, \
     unit_rows_for_project, models_summary_table_rows_for_project
@@ -962,7 +963,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
              concrete_prediction_class.objects.filter(forecast=forecast).count())
             for concrete_prediction_class in Prediction.concrete_subclasses()]
 
-        # set found units and targets
+        # set found_units
         unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
         found_unit_ids = set()
         for concrete_prediction_class in Prediction.concrete_subclasses():
@@ -973,6 +974,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             found_unit_ids.update(pred_class_units)
         found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
 
+        # set found_targets
         target_i_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
         found_target_ids = set()
         for concrete_prediction_class in Prediction.concrete_subclasses():
@@ -988,13 +990,68 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
 
+        # set search_unit, search_target, and data_rows_* if a query requested
+        search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
+            data_rows_sample = self.search_forecast(forecast)
+
         # done
         context = super().get_context_data(**kwargs)
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
-        context['units'] = sorted(found_units, key=lambda _: _.name)
+        context['found_units'] = sorted(found_units, key=lambda _: _.name)
         context['found_targets'] = found_targets
         context['target_groups'] = target_groups
+        context['search_unit'] = search_unit
+        context['search_target'] = search_target
+        context['data_rows_bin'] = data_rows_bin
+        context['data_rows_named'] = data_rows_named
+        context['data_rows_point'] = data_rows_point
+        context['data_rows_quantile'] = data_rows_quantile
+        context['data_rows_sample'] = data_rows_sample
         return context
+
+
+    def search_forecast(self, forecast):
+        """
+        `ForecastDetailView.get_context_data` helper, returns a 7-tuple based on the two search args in self.request
+        ('unit' - a Unit.id and 'target' - a Target.id):
+            (search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
+        If the passed args are valid, the first two items are None and the remainder are [].
+        """
+        search_unit_and_target = None  # 2-tuple if query was valid: (search_unit, search_target). set next
+        search_unit_id = self.request.GET['unit'] if 'unit' in self.request.GET else None
+        search_target_id = self.request.GET['target'] if 'target' in self.request.GET else None
+        if ((search_unit_id is not None) and (search_target_id is None)) or \
+                ((search_unit_id is None) and (search_target_id is not None)):
+            messages.error(self.request, f"Both 'unit' and 'target' IDs must be passed to do a search, but only one "
+                                         f"was. unit={search_unit_id!r}, target={search_target_id!r}")
+
+        if (search_unit_id is not None) and (search_target_id is not None):
+            # both were passed, so validate
+            try:
+                search_unit_id = int(search_unit_id)
+                search_target_id = int(search_target_id)
+                found_search_unit = Unit.objects.filter(id=search_unit_id).first()  # None o/w
+                found_search_target = Target.objects.filter(id=search_target_id).first()  # ""
+                if (not found_search_unit) or (not found_search_target):
+                    messages.error(self.request, f"Both 'unit' and 'target' IDs were passed to the search, but one or "
+                                                 f"both did not identify an actual object. unit={found_search_unit}, "
+                                                 f"target={found_search_target}")
+                else:
+                    search_unit_and_target = (found_search_unit, found_search_target)  # yay!
+            except ValueError:
+                messages.error(self.request, f"Both 'unit' and 'target' IDs were passed to the search, but one or "
+                                             f"both were not ints. unit={search_unit_id}, "
+                                             f"target={search_target_id}")
+
+        # do the actual query if valid search params
+        data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = [], [], [], [], []
+        if search_unit_and_target:
+            data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
+                data_rows_from_forecast(forecast, search_unit_and_target[0], search_unit_and_target[1])
+
+        return search_unit_and_target[0] if search_unit_and_target else None, \
+               search_unit_and_target[1] if search_unit_and_target else None, \
+               data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample
 
 
 class JobDetailView(UserPassesTestMixin, DetailView):

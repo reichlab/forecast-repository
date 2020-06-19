@@ -69,7 +69,7 @@
 
         <form id="download_form" class="form-inline" method="POST" action="{% url 'download-truth' project.pk %}">
             {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Download CSV</button>
+            <button type="submit" class="btn btn-success">Download CSV</button>
         </form>
     {% else %}
         <h4>Preview of {{ project.get_num_truth_rows|intword|intcomma }}

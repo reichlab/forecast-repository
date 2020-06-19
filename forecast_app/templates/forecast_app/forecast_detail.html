@@ -9,8 +9,11 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{{ forecast.forecast_model.project.get_absolute_url }}">{{ forecast.forecast_model.project.name }}</a></li>
-            <li class="breadcrumb-item"><a href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.name }}</a></li>
+            <li class="breadcrumb-item"><a
+                    href="{{ forecast.forecast_model.project.get_absolute_url }}">{{ forecast.forecast_model.project.name }}</a>
+            </li>
+            <li class="breadcrumb-item"><a
+                    href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.name }}</a></li>
             <li class="breadcrumb-item active">{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</li>
         </ol>
     </nav>
@@ -19,6 +22,8 @@
         {% if user.is_authenticated %}
             <a href="{% url 'api-forecast-detail' forecast.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
         {% endif %}
+        <a href="{% url 'download-forecast' forecast.pk %}" class="btn btn-success btn-sm" role="button">
+            <i class="fas fa-cloud-download-alt"></i> JSON</a>
     </h2>
 
     <div class="row">
@@ -69,10 +74,10 @@
     </div>
 
 
-    <h2>Units <small>({{ units|length }} / {{ forecast.forecast_model.project.units.all|length }})</small></h2>
+    <h2>Units <small>({{ found_units|length }} / {{ forecast.forecast_model.project.units.all|length }})</small></h2>
 
-    {% if units %}
-        {% for unit in units %}
+    {% if found_units %}
+        {% for unit in found_units %}
             <code>{{ unit.name }}</code>{% if not forloop.last %},{% endif %}
         {% endfor %}
     {% else %}
@@ -101,16 +106,211 @@
         </ul>
     {% endfor %}
 
-    <form id="download_form" class="form-inline" method="POST" action="{% url 'download-forecast' forecast.pk %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-primary">Download JSON</button>
+    <hr> {# hack to add space before next #}
+
+
+    <h2>Search</h2>
+
+    <form id="search_form" class="form-inline" method="GET" action="{% url 'forecast-detail' forecast.id %}">
+        <div class="form-row align-items-center">
+
+            <div class="col-auto">
+                <label class="sr-only" for="unit_select">Unit</label>
+                <div class="input-group mb-2">
+                    <div class="input-group-prepend">
+                        <div class="input-group-text">Unit</div>
+                    </div>
+                    <select id="unit_select" class="form-control" name="unit">
+                        {% for unit in found_units %}
+                            <option value="{{ unit.id }}" {% if unit == search_unit %}selected="selected"{% endif %}>
+                                {{ unit.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-auto">
+                <label class="sr-only" for="target_select">Target</label>
+                <div class="input-group mb-2">
+                    <div class="input-group-prepend">
+                        <div class="input-group-text">Target</div>
+                    </div>
+                    <select id="target_select" class="form-control" name="target">
+                        {% for target in found_targets %}
+                            <option value="{{ target.id }}"
+                                    {% if target == search_target %}selected="selected"{% endif %}>
+                                {{ target.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-auto">
+                <div class="input-group mb-2">
+                    <button type="submit" class="save btn btn-success">Search</button>
+                </div>
+            </div>
+
+            <div class="col-auto">
+                <div class="input-group mb-2">
+                    <a href="{% url 'forecast-detail' forecast.id %}" class="save btn btn-light"
+                       role="button">Reset</a>
+                </div>
+            </div>
+
+        </div>
     </form>
 
+    <hr> {# hack to add space before next #}
+
+    {% if data_rows_bin %}
+        <h4>Bin data <small>({{ data_rows_bin|length }} row{{ data_rows_bin|length|pluralize }})</small></h4>
+        <table id="data_rows_bin_table" class="table table-striped table-bordered">
+            <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Target</th>
+                <th>Prob</th>
+                <th>Cat</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data_row in data_rows_bin %}
+                <tr>
+                    <td>{{ data_row.0 }}</td>
+                    <td>{{ data_row.1 }}</td>
+                    <td>{{ data_row.2 }}</td>
+                    <td>{{ data_row.3 }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <hr> {# hack to add space before next #}
+    {% endif %}
+
+
+    {% if data_rows_named %}
+        <h4>Named data <small>({{ data_rows_named|length }} row{{ data_rows_named|pluralize }})</small></h4>
+        <table id="data_rows_named_table" class="table table-striped table-bordered">
+            <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Target</th>
+                <th>Family</th>
+                <th>Param 1</th>
+                <th>Param 2</th>
+                <th>Param 3</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data_row in data_rows_named %}
+                <tr>
+                    <td>{{ data_row.0 }}</td>
+                    <td>{{ data_row.1 }}</td>
+                    <td>{{ data_row.2 }}</td>
+                    <td>{{ data_row.3 }}</td>
+                    <td>{{ data_row.4 }}</td>
+                    <td>{{ data_row.5 }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <hr> {# hack to add space before next #}
+    {% endif %}
+
+
+    {% if data_rows_point %}
+        <h4>Point data <small>({{ data_rows_point|length }} row{{ data_rows_point|pluralize }})</small></h4>
+        <table id="data_rows_point_table" class="table table-striped table-bordered">
+            <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Target</th>
+                <th>Value</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data_row in data_rows_point %}
+                <tr>
+                    <td>{{ data_row.0 }}</td>
+                    <td>{{ data_row.1 }}</td>
+                    <td>{{ data_row.2 }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <hr> {# hack to add space before next #}
+    {% endif %}
+
+
+    {% if data_rows_quantile %}
+        <h4>Quantile data <small>({{ data_rows_quantile|length }} row{{ data_rows_quantile|pluralize }})</small></h4>
+        <table id="data_rows_quantile_table" class="table table-striped table-bordered">
+            <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Target</th>
+                <th>Quantile</th>
+                <th>Value</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data_row in data_rows_quantile %}
+                <tr>
+                    <td>{{ data_row.0 }}</td>
+                    <td>{{ data_row.1 }}</td>
+                    <td>{{ data_row.2 }}</td>
+                    <td>{{ data_row.3 }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <hr> {# hack to add space before next #}
+    {% endif %}
+
+
+    {% if data_rows_sample %}
+        <h4>Sample data <small>({{ data_rows_sample|length }} row{{ data_rows_sample|pluralize }})</small></h4>
+        <table id="data_rows_sample_table" class="table table-striped table-bordered">
+            <thead>
+            <tr>
+                <th>Unit</th>
+                <th>Target</th>
+                <th>Sample</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for data_row in data_rows_sample %}
+                <tr>
+                    <td>{{ data_row.0 }}</td>
+                    <td>{{ data_row.1 }}</td>
+                    <td>{{ data_row.2 }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <hr> {# hack to add space before next #}
+    {% endif %}
+
+
+    <h4>
+    {% if search_unit and search_target and not data_rows_bin and not data_rows_named and not data_rows_point and not data_rows_quantile and not data_rows_sample %}
+        <div>No matching predictions for &ldquo;{{ search_unit.name }}&rdquo; and &ldquo;{{ search_target.name }}&rdquo;.</div>
+    {% elif not search_unit and not search_target %}
+        <div>To search predictions, select a Unit and Target above and then click &ldquo;Search&rdquo;.</div>
+    {% endif %}
+    </h4>
 
     <!-- activate the https://datatables.net/ -->
     <script>
         $(document).ready(function () {
             $('#targets_table').dataTable();
+            $('#data_rows_bin_table').dataTable();
+            $('#data_rows_named_table').dataTable();
+            $('#data_rows_point_table').dataTable();
+            $('#data_rows_quantile_table').dataTable();
+            $('#data_rows_sample_table').dataTable();
         });
     </script>
 
