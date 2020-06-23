@@ -14,6 +14,7 @@
         </ol>
     </nav>
 
+
     <h2>Project truth for &ldquo;{{ project.name }}&rdquo;
         {% if user.is_authenticated %}
             <a href="{% url 'api-truth-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>

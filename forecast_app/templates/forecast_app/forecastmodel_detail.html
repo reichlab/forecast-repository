@@ -12,6 +12,7 @@
         </ol>
     </nav>
 
+
     <h2>Model: {% if forecastmodel.team_name %} {{ forecastmodel.team_name }}
         - {% endif %}{{ forecastmodel.name }}
         {% if user.is_authenticated %}
@@ -99,7 +100,11 @@
     </div>
 
 
-    <h2 id="forecasts">Forecasts <small>({{ forecastmodel.forecasts.all|length }})</small></h2>
+    {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
+    <h2 id="forecasts" style="display: inline-block;">Forecasts
+        <small>({{ forecastmodel.forecasts.all|length }})</small></h2>
+    <label>&nbsp;<input type="checkbox" id="hide_0_forecasts_checkbox" checked/> Hide if no data</label>
+
     {% if timezero_forecast_pairs %}
         <table id="forecasts_table" class="table table-striped">
             <thead>
@@ -170,7 +175,25 @@
     <!-- activate the https://datatables.net/ -->
     <script>
         $(document).ready(function () {
-            $('#forecasts_table').DataTable();
+            var table = $('#forecasts_table').DataTable();
+
+            {# http://live.datatables.net/fehobiti/145/edit #}
+            $.fn.dataTable.ext.search.push(
+                function (settings, searchData, index, rowData, counter) {
+                    var checked = $('#hide_0_forecasts_checkbox').is(':checked');
+                    if (checked && searchData[2] === '') {  // "Data Source" column
+                        return false;  // hide row
+                    } else {
+                        return true;  // show row
+                    }
+                });
+
+            $('#hide_0_forecasts_checkbox').on('change', function () {
+                table.draw();  // run the search plugin
+            });
+
+            table.draw();  // reflect the current checkbox state
+
         });
     </script>
 

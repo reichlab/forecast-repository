@@ -414,26 +414,30 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
 
         # validate 'timezero_date'
         if 'timezero_date' not in request.data:
-            return JsonResponse({'error': "No 'timezero_date' form field."}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'error': f"No 'timezero_date' form field. forecast_model={forecast_model}"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         timezero_date_str = request.data['timezero_date']
         try:
             timezero_date_obj = datetime.datetime.strptime(timezero_date_str, YYYY_MM_DD_DATE_FORMAT)
         except ValueError as ve:
-            return JsonResponse({'error': "Badly formatted 'timezero_date' form field: '{}'".format(ve)},
+            return JsonResponse({'error': f"Badly formatted 'timezero_date' form field: '{repr(ve)}'. "
+                                          f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         time_zero = forecast_model.project.time_zero_for_timezero_date(timezero_date_obj)
         if not time_zero:
-            return JsonResponse({'error': f"TimeZero not found for 'timezero_date' form field: '{timezero_date_obj}'"},
+            return JsonResponse({'error': f"TimeZero not found for 'timezero_date' form field: '{timezero_date_obj}'. "
+                                          f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # check for existing forecast
         existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
         if existing_forecast_for_time_zero:
-            return JsonResponse({'error': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
-                                          "existing data and then upload again."
-                                .format(time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), data_file.name)},
+            return JsonResponse({'error': f"A forecast already exists. "
+                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}, "
+                                          f"file_name='{data_file.name}'. Please delete existing data and then upload "
+                                          f"again. forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # upload to cloud and enqueue a job to process a new Job
@@ -443,8 +447,8 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
                                      forecast_model_pk=forecast_model.pk,
                                      timezero_pk=time_zero.pk, notes=notes)
         if is_error:
-            return JsonResponse({'error': "There was an error uploading the file. The error was: '{}'"
-                                .format(is_error)},
+            return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'. "
+                                          f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         job_serializer = JobSerializer(job, context={'request': request})

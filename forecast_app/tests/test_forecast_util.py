@@ -35,8 +35,8 @@ class ForecastUtilTestCase(TestCase):
         # rows: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
         loc_targ_to_exp_rows = {
             (unit_loc1, target_pct_next_week): ([],
-                                                [('location1', 'pct next week', 'norm', 1.1, 2.2, None)],  # bin
-                                                [('location1', 'pct next week', 2.1)],  # named
+                                                [('location1', 'pct next week', 'norm', 1.1, 2.2, None)],  # named
+                                                [('location1', 'pct next week', 2.1)],  # point
                                                 [], []),
             (unit_loc1, target_cases_next_week): ([],
                                                   [('location1', 'cases next week', 'pois', 1.1, None, None)],  # named

@@ -18,6 +18,7 @@
         </ol>
     </nav>
 
+
     <h2>Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}
         {% if user.is_authenticated %}
             <a href="{% url 'api-forecast-detail' forecast.pk %}" class="btn btn-primary btn-sm" role="button">API</a>

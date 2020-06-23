@@ -918,14 +918,6 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         return context
 
 
-def timezero_forecast_pairs_for_forecast_model(forecast_model):
-    """
-    :return: a list of 2-tuples of timezero/forecast pairs for forecast_model. form: (TimeZero, Forecast)
-    """
-    return [(timezero, forecast_model.forecast_for_time_zero(timezero))
-            for timezero in forecast_model.project.timezeros.order_by('timezero_date')]
-
-
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -939,7 +931,9 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         forecast_model = self.get_object()
-        context['timezero_forecast_pairs'] = timezero_forecast_pairs_for_forecast_model(forecast_model)
+        timezero_forecast_pairs = [(timezero, forecast_model.forecast_for_time_zero(timezero))
+                                   for timezero in forecast_model.project.timezeros.order_by('timezero_date')]
+        context['timezero_forecast_pairs'] = timezero_forecast_pairs
         context['is_user_ok_edit_model'] = is_user_ok_edit_model(self.request.user, forecast_model)
         return context
 
