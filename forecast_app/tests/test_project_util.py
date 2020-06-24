@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 
+from django.db import connection
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
@@ -608,23 +609,51 @@ class ProjectUtilTestCase(TestCase):
         _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
-        # test with just one forecast - oldest and newest forecast is the same
-        exp_row = (forecast_model, forecast_model.forecasts.count(),  # forecast_model_id, num_forecasts
-                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # oldest_forecast_tz_date
-                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # newest_forecast_tz_date
-                   forecast.id, forecast.id)  # oldest_forecast_id, newest_forecast_id
+        # test with just one forecast - oldest and newest forecast is the same. a 7-tuple:
+        #   [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id,
+        #    newest_forecast_id, newest_forecast_created_at].
+        # NB: we have to work around a Django bug where DateField and DateTimeField come out of the database as either
+        # datetime.date/datetime.datetime objects (postgres) or strings (sqlite3)
+        exp_row = (forecast_model, forecast_model.forecasts.count(),
+                   str(time_zero.timezero_date),  # oldest_forecast_tz_date
+                   str(time_zero.timezero_date),  # newest_forecast_tz_date
+                   forecast.id, forecast.id,
+                   forecast.created_at.utctimetuple(),  # newest_forecast_created_at
+                   )
         act_rows = models_summary_table_rows_for_project(project)
+        act_rows = [(act_rows[0][0], act_rows[0][1],
+                     str(act_rows[0][2]),  # oldest_forecast_tz_date
+                     str(act_rows[0][3]),  # newest_forecast_tz_date
+                     act_rows[0][4],
+                     act_rows[0][5],
+                     act_rows[0][6].utctimetuple(),  # newest_forecast_created_at
+                     )]
+
+        sql = f"""SELECT created_at FROM {Forecast._meta.db_table} WHERE id = %s;"""
+        with connection.cursor() as cursor:
+            cursor.execute(sql, (forecast.pk,))
+            rows = cursor.fetchall()
+
         self.assertEqual([exp_row], act_rows)
 
         # test a second forecast
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                             time_zero=time_zero2)
-        exp_row = (forecast_model, forecast_model.forecasts.count(),  # forecast_model_id, num_forecasts
-                   time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # oldest_forecast_tz_date
-                   time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),  # newest_forecast_tz_date
-                   forecast.id, forecast2.id)  # oldest_forecast_id, newest_forecast_id
+        exp_row = (forecast_model, forecast_model.forecasts.count(),
+                   str(time_zero.timezero_date),  # oldest_forecast_tz_date
+                   str(time_zero2.timezero_date),  # newest_forecast_tz_date
+                   forecast.id, forecast2.id,
+                   forecast2.created_at.utctimetuple(),  # newest_forecast_created_at
+                   )
         act_rows = models_summary_table_rows_for_project(project)
+        act_rows = [(act_rows[0][0], act_rows[0][1],
+                     str(act_rows[0][2]),  # oldest_forecast_tz_date
+                     str(act_rows[0][3]),  # newest_forecast_tz_date
+                     act_rows[0][4],
+                     act_rows[0][5],
+                     act_rows[0][6].utctimetuple(),  # newest_forecast_created_at
+                     )]
         self.assertEqual([exp_row], act_rows)
 
 
@@ -635,9 +664,9 @@ class ProjectUtilTestCase(TestCase):
         # case: one model with one timezero. recall rows:
         # (model, newest_forecast_tz_date, newest_forecast_id,
         #  num_present_unit_names, present_unit_names, missing_unit_names):
-        exp_rows = [(forecast_model, time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast.id,
-                     3, '(all)', '')]
-        self.assertEqual(exp_rows, unit_rows_for_project(project))
+        exp_rows = [(forecast_model, str(time_zero.timezero_date), forecast.id, 3, '(all)', '')]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
+        self.assertEqual(exp_rows, act_rows)
 
         # case: add a second forecast for a newer timezero
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
@@ -646,9 +675,9 @@ class ProjectUtilTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
-        exp_rows = [(forecast_model, time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast2.id,
-                     3, '(all)', '')]
-        self.assertEqual(exp_rows, unit_rows_for_project(project))
+        exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3, '(all)', '')]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
+        self.assertEqual(exp_rows, act_rows)
 
         # case: add a second model with only forecasts for one unit
         forecast_model2 = ForecastModel.objects.create(project=project, name=forecast_model.name + '2',
@@ -663,8 +692,9 @@ class ProjectUtilTestCase(TestCase):
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
         load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
-        exp_rows = [(forecast_model, time_zero2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast2.id,
-                     3, '(all)', ''),
-                    (forecast_model2, time_zero3.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), forecast3.id,
-                     1, 'location1', 'location2, location3')]
-        self.assertEqual(exp_rows, unit_rows_for_project(project))
+        exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3,
+                     '(all)', ''),
+                    (forecast_model2, str(time_zero3.timezero_date), forecast3.id, 1,
+                     'location1', 'location2, location3')]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
+        self.assertEqual(exp_rows, act_rows)

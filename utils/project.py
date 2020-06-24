@@ -13,10 +13,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from forecast_app.models import Project, Unit, Target, Forecast, PointPrediction, ForecastModel, BinDistribution, \
-    NamedDistribution, SampleDistribution, QuantileDistribution, Prediction, TimeZero
+    NamedDistribution, SampleDistribution, QuantileDistribution, Prediction
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT, datetime_to_str
 
 
 logger = logging.getLogger(__name__)
@@ -930,16 +930,19 @@ def _group_name_for_target(target):
 
 def models_summary_table_rows_for_project(project):
     """
-    :return: a list of rows suitable for rendering as a table
-        each row contains: [forecast_model, num_forecasts,
-                            oldest_forecast_tz_date, newest_forecast_tz_date,
-                            oldest_forecast_id, newest_forecast_id]
-        NB: the dates are strings
+    :return: a list of rows suitable for rendering as a table. returns a 7-tuple:
+        [forecast_model, num_forecasts,
+         oldest_forecast_tz_date, newest_forecast_tz_date,
+         oldest_forecast_id, newest_forecast_id,
+         newest_forecast_created_at]
+
+        NB: the dates and datetime are either objects OR strings depending on the database (postgres: objects,
+        sqlite3: strings)
     """
     # the self-join allows gives us the actual ID of the max timezero's forecast's ID.
     # per https://stackoverflow.com/questions/18725168/sql-group-by-minimum-value-in-one-field-while-selecting-distinct-rows
     sql = f"""
-        SELECT aggr_sel.fm_id, aggr_sel.fm_count, aggr_sel.min_tz_date, aggr_sel.max_tz_date, f2.id, f3.id
+        SELECT aggr_sel.fm_id, aggr_sel.fm_count, aggr_sel.min_tz_date, aggr_sel.max_tz_date, f2.id, f3.id, f3.created_at
         FROM (SELECT fm1.id                 AS fm_id,
                      count(fm1.id)          AS fm_count,
                      min(tz1.timezero_date) AS min_tz_date,
@@ -964,16 +967,12 @@ def models_summary_table_rows_for_project(project):
             .exclude(id__in=[_[0] for _ in rows]) \
             .values_list('id', flat=True)
         for missing_model_id in missing_model_ids:
-            rows.append((missing_model_id, 0, None, None, None, None))  # caller/view handles Nones
+            rows.append((missing_model_id, 0, None, None, None, None, None))  # caller/view handles Nones
 
         forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
 
-        # replace forecast_model_ids (row[0]) with objects, and replace datetime.dates (row[2], rows[3]) with strings
-        # (depends on database whether this is necessary)
-        rows = [(forecast_model_id_to_obj[row[0]], row[1],
-                 row[2].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[2], datetime.date) else row[2],
-                 row[3].strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(row[3], datetime.date) else row[3],
-                 row[4], row[5]) for row in rows]
+        # replace forecast_model_ids (row[0]) with objects
+        rows = [(forecast_model_id_to_obj[row[0]], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
         return rows
 
 
@@ -1023,9 +1022,10 @@ def _project_explorer_unit_rows(project):
         (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     """
 
-    # get 3-tuples from models_summary_table_rows_for_project(): (model, newest_forecast_tz_date, newest_forecast_id) tuples.
-    # from: [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date,
-    #        oldest_forecast_id, newest_forecast_id]
+    # get 3-tuples from models_summary_table_rows_for_project():
+    #   (model, newest_forecast_tz_date, newest_forecast_id) tuples. from:
+    # [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id,
+    #  newest_forecast_id, newest_forecast_created_at]
     models_rows = [(row[0], row[3], row[5]) for row in
                    sorted(models_summary_table_rows_for_project(project), key=lambda _: _[0].name)]
 

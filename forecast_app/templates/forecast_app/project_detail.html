@@ -2,6 +2,8 @@
 
 {% load humanize %}
 
+{% load custom_tags %}
+
 {% block title %}Project: {{ project.name }}{% endblock %}
 
 {% block content %}
@@ -187,10 +189,11 @@
                 <th>#&nbsp;Forecasts</th>
                 <th>Oldest</th>
                 <th>Newest</th>
+                <th>Upload time</th>
             </tr>
             </thead>
             <tbody>
-            {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id, newest_forecast_id in models_rows %}
+            {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id, newest_forecast_id, newest_forecast_created_at in models_rows %}
                 <tr>
                     <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></td>
                     <td>{{ forecast_model.team_name }}</td>
@@ -198,12 +201,34 @@
                     <td>{{ num_forecasts }}</td>
                     <td>
                         {% if oldest_forecast_tz_date %}
-                            <a href="{% url 'forecast-detail' oldest_forecast_id %}">{{ oldest_forecast_tz_date }}</a>
+                            <a href="{% url 'forecast-detail' oldest_forecast_id %}">
+                                {# handle whether dates came from db as objects or strings #}
+                                {% if oldest_forecast_tz_date|get_class == 'date' %}
+                                    {{ oldest_forecast_tz_date|date:"Y-m-d" }}
+                                {% else %}
+                                    {{ oldest_forecast_tz_date }}
+                                {% endif %}
+                            </a>
                         {% endif %}
                     </td>
                     <td>
                         {% if newest_forecast_tz_date %}
-                            <a href="{% url 'forecast-detail' newest_forecast_id %}">{{ newest_forecast_tz_date }}</a>
+                            <a href="{% url 'forecast-detail' newest_forecast_id %}">
+                                {# handle whether dates came from db as objects or strings #}
+                                {% if newest_forecast_tz_date|get_class == 'date' %}
+                                    {{ newest_forecast_tz_date|date:"Y-m-d" }}
+                                {% else %}
+                                    {{ newest_forecast_tz_date }}
+                                {% endif %}
+                            </a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {# handle whether datetimes came from db as objects or strings #}
+                        {% if newest_forecast_created_at|get_class == 'datetime' %}
+                            {{ newest_forecast_created_at|date:"Y-m-d H:i:s T" }}
+                        {% else %}
+                            {{ newest_forecast_created_at }}
                         {% endif %}
                     </td>
                 </tr>

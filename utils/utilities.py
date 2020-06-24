@@ -1,5 +1,7 @@
 import logging
 
+from django.template import Template, Context
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,10 +19,22 @@ def basic_str(obj):
 
 
 #
-# date formats
+# date formats and utilities
 #
 
 YYYY_MM_DD_DATE_FORMAT = '%Y-%m-%d'  # e.g., '2017-01-17'
+
+
+def datetime_to_str(the_datetime):
+    """
+    Formats the_datetime (a datetime.datetime) using the Django date format pattern used in our templates:
+    "Y-m-d h:i:s T". Note that Django's formats are from the PHP world, with different meanings of patterns. Elsewhere
+    we use YYYY_MM_DD_DATE_FORMAT to format datetime.dates directly in python b/c it's the same as Django, but
+    unfortunately Python doesn't have the "T" pattern needed to format datetime.datetime using the server's timezone.
+    """
+    message_template_str = """{{ the_datetime|date:"Y-m-d h:i:s T" }}"""
+    message_template = Template(message_template_str)
+    return message_template.render(Context({'the_datetime': the_datetime}))
 
 
 #

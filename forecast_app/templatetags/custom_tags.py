@@ -24,3 +24,34 @@ def has_group(user, group_name):
         return False
 
     return group in user.groups.all()
+
+
+#
+# https://stackoverflow.com/questions/4651172/reference-list-item-by-index-within-django-template/29664945#29664945
+#
+
+# in template:
+# {% load index %}
+# {{ List|index:x }}
+#
+# It works fine with "for":
+# {{ List|index:forloop.counter0 }}
+
+@register.filter
+def index(the_list, i):
+    return the_list[int(i)]
+
+
+#
+# https://stackoverflow.com/questions/771890/how-do-i-get-the-class-of-a-object-within-a-django-template
+#
+
+# in template:
+#
+# {% load class_tag %}
+# {% if Object|get_class == 'AClassName' %}do something{% endif %}
+# {{ Object|get_class }}
+
+@register.filter
+def get_class(value):
+    return value.__class__.__name__

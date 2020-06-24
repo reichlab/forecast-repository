@@ -332,13 +332,13 @@ def project_explorer(request, project_pk):
     if not project.is_user_ok_to_view(request.user):
         raise PermissionDenied
 
-    # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names, missing_unit_names:
-    unit_rows = unit_rows_for_project(project)
     return render(
         request,
         'project_explorer.html',
         context={'project': project,
-                 'unit_rows': unit_rows})
+                 # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
+                 # missing_unit_names:
+                 'unit_rows': unit_rows_for_project(project)})
 
 
 #
