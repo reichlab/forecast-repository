@@ -2,6 +2,8 @@
 import click
 import django
 
+from django.shortcuts import get_object_or_404
+
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
@@ -12,11 +14,14 @@ from forecast_app.models import Project
 
 @click.command()
 @click.argument('verbosity', type=click.Choice(['1', '2', '3', '4']), default='1')
-def main(verbosity):
+@click.option('--project-pk')
+def main(verbosity, project_pk):
     """
     :param verbosity: increasing from 1 (minimal verbosity) to 3 (maximal)
+    :param project_pk: if a valid Project pk then only that project's models are updated. o/w defers to `model_pk` arg
     """
-    projects = Project.objects.order_by('name')
+    project = get_object_or_404(Project, pk=project_pk) if project_pk else None
+    projects = [project] if project else Project.objects.order_by('name')
     click.echo(f"Users: {User.objects.all()}")
 
     if len(projects) != 0:

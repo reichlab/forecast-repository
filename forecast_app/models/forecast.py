@@ -32,7 +32,7 @@ class Forecast(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.source))
+        return str((self.pk, self.time_zero, self.source, self.created_at))
 
 
     def __str__(self):  # todo

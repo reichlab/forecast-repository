@@ -27,7 +27,7 @@ def delete_old_jobs_app(num_days, dry_run):
     List (and then delete) jobs older than X days.
     """
     all_jobs_qs = Job.objects
-    old_jobs_qs = Job.objects.filter(updated_at__lt=now() - datetime.timedelta(days=1)).order_by('updated_at')
+    old_jobs_qs = Job.objects.filter(updated_at__lt=now() - datetime.timedelta(days=num_days)).order_by('updated_at')
     logger.info(f"delete_old_jobs_app(): num_days={num_days}, dry_run={dry_run}. "
                 f"# jobs={all_jobs_qs.count()}, # old={old_jobs_qs.count()}")
     if not dry_run:
