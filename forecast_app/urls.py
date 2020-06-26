@@ -1,4 +1,5 @@
 from django.conf.urls import url, include
+from django.views.generic import TemplateView
 
 from . import views
 
@@ -6,6 +7,7 @@ from . import views
 # todo xx should probably terminate all of the following with '$'. should also think about necessity of trailing '/'
 urlpatterns = [
     url(r'^$', views.index, name='index'),
+    url(r'^robots.txt$', TemplateView.as_view(template_name="robots.txt", content_type="text/plain"), name='robots'),
     url(r'^about$', views.about, name='about'),
     url(r'^projects$', views.projects, name='projects'),
 
