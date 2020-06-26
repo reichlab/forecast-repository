@@ -151,7 +151,7 @@ class ProjectUtilTestCase(TestCase):
             with self.assertRaises(RuntimeError) as context:
                 del (timezero_config[field_name])
                 create_project_from_json(project_dict, po_user)
-            self.assertIn("Wrong keys in timezero_config", str(context.exception))
+            self.assertIn("Wrong keys in 'timezero_config'", str(context.exception))
             timezero_config[field_name] = field_value  # reset to valid
 
         # test optional 'season_name' field

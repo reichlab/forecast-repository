@@ -188,8 +188,9 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
         Creates a new ForecastModel based on a model config dict. Runs in the calling thread and therefore blocks.
 
         POST form fields:
-        - request.data (required) must have a 'model_config' field containing these fields: ['name'].
-            optional fields: ['abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url']
+        - request.data (required) must have a 'model_config' field containing these fields: ['name', 'abbreviation',
+            'team_name', 'description', 'contributors', 'license', 'notes', 'citation', 'methods', 'home_url',
+            'aux_data_url']
         """
         project = Project.objects.get(pk=self.kwargs['pk'])
 
@@ -202,21 +203,34 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
         # validate model_config
         model_config = request.data['model_config']
         actual_keys = set(model_config.keys())
-        expected_keys = {'name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url'}
+        expected_keys = {'name', 'abbreviation', 'team_name', 'description', 'contributors', 'license', 'notes',
+                         'citation', 'methods', 'home_url', 'aux_data_url'}
         if actual_keys != expected_keys:
             return JsonResponse({'error': f"Wrong keys in 'model_config'. difference={expected_keys ^ actual_keys}. "
                                           f"expected={expected_keys}, actual={actual_keys}"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # validate license
+        if not ForecastModel.is_valid_license_abbreviation(model_config['license']):
+            valid_license_abbrevs = [choice_abbrev for choice_abbrev, choice_name in ForecastModel.LICENSE_CHOICES]
+            return JsonResponse({'error': f"invalid license: {model_config['license']!r}. must be one of: "
+                                          f"{valid_license_abbrevs}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         try:
             model_init = {'project': project,
                           'owner': request.user,
                           'name': model_config['name'],
-                          'abbreviation': model_config['abbreviation'] if 'abbreviation' in model_config else '',
-                          'team_name': model_config['team_name'] if 'team_name' in model_config else '',
-                          'description': model_config['description'] if 'description' in model_config else '',
-                          'home_url': model_config['home_url'] if 'home_url' in model_config else '',
-                          'aux_data_url': model_config['aux_data_url'] if 'aux_data_url' in model_config else ''}
+                          'abbreviation': model_config['abbreviation'],
+                          'team_name': model_config['team_name'],
+                          'description': model_config['description'],
+                          'contributors': model_config['contributors'],
+                          'license': model_config['license'],
+                          'notes': model_config['notes'],
+                          'citation': model_config['citation'],
+                          'methods': model_config['methods'],
+                          'home_url': model_config['home_url'],
+                          'aux_data_url': model_config['aux_data_url']}
             new_model = ForecastModel.objects.create(**model_init)
             model_serializer = ForecastModelSerializer(new_model, context={'request': request})
             return JsonResponse(model_serializer.data)
@@ -321,7 +335,7 @@ def validate_and_create_timezero(project, timezero_config, is_validate_only=Fals
     tested_keys = all_keys - {'id', 'url', 'season_name'}  # optional keys
     expected_keys = {'timezero_date', 'data_version_date', 'is_season_start'}  # required keys
     if tested_keys != expected_keys:
-        raise RuntimeError(f"Wrong keys in timezero_config. difference={expected_keys ^ tested_keys}. "
+        raise RuntimeError(f"Wrong keys in 'timezero_config'. difference={expected_keys ^ tested_keys}. "
                            f"expected={expected_keys}, tested_keys={tested_keys}")
 
     # test for the optional season_name
@@ -466,7 +480,7 @@ class JobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
         return self.request.user.is_superuser or (job.user == self.request.user)
 
 
-class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
+class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = ForecastModel.objects.all()
     serializer_class = ForecastModelSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -475,6 +489,57 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     def test_func(self):
         forecast_model = self.get_object()
         return self.request.user.is_authenticated and forecast_model.project.is_user_ok_to_view(self.request.user)
+
+
+    def put(self, request, *args, **kwargs):
+        """
+        Edits a ForecastModel based on a model config dict. Runs in the calling thread and therefore blocks.
+
+        PUT form fields:
+        - request.data (required) must have a 'model_config' field containing these fields: ['name', 'abbreviation',
+            'team_name', 'description', 'contributors', 'license', 'notes', 'citation', 'methods', 'home_url',
+            'aux_data_url']
+        """
+        # very similar to `ProjectForecastModelList.post` :-/
+        forecast_model = self.get_object()
+
+        # check authorization, 'model_config'
+        if not is_user_ok_edit_model(request.user, forecast_model):
+            raise PermissionDenied
+        elif 'model_config' not in request.data:
+            return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # validate model_config
+        model_config = request.data['model_config']
+        actual_keys = set(model_config.keys())
+        expected_keys = {'name', 'abbreviation', 'team_name', 'description', 'contributors', 'license', 'notes',
+                         'citation', 'methods', 'home_url', 'aux_data_url'}
+        if actual_keys != expected_keys:
+            return JsonResponse({'error': f"Wrong keys in 'model_config'. difference={expected_keys ^ actual_keys}. "
+                                          f"expected={expected_keys}, actual={actual_keys}"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        # validate license
+        if not ForecastModel.is_valid_license_abbreviation(model_config['license']):
+            valid_license_abbrevs = [choice_abbrev for choice_abbrev, choice_name in ForecastModel.LICENSE_CHOICES]
+            return JsonResponse({'error': f"invalid license: {model_config['license']!r}. must be one of: "
+                                          f"{valid_license_abbrevs}"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        forecast_model.name = model_config['name']
+        forecast_model.abbreviation = model_config['abbreviation']
+        forecast_model.team_name = model_config['team_name']
+        forecast_model.description = model_config['description']
+        forecast_model.contributors = model_config['contributors']
+        forecast_model.license = model_config['license']
+        forecast_model.notes = model_config['notes']
+        forecast_model.citation = model_config['citation']
+        forecast_model.methods = model_config['methods']
+        forecast_model.home_url = model_config['home_url']
+        forecast_model.aux_data_url = model_config['aux_data_url']
+        forecast_model.save()
+
+        return Response(status=status.HTTP_200_OK)
 
 
     def delete(self, request, *args, **kwargs):

@@ -4,8 +4,8 @@ from rest_framework.fields import CharField, IntegerField
 from rest_framework.reverse import reverse
 
 from forecast_app.models import Project, Target, TimeZero, ForecastModel, Forecast
-from forecast_app.models.project import Unit
 from forecast_app.models.job import Job
+from forecast_app.models.project import Unit
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -259,8 +259,9 @@ class ForecastModelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ForecastModel
-        fields = ('id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description', 'home_url',
-                  'aux_data_url', 'forecasts',)
+        fields = ('id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description',
+                  'contributors', 'license', 'notes', 'citation', 'methods', 'home_url', 'aux_data_url',
+                  'forecasts',)
         extra_kwargs = {
             'url': {'view_name': 'api-model-detail'},
         }

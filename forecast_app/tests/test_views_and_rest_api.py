@@ -617,8 +617,9 @@ class ViewsTestCase(TestCase):
                          list(response.data))  # no 'season_name'
 
         response = self.client.get(reverse('api-model-detail', args=[self.public_model.pk]), format='json')
-        exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description', 'home_url',
-                    'aux_data_url', 'forecasts']
+        exp_keys = ['id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description',
+                    'contributors', 'license', 'notes', 'citation', 'methods', 'home_url', 'aux_data_url',
+                    'forecasts']
         self.assertEqual(exp_keys, list(response.data))
 
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
@@ -875,12 +876,15 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
         # spot-check response
-        response_json = json_response.json()
-        self.assertEqual('new project name', response_json['name'])
+        self.assertEqual('new project name', json_response.json()['name'])
 
 
     def test_api_create_model(self):
         project2 = Project.objects.create(owner=self.po_user)
+        ok_model_config = {'name': 'a model_name', 'abbreviation': 'an abbreviation', 'team_name': 'a team_name',
+                           'contributors': 'the contributors', 'license': 'other', 'notes': 'some notes',
+                           'citation': 'the citation', 'methods': 'our methods', 'description': 'a description',
+                           'home_url': 'http://example.com/', 'aux_data_url': 'http://example.com/'}
 
         # case: not authorized. recall user must be a superuser, project owner, or model owner
         json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
@@ -903,25 +907,94 @@ class ViewsTestCase(TestCase):
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertIn("Wrong keys in 'model_config'", json_response.json()['error'])
 
-        # case: authorized
-        model_config = {'name': 'a model_name', 'abbreviation': 'an abbreviation', 'team_name': 'a team_name',
-                        'description': 'a description', 'home_url': 'http://example.com/',
-                        'aux_data_url': 'http://example.com/'}
+        # case: bad 'model_config': invalid license
+        model_config = dict(ok_model_config)
+        model_config['license'] = 'bad license'
         json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
             'model_config': model_config,
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertIn("invalid license", json_response.json()['error'])
+
+        # case: authorized
+        json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
+            'model_config': ok_model_config,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual({'id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description',
-                          'home_url', 'aux_data_url', 'forecasts'}, set(json_response.json().keys()))
+                          'contributors', 'license', 'notes', 'citation', 'methods', 'home_url', 'aux_data_url',
+                          'forecasts'}, set(json_response.json().keys()))
 
-        # spot-check response
+        # check response contents
         response_json = json_response.json()
-        self.assertEqual({'id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description',
-                          'home_url', 'aux_data_url', 'forecasts'},
-                         set(response_json.keys()))
+        self.assertEqual(
+            {'id', 'url', 'project', 'owner', 'name', 'abbreviation', 'team_name', 'description', 'contributors',
+             'license', 'notes', 'citation', 'methods', 'home_url', 'aux_data_url', 'forecasts', },
+            set(response_json.keys()))
         self.assertEqual('a model_name', response_json['name'])
+
+        act_model_config = {'name': response_json['name'], 'abbreviation': response_json['abbreviation'],
+                            'team_name': response_json['team_name'], 'contributors': response_json['contributors'],
+                            'license': response_json['license'], 'notes': response_json['notes'],
+                            'citation': response_json['citation'], 'methods': response_json['methods'],
+                            'description': response_json['description'], 'home_url': response_json['home_url'],
+                            'aux_data_url': response_json['aux_data_url']}
+        self.assertEqual(ok_model_config, act_model_config)
+
+
+    def test_api_edit_model(self):
+        # pretty much identical to `test_api_create_model()` :-/
+        project2 = Project.objects.create(owner=self.po_user)
+        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev',
+                                                       owner=self.po_user)
+        ok_model_config = {'name': 'a model_name', 'abbreviation': 'an abbreviation', 'team_name': 'a team_name',
+                           'contributors': 'the contributors', 'license': 'other', 'notes': 'some notes',
+                           'citation': 'the citation', 'methods': 'our methods', 'description': 'a description',
+                           'home_url': 'http://example.com/', 'aux_data_url': 'http://example.com/'}
+
+        # case: not authorized. recall user must be a superuser, project owner, or model owner
+        json_response = self.client.put(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'model_config': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: no 'model_config'
+        json_response = self.client.put(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertEqual({'error': "No 'model_config' data."}, json_response.json())
+
+        # case: bad 'model_config': missing expected_keys:
+        #   {'name', 'abbreviation', 'team_name', 'description', 'home_url', 'aux_data_url'}
+        model_config = {}
+        json_response = self.client.put(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'model_config': model_config,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertIn("Wrong keys in 'model_config'", json_response.json()['error'])
+
+        # case: bad 'model_config': invalid license
+        model_config = dict(ok_model_config)
+        model_config['license'] = 'bad license'
+        json_response = self.client.put(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'model_config': model_config,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertIn("invalid license", json_response.json()['error'])
+
+        # case: authorized
+        json_response = self.client.put(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'model_config': ok_model_config,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
 
 
     def test_api_delete_model(self):
@@ -968,6 +1041,7 @@ class ViewsTestCase(TestCase):
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertIn("Wrong keys in 'timezero_config'", json_response.json()['error'])
 
         # case: blue sky:  no data_version_date, yes season
         timezero_config = {'timezero_date': '2017-12-01',
@@ -1016,6 +1090,7 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual({'error': "No 'data_file' form field."}, json_response.json())
 
             # case: _upload_file() -> is_error
             upload_file_mock.return_value = True, None  # is_error, job
@@ -1024,6 +1099,8 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual({'error': "There was an error uploading the file. The error was: 'True'"},
+                             json_response.json())
 
             # case: blue sky: _upload_file() -> NOT is_error
             job_return_value = Job.objects.create()
@@ -1057,20 +1134,16 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
-            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertEqual(['error'], list(response_dict.keys()))
-            self.assertIn("No 'data_file' form field", response_dict['error'])
+            self.assertEqual({'error': "No 'data_file' form field."}, json_response.json())
 
             # case: no 'timezero_date'
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
             }, format='multipart')
-            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertEqual(['error'], list(response_dict.keys()))
-            self.assertIn("No 'timezero_date' form field.", response_dict['error'])
+            self.assertIn("No 'timezero_date' form field", json_response.json()['error'])
 
             # case: invalid 'timezero_date' format - YYYY_MM_DD_DATE_FORMAT
             json_response = self.client.post(upload_forecast_url, {
@@ -1078,10 +1151,8 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': 'x20171202',
             }, format='multipart')
-            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertEqual(['error'], list(response_dict.keys()))
-            self.assertIn("Badly formatted 'timezero_date' form field", response_dict['error'])
+            self.assertIn("Badly formatted 'timezero_date' form field", json_response.json()['error'])
 
             # case: timezero not found
             json_response = self.client.post(upload_forecast_url, {
@@ -1089,10 +1160,8 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': '2017-12-03',  # NOT public_tz1 or public_tz2
             }, format='multipart')
-            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertEqual(['error'], list(response_dict.keys()))
-            self.assertIn("TimeZero not found for 'timezero_date' form field", response_dict['error'])
+            self.assertIn("TimeZero not found for 'timezero_date' form field", json_response.json()['error'])
 
             # case: existing_forecast_for_time_zero
             json_response = self.client.post(upload_forecast_url, {
@@ -1100,10 +1169,8 @@ class ViewsTestCase(TestCase):
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': '2017-12-01',  # public_tz1
             }, format='multipart')
-            response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertEqual(['error'], list(response_dict.keys()))
-            self.assertIn("A forecast already exists", response_dict['error'])
+            self.assertIn("A forecast already exists", json_response.json()['error'])
 
             # case: blue sky: _upload_file() -> NOT is_error
             upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
@@ -1134,6 +1201,7 @@ class ViewsTestCase(TestCase):
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertIn("There was an error uploading the file", json_response.json()['error'])
 
             # case: error: time_zero not found. (does not auto-create)
             upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
@@ -1144,6 +1212,7 @@ class ViewsTestCase(TestCase):
                 'timezero_date': new_timezero_date,  # doesn't exist
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertIn("Badly formatted 'timezero_date' form field", json_response.json()['error'])
 
 
     @patch('rq.queue.Queue.enqueue')
@@ -1160,9 +1229,8 @@ class ViewsTestCase(TestCase):
             'Authorization': f'JWT {jwt_token}',
             # 'query': {},
         }, format='json')
-        response_json = response.json()  # 'error'
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
-        self.assertEqual({'error': "No 'query' form field."}, response_json)
+        self.assertEqual({'error': "No 'query' form field."}, response.json())
 
         # ensure `validate_forecasts_query()` is called. the actual validate is tested in test_project.py
         with patch('utils.project.validate_forecasts_query', return_value=([], None)) as mock:

@@ -73,6 +73,32 @@
                     <th>Description:</th>
                     <td>{{ forecastmodel.description|safe|linebreaksbr }}</td>
                 </tr>
+
+                <tr>
+                    <th>Contributors:</th>
+                    <td>{{ forecastmodel.contributors }}</td>
+                </tr>
+
+                <tr>
+                    <th>License:</th>
+                    <td>{{ forecastmodel.license_as_str }}</td>
+                </tr>
+
+                <tr>
+                    <th>Notes:</th>
+                    <td>{{ forecastmodel.notes }}</td>
+                </tr>
+
+                <tr>
+                    <th>Citation:</th>
+                    <td>{{ forecastmodel.citation }}</td>
+                </tr>
+
+                <tr>
+                    <th>Methods:</th>
+                    <td>{{ forecastmodel.methods }}</td>
+                </tr>
+
                 <tr>
                     <th>Home:</th>
                     <td>
@@ -88,9 +114,6 @@
                     <td>
                         {% if forecastmodel.auxiliary_data %}
                             <a href="{{ forecastmodel.auxiliary_data }}">{{ forecastmodel.auxiliary_data }}</a>
-                            {# todo #}
-                        {% else %}
-                            <small class="text-muted">(No auxiliary data)</small>
                         {% endif %}
                     </td>
                 </tr>
