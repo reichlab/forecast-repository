@@ -143,8 +143,6 @@ if not settings.DEBUG:  # NB: requires "children" settings to set DEBUG before i
 #
 
 # disable noise from boto3, per https://stackoverflow.com/questions/1661275/disable-boto-logging-without-modifying-the-boto-files
-
-
 for name in ['boto', 'urllib3', 's3transfer', 'boto3', 'botocore', 'nose']:
     logging.getLogger(name).setLevel(logging.CRITICAL)
 
