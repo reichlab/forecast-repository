@@ -11,9 +11,10 @@ from django.contrib.auth.models import User
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Count
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.text import get_valid_filename
+from django.views.decorators.http import require_GET
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
@@ -986,7 +987,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # set search_unit, search_target, and data_rows_* if a query requested
         search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
-            data_rows_sample = self.search_forecast(forecast)
+        data_rows_sample = self.search_forecast(forecast)
 
         # done
         context = super().get_context_data(**kwargs)
