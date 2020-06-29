@@ -8,13 +8,13 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.core import urlresolvers
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Count
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
+from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils.text import get_valid_filename
-from django.views.decorators.http import require_GET
 from django.views.generic import DetailView, ListView
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
@@ -41,6 +41,19 @@ logger = logging.getLogger(__name__)
 
 def index(request):
     return render(request, 'index.html')
+
+
+def robots_txt(request):
+    # the robots.txt template contains a mix of absolute and relative paths. for simplicity we "hard-code" the absolute
+    # ones rather than getting them via `reverse()`. we do get the relative paths (which all happen to be Project-
+    # specific) via `reverse()`. this means this function needs to be pretty lightweight because it can be called
+    # frequently by different bots
+    disallow_urls = []  # relative URLs
+    for project_id in Project.objects.all().values_list('id', flat=True):
+        for project_url_name in ['project-explorer', 'project-scores', 'project-score-data', 'download-project-scores',
+                                 'project-config', 'truth-data-detail', 'project-visualizations']:
+            disallow_urls.append(urlresolvers.reverse(project_url_name, args=[str(project_id)]))  # relative URLs
+    return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
 
 
 def about(request):
