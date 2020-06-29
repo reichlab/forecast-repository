@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /api-token-auth/
+Disallow: /api/
+Disallow: /django-rq/
+Disallow: /forecast/
+Disallow: /job/
+Disallow: /user/
+Disallow: /users
+{% for disallow_url in disallow_urls %}Disallow: {{ disallow_url }}
+{% endfor %}
