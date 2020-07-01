@@ -877,8 +877,8 @@ def group_targets(targets):
     A utility for the `forecast_app.views.ProjectDetailView` class that groups related targets in `targets`. Only groups
     is_step_ahead ones, treating others as their own group. Uses a simple algorithm to determine relatedness, one that
     assumes that the actual step_ahead_increment is in the related targets' names. For example, "0 day ahead cum death"
-    (step_ahead_increment=0) "1 day ahead cum death" (step_ahead_increment=1) would be grouped together. Similar are "1
-    wk ahead" and "2 wk ahead", and "1_biweek_ahead" and "2_biweek_ahead".
+    (step_ahead_increment=0) and "1 day ahead cum death" (step_ahead_increment=1) would be grouped together. Similar are
+    "1 wk ahead" and "2 wk ahead", and "1_biweek_ahead" and "2_biweek_ahead".
 
     :param targets: list of Targets from the same Project
     :return: a dict that maps group_name -> group_targets. for 1-target groups, group_name=target.name
