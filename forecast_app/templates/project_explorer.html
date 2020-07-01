@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load custom_tags %}
+
 {% block title %}Project Explorer: {{ project.name }}{% endblock %}
 
 {% block content %}
@@ -57,7 +59,14 @@
                     <td>{{ forecast_model.team_name }}</td>
                     <td>
                         {% if newest_forecast_tz_date %}
-                            <a href="{% url 'forecast-detail' newest_forecast_id %}">{{ newest_forecast_tz_date }}</a>
+                            <a href="{% url 'forecast-detail' newest_forecast_id %}">
+                                {# handle whether dates came from db as objects or strings #}
+                                {% if newest_forecast_tz_date|get_class == 'date' %}
+                                    {{ newest_forecast_tz_date|date:"Y-m-d" }}
+                                {% else %}
+                                    {{ newest_forecast_tz_date }}
+                                {% endif %}
+                            </a>
                         {% endif %}
                     </td>
                     <td>{{ num_present_unit_names }}</td>
@@ -83,7 +92,7 @@
         // DataTable
         $(document).ready(function () {
             $('#units_table').DataTable({
-                order: [[ 2, "desc" ]],  // Forecast date
+                order: [[2, "desc"]],  // Forecast date
                 initComplete: function () {
                     // Apply the search
                     this.api().columns().every(function () {

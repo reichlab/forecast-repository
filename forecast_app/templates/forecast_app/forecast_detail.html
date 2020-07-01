@@ -110,9 +110,9 @@
     <hr> {# hack to add space before next #}
 
 
-    <h2>Search</h2>
+    <h2 id="search">Query Forecast Data</h2>
 
-    <form id="search_form" class="form-inline" method="GET" action="{% url 'forecast-detail' forecast.id %}">
+    <form id="search_form" class="form-inline" method="GET" action="{% url 'forecast-detail' forecast.id %}#search">
         <div class="form-row align-items-center">
 
             <div class="col-auto">
@@ -156,8 +156,7 @@
 
             <div class="col-auto">
                 <div class="input-group mb-2">
-                    <a href="{% url 'forecast-detail' forecast.id %}" class="save btn btn-light"
-                       role="button">Reset</a>
+                    <a href="{% url 'forecast-detail' forecast.id %}" class="save btn btn-light" role="button">Reset</a>
                 </div>
             </div>
 
@@ -167,7 +166,10 @@
     <hr> {# hack to add space before next #}
 
     {% if data_rows_bin %}
-        <h4>Bin data <small>({{ data_rows_bin|length }} row{{ data_rows_bin|length|pluralize }})</small></h4>
+        {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
+        <h4 id="bin_data" style="display: inline-block;">Bin data <small>({{ data_rows_bin|length }} row{{ data_rows_bin|length|pluralize }})</small></h4>
+        <a href="#bin_data">&para;</a>
+
         <table id="data_rows_bin_table" class="table table-striped table-bordered">
             <thead>
             <tr>
@@ -192,7 +194,10 @@
 
 
     {% if data_rows_named %}
-        <h4>Named data <small>({{ data_rows_named|length }} row{{ data_rows_named|pluralize }})</small></h4>
+        {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
+        <h4 id="named_data" style="display: inline-block;">Named data <small>({{ data_rows_named|length }} row{{ data_rows_named|pluralize }})</small></h4>
+        <a href="#named_data">&para;</a>
+
         <table id="data_rows_named_table" class="table table-striped table-bordered">
             <thead>
             <tr>
@@ -222,7 +227,10 @@
 
 
     {% if data_rows_point %}
-        <h4>Point data <small>({{ data_rows_point|length }} row{{ data_rows_point|pluralize }})</small></h4>
+        {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
+        <h4 id="point_data" style="display: inline-block;">Point data <small>({{ data_rows_point|length }} row{{ data_rows_point|pluralize }})</small></h4>
+        <a href="#point_data">&para;</a>
+
         <table id="data_rows_point_table" class="table table-striped table-bordered">
             <thead>
             <tr>
@@ -246,7 +254,10 @@
 
 
     {% if data_rows_quantile %}
-        <h4>Quantile data <small>({{ data_rows_quantile|length }} row{{ data_rows_quantile|pluralize }})</small></h4>
+        {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
+        <h4 id="quantile_data" style="display: inline-block;">Quantile data <small>({{ data_rows_quantile|length }} row{{ data_rows_quantile|pluralize }})</small></h4>
+        <a href="#quantile_data">&para;</a>
+
         <table id="data_rows_quantile_table" class="table table-striped table-bordered">
             <thead>
             <tr>
@@ -272,7 +283,10 @@
 
 
     {% if data_rows_sample %}
-        <h4>Sample data <small>({{ data_rows_sample|length }} row{{ data_rows_sample|pluralize }})</small></h4>
+        {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
+        <h4 id="sample_data" style="display: inline-block;">Sample data <small>({{ data_rows_sample|length }} row{{ data_rows_sample|pluralize }})</small></h4>
+        <a href="#sample_data">&para;</a>
+
         <table id="data_rows_sample_table" class="table table-striped table-bordered">
             <thead>
             <tr>

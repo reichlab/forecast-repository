@@ -983,7 +983,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
 
         # set found_targets
-        target_i_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
+        target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
         found_target_ids = set()
         for concrete_prediction_class in Prediction.concrete_subclasses():
             pred_class_targets = concrete_prediction_class.objects \
@@ -991,12 +991,18 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
                 .values_list('target', flat=True) \
                 .distinct()
             found_target_ids.update(pred_class_targets)
-        found_targets = [target_i_to_object[target_id] for target_id in found_target_ids]
+        found_targets = [target_id_to_object[target_id] for target_id in found_target_ids]
 
         # set target_groups: change from dict to 2-tuples
         target_groups = group_targets(found_targets)  # group_name -> group_targets
         target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
+
+        # create sorted found_targets by: 1) group_name, then by: 2) step_ahead_increment if is_step_ahead. o/w by name
+        found_targets = []
+        for group_name, targets in target_groups:  # already sorted by group_name
+            found_targets.extend(sorted(targets, key=lambda
+                target: target.step_ahead_increment if target.is_step_ahead else target.name))
 
         # set search_unit, search_target, and data_rows_* if a query requested
         search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
