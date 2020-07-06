@@ -243,9 +243,24 @@
     <h2>Units <small>({{ project.units.all|length }})</small></h2>
 
     {% if units %}
-        {% for unit in units %}
-            <code>{{ unit.name }}</code>{% if not forloop.last %},{% endif %}
-        {% endfor %}
+        <div class="row">
+            <div class="col-sm-8">
+                <table id="units_table" class="table table-striped table-bordered">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for unit in units %}
+                        <tr>
+                            <td>{{ unit.name }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     {% else %}
         <small class="text-muted">(No units)</small>
     {% endif %}
@@ -312,6 +327,7 @@
     <script>
         $(document).ready(function () {
             $('#models_table').dataTable();
+            $('#units_table').dataTable();
             $('#targets_table').dataTable();
             var table = $('#timezeros_table').DataTable();
 
