@@ -528,20 +528,22 @@ class ProjectUtilTestCase(TestCase):
         # case: target names with step_ahead_increment at start of name
         project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), po_user)
         grouped_targets = group_targets(project.targets.all())
-        # group 1: "x day ahead cum death" | 0 day ahead cum death, 1 day ahead cum death, ..., 130 day ahead cum death
-        # group 2: "x day ahead inc death" | ""
-        # group 3: "x day ahead inc hosp"  | ""
-        # group 4: "x wk ahead cum death"  | 1 wk ahead cum death, 2 wk ahead cum death, ..., 20 wk ahead cum death
-        # group 5: "x wk ahead inc death"  | ""
-        self.assertEqual(5, len(grouped_targets))
+        # group 1: "_ day ahead cum death" | 0 day ahead cum death, 1 day ahead cum death, ..., 130 day ahead cum death
+        # group 2: "_ day ahead inc death" | 0, 1, ..., 130
+        # group 3: "_ day ahead inc hosp"  | 0, 1, ..., 130
+        # group 4: "_ wk ahead cum death"  | 1 wk ahead cum death, 2 wk ahead cum death, ..., 20 wk ahead cum death
+        # group 5: "_ wk ahead inc death"  | 1, 2, ..., 20
+        # group 6: "_ wk ahead inc case"   | 1 wk ahead inc case, 2 wk ahead inc case, ..., 8 wk ahead inc case
+        self.assertEqual(6, len(grouped_targets))
         self.assertEqual({'day ahead inc hosp', 'day ahead inc death', 'day ahead cum death', 'wk ahead inc death',
-                          'wk ahead cum death'},
+                          'wk ahead cum death', 'wk ahead inc case'},
                          set(grouped_targets.keys()))
         self.assertEqual(131, len(grouped_targets['day ahead inc hosp']))
         self.assertEqual(131, len(grouped_targets['day ahead inc death']))
         self.assertEqual(131, len(grouped_targets['day ahead cum death']))
         self.assertEqual(20, len(grouped_targets['wk ahead inc death']))
         self.assertEqual(20, len(grouped_targets['wk ahead cum death']))
+        self.assertEqual(8, len(grouped_targets['wk ahead inc case']))
 
         # case: mix of target names with step_ahead_increment at start of name, and others
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
