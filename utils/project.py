@@ -446,6 +446,7 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
 
     with connection.cursor() as cursor:
         # validates, and replaces value to the five typed values:
+        logger.debug(f"_load_truth_data(): entered. calling _load_truth_data_rows()")
         rows = _load_truth_data_rows(project, cdc_csv_file_fp, is_convert_na_none)
         if not rows:
             return 0
@@ -455,6 +456,7 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
                    TruthData._meta.get_field('unit').column,
                    TruthData._meta.get_field('target').column,
                    'value_i', 'value_f', 'value_t', 'value_d', 'value_b']  # only one of value_* is non-None
+        logger.debug(f"_load_truth_data(): inserting rows. vendor={connection.vendor}")
         if connection.vendor == 'postgresql':
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
@@ -474,6 +476,7 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
             """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
             cursor.executemany(sql, rows)
+    logger.debug(f"_load_truth_data(): done")
     return len(rows)
 
 
@@ -503,16 +506,23 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
     timezero_to_missing_count = defaultdict(int)  # to minimize warnings
     unit_to_missing_count = defaultdict(int)
     target_to_missing_count = defaultdict(int)
+    timezero_date_to_obj = {}  # caches Project.time_zero_for_timezero_date()
+    target_to_cats_values = {}  # caches Target.cats_values()
+    range_to_range_tuple = {}  # caches Target.range_tuple()
     for row in csv_reader:
         if len(row) != 4:
             raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
 
         timezero_date, unit_name, target_name, value = row
 
-        # validate timezero_date
-        # todo cache: time_zero_for_timezero_date() results - expensive?
-        time_zero = project.time_zero_for_timezero_date(
-            datetime.datetime.strptime(timezero_date, YYYY_MM_DD_DATE_FORMAT))
+        # validate and cache timezero_date
+        if timezero_date in timezero_date_to_obj:
+            time_zero = timezero_date_to_obj[timezero_date]
+        else:
+            time_zero = project.time_zero_for_timezero_date(datetime.datetime.strptime(
+                timezero_date, YYYY_MM_DD_DATE_FORMAT))  # might be None
+            timezero_date_to_obj[timezero_date] = time_zero
+
         if not time_zero:
             timezero_to_missing_count[timezero_date] += 1
             continue
@@ -542,8 +552,19 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         #   within the `range` of valid values for the target. If `cats` is specified but `range` is not, then there is
         #   an implicit range for the ground truth value, and that is between min(`cats`) and \infty.
         # recall: "The range is assumed to be inclusive on the lower bound and open on the upper bound, # e.g. [a, b)."
-        cats_values = target.cats_values()  # datetime.date instances for date targets
-        range_tuple = target.range_tuple() or (min(cats_values), float('inf')) if cats_values else None
+
+        if target in target_to_cats_values:
+            cats_values = target_to_cats_values[target]
+        else:
+            cats_values = target.cats_values()  # datetime.date instances for date targets
+            target_to_cats_values[target] = cats_values
+
+        if target in range_to_range_tuple:
+            range_tuple = range_to_range_tuple[target]
+        else:
+            range_tuple = target.range_tuple() or (min(cats_values), float('inf')) if cats_values else None
+            range_to_range_tuple[target] = range_tuple
+
         if (target.type in [Target.DISCRETE_TARGET_TYPE, Target.CONTINUOUS_TARGET_TYPE]) and range_tuple \
                 and (parsed_value is not None) and not (range_tuple[0] <= parsed_value < range_tuple[1]):
             raise RuntimeError(f"The entry in the `value` column for a specific `target`-`unit`-`timezero` "
@@ -553,7 +574,7 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         # validate: For `nominal` and `date` target_types:
         #  - The entry in the `cat` column for a specific `target`-`unit`-`timezero` combination must be contained
         #    within the set of valid values for the target, as defined by the project config file.
-        cats_values = set(target.cats_values())  # datetime.date instances for date targets
+        cats_values = set(cats_values)  # datetime.date instances for date targets
         if (target.type in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]) and cats_values \
                 and (parsed_value not in cats_values):
             raise RuntimeError(f"The entry in the `cat` column for a specific `target`-`unit`-`timezero` "
