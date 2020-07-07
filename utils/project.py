@@ -446,6 +446,7 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
 
     with connection.cursor() as cursor:
         # validates, and replaces value to the five typed values:
+        logger.debug(f"_load_truth_data(): entered. calling _load_truth_data_rows()")
         rows = _load_truth_data_rows(project, cdc_csv_file_fp, is_convert_na_none)
         if not rows:
             return 0
@@ -455,6 +456,7 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
                    TruthData._meta.get_field('unit').column,
                    TruthData._meta.get_field('target').column,
                    'value_i', 'value_f', 'value_t', 'value_d', 'value_b']  # only one of value_* is non-None
+        logger.debug(f"_load_truth_data(): inserting rows. vendor={connection.vendor}")
         if connection.vendor == 'postgresql':
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
@@ -474,6 +476,7 @@ def _load_truth_data(project, cdc_csv_file_fp, is_convert_na_none):
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
             """.format(truth_data_table_name=truth_data_table_name, column_names=(', '.join(columns)))
             cursor.executemany(sql, rows)
+    logger.debug(f"_load_truth_data(): done")
     return len(rows)
 
 
