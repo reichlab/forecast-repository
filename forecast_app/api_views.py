@@ -432,12 +432,13 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # check for existing forecast
-        existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-        if existing_forecast_for_time_zero:
-            return JsonResponse({'error': f"A forecast already exists. "
-                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}, "
-                                          f"file_name='{data_file.name}'. Please delete existing data and then upload "
-                                          f"again. forecast_model={forecast_model}"},
+        existing_forecast_for_tz = forecast_model.forecast_for_time_zero(time_zero)
+        if existing_forecast_for_tz:
+            return JsonResponse({'error': f"A forecast already exists for "
+                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}. "
+                                          f"file_name='{data_file.name}', "
+                                          f"existing_forecast={existing_forecast_for_tz}, "
+                                          f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # upload to cloud and enqueue a job to process a new Job
