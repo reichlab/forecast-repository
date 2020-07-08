@@ -34,6 +34,7 @@ from utils.project import config_dict_from_project, create_project_from_json, lo
     unit_rows_for_project, models_summary_table_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -1239,13 +1240,16 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
         return is_error
 
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    existing_forecast_for_time_zero = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_time_zero and (existing_forecast_for_time_zero.source == data_file.name):
+    existing_forecast_for_tz = forecast_model.forecast_for_time_zero(time_zero)
+    if existing_forecast_for_tz and (existing_forecast_for_tz.source == data_file.name):
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
-                               'message': "A forecast already exists. time_zero={}, file_name='{}'. Please delete "
-                                          "existing data and then upload again. You may need to refresh the page to "
-                                          "see the delete button.".format(time_zero.timezero_date, data_file.name)})
+                               'message': f"A forecast already exists for "
+                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}. "
+                                          f"file_name='{data_file.name}', "
+                                          f"existing_forecast={existing_forecast_for_tz}, "
+                                          f"forecast_model={forecast_model}. Please delete existing data and then "
+                                          f"upload again. You may need to refresh the page to see the delete button."})
 
     # upload to cloud and enqueue a job to process a new Job
     is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
