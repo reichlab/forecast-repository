@@ -157,7 +157,9 @@
         $(document).ready(function () {
             $('#projects_table').DataTable();
             $('#models_table').DataTable();
-            $('#jobs_table').DataTable();
+            $('#jobs_table').DataTable({
+                order: [[0, "desc"]],  // id
+            });
         });
     </script>
 

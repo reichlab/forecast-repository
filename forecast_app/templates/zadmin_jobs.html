@@ -32,7 +32,9 @@
     <!-- activate the https://datatables.net/ -->
     <script>
         $(document).ready(function () {
-            $('#jobs_table').DataTable();
+            $('#jobs_table').DataTable({
+                order: [[0, "desc"]],  // id
+            });
         });
     </script>
 
