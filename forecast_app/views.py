@@ -86,7 +86,7 @@ def projects(request):
 def zadmin_jobs(request):
     return render(
         request, 'zadmin_jobs.html',
-        context={'jobs': Job.objects.all().order_by('-updated_at')})
+        context={'jobs': Job.objects.all()})  # datatable does order by
 
 
 def zadmin_score_last_updates(request):
@@ -855,7 +855,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
         context['is_user_ok_create_model'] = is_user_ok_create_model(self.request.user, project)
         context['timezeros_num_forecasts'] = self.timezeros_num_forecasts(project)
-        context['units'] = project.units.all().order_by('name')
+        context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
         return context
@@ -929,7 +929,7 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
-        context['jobs'] = detail_user.jobs.all().order_by('-updated_at')
+        context['jobs'] = detail_user.jobs.all()  # datatable does order by
         return context
 
 

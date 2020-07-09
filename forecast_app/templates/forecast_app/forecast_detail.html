@@ -78,11 +78,26 @@
     <h2>Units <small>({{ found_units|length }} / {{ forecast.forecast_model.project.units.all|length }})</small></h2>
 
     {% if found_units %}
-        {% for unit in found_units %}
-            <code>{{ unit.name }}</code>{% if not forloop.last %},{% endif %}
-        {% endfor %}
+        <div class="row">
+            <div class="col-sm-8">
+                <table id="units_table" class="table table-striped table-bordered">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for unit in found_units %}
+                        <tr>
+                            <td>{{ unit.name }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     {% else %}
-        <small class="text-muted">(No units)</small>
+        <small class="text-muted">(No found units)</small>
     {% endif %}
 
     <hr> {# hack to add space before next #}
@@ -317,9 +332,11 @@
     {% endif %}
     </h4>
 
+
     <!-- activate the https://datatables.net/ -->
     <script>
         $(document).ready(function () {
+            $('#units_table').dataTable();
             $('#targets_table').dataTable();
             $('#data_rows_bin_table').dataTable();
             $('#data_rows_named_table').dataTable();
