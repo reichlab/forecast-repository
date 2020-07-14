@@ -14,6 +14,7 @@ from django.db import connection, transaction
 from django.db.models import Count
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 
@@ -354,6 +355,23 @@ def project_explorer(request, project_pk):
                  # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
                  # missing_unit_names:
                  'unit_rows': unit_rows_for_project(project)})
+
+
+def project_forecasts(request, project_pk):
+    """
+    View function to render a list of all forecasts in a particular project.
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not project.is_user_ok_to_view(request.user):
+        raise PermissionDenied
+
+    rows_qs = Forecast.objects.filter(forecast_model__project=project) \
+        .values_list('id', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
+                     'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
+    forecast_rows = [(reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_created_at,
+                      reverse('model-detail', args=[fm_id]), fm_abbrev)
+                     for f_id, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs]
+    return render(request, 'project_forecasts.html', context={'project': project, 'forecast_rows': forecast_rows})
 
 
 #

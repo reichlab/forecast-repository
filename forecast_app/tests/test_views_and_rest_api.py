@@ -163,6 +163,8 @@ class ViewsTestCase(TestCase):
             reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            reverse('project-forecasts', args=[str(self.public_project.pk)]): self.OK_ALL,
+            reverse('project-forecasts', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-explorer', args=[str(self.public_project.pk)]): self.OK_ALL,
             reverse('project-explorer', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
             reverse('project-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
