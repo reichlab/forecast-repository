@@ -272,7 +272,7 @@ class TargetTestCase(TestCase):
     def test_target_range_cats_lwr_relationship(self):
         # test this relationship: "if `range` had been specified as [0, 100] in addition to the above `cats`, then the
         # final bin would be [2.2, 100]."
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
             create_project_from_json(input_project_dict, po_user)
@@ -333,7 +333,7 @@ class TargetTestCase(TestCase):
 
 
     def test_range_tuple(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
             project = create_project_from_json(input_project_dict, po_user)
@@ -349,7 +349,7 @@ class TargetTestCase(TestCase):
     def test_target_range_cat_validation(self):
         # tests this relationship: "If `cats` are specified, then the min(`cats`) must equal the lower bound of `range`
         # and max(`cats`) must be less than the upper bound of `range`."
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
 

@@ -14,7 +14,7 @@ class NotificationTestCase(TestCase):
     def test_email_notification(self):
         # test that Job.save() calls send_notification_email() for Job.FAILED, but not any others
         # including Job.SUCCESS
-        _, _, mo_user, mo_user_password = get_or_create_super_po_mo_users(is_create_super=False)
+        _, _, mo_user, mo_user_password, _, _ = get_or_create_super_po_mo_users(is_create_super=False)
         self.client.login(username=mo_user.username, password=mo_user_password)
         mo_user.email = "user@example.com"
 

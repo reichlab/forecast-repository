@@ -202,7 +202,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_timezero_seasons(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project2 = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
 
         # 2015-01-01 <no season>  time_zero1    not within
@@ -664,7 +664,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_query_forecasts_for_project(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
         model = forecast_model.abbreviation
         tz = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
@@ -830,7 +830,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_query_forecasts_for_project_max_num_rows(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         rows = query_forecasts_for_project(project, {})
         self.assertEqual(63, len(rows))  # all forecasts in project, plus header
@@ -846,7 +846,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_validate_forecasts_query(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
         # case: query not a dict
@@ -898,7 +898,7 @@ class ProjectTestCase(TestCase):
 
 
     def test_last_update(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
         # one truth and one forecast (yes truth, yes forecasts)

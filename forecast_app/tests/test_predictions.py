@@ -37,7 +37,7 @@ class PredictionsTestCase(TestCase):
 
 
     def test_load_predictions_from_json_io_dict(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
@@ -74,7 +74,7 @@ class PredictionsTestCase(TestCase):
 
 
     def test_prediction_dicts_to_db_rows(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
@@ -161,7 +161,7 @@ class PredictionsTestCase(TestCase):
 
 
     def test_prediction_dicts_to_db_rows_invalid(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))

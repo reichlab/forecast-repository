@@ -66,10 +66,6 @@ class Forecast(models.Model):
         return self.source
 
 
-    def is_user_ok_to_delete(self, user):
-        return user.is_superuser or (user == self.forecast_model.project.owner) or (user == self.forecast_model.owner)
-
-
     #
     # prediction-specific accessors
     #

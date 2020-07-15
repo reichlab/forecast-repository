@@ -555,7 +555,7 @@ class ScoresTestCase(TestCase):
         interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
         self.assertIsNotNone(interval_20_score)
 
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
         _load_forecast_(forecast_model, '2020-04-26',
                         'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
@@ -569,7 +569,7 @@ class ScoresTestCase(TestCase):
         interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
         self.assertIsNotNone(interval_20_score)
 
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
         load_truth_data(project, Path('forecast_app/tests/scores/zoltar-truth-2020-04-24.csv'))
         _load_forecast_(forecast_model, '2020-04-24', 'forecast_app/tests/scores/2020-04-24-JHU_IDD-CovidSP.csv.json')
@@ -594,7 +594,7 @@ class ScoresTestCase(TestCase):
         interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
         self.assertIsNotNone(interval_20_score)
 
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
         unit_loc2 = project.units.filter(name='location2').first()
@@ -660,7 +660,7 @@ class ScoresTestCase(TestCase):
         interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
         self.assertIsNotNone(interval_20_score)
 
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
         forecast = _load_forecast_(forecast_model, '2020-04-26',
                                    'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
@@ -691,7 +691,7 @@ class ScoresTestCase(TestCase):
         interval_100_score = Score.objects.filter(abbreviation='interval_100').first()
         self.assertIsNotNone(interval_100_score)
 
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
         forecast = _load_forecast_(forecast_model, '2020-04-26',
                                    'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')
@@ -729,7 +729,7 @@ class ScoresTestCase(TestCase):
 
         # spot-check one interval: 0.5
         interval_50_score = Score.objects.filter(abbreviation='interval_50').first()
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, forecast_model = _make_covid19_project(po_user)
         forecast = _load_forecast_(forecast_model, '2020-04-26',
                                    'forecast_app/tests/scores/2020-04-26-CU-80contact-small.csv.json')

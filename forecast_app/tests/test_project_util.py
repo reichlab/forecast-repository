@@ -24,7 +24,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_config_dict_from_project(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
         project = create_project_from_json(input_project_dict, po_user)
@@ -45,7 +45,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             timezero_config = {'timezero_date': '2017-12-01',
@@ -96,7 +96,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_bad_arg(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             timezero_config = {'timezero_date': '2017-12-01',
@@ -116,7 +116,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_project_validation(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
 
@@ -177,7 +177,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_target_types(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
 
@@ -213,7 +213,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_target_required_fields(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
@@ -230,7 +230,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_target_optional_fields(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
@@ -323,7 +323,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_duplicate_timezero(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             project_dict['timezeros'].append(project_dict['timezeros'][0])
@@ -334,7 +334,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_duplicate_unit(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             project_dict['units'].append(project_dict['units'][0])
@@ -345,7 +345,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_duplicate_target(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             project_dict['targets'].append(project_dict['targets'][0])
@@ -356,7 +356,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_target_range_format(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             pct_next_week_target_dict = [target_dict for target_dict in project_dict['targets']
@@ -386,7 +386,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_target_cats_format(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             pct_next_week_target_dict = [target_dict for target_dict in project_dict['targets']
@@ -409,7 +409,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_create_project_from_json_target_dates_format(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             season_peak_week_target_dict = [target_dict for target_dict in project_dict['targets']
@@ -433,7 +433,7 @@ class ProjectUtilTestCase(TestCase):
     def test_create_project_from_json_cats_lws_ranges_created(self):
         # verify that 'list' TargetCat, TargetLwr, and TargetRange instances are created.
         # docs-project.json contains examples of all five target types
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
         project = create_project_from_json(project_dict, po_user)
@@ -501,7 +501,7 @@ class ProjectUtilTestCase(TestCase):
     def test_target_round_trip_target_dict(self):
         # test round trip: target_dict -> Target -> target_dict
         # 1. target_dict -> Target
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
         input_target_dicts = project_dict['targets']
@@ -523,7 +523,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_group_targets(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
 
         # case: target names with step_ahead_increment at start of name
         project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), po_user)
@@ -608,7 +608,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_models_summary_table_rows_for_project(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
         # test with just one forecast - oldest and newest forecast is the same. a 7-tuple:
@@ -660,7 +660,7 @@ class ProjectUtilTestCase(TestCase):
 
 
     def test_unit_rows_for_project(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # 2011, 10, 2
 
         # case: one model with one timezero. recall rows:

@@ -38,9 +38,8 @@ class ViewsTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
-        # users
-        cls.superuser, cls.superuser_password, cls.po_user, cls.po_user_password, cls.mo_user, cls.mo_user_password \
-            = get_or_create_super_po_mo_users(is_create_super=True)
+        cls.superuser, cls.superuser_password, cls.po_user, cls.po_user_password, cls.mo_user, cls.mo_user_password, \
+            cls.non_staff_user,  cls.non_staff_user_password = get_or_create_super_po_mo_users(is_create_super=True)
 
         # public_project
         cls.public_project = Project.objects.create(name='public project name', is_public=True, owner=cls.po_user)
@@ -140,81 +139,81 @@ class ViewsTestCase(TestCase):
     @patch('forecast_app.models.forecast_model.ForecastModel.delete')  # 'delete-model'
     @patch('rq.queue.Queue.enqueue')
     def test_url_get_general(self, mock_delete_model, mock_delete_project, mock_delete_forecast, enqueue_mock):
-        url_to_exp_user_status_code_pairs = {
-            reverse('index'): self.OK_ALL,
-            reverse('about'): self.OK_ALL,
+        url_exp_user_status_code_pairs = [
+            (reverse('index'), self.OK_ALL),
+            (reverse('about'), self.OK_ALL),
 
-            reverse('user-detail', args=[str(self.po_user.pk)]): self.ONLY_PO,
-            reverse('edit-user', args=[str(self.po_user.pk)]): self.ONLY_PO,
-            reverse('change-password'): self.ONLY_PO_MO,
-            reverse('job-detail', args=[str(self.job.pk)]): self.ONLY_PO,
+            (reverse('user-detail', args=[str(self.po_user.pk)]), self.ONLY_PO),
+            (reverse('edit-user', args=[str(self.po_user.pk)]), self.ONLY_PO),
+            (reverse('change-password'), self.ONLY_PO_MO),
+            (reverse('job-detail', args=[str(self.job.pk)]), self.ONLY_PO),
 
-            reverse('zadmin'): self.ONLY_SU_200,
-            reverse('clear-row-count-caches'): self.ONLY_SU_302,
-            reverse('update-row-count-caches'): self.ONLY_SU_302,
-            reverse('clear-score-csv-file-caches'): self.ONLY_SU_302,
-            reverse('update-score-csv-file-caches'): self.ONLY_SU_302,
-            reverse('update-all-scores'): self.ONLY_SU_302,
-            reverse('delete-file-jobs'): self.ONLY_SU_302,
-            reverse('clear-all-scores'): self.ONLY_SU_302,
-            reverse('delete-score-last-updates'): self.ONLY_SU_302,
+            (reverse('zadmin'), self.ONLY_SU_200),
+            (reverse('clear-row-count-caches'), self.ONLY_SU_302),
+            (reverse('update-row-count-caches'), self.ONLY_SU_302),
+            (reverse('clear-score-csv-file-caches'), self.ONLY_SU_302),
+            (reverse('update-score-csv-file-caches'), self.ONLY_SU_302),
+            (reverse('update-all-scores'), self.ONLY_SU_302),
+            (reverse('delete-file-jobs'), self.ONLY_SU_302),
+            (reverse('clear-all-scores'), self.ONLY_SU_302),
+            (reverse('delete-score-last-updates'), self.ONLY_SU_302),
 
-            reverse('project-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-visualizations', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-visualizations', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-forecasts', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-forecasts', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-explorer', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-explorer', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-score-data', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-score-data', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('download-project-scores', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('download-project-scores', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('project-config', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('project-config', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('create-project-from-form', args=[]): self.ONLY_PO_MO,
-            reverse('create-project-from-file', args=[]): self.ONLY_PO_MO,
-            reverse('edit-project-from-form', args=[str(self.public_project.pk)]): self.ONLY_PO,
-            reverse('edit-project-from-form', args=[str(self.private_project.pk)]): self.ONLY_PO,
-            reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
-            reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
-            reverse('delete-project', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
-            reverse('delete-project', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
+            (reverse('project-detail', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-detail', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-visualizations', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-visualizations', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-forecasts', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-explorer', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-explorer', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-scores', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-score-data', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-score-data', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('download-project-scores', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('download-project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-config', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-config', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('create-project-from-form', args=[]), self.ONLY_PO_MO),
+            (reverse('create-project-from-file', args=[]), self.ONLY_PO_MO),
+            (reverse('edit-project-from-form', args=[str(self.public_project.pk)]), self.ONLY_PO),
+            (reverse('edit-project-from-form', args=[str(self.private_project.pk)]), self.ONLY_PO),
+            (reverse('delete-project', args=[str(self.public_project.pk)]), self.ONLY_PO_302),
+            (reverse('delete-project', args=[str(self.private_project.pk)]), self.ONLY_PO_302),
+            (reverse('delete-project', args=[str(self.public_project.pk)]), self.ONLY_PO_302),
+            (reverse('delete-project', args=[str(self.private_project.pk)]), self.ONLY_PO_302),
 
-            reverse('truth-data-detail', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('truth-data-detail', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('delete-truth', args=[str(self.public_project.pk)]): self.ONLY_PO_302,
-            reverse('delete-truth', args=[str(self.private_project.pk)]): self.ONLY_PO_302,
-            reverse('upload-truth', args=[str(self.public_project.pk)]): self.ONLY_PO,
-            reverse('upload-truth', args=[str(self.private_project.pk)]): self.ONLY_PO,
-            reverse('download-truth', args=[str(self.public_project.pk)]): self.OK_ALL,
-            reverse('download-truth', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
+            (reverse('truth-data-detail', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('truth-data-detail', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('delete-truth', args=[str(self.public_project.pk)]), self.ONLY_PO_302),
+            (reverse('delete-truth', args=[str(self.private_project.pk)]), self.ONLY_PO_302),
+            (reverse('upload-truth', args=[str(self.public_project.pk)]), self.ONLY_PO),
+            (reverse('upload-truth', args=[str(self.private_project.pk)]), self.ONLY_PO),
+            (reverse('download-truth', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('download-truth', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
 
-            reverse('model-detail', args=[str(self.public_model.pk)]): self.OK_ALL,
-            reverse('model-detail', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
-            reverse('create-model', args=[str(self.public_project.pk)]): self.ONLY_PO_MO,
-            reverse('create-model', args=[str(self.private_project.pk)]): self.ONLY_PO_MO,
-            reverse('edit-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO,
-            reverse('edit-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO,
-            reverse('delete-model', args=[str(self.public_model.pk)]): self.ONLY_PO_MO_302,
-            reverse('delete-model', args=[str(self.private_model.pk)]): self.ONLY_PO_MO_302,
+            (reverse('model-detail', args=[str(self.public_model.pk)]), self.OK_ALL),
+            (reverse('model-detail', args=[str(self.private_model.pk)]), self.ONLY_PO_MO),
+            (reverse('create-model', args=[str(self.public_project.pk)]), self.ONLY_PO_MO),
+            (reverse('create-model', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('edit-model', args=[str(self.public_model.pk)]), self.ONLY_PO_MO),
+            (reverse('edit-model', args=[str(self.private_model.pk)]), self.ONLY_PO_MO),
+            (reverse('delete-model', args=[str(self.public_model.pk)]), self.ONLY_PO_MO_302),
+            (reverse('delete-model', args=[str(self.private_model.pk)]), self.ONLY_PO_MO_302),
 
-            reverse('forecast-detail', args=[str(self.public_forecast.pk)]): self.OK_ALL,
-            reverse('forecast-detail', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
-            reverse('delete-forecast', args=[str(self.public_forecast.pk)]): self.ONLY_PO_MO_302,
-            reverse('delete-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO_302,
-            reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
-            reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]): self.ONLY_PO_MO,
-            reverse('download-forecast', args=[str(self.public_forecast.pk)]): self.OK_ALL,
-            reverse('download-forecast', args=[str(self.private_forecast.pk)]): self.ONLY_PO_MO,
-        }
+            (reverse('forecast-detail', args=[str(self.public_forecast.pk)]), self.OK_ALL),
+            (reverse('forecast-detail', args=[str(self.private_forecast.pk)]), self.ONLY_PO_MO),
+            (reverse('delete-forecast', args=[str(self.public_forecast.pk)]), self.ONLY_PO_MO_302),
+            (reverse('delete-forecast', args=[str(self.private_forecast.pk)]), self.ONLY_PO_MO_302),
+            (reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz1.pk)]), self.ONLY_PO_MO),
+            (reverse('upload-forecast', args=[str(self.private_model.pk), str(self.public_tz1.pk)]), self.ONLY_PO_MO),
+            (reverse('download-forecast', args=[str(self.public_forecast.pk)]), self.OK_ALL),
+            (reverse('download-forecast', args=[str(self.private_forecast.pk)]), self.ONLY_PO_MO),
+        ]
 
         # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
         # the correct query params. however, 400 does indicate that the code passed the authorization portion
-        for url, user_exp_status_code_list in url_to_exp_user_status_code_pairs.items():
+        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
             for user, exp_status_code in user_exp_status_code_list:
                 self.client.logout()  # AnonymousUser
                 if user:

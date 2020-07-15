@@ -17,7 +17,7 @@ class ForecastModelTestCase(TestCase):
 
 
     def test_null_or_empty_name_or_abbreviation(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
         for empty_name in [None, '']:
             with self.assertRaises(ValidationError) as context:
@@ -33,7 +33,7 @@ class ForecastModelTestCase(TestCase):
 
     def test_duplicate_abbreviation(self):
         # duplicate names are OK, but not abbreviations
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
 
         # case: new name, duplicate abbreviation

@@ -66,7 +66,7 @@ def projects(request):
     # we cache Project.last_update() to avoid duplicate calls. recall last_update can be None.
     # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
     projects_last_updates = sorted([(project, project.last_update()) for project in Project.objects.all()
-                                    if project.is_user_ok_to_view(request.user)],
+                                    if is_user_ok_view_project(request.user, project)],
                                    reverse=True, key=lambda _: (_[1] is not None, _[1]))
 
     return render(
@@ -253,7 +253,7 @@ def project_visualizations(request, project_pk):
     View function to render various visualizations for a particular project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     return render(request, 'message.html',
@@ -345,7 +345,7 @@ def project_explorer(request, project_pk):
     View function to render various exploration tabs for a particular project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     return render(
@@ -362,7 +362,7 @@ def project_forecasts(request, project_pk):
     View function to render a list of all forecasts in a particular project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     rows_qs = Forecast.objects.filter(forecast_model__project=project) \
@@ -408,7 +408,7 @@ def project_scores(request, project_pk):
     View function to render various scores for a particular project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     # NB: inner knowledge about the targets unit_to_mean_abs_error_rows_for_project() uses:
@@ -469,7 +469,7 @@ def project_score_data(request, project_pk):
     View function that renders a summary of all Scores in the passed Project.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     # set score_summaries
@@ -510,7 +510,7 @@ def download_project_scores(request, project_pk):
         model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
@@ -530,7 +530,7 @@ def download_project_config(request, project_pk):
         model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     project_config = config_dict_from_project(project, request)
@@ -709,7 +709,7 @@ def edit_user(request, user_pk):
     passed user_pk.
     """
     detail_user = get_object_or_404(User, pk=user_pk)  # user page being edited
-    if not is_user_ok_edit_user(request, detail_user):
+    if not is_user_ok_edit_user(request.user, detail_user):
         raise PermissionDenied
 
     if request.method == 'POST':
@@ -857,7 +857,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
-        return project.is_user_ok_to_view(self.request.user)
+        return is_user_ok_view_project(self.request.user, project)
 
 
     def get_context_data(self, **kwargs):
@@ -931,7 +931,7 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
-        return is_user_ok_edit_user(self.request, detail_user)
+        return is_user_ok_edit_user(self.request.user, detail_user)
 
 
     def get_context_data(self, **kwargs):
@@ -943,7 +943,7 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         detail_user = self.get_object()
         projects_and_roles = projects_and_roles_for_user(detail_user)
         owned_models = forecast_models_owned_by_user(detail_user)
-        context['is_user_ok_edit_user'] = is_user_ok_edit_user(self.request, detail_user)
+        context['is_user_ok_edit_user'] = is_user_ok_edit_user(self.request.user, detail_user)
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
@@ -958,7 +958,7 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
-        return forecast_model.project.is_user_ok_to_view(self.request.user)
+        return is_user_ok_view_project(self.request.user, forecast_model.project)
 
 
     def get_context_data(self, **kwargs):
@@ -978,7 +978,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
-        return forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
+        return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
 
 
     def get_context_data(self, **kwargs):
@@ -1113,7 +1113,7 @@ def download_forecast(request, forecast_pk):
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     project = forecast.forecast_model.project
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
@@ -1132,7 +1132,7 @@ def truth_detail(request, project_pk):
     Authorization: The logged-in user must be a superuser, or the Project's owner, or the forecast's model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     return render(
@@ -1228,7 +1228,7 @@ def download_truth(request, project_pk):
         model's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not project.is_user_ok_to_view(request.user):
+    if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
     from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
@@ -1340,7 +1340,7 @@ def delete_forecast(request, forecast_pk):
     caller.
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
-    if not forecast.is_user_ok_to_delete(request.user):
+    if not is_user_ok_delete_forecast(request.user, forecast):
         raise PermissionDenied
 
     job = enqueue_delete_forecast(request.user, forecast)
@@ -1487,6 +1487,14 @@ def validate_data_file(request):
 # ---- authorization utilities ----
 #
 
+def is_user_ok_admin(user):
+    return user.is_superuser
+
+
+def is_user_ok_edit_user(user, detail_user):
+    return user.is_superuser or (detail_user == user)
+
+
 def is_user_ok_create_project(user):
     """
     :return: True if user (a User instance) is allowed to create Projects.
@@ -1494,8 +1502,11 @@ def is_user_ok_create_project(user):
     return user.is_authenticated  # any logged-in user can create. recall AnonymousUser.is_authenticated returns False
 
 
-def is_user_ok_admin(user):
-    return user.is_superuser
+def is_user_ok_view_project(user, project):
+    """
+    :return: True if user (a User instance) is allowed to view a particular Project.
+    """
+    return user.is_superuser or project.is_public or (user == project.owner) or (user in project.model_owners.all())
 
 
 def is_user_ok_edit_project(user, project):
@@ -1512,8 +1523,9 @@ def is_user_ok_edit_model(user, forecast_model):
     return user.is_superuser or (user == forecast_model.project.owner) or (user == forecast_model.owner)
 
 
-def is_user_ok_edit_user(request, detail_user):
-    return request.user.is_superuser or (detail_user == request.user)
+def is_user_ok_delete_forecast(user, forecast):
+    return user.is_superuser or (user == forecast.forecast_model.project.owner) or (
+                user == forecast.forecast_model.owner)
 
 
 def is_user_ok_upload_forecast(request, forecast_model):
