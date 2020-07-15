@@ -54,7 +54,7 @@ def make_thai_moph_project_app(data_dir, truths_csv_file):
         delete_project_iteratively(project)
 
     # create the Project (and Users if necessary), including loading the template and creating Targets
-    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
+    po_user, _, mo_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
     # !is_validate to bypass Impetus non-uniform bins: [0, 1), [1, 10), [10, 20), ..., [1990, 2000):
     project = create_project_from_json(Path('forecast_app/tests/projects/thai-project.json'), po_user)

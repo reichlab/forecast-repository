@@ -46,7 +46,7 @@ def make_minimal_projects_app():
             click.echo("* deleting previous project: {}".format(found_project))
             found_project.delete()
 
-    po_user, _, mo_user, _ = get_or_create_super_po_mo_users(is_create_super=False)
+    po_user, _, mo_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=False)
 
     click.echo("* creating CDC projects")
     public_project = Project.objects.create(name=MINIMAL_PROJECT_NAMES[0], is_public=True)

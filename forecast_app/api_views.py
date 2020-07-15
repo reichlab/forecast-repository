@@ -31,7 +31,8 @@ from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
-    _upload_truth_worker, enqueue_delete_forecast
+    _upload_truth_worker, enqueue_delete_forecast, is_user_ok_delete_forecast, is_user_ok_create_project, \
+    is_user_ok_view_project
 from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project, query_forecasts_for_project
@@ -72,7 +73,7 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
 
 
     def get_queryset(self):
-        return [project for project in Project.objects.all() if project.is_user_ok_to_view(self.request.user)]
+        return [project for project in Project.objects.all() if is_user_ok_view_project(self.request.user, project)]
 
 
     def test_func(self):
@@ -88,7 +89,7 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
             required information as data, whereas others take their main data as a file in request.FILES, plus some
             additional data in request.data.
         """
-        if not request.user.is_authenticated:  # any logged-in user can create
+        if not is_user_ok_create_project(request.user):
             raise PermissionDenied
         elif 'project_config' not in request.data:
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
@@ -113,7 +114,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
 
     def test_func(self):
         project = self.get_object()
-        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, project)
 
 
     def delete(self, request, *args, **kwargs):
@@ -175,7 +176,7 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
 
     def test_func(self):
         project = Project.objects.get(pk=self.kwargs['pk'])
-        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, project)
 
 
     def get_queryset(self):
@@ -234,7 +235,7 @@ class ProjectUnitList(UserPassesTestMixin, generics.ListAPIView):
 
     def test_func(self):
         project = Project.objects.get(pk=self.kwargs['pk'])
-        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, project)
 
 
     def get_queryset(self):
@@ -252,7 +253,7 @@ class ProjectTargetList(UserPassesTestMixin, generics.ListAPIView):
 
     def test_func(self):
         project = Project.objects.get(pk=self.kwargs['pk'])
-        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, project)
 
 
     def get_queryset(self):
@@ -272,7 +273,7 @@ class ProjectTimeZeroList(UserPassesTestMixin, generics.ListAPIView):
 
     def test_func(self):
         project = Project.objects.get(pk=self.kwargs['pk'])
-        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, project)
 
 
     def get_queryset(self):
@@ -373,7 +374,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
 
     def test_func(self):
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
-        return self.request.user.is_authenticated and forecast_model.project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, forecast_model.project)
 
 
     def get_queryset(self):
@@ -475,7 +476,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
 
     def test_func(self):
         forecast_model = self.get_object()
-        return self.request.user.is_authenticated and forecast_model.project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, forecast_model.project)
 
 
     def delete(self, request, *args, **kwargs):
@@ -499,7 +500,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     def test_func(self):
         forecast = self.get_object()
         return self.request.user.is_authenticated and \
-               forecast.forecast_model.project.is_user_ok_to_view(self.request.user)
+               is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
 
 
     def delete(self, request, *args, **kwargs):
@@ -507,7 +508,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         Enqueues the deletion of a Forecast, returning a Job for it.
         """
         forecast = self.get_object()
-        if not forecast.is_user_ok_to_delete(request.user):
+        if not is_user_ok_delete_forecast(request.user, forecast):
             raise PermissionDenied
 
         job = enqueue_delete_forecast(request.user, forecast)
@@ -523,7 +524,7 @@ class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):
         unit = self.get_object()
-        return self.request.user.is_authenticated and unit.project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, unit.project)
 
 
 class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -534,7 +535,7 @@ class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):
         target = self.get_object()
-        return self.request.user.is_authenticated and target.project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, target.project)
 
 
 class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -545,7 +546,7 @@ class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):
         time_zero = self.get_object()
-        return self.request.user.is_authenticated and time_zero.project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, time_zero.project)
 
 
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
@@ -556,7 +557,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
     def test_func(self):
         project = self.get_object()
-        return self.request.user.is_authenticated and project.is_user_ok_to_view(self.request.user)
+        return self.request.user.is_authenticated and is_user_ok_view_project(self.request.user, project)
 
 
     def post(self, request, *args, **kwargs):
@@ -624,7 +625,7 @@ def query_forecasts_endpoint(request, pk):
 
     # check authorization
     project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not project.is_user_ok_to_view(request.user):
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden()
 
     # validate 'query'
@@ -719,7 +720,7 @@ def download_truth_data(request, pk):
     :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
     """
     project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not project.is_user_ok_to_view(request.user):
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden()
 
     return csv_response_for_project_truth_data(project)
@@ -766,7 +767,7 @@ def download_score_data(request, pk):
     :return: the Project's score data as CSV
     """
     project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not project.is_user_ok_to_view(request.user):
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden()
 
     if project.score_csv_file_cache.is_file_exists():
@@ -786,7 +787,8 @@ def forecast_data(request, pk):
     :return: a Forecast's data as JSON - see load_predictions_from_json_io_dict() for the format
     """
     forecast = get_object_or_404(Forecast, pk=pk)
-    if (not request.user.is_authenticated) or not forecast.forecast_model.project.is_user_ok_to_view(request.user):
+    if (not request.user.is_authenticated) or \
+            not is_user_ok_view_project(request.user, forecast.forecast_model.project):
         return HttpResponseForbidden()
 
     return json_response_for_forecast(forecast, request)
@@ -1016,10 +1018,7 @@ def download_job_data(request, pk):
 
 
     job = get_object_or_404(Job, pk=pk)
-    is_authenticated = request.user.is_authenticated
-    is_superuser = request.user.is_superuser
-    is_job_user = request.user == job.user
-    if (not is_authenticated) or ((not is_superuser) and (not is_job_user)):
+    if (not request.user.is_authenticated) or ((not request.user.is_superuser) and (not request.user == job.user)):
         return HttpResponseForbidden()
 
     if (not isinstance(job.input_json, dict)) or ('query' not in job.input_json):

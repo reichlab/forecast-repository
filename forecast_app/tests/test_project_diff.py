@@ -24,7 +24,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_project_config_diff(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
@@ -146,7 +146,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_order_project_config_diff(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
@@ -164,7 +164,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_database_changes_for_project_config_diff(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
@@ -183,7 +183,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_execute_project_config_diff(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 
@@ -200,7 +200,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_diff_from_file(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
@@ -228,7 +228,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_diff_from_file_empty_data_version_date_string(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
@@ -243,7 +243,7 @@ class ProjectDiffTestCase(TestCase):
 
 
     def test_serialize_change_list(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
         _update_scores_for_all_projects()
 

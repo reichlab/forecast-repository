@@ -105,14 +105,6 @@ class Project(models.Model):
                 return human_readable_value
 
 
-    def is_user_ok_to_view(self, user):
-        """
-        :return: True if user is allowed to view my pages based on my is_public, owner, and model_owners.
-            returns False o/w
-        """
-        return user.is_superuser or self.is_public or (user == self.owner) or (user in self.model_owners.all())
-
-
     def get_absolute_url(self):
         return reverse('project-detail', args=[str(self.pk)])
 

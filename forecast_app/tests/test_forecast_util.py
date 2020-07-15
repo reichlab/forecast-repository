@@ -21,7 +21,7 @@ class ForecastUtilTestCase(TestCase):
 
 
     def test_data_rows_from_forecast(self):
-        _, _, po_user, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
         unit_loc1 = project.units.filter(name='location1').first()
         unit_loc2 = project.units.filter(name='location2').first()
