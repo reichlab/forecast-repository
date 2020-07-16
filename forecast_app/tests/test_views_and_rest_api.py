@@ -12,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
 from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX, _query_forecasts_worker
-from forecast_app.models import Project, ForecastModel, TimeZero
+from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
@@ -1420,6 +1420,43 @@ class ViewsTestCase(TestCase):
             self._authenticate_jwt_user(self.po_user, self.po_user_password)
             response = self.client.get(job_data_download_url)
             self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+
+    def test_api_put_forecast_source(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                           time_zero=time_zero)
+        self.assertEqual('docs-predictions.json', forecast.source)
+
+        # case: not authorized
+        forecast_url = reverse('api-forecast-detail', args=[forecast.pk])
+        json_response = self.client.put(forecast_url, {}, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        json_response = self.client.put(forecast_url, {
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: no 'source'
+        json_response = self.client.put(forecast_url, {
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertEqual({'error': "No 'source' data."}, json_response.json())
+
+        # case: authorized
+        new_source = 'new source'
+        json_response = self.client.put(forecast_url, {
+            'source': new_source,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        forecast.refresh_from_db()
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertEqual(new_source, forecast.source)
 
 
     def _authenticate_jwt_user(self, user, password):

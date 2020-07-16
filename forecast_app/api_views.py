@@ -556,7 +556,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
         return response
 
 
-class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
+class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
     raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
@@ -566,6 +566,22 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         forecast = self.get_object()
         return self.request.user.is_authenticated and \
                is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
+
+
+    def put(self, request, *args, **kwargs):
+        """
+        Handles the case of setting my source. PUT form fields:
+        - request.data (required) must have a 'source' field containing a string
+        """
+        forecast = self.get_object()
+        if not is_user_ok_delete_forecast(request.user, forecast):  # if ok delete forecast then ok to set source
+            raise PermissionDenied
+        elif 'source' not in request.data:
+            return JsonResponse({'error': "No 'source' data."}, status=status.HTTP_400_BAD_REQUEST)
+
+        forecast.source = request.data['source']
+        forecast.save()
+        return Response(status=status.HTTP_200_OK)
 
 
     def delete(self, request, *args, **kwargs):
