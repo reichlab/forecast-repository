@@ -39,7 +39,7 @@ class ViewsTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.superuser, cls.superuser_password, cls.po_user, cls.po_user_password, cls.mo_user, cls.mo_user_password, \
-            cls.non_staff_user,  cls.non_staff_user_password = get_or_create_super_po_mo_users(is_create_super=True)
+        cls.non_staff_user, cls.non_staff_user_password = get_or_create_super_po_mo_users(is_create_super=True)
 
         # public_project
         cls.public_project = Project.objects.create(name='public project name', is_public=True, owner=cls.po_user)
@@ -102,31 +102,43 @@ class ViewsTestCase(TestCase):
         cls.OK_ALL = [(None, status.HTTP_200_OK),
                       (cls.po_user, status.HTTP_200_OK),
                       (cls.mo_user, status.HTTP_200_OK),
-                      (cls.superuser, status.HTTP_200_OK)]
+                      (cls.superuser, status.HTTP_200_OK),
+                      (cls.non_staff_user, status.HTTP_200_OK)]
         cls.ONLY_PO_MO = [(None, status.HTTP_403_FORBIDDEN),
                           (cls.po_user, status.HTTP_200_OK),
                           (cls.mo_user, status.HTTP_200_OK),
-                          (cls.superuser, status.HTTP_200_OK)]
+                          (cls.superuser, status.HTTP_200_OK),
+                          (cls.non_staff_user, status.HTTP_403_FORBIDDEN)]
+        cls.ONLY_PO_MO_STAFF = [(None, status.HTTP_403_FORBIDDEN),
+                                (cls.po_user, status.HTTP_200_OK),
+                                (cls.mo_user, status.HTTP_200_OK),
+                                (cls.superuser, status.HTTP_200_OK),
+                                (cls.non_staff_user, status.HTTP_200_OK)]
         cls.ONLY_PO_MO_302 = [(None, status.HTTP_403_FORBIDDEN),
                               (cls.po_user, status.HTTP_302_FOUND),
                               (cls.mo_user, status.HTTP_302_FOUND),
-                              (cls.superuser, status.HTTP_302_FOUND)]
+                              (cls.superuser, status.HTTP_302_FOUND),
+                              (cls.non_staff_user, status.HTTP_403_FORBIDDEN)]
         cls.ONLY_PO = [(None, status.HTTP_403_FORBIDDEN),
                        (cls.po_user, status.HTTP_200_OK),
                        (cls.mo_user, status.HTTP_403_FORBIDDEN),
-                       (cls.superuser, status.HTTP_200_OK)]
+                       (cls.superuser, status.HTTP_200_OK),
+                       (cls.non_staff_user, status.HTTP_403_FORBIDDEN)]
         cls.ONLY_PO_302 = [(None, status.HTTP_403_FORBIDDEN),
                            (cls.po_user, status.HTTP_302_FOUND),
                            (cls.mo_user, status.HTTP_403_FORBIDDEN),
-                           (cls.superuser, status.HTTP_302_FOUND)]
+                           (cls.superuser, status.HTTP_302_FOUND),
+                           (cls.non_staff_user, status.HTTP_403_FORBIDDEN)]
         cls.ONLY_SU_200 = [(None, status.HTTP_403_FORBIDDEN),
                            (cls.po_user, status.HTTP_403_FORBIDDEN),
                            (cls.mo_user, status.HTTP_403_FORBIDDEN),
-                           (cls.superuser, status.HTTP_200_OK)]
+                           (cls.superuser, status.HTTP_200_OK),
+                           (cls.non_staff_user, status.HTTP_403_FORBIDDEN)]
         cls.ONLY_SU_302 = [(None, status.HTTP_403_FORBIDDEN),
                            (cls.po_user, status.HTTP_403_FORBIDDEN),
                            (cls.mo_user, status.HTTP_403_FORBIDDEN),
-                           (cls.superuser, status.HTTP_302_FOUND)]
+                           (cls.superuser, status.HTTP_302_FOUND),
+                           (cls.non_staff_user, status.HTTP_403_FORBIDDEN)]
 
 
     # the following @patch calls stop CRUD calls from actually taking place. all we care about here is access permissions
@@ -145,7 +157,7 @@ class ViewsTestCase(TestCase):
 
             (reverse('user-detail', args=[str(self.po_user.pk)]), self.ONLY_PO),
             (reverse('edit-user', args=[str(self.po_user.pk)]), self.ONLY_PO),
-            (reverse('change-password'), self.ONLY_PO_MO),
+            (reverse('change-password'), self.ONLY_PO_MO_STAFF),
             (reverse('job-detail', args=[str(self.job.pk)]), self.ONLY_PO),
 
             (reverse('zadmin'), self.ONLY_SU_200),
@@ -219,6 +231,7 @@ class ViewsTestCase(TestCase):
                 if user:
                     password = self.po_user_password if user == self.po_user \
                         else self.mo_user_password if user == self.mo_user \
+                        else self.non_staff_user_password if user == self.non_staff_user \
                         else self.superuser_password
                     self.client.login(username=user.username, password=password)
                 response = self.client.get(url, data={'unit': None, 'target': None})
@@ -228,11 +241,12 @@ class ViewsTestCase(TestCase):
     def test_projects_list_limited_visibility(self):
         # test which projects in the projects list can be see by which users. expected:
         #
-        # | AnonymousUser | [public_project, public_project2]                  | everyone can see public projects
-        # | temp_user     |            ""          ""                          | ""
-        # | superuser     | [          ""          ""       , private_project] | super can see all projects
-        # | po_user       |            ""          ""       ,      ""          | private_project project owner
-        # | mo_user       |            ""          ""       ,      ""          | private_project model owner
+        # | AnonymousUser  | [public_project, public_project2]                  | everyone can see public projects
+        # | temp_user      |            ""          ""                          | ""
+        # | non_staff_user |            ""          ""                          | ""
+        # | superuser      | [          ""          ""       , private_project] | super can see all projects
+        # | po_user        |            ""          ""       ,      ""          | private_project project owner
+        # | mo_user        |            ""          ""       ,      ""          | private_project model owner
         #
         temp_user_password = 'p'
         temp_user = User.objects.create_user(username="temp", password=temp_user_password)
@@ -241,13 +255,15 @@ class ViewsTestCase(TestCase):
             self.po_user: self.po_user_password,
             self.superuser: self.superuser_password,
             self.mo_user: self.mo_user_password,
+            self.non_staff_user: self.non_staff_user_password,
         }
+
         projects_url = reverse('projects', args=[])
         public_project_url = reverse('project-detail', args=[str(self.public_project.pk)])
         public_project2_url = reverse('project-detail', args=[str(self.public_project2.pk)])
         private_project_url = reverse('project-detail', args=[str(self.private_project.pk)])
 
-        # AnonymousUser and temp_user can only see self.public_project
+        # AnonymousUser, temp_user, and non_staff_user can only see self.public_project
         self.client.logout()  # AnonymousUser
         response = self.client.get(projects_url)
         self.assertIn(public_project_url, str(response.content))
@@ -255,6 +271,11 @@ class ViewsTestCase(TestCase):
         self.assertNotIn(private_project_url, str(response.content))
 
         self.client.login(username=temp_user.username, password=user_to_password[temp_user])
+        response = self.client.get(projects_url)
+        self.assertIn(public_project_url, str(response.content))
+        self.assertNotIn(private_project_url, str(response.content))
+
+        self.client.login(username=self.non_staff_user.username, password=user_to_password[self.non_staff_user])
         response = self.client.get(projects_url)
         self.assertIn(public_project_url, str(response.content))
         self.assertNotIn(private_project_url, str(response.content))
@@ -274,19 +295,23 @@ class ViewsTestCase(TestCase):
                 reverse('edit-model', args=[str(self.public_model.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('delete-model', args=[str(self.public_model.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('delete-forecast', args=[str(self.public_forecast.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('upload-forecast', args=[str(self.public_model.pk), str(self.public_tz2.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             # model detail page for private model. this is the only private model test as we depend on other tests
             # to check accessibility. this is a sanity check, in other words :-)
@@ -294,69 +319,82 @@ class ViewsTestCase(TestCase):
                 reverse('edit-model', args=[str(self.private_model.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('delete-model', args=[str(self.private_model.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('delete-forecast', args=[str(self.private_forecast.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('upload-forecast', args=[str(self.private_model.pk), str(self.private_tz2.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             # project list
             reverse('projects', args=[]): {
                 reverse('create-project-from-form', args=[]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('create-project-from-file', args=[]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             # project detail - public_project (has truth)
             reverse('project-detail', args=[str(self.public_project.pk)]): {
                 reverse('edit-project-from-form', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('delete-project', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('create-model', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, True),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             # project detail - public_project2 (no truth)
             reverse('project-detail', args=[str(self.public_project2.pk)]): {
                 reverse('upload-truth', args=[str(self.public_project2.pk)]):  # no truth -> upload link
                     [(self.po_user, True),
                      (self.mo_user, False),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             reverse('truth-data-detail', args=[str(self.public_project.pk)]): {
                 reverse('delete-truth', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             # user detail - public_project (has truth)
             reverse('user-detail', args=[str(self.po_user.pk)]): {
                 reverse('edit-user', args=[str(self.po_user.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
                 reverse('change-password'):
                     [(self.po_user, True),
                      (self.mo_user, False),
-                     (self.superuser, True)],
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
         }
         for url, url_to_user_access_pairs in url_to_exp_content.items():
@@ -368,6 +406,7 @@ class ViewsTestCase(TestCase):
 
                     password = self.po_user_password if user == self.po_user \
                         else self.mo_user_password if user == self.mo_user \
+                        else self.non_staff_user_password if user == self.non_staff_user \
                         else self.superuser_password
                     self.client.login(username=user.username, password=password)
                     response = self.client.get(url)
@@ -399,6 +438,10 @@ class ViewsTestCase(TestCase):
                 self.client.login(username=self.superuser.username, password=self.superuser_password)
                 response = self.client.post(url)
                 self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+                self.client.login(username=self.non_staff_user.username, password=self.non_staff_user_password)
+                response = self.client.post(url)
+                self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
 
     def test_delete_project_interactively(self):
@@ -477,40 +520,40 @@ class ViewsTestCase(TestCase):
         unit_us_nat = self.public_project.units.filter(name='US National').first()
         target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
         url_exp_user_status_code_pairs = [
-            (reverse('api-root'), self.ONLY_PO_MO),
+            (reverse('api-root'), self.ONLY_PO_MO_STAFF),
 
-            (reverse('api-project-list'), self.ONLY_PO_MO),
-            (reverse('api-project-detail', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-project-list'), self.ONLY_PO_MO_STAFF),
+            (reverse('api-project-detail', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-project-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-unit-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-unit-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-unit-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-target-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-target-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-target-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-timezero-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-timezero-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-timezero-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-model-list', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-model-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-model-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-truth-detail', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-truth-detail', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-truth-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-truth-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-truth-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-truth-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-score-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO),
+            (reverse('api-score-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-score-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
 
             (reverse('api-user-detail', args=[self.po_user.pk]), self.ONLY_PO),
             (reverse('api-job-detail', args=[self.job.pk]), self.ONLY_PO),
-            (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO),
-            (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO),
-            (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO),
+            (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO_STAFF),
+            (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO_STAFF),
+            (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO_STAFF),
 
-            (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO),
+            (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-model-detail', args=[self.private_model.pk]), self.ONLY_PO_MO),
-            (reverse('api-forecast-list', args=[self.public_model.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-list', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-forecast-list', args=[self.private_model.pk]), self.ONLY_PO_MO),
 
-            (reverse('api-forecast-detail', args=[self.public_forecast.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-detail', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-forecast-detail', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
-            (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO),
+            (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-forecast-data', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
         ]
         for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
@@ -521,6 +564,7 @@ class ViewsTestCase(TestCase):
                 if user:
                     password = self.po_user_password if user == self.po_user \
                         else self.mo_user_password if user == self.mo_user \
+                        else self.non_staff_user_password if user == self.non_staff_user \
                         else self.superuser_password
                     self._authenticate_jwt_user(user, password)
                 response = self.client.get(url)
@@ -812,9 +856,16 @@ class ViewsTestCase(TestCase):
 
 
     def test_api_create_project(self):
-        # case: not authorized. recall that any logged-in user can create
+        # case: not authorized. recall that only staff users can create
         json_response = self.client.post(reverse('api-project-list'), {
             'project_config': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        # case: not authorized. recall that only staff users can create
+        json_response = self.client.post(reverse('api-project-list'), {
+            'project_config': {},
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
@@ -847,6 +898,11 @@ class ViewsTestCase(TestCase):
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
+        response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
+        })
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
         # case: authorized
         response = self.client.delete(reverse('api-project-detail', args=[project2.pk]), {
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
@@ -864,6 +920,12 @@ class ViewsTestCase(TestCase):
         json_response = self.client.post(reverse('api-project-detail', args=[project2.pk]), {
             'project_config': {},
             'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        json_response = self.client.post(reverse('api-project-detail', args=[project2.pk]), {
+            'project_config': {},
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
@@ -887,9 +949,15 @@ class ViewsTestCase(TestCase):
                            'citation': 'the citation', 'methods': 'our methods', 'description': 'a description',
                            'home_url': 'http://example.com/', 'aux_data_url': 'http://example.com/'}
 
-        # case: not authorized. recall user must be a superuser, project owner, or model owner
+        # case: not authorized. recall user must be a superuser, project owner, or model owner. and: staff
         json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
             'model_config': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        json_response = self.client.post(reverse('api-model-list', args=[project2.pk]), {
+            'model_config': {},
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}'
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
@@ -1011,6 +1079,11 @@ class ViewsTestCase(TestCase):
         })
         self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
+        response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
+        })
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
         # case: authorized
         response = self.client.delete(reverse('api-model-detail', args=[forecast_model2.pk]), {
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
@@ -1021,9 +1094,15 @@ class ViewsTestCase(TestCase):
     def test_api_create_timezero(self):
         project2 = Project.objects.create(owner=self.po_user)
 
-        # case: not authorized. recall user must be a superuser, project owner, or model owner
+        # case: not authorized. recall user must be a superuser, project owner, or model owner. and: staff
         json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
             'timezero_config': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+        json_response = self.client.post(reverse('api-timezero-list', args=[project2.pk]), {
+            'timezero_config': {},
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}'
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
@@ -1085,6 +1164,11 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
+            json_response = self.client.post(upload_truth_url, {
+                'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
             # case: no 'data_file'
             jwt_token = self._authenticate_jwt_user(self.po_user, self.po_user_password)
             json_response = self.client.post(upload_truth_url, {
@@ -1125,6 +1209,12 @@ class ViewsTestCase(TestCase):
             joe_user = User.objects.create_user(username='joe', password='password')
             json_response = self.client.post(upload_forecast_url, {
                 'Authorization': f'JWT {self._authenticate_jwt_user(joe_user, "password")}',
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
+
+            json_response = self.client.post(upload_forecast_url, {
+                'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
             }, format='multipart')
             self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)

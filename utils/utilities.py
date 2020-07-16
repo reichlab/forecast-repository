@@ -63,28 +63,29 @@ def get_or_create_super_po_mo_users(is_create_super):
     if is_create_super and not superuser:
         logger.info("* creating supersuser")
         superuser = User.objects.create_superuser(username=super_username, password=superuser_password,
-                                                  email='test@example.com')
+                                                  email='test@example.com', is_staff=True)
 
     po_username = 'project_owner1'
     po_user = User.objects.filter(username=po_username).first()
     po_user_password = 'po1-asdf'
     if not po_user:
         logger.info("* creating PO user")
-        po_user = User.objects.create_user(username=po_username, password=po_user_password)
+        po_user = User.objects.create_user(username=po_username, password=po_user_password, is_staff=True)
 
     mo_username = 'model_owner1'
     mo_user = User.objects.filter(username=mo_username).first()
     mo_user_password = 'mo1-asdf'
     if not mo_user:
         logger.info("* creating MO user")
-        mo_user = User.objects.create_user(username=mo_username, password=mo_user_password)
+        mo_user = User.objects.create_user(username=mo_username, password=mo_user_password, is_staff=True)
 
     non_staff_username = 'non_staff'
     non_staff_user = User.objects.filter(username=non_staff_username).first()
     non_staff_user_password = 'non_staff-asdf'
     if not non_staff_user:
         logger.info("* creating non-staff user")
-        non_staff_user = User.objects.create_user(username=non_staff_username, password=non_staff_user_password)
+        non_staff_user = User.objects.create_user(username=non_staff_username, password=non_staff_user_password,
+                                                  is_staff=False)
 
     return (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password,
             non_staff_user, non_staff_user_password) if is_create_super \

@@ -1496,16 +1496,10 @@ def is_user_ok_edit_user(user, detail_user):
 
 
 def is_user_ok_create_project(user):
-    """
-    :return: True if user (a User instance) is allowed to create Projects.
-    """
-    return user.is_authenticated  # any logged-in user can create. recall AnonymousUser.is_authenticated returns False
+    return user.is_superuser or (user.is_authenticated and user.is_staff)
 
 
 def is_user_ok_view_project(user, project):
-    """
-    :return: True if user (a User instance) is allowed to view a particular Project.
-    """
     return user.is_superuser or project.is_public or (user == project.owner) or (user in project.model_owners.all())
 
 
