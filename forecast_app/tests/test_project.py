@@ -639,28 +639,26 @@ class ProjectTestCase(TestCase):
     def test_process_upload_truth_job(self):
         # test `_upload_truth_worker()` error conditions. this test is complicated by that function's use of
         # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
-        with patch('forecast_app.models.job.job_cloud_file') as mock:  # returns 2-tuple: (job, cloud_file_fp)
+        with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                patch('utils.project.load_truth_data') as load_truth_mock:
             job = Job.objects.create()
             job.input_json = {}  # no 'project_pk'
             job.save()
-            mock.return_value.__enter__.return_value = (job, None)
-            with self.assertRaises(RuntimeError) as context:
-                _upload_truth_worker(job.pk)
-            self.assertIn("missing 'project_pk' in job", str(context.exception))
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
+            _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_truth_mock.assert_not_called()
 
             # test no 'filename'
             job.input_json = {'project_pk': None}  # no 'filename'
             job.save()
-            with self.assertRaises(RuntimeError) as context:
-                _upload_truth_worker(job.pk)
-            self.assertIn("missing 'filename' in job", str(context.exception))
+            _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_truth_mock.assert_not_called()
 
             # test bad 'project_pk'
             job.input_json = {'project_pk': -1, 'filename': None}
             job.save()
-            with self.assertRaises(RuntimeError) as context:
-                _upload_truth_worker(job.pk)
-            self.assertIn("no Project found for project_pk", str(context.exception))
+            _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_truth_mock.assert_not_called()
 
 
     def test_query_forecasts_for_project(self):

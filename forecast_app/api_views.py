@@ -9,6 +9,7 @@ from pathlib import Path
 from wsgiref.util import FileWrapper
 
 import django_rq
+from boto3.exceptions import Boto3Error
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.db import connection
@@ -23,6 +24,7 @@ from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
+from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
 from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
@@ -754,10 +756,16 @@ def _query_forecasts_worker(job_pk):
     try:
         logger.debug(f"_query_forecasts_worker(): querying rows. query={query}. job={job}")
         rows = query_forecasts_for_project(project, query)
-    except RuntimeError as rte:
-        job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): error running query: '{rte}'. job={job}"
+    except JobTimeoutException as jte:
+        job.status = Job.TIMEOUT
         job.save()
+        logger.error(f"_query_forecasts_worker(): Job timeout: {repr(jte)}. job={job}")
+        return
+    except Exception as ex:
+        job.status = Job.FAILED
+        job.failure_message = f"_query_forecasts_worker(): error running query: '{ex}'. job={job}"
+        job.save()
+        logger.error(f"_query_forecasts_worker(): error: {repr(ex)}. job={job}")
         return
 
     # upload the file to cloud storage
@@ -779,11 +787,16 @@ def _query_forecasts_worker(job_pk):
             bytes_io.seek(0)
 
             logger.debug(f"_query_forecasts_worker(): uploading file. job={job}")
-            upload_file(job, bytes_io)
+            upload_file(job, bytes_io)  # might raise Boto3Error
             job.status = Job.SUCCESS
             job.output_json = {'num_rows': len(rows)}  # todo xx temp
             job.save()
             logger.debug(f"_query_forecasts_worker(): done. job={job}")
+    except Boto3Error as b3e:
+        job.status = Job.FAILED
+        job.failure_message = f"_query_forecasts_worker(): AWS failure uploading the file: {repr(b3e)}. job={job}"
+        job.save()
+        logger.error(f"_query_forecasts_worker(): AWS error: {b3e!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
         job.failure_message = f"_query_forecasts_worker(): error uploading file to cloud: '{ex}'. job={job}"

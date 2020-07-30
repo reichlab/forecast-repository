@@ -515,39 +515,35 @@ class ForecastTestCase(TestCase):
     def test_process_upload_forecast_job(self):
         # test `_upload_forecast_worker()` error conditions. this test is complicated by that function's use of
         # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
-        with patch('forecast_app.models.job.job_cloud_file') as mock:  # returns 2-tuple: (job, cloud_file_fp)
+        with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock:
             job = Job.objects.create()
             job.input_json = {}  # no 'forecast_model_pk'
             job.save()
-            mock.return_value.__enter__.return_value = (job, None)
-            with self.assertRaises(RuntimeError) as context:
-                _upload_forecast_worker(job.pk)
-            self.assertIn("missing 'forecast_model_pk' in job", str(context.exception))
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
+            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_preds_mock.assert_not_called()
 
             # test no 'timezero_pk'
             job.input_json = {'forecast_model_pk': None}  # no 'timezero_pk'
             job.save()
-            with self.assertRaises(RuntimeError) as context:
-                _upload_forecast_worker(job.pk)
-            self.assertIn("missing 'timezero_pk' in job", str(context.exception))
+            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_preds_mock.assert_not_called()
 
             # test no 'filename'
             job.input_json = {'forecast_model_pk': None, 'timezero_pk': None}  # no 'filename'
             job.save()
-            with self.assertRaises(RuntimeError) as context:
-                _upload_forecast_worker(job.pk)
-            self.assertIn("missing 'filename' in job", str(context.exception))
+            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_preds_mock.assert_not_called()
 
             # test bad 'forecast_model_pk'
             job.input_json = {'forecast_model_pk': -1, 'timezero_pk': None, 'filename': None}
             job.save()
-            with self.assertRaises(RuntimeError) as context:
-                _upload_forecast_worker(job.pk)
-            self.assertIn("no ForecastModel found for forecast_model_pk", str(context.exception))
+            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_preds_mock.assert_not_called()
 
             # test bad 'timezero_pk'
             job.input_json = {'forecast_model_pk': self.forecast_model.pk, 'timezero_pk': -1, 'filename': None}
             job.save()
-            with self.assertRaises(RuntimeError) as context:
-                _upload_forecast_worker(job.pk)
-            self.assertIn("no TimeZero found for timezero_pk", str(context.exception))
+            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            load_preds_mock.assert_not_called()

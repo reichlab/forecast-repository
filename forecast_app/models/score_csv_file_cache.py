@@ -1,7 +1,8 @@
 import logging
 
 import django_rq
-from django.db import models
+from boto3.exceptions import Boto3Error
+from django.db import models, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
@@ -54,6 +55,7 @@ class ScoreCsvFileCache(models.Model):
         self.save()  # updates updated_at
 
 
+    @transaction.atomic
     def update_score_csv_file_cache(self):
         """
         Updates me. Runs in the calling thread and therefore blocks.
@@ -72,10 +74,14 @@ class ScoreCsvFileCache(models.Model):
         response = csv_response_for_project_score_data(self.project)
 
         logger.debug("update_score_csv_file_cache(): 3/4 uploading. size={}. {}".format(len(response.content), self))
-        upload_file(self, response.content)
-        self.save()  # updates updated_at
-
-        logger.debug("update_score_csv_file_cache(): 4/4 done: {}".format(self))
+        try:
+            upload_file(self, response.content)  # might raise Boto3Error
+            self.save()  # updates updated_at
+            logger.debug("update_score_csv_file_cache(): 4/4 done: {}".format(self))
+        except Boto3Error as b3e:
+            logger.error(f"update_score_csv_file_cache(): AWS error: {b3e!r}. ScoreCsvFileCache={self}")
+        except Exception as ex:
+            logger.error(f"update_score_csv_file_cache(): error: {ex!r}. ScoreCsvFileCache={self}")
 
 
 #
@@ -93,7 +99,10 @@ def _update_project_score_csv_file_cache_worker(project_pk):
     enqueue() helper function
     """
     project = get_object_or_404(Project, pk=project_pk)
-    project.score_csv_file_cache.update_score_csv_file_cache()
+    try:
+        project.score_csv_file_cache.update_score_csv_file_cache()
+    except Exception as ex:
+        logger.error(f"_update_project_score_csv_file_cache_worker(): Job timeout: {ex!r}. project={project}")
 
 
 #

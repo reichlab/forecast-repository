@@ -487,7 +487,8 @@ class ViewsTestCase(TestCase):
         self.assertEqual(11, len(response_dict['meta']['units']))
 
         # score data as CSV
-        response = self.client.get(reverse('download-project-scores', args=[self.public_project.pk]))
+        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
+            response = self.client.get(reverse('download-project-scores', args=[self.public_project.pk]))
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual("text/csv", response['Content-Type'])
         self.assertEqual('attachment; filename="public_project_name-scores.csv"', response['Content-Disposition'])
@@ -644,7 +645,8 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-truth-data-download', args=[self.public_project.pk]), format='json')
         self.assertEqual(341, len(response.content))
 
-        response = self.client.get(reverse('api-score-data-download', args=[self.public_project.pk]), format='json')
+        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
+            response = self.client.get(reverse('api-score-data-download', args=[self.public_project.pk]), format='json')
         # just SCORE_CSV_HEADER_PREFIX due to no scores:
         self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), response.content.decode().strip())
 

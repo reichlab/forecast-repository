@@ -66,7 +66,10 @@ def _update_project_row_count_cache_worker(project_pk):
     enqueue() helper function
     """
     project = get_object_or_404(Project, pk=project_pk)
-    project.row_count_cache.update_row_count_cache()
+    try:
+        project.row_count_cache.update_row_count_cache()
+    except Exception as ex:
+        logger.error(f"_update_project_row_count_cache_worker(): error: {ex!r}. project={project}")
 
 
 #

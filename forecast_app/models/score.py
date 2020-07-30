@@ -207,7 +207,10 @@ def _update_model_scores_worker(score_pk, forecast_model_pk):
     """
     score = get_object_or_404(Score, pk=score_pk)
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
-    score.update_score_for_model(forecast_model)
+    try:
+        score.update_score_for_model(forecast_model)
+    except Exception as ex:
+        logger.error(f"_update_model_scores_worker(): error: {ex!r}. score={score}, forecast_model={forecast_model}")
 
 
 #

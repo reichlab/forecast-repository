@@ -4,6 +4,7 @@ import tempfile
 from contextlib import contextmanager
 
 import django_rq
+from boto3.exceptions import Boto3Error
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
@@ -11,6 +12,7 @@ from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
 from jsonfield import JSONField
+from rq.timeouts import JobTimeoutException
 
 from forecast_repo.settings.base import UPLOAD_FILE_QUEUE_NAME
 from utils.cloud_file import delete_file, download_file
@@ -50,6 +52,7 @@ class Job(models.Model):
     CLOUD_FILE_DOWNLOADED = 3
     SUCCESS = 4
     FAILED = 5
+    TIMEOUT = 6
 
     STATUS_CHOICES = (
         (PENDING, 'PENDING'),
@@ -58,6 +61,7 @@ class Job(models.Model):
         (CLOUD_FILE_DOWNLOADED, 'CLOUD_FILE_DOWNLOADED'),
         (SUCCESS, 'SUCCESS'),
         (FAILED, 'FAILED'),
+        (TIMEOUT, 'TIMEOUT'),
     )
     status = models.IntegerField(default=PENDING, choices=STATUS_CHOICES)
 
@@ -105,7 +109,9 @@ class Job(models.Model):
                 Job.QUEUED: 'text-secondary',
                 Job.CLOUD_FILE_DOWNLOADED: 'text-secondary',
                 Job.SUCCESS: 'text-success',
-                Job.FAILED: 'text-danger'}[self.status]
+                Job.FAILED: 'text-danger',
+                Job.TIMEOUT: 'text-danger',
+                }[self.status]
 
 
     @classmethod
@@ -189,11 +195,23 @@ def job_cloud_file(job_pk):
             job.status = Job.SUCCESS  # yay!
             job.save()
             logger.debug(f"job_cloud_file(): Done. job={job}")
+        except JobTimeoutException as jte:
+            job.status = Job.TIMEOUT
+            job.save()
+            logger.error(f"job_cloud_file(): Job timeout: {repr(jte)}. job={job}")
+            raise jte
+        except Boto3Error as b3e:
+            job.status = Job.FAILED
+            job.failure_message = f"job_cloud_file(): AWS failure processing the file: {repr(b3e)}"
+            job.save()
+            logger.error(f"job_cloud_file(): AWS error: {b3e!r}. job={job}")
+            raise b3e
         except Exception as ex:
             job.status = Job.FAILED
-            job.failure_message = f"Failed to process the file: '{repr(ex)}'"
+            job.failure_message = f"Failure processing the file: '{repr(ex)}'"
             job.save()
-            logger.error(f"job_cloud_file(): FAILED_PROCESS_FILE: Error: {repr(ex)}. job={job}")
+            logger.error(f"job_cloud_file(): Error: {ex!r}. job={job}")
+            raise ex
         finally:
             delete_file(job)  # NB: in current thread
 

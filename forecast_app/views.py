@@ -3,6 +3,7 @@ import logging
 
 import django_rq
 import redis
+from boto3.exceptions import Boto3Error
 from django import db
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -17,6 +18,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
+from rq.timeouts import JobTimeoutException
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
@@ -336,10 +338,6 @@ def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
     return unit_to_actual_max
 
 
-#
-# ---- visualization-related view functions ----
-#
-
 def project_explorer(request, project_pk):
     """
     View function to render various exploration tabs for a particular project.
@@ -426,11 +424,10 @@ def project_scores(request, project_pk):
         unit_to_rows_and_mins = unit_to_mean_abs_error_rows_for_project(project, season_name)
         is_all_units_have_rows = unit_to_rows_and_mins and all(unit_to_rows_and_mins.values())
         logger.debug("project_scores(): done: unit_to_mean_abs_error_rows_for_project()")
-    except RuntimeError as rte:
+    except Exception as ex:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to calculate scores.",
-                               'message': "The error was: &ldquo;<span class=\"bg-danger\">{}</span>&rdquo;".format(
-                                   rte)})
+                               'message': f"The error was: &ldquo;<span class=\"bg-danger\">{ex!r}</span>&rdquo;"})
 
     unit_names = project.units.all().order_by('name').values_list('name', flat=True)
     model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
@@ -562,10 +559,11 @@ def create_project_from_file(request):
         new_project = create_project_from_json(project_dict, request.user)
         messages.success(request, f"Created project '{new_project.name}'")
         return redirect('project-detail', pk=new_project.pk)
-    except RuntimeError as rte:
+    except Exception as ex:
         return render(request, 'message.html',
                       context={'title': "Error creating project from file.",
-                               'message': f"There was an error uploading the file. The error was: &ldquo;{rte}&rdquo;"})
+                               'message': f"There was an error uploading the file. The error was: "
+                                          f"&ldquo;{ex!r}&rdquo;"})
 
 
 def create_project_from_form(request):
@@ -677,10 +675,10 @@ def edit_project_from_file_execute(request, project_pk):
         logger.debug(f"edit_project_from_file_execute(): done")
         messages.success(request, f"Successfully applied {len(changes)} change(s) to project '{project.name}'.")
         return redirect('project-detail', pk=project_pk)
-    except RuntimeError as rte:
+    except Exception as ex:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to execute changes.",
-                               'message': f"The error was: &ldquo;<span class=\"bg-danger\">{rte}</span>&rdquo;"})
+                               'message': f"The error was: &ldquo;<span class=\"bg-danger\">{ex!r}</span>&rdquo;"})
 
 
 def delete_project(request, project_pk):
@@ -1203,22 +1201,25 @@ def _upload_truth_worker(job_pk):
     from forecast_app.models.job import job_cloud_file
 
 
-    with job_cloud_file(job_pk) as (job, cloud_file_fp):
-        if 'project_pk' not in job.input_json:
-            raise RuntimeError(f"_upload_truth_worker(): missing 'project_pk' in job={job}, "
-                               f"input_json={job.input_json}")
-        elif 'filename' not in job.input_json:
-            raise RuntimeError(f"_upload_truth_worker(): missing 'filename' in job={job}, "
-                               f"input_json={job.input_json}")
+    try:
+        with job_cloud_file(job_pk) as (job, cloud_file_fp):
+            if 'project_pk' not in job.input_json:
+                logger.error(f"_upload_truth_worker(): missing 'project_pk' in job={job}")
+                return
+            elif 'filename' not in job.input_json:
+                logger.error(f"_upload_truth_worker(): missing 'filename' in job={job}")
+                return
 
-        project_pk = job.input_json['project_pk']
-        filename = job.input_json['filename']
+            project_pk = job.input_json['project_pk']
+            project = Project.objects.filter(pk=project_pk).first()  # None if doesn't exist
+            if not project:
+                logger.error(f"_upload_truth_worker(): no Project found for project_pk={project_pk}")
+                return
 
-        project = Project.objects.filter(pk=project_pk).first()  # None if doesn't exist
-        if not project:
-            raise RuntimeError(f"no Project found for project_pk={project_pk}")
-
-        load_truth_data(project, cloud_file_fp, file_name=filename)
+            filename = job.input_json['filename']
+            load_truth_data(project, cloud_file_fp, file_name=filename)
+    except Exception as ex:
+        logger.error(f"_upload_truth_worker(): error uploading: {ex!r}")
 
 
 def download_truth(request, project_pk):
@@ -1297,41 +1298,58 @@ def _upload_forecast_worker(job_pk):
     from forecast_app.models.job import job_cloud_file
 
 
-    with job_cloud_file(job_pk) as (job, cloud_file_fp):
-        if 'forecast_model_pk' not in job.input_json:
-            raise RuntimeError(f"_upload_forecast_worker(): missing 'forecast_model_pk' in job={job}, "
-                               f"input_json={job.input_json}")
-        elif 'timezero_pk' not in job.input_json:
-            raise RuntimeError(f"_upload_forecast_worker(): missing 'timezero_pk' in job={job}, "
-                               f"input_json={job.input_json}")
-        elif 'filename' not in job.input_json:
-            raise RuntimeError(f"_upload_forecast_worker(): missing 'filename' in job={job}, "
-                               f"input_json={job.input_json}")
+    try:
+        with job_cloud_file(job_pk) as (job, cloud_file_fp):
+            if 'forecast_model_pk' not in job.input_json:
+                logger.error(f"_upload_forecast_worker(): missing 'forecast_model_pk' in job={job}")
+                return
+            elif 'timezero_pk' not in job.input_json:
+                logger.error(f"_upload_forecast_worker(): missing 'timezero_pk' in job={job}")
+                return
+            elif 'filename' not in job.input_json:
+                logger.error(f"_upload_forecast_worker(): missing 'filename' in job={job}")
+                return
 
-        forecast_model_pk = job.input_json['forecast_model_pk']
-        timezero_pk = job.input_json['timezero_pk']
-        filename = job.input_json['filename']
+            forecast_model_pk = job.input_json['forecast_model_pk']
+            timezero_pk = job.input_json['timezero_pk']
+            filename = job.input_json['filename']
 
-        forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
-        time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
-        if not forecast_model:
-            raise RuntimeError(f"no ForecastModel found for forecast_model_pk={forecast_model_pk}")
-        elif not time_zero:
-            raise RuntimeError(f"no TimeZero found for timezero_pk={timezero_pk}")
+            forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
+            time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
+            if not forecast_model:
+                logger.error(f"_upload_forecast_worker(): no ForecastModel found for "
+                             f"forecast_model_pk={forecast_model_pk}")
+                return
+            elif not time_zero:
+                logger.error(f"no TimeZero found for timezero_pk={timezero_pk}")
+                return
 
-        logger.debug(f"_upload_forecast_worker(): job={job}, forecast_model={forecast_model}, "
-                     f"time_zero={time_zero}")
-        with transaction.atomic():
-            logger.debug(f"_upload_forecast_worker(): creating Forecast")
-            notes = job.input_json.get('notes', '')
-            new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=filename,
-                                                   notes=notes)
-            json_io_dict = json.load(cloud_file_fp)
-            logger.debug(f"_upload_forecast_worker(): loading predictions")
-            load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
-            job.output_json = {'forecast_pk': new_forecast.pk}
-            job.save()
-            logger.debug(f"_upload_forecast_worker(): done")
+            logger.debug(f"_upload_forecast_worker(): job={job}, forecast_model={forecast_model}, "
+                         f"time_zero={time_zero}")
+            with transaction.atomic():
+                logger.debug(f"_upload_forecast_worker(): creating Forecast")
+                notes = job.input_json.get('notes', '')
+                new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
+                                                       source=filename,
+                                                       notes=notes)
+                json_io_dict = json.load(cloud_file_fp)
+                logger.debug(f"_upload_forecast_worker(): loading predictions")
+                try:
+                    load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
+                    job.output_json = {'forecast_pk': new_forecast.pk}
+                    job.save()
+                    logger.debug(f"_upload_forecast_worker(): done")
+                except JobTimeoutException as jte:
+                    job.status = Job.TIMEOUT
+                    job.save()
+                    logger.error(f"_upload_forecast_worker(): Job timeout: {jte!r}. job={job}")
+                except Exception as ex:
+                    job.status = Job.FAILED
+                    job.failure_message = f"_upload_forecast_worker(): error: '{ex!r}'. job={job}"
+                    job.save()
+                    logger.error(f"_upload_forecast_worker(): error: {ex!r}. job={job}")
+    except Exception as ex:
+        logger.error(f"_upload_forecast_worker(): error uploading: {ex!r}")
 
 
 def delete_forecast(request, forecast_pk):
@@ -1376,13 +1394,23 @@ def _delete_forecast_worker(job_pk):
     forecast = Forecast.objects.filter(id=forecast_pk).first()
     if not forecast:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast_worker: did not find a Forecast with forecast_pk={forecast_pk}. job={job}"
+        job.failure_message = f"_delete_forecast_worker: no Forecast with forecast_pk={forecast_pk}. job={job}"
         job.save()
         return
 
-    forecast.delete()
-    job.status = Job.SUCCESS
-    job.save()
+    try:
+        forecast.delete()
+        job.status = Job.SUCCESS
+        job.save()
+    except JobTimeoutException as jte:
+        job.status = Job.TIMEOUT
+        job.save()
+        logger.error(f"_delete_forecast_worker(): Job timeout: {repr(jte)}. job={job}")
+    except Exception as ex:
+        job.status = Job.FAILED
+        job.failure_message = f"_delete_forecast_worker(): error running query: '{ex!r}'. job={job}"
+        job.save()
+        logger.error(f"_delete_forecast_worker(): error: {ex!r}. job={job}")
 
 
 #
@@ -1430,10 +1458,15 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
 
     # upload the file to cloud storage
     try:
-        upload_file(job, data_file)
+        upload_file(job, data_file)  # might raise Boto3Error
         job.status = Job.CLOUD_FILE_UPLOADED
         job.save()
         logger.debug(f"_upload_file(): 2/3 Uploaded the file to cloud. job={job}")
+    except Boto3Error as b3e:
+        job.status = Job.FAILED
+        job.failure_message = f"_upload_file(): AWS failure uploading the file: {repr(b3e)}"
+        job.save()
+        logger.error(f"_upload_file(): AWS error: {b3e!r}. job={job}")
     except Exception as ex:
         failure_message = f"_upload_file(): Error uploading file to cloud: {ex}. job={job}"
         job.status = Job.FAILED
@@ -1519,7 +1552,7 @@ def is_user_ok_edit_model(user, forecast_model):
 
 def is_user_ok_delete_forecast(user, forecast):
     return user.is_superuser or (user == forecast.forecast_model.project.owner) or (
-                user == forecast.forecast_model.owner)
+            user == forecast.forecast_model.owner)
 
 
 def is_user_ok_upload_forecast(request, forecast_model):

@@ -2,6 +2,7 @@ import logging
 
 import boto3
 import botocore
+from boto3.exceptions import Boto3Error
 
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
 
@@ -99,6 +100,8 @@ def delete_file(the_object):
         s3_resource = boto3.resource('s3')
         s3_resource.Object(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object)).delete()
         logger.debug("delete_file(): done: {}".format(the_object))
+    except Boto3Error as b3e:
+        logger.error(f"delete_file(): AWS error: {b3e!r}. the_object={the_object}")
     except Exception as ex:
         logger.debug("delete_file(): failed: {}, {}".format(ex, the_object))
 
