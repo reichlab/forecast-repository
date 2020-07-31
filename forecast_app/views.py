@@ -1346,7 +1346,7 @@ def _upload_forecast_worker(job_pk):
                     logger.error(f"_upload_forecast_worker(): Job timeout: {jte!r}. job={job}")
                 except Exception as ex:
                     job.status = Job.FAILED
-                    job.failure_message = f"_upload_forecast_worker(): error: '{ex!r}'. job={job}"
+                    job.failure_message = f"_upload_forecast_worker(): error: {ex!r}. job={job}"
                     job.save()
                     logger.error(f"_upload_forecast_worker(): error: {ex!r}. job={job}")
     except Exception as ex:
@@ -1409,7 +1409,7 @@ def _delete_forecast_worker(job_pk):
         logger.error(f"_delete_forecast_worker(): Job timeout: {jte!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast_worker(): error running query: '{ex!r}'. job={job}"
+        job.failure_message = f"_delete_forecast_worker(): error running query: {ex!r}. job={job}"
         job.save()
         logger.error(f"_delete_forecast_worker(): error: {ex!r}. job={job}")
 

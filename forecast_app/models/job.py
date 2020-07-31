@@ -209,7 +209,7 @@ def job_cloud_file(job_pk):
             raise aws_exc
         except Exception as ex:
             job.status = Job.FAILED
-            job.failure_message = f"Failure processing the file: '{ex!r}'"
+            job.failure_message = f"Failure processing the file: {ex!r}"
             job.save()
             logger.error(f"job_cloud_file(): Error: {ex!r}. job={job}")
             raise ex

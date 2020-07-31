@@ -764,7 +764,7 @@ def _query_forecasts_worker(job_pk):
         return
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): error running query: '{ex}'. job={job}"
+        job.failure_message = f"_query_forecasts_worker(): error running query: {ex!r}. job={job}"
         job.save()
         logger.error(f"_query_forecasts_worker(): error: {ex!r}. job={job}")
         return
@@ -800,7 +800,7 @@ def _query_forecasts_worker(job_pk):
         logger.error(f"_query_forecasts_worker(): AWS error: {aws_exc!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): error: '{ex}'. job={job}"
+        job.failure_message = f"_query_forecasts_worker(): error: {ex!r}. job={job}"
         job.save()
 
 
