@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
+from botocore.exceptions import BotoCoreError
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
@@ -11,7 +12,8 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
-from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX, _query_forecasts_worker
+from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX, _query_forecasts_worker, \
+    csv_response_for_cached_project_score_data
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
@@ -495,6 +497,18 @@ class ViewsTestCase(TestCase):
         split_content = response.content.decode().split('\r\n')
         self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), split_content[0])
         self.assertEqual(2, len(split_content))  # no score data
+
+
+    def test_csv_response_for_cached_project_score_data_error(self):
+        # test the case when `download_file()` gives an error
+        with patch('utils.cloud_file.download_file') as download_file_mock:
+            download_file_mock.side_effect = BotoCoreError()  # alt: Boto3Error, ClientError, ConnectionClosedError
+            response = csv_response_for_cached_project_score_data(self.public_project)
+            self.assertIsNone(response)
+
+            download_file_mock.side_effect = Exception()
+            response = csv_response_for_cached_project_score_data(self.public_project)
+            self.assertIsNone(response)
 
 
     # https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
@@ -1365,17 +1379,16 @@ class ViewsTestCase(TestCase):
             job.refresh_from_db()
             self.assertEqual(Job.SUCCESS, job.status)
 
-        # case: upload_file() errors
+        # case: upload_file() errors. BotoCoreError: alt: Boto3Error, ClientError, ConnectionClosedError:
         job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.public_project.pk, 'query': {}})
-        with patch('utils.cloud_file.upload_file', side_effect=Exception('foo!')) as mock, \
+        with patch('utils.cloud_file.upload_file', side_effect=BotoCoreError()) as mock, \
                 patch('forecast_app.notifications.send_notification_email'):
-            # patch('forecast_app.models.job.send_notification_for_job'):
             _query_forecasts_worker(job.pk)
             mock.assert_called_once()
 
             job.refresh_from_db()
             self.assertEqual(Job.FAILED, job.status)
-            self.assertIn("_query_forecasts_worker(): error uploading file to cloud", job.failure_message)
+            self.assertIn("_query_forecasts_worker(): AWS error", job.failure_message)
 
         # case: allow actual utils.cloud_file.upload_file(), which calls Bucket.put_object(). we don't actually do this
         # in this test b/c we don't want to hit S3, but it's commented here for debugging:
@@ -1409,19 +1422,30 @@ class ViewsTestCase(TestCase):
         response = self.client.get(job_data_download_url)
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
 
-        # case: authorized: superuser + mocked utils.cloud_file.download_file() (no S3 hit)
-        with patch('utils.cloud_file.download_file') as mock:
+        # case: authorized: superuser + mocked `utils.cloud_file.download_file()` called once
+        with patch('utils.cloud_file.download_file') as download_file_mock:
             job = Job.objects.create(user=self.po_user, input_json={'query': {}})
             job_data_download_url = reverse('api-job-data-download', args=[job.pk])
             self._authenticate_jwt_user(self.superuser, self.superuser_password)
             response = self.client.get(job_data_download_url)
-            mock.assert_called_once()
+            download_file_mock.assert_called_once()
             self.assertEqual(status.HTTP_200_OK, response.status_code)
 
             # case: authorized: self.po_user
             self._authenticate_jwt_user(self.po_user, self.po_user_password)
             response = self.client.get(job_data_download_url)
             self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+            # case: authorized but `utils.cloud_file.download_file()` gives an error
+            download_file_mock.side_effect = BotoCoreError()  # alt: Boto3Error, ClientError, ConnectionClosedError
+            self._authenticate_jwt_user(self.po_user, self.po_user_password)
+            response = self.client.get(job_data_download_url)
+            self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
+
+            download_file_mock.side_effect = Exception()
+            self._authenticate_jwt_user(self.po_user, self.po_user_password)
+            response = self.client.get(job_data_download_url)
+            self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 
 
     def test_api_put_forecast_source(self):

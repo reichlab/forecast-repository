@@ -2,6 +2,7 @@ import logging
 
 import django_rq
 from boto3.exceptions import Boto3Error
+from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.db import models, transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -38,9 +39,12 @@ class ScoreCsvFileCache(models.Model):
 
     def is_file_exists(self):
         """
-        :return: convenience method for cloud_file.is_file_exists()
+        :return: convenience method for cloud_file.is_file_exists(). returns False if there was an S3 error
         """
-        return is_file_exists(self)[0]
+        try:
+            return is_file_exists(self)[0]  # might raise S3 exception
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError):
+            return False
 
 
     def delete_score_csv_file_cache(self):
@@ -51,7 +55,10 @@ class ScoreCsvFileCache(models.Model):
         from utils.cloud_file import delete_file
 
 
-        delete_file(self)
+        try:
+            delete_file(self)
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
+            logger.error(f"delete_score_csv_file_cache(): AWS error: {aws_exc!r}. ScoreCsvFileCache={self}")
         self.save()  # updates updated_at
 
 
@@ -75,11 +82,11 @@ class ScoreCsvFileCache(models.Model):
 
         logger.debug("update_score_csv_file_cache(): 3/4 uploading. size={}. {}".format(len(response.content), self))
         try:
-            upload_file(self, response.content)  # might raise Boto3Error
+            upload_file(self, response.content)  # might raise S3 exception
             self.save()  # updates updated_at
             logger.debug("update_score_csv_file_cache(): 4/4 done: {}".format(self))
-        except Boto3Error as b3e:
-            logger.error(f"update_score_csv_file_cache(): AWS error: {b3e!r}. ScoreCsvFileCache={self}")
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
+            logger.error(f"update_score_csv_file_cache(): AWS error: {aws_exc!r}. ScoreCsvFileCache={self}")
         except Exception as ex:
             logger.error(f"update_score_csv_file_cache(): error: {ex!r}. ScoreCsvFileCache={self}")
 

@@ -23,7 +23,7 @@ def _calculate_interval_score_values(score, forecast_model, alpha):
         targets = _validate_score_targets_and_data(forecast_model)
     except RuntimeError as rte:
         logger.warning(f"_calculate_interval_score_values(): _validate_score_targets_and_data() failed. "
-                       f"rte={repr(rte)}, score={score}, forecast_model={forecast_model}")
+                       f"rte={rte!r}, score={score}, forecast_model={forecast_model}")
         return
 
     lower_interval_quantile = alpha / 2

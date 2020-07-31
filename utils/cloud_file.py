@@ -3,6 +3,7 @@ import logging
 import boto3
 import botocore
 from boto3.exceptions import Boto3Error
+from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
 
@@ -94,14 +95,15 @@ def delete_file(the_object):
     Does nothing if the file does not exist.
 
     :param the_object: a Model
+    :raises: S3 exceptions
     """
     try:
         logger.debug("delete_file(): started: {}".format(the_object))
         s3_resource = boto3.resource('s3')
         s3_resource.Object(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object)).delete()
         logger.debug("delete_file(): done: {}".format(the_object))
-    except Boto3Error as b3e:
-        logger.error(f"delete_file(): AWS error: {b3e!r}. the_object={the_object}")
+    except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
+        logger.error(f"delete_file(): AWS error: {aws_exc!r}. the_object={the_object}")
     except Exception as ex:
         logger.debug("delete_file(): failed: {}, {}".format(ex, the_object))
 
@@ -122,6 +124,7 @@ def is_file_exists(the_object):
     """
     :param the_object: a Model
     :return: 2-tuple: (is_exists, size). size is unused if not is_exists
+    :raises: S3 exceptions
     """
     s3_resource = boto3.resource('s3')
     object_summary = s3_resource.ObjectSummary(_s3_bucket_name_for_object(the_object),

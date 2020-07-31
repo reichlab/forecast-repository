@@ -22,7 +22,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
         _validate_score_targets_and_data(forecast_model)
     except RuntimeError as rte:
         logger.warning(f"_calc_bin_score(): _validate_score_targets_and_data() failed. "
-                       f"rte={repr(rte)}, score={score}, forecast_model={forecast_model}")
+                       f"rte={rte!r}, score={score}, forecast_model={forecast_model}")
         return
 
     # cache the three necessary bins and values - lwrs, truth, and forecasts 1/3 lwrs: [target_pk] -> [lwr_1, ...]:

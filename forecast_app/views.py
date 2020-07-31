@@ -4,6 +4,7 @@ import logging
 import django_rq
 import redis
 from boto3.exceptions import Boto3Error
+from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django import db
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
@@ -1405,7 +1406,7 @@ def _delete_forecast_worker(job_pk):
     except JobTimeoutException as jte:
         job.status = Job.TIMEOUT
         job.save()
-        logger.error(f"_delete_forecast_worker(): Job timeout: {repr(jte)}. job={job}")
+        logger.error(f"_delete_forecast_worker(): Job timeout: {jte!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
         job.failure_message = f"_delete_forecast_worker(): error running query: '{ex!r}'. job={job}"
@@ -1458,17 +1459,17 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
 
     # upload the file to cloud storage
     try:
-        upload_file(job, data_file)  # might raise Boto3Error
+        upload_file(job, data_file)  # might raise S3 exception
         job.status = Job.CLOUD_FILE_UPLOADED
         job.save()
         logger.debug(f"_upload_file(): 2/3 Uploaded the file to cloud. job={job}")
-    except Boto3Error as b3e:
+    except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
         job.status = Job.FAILED
-        job.failure_message = f"_upload_file(): AWS failure uploading the file: {repr(b3e)}"
+        job.failure_message = f"_upload_file(): AWS error: {aws_exc!r}"
         job.save()
-        logger.error(f"_upload_file(): AWS error: {b3e!r}. job={job}")
+        logger.error(f"_upload_file(): AWS error: {aws_exc!r}. job={job}")
     except Exception as ex:
-        failure_message = f"_upload_file(): Error uploading file to cloud: {ex}. job={job}"
+        failure_message = f"_upload_file(): Error: {ex}. job={job}"
         job.status = Job.FAILED
         job.failure_message = failure_message
         job.save()
@@ -1487,7 +1488,11 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         job.status = Job.FAILED
         job.failure_message = failure_message
         job.save()
-        delete_file(job)  # NB: in current thread
+        try:
+            delete_file(job)  # might raise S3 exception. NB: in current thread
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
+            logger.error(f"_upload_file(): AWS error: {aws_exc!r}. job={job}")
+            return f"_upload_file(): AWS error: {aws_exc!r}. job={job}", None
         logger.debug(failure_message)
         return f"Error enqueuing the job: {ex}. job={job}", None
 

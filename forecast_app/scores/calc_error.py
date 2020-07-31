@@ -27,7 +27,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
         targets = _validate_score_targets_and_data(forecast_model)
     except RuntimeError as rte:
         logger.warning(f"_calculate_error_score_values(): _validate_score_targets_and_data() failed. "
-                       f"rte={repr(rte)}, score={score}, forecast_model={forecast_model}")
+                       f"rte={rte!r}, score={score}, forecast_model={forecast_model}")
         return
 
     # step 1/2: build tz_unit_targ_pk_to_pt_pred_value: [timezero_id][unit_id][target_id] -> point_value

@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 import django_rq
 from boto3.exceptions import Boto3Error
+from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
@@ -198,17 +199,17 @@ def job_cloud_file(job_pk):
         except JobTimeoutException as jte:
             job.status = Job.TIMEOUT
             job.save()
-            logger.error(f"job_cloud_file(): Job timeout: {repr(jte)}. job={job}")
+            logger.error(f"job_cloud_file(): Job timeout: {jte!r}. job={job}")
             raise jte
-        except Boto3Error as b3e:
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
             job.status = Job.FAILED
-            job.failure_message = f"job_cloud_file(): AWS failure processing the file: {repr(b3e)}"
+            job.failure_message = f"job_cloud_file(): AWS error: {aws_exc!r}"
             job.save()
-            logger.error(f"job_cloud_file(): AWS error: {b3e!r}. job={job}")
-            raise b3e
+            logger.error(f"job_cloud_file(): AWS error: {aws_exc!r}. job={job}")
+            raise aws_exc
         except Exception as ex:
             job.status = Job.FAILED
-            job.failure_message = f"Failure processing the file: '{repr(ex)}'"
+            job.failure_message = f"Failure processing the file: '{ex!r}'"
             job.save()
             logger.error(f"job_cloud_file(): Error: {ex!r}. job={job}")
             raise ex

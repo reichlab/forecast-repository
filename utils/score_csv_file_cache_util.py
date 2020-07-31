@@ -8,7 +8,6 @@ import django
 django.setup()
 
 from forecast_repo.settings.base import S3_BUCKET_PREFIX
-from utils.cloud_file import is_file_exists
 from forecast_app.models import Project
 from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 
@@ -29,8 +28,7 @@ def print_caches():
     click.echo("ScoreCsvFileCaches:")
     for project in Project.objects.all():
         score_csv_file_cache = project.score_csv_file_cache
-        click.echo("- {} | {} | {}".format(
-            project, score_csv_file_cache.updated_at, is_file_exists(score_csv_file_cache)))
+        click.echo(f"- {project} | {score_csv_file_cache.updated_at} | {score_csv_file_cache.is_file_exists()}")
 
 
 @cli.command()

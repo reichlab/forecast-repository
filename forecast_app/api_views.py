@@ -10,11 +10,12 @@ from wsgiref.util import FileWrapper
 
 import django_rq
 from boto3.exceptions import Boto3Error
+from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.db import connection
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
-    HttpResponseServerError
+    HttpResponseNotFound
 from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
@@ -438,7 +439,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         try:
             timezero_date_obj = datetime.datetime.strptime(timezero_date_str, YYYY_MM_DD_DATE_FORMAT)
         except ValueError as ve:
-            return JsonResponse({'error': f"Badly formatted 'timezero_date' form field: '{repr(ve)}'. "
+            return JsonResponse({'error': f"Badly formatted 'timezero_date' form field: '{ve!r}'. "
                                           f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
@@ -759,13 +760,13 @@ def _query_forecasts_worker(job_pk):
     except JobTimeoutException as jte:
         job.status = Job.TIMEOUT
         job.save()
-        logger.error(f"_query_forecasts_worker(): Job timeout: {repr(jte)}. job={job}")
+        logger.error(f"_query_forecasts_worker(): Job timeout: {jte!r}. job={job}")
         return
     except Exception as ex:
         job.status = Job.FAILED
         job.failure_message = f"_query_forecasts_worker(): error running query: '{ex}'. job={job}"
         job.save()
-        logger.error(f"_query_forecasts_worker(): error: {repr(ex)}. job={job}")
+        logger.error(f"_query_forecasts_worker(): error: {ex!r}. job={job}")
         return
 
     # upload the file to cloud storage
@@ -787,19 +788,19 @@ def _query_forecasts_worker(job_pk):
             bytes_io.seek(0)
 
             logger.debug(f"_query_forecasts_worker(): uploading file. job={job}")
-            upload_file(job, bytes_io)  # might raise Boto3Error
+            upload_file(job, bytes_io)  # might raise S3 exception
             job.status = Job.SUCCESS
             job.output_json = {'num_rows': len(rows)}  # todo xx temp
             job.save()
             logger.debug(f"_query_forecasts_worker(): done. job={job}")
-    except Boto3Error as b3e:
+    except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
         job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): AWS failure uploading the file: {repr(b3e)}. job={job}"
+        job.failure_message = f"_query_forecasts_worker(): AWS error: {aws_exc!r}. job={job}"
         job.save()
-        logger.error(f"_query_forecasts_worker(): AWS error: {b3e!r}. job={job}")
+        logger.error(f"_query_forecasts_worker(): AWS error: {aws_exc!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): error uploading file to cloud: '{ex}'. job={job}"
+        job.failure_message = f"_query_forecasts_worker(): error: '{ex}'. job={job}"
         job.save()
 
 
@@ -936,10 +937,14 @@ def csv_response_for_cached_project_score_data(project):
             wrapper = FileWrapper(cloud_file_fp)
             response = HttpResponse(wrapper, content_type='text/csv')
             # response['Content-Length'] = os.path.getsize('/tmp/'+fname)
-            response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+            response['Content-Disposition'] = f'attachment; filename="{str(csv_filename)}"'
             return response
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
+            logger.error(f"csv_response_for_cached_project_score_data(): AWS error: {aws_exc!r}. project={project}")
+            return None
         except Exception as ex:
-            logger.debug("csv_response_for_cached_project_score_data(): Error: {}. project={}".format(ex, project))
+            logger.debug(f"csv_response_for_cached_project_score_data(): Error: {ex!r}. project={project}")
+            return None
 
 
 def csv_response_for_project_score_data(project):
@@ -1130,6 +1135,9 @@ def download_job_data(request, pk):
             # response['Content-Length'] = os.path.getsize('/tmp/'+fname)
             response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
             return response
+        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
+            logger.debug(f"download_job_data(): AWS error: {aws_exc!r}. job={job}")
+            return HttpResponseNotFound(f"AWS error: {aws_exc!r}, job={job}")
         except Exception as ex:
-            logger.debug(f"download_job_data(): error downloading data: ex={ex}. job={job}")
-            return HttpResponseServerError(f"there was an error downloading the job data. ex={ex}, job={job}")
+            logger.debug(f"download_job_data(): error: {ex!r}. job={job}")
+            return HttpResponseNotFound(f"error downloading job data. ex={ex!r}, job={job}")
