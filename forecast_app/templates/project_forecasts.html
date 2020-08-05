@@ -16,6 +16,25 @@
     </nav>
 
 
+    <h4>Forecast Heatmap</h4>
+
+    {# Vega-Lite #}
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+    {# Vega-Lite #}
+    {# <div id="vis"></div> #}
+    <div class="row">
+        <div id="vis" class="col-md-12"></div>
+    </div>
+
+    {# Vega-Lite #}
+    <script type="text/javascript">
+        vegaEmbed('#vis', {{ vega_lite_spec|safe}});
+    </script>
+
+
     <h4>Forecasts <small>({{ forecast_rows|length|intword|intcomma }})</small></h4>
 
     {% if forecast_rows %}

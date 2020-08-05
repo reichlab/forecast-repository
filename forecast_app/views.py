@@ -358,19 +358,91 @@ def project_explorer(request, project_pk):
 
 def project_forecasts(request, project_pk):
     """
-    View function to render a list of all forecasts in a particular project.
+    View function to render a list of all forecasts in a particular project, along with a boolean heatmap showing which
+    Forecasts are present for which TimeZeros, based on https://vega.github.io/vega-lite/ .
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
+    # create heatmap data
+    vega_lite_spec = _vega_lite_spec_for_project(project)
+
+    # create forecasts table data
     rows_qs = Forecast.objects.filter(forecast_model__project=project) \
         .values_list('id', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
                      'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
     forecast_rows = [(reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_created_at,
                       reverse('model-detail', args=[fm_id]), fm_abbrev)
                      for f_id, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs]
-    return render(request, 'project_forecasts.html', context={'project': project, 'forecast_rows': forecast_rows})
+
+    return render(request, 'project_forecasts.html',
+                  context={'project': project,
+                           'forecast_rows': forecast_rows,
+                           'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
+
+
+def _vega_lite_spec_for_project(project):
+    # create dict to capture existing forecasts: (forecast_model_id, timezero_id) -> forecast_id
+    fm_tz_ids_to_f_id = {}
+    forecasts_qs = Forecast.objects.filter(forecast_model__project=project) \
+        .values_list('id', 'forecast_model__id', 'time_zero__id')
+    existing_tz_ids = set()  # helps to exclude timezeros w/no forecasts from any models
+    for f_id, fm_id, tz_id in forecasts_qs:
+        existing_tz_ids.add(tz_id)
+        fm_tz_ids_to_f_id[(fm_id, tz_id)] = f_id
+
+    # create vega lite data values for all model/tz combinations, filling in missing forecasts
+    values = []
+    for forecast_model in project.models.all().order_by('abbreviation'):
+        for timezero in project.timezeros.all().order_by('timezero_date'):
+            forecast_id = fm_tz_ids_to_f_id.get((forecast_model.id, timezero.id), None)
+            if timezero.id in existing_tz_ids:
+                values.append({"fm_abbrev": forecast_model.abbreviation,
+                               "timezero": timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                               "is_forecast_present": 1 if forecast_id is not None else 0,
+                               "forecast_id": forecast_id,
+                               "forecast_url": urlresolvers.reverse(
+                                   'forecast-detail', args=[str(forecast_id)]) if forecast_id else '',  # relative URL
+                               })
+
+    vega_lite_spec = {
+        '$schema': 'https://vega.github.io/schema/vega-lite/v4.json',
+        'data': {
+            'values': values
+        },
+        'mark': {'type': 'rect', 'tooltip': True},
+        "width": "container",
+        "config": {
+            "view": {"step": 10},
+            "axis": {"grid": False},
+            'legend': {'disable': True},
+        },
+        "encoding": {
+            "x": {
+                "field": "timezero",
+                "timeUnit": "yearmonthdate",
+                "type": "temporal",
+                "title": None,
+                "axis": {"orient": "top"},
+            },
+            "y": {
+                "field": "fm_abbrev",
+                "type": "nominal",
+                "title": None,
+            },
+            "href": {"field": "forecast_url"},
+            'color': {
+                'field': "is_forecast_present",
+                'type': "nominal",
+                'scale': {
+                    "domain": ["0", "1"],
+                    "range": ["white", "steelblue"],
+                }
+            },
+        },
+    }
+    return vega_lite_spec
 
 
 #
