@@ -424,7 +424,7 @@ def _vega_lite_spec_for_project(project):
                 "timeUnit": "yearmonthdate",
                 "type": "temporal",
                 "title": None,
-                "axis": {"orient": "top"},
+                "axis": {"orient": "top", "format": '%Y-%m-%d'},
             },
             "y": {
                 "field": "fm_abbrev",
