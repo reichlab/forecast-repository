@@ -14,7 +14,7 @@ from django.core import urlresolvers
 from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Count
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotFound
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.text import get_valid_filename
@@ -583,14 +583,16 @@ def download_project_scores(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         raise PermissionDenied
 
-    from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
-    from forecast_app.api_views import csv_response_for_cached_project_score_data  # ""
-
+    from forecast_app.api_views import csv_response_for_cached_project_score_data  # avoid circular imports
 
     if project.score_csv_file_cache.is_file_exists():
         return csv_response_for_cached_project_score_data(project)
     else:
-        return csv_response_for_project_score_data(project)
+        # return 404 Not Found b/c calling `csv_response_for_project_score_data()` in the calling thread (the web
+        # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
+        #   from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
+        #   return csv_response_for_project_score_data(project)
+        return HttpResponseNotFound(f"score CSV file not cached. project={project}")
 
 
 def download_project_config(request, project_pk):
