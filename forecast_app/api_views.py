@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 import logging
+import sys
 import tempfile
 from collections import defaultdict
 from itertools import groupby
@@ -1019,7 +1020,8 @@ def _write_csv_score_data_for_project(csv_writer, project):
         rows = cursor.fetchall()
 
     # write grouped rows
-    logger.debug(f"_write_csv_score_data_for_project(): preparing to iterate. project={project}, # rows={len(rows)}")
+    logger.debug(f"_write_csv_score_data_for_project(): preparing to iterate. project={project}, #rows={len(rows)}, "
+                 f"({sys.getsizeof(rows)} bytes)")
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
