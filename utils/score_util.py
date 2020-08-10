@@ -89,7 +89,7 @@ def update(score_pk, project_pk, model_pk, no_enqueue):
     :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are updated
     :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
-    from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
+    from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME  # avoid circular imports
 
 
     Score.ensure_all_scores_exist()

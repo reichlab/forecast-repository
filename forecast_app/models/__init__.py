@@ -2,7 +2,9 @@
 
 
 from .forecast import Forecast
+from .forecast_metadata import ForecastMetadataCache, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget
 from .forecast_model import ForecastModel
+from .job import Job
 from .model_score_change import ModelScoreChange
 from .prediction import Prediction, PointPrediction, NamedDistribution, EmpiricalDistribution, \
     BinDistribution, SampleDistribution, QuantileDistribution
@@ -12,6 +14,5 @@ from .score import Score, ScoreValue, ScoreLastUpdate
 from .score_csv_file_cache import ScoreCsvFileCache
 from .target import Target, TargetCat, TargetLwr, TargetRange
 from .truth_data import TruthData
-from .job import Job
 
 # __all__ = ['Article', 'Publication']

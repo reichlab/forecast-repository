@@ -1,18 +1,22 @@
 import csv
 import datetime
 import io
+import logging
 import math
 from collections import defaultdict
 from itertools import groupby
 
 from django.db import connection, transaction
+from django.shortcuts import get_object_or_404
 
 from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
-    SampleDistribution, QuantileDistribution
+    SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction
 from forecast_app.models.project import POSTGRES_NULL_VALUE
 from utils.project import _target_dict_for_target
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
+
+logger = logging.getLogger(__name__)
 
 PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
     BinDistribution: 'bin',
@@ -833,7 +837,6 @@ def _insert_prediction_rows(prediction_class, columns_names, rows):
 # data_rows_from_forecast()
 #
 
-# todo xx TDD!
 def data_rows_from_forecast(forecast, unit, target):
     """
     Returns rows for each concrete prediction type that are suitable tabular display.
@@ -924,3 +927,83 @@ def data_rows_from_forecast(forecast, unit, target):
 
     # done
     return data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample
+
+
+#
+# cache_forecast_metadata()
+#
+
+def cache_forecast_metadata(forecast):
+    """
+    Top-level function that caches metadata information for forecast. Clears existing first.
+
+    :param forecast: a Forecast whose metata is to be cached
+    """
+    _cache_forecast_metadata_predictions(forecast)
+    _cache_forecast_metadata_units(forecast)
+    _cache_forecast_metadata_targets(forecast)
+
+
+def _cache_forecast_metadata_predictions(forecast):
+    clear_forecast_metadata(forecast)
+
+    # cache one ForecastMetaPrediction row for forecast
+    point_count = PointPrediction.objects.filter(forecast=forecast).count()
+    named_count = NamedDistribution.objects.filter(forecast=forecast).count()
+    bin_count = BinDistribution.objects.filter(forecast=forecast).count()
+    sample_count = SampleDistribution.objects.filter(forecast=forecast).count()
+    quantile_count = QuantileDistribution.objects.filter(forecast=forecast).count()
+    ForecastMetaPrediction.objects.create(forecast=forecast, point_count=point_count, named_count=named_count,
+                                          bin_count=bin_count, sample_count=sample_count, quantile_count=quantile_count)
+
+
+def _cache_forecast_metadata_units(forecast):
+    # cache ForecastMetaUnit rows for forecast
+    unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
+    found_unit_ids = set()
+    for concrete_prediction_class in Prediction.concrete_subclasses():
+        pred_class_units = concrete_prediction_class.objects \
+            .filter(forecast=forecast) \
+            .values_list('unit', flat=True) \
+            .distinct()
+        found_unit_ids.update(pred_class_units)
+    found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
+    for unit in found_units:
+        ForecastMetaUnit.objects.create(forecast=forecast, unit=unit)
+
+
+def _cache_forecast_metadata_targets(forecast):
+    # cache ForecastMetaTarget rows for forecast
+    target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
+    found_target_ids = set()
+    for concrete_prediction_class in Prediction.concrete_subclasses():
+        pred_class_targets = concrete_prediction_class.objects \
+            .filter(forecast=forecast) \
+            .values_list('target', flat=True) \
+            .distinct()
+        found_target_ids.update(pred_class_targets)
+    found_targets = [target_id_to_object[target_id] for target_id in found_target_ids]
+    for target in found_targets:
+        ForecastMetaTarget.objects.create(forecast=forecast, target=target)
+
+
+def clear_forecast_metadata(forecast):
+    """
+    Top-level function that clears all metadata information for forecast.
+
+    :param forecast: a Forecast whose metata is to be cached
+    """
+    ForecastMetaPrediction.objects.filter(forecast=forecast).delete()
+    ForecastMetaUnit.objects.filter(forecast=forecast).delete()
+    ForecastMetaTarget.objects.filter(forecast=forecast).delete()
+
+
+def _cache_forecast_metadata_worker(forecast_pk):
+    """
+    enqueue() helper function
+    """
+    forecast = get_object_or_404(Forecast, pk=forecast_pk)
+    try:
+        cache_forecast_metadata(forecast)
+    except Exception as ex:
+        logger.error(f"_cache_forecast_metadata_worker(): error: {ex!r}. forecast={forecast}")
