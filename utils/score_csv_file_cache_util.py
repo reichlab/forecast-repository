@@ -14,7 +14,7 @@ from forecast_app.models import Project
 from forecast_app.models.score_csv_file_cache import _update_project_score_csv_file_cache_worker
 
 
-logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -27,10 +27,10 @@ def print_caches():
     """
     A subcommand that prints all projects' ScoreCsvFileCache. Runs in the calling thread and therefore blocks.
     """
-    click.echo("ScoreCsvFileCaches:")
+    logger.info("ScoreCsvFileCaches:")
     for project in Project.objects.all():
         score_csv_file_cache = project.score_csv_file_cache
-        click.echo(f"- {project} | {score_csv_file_cache.updated_at} | {score_csv_file_cache.is_file_exists()}")
+        logger.info(f"- {project} | {score_csv_file_cache.updated_at} | {score_csv_file_cache.is_file_exists()}")
 
 
 @cli.command()
@@ -38,28 +38,34 @@ def clear():
     """
     A subcommand that resets all projects' ScoreCsvFileCache. Runs in the calling thread and therefore blocks.
     """
-    click.echo("clearing all projects' ScoreCsvFileCaches. S3_BUCKET_PREFIX={}".format(S3_BUCKET_PREFIX))
+    logger.info("clearing all projects' ScoreCsvFileCaches. S3_BUCKET_PREFIX={}".format(S3_BUCKET_PREFIX))
     for project in Project.objects.all():
-        click.echo("- clearing {}".format(project))
+        logger.info("- clearing {}".format(project))
         project.score_csv_file_cache.delete_score_csv_file_cache()
-    click.echo("clear done")
+    logger.info("clear done")
 
 
 @cli.command()
 @click.option('--project-pk')
-def update(project_pk):
+@click.option('--no-enqueue', is_flag=True, default=False)
+def update(project_pk, no_enqueue):
     """
     A subcommand that enqueues updating one or all projects' ScoreCsvFileCache.
 
     :param project_pk: if a valid Project pk then only that project's models are updated. o/w defers to `model_pk` arg
+    :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
     projects = [get_object_or_404(Project, pk=project_pk)] if project_pk else Project.objects.all()
-    click.echo("enqueuing' ScoreCsvFileCaches")
+    logger.info("updating ScoreCsvFileCaches")
     for project in projects:
-        click.echo(f"- {project}")
-        queue = django_rq.get_queue(UPDATE_PROJECT_SCORE_CSV_FILE_CACHE_QUEUE_NAME)
-        queue.enqueue(_update_project_score_csv_file_cache_worker, project.pk)
-    click.echo("enqueuing done")
+        if no_enqueue:
+            logger.info(f"- updating (no enqueue): {project}")
+            project.score_csv_file_cache.update_score_csv_file_cache()
+        else:
+            logger.info(f"- enqueuing: {project}")
+            queue = django_rq.get_queue(UPDATE_PROJECT_SCORE_CSV_FILE_CACHE_QUEUE_NAME)
+            queue.enqueue(_update_project_score_csv_file_cache_worker, project.pk)
+    logger.info("update done")
 
 
 if __name__ == '__main__':
