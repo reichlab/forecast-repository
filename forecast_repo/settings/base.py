@@ -48,7 +48,6 @@ INSTALLED_APPS = [
 
     # add-ons
     'django.contrib.humanize',
-    'debug_toolbar',
     'django_rq',
     'anymail',
     'compressor'
@@ -78,7 +77,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'forecast_app.middleware.AuthenticationMiddlewareJWT',
 ]
 

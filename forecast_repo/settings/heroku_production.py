@@ -17,7 +17,6 @@ if 'SECRET_KEY' not in os.environ:
 
 SECRET_KEY = os.environ['SECRET_KEY']
 
-
 #
 # ---- imports ----
 #
@@ -78,3 +77,13 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Allow all host headers
 ALLOWED_HOSTS = ['*']
 
+#
+# ---- https://docs.scoutapm.com/#django ----
+#
+
+INSTALLED_APPS = ['scout_apm.django'] + INSTALLED_APPS  # "should be listed first"
+
+# Scout settings: configured via Heroku config vars - https://devcenter.heroku.com/articles/config-vars
+# SCOUT_MONITOR = True
+# SCOUT_KEY = "[AVAILABLE IN THE SCOUT UI]"
+# SCOUT_NAME = "A FRIENDLY NAME FOR YOUR APP"

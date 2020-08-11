@@ -238,17 +238,19 @@ class ViewsTestCase(TestCase):
 
         # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
         # the correct query params. however, 400 does indicate that the code passed the authorization portion
-        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
-            for user, exp_status_code in user_exp_status_code_list:
-                self.client.logout()  # AnonymousUser
-                if user:
-                    password = self.po_user_password if user == self.po_user \
-                        else self.mo_user_password if user == self.mo_user \
-                        else self.non_staff_user_password if user == self.non_staff_user \
-                        else self.superuser_password
-                    self.client.login(username=user.username, password=password)
-                response = self.client.get(url, data={'unit': None, 'target': None})
-                self.assertEqual(exp_status_code, response.status_code)
+        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.delete_score_csv_file_cache'), \
+             patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
+            for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
+                for user, exp_status_code in user_exp_status_code_list:
+                    self.client.logout()  # AnonymousUser
+                    if user:
+                        password = self.po_user_password if user == self.po_user \
+                            else self.mo_user_password if user == self.mo_user \
+                            else self.non_staff_user_password if user == self.non_staff_user \
+                            else self.superuser_password
+                        self.client.login(username=user.username, password=password)
+                    response = self.client.get(url, data={'unit': None, 'target': None})
+                    self.assertEqual(exp_status_code, response.status_code)
 
 
     def test_projects_list_limited_visibility(self):
@@ -582,19 +584,20 @@ class ViewsTestCase(TestCase):
             (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-forecast-data', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
         ]
-        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
-            for user, exp_status_code in user_exp_status_code_list:
-                # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
-                # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
-                self.client.logout()  # AnonymousUser
-                if user:
-                    password = self.po_user_password if user == self.po_user \
-                        else self.mo_user_password if user == self.mo_user \
-                        else self.non_staff_user_password if user == self.non_staff_user \
-                        else self.superuser_password
-                    self._authenticate_jwt_user(user, password)
-                response = self.client.get(url)
-                self.assertEqual(exp_status_code, response.status_code)
+        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
+            for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
+                for user, exp_status_code in user_exp_status_code_list:
+                    # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
+                    # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
+                    self.client.logout()  # AnonymousUser
+                    if user:
+                        password = self.po_user_password if user == self.po_user \
+                            else self.mo_user_password if user == self.mo_user \
+                            else self.non_staff_user_password if user == self.non_staff_user \
+                            else self.superuser_password
+                        self._authenticate_jwt_user(user, password)
+                    response = self.client.get(url)
+                    self.assertEqual(exp_status_code, response.status_code)
 
 
     def test_api_get_project_list_authorization(self):

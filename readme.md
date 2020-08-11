@@ -74,7 +74,6 @@ as follows. In addition, the `Job` buckets were configured to delete all files a
 - for Heroku hosting:
   - [Heroku Toolbelt](https://toolbelt.heroku.com/)
   - [Postgres](https://devcenter.heroku.com/articles/heroku-postgresql#local-setup)
-- [Pillow](https://github.com/python-pillow/Pillow)
 - [pymmwr](https://github.com/reichlab/pymmwr)
 
 To install required packages:
@@ -95,7 +94,6 @@ pipenv install dj-database-url
 pipenv install gunicorn
 pipenv install whitenoise
 pipenv install djangorestframework
-pipenv install Pillow
 pipenv install pymmwr
 pipenv install pyyaml
 pipenv install djangorestframework-csv
