@@ -1007,3 +1007,22 @@ def _cache_forecast_metadata_worker(forecast_pk):
         cache_forecast_metadata(forecast)
     except Exception as ex:
         logger.error(f"_cache_forecast_metadata_worker(): error: {ex!r}. forecast={forecast}")
+
+
+#
+# forecast_metadata()
+#
+
+def forecast_metadata(forecast):
+    """
+    Returns all metadata associated with Forecast.
+
+    :param forecast: a Forecast
+    :return: a 3-tuple: (forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs) where the latter two
+        are QuerySets. The first is None if there is no cached data. The second two are empty QuerySets if no cached
+        data.
+    """
+    forecast_meta_prediction = ForecastMetaPrediction.objects.filter(forecast=forecast).first()
+    forecast_meta_unit_qs = ForecastMetaUnit.objects.filter(forecast=forecast)
+    forecast_meta_target_qs = ForecastMetaTarget.objects.filter(forecast=forecast)
+    return forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs

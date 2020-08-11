@@ -1,5 +1,3 @@
-import logging
-
 import click
 import django
 import django_rq
@@ -9,12 +7,10 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.forecast import _cache_forecast_metadata_worker, cache_forecast_metadata, clear_forecast_metadata
+from utils.forecast import _cache_forecast_metadata_worker, cache_forecast_metadata, clear_forecast_metadata, \
+    forecast_metadata
 
 from forecast_app.models import Project
-
-
-logger = logging.getLogger(__name__)
 
 
 # https://stackoverflow.com/questions/44051647/get-params-sent-to-a-subcommand-of-a-click-group
@@ -28,7 +24,7 @@ class MyGroup(click.Group):
 @click.pass_context
 def cli(ctx):
     args = ctx.obj
-    logger.info('cli: {} {}'.format(ctx.invoked_subcommand, ' '.join(args)))
+    print('cli: {} {}'.format(ctx.invoked_subcommand, ' '.join(args)))
 
 
 @cli.command(name="print")
@@ -41,14 +37,19 @@ def print_forecast_metadata_all_projects(project_pk):
     :param project_pk: if a valid Project pk then only that project's metadata is cleared. o/w clears all
     """
     projects = [get_object_or_404(Project, pk=project_pk)] if project_pk else Project.objects.all()
-    logger.info("clearing metadata")
+    print("printing metadata")
     for project in projects:
-        logger.info(f"* {project}")
+        print(f"* {project}")
         for forecast_model in project.models.all():
-            logger.info(f"- {forecast_model}")
+            print(f"- {forecast_model}")
             for forecast in forecast_model.forecasts.all():
-                logger.info(f"  = {forecast}")
-    logger.info("clear done")
+                forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs = forecast_metadata(forecast)
+                if forecast_meta_prediction or forecast_meta_unit_qs or forecast_meta_target_qs:
+                    print(f"  = {forecast.pk}|{forecast.source}: pnbsq: {forecast_meta_prediction.point_count}|"
+                          f"{forecast_meta_prediction.named_count}|{forecast_meta_prediction.bin_count}|"
+                          f"{forecast_meta_prediction.sample_count}|{forecast_meta_prediction.quantile_count}, "
+                          f"{len(forecast_meta_unit_qs)} units, {len(forecast_meta_target_qs)} targets")
+    print("print done")
 
 
 @cli.command()
@@ -62,15 +63,15 @@ def clear(project_pk):
     :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
     projects = [get_object_or_404(Project, pk=project_pk)] if project_pk else Project.objects.all()
-    logger.info("clearing metadata")
+    print("clearing metadata")
     for project in projects:
-        logger.info(f"* {project}")
+        print(f"* {project}")
         for forecast_model in project.models.all():
-            logger.info(f"- {forecast_model}")
+            print(f"- {forecast_model}")
             for forecast in forecast_model.forecasts.all():
-                logger.info(f"  = {forecast}")
+                print(f"  = {forecast}")
                 clear_forecast_metadata(forecast)
-    logger.info("clear done")
+    print("clear done")
 
 
 @cli.command()
@@ -88,16 +89,19 @@ def update(project_pk, no_enqueue):
 
     queue = django_rq.get_queue(CACHE_FORECAST_METADATA_QUEUE_NAME)
     projects = [get_object_or_404(Project, pk=project_pk)] if project_pk else Project.objects.all()
-    logger.info("updating metadata")
+    print("updating metadata")
     for project in projects:
-        logger.info(f"")
+        print(f"* {project}")
         for forecast_model in project.models.all():
+            print(f"- {forecast_model}")
             for forecast in forecast_model.forecasts.all():
                 if no_enqueue:
+                    print(f"  = caching metadata (no enqueue): {forecast}")
                     cache_forecast_metadata(forecast)
                 else:
+                    print(f"  = enqueuing caching metadata: {forecast}")
                     queue.enqueue(_cache_forecast_metadata_worker, forecast.pk)
-    logger.info("update done")
+    print("update done")
 
 
 if __name__ == '__main__':

@@ -48,7 +48,7 @@ class ForecastMetaUnit(ForecastMetadataCache):
     Caches this metadata for Forecasts: units that are present.
     """
 
-    unit = models.ForeignKey('Unit', related_name='unit_cache', on_delete=models.CASCADE)
+    unit = models.ForeignKey('Unit', on_delete=models.CASCADE)
 
 
     def __repr__(self):
@@ -64,7 +64,7 @@ class ForecastMetaTarget(ForecastMetadataCache):
     Caches this metadata for Forecasts: targets that are present.
     """
 
-    target = models.ForeignKey('Target', related_name='target_cache', on_delete=models.CASCADE)
+    target = models.ForeignKey('Target', on_delete=models.CASCADE)
 
 
     def __repr__(self):
