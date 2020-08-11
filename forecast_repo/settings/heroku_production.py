@@ -52,6 +52,10 @@ redis_url = os.environ.get('REDISCLOUD_URL')
 if not redis_url:
     raise RuntimeError('heroku_production.py: REDISCLOUD_URL not configured!')
 
+RQ = {
+    'WORKER_CLASS': 'scout_apm.rq.Worker',
+}
+
 RQ_QUEUES = {
     HIGH_QUEUE_NAME: {
         'URL': redis_url,
@@ -82,6 +86,8 @@ ALLOWED_HOSTS = ['*']
 #
 
 INSTALLED_APPS = ['scout_apm.django'] + INSTALLED_APPS  # "should be listed first"
+
+# RQ: see RQ['WORKER_CLASS'] above
 
 # Scout settings: configured via Heroku config vars - https://devcenter.heroku.com/articles/config-vars
 # SCOUT_MONITOR = True
