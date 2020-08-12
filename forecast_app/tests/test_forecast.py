@@ -17,6 +17,7 @@ from forecast_app.tests.test_scores import _make_thai_log_score_project
 from forecast_app.views import _upload_forecast_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
+from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.project import load_truth_data, create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users
@@ -512,11 +513,12 @@ class ForecastTestCase(TestCase):
         self.assertEqual(["2019-12-22", "2019-12-29", "2020-01-05"], quantile_pred_dict['prediction']['value'])
 
 
-    def test_process_upload_forecast_job(self):
+    def test__upload_forecast_worker(self):
         # test `_upload_forecast_worker()` error conditions. this test is complicated by that function's use of
         # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
-                patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock:
+                patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
+                patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock:
             job = Job.objects.create()
             job.input_json = {}  # no 'forecast_model_pk'
             job.save()
@@ -547,3 +549,24 @@ class ForecastTestCase(TestCase):
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
             load_preds_mock.assert_not_called()
+
+
+    def test__upload_forecast_worker_blue_sky(self):
+        # blue sky to verify load_predictions_from_json_io_dict() and cache_forecast_metadata() are called.
+        # this test is complicated by that function's use of the `job_cloud_file` context manager. solution is per
+        # https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+
+        with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
+                patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
+                open('forecast_app/tests/predictions/docs-predictions.json') as cloud_file_fp:
+            job = Job.objects.create()
+            job.input_json = {'forecast_model_pk': forecast_model.pk, 'timezero_pk': time_zero.pk,
+                              'filename': 'a name!'}
+            job.save()
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
+            _upload_forecast_worker(job.pk)
+            load_preds_mock.assert_called_once()
+            cache_metatdata_mock.assert_called_once()

@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from forecast_app.models import ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Forecast
 from utils.forecast import cache_forecast_metadata, clear_forecast_metadata, load_predictions_from_json_io_dict, \
-    forecast_metadata
+    forecast_metadata, is_forecast_metadata_available
 from utils.make_minimal_projects import _make_docs_project
 from utils.utilities import get_or_create_super_po_mo_users
 
@@ -128,3 +128,10 @@ class ForecastMetadataTestCase(TestCase):
         self.assertIsInstance(forecast_meta_target_qs, QuerySet)
         self.assertEqual(5, len(forecast_meta_target_qs))
         self.assertEqual({ForecastMetaTarget}, set(map(type, forecast_meta_target_qs)))
+
+
+    def test_is_forecast_metadata_available(self):
+        self.assertFalse(is_forecast_metadata_available(self.forecast))
+
+        cache_forecast_metadata(self.forecast)
+        self.assertTrue(is_forecast_metadata_available(self.forecast))

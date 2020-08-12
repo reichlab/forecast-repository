@@ -933,6 +933,7 @@ def data_rows_from_forecast(forecast, unit, target):
 # cache_forecast_metadata()
 #
 
+@transaction.atomic
 def cache_forecast_metadata(forecast):
     """
     Top-level function that caches metadata information for forecast. Clears existing first.
@@ -1026,3 +1027,12 @@ def forecast_metadata(forecast):
     forecast_meta_unit_qs = ForecastMetaUnit.objects.filter(forecast=forecast)
     forecast_meta_target_qs = ForecastMetaTarget.objects.filter(forecast=forecast)
     return forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs
+
+
+def is_forecast_metadata_available(forecast):
+    """
+    :param forecast: a Forecast
+    :return: True if `forecast` has a ForecastMetaPrediction, and False o/w. we only check it instead of all three
+        (ForecastMetaPrediction, ForecastMetaUnit, and ForecastMetaTarget) for efficiency
+    """
+    return ForecastMetaPrediction.objects.filter(forecast=forecast).count() != 0

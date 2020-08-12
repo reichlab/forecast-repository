@@ -23,7 +23,8 @@ from rq.timeouts import JobTimeoutException
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
-    Prediction, ModelScoreChange, Unit, Target
+    Prediction, ModelScoreChange, Unit, Target, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
+    QuantileDistribution
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
@@ -31,8 +32,8 @@ from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cach
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.cloud_file import delete_file, upload_file
-from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, \
-    data_rows_from_forecast
+from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
+    is_forecast_metadata_available, forecast_metadata
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets, \
     unit_rows_for_project, models_summary_table_rows_for_project
@@ -1055,6 +1056,75 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
 
+        # collect computed metadata
+        is_metadata_available = is_forecast_metadata_available(forecast)
+        pred_type_count_pairs, found_units, found_targets = self.forecast_metadata_cached() \
+            if is_metadata_available else self.forecast_metadata_dynamic()
+
+        # set target_groups: change from dict to 2-tuples
+        target_groups = group_targets(found_targets)  # group_name -> group_targets
+        target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
+                               key=lambda _: _[0])  # [(group_name, group_targets), ...]
+
+        # create sorted found_targets by: 1) group_name, then by: 2) step_ahead_increment if is_step_ahead. o/w by name
+        found_targets = []
+        for group_name, targets in target_groups:  # already sorted by group_name
+            found_targets.extend(sorted(targets, key=lambda
+                target: target.step_ahead_increment if target.is_step_ahead else target.name))
+
+        # set search_unit, search_target, and data_rows_* if a query requested
+        search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
+        data_rows_sample = self.search_forecast()
+
+        # done
+        context = super().get_context_data(**kwargs)
+        context['is_metadata_available'] = is_metadata_available
+        context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
+        context['found_units'] = sorted(found_units, key=lambda _: _.name)
+        context['found_targets'] = found_targets
+        context['target_groups'] = target_groups
+        context['search_unit'] = search_unit
+        context['search_target'] = search_target
+        context['data_rows_bin'] = data_rows_bin
+        context['data_rows_named'] = data_rows_named
+        context['data_rows_point'] = data_rows_point
+        context['data_rows_quantile'] = data_rows_quantile
+        context['data_rows_sample'] = data_rows_sample
+        return context
+
+
+    def forecast_metadata_cached(self):
+        """
+        ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
+        `is_forecast_metadata_available(forecast)` is True, i.e., does not check whether metadata is present.
+
+        :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets for forecast), where pred_type_count_pairs
+            is a 2-tuple: (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, count)
+        """
+        forecast = self.get_object()
+        forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs = forecast_metadata(forecast)
+        pred_type_count_pairs = [
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution], forecast_meta_prediction.bin_count),
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution], forecast_meta_prediction.named_count),
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction], forecast_meta_prediction.point_count),
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution], forecast_meta_prediction.sample_count),
+            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution], forecast_meta_prediction.quantile_count)]
+        # return pred_type_count_pairs, list(forecast_meta_unit_qs), list(forecast_meta_target_qs)
+        return pred_type_count_pairs, \
+               [forecast_meta_unit.unit for forecast_meta_unit in forecast_meta_unit_qs], \
+               [forecast_meta_target.target for forecast_meta_target in forecast_meta_target_qs]
+
+
+    def forecast_metadata_dynamic(self):
+        """
+        ForecastDetailView helper that dynamically calculates forecast metadata, i.e., does NOT use
+        `forecast_metadata()`.
+
+        :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets for forecast), where pred_type_count_pairs
+            is a 2-tuple: (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, count)
+        """
+        forecast = self.get_object()
+
         # set pred_type_count_pairs
         pred_type_count_pairs = [
             (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[concrete_prediction_class],
@@ -1083,38 +1153,11 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             found_target_ids.update(pred_class_targets)
         found_targets = [target_id_to_object[target_id] for target_id in found_target_ids]
 
-        # set target_groups: change from dict to 2-tuples
-        target_groups = group_targets(found_targets)  # group_name -> group_targets
-        target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
-                               key=lambda _: _[0])  # [(group_name, group_targets), ...]
-
-        # create sorted found_targets by: 1) group_name, then by: 2) step_ahead_increment if is_step_ahead. o/w by name
-        found_targets = []
-        for group_name, targets in target_groups:  # already sorted by group_name
-            found_targets.extend(sorted(targets, key=lambda
-                target: target.step_ahead_increment if target.is_step_ahead else target.name))
-
-        # set search_unit, search_target, and data_rows_* if a query requested
-        search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
-        data_rows_sample = self.search_forecast(forecast)
-
         # done
-        context = super().get_context_data(**kwargs)
-        context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
-        context['found_units'] = sorted(found_units, key=lambda _: _.name)
-        context['found_targets'] = found_targets
-        context['target_groups'] = target_groups
-        context['search_unit'] = search_unit
-        context['search_target'] = search_target
-        context['data_rows_bin'] = data_rows_bin
-        context['data_rows_named'] = data_rows_named
-        context['data_rows_point'] = data_rows_point
-        context['data_rows_quantile'] = data_rows_quantile
-        context['data_rows_sample'] = data_rows_sample
-        return context
+        return pred_type_count_pairs, found_units, found_targets
 
 
-    def search_forecast(self, forecast):
+    def search_forecast(self):
         """
         `ForecastDetailView.get_context_data` helper, returns a 7-tuple based on the two search args in self.request
         ('unit' - a Unit.id and 'target' - a Target.id):
@@ -1150,6 +1193,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         # do the actual query if valid search params
         data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = [], [], [], [], []
         if search_unit_and_target:
+            forecast = self.get_object()
             data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
                 data_rows_from_forecast(forecast, search_unit_and_target[0], search_unit_and_target[1])
 
@@ -1367,8 +1411,9 @@ def _upload_forecast_worker(job_pk):
 
     :param job_pk: the Job's pk
     """
-    # imported here so that test_process_upload_forecast_job() can patch via mock:
+    # imported here so that test__upload_forecast_worker() and test__upload_forecast_worker_blue_sky() can patch/mock
     from forecast_app.models.job import job_cloud_file
+    from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
 
     try:
@@ -1409,6 +1454,7 @@ def _upload_forecast_worker(job_pk):
                 logger.debug(f"_upload_forecast_worker(): loading predictions")
                 try:
                     load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
+                    cache_forecast_metadata(new_forecast)
                     job.output_json = {'forecast_pk': new_forecast.pk}
                     job.save()
                     logger.debug(f"_upload_forecast_worker(): done")

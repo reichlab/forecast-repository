@@ -40,15 +40,18 @@ def print_forecast_metadata_all_projects(project_pk):
     print("printing metadata")
     for project in projects:
         print(f"* {project}")
-        for forecast_model in project.models.all():
+        for forecast_model in project.models.all().order_by('abbreviation'):
             print(f"- {forecast_model}")
-            for forecast in forecast_model.forecasts.all():
+            for forecast in forecast_model.forecasts.all().order_by('time_zero__timezero_date'):
                 forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs = forecast_metadata(forecast)
-                if forecast_meta_prediction or forecast_meta_unit_qs or forecast_meta_target_qs:
+                if all([forecast_meta_prediction, forecast_meta_unit_qs.count(), forecast_meta_target_qs.count()]):
                     print(f"  = {forecast.pk}|{forecast.source}: pnbsq: {forecast_meta_prediction.point_count}|"
                           f"{forecast_meta_prediction.named_count}|{forecast_meta_prediction.bin_count}|"
                           f"{forecast_meta_prediction.sample_count}|{forecast_meta_prediction.quantile_count}, "
                           f"{len(forecast_meta_unit_qs)} units, {len(forecast_meta_target_qs)} targets")
+                elif any([forecast_meta_prediction, forecast_meta_unit_qs.count(), forecast_meta_target_qs.count()]):
+                    print(f"  = {forecast.pk}|{forecast.source}: not all! {forecast_meta_prediction}, "
+                          f"{forecast_meta_unit_qs.count()}, {forecast_meta_target_qs.count()}")
     print("print done")
 
 
