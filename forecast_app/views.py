@@ -428,13 +428,13 @@ def _vega_lite_spec_for_project(project):
                 "axis": {"orient": "top", "format": '%Y-%m-%d'},
             },
             "y": {
-                "field": "fm_abbrev",
+                "field": "model",
                 "type": "nominal",
                 "title": None,
             },
-            "href": {"field": "forecast_url"},
+            "href": {"field": "url"},
             'color': {
-                'field': "is_forecast_present",
+                'field': "has forecast",
                 'type': "nominal",
                 'scale': {
                     "domain": ["0", "1"],
@@ -1109,10 +1109,11 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction], forecast_meta_prediction.point_count),
             (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution], forecast_meta_prediction.sample_count),
             (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution], forecast_meta_prediction.quantile_count)]
-        # return pred_type_count_pairs, list(forecast_meta_unit_qs), list(forecast_meta_target_qs)
-        return pred_type_count_pairs, \
-               [forecast_meta_unit.unit for forecast_meta_unit in forecast_meta_unit_qs], \
-               [forecast_meta_target.target for forecast_meta_target in forecast_meta_target_qs]
+        found_units = [forecast_meta_unit.unit for forecast_meta_unit
+                       in forecast_meta_unit_qs.select_related('unit')]
+        found_targets = [forecast_meta_target.target for forecast_meta_target
+                         in forecast_meta_target_qs.select_related('target')]
+        return pred_type_count_pairs, found_units, found_targets
 
 
     def forecast_metadata_dynamic(self):
