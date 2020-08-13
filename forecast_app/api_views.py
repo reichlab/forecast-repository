@@ -2,6 +2,7 @@ import csv
 import datetime
 import io
 import logging
+import sys
 import tempfile
 from collections import defaultdict
 from itertools import groupby
@@ -868,7 +869,11 @@ def download_score_data(request, pk):
     if project.score_csv_file_cache.is_file_exists():
         return csv_response_for_cached_project_score_data(project)
     else:
-        return csv_response_for_project_score_data(project)
+        # return 404 Not Found b/c calling `csv_response_for_project_score_data()` in the calling thread (the web
+        # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
+        #   from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
+        #   return csv_response_for_project_score_data(project)
+        return HttpResponseNotFound(f"score CSV file not cached. project={project}")
 
 
 #
@@ -1015,7 +1020,8 @@ def _write_csv_score_data_for_project(csv_writer, project):
         rows = cursor.fetchall()
 
     # write grouped rows
-    logger.debug(f"_write_csv_score_data_for_project(): preparing to iterate. project={project}")
+    logger.debug(f"_write_csv_score_data_for_project(): preparing to iterate. project={project}, #rows={len(rows)}, "
+                 f"({sys.getsizeof(rows)} bytes)")
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}

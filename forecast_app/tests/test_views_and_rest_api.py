@@ -12,7 +12,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
-from forecast_app.api_views import SCORE_CSV_HEADER_PREFIX, _query_forecasts_worker, \
+from forecast_app.api_views import _query_forecasts_worker, \
     csv_response_for_cached_project_score_data
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.job import Job
@@ -184,8 +184,19 @@ class ViewsTestCase(TestCase):
             (reverse('project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-score-data', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-score-data', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('download-project-scores', args=[str(self.public_project.pk)]), self.OK_ALL),
-            (reverse('download-project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            # scores are special b/c `views.download_project_scores()` returns 404 if no csv file cache, not 200:
+            (reverse('download-project-scores', args=[str(self.public_project.pk)]),
+             [(None, status.HTTP_404_NOT_FOUND),
+              (self.po_user, status.HTTP_404_NOT_FOUND),
+              (self.mo_user, status.HTTP_404_NOT_FOUND),
+              (self.superuser, status.HTTP_404_NOT_FOUND),
+              (self.non_staff_user, status.HTTP_404_NOT_FOUND)]),
+            (reverse('download-project-scores', args=[str(self.private_project.pk)]),
+             [(None, status.HTTP_403_FORBIDDEN),
+              (self.po_user, status.HTTP_404_NOT_FOUND),
+              (self.mo_user, status.HTTP_404_NOT_FOUND),
+              (self.superuser, status.HTTP_404_NOT_FOUND),
+              (self.non_staff_user, status.HTTP_403_FORBIDDEN)]),
             (reverse('project-config', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-config', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('create-project-from-form', args=[]), self.ONLY_PO_MO),
@@ -473,7 +484,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual(project2, args[0])
 
 
-    def test_data_download_formats(self):
+    def test_json_response_for_forecast(self):
         """
         Test forecast_data(). recall all API endpoints require an authorized user
         """
@@ -487,16 +498,6 @@ class ViewsTestCase(TestCase):
         self.assertEqual({'meta', 'predictions'}, set(response_dict))
         self.assertEqual({'forecast', 'units', 'targets'}, set(response_dict['meta']))
         self.assertEqual(11, len(response_dict['meta']['units']))
-
-        # score data as CSV
-        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
-            response = self.client.get(reverse('download-project-scores', args=[self.public_project.pk]))
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual("text/csv", response['Content-Type'])
-        self.assertEqual('attachment; filename="public_project_name-scores.csv"', response['Content-Disposition'])
-        split_content = response.content.decode().split('\r\n')
-        self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), split_content[0])
-        self.assertEqual(2, len(split_content))  # no score data
 
 
     def test_csv_response_for_cached_project_score_data_error(self):
@@ -552,9 +553,19 @@ class ViewsTestCase(TestCase):
             (reverse('api-truth-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
             (reverse('api-truth-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-truth-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-score-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-score-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
-
+            # scores are special b/c `api_views.download_score_data()` returns 404 if no csv file cache, not 200:
+            (reverse('api-score-data-download', args=[self.public_project.pk]),
+             [(None, status.HTTP_403_FORBIDDEN),
+              (self.po_user, status.HTTP_404_NOT_FOUND),
+              (self.mo_user, status.HTTP_404_NOT_FOUND),
+              (self.superuser, status.HTTP_404_NOT_FOUND),
+              (self.non_staff_user, status.HTTP_404_NOT_FOUND)]),
+            (reverse('api-score-data-download', args=[self.private_project.pk]),
+             [(None, status.HTTP_403_FORBIDDEN),
+              (self.po_user, status.HTTP_404_NOT_FOUND),
+              (self.mo_user, status.HTTP_404_NOT_FOUND),
+              (self.superuser, status.HTTP_404_NOT_FOUND),
+              (self.non_staff_user, status.HTTP_403_FORBIDDEN)]),
             (reverse('api-user-detail', args=[self.po_user.pk]), self.ONLY_PO),
             (reverse('api-job-detail', args=[self.job.pk]), self.ONLY_PO),
             (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO_STAFF),
@@ -658,11 +669,6 @@ class ViewsTestCase(TestCase):
 
         response = self.client.get(reverse('api-truth-data-download', args=[self.public_project.pk]), format='json')
         self.assertEqual(341, len(response.content))
-
-        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
-            response = self.client.get(reverse('api-score-data-download', args=[self.public_project.pk]), format='json')
-        # just SCORE_CSV_HEADER_PREFIX due to no scores:
-        self.assertEqual(','.join(SCORE_CSV_HEADER_PREFIX), response.content.decode().strip())
 
         unit_us_nat = self.public_project.units.filter(name='US National').first()
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))
