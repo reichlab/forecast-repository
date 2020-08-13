@@ -1,5 +1,4 @@
 import logging
-import sys
 
 import django_rq
 from boto3.exceptions import Boto3Error
@@ -75,16 +74,17 @@ class ScoreCsvFileCache(models.Model):
         from forecast_app.api_views import csv_response_for_project_score_data
 
 
-        logger.debug(f"update_score_csv_file_cache(): 1/4 entered. deleting: {self}")
-        self.delete_score_csv_file_cache()
-
-        logger.debug(f"update_score_csv_file_cache(): 2/4 entered. getting csv response: {self}")
+        logger.debug(f"update_score_csv_file_cache(): 1/4 getting csv response: {self}")
         response = csv_response_for_project_score_data(self.project)
 
-        logger.debug(f"update_score_csv_file_cache(): 3/4 uploading. size={len(response.content)}. {self}")
         try:
+            logger.debug(f"update_score_csv_file_cache(): 2/4 deleting: {self}")
+            self.delete_score_csv_file_cache()
+
+            logger.debug(f"update_score_csv_file_cache(): 3/4 uploading. size={len(response.content)}. {self}")
             upload_file(self, response.content)  # might raise S3 exception
             self.save()  # updates updated_at
+
             logger.debug(f"update_score_csv_file_cache(): 4/4 done: {self}")
         except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
             logger.error(f"update_score_csv_file_cache(): AWS error: {aws_exc!r}. ScoreCsvFileCache={self}")
