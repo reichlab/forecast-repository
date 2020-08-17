@@ -178,9 +178,11 @@ class Score(models.Model):
         :param dry_run: True means just print a report of Score/ForecastModel pairs that would be updated
         :return list of enqueued 2-tuples: (score, forecast_model)
         """
+        logger.info(f"enqueue_update_scores_for_all_models: entered. is_only_changed={is_only_changed}, "
+                    f"dry_run={dry_run}")
         Score.ensure_all_scores_exist()
         queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
-        enqueued_score_models = []
+        enqueued_score_models = []  # 2-tuples: (score, forecast_model)
         for score in cls.objects.all():
             for forecast_model in ForecastModel.objects.all():
                 model_score_change = forecast_model.score_change
@@ -188,8 +190,6 @@ class Score(models.Model):
                 is_out_of_date = (score_last_update is None) or \
                                  (model_score_change.changed_at > score_last_update.updated_at)
                 if is_only_changed and (not is_out_of_date):
-                    logger.info(f"NOT enqueuing score update. {score}, {forecast_model}. "
-                                f"{model_score_change.changed_at} <= {score_last_update.updated_at}")
                     continue
 
                 logger.info(f"enqueuing score update. {score}, {forecast_model} "
@@ -198,6 +198,7 @@ class Score(models.Model):
                 if not dry_run:
                     queue.enqueue(_update_model_scores_worker, score.pk, forecast_model.pk)
                 enqueued_score_models.append((score, forecast_model))
+        logger.info(f"enqueue_update_scores_for_all_models: done. # enqueued_score_models={len(enqueued_score_models)}")
         return enqueued_score_models
 
 
