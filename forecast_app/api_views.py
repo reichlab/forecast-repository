@@ -1020,8 +1020,8 @@ def _write_csv_score_data_for_project(csv_writer, project):
         rows = cursor.fetchall()
 
     # write grouped rows
-    logger.debug(f"_write_csv_score_data_for_project(): 2/5 preparing to iterate. project={project}, #rows={len(rows)}, "
-                 f"({sys.getsizeof(rows)} bytes)")
+    logger.debug(f"_write_csv_score_data_for_project(): 2/5 preparing to iterate. project={project}, "
+                 f"#rows={len(rows)}, size={sys.getsizeof(rows)}")
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
@@ -1031,7 +1031,9 @@ def _write_csv_score_data_for_project(csv_writer, project):
     logger.debug(f"_write_csv_score_data_for_project(): 3/5 getting truth. project={project}")
     tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
 
-    logger.debug(f"_write_csv_score_data_for_project(): 4/5 iterating. project={project}")
+    logger.debug(f"_write_csv_score_data_for_project(): 4/5 iterating. project={project}, "
+                 f"tz_unit_targ_pks_to_truth_vals len, size={len(tz_unit_targ_pks_to_truth_vals)}, "
+                 f"{sys.getsizeof(tz_unit_targ_pks_to_truth_vals)}")
     num_warnings = 0
     for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
             in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
