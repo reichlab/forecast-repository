@@ -1,4 +1,5 @@
 import datetime
+import io
 import json
 import logging
 from pathlib import Path
@@ -184,7 +185,7 @@ class ProjectTestCase(TestCase):
             args = upload_file_mock.call_args[0]  # upload_file(the_object, data_file)
             upload_file_mock.assert_called_once()
             self.assertEqual(self.project.score_csv_file_cache, args[0])
-            self.assertGreater(len(args[1]), 0)
+            self.assertIsInstance(args[1], io.BytesIO)
 
 
     def test_row_count_cache(self):

@@ -588,10 +588,10 @@ def download_project_scores(request, project_pk):
     if project.score_csv_file_cache.is_file_exists():
         return csv_response_for_cached_project_score_data(project)
     else:
-        # return 404 Not Found b/c calling `csv_response_for_project_score_data()` in the calling thread (the web
+        # return 404 Not Found b/c calling `csv_rows_for_project_score_data()` in the calling thread (the web
         # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
-        #   from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
-        #   return csv_response_for_project_score_data(project)
+        #   from forecast_app.api_views import csv_rows_for_project_score_data  # avoid circular imports
+        #   return csv_rows_for_project_score_data(project)
         return HttpResponseNotFound(f"score CSV file not cached. project={project}")
 
 

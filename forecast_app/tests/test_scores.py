@@ -8,7 +8,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.api_views import _write_csv_score_data_for_project, _tz_unit_targ_pks_to_truth_values, \
+from forecast_app.api_views import csv_rows_for_project_score_data, _tz_unit_targ_pks_to_truth_values, \
     csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
 from forecast_app.models.forecast_model import ForecastModel
@@ -770,14 +770,9 @@ class ScoresTestCase(TestCase):
     def _download_scores_internal_test(self, exp_model_column_value):
         Score.ensure_all_scores_exist()
         _update_scores_for_all_projects()
-        string_io = io.StringIO()
-        csv_writer = csv.writer(string_io, delimiter=',')
-        _write_csv_score_data_for_project(csv_writer, self.project)
-        string_io.seek(0)
 
         # read actual rows using csv reader for easier comparison to expected
-        act_csv_reader = csv.reader(string_io, delimiter=',')
-        act_rows = list(act_csv_reader)
+        act_rows = csv_rows_for_project_score_data(self.project)
         with open('forecast_app/tests/scores/EW1-KoTsarima-2017-01-17_exp-download.csv', 'r') as fp:
             exp_csv_reader = csv.reader(fp, delimiter=',')
             exp_rows = list(exp_csv_reader)

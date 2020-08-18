@@ -1,3 +1,5 @@
+import csv
+import io
 import logging
 
 import django_rq
@@ -71,21 +73,27 @@ class ScoreCsvFileCache(models.Model):
         from utils.cloud_file import upload_file
 
         # avoid circular imports. also, caused manage.py to hang:
-        from forecast_app.api_views import csv_response_for_project_score_data
+        from forecast_app.api_views import csv_rows_for_project_score_data
 
 
-        logger.debug(f"update_score_csv_file_cache(): 1/4 getting csv response: {self}")
-        response = csv_response_for_project_score_data(self.project)
+        logger.debug(f"update_score_csv_file_cache(): 1/4 getting csv response. {self}")
+        rows = csv_rows_for_project_score_data(self.project)
 
         try:
-            logger.debug(f"update_score_csv_file_cache(): 2/4 deleting: {self}")
+            logger.debug(f"update_score_csv_file_cache(): 2/4 deleting. {self}")
             self.delete_score_csv_file_cache()
 
-            logger.debug(f"update_score_csv_file_cache(): 3/4 uploading. size={len(response.content)}. {self}")
-            upload_file(self, response.content)  # might raise S3 exception
+            # see note in `api_views._query_forecasts_worker()` re: "we need a BytesIO for upload_file()"
+            logger.debug(f"update_score_csv_file_cache(): 3/4 uploading. {self}")
+            with io.BytesIO() as bytes_io:
+                text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
+                csv.writer(text_io_wrapper).writerows(rows)
+                text_io_wrapper.flush()
+                bytes_io.seek(0)
+                upload_file(self, bytes_io)  # might raise S3 exception
             self.save()  # updates updated_at
 
-            logger.debug(f"update_score_csv_file_cache(): 4/4 done: {self}")
+            logger.debug(f"update_score_csv_file_cache(): 4/4 done. {self}")
         except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
             logger.error(f"update_score_csv_file_cache(): AWS error: {aws_exc!r}. ScoreCsvFileCache={self}")
         except Exception as ex:

@@ -2,7 +2,6 @@ import csv
 import datetime
 import io
 import logging
-import sys
 import tempfile
 from collections import defaultdict
 from itertools import groupby
@@ -869,10 +868,10 @@ def download_score_data(request, pk):
     if project.score_csv_file_cache.is_file_exists():
         return csv_response_for_cached_project_score_data(project)
     else:
-        # return 404 Not Found b/c calling `csv_response_for_project_score_data()` in the calling thread (the web
+        # return 404 Not Found b/c calling `csv_rows_for_project_score_data()` in the calling thread (the web
         # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
-        #   from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
-        #   return csv_response_for_project_score_data(project)
+        #   from forecast_app.api_views import csv_rows_for_project_score_data  # avoid circular imports
+        #   return csv_rows_for_project_score_data(project)
         return HttpResponseNotFound(f"score CSV file not cached. project={project}")
 
 
@@ -924,7 +923,7 @@ def _csv_filename_for_project_scores(project):
 
 def csv_response_for_cached_project_score_data(project):
     """
-    Similar to csv_response_for_project_score_data(), but returns a response that's loaded from an existing S3 file.
+    Similar to csv_rows_for_project_score_data(), but returns a response that's loaded from an existing S3 file.
 
     :param project:
     :return:
@@ -952,21 +951,6 @@ def csv_response_for_cached_project_score_data(project):
             return None
 
 
-def csv_response_for_project_score_data(project):
-    """
-    Similar to csv_response_for_project_truth_data(), but returns a response with project's score data formatted as CSV.
-    """
-    response = HttpResponse(content_type='text/csv')
-    csv_filename = _csv_filename_for_project_scores(project)
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
-
-    # recall https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/scores.csv:
-    #   Model,Year,Epiweek,Season,Model Week,Location,Target,Score,Multi bin score
-    writer = csv.writer(response)
-    _write_csv_score_data_for_project(writer, project)
-    return response
-
-
 SQL_ROWS_BATCH_SIZE = 5000  # "chunk" size of rows to fetch. used by batched_rows(cursor)
 
 
@@ -986,10 +970,10 @@ def batched_rows(cursor):
             yield row
 
 
-def _write_csv_score_data_for_project(csv_writer, project):
+def csv_rows_for_project_score_data(project):
     """
-    Writes all ScoreValue data for project into csv_writer. There is one column per ScoreValue BUT: all Scores are on
-    one line. Thus, the row 'key' is the (fixed) first five columns:
+    Returns rows of ScoreValue data for `project` to be saved as CSV. There is one column per ScoreValue BUT: all Scores
+    are on one line. Thus, the row 'key' is the (fixed) first five columns:
 
         `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Unit.name, Target.name`
 
@@ -1021,10 +1005,10 @@ def _write_csv_score_data_for_project(csv_writer, project):
 
     # write header
     score_csv_header = SCORE_CSV_HEADER_PREFIX + [score.csv_column_name() for score in scores]
-    csv_writer.writerow(score_csv_header)
+    yield score_csv_header
 
     # get the raw rows - sorted for groupby()
-    logger.debug(f"_write_csv_score_data_for_project(): 1/5 getting rows: project={project}")
+    logger.debug(f"csv_rows_for_project_score_data(): 1/5 executing query: project={project}")
     sql = f"""
         SELECT f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id, sv.value
         FROM {ScoreValue._meta.db_table} AS sv
@@ -1039,17 +1023,17 @@ def _write_csv_score_data_for_project(csv_writer, project):
         # rows = cursor.fetchall()  # bad idea when many scores: loads all rows into memory
 
         # write grouped rows
-        logger.debug(f"_write_csv_score_data_for_project(): 2/5 preparing to iterate. project={project}")
+        logger.debug(f"csv_rows_for_project_score_data(): 2/5 preparing to iterate. project={project}")
         forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
         timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
         unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
         target_id_to_obj = {target.pk: target for target in project.targets.all()}
         timezero_to_season_name = project.timezero_to_season_name()
 
-        logger.debug(f"_write_csv_score_data_for_project(): 3/5 getting truth. project={project}")
+        logger.debug(f"csv_rows_for_project_score_data(): 3/5 getting truth. project={project}")
         tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
 
-        logger.debug(f"_write_csv_score_data_for_project(): 4/5 iterating. project={project}")
+        logger.debug(f"csv_rows_for_project_score_data(): 4/5 iterating. project={project}")
         num_warnings = 0
         for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
                 in groupby(batched_rows(cursor), key=lambda _: (_[0], _[1], _[2], _[3])):
@@ -1069,14 +1053,12 @@ def _write_csv_score_data_for_project(csv_writer, project):
             score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
             score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
             # while name and abbreviation are now both required to be non-empty, we leave the check here just in case:
-            csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                                 time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                                 timezero_to_season_name[time_zero],
-                                 unit.name, target.name, true_value]
-                                + score_values)
+            model_name = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
+            yield [model_name, time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                   timezero_to_season_name[time_zero], unit.name, target.name, true_value] + score_values
 
     # print warning count
-    logger.debug(f"_write_csv_score_data_for_project(): 5/5 done. project={project}, num_warnings={num_warnings}")
+    logger.debug(f"csv_rows_for_project_score_data(): 5/5 done. project={project}, num_warnings={num_warnings}")
 
 
 def _tz_unit_targ_pks_to_truth_values(project):
