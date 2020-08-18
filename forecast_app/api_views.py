@@ -967,6 +967,25 @@ def csv_response_for_project_score_data(project):
     return response
 
 
+SQL_ROWS_BATCH_SIZE = 5000  # "chunk" size of rows to fetch. used by batched_rows(cursor)
+
+
+def batched_rows(cursor):
+    """
+    Generator that retrieves rows from cursor in batches of size SQL_ROWS_BATCH_SIZE.
+
+    :param cursor: a cursor
+    :return: next row from cursor
+    """
+    while True:
+        rows = cursor.fetchmany(SQL_ROWS_BATCH_SIZE)
+        if not rows:
+            break
+
+        for row in rows:
+            yield row
+
+
 def _write_csv_score_data_for_project(csv_writer, project):
     """
     Writes all ScoreValue data for project into csv_writer. There is one column per ScoreValue BUT: all Scores are on
@@ -1017,47 +1036,44 @@ def _write_csv_score_data_for_project(csv_writer, project):
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
-        rows = cursor.fetchall()
+        # rows = cursor.fetchall()  # bad idea when many scores: loads all rows into memory
 
-    # write grouped rows
-    logger.debug(f"_write_csv_score_data_for_project(): 2/5 preparing to iterate. project={project}, "
-                 f"#rows={len(rows)}, size={sys.getsizeof(rows)}")
-    forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
-    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
-    unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
-    target_id_to_obj = {target.pk: target for target in project.targets.all()}
-    timezero_to_season_name = project.timezero_to_season_name()
+        # write grouped rows
+        logger.debug(f"_write_csv_score_data_for_project(): 2/5 preparing to iterate. project={project}")
+        forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
+        timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
+        unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
+        target_id_to_obj = {target.pk: target for target in project.targets.all()}
+        timezero_to_season_name = project.timezero_to_season_name()
 
-    logger.debug(f"_write_csv_score_data_for_project(): 3/5 getting truth. project={project}")
-    tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
+        logger.debug(f"_write_csv_score_data_for_project(): 3/5 getting truth. project={project}")
+        tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
 
-    logger.debug(f"_write_csv_score_data_for_project(): 4/5 iterating. project={project}, "
-                 f"tz_unit_targ_pks_to_truth_vals len, size={len(tz_unit_targ_pks_to_truth_vals)}, "
-                 f"{sys.getsizeof(tz_unit_targ_pks_to_truth_vals)}")
-    num_warnings = 0
-    for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
-            in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
-        # get truth. should be only one value
-        true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, time_zero_id, unit_id, target_id)
-        if error_string:
-            num_warnings += 1
-            continue  # skip this (forecast_model_id, time_zero_id, unit_id, target_id) combination's score row
+        logger.debug(f"_write_csv_score_data_for_project(): 4/5 iterating. project={project}")
+        num_warnings = 0
+        for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
+                in groupby(batched_rows(cursor), key=lambda _: (_[0], _[1], _[2], _[3])):
+            # get truth. should be only one value
+            true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, time_zero_id, unit_id, target_id)
+            if error_string:
+                num_warnings += 1
+                continue  # skip this (forecast_model_id, time_zero_id, unit_id, target_id) combination's score row
 
-        forecast_model = forecast_model_id_to_obj[forecast_model_id]
-        time_zero = timezero_id_to_obj[time_zero_id]
-        unit = unit_id_to_obj[unit_id]
-        target = target_id_to_obj[target_id]
-        # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
-        #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
-        score_groups = list(score_id_value_grouper)
-        score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
-        score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
-        # while name and abbreviation are now both required to be non-empty, we leave the check here just in case:
-        csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                             time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                             timezero_to_season_name[time_zero],
-                             unit.name, target.name, true_value]
-                            + score_values)
+            forecast_model = forecast_model_id_to_obj[forecast_model_id]
+            time_zero = timezero_id_to_obj[time_zero_id]
+            unit = unit_id_to_obj[unit_id]
+            target = target_id_to_obj[target_id]
+            # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
+            #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
+            score_groups = list(score_id_value_grouper)
+            score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
+            score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
+            # while name and abbreviation are now both required to be non-empty, we leave the check here just in case:
+            csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
+                                 time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                                 timezero_to_season_name[time_zero],
+                                 unit.name, target.name, true_value]
+                                + score_values)
 
     # print warning count
     logger.debug(f"_write_csv_score_data_for_project(): 5/5 done. project={project}, num_warnings={num_warnings}")
