@@ -249,7 +249,7 @@ class ViewsTestCase(TestCase):
                             else self.non_staff_user_password if user == self.non_staff_user \
                             else self.superuser_password
                         self.client.login(username=user.username, password=password)
-                    response = self.client.get(url, data={'unit': None, 'target': None})
+                    response = self.client.get(url, data={'unit': '', 'target': ''})
                     self.assertEqual(exp_status_code, response.status_code)
 
 

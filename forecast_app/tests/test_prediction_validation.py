@@ -1,4 +1,5 @@
 import datetime
+import unittest
 from pathlib import Path
 
 from django.test import TestCase
@@ -815,6 +816,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
 
+    @unittest.skip("todo")
     def test_if_range_is_specified_any_named_prediction_element_should_have_negligible_probability_density(self):
         #  - if `range` is specified, any `Named` Prediction Element should have negligible probability density (no more than 0.001 density) outside of the range.
         # 'pct next week': continuous

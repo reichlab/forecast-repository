@@ -19,7 +19,6 @@ from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpR
 from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
@@ -53,7 +52,7 @@ logger = logging.getLogger(__name__)
 @api_view(['GET'])
 def api_root(request, format=None):
     if not request.user.is_authenticated:
-        raise PermissionDenied
+        return HttpResponseForbidden()
 
     return Response({
         'projects': reverse('api-project-list', request=request, format=format),
@@ -72,7 +71,10 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
     file.
     """
     serializer_class = ProjectSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def get_queryset(self):
@@ -93,7 +95,7 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
             additional data in request.data.
         """
         if not is_user_ok_create_project(request.user):
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'project_config' not in request.data:
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -112,7 +114,10 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -126,7 +131,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         """
         project = self.get_object()
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can delete the project
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         # imported here so that test_delete_project_iteratively() can patch via mock:
         from utils.project import delete_project_iteratively
@@ -149,7 +154,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         """
         project = self.get_object()
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can edit the project
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'project_config' not in request.data:
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -174,7 +179,10 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
     (ForecastModelSerializer). Note that `pk` is the project's pk.
     """
     serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -200,7 +208,7 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
 
         # check authorization, 'model_config'
         if not is_user_ok_create_model(request.user, project):
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'model_config' not in request.data:
             return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -247,7 +255,10 @@ class ProjectUnitList(UserPassesTestMixin, generics.ListAPIView):
     View that returns a list of Units in a Project, similar to ProjectTimeZeroList.
     """
     serializer_class = UnitSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -265,7 +276,10 @@ class ProjectTargetList(UserPassesTestMixin, generics.ListAPIView):
     View that returns a list of Targets in a Project, similar to ProjectTimeZeroList.
     """
     serializer_class = TargetSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -285,7 +299,10 @@ class ProjectTimeZeroList(UserPassesTestMixin, generics.ListAPIView):
     (TimeZeroSerializer). Note that `pk` is the project's pk.
     """
     serializer_class = TimeZeroSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -311,7 +328,7 @@ class ProjectTimeZeroList(UserPassesTestMixin, generics.ListAPIView):
         # check authorization, 'timezero_config'
         project = Project.objects.get(pk=self.kwargs['pk'])
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can add TimeZeros
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'timezero_config' not in request.data:
             return JsonResponse({'error': "No 'timezero_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -373,7 +390,10 @@ def validate_and_create_timezero(project, timezero_config, is_validate_only=Fals
 class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -386,7 +406,10 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
     View that returns a list of Forecasts in a ForecastModel
     """
     serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -418,7 +441,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         # check authorization
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
         if not is_user_ok_upload_forecast(request, forecast_model):
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         # validate 'data_file'
         if 'data_file' not in request.data:
@@ -477,7 +500,10 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
 class JobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -488,7 +514,10 @@ class JobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
 class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = ForecastModel.objects.all()
     serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -510,7 +539,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
 
         # check authorization, 'model_config'
         if not is_user_ok_edit_model(request.user, forecast_model):
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'model_config' not in request.data:
             return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -553,7 +582,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
         """
         forecast_model = self.get_object()
         if not is_user_ok_edit_model(request.user, forecast_model):
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         response = self.destroy(request, *args, **kwargs)
         return response
@@ -562,7 +591,10 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
 class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -578,7 +610,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
         """
         forecast = self.get_object()
         if not is_user_ok_delete_forecast(request.user, forecast):  # if ok delete forecast then ok to set source
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'source' not in request.data:
             return JsonResponse({'error': "No 'source' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -593,7 +625,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
         """
         forecast = self.get_object()
         if not is_user_ok_delete_forecast(request.user, forecast):
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         job = enqueue_delete_forecast(request.user, forecast)
         job_serializer = JobSerializer(job, context={'request': request})
@@ -603,7 +635,10 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
 class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -614,7 +649,10 @@ class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Target.objects.all()
     serializer_class = TargetSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -625,7 +663,10 @@ class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = TimeZero.objects.all()
     serializer_class = TimeZeroSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -636,7 +677,10 @@ class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TruthSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -663,7 +707,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         # check authorization
         project = self.get_object()
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can edit the project's truth
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         # validate 'data_file'
         if 'data_file' not in request.data:
