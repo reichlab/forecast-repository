@@ -700,3 +700,17 @@ class ProjectUtilTestCase(TestCase):
                      'location1', 'location2, location3')]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
         self.assertEqual(exp_rows, act_rows)
+
+        # case: exposes bug: syntax error when no forecasts in project:
+        #   psycopg2.errors.SyntaxError: syntax error at or near ")"
+        #   LINE 6:             WHERE f.id IN ()
+        forecast.delete()
+        forecast2.delete()
+        forecast3.delete()
+        try:
+            exp_rows = [(forecast_model, 'None', None, 0, '', '(all)'),
+                        (forecast_model2, 'None', None, 0, '', '(all)')]
+            act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
+            self.assertEqual(exp_rows, act_rows)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")

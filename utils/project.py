@@ -1074,6 +1074,8 @@ def _forecast_ids_to_unit_id_sets(forecast_ids):
     :return: a dict mapping each forecast_id to a set of its unit ids: {forecast_id -> set(unit_ids)}
     """
     # NB: this query is somewhat expensive
+    if not forecast_ids:
+        return {}
 
     # build up sql for all prediction types - each combined via UNION
     param_str = ', '.join(['%s'] * len(forecast_ids))
