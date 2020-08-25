@@ -84,7 +84,7 @@ class ProjectTestCase(TestCase):
             [datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None],
             [datetime.date(2017, 1, 1), 'US National', 'Season peak week', None],
             [datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20']]
-        self.assertEqual(exp_truth_preview, project2.get_truth_data_preview())
+        self.assertEqual(sorted(exp_truth_preview), sorted(project2.get_truth_data_preview()))
 
 
     def test_load_truth_data_other_files(self):

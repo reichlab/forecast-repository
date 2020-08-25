@@ -519,7 +519,8 @@ class ProjectUtilTestCase(TestCase):
         for target_dict in output_target_dicts:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
             del target_dict['id']
             del target_dict['url']
-        self.assertEqual(input_target_dicts, output_target_dicts)
+        self.assertEqual(sorted(input_target_dicts, key=lambda _: _['name']),
+                         sorted(output_target_dicts, key=lambda _: _['name']))
 
 
     def test_group_targets(self):
