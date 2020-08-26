@@ -152,7 +152,9 @@ class ViewsTestCase(TestCase):
     # 'edit-model' -> form
     @patch('forecast_app.models.forecast_model.ForecastModel.delete')  # 'delete-model'
     @patch('rq.queue.Queue.enqueue')
-    def test_url_get_general(self, mock_delete_model, mock_delete_project, mock_delete_forecast, enqueue_mock):
+    @patch('compressor.storage.GzipCompressorFileStorage.save', return_value=(False, ''))
+    def test_url_get_general(self, mock_delete_model, mock_delete_project, mock_delete_forecast, enqueue_mock,
+                             save_mock):
         url_exp_user_status_code_pairs = [
             (reverse('index'), self.OK_ALL),
             (reverse('about'), self.OK_ALL),
@@ -303,7 +305,8 @@ class ViewsTestCase(TestCase):
             self.assertIn(private_project_url, str(response.content))
 
 
-    def test_url_edit_delete_upload_create_links(self):
+    @patch('compressor.storage.GzipCompressorFileStorage.save', return_value=(False, ''))
+    def test_url_edit_delete_upload_create_links(self, save_mock):
         url_to_exp_content = {
             # model detail page for public model
             reverse('model-detail', args=[str(self.public_model.pk)]): {
