@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import re
+import string
 from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
@@ -16,7 +17,7 @@ from forecast_app.models import Project, Unit, Target, Forecast, PointPrediction
     NamedDistribution, SampleDistribution, QuantileDistribution, Prediction
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT, datetime_to_str
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -644,7 +645,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
 
     # validate query and set query defaults ("all in project") if necessary
-    logger.debug(f"query_forecasts_for_project(): validating query: {query}. project={project}")
+    logger.debug(f"query_forecasts_for_project(): 1/4 validating query. query={query}, project={project}")
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types) = validate_forecasts_query(project, query)
     if not model_ids:
         model_ids = project.models.all().values_list('id', flat=True)  # default to all ForecastModels in Project
@@ -696,16 +697,22 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                      'quantile', 'value_i', 'value_f', 'value_d')
 
     # count number of rows to query, and error if too many
+    logger.debug(f"query_forecasts_for_project(): 2/4 getting counts. query={query}, project={project}")
     is_include_query_set_pred_types = [(is_include_bin, bin_qs, 'bin'),
                                        (is_include_named, named_qs, 'named'),
                                        (is_include_point, point_qs, 'point'),
                                        (is_include_sample, sample_qs, 'sample'),
                                        (is_include_quantile, quantile_qs, 'quantile')]
-    pred_type_counts = [(pred_type, query_set.count()) for is_include, query_set, pred_type
-                        in is_include_query_set_pred_types if is_include]
+
+    pred_type_counts = []  # filled next. NB: we do not use a list comprehension b/c we want logging for each pred_type
+    for idx, (is_include, query_set, pred_type) in enumerate(is_include_query_set_pred_types):
+        if is_include:
+            logger.debug(f"query_forecasts_for_project(): 2{string.ascii_letters[idx]}/4 getting counts: {pred_type!r}. query={query_set.query}")
+            pred_type_counts.append((pred_type, query_set.count()))
+
     num_rows = sum([_[1] for _ in pred_type_counts])
-    logger.debug(f"query_forecasts_for_project(): preparing to query. pred_type_counts={pred_type_counts}. total "
-                 f"num_rows={num_rows}")
+    logger.debug(f"query_forecasts_for_project(): 3/4 preparing to query. pred_type_counts={pred_type_counts}. total "
+                 f"num_rows={num_rows}. query={query}, project={project}")
     if num_rows > max_num_rows:
         raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
 
@@ -717,7 +724,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # add BinDistributions
     if is_include_bin:
-        logger.debug(f"query_forecasts_for_project(): getting BinDistributions")
+        logger.debug(f"query_forecasts_for_project(): 3a/4 getting BinDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
         for forecast_model_id, timezero_id, unit_name, target_name, prob, cat_i, cat_f, cat_t, cat_d, cat_b in bin_qs:
@@ -731,7 +738,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # add NamedDistributions
     if is_include_named:
-        logger.debug(f"query_forecasts_for_project(): getting NamedDistributions")
+        logger.debug(f"query_forecasts_for_project(): 3b/4 getting NamedDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
         for forecast_model_id, timezero_id, unit_name, target_name, family, param1, param2, param3 in named_qs:
@@ -744,7 +751,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # add PointPredictions
     if is_include_point:
-        logger.debug(f"query_forecasts_for_project(): getting PointPredictions")
+        logger.debug(f"query_forecasts_for_project(): 3c/4 getting PointPredictions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
         for forecast_model_id, timezero_id, unit_name, target_name, value_i, value_f, value_t, value_d, value_b \
@@ -759,7 +766,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # add SampleDistribution
     if is_include_sample:
-        logger.debug(f"query_forecasts_for_project(): getting SampleDistributions")
+        logger.debug(f"query_forecasts_for_project(): 3d/4 getting SampleDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
         for forecast_model_id, timezero_id, unit_name, target_name, \
@@ -774,7 +781,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # add QuantileDistribution
     if is_include_quantile:
-        logger.debug(f"query_forecasts_for_project(): getting QuantileDistributions")
+        logger.debug(f"query_forecasts_for_project(): 3e/4 getting QuantileDistributions")
         # class-specific columns all default to empty:
         value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
         for forecast_model_id, timezero_id, unit_name, target_name, quantile, value_i, value_f, value_d in quantile_qs:
@@ -787,7 +794,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                          value, cat, prob, sample, quantile, family, param1, param2, param3])
 
     # NB: we do not sort b/c it's expensive
-    logger.debug(f"query_forecasts_for_project(): done: {len(rows)} rows")
+    logger.debug(f"query_forecasts_for_project(): 4/4 done: {len(rows)} rows. query={query}, project={project}")
     return rows
 
 
