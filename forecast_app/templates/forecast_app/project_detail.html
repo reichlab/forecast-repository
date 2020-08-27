@@ -184,9 +184,8 @@
         <table id="models_table" class="table table-striped table-bordered">
             <thead>
             <tr>
-                <th>Name</th>
-                <th>Team</th>
                 <th>Abbreviation</th>
+                <th>Team</th>
                 <th>#&nbsp;Forecasts</th>
                 <th>Oldest</th>
                 <th>Newest</th>
@@ -196,9 +195,8 @@
             <tbody>
             {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id, newest_forecast_id, newest_forecast_created_at in models_rows %}
                 <tr>
-                    <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></td>
+                    <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
                     <td>{{ forecast_model.team_name }}</td>
-                    <td>{{ forecast_model.abbreviation }}</td>
                     <td>{{ num_forecasts }}</td>
                     <td>
                         {% if oldest_forecast_tz_date %}
