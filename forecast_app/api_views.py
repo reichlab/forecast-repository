@@ -13,7 +13,7 @@ from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.db import connection
+from django.db import connection, transaction
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     HttpResponseNotFound
 from django.utils.text import get_valid_filename
@@ -782,6 +782,11 @@ def query_forecasts_endpoint(request, pk):
     return JsonResponse(job_serializer.data)
 
 
+# value used by _query_forecasts_worker() to set the postgres `statement_timeout` client connection parameter:
+# https://www.postgresql.org/docs/9.6/runtime-config-client.html
+QUERY_FORECAST_STATEMENT_TIMEOUT = 60
+
+
 def _query_forecasts_worker(job_pk):
     """
     enqueue() helper function
@@ -800,7 +805,14 @@ def _query_forecasts_worker(job_pk):
     query = job.input_json['query']
     try:
         logger.debug(f"_query_forecasts_worker(): querying rows. query={query}. job={job}")
-        rows = query_forecasts_for_project(project, query)
+        # use a transaction to set the scope of the postgres `statement_timeout` parameter. statement_timeout raises
+        # this error: django.db.utils.OperationalError ('canceling statement due to statement timeout')
+        if connection.vendor == 'postgresql':
+            with transaction.atomic(), connection.cursor() as cursor:
+                cursor.execute(f"SET LOCAL statement_timeout = '{QUERY_FORECAST_STATEMENT_TIMEOUT}s';")
+                rows = query_forecasts_for_project(project, query)
+        else:
+            rows = query_forecasts_for_project(project, query)
     except JobTimeoutException as jte:
         job.status = Job.TIMEOUT
         job.save()

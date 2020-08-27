@@ -707,7 +707,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     pred_type_counts = []  # filled next. NB: we do not use a list comprehension b/c we want logging for each pred_type
     for idx, (is_include, query_set, pred_type) in enumerate(is_include_query_set_pred_types):
         if is_include:
-            logger.debug(f"query_forecasts_for_project(): 2{string.ascii_letters[idx]}/4 getting counts: {pred_type!r}. query={query_set.query}")
+            logger.debug(f"query_forecasts_for_project(): 2{string.ascii_letters[idx]}/4 getting counts: {pred_type!r}")
             pred_type_counts.append((pred_type, query_set.count()))
 
     num_rows = sum([_[1] for _ in pred_type_counts])
