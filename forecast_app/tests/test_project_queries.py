@@ -98,8 +98,8 @@ class ProjectQueriesTestCase(TestCase):
         seas = timezero_to_season_name[self.time_zero]
 
         # ---- case: all BinDistributions in project. check cat and prob columns ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]]}))  # list for generator
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
         exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
@@ -123,8 +123,8 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_bin, sorted(act_rows))
 
         # ----  case: all NamedDistributions in project. check family, and param1, 2, and 3 columns ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
         exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named',
@@ -139,8 +139,8 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_named, sorted(act_rows))
 
         # ---- case: all PointPredictions in project. check value column ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
         exp_rows_point = [
@@ -160,8 +160,8 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_point, sorted(act_rows))
 
         # ---- case: all SampleDistributions in project. check sample column ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
         exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
@@ -192,8 +192,8 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_sample, sorted(act_rows))
 
         # ---- case: all QuantileDistributions in project. check quantile and value columns ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
 
         exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
@@ -211,20 +211,20 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_quantile, sorted(act_rows))
 
         # ---- case: empty query -> all forecasts in project ----
-        rows = query_forecasts_for_project(self.project, {})
+        rows = list(query_forecasts_for_project(self.project, {}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
 
         # ---- case: only one unit ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'units': [self.project.units.filter(name='location3').first().pk]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'units': [self.project.units.filter(name='location3').first().pk]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
         self.assertEqual(17, len(rows))
 
         # ---- case: only one target ----
-        rows = query_forecasts_for_project(self.project,
-                                           {'targets': [self.project.targets.filter(name='above baseline').first().pk]})
+        rows = list(query_forecasts_for_project(
+            self.project, {'targets': [self.project.targets.filter(name='above baseline').first().pk]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
         self.assertEqual(9, len(rows))
 
@@ -238,19 +238,19 @@ class ProjectQueriesTestCase(TestCase):
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
 
         # ---- case: empty query -> all forecasts in project. s/be twice as many now ----
-        rows = query_forecasts_for_project(self.project, {})
+        rows = list(query_forecasts_for_project(self.project, {}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2,
                          len(rows))
 
         # ---- case: only one timezero ----
-        rows = query_forecasts_for_project(self.project, {'timezeros': [time_zero2.pk]})
+        rows = list(query_forecasts_for_project(self.project, {'timezeros': [time_zero2.pk]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
 
         # ---- case: only one model ----
-        rows = query_forecasts_for_project(self.project, {'models': [forecast_model2.pk]})
+        rows = list(query_forecasts_for_project(self.project, {'models': [forecast_model2.pk]}))
         self.assertEqual(CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
@@ -258,12 +258,12 @@ class ProjectQueriesTestCase(TestCase):
 
     def test_query_forecasts_for_project_max_num_rows(self):
         try:
-            query_forecasts_for_project(self.project, {}, max_num_rows=62)  # actual number of rows = 62
+            list(query_forecasts_for_project(self.project, {}, max_num_rows=62))  # actual number of rows = 62
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
         with self.assertRaises(RuntimeError) as context:
-            query_forecasts_for_project(self.project, {}, max_num_rows=61)
+            list(query_forecasts_for_project(self.project, {}, max_num_rows=61))
         self.assertIn("number of rows exceeded maximum", str(context.exception))
 
 

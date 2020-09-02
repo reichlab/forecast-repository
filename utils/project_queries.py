@@ -82,29 +82,29 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # create queries for each prediction type, but don't execute them yet. first check # rows and limit if necessary.
     # note that not all will be executed, depending on the 'types' key
-    bin_qs = BinDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                            unit__id__in=unit_ids,
-                                            target__id__in=target_ids) \
+    bin_qs = BinDistribution.objects.filter(forecast__id__in=list(forecast_ids),
+                                            unit__id__in=list(unit_ids),
+                                            target__id__in=list(target_ids)) \
         .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
                      'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-    named_qs = NamedDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                                unit__id__in=unit_ids,
-                                                target__id__in=target_ids) \
+    named_qs = NamedDistribution.objects.filter(forecast__id__in=list(forecast_ids),
+                                                unit__id__in=list(unit_ids),
+                                                target__id__in=list(target_ids)) \
         .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
                      'family', 'param1', 'param2', 'param3')
-    point_qs = PointPrediction.objects.filter(forecast__id__in=forecast_ids,
-                                              unit__id__in=unit_ids,
-                                              target__id__in=target_ids) \
+    point_qs = PointPrediction.objects.filter(forecast__id__in=list(forecast_ids),
+                                              unit__id__in=list(unit_ids),
+                                              target__id__in=list(target_ids)) \
         .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-    sample_qs = SampleDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                                  unit__id__in=unit_ids,
-                                                  target__id__in=target_ids) \
+    sample_qs = SampleDistribution.objects.filter(forecast__id__in=list(forecast_ids),
+                                                  unit__id__in=list(unit_ids),
+                                                  target__id__in=list(target_ids)) \
         .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
                      'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
-    quantile_qs = QuantileDistribution.objects.filter(forecast__id__in=forecast_ids,
-                                                      unit__id__in=unit_ids,
-                                                      target__id__in=target_ids) \
+    quantile_qs = QuantileDistribution.objects.filter(forecast__id__in=list(forecast_ids),
+                                                      unit__id__in=list(unit_ids),
+                                                      target__id__in=list(target_ids)) \
         .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__name', 'target__name',
                      'quantile', 'value_i', 'value_f', 'value_d')
 
@@ -128,8 +128,9 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     if num_rows > max_num_rows:
         raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
 
-    # add rows for each Prediction subclass
-    rows = [CSV_HEADER]  # return value. filled next
+    # output rows for each Prediction subclass
+    yield CSV_HEADER
+
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     timezero_to_season_name = project.timezero_to_season_name()
@@ -145,8 +146,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                 BinDistribution)
             cat = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
             cat = cat.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(cat, datetime.date) else cat
-            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
-                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+            yield [model_str, timezero_str, season, unit_name, target_name, class_str,
+                   value, cat, prob, sample, quantile, family, param1, param2, param3]
 
     # add NamedDistributions
     if is_include_named:
@@ -158,8 +159,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                 forecast_model_id_to_obj[forecast_model_id], timezero_id_to_obj[timezero_id], timezero_to_season_name,
                 NamedDistribution)
             family = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
-            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
-                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+            yield [model_str, timezero_str, season, unit_name, target_name, class_str,
+                   value, cat, prob, sample, quantile, family, param1, param2, param3]
 
     # add PointPredictions
     if is_include_point:
@@ -173,8 +174,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                 PointPrediction)
             value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
             value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
-                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+            yield [model_str, timezero_str, season, unit_name, target_name, class_str,
+                   value, cat, prob, sample, quantile, family, param1, param2, param3]
 
     # add SampleDistribution
     if is_include_sample:
@@ -188,8 +189,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                 SampleDistribution)
             sample = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
             sample = sample.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(sample, datetime.date) else sample
-            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
-                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+            yield [model_str, timezero_str, season, unit_name, target_name, class_str,
+                   value, cat, prob, sample, quantile, family, param1, param2, param3]
 
     # add QuantileDistribution
     if is_include_quantile:
@@ -202,12 +203,11 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                 QuantileDistribution)
             value = PointPrediction.first_non_none_value(value_i, value_f, None, value_d, None)
             value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-            rows.append([model_str, timezero_str, season, unit_name, target_name, class_str,
-                         value, cat, prob, sample, quantile, family, param1, param2, param3])
+            yield [model_str, timezero_str, season, unit_name, target_name, class_str,
+                   value, cat, prob, sample, quantile, family, param1, param2, param3]
 
     # NB: we do not sort b/c it's expensive
-    logger.debug(f"query_forecasts_for_project(): 4/4 done: {len(rows)} rows. query={query}, project={project}")
-    return rows
+    logger.debug(f"query_forecasts_for_project(): 4/4 done. num_rows={num_rows}, query={query}, project={project}")
 
 
 def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, prediction_class):
@@ -527,7 +527,8 @@ There is one column per ScoreValue BUT: all Scores
                timezero_to_season_name[time_zero], unit.name, target.name, true_value] + score_values
 
     # print warning count
-    logger.debug(f"query_scores_for_project(): 5/5 done. project={project}, num_warnings={num_warnings}")
+    logger.debug(f"query_scores_for_project(): 5/5 done. num_rows={num_rows}, num_warnings={num_warnings}, "
+                 f"project={project}")
 
 
 def _tz_unit_targ_pks_to_truth_values(project):
