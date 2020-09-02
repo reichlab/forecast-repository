@@ -100,7 +100,7 @@ def _target_to_min_mae_for_loc(loc_to_model_to_target_to_mae, unit, targets):
 
 
 def _score_value_rows_for_season(project, season_name):
-    score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name
+    score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official abbrev
     if not score:
         raise RuntimeError('could not find score')
 

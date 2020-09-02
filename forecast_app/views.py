@@ -12,7 +12,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.db import connection, transaction
 from django.db.models import Count
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotFound, HttpResponseForbidden
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.text import get_valid_filename
@@ -25,7 +25,6 @@ from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Scor
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
-from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.cloud_file import delete_file, upload_file
@@ -53,8 +52,8 @@ def robots_txt(request):
     # frequently by different bots
     disallow_urls = []  # relative URLs
     for project_id in Project.objects.all().values_list('id', flat=True):
-        for project_url_name in ['project-explorer', 'project-scores', 'project-score-data', 'download-project-scores',
-                                 'project-config', 'truth-data-detail', 'project-visualizations']:
+        for project_url_name in ['project-explorer', 'project-scores', 'project-score-data', 'project-config',
+                                 'truth-data-detail', 'project-visualizations']:
             disallow_urls.append(reverse(project_url_name, args=[str(project_id)]))  # relative URLs
     return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
 
@@ -185,39 +184,6 @@ def update_row_count_caches(request):
         messages.success(request, "Scheduled updating row count caches for all projects.")
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, "Error updating row count caches: {}.".format(ce))
-    return redirect('zadmin')  # hard-coded
-
-
-def clear_score_csv_file_caches(request):
-    """
-    View function that resets all projects' ScoreCsvFileCaches. Runs in the calling thread and therefore blocks.
-    However, this operation is relatively fast, but does depend on S3 access.
-    """
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    for project in Project.objects.all():
-        project.score_csv_file_cache.delete_score_csv_file_cache()
-
-    messages.success(request, "All score csv file caches were cleared.")
-    return redirect('zadmin')  # hard-coded
-
-
-def update_score_csv_file_caches(request):
-    """
-    View function that enqueues updates of all projects' ScoreCsvFileCaches and then returns. Users are not notified
-    when the updates are done, and so must refresh, etc. Note that we choose to enqueue each project's update
-    separately, rather than a single enqueue that updates them all in a loop, b/c each one might take a while, and
-    we're trying to limit each job's duration.
-    """
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    try:
-        enqueue_score_csv_file_cache_all_projs()
-        messages.success(request, "Scheduled updating score csv file caches for all projects.")
-    except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, "Error updating score csv file caches: {}.".format(ce))
     return redirect('zadmin')  # hard-coded
 
 
@@ -567,29 +533,6 @@ def _model_score_count_rows_for_project(project):
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
         return cursor.fetchall()
-
-
-def download_project_scores(request, project_pk):
-    """
-    Returns a response containing a CSV file for a project_pk's scores.
-    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
-        model's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    from forecast_app.api_views import csv_response_for_cached_project_score_data  # avoid circular imports
-
-
-    if project.score_csv_file_cache.is_file_exists():
-        return csv_response_for_cached_project_score_data(project)
-    else:
-        # return 404 Not Found b/c calling `csv_rows_for_project_score_data()` in the calling thread (the web
-        # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
-        #   from forecast_app.api_views import csv_rows_for_project_score_data  # avoid circular imports
-        #   return csv_rows_for_project_score_data(project)
-        return HttpResponseNotFound(f"score CSV file not cached. project={project}")
 
 
 def download_project_config(request, project_pk):

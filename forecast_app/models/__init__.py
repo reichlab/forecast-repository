@@ -9,7 +9,6 @@ from .prediction import Prediction, PointPrediction, NamedDistribution, Empirica
 from .project import Project, Unit, TimeZero
 from .row_count_cache import RowCountCache
 from .score import Score, ScoreValue, ScoreLastUpdate
-from .score_csv_file_cache import ScoreCsvFileCache
 from .target import Target, TargetCat, TargetLwr, TargetRange
 from .truth_data import TruthData
 from .job import Job

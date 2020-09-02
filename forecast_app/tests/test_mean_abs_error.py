@@ -53,7 +53,7 @@ class MAETestCase(TestCase):
 
         # score needed for MAE calculation
         Score.ensure_all_scores_exist()
-        cls.score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name
+        cls.score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official abbrev
         cls.score.update_score_for_model(cls.forecast_model)
 
 
@@ -69,7 +69,7 @@ class MAETestCase(TestCase):
         load_truth_data(project2, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'))
 
         Score.ensure_all_scores_exist()
-        score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official name
+        score = Score.objects.filter(abbreviation='abs_error').first()  # hard-coded official abbrev
         score.update_score_for_model(forecast_model2)
 
         score_value_rows_for_season = _score_value_rows_for_season(project2, 's1')

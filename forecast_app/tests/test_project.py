@@ -1,5 +1,4 @@
 import datetime
-import io
 import json
 import logging
 from pathlib import Path
@@ -9,18 +8,16 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from forecast_app.api_views import csv_response_for_project_truth_data
-from forecast_app.models import Project, TimeZero, Target, Score, Job, BinDistribution, NamedDistribution, \
-    PointPrediction, SampleDistribution, QuantileDistribution, Forecast
+from forecast_app.models import Project, TimeZero, Target, Job, Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _unit_to_actual_points, _unit_to_actual_max_val, \
     _upload_truth_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
-from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
-from utils.project import create_project_from_json, load_truth_data, query_forecasts_for_project, \
-    validate_forecasts_query, CSV_HEADER
-from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
+from utils.project import create_project_from_json, load_truth_data
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -160,32 +157,6 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows_all_models(), 8019 * 2)
         self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
                          8019 * 2)  # exact b/c uniform forecasts
-
-
-    def test_score_csv_file_cache(self):
-        # verify post_save worked
-        self.assertIsNotNone(self.project.score_csv_file_cache)
-
-        # test CSV file gets created
-        load_truth_data(self.project, Path('utils/ensemble-truth-table-script/truths-2016-2017-reichlab.csv'),
-                        is_convert_na_none=True)
-        Score.ensure_all_scores_exist()
-        score = Score.objects.filter(abbreviation='abs_error').first()
-        score.update_score_for_model(self.forecast_model)
-
-        # NB: this test assumes delete was called before upload
-        with patch('utils.cloud_file.delete_file') as delete_file_mock, \
-                patch('utils.cloud_file.upload_file') as upload_file_mock:
-            self.project.score_csv_file_cache.update_score_csv_file_cache()
-
-            args = delete_file_mock.call_args[0]  # delete_file(the_object)
-            delete_file_mock.assert_called_once()
-            self.assertEqual(self.project.score_csv_file_cache, args[0])
-
-            args = upload_file_mock.call_args[0]  # upload_file(the_object, data_file)
-            upload_file_mock.assert_called_once()
-            self.assertEqual(self.project.score_csv_file_cache, args[0])
-            self.assertIsInstance(args[1], io.BytesIO)
 
 
     def test_row_count_cache(self):
@@ -660,240 +631,6 @@ class ProjectTestCase(TestCase):
             job.save()
             _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
             load_truth_mock.assert_not_called()
-
-
-    def test_query_forecasts_for_project(self):
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        model = forecast_model.abbreviation
-        tz = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        timezero_to_season_name = project.timezero_to_season_name()
-        seas = timezero_to_season_name[time_zero]
-
-        # ---- case: all BinDistributions in project. check cat and prob columns ----
-        rows = query_forecasts_for_project(project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-
-        exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
-                        (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-22', 0.1),
-                        (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-29', 0.89),
-                        (model, tz, seas, 'location1', 'season severity', 'bin', 'moderate', 0.1),
-                        (model, tz, seas, 'location1', 'season severity', 'bin', 'severe', 0.9),
-                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-15', 0.01),
-                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-22', 0.05),
-                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-29', 0.05),
-                        (model, tz, seas, 'location2', 'Season peak week', 'bin', '2020-01-05', 0.89),
-                        (model, tz, seas, 'location2', 'above baseline', 'bin', False, 0.1),
-                        (model, tz, seas, 'location2', 'above baseline', 'bin', True, 0.9),
-                        (model, tz, seas, 'location2', 'pct next week', 'bin', 1.1, 0.3),
-                        (model, tz, seas, 'location2', 'pct next week', 'bin', 2.2, 0.2),
-                        (model, tz, seas, 'location2', 'pct next week', 'bin', 3.3, 0.5),
-                        (model, tz, seas, 'location3', 'cases next week', 'bin', 2, 0.1),
-                        (model, tz, seas, 'location3', 'cases next week', 'bin', 50, 0.9)]  # sorted
-        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
-        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[7], row[8]) for row in rows]
-        self.assertEqual(exp_rows_bin, sorted(act_rows))
-
-        # ----  case: all NamedDistributions in project. check family, and param1, 2, and 3 columns ----
-        rows = query_forecasts_for_project(project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-
-        exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.POIS_DIST], 1.1, None,
-                           None),
-                          (model, tz, seas, 'location1', 'pct next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.NORM_DIST], 1.1, 2.2, None)
-                          ]  # sorted
-        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
-        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[11], row[12], row[13], row[14])
-                    for row in rows]
-        self.assertEqual(exp_rows_named, sorted(act_rows))
-
-        # ---- case: all PointPredictions in project. check value column ----
-        rows = query_forecasts_for_project(project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-
-        exp_rows_point = [
-            (model, tz, seas, 'location1', 'Season peak week', 'point', '2019-12-22'),
-            (model, tz, seas, 'location1', 'above baseline', 'point', True),
-            (model, tz, seas, 'location1', 'pct next week', 'point', 2.1),
-            (model, tz, seas, 'location1', 'season severity', 'point', 'mild'),
-            (model, tz, seas, 'location2', 'Season peak week', 'point', '2020-01-05'),
-            (model, tz, seas, 'location2', 'cases next week', 'point', 5),
-            (model, tz, seas, 'location2', 'pct next week', 'point', 2.0),
-            (model, tz, seas, 'location2', 'season severity', 'point', 'moderate'),
-            (model, tz, seas, 'location3', 'Season peak week', 'point', '2019-12-29'),
-            (model, tz, seas, 'location3', 'cases next week', 'point', 10),
-            (model, tz, seas, 'location3', 'pct next week', 'point', 3.567)]  # sorted
-        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
-        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
-        self.assertEqual(exp_rows_point, sorted(act_rows))
-
-        # ---- case: all SampleDistributions in project. check sample column ----
-        rows = query_forecasts_for_project(project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-
-        exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
-                           (model, tz, seas, 'location1', 'Season peak week', 'sample', '2020-01-05'),
-                           (model, tz, seas, 'location2', 'above baseline', 'sample', False),
-                           (model, tz, seas, 'location2', 'above baseline', 'sample', True),
-                           (model, tz, seas, 'location2', 'above baseline', 'sample', True),
-                           (model, tz, seas, 'location2', 'cases next week', 'sample', 0),
-                           (model, tz, seas, 'location2', 'cases next week', 'sample', 2),
-                           (model, tz, seas, 'location2', 'cases next week', 'sample', 5),
-                           (model, tz, seas, 'location2', 'season severity', 'sample', 'high'),
-                           (model, tz, seas, 'location2', 'season severity', 'sample', 'mild'),
-                           (model, tz, seas, 'location2', 'season severity', 'sample', 'moderate'),
-                           (model, tz, seas, 'location2', 'season severity', 'sample', 'moderate'),
-                           (model, tz, seas, 'location2', 'season severity', 'sample', 'severe'),
-                           (model, tz, seas, 'location3', 'Season peak week', 'sample', '2019-12-16'),
-                           (model, tz, seas, 'location3', 'Season peak week', 'sample', '2020-01-06'),
-                           (model, tz, seas, 'location3', 'above baseline', 'sample', False),
-                           (model, tz, seas, 'location3', 'above baseline', 'sample', True),
-                           (model, tz, seas, 'location3', 'above baseline', 'sample', True),
-                           (model, tz, seas, 'location3', 'pct next week', 'sample', 0.0),
-                           (model, tz, seas, 'location3', 'pct next week', 'sample', 0.0001),
-                           (model, tz, seas, 'location3', 'pct next week', 'sample', 2.3),
-                           (model, tz, seas, 'location3', 'pct next week', 'sample', 6.5),
-                           (model, tz, seas, 'location3', 'pct next week', 'sample', 10.0234)]  # sorted
-        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
-        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[9]) for row in rows]
-        self.assertEqual(exp_rows_sample, sorted(act_rows))
-
-        # ---- case: all QuantileDistributions in project. check quantile and value columns ----
-        rows = query_forecasts_for_project(project,
-                                           {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-
-        exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
-                             (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.75, '2019-12-29'),
-                             (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.975, '2020-01-05'),
-                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.025, 1.0),
-                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.25, 2.2),
-                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.5, 2.2),
-                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.75, 5.0),
-                             (model, tz, seas, 'location2', 'pct next week', 'quantile', 0.975, 50.0),
-                             (model, tz, seas, 'location3', 'cases next week', 'quantile', 0.25, 0),
-                             (model, tz, seas, 'location3', 'cases next week', 'quantile', 0.75, 50)]  # sorted
-        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
-        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[10], row[6]) for row in rows]
-        self.assertEqual(exp_rows_quantile, sorted(act_rows))
-
-        # ---- case: empty query -> all forecasts in project ----
-        rows = query_forecasts_for_project(project, {})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
-                         len(rows))
-
-        # ---- case: only one unit ----
-        rows = query_forecasts_for_project(project, {'units': [project.units.filter(name='location3').first().pk]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-        self.assertEqual(17, len(rows))
-
-        # ---- case: only one target ----
-        rows = query_forecasts_for_project(project,
-                                           {'targets': [project.targets.filter(name='above baseline').first().pk]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-        self.assertEqual(9, len(rows))
-
-        # following two tests require a second model, timezero, and forecast
-        forecast_model2 = ForecastModel.objects.create(project=project, name=model, abbreviation='abbrev')
-        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 22))
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
-                                            time_zero=time_zero2, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
-            json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
-
-        # ---- case: empty query -> all forecasts in project. s/be twice as many now ----
-        rows = query_forecasts_for_project(project, {})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2,
-                         len(rows))
-
-        # ---- case: only one timezero ----
-        rows = query_forecasts_for_project(project, {'timezeros': [time_zero2.pk]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
-                         len(rows))
-
-        # ---- case: only one model ----
-        rows = query_forecasts_for_project(project, {'models': [forecast_model2.pk]})
-        self.assertEqual(CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
-                         len(rows))
-
-
-    def test_query_forecasts_for_project_max_num_rows(self):
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, _, _, _ = _make_docs_project(po_user)
-        rows = query_forecasts_for_project(project, {})
-        self.assertEqual(63, len(rows))  # all forecasts in project, plus header
-
-        try:
-            query_forecasts_for_project(project, {}, max_num_rows=62)
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
-
-        with self.assertRaises(RuntimeError) as context:
-            query_forecasts_for_project(project, {}, max_num_rows=10)
-        self.assertIn("number of rows exceeded maximum", str(context.exception))
-
-
-    def test_validate_forecasts_query(self):
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-
-        # case: query not a dict
-        error_messages, _ = validate_forecasts_query(project, -1)
-        self.assertEqual(1, len(error_messages))
-        self.assertIn("query was not a dict", error_messages[0])
-
-        # case: query contains invalid keys
-        error_messages, _ = validate_forecasts_query(project, {'foo': -1})
-        self.assertEqual(1, len(error_messages))
-        self.assertIn("one or more query keys was invalid", error_messages[0])
-
-        # case: query keys are not correct type (lists)
-        for key_name in ['models', 'units', 'targets', 'timezeros']:
-            error_messages, _ = validate_forecasts_query(project, {key_name: -1})
-            self.assertEqual(1, len(error_messages))
-            self.assertIn(f"'{key_name}' was not a list", error_messages[0])
-
-        # case: bad object id
-        for key_name in ['models', 'units', 'targets', 'timezeros']:
-            error_messages, _ = validate_forecasts_query(project, {key_name: [-1]})
-            self.assertEqual(1, len(error_messages))
-            self.assertIn("contained ID(s) of objects that don't exist", error_messages[0])
-
-        # case: bad type
-        error_messages, _ = validate_forecasts_query(project, {'types': ['bad type']})
-        self.assertEqual(1, len(error_messages))
-        self.assertIn("one or more types were invalid prediction types", error_messages[0])
-
-        # case: ids from other project (!)
-        project2, time_zero2, forecast_model2, forecast2 = _make_docs_project(po_user)
-        for query_dict in [{'models': list(project2.models.all().values_list('id', flat=True))},
-                           {'units': list(project2.units.all().values_list('id', flat=True))},
-                           {'targets': list(project2.targets.all().values_list('id', flat=True))},
-                           {'timezeros': list(project2.timezeros.all().values_list('id', flat=True))}]:
-            query_key = list(query_dict.keys())[0]
-            error_messages, _ = validate_forecasts_query(project, query_dict)
-            self.assertEqual(1, len(error_messages))
-            self.assertIn(f"`{query_key}` contained ID(s) of objects that don't exist in project", error_messages[0])
-
-        # case: blue sky
-        query = {'models': list(project.models.all().values_list('id', flat=True)),
-                 'units': list(project.units.all().values_list('id', flat=True)),
-                 'targets': list(project.targets.all().values_list('id', flat=True)),
-                 'timezeros': list(project.timezeros.all().values_list('id', flat=True)),
-                 'types': list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}
-        error_messages, _ = validate_forecasts_query(project, query)
-        self.assertEqual(0, len(error_messages))
 
 
     def test_last_update(self):

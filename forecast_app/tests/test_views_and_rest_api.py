@@ -12,14 +12,13 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient, APIRequestFactory
 
-from forecast_app.api_views import _query_forecasts_worker, \
-    csv_response_for_cached_project_score_data
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
+from utils.project_queries import _forecasts_query_worker, _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 
@@ -167,8 +166,6 @@ class ViewsTestCase(TestCase):
             (reverse('zadmin'), self.ONLY_SU_200),
             (reverse('clear-row-count-caches'), self.ONLY_SU_302),
             (reverse('update-row-count-caches'), self.ONLY_SU_302),
-            (reverse('clear-score-csv-file-caches'), self.ONLY_SU_302),
-            (reverse('update-score-csv-file-caches'), self.ONLY_SU_302),
             (reverse('update-all-scores'), self.ONLY_SU_302),
             (reverse('delete-file-jobs'), self.ONLY_SU_302),
             (reverse('clear-all-scores'), self.ONLY_SU_302),
@@ -186,19 +183,6 @@ class ViewsTestCase(TestCase):
             (reverse('project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-score-data', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-score-data', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            # scores are special b/c `views.download_project_scores()` returns 404 if no csv file cache, not 200:
-            (reverse('download-project-scores', args=[str(self.public_project.pk)]),
-             [(None, status.HTTP_404_NOT_FOUND),
-              (self.po_user, status.HTTP_404_NOT_FOUND),
-              (self.mo_user, status.HTTP_404_NOT_FOUND),
-              (self.superuser, status.HTTP_404_NOT_FOUND),
-              (self.non_staff_user, status.HTTP_404_NOT_FOUND)]),
-            (reverse('download-project-scores', args=[str(self.private_project.pk)]),
-             [(None, status.HTTP_403_FORBIDDEN),
-              (self.po_user, status.HTTP_404_NOT_FOUND),
-              (self.mo_user, status.HTTP_404_NOT_FOUND),
-              (self.superuser, status.HTTP_404_NOT_FOUND),
-              (self.non_staff_user, status.HTTP_403_FORBIDDEN)]),
             (reverse('project-config', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-config', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('create-project-from-form', args=[]), self.ONLY_PO_MO),
@@ -240,19 +224,17 @@ class ViewsTestCase(TestCase):
 
         # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
         # the correct query params. however, 400 does indicate that the code passed the authorization portion
-        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.delete_score_csv_file_cache'), \
-             patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
-            for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
-                for user, exp_status_code in user_exp_status_code_list:
-                    self.client.logout()  # AnonymousUser
-                    if user:
-                        password = self.po_user_password if user == self.po_user \
-                            else self.mo_user_password if user == self.mo_user \
-                            else self.non_staff_user_password if user == self.non_staff_user \
-                            else self.superuser_password
-                        self.client.login(username=user.username, password=password)
-                    response = self.client.get(url, data={'unit': '', 'target': ''})
-                    self.assertEqual(exp_status_code, response.status_code)
+        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
+            for user, exp_status_code in user_exp_status_code_list:
+                self.client.logout()  # AnonymousUser
+                if user:
+                    password = self.po_user_password if user == self.po_user \
+                        else self.mo_user_password if user == self.mo_user \
+                        else self.non_staff_user_password if user == self.non_staff_user \
+                        else self.superuser_password
+                    self.client.login(username=user.username, password=password)
+                response = self.client.get(url, data={'unit': '', 'target': ''})
+                self.assertEqual(exp_status_code, response.status_code)
 
 
     def test_projects_list_limited_visibility(self):
@@ -505,18 +487,6 @@ class ViewsTestCase(TestCase):
         self.assertEqual(11, len(response_dict['meta']['units']))
 
 
-    def test_csv_response_for_cached_project_score_data_error(self):
-        # test the case when `download_file()` gives an error
-        with patch('utils.cloud_file.download_file') as download_file_mock:
-            download_file_mock.side_effect = BotoCoreError()  # alt: Boto3Error, ClientError, ConnectionClosedError
-            response = csv_response_for_cached_project_score_data(self.public_project)
-            self.assertIsNone(response)
-
-            download_file_mock.side_effect = Exception()
-            response = csv_response_for_cached_project_score_data(self.public_project)
-            self.assertIsNone(response)
-
-
     # https://stackoverflow.com/questions/47576635/django-rest-framework-jwt-unit-test
     def test_api_jwt_auth(self):
         # recall from base.py: ROOT_URLCONF = 'forecast_repo.urls'
@@ -558,19 +528,6 @@ class ViewsTestCase(TestCase):
             (reverse('api-truth-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
             (reverse('api-truth-data-download', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-truth-data-download', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            # scores are special b/c `api_views.download_score_data()` returns 404 if no csv file cache, not 200:
-            (reverse('api-score-data-download', args=[self.public_project.pk]),
-             [(None, status.HTTP_403_FORBIDDEN),
-              (self.po_user, status.HTTP_404_NOT_FOUND),
-              (self.mo_user, status.HTTP_404_NOT_FOUND),
-              (self.superuser, status.HTTP_404_NOT_FOUND),
-              (self.non_staff_user, status.HTTP_404_NOT_FOUND)]),
-            (reverse('api-score-data-download', args=[self.private_project.pk]),
-             [(None, status.HTTP_403_FORBIDDEN),
-              (self.po_user, status.HTTP_404_NOT_FOUND),
-              (self.mo_user, status.HTTP_404_NOT_FOUND),
-              (self.superuser, status.HTTP_404_NOT_FOUND),
-              (self.non_staff_user, status.HTTP_403_FORBIDDEN)]),
             (reverse('api-user-detail', args=[self.po_user.pk]), self.ONLY_PO),
             (reverse('api-job-detail', args=[self.job.pk]), self.ONLY_PO),
             (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO_STAFF),
@@ -587,20 +544,19 @@ class ViewsTestCase(TestCase):
             (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF),
             (reverse('api-forecast-data', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
         ]
-        with patch('forecast_app.models.score_csv_file_cache.ScoreCsvFileCache.is_file_exists', return_value=False):
-            for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
-                for user, exp_status_code in user_exp_status_code_list:
-                    # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
-                    # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
-                    self.client.logout()  # AnonymousUser
-                    if user:
-                        password = self.po_user_password if user == self.po_user \
-                            else self.mo_user_password if user == self.mo_user \
-                            else self.non_staff_user_password if user == self.non_staff_user \
-                            else self.superuser_password
-                        self._authenticate_jwt_user(user, password)
-                    response = self.client.get(url)
-                    self.assertEqual(exp_status_code, response.status_code)
+        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
+            for user, exp_status_code in user_exp_status_code_list:
+                # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
+                # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
+                self.client.logout()  # AnonymousUser
+                if user:
+                    password = self.po_user_password if user == self.po_user \
+                        else self.mo_user_password if user == self.mo_user \
+                        else self.non_staff_user_password if user == self.non_staff_user \
+                        else self.superuser_password
+                    self._authenticate_jwt_user(user, password)
+                response = self.client.get(url)
+                self.assertEqual(exp_status_code, response.status_code)
 
 
     def test_api_get_project_list_authorization(self):
@@ -653,8 +609,8 @@ class ViewsTestCase(TestCase):
 
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         self.assertEqual(['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
-                          'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
-                          'models', 'units', 'targets', 'timezeros'],
+                          'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'models', 'units',
+                          'targets', 'timezeros'],
                          list(response.data))
 
         response = self.client.get(reverse('api-unit-list', args=[self.public_project.pk]), format='json')
@@ -858,11 +814,11 @@ class ViewsTestCase(TestCase):
         # enqueues a _delete_forecast_worker() call (to simple to fail)
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
         private_forecast2_pk = private_forecast2.pk
-        with patch('rq.queue.Queue.enqueue') as mock:
+        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             json_response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
             response_json = json_response.json()  # JobSerializer
-            mock.assert_called_once()
-            self.assertEqual('_delete_forecast_worker', mock.call_args[0][0].__name__)
+            enqueue_mock.assert_called_once()
+            self.assertEqual('_delete_forecast_worker', enqueue_mock.call_args[0][0].__name__)
 
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
             self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message',
@@ -875,9 +831,9 @@ class ViewsTestCase(TestCase):
         job = Job.objects.create(user=self.mo_user)  # status = PENDING
         job.input_json = {'forecast_pk': private_forecast3.pk}
         job.save()
-        with patch('django.db.models.Model.delete') as mock:
+        with patch('django.db.models.Model.delete') as enqueue_mock:
             _delete_forecast_worker(job.pk)
-            mock.assert_called_once()
+            enqueue_mock.assert_called_once()
 
             job.refresh_from_db()
             self.assertEqual(Job.SUCCESS, job.status)
@@ -909,8 +865,8 @@ class ViewsTestCase(TestCase):
         # spot-check response
         response_json = json_response.json()
         self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
-                          'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
-                          'models', 'units', 'targets', 'timezeros'},
+                          'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'models', 'units',
+                          'targets', 'timezeros'},
                          set(response_json.keys()))
         self.assertEqual('CDC Flu challenge', response_json['name'])
 
@@ -1351,22 +1307,22 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
         self.assertEqual({'error': "No 'query' form field."}, response.json())
 
-        # ensure `validate_forecasts_query()` is called. the actual validate is tested in test_project.py
-        with patch('utils.project.validate_forecasts_query', return_value=([], None)) as mock:
+        # ensure `validate_forecasts_query()` is called. the actual validate is tested in test_project_queries.py
+        with patch('utils.project_queries.validate_forecasts_query', return_value=([], None)) as validate_mock:
             self.client.post(forecast_queries_url, {
                 'Authorization': f'JWT {jwt_token}',
                 'query': {'hi': 1},
             }, format='json')
-            mock.assert_called_once_with(self.public_project, {'hi': 1})
+            validate_mock.assert_called_once_with(self.public_project, {'hi': 1})
 
-        # case: blue sky: test that POST enqueues and returns a Job
+        # case: blue sky: test that POST enqueues _forecasts_query_worker and returns a Job
         enqueue_mock.reset_mock()
         json_response = self.client.post(forecast_queries_url, {
             'Authorization': f'JWT {jwt_token}',
             'query': {},
         }, format='json')
         response_json = json_response.json()  # JobSerializer
-        self.assertEqual(1, enqueue_mock.call_count)
+        enqueue_mock.assert_called_once_with(_forecasts_query_worker, response_json['id'])  # job.pk
 
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
         self.assertEqual(Job.QUEUED, response_json['status'])
@@ -1379,34 +1335,52 @@ class ViewsTestCase(TestCase):
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
 
-    def test__query_forecasts_worker(self):
-        # tests the worker directly. above test verifies that it's called from `query_forecasts_endpoint()`
+    @patch('rq.queue.Queue.enqueue')
+    def test_api_scores_queries(self, enqueue_mock):
+        """
+        Nearly identical to test_api_forecast_queries().
+        """
+        scores_queries_url = reverse('api-scores-queries', args=[str(self.public_project.pk)])
+        jwt_token = self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
 
-        # case: upload_file() does not error
-        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.public_project.pk, 'query': {}})
-        with patch('utils.cloud_file.upload_file') as mock:
-            _query_forecasts_worker(job.pk)
-            mock.assert_called_once()
+        # test that GET is not accepted
+        response = self.client.get(scores_queries_url)
+        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
 
-            job.refresh_from_db()
-            self.assertEqual(Job.SUCCESS, job.status)
+        # case: no 'query'
+        response = self.client.post(scores_queries_url, {
+            'Authorization': f'JWT {jwt_token}',
+            # 'query': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual({'error': "No 'query' form field."}, response.json())
 
-        # case: upload_file() errors. BotoCoreError: alt: Boto3Error, ClientError, ConnectionClosedError:
-        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.public_project.pk, 'query': {}})
-        with patch('utils.cloud_file.upload_file', side_effect=BotoCoreError()) as mock, \
-                patch('forecast_app.notifications.send_notification_email'):
-            _query_forecasts_worker(job.pk)
-            mock.assert_called_once()
+        # ensure `validate_scores_query()` is called. the actual validate is tested in test_project_queries.py
+        with patch('utils.project_queries.validate_scores_query', return_value=([], None)) as validate_mock:
+            self.client.post(scores_queries_url, {
+                'Authorization': f'JWT {jwt_token}',
+                'query': {'hi': 1},
+            }, format='json')
+            validate_mock.assert_called_once_with(self.public_project, {'hi': 1})
 
-            job.refresh_from_db()
-            self.assertEqual(Job.FAILED, job.status)
-            self.assertIn("_query_forecasts_worker(): AWS error", job.failure_message)
+        # case: blue sky: test that POST enqueues _scores_query_worker and returns a Job
+        enqueue_mock.reset_mock()
+        json_response = self.client.post(scores_queries_url, {
+            'Authorization': f'JWT {jwt_token}',
+            'query': {},
+        }, format='json')
+        response_json = json_response.json()  # JobSerializer
+        enqueue_mock.assert_called_once_with(_scores_query_worker, response_json['id'])  # job.pk
 
-        # case: allow actual utils.cloud_file.upload_file(), which calls Bucket.put_object(). we don't actually do this
-        # in this test b/c we don't want to hit S3, but it's commented here for debugging:
-        # _query_forecasts_worker(job.pk)
-        # job.refresh_from_db()
-        # self.assertEqual(Job.SUCCESS, job.status)
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertEqual(Job.QUEUED, response_json['status'])
+
+        # case: unauthenticated user (authenticated tested above)
+        self.client.logout()  # AnonymousUser
+        json_response = self.client.post(scores_queries_url, {
+            'query': {},
+        }, format='json')
+        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
 
     def test_api_job_data_download(self):

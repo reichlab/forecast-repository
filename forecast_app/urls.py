@@ -16,8 +16,6 @@ urlpatterns = [
     url(r'^zadmin/model_score_changes$', views.zadmin_model_score_changes, name='zadmin-model-score-changes'),
     url(r'^clear_row_count_caches$', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches$', views.update_row_count_caches, name='update-row-count-caches'),
-    url(r'^clear_score_csv_file_caches$', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
-    url(r'^update_score_csv_file_caches$', views.update_score_csv_file_caches, name='update-score-csv-file-caches'),
     url(r'^delete_jobs/$', views.delete_jobs, name='delete-file-jobs'),
 
     url(r'^update_all_scores$', views.update_all_scores, {'is_only_changed': False},
@@ -36,8 +34,6 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/explorer', views.project_explorer, name='project-explorer'),
     url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
     url(r'^project/(?P<project_pk>\d+)/score_data$', views.project_score_data, name='project-score-data'),
-    url(r'^project/(?P<project_pk>\d+)/download_score_data$', views.download_project_scores,
-        name='download-project-scores'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),

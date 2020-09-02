@@ -107,13 +107,6 @@ class Score(models.Model):
         score_last_update.save()  # triggers last_update's auto_now
 
 
-    def csv_column_name(self):
-        """
-        :return: the column name to use in the header when outputting CSV data. uses my abbreviation
-        """
-        return self.abbreviation
-
-
     #
     # calculation helper methods
     #
