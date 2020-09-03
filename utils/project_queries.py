@@ -12,7 +12,7 @@ from rest_framework.generics import get_object_or_404
 from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution, Forecast, ForecastModel, Unit, TimeZero, Target, Job, Project, Score, ScoreValue
+    QuantileDistribution, Forecast, Job, Project, Score, ScoreValue
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.project import logger
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
@@ -22,29 +22,33 @@ from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 # query_forecasts_for_project()
 #
 
-CSV_HEADER = ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
-              'family', 'param1', 'param2', 'param3']
+FORECAST_CSV_HEADER = ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample',
+                       'quantile', 'family', 'param1', 'param2', 'param3']
 
 
 def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     """
     Top-level function for querying forecasts within project. Runs in the calling thread and therefore blocks.
 
-    Returns a list of rows in a Zoltar-specific CSV row format. The columns are defined in CSV_HEADER. Note that the
-    csv is 'sparse': not every row uses all columns, and unused ones are empty (''). However, the first four columns
-    are always non-empty, i.e., every prediction has them.
+    Returns a list of rows in a Zoltar-specific CSV row format. The columns are defined in FORECAST_CSV_HEADER. Note
+    that the csv is 'sparse': not every row uses all columns, and unused ones are empty (''). However, the first four
+    columns are always non-empty, i.e., every prediction has them.
 
     The 'class' of each row is named to be the same as Zoltar's utils.forecast.PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
-    variable. Column ordering is CSV_HEADER.
+    variable. Column ordering is FORECAST_CSV_HEADER.
 
-    `query` is documented at https://docs.zoltardata.com/, but briefly it is a dict that contains up to five keys. The
-    first four are object IDs corresponding to each one's class, and the last is a list of strings:
+    `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to five keys, each
+    of which is a list of strings:
 
-    - 'models': optional list of ForecastModel IDs
-    - 'units': "" Unit IDs
-    - 'targets': "" Target IDs
-    - 'timezeros': "" TimeZero IDs
-    - 'types': optional list of str types as defined in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS keys
+    - 'models': optional list of ForecastModel.abbreviation strings
+    - 'units': "" Unit.name strings
+    - 'targets': "" Target.name strings
+    - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
+    - 'types': optional list of type strings as defined in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values()
+
+    Note that _strings_ are passed to refer to server objects, not database IDs, which means validation will fail if the
+    referred-to objects are not found. Also, if multiple ones are found with the same name, the program will arbitrarily
+    choose one.
 
     :param project: a Project
     :param query: a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation, and above
@@ -129,7 +133,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
         raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
 
     # output rows for each Prediction subclass
-    yield CSV_HEADER
+    yield FORECAST_CSV_HEADER
 
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
@@ -242,7 +246,7 @@ def validate_forecasts_query(project, query):
     # validate query type
     if not isinstance(query, dict):
         error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
 
     # validate keys
     actual_keys = set(query.keys())
@@ -251,37 +255,10 @@ def validate_forecasts_query(project, query):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
 
-    # validate keys are correct type (lists), and validate object IDs
-    if 'models' in query:
-        model_ids = query['models']
-        if not isinstance(model_ids, list):
-            error_messages.append(f"'models' was not a list. models={model_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
-
-        error_messages.extend(_validate_object_ids('models', model_ids, project, ForecastModel))
-    if 'units' in query:
-        unit_ids = query['units']
-        if not isinstance(unit_ids, list):
-            error_messages.append(f"'units' was not a list. units={unit_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
-
-        error_messages.extend(_validate_object_ids('units', unit_ids, project, Unit))
-    if 'timezeros' in query:
-        timezero_ids = query['timezeros']
-        if not isinstance(timezero_ids, list):
-            error_messages.append(f"'timezeros' was not a list. timezeros={timezero_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
-
-        error_messages.extend(_validate_object_ids('timezeros', timezero_ids, project, TimeZero))
-    if 'targets' in query:
-        target_ids = query['targets']
-        if not isinstance(target_ids, list):
-            error_messages.append(f"'targets' was not a list. targets={target_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
-
-        error_messages.extend(_validate_object_ids('targets', target_ids, project, Target))
+    # validate object IDs that strings refer to
+    error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
 
     # validate Prediction types
     if 'types' in query:
@@ -290,25 +267,93 @@ def validate_forecasts_query(project, query):
             error_messages.append(f"one or more types were invalid prediction types. types={types}, query={query}")
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
-    # valid!
+    # done (may or may not be valid)
     return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
 
-def _validate_object_ids(query_key, object_ids, project, model_class):
+#
+# _validate_query_ids()
+#
+
+def _validate_query_ids(project, query):
     """
-    Helper function that validates a list of object ideas of type `model_class`. Returns error_messages.
+    A validate_forecasts_query() and query_scores_for_project() helper that validates the four of the five query keys
+    that are strings referring to server object IDs.
+
+    :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids))
     """
-    error_messages = []  # return value. filled next
-    if not all(map(lambda _: isinstance(_, int), object_ids)):
-        error_messages.append(f"`{query_key}` contained non-int value(s): {object_ids!r}")
-    else:
-        is_exist_ids = [model_class.objects.filter(project_id=project.pk, pk=model_id).exists()
-                        for model_id in object_ids]
-        if not all(is_exist_ids):
-            missing_ids = [model_id for is_exist_id, model_id in zip(is_exist_ids, object_ids) if is_exist_id]
-            error_messages.append(f"`{query_key}` contained ID(s) of objects that don't exist in project: "
-                                  f"{missing_ids}")
-    return error_messages
+    # return value. filled next
+    error_messages, model_ids, unit_ids, target_ids, timezero_ids = [], [], [], [], []
+
+    # validate keys are correct type (lists), and validate object strings (must have corresponding IDs)
+    if 'models' in query:
+        model_abbrevs = query['models']
+        if not isinstance(model_abbrevs, list):
+            error_messages.append(f"'models' was not a list. models={model_abbrevs}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+
+        # look up ForecastModel IDs corresponding to abbreviations. recall that abbreviations are enforced to be unique
+        # within a project
+        model_abbrev_to_id = {model.abbreviation: model.id for model in project.models.all()}
+        for model_abbrev in model_abbrevs:
+            if model_abbrev not in model_abbrev_to_id:
+                error_messages.append(f"model with abbreviation not found. abbreviation={model_abbrev}, "
+                                      f"valid abbreviations={list(model_abbrev_to_id.keys())}, query={query}")
+            else:
+                model_ids.append(model_abbrev_to_id[model_abbrev])
+
+    if 'units' in query:
+        unit_names = query['units']
+        if not isinstance(unit_names, list):
+            error_messages.append(f"'units' was not a list. units={unit_names}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+
+        # look up Unit IDs corresponding to names. note that unit names are NOT currently enforced to be unique.
+        # HOWEVER we do not check for multiple ones here b/c we anticipate enforcement will be added soon. thus we pick
+        # an arbitrary one if there are duplicates
+        unit_name_to_id = {unit.name: unit.id for unit in project.units.all()}
+        for unit_name in unit_names:
+            if unit_name not in unit_name_to_id:
+                error_messages.append(f"unit with name not found. name={unit_name}, "
+                                      f"valid names={list(unit_name_to_id.keys())}, query={query}")
+            else:
+                unit_ids.append(unit_name_to_id[unit_name])
+
+    if 'timezeros' in query:
+        timezero_dates = query['timezeros']
+        if not isinstance(timezero_dates, list):
+            error_messages.append(f"'timezeros' was not a list. timezeros={timezero_dates}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+
+        # look up TimeZero IDs corresponding to timezero_dates. recall that timezero_dates are enforced to be unique
+        # within a project
+        timezero_date_to_id = {timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT): timezero.id
+                               for timezero in project.timezeros.all()}
+        for timezero_date in timezero_dates:
+            if timezero_date not in timezero_date_to_id:
+                error_messages.append(f"timezero with date not found. timezero_date={timezero_date}, "
+                                      f"valid dates={list(timezero_date_to_id.keys())}, query={query}")
+            else:
+                timezero_ids.append(timezero_date_to_id[timezero_date])
+
+    if 'targets' in query:
+        target_names = query['targets']
+        if not isinstance(target_names, list):
+            error_messages.append(f"'targets' was not a list. targets={target_names}, query={query}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+
+        # look up Target IDs corresponding to names. like Units, Target names are NOT currently enforced to be unique,
+        # and are handled as above with Units
+        target_name_to_id = {target.name: target.id for target in project.targets.all()}
+        for target_name in target_names:
+            if target_name not in target_name_to_id:
+                error_messages.append(f"target with name not found. name={target_name}, "
+                                      f"valid names={list(target_name_to_id.keys())}, query={query}")
+            else:
+                target_ids.append(target_name_to_id[target_name])
+
+    # done
+    return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
 
 
 #
@@ -408,8 +453,8 @@ def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     """
     Top-level function for querying scores within project. Runs in the calling thread and therefore blocks.
 
-There is one column per ScoreValue BUT: all Scores
-    are on one line. Thus, the row 'key' is the (fixed) first five columns:
+    There is one column per ScoreValue BUT: all Scores are on one line. Thus, the row 'key' is the (fixed) first five
+    columns:
 
         `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Unit.name, Target.name`
 
@@ -429,13 +474,13 @@ There is one column per ScoreValue BUT: all Scores
         gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
         gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
 
-    `query` is documented at https://docs.zoltardata.com/, but briefly it is a dict that contains up to five keys. The
-    first four are object IDs corresponding to each one's class, and the last is a list of strings:
+    `query` is documented at https://docs.zoltardata.com/, but briefly, like query_forecasts_for_project(), it is a dict
+    that contains up to five keys, each of which is a list of strings::
 
-    - 'models': optional list of ForecastModel IDs
-    - 'units': "" Unit IDs
-    - 'targets': "" Target IDs
-    - 'timezeros': "" TimeZero IDs
+    - 'models': optional list of ForecastModel.abbreviation strings
+    - 'units': "" Unit.name strings
+    - 'targets': "" Target.name strings
+    - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
     - 'scores': optional list of score abbreviations as defined in SCORE_ABBREV_TO_NAME_AND_DESCR keys
 
     Notes:
@@ -590,7 +635,7 @@ def validate_scores_query(project, query):
     # validate query type
     if not isinstance(query, dict):
         error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
 
     # validate keys
     actual_keys = set(query.keys())
@@ -599,37 +644,10 @@ def validate_scores_query(project, query):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
 
-    # validate keys are correct type (lists), and validate object IDs
-    if 'models' in query:
-        model_ids = query['models']
-        if not isinstance(model_ids, list):
-            error_messages.append(f"'models' was not a list. models={model_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-        error_messages.extend(_validate_object_ids('models', model_ids, project, ForecastModel))
-    if 'units' in query:
-        unit_ids = query['units']
-        if not isinstance(unit_ids, list):
-            error_messages.append(f"'units' was not a list. units={unit_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-        error_messages.extend(_validate_object_ids('units', unit_ids, project, Unit))
-    if 'timezeros' in query:
-        timezero_ids = query['timezeros']
-        if not isinstance(timezero_ids, list):
-            error_messages.append(f"'timezeros' was not a list. timezeros={timezero_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-        error_messages.extend(_validate_object_ids('timezeros', timezero_ids, project, TimeZero))
-    if 'targets' in query:
-        target_ids = query['targets']
-        if not isinstance(target_ids, list):
-            error_messages.append(f"'targets' was not a list. targets={target_ids}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-        error_messages.extend(_validate_object_ids('targets', target_ids, project, Target))
+    # validate object IDs that strings refer to
+    error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
 
     # validate score abbreviations
     if 'scores' in query:
@@ -638,7 +656,7 @@ def validate_scores_query(project, query):
             error_messages.append(f"one or more scores were invalid abbreviations. scores={scores}, query={query}")
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
 
-    # valid!
+    # done (may or may not be valid)
     return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
 
 

@@ -1,5 +1,4 @@
 import datetime
-import datetime
 import json
 import logging
 from pathlib import Path
@@ -17,7 +16,7 @@ from utils.cdc_io import make_cdc_units_and_targets, load_cdc_csv_forecast_file
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import load_truth_data
-from utils.project_queries import CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
+from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_scores_query, _scores_query_worker, _tz_unit_targ_pks_to_truth_values, query_scores_for_project, \
     SCORE_CSV_HEADER_PREFIX
 from utils.project_queries import validate_forecasts_query
@@ -59,27 +58,31 @@ class ProjectQueriesTestCase(TestCase):
             self.assertEqual(1, len(error_messages))
             self.assertIn(f"'{key_name}' was not a list", error_messages[0])
 
-        # case: bad object id
-        for key_name in ['models', 'units', 'targets', 'timezeros']:
+        # case: bad object reference
+        for key_name, exp_error_msg in [('models', 'model with abbreviation not found'),
+                                        ('units', 'unit with name not found'),
+                                        ('targets', 'target with name not found'),
+                                        ('timezeros', 'timezero with date not found')]:
             error_messages, _ = validate_forecasts_query(self.project, {key_name: [-1]})
             self.assertEqual(1, len(error_messages))
-            self.assertIn("contained ID(s) of objects that don't exist", error_messages[0])
+            self.assertIn(exp_error_msg, error_messages[0])
 
         # case: bad type
         error_messages, _ = validate_forecasts_query(self.project, {'types': ['bad type']})
         self.assertEqual(1, len(error_messages))
         self.assertIn("one or more types were invalid prediction types", error_messages[0])
 
-        # case: ids from other project (!)
+        # case: object references from other project (!)
         project2, time_zero2, forecast_model2, forecast2 = _make_docs_project(self.po_user)
-        for query_dict in [{'models': list(project2.models.all().values_list('id', flat=True))},
-                           {'units': list(project2.units.all().values_list('id', flat=True))},
-                           {'targets': list(project2.targets.all().values_list('id', flat=True))},
-                           {'timezeros': list(project2.timezeros.all().values_list('id', flat=True))}]:
-            query_key = list(query_dict.keys())[0]
+        for query_dict, exp_error_msg in [
+            ({'models': [project2.models.first().abbreviation]}, 'model with abbreviation not found'),
+            ({'units': [project2.units.first().name]}, 'unit with name not found'),
+            ({'targets': [project2.targets.first().name]}, 'target with name not found'),
+            ({'timezeros': [project2.timezeros.first().timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]},
+             'timezero with date not found')]:
             error_messages, _ = validate_forecasts_query(self.project, query_dict)
             self.assertEqual(1, len(error_messages))
-            self.assertIn(f"`{query_key}` contained ID(s) of objects that don't exist in project", error_messages[0])
+            self.assertIn(exp_error_msg, error_messages[0])
 
         # case: blue sky
         query = {'models': list(self.project.models.all().values_list('id', flat=True)),
@@ -100,7 +103,7 @@ class ProjectQueriesTestCase(TestCase):
         # ---- case: all BinDistributions in project. check cat and prob columns ----
         rows = list(query_forecasts_for_project(
             self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]]}))  # list for generator
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
                         (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-22', 0.1),
@@ -125,7 +128,7 @@ class ProjectQueriesTestCase(TestCase):
         # ----  case: all NamedDistributions in project. check family, and param1, 2, and 3 columns ----
         rows = list(query_forecasts_for_project(
             self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named',
                            NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.POIS_DIST], 1.1, None,
@@ -141,7 +144,7 @@ class ProjectQueriesTestCase(TestCase):
         # ---- case: all PointPredictions in project. check value column ----
         rows = list(query_forecasts_for_project(
             self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_point = [
             (model, tz, seas, 'location1', 'Season peak week', 'point', '2019-12-22'),
@@ -162,7 +165,7 @@ class ProjectQueriesTestCase(TestCase):
         # ---- case: all SampleDistributions in project. check sample column ----
         rows = list(query_forecasts_for_project(
             self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
                            (model, tz, seas, 'location1', 'Season peak week', 'sample', '2020-01-05'),
@@ -194,7 +197,7 @@ class ProjectQueriesTestCase(TestCase):
         # ---- case: all QuantileDistributions in project. check quantile and value columns ----
         rows = list(query_forecasts_for_project(
             self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
                              (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.75, '2019-12-29'),
@@ -212,20 +215,18 @@ class ProjectQueriesTestCase(TestCase):
 
         # ---- case: empty query -> all forecasts in project ----
         rows = list(query_forecasts_for_project(self.project, {}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
 
         # ---- case: only one unit ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'units': [self.project.units.filter(name='location3').first().pk]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        rows = list(query_forecasts_for_project(self.project, {'units': ['location3']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(17, len(rows))
 
         # ---- case: only one target ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'targets': [self.project.targets.filter(name='above baseline').first().pk]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        rows = list(query_forecasts_for_project(self.project, {'targets': ['above baseline']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(9, len(rows))
 
         # following two tests require a second model, timezero, and forecast
@@ -239,19 +240,19 @@ class ProjectQueriesTestCase(TestCase):
 
         # ---- case: empty query -> all forecasts in project. s/be twice as many now ----
         rows = list(query_forecasts_for_project(self.project, {}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2,
                          len(rows))
 
         # ---- case: only one timezero ----
-        rows = list(query_forecasts_for_project(self.project, {'timezeros': [time_zero2.pk]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        rows = list(query_forecasts_for_project(self.project, {'timezeros': ['2011-10-22']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
 
         # ---- case: only one model ----
-        rows = list(query_forecasts_for_project(self.project, {'models': [forecast_model2.pk]}))
-        self.assertEqual(CSV_HEADER, rows.pop(0))
+        rows = list(query_forecasts_for_project(self.project, {'models': ['abbrev']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
 
@@ -329,26 +330,30 @@ class ProjectQueriesTestCase(TestCase):
             self.assertIn(f"'{key_name}' was not a list", error_messages[0])
 
         # case: bad object id
-        for key_name in ['models', 'units', 'targets', 'timezeros']:
+        for key_name, exp_error_msg in [('models', 'model with abbreviation not found'),
+                                        ('units', 'unit with name not found'),
+                                        ('targets', 'target with name not found'),
+                                        ('timezeros', 'timezero with date not found')]:
             error_messages, _ = validate_scores_query(self.project, {key_name: [-1]})
             self.assertEqual(1, len(error_messages))
-            self.assertIn("contained ID(s) of objects that don't exist", error_messages[0])
+            self.assertIn(exp_error_msg, error_messages[0])
 
         # case: bad score
         error_messages, _ = validate_scores_query(self.project, {'scores': ['bad score']})
         self.assertEqual(1, len(error_messages))
         self.assertIn("one or more scores were invalid abbreviations", error_messages[0])
 
-        # case: ids from other project (!)
+        # case: object references from other project (!)
         project2, time_zero2, forecast_model2, forecast2 = _make_docs_project(self.po_user)
-        for query_dict in [{'models': list(project2.models.all().values_list('id', flat=True))},
-                           {'units': list(project2.units.all().values_list('id', flat=True))},
-                           {'targets': list(project2.targets.all().values_list('id', flat=True))},
-                           {'timezeros': list(project2.timezeros.all().values_list('id', flat=True))}]:
-            query_key = list(query_dict.keys())[0]
+        for query_dict, exp_error_msg in [
+            ({'models': [project2.models.first().abbreviation]}, 'model with abbreviation not found'),
+            ({'units': [project2.units.first().name]}, 'unit with name not found'),
+            ({'targets': [project2.targets.first().name]}, 'target with name not found'),
+            ({'timezeros': [project2.timezeros.first().timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]},
+             'timezero with date not found')]:
             error_messages, _ = validate_scores_query(self.project, query_dict)
             self.assertEqual(1, len(error_messages))
-            self.assertIn(f"`{query_key}` contained ID(s) of objects that don't exist in project", error_messages[0])
+            self.assertIn(exp_error_msg, error_messages[0])
 
         # case: blue sky
         query = {'models': list(self.project.models.all().values_list('id', flat=True)),
@@ -412,22 +417,19 @@ class ProjectQueriesTestCase(TestCase):
         self._assert_list_of_lists_almost_equal(exp_rows, act_rows)
 
         # ---- case: only one model ----
-        act_rows = list(query_scores_for_project(self.project, {'models': [forecast_model_2.id]}))
+        act_rows = list(query_scores_for_project(self.project, {'models': ['docs_mod_2']}))
         self._assert_list_of_lists_almost_equal([exp_rows[0], exp_rows[4]], act_rows)
 
         # ---- case: only one unit ----
-        unit = self.project.units.filter(name='location1').first()
-        act_rows = list(query_scores_for_project(self.project, {'units': [unit.id]}))
+        act_rows = list(query_scores_for_project(self.project, {'units': ['location1']}))
         self._assert_list_of_lists_almost_equal([exp_rows[0], exp_rows[1], exp_rows[4]], act_rows)
 
         # ---- case: only one target ----
-        target = self.project.targets.filter(name='cases next week').first()
-        act_rows = list(query_scores_for_project(self.project, {'targets': [target.id]}))
+        act_rows = list(query_scores_for_project(self.project, {'targets': ['cases next week']}))
         self._assert_list_of_lists_almost_equal([exp_rows[0], exp_rows[3]], act_rows)
 
         # ---- case: only one timezero ----
-        time_zero = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-        act_rows = list(query_scores_for_project(self.project, {'timezeros': [time_zero.id]}))
+        act_rows = list(query_scores_for_project(self.project, {'timezeros': ['2011-10-02']}))
         self._assert_list_of_lists_almost_equal([exp_rows[0], exp_rows[1]], act_rows)
 
         # ---- case: only one score: some score values exist. 10 = pit ----
@@ -480,7 +482,7 @@ class ProjectQueriesTestCase(TestCase):
         """
         # tests the worker directly. above test verifies that it's called from `query_forecasts_endpoint()`
 
-        # ensure query_forecasts_for_project() is called
+        # ensure query_scores_for_project() is called
         job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.project.pk, 'query': {}})
         with patch('utils.project_queries.query_scores_for_project') as query_mock, \
                 patch('utils.cloud_file.upload_file'):
