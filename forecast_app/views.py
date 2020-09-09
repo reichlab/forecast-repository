@@ -19,15 +19,14 @@ from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 from rq.timeouts import JobTimeoutException
 
-from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
+from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm, QueryForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange, Unit, Target
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
-from utils.cloud_file import delete_file, upload_file
 from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, \
     data_rows_from_forecast
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
@@ -35,6 +34,8 @@ from utils.project import config_dict_from_project, create_project_from_json, lo
     unit_rows_for_project, models_summary_table_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
+from utils.project_queries import validate_forecasts_query, validate_scores_query, _forecasts_query_worker, \
+    _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -490,6 +491,66 @@ def _param_val_from_request(request, param_name, choices):
         return param_val
     else:
         return choices[-1] if choices else None
+
+
+#
+# ---- query functions ----
+#
+
+def query_forecasts_or_scores(request, project_pk, is_forecast, JOB_TYPE_QUERY_SCORES=None):
+    """
+    Shows a form allowing users to edit a JSON query and submit it to query either forecasts (if `is_forecast`) or
+    scores (o/w).
+    """
+    from forecast_app.api_views import _create_query_job  # avoid circular imports
+
+
+    project = get_object_or_404(Project, pk=project_pk)
+    if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    # create or process the form based on the method
+    if request.method == 'POST':  # create and bind a form instance from the request
+        form = QueryForm(request.POST)
+        if form.is_valid():
+            query_str = form.cleaned_data['query']
+            query_type = form.cleaned_data['query_type']
+            form_is_forecast = (query_type == QueryForm.FORECAST_TYPE)
+
+            # validate the query against project. hopefully this doesn't timeout
+            query = json.loads(query_str)
+            validation_fcn = validate_forecasts_query if is_forecast else validate_scores_query
+            error_messages, _ = validation_fcn(project, query)
+            if error_messages:
+                return render(request, 'message.html',
+                              context={'title': f"The query was invalid",
+                                       'message': f"There were {len(error_messages)} errors processing the "
+                                                  f"{query_type} query. errors={error_messages}, "
+                                                  f"query={query_str}"})
+
+            # query is valid, so submit it and redirect to the new Job
+            query_job_type = JOB_TYPE_QUERY_FORECAST if is_forecast else JOB_TYPE_QUERY_SCORES
+            query_worker_fcn = _forecasts_query_worker if is_forecast else _scores_query_worker
+            job = _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request)
+            messages.success(request, f"Query has been submitted.")
+            return redirect('job-detail', pk=job.pk)
+    else:  # GET (or any other method): create the default form
+        default_query = {'models': [project.models.first().abbreviation],
+                         'units': [project.units.first().name],
+                         'targets': [project.targets.first().name],
+                         'timezeros': [project.timezeros.first().timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]}
+        if is_forecast:
+            default_query['types'] = ['point']
+        else:
+            default_query['scores'] = ['error']
+        form = QueryForm(initial={'query': json.dumps(default_query),
+                                  'query_type': QueryForm.FORECAST_TYPE if is_forecast else QueryForm.SCORE_TYPE})
+
+    # render
+    return render(request, 'show_form.html',
+                  context={'title': f"Edit {'forecast' if is_forecast else 'scores'} query",
+                           'button_name': 'Submit',
+                           'form': form})
 
 
 #
@@ -1132,6 +1193,16 @@ class JobDetailView(UserPassesTestMixin, DetailView):
         return self.request.user.is_superuser or (job.user == self.request.user)
 
 
+    def get_context_data(self, **kwargs):
+        from utils.cloud_file import is_file_exists
+
+
+        job = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context['is_file_exists'] = is_file_exists(job)[0]  # is_exists, size
+        return context
+
+
 #
 # ---- download-related functions ----
 #
@@ -1153,6 +1224,26 @@ def download_forecast(request, forecast_pk):
 
 
     return json_response_for_forecast(forecast, request)
+
+
+def download_job_data_file(request, pk):
+    """
+    Returns a CSV file containing the data (if any) corresponding to the passed Job's pk.
+    """
+    from forecast_app.api_views import _download_job_data_request  # avoid circular imports
+    from utils.cloud_file import is_file_exists
+
+
+    job = get_object_or_404(Job, pk=pk)
+    if not (request.user.is_superuser or (job.user == request.user)):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    if not is_file_exists(job)[0]:  # is_exists, size
+        return render(request, 'message.html',
+                      context={'title': f"No data for job {job.pk}",
+                               'message': f"The job {job.pk} has no associated data."})
+
+    return _download_job_data_request(job)
 
 
 #
@@ -1263,12 +1354,12 @@ def download_truth(request, project_pk):
     Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
         model's owner.
     """
+    from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
+
+
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
-
-    from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
-
 
     return csv_response_for_project_truth_data(project)
 
@@ -1478,6 +1569,9 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the user
         - job the new Job instance if not is_error. None o/w
     """
+    from utils.cloud_file import delete_file, upload_file
+
+
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "
                  f"content_type={data_file.content_type}")

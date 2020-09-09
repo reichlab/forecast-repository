@@ -56,4 +56,16 @@
         </div>
     </div>
 
+
+    <form id="download_form" class="form-inline" method="GET" action="{% url 'download-job-data' job.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success" {% if not is_file_exists %}disabled{% endif %}>
+            Download CSV
+        </button>
+        {% if not is_file_exists %}
+            <span class="text-muted">&nbsp(No job data)</span>
+        {% endif %}
+    </form>
+
+
 {% endblock %}

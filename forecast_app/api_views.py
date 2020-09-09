@@ -803,19 +803,21 @@ def _query_endpoint(request, project_pk, query_validation_fcn, query_job_type, q
         return JsonResponse({'error': f"Invalid query. error_messages='{error_messages}', query={query}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
-    # create the job
+    job = _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request)
+    job_serializer = JobSerializer(job, context={'request': request})
+    logger.debug(f"query_forecasts_endpoint(): query enqueued. job={job}")
+    return JsonResponse(job_serializer.data)
+
+
+def _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request):
     job = Job.objects.create(user=request.user)  # status = PENDING
     job.input_json = {'type': query_job_type, 'project_pk': project_pk, 'query': query}
     job.save()
-
     queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)
     queue.enqueue(query_worker_fcn, job.pk)
     job.status = Job.QUEUED
     job.save()
-
-    job_serializer = JobSerializer(job, context={'request': request})
-    logger.debug(f"query_forecasts_endpoint(): query enqueued. job={job}")
-    return JsonResponse(job_serializer.data)
+    return job
 
 
 #
@@ -914,16 +916,24 @@ def download_job_data(request, pk):
 
     :return: a Job's data as CSV
     """
-    # imported here so that test_api_job_data_download() can patch via mock:
-    from utils.cloud_file import download_file, _file_name_for_object
-
-
     job = get_object_or_404(Job, pk=pk)
     if (not request.user.is_authenticated) or ((not request.user.is_superuser) and (not request.user == job.user)):
         return HttpResponseForbidden()
 
     if (not isinstance(job.input_json, dict)) or ('query' not in job.input_json):
         return HttpResponseBadRequest(f"job.input_json did not contain a `query` key. job={job}")
+
+    return _download_job_data_request(job)
+
+
+def _download_job_data_request(job):
+    """
+    :param job: a Job
+    :return: the data file corresponding to `job` as a CSV file
+    """
+    # imported here so that test_api_job_data_download() can patch via mock:
+    from utils.cloud_file import download_file, _file_name_for_object
+
 
     with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:

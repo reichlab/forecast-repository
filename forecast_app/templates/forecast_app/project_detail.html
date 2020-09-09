@@ -155,9 +155,11 @@
                 </tr>
                 <tr>
                     <th>Features:</th>
-                    <td><a href="{% url 'project-forecasts' project.pk %}">Project forecasts</a>,
-                        <a href="{% url 'project-explorer' project.pk %}">Project explorer</a>,
-                        <a href="{% url 'project-score-data' project.pk %}">Score data</a>
+                    <td><strong>Project</strong>: <a href="{% url 'project-explorer' project.pk %}">Explorer</a>.
+                        <strong>Forecasts</strong>: <a href="{% url 'project-forecasts' project.pk %}">Summary</a>,
+                        <a href="{% url 'query-forecasts' project.pk %}">Download</a>.
+                        <strong>Scores</strong>: <a href="{% url 'project-score-data' project.pk %}">Summary</a>,
+                        <a href="{% url 'query-scores' project.pk %}">Download</a>.
                     </td>
                 </tr>
                 </tbody>

@@ -162,6 +162,7 @@ class ViewsTestCase(TestCase):
             (reverse('edit-user', args=[str(self.po_user.pk)]), self.ONLY_PO),
             (reverse('change-password'), self.ONLY_PO_MO_STAFF),
             (reverse('job-detail', args=[str(self.job.pk)]), self.ONLY_PO),
+            (reverse('download-job-data', args=[str(self.job.pk)]), self.ONLY_PO),
 
             (reverse('zadmin'), self.ONLY_SU_200),
             (reverse('clear-row-count-caches'), self.ONLY_SU_302),
@@ -193,6 +194,11 @@ class ViewsTestCase(TestCase):
             (reverse('delete-project', args=[str(self.private_project.pk)]), self.ONLY_PO_302),
             (reverse('delete-project', args=[str(self.public_project.pk)]), self.ONLY_PO_302),
             (reverse('delete-project', args=[str(self.private_project.pk)]), self.ONLY_PO_302),
+
+            (reverse('query-forecasts', args=[str(self.public_project.pk)]), self.ONLY_PO_MO_STAFF),
+            (reverse('query-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('query-scores', args=[str(self.public_project.pk)]), self.ONLY_PO_MO_STAFF),
+            (reverse('query-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
 
             (reverse('truth-data-detail', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('truth-data-detail', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),

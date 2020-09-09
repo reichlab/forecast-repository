@@ -31,8 +31,12 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/forecasts', views.project_forecasts, name='project-forecasts'),
+    url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_forecasts_or_scores, {'is_forecast': True},
+        name='query-forecasts'),
     url(r'^project/(?P<project_pk>\d+)/explorer', views.project_explorer, name='project-explorer'),
     url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
+    url(r'^project/(?P<project_pk>\d+)/query_scores$', views.query_forecasts_or_scores, {'is_forecast': False},
+        name='query-scores'),
     url(r'^project/(?P<project_pk>\d+)/score_data$', views.project_score_data, name='project-score-data'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
@@ -46,6 +50,7 @@ urlpatterns = [
     url(r'^user/(?P<pk>\d+)$', views.UserDetailView.as_view(), name='user-detail'),
 
     url(r'^job/(?P<pk>\d+)$', views.JobDetailView.as_view(), name='job-detail'),
+    url(r'^job/(?P<pk>\d+)/download$', views.download_job_data_file, name='download-job-data'),
 
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
     url(r'^forecast/(?P<forecast_pk>\d+)/download$', views.download_forecast, name='download-forecast'),
