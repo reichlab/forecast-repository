@@ -6,17 +6,17 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from forecast_app.models import ForecastModel
+from utils.project_queries import validate_forecasts_query, validate_scores_query
 from .models.project import Project
 
 
 class QueryForm(forms.Form):
     """
-    form:
+    A form that can query either forecasts or scores. Fields and buttons:
         Query: [JSON text area]
-        Type: [v] Forecasts, [ ] Scores
         [Cancel] | [Submit]
 
-    additional info:
+    additional info on page:
         <link to docs>
         <button to fill in an example>
     """
@@ -25,11 +25,12 @@ class QueryForm(forms.Form):
     TYPE_CHOICES = ((FORECAST_TYPE, 'Forecasts'), (SCORE_TYPE, 'Scores'))
 
     query = forms.CharField()
-    query_type = forms.ChoiceField(choices=TYPE_CHOICES, widget=forms.HiddenInput())
 
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, project, is_forecast, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.project = project
+        self.is_forecast = is_forecast
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
 
@@ -37,12 +38,16 @@ class QueryForm(forms.Form):
 
 
     def clean_query(self):
-        # the minimum validation is that `query` must be readable as a JSON object
-        data = self.cleaned_data['query']
+        cleaned_query_data = self.cleaned_data['query']
         try:
-            query_json = json.loads(data)
-            if isinstance(query_json, dict):
-                return data  # return the cleaned data
+            query_json = json.loads(cleaned_query_data)
+            if isinstance(query_json, dict):  # must be a JSON object
+                validation_fcn = validate_forecasts_query if self.is_forecast else validate_scores_query
+                error_messages, _ = validation_fcn(self.project, query_json)
+                if error_messages:  # invalid query
+                    raise ValidationError(error_messages)
+                else:
+                    return cleaned_query_data
             else:
                 raise ValidationError(f"Query was not a JSON object (was a python {type(query_json).__name__!r}, "
                                       f"not 'dict')")

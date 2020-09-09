@@ -246,7 +246,7 @@ def validate_forecasts_query(project, query):
     # validate query type
     if not isinstance(query, dict):
         error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
     # validate keys
     actual_keys = set(query.keys())
@@ -255,7 +255,7 @@ def validate_forecasts_query(project, query):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
@@ -263,8 +263,10 @@ def validate_forecasts_query(project, query):
     # validate Prediction types
     if 'types' in query:
         types = query['types']
-        if not (set(types) <= set(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())):
-            error_messages.append(f"one or more types were invalid prediction types. types={types}, query={query}")
+        valid_prediction_types = set(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())
+        if not (set(types) <= valid_prediction_types):
+            error_messages.append(f"one or more types were invalid prediction types. types={set(types)}, "
+                                  f"valid_prediction_types={valid_prediction_types}, query={query}")
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
     # done (may or may not be valid)
@@ -366,6 +368,28 @@ def _validate_query_ids(project, query):
 QUERY_FORECAST_STATEMENT_TIMEOUT = 60
 
 
+class IterCounter(object):
+    """
+    Generator (iterator, actually) wrapper that tracks the number of `yield` calls that have been made.
+    per https://stackoverflow.com/questions/6309277/how-to-count-the-items-in-a-generator-consumed-by-other-code
+    """
+
+
+    def __init__(self, it):
+        self._iter = it
+        self.count = 0
+
+
+    def _counterWrapper(self, it):
+        for i in it:
+            yield i
+            self.count += 1
+
+
+    def __iter__(self):
+        return self._counterWrapper(self._iter)
+
+
 def _forecasts_query_worker(job_pk):
     """
     enqueue() helper function
@@ -389,10 +413,12 @@ def _query_worker(job_pk, query_project_fcn):
     try:
         logger.debug(f"_query_worker(): querying rows. query={query}. job={job}")
         # use a transaction to set the scope of the postgres `statement_timeout` parameter. statement_timeout raises
-        # this error: django.db.utils.OperationalError ('canceling statement due to statement timeout')
+        # this error: django.db.utils.OperationalError ('canceling statement due to statement timeout'). Similarly,
+        # idle_in_transaction_session_timeout raises django.db.utils.InternalError . todo does not consistently work!
         if connection.vendor == 'postgresql':
             with transaction.atomic(), connection.cursor() as cursor:
                 cursor.execute(f"SET LOCAL statement_timeout = '{QUERY_FORECAST_STATEMENT_TIMEOUT}s';")
+                cursor.execute(f"SET LOCAL idle_in_transaction_session_timeout = '{QUERY_FORECAST_STATEMENT_TIMEOUT}s';")
                 rows = query_project_fcn(project, query)
         else:
             rows = query_project_fcn(project, query)
@@ -422,12 +448,14 @@ def _query_worker(job_pk, query_project_fcn):
         with io.BytesIO() as bytes_io:
             logger.debug(f"_query_worker(): writing rows. job={job}")
             text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
+            rows = IterCounter(rows)
             csv.writer(text_io_wrapper).writerows(rows)
             text_io_wrapper.flush()
             bytes_io.seek(0)
 
             logger.debug(f"_query_worker(): uploading file. job={job}")
             upload_file(job, bytes_io)  # might raise S3 exception
+            job.output_json = {'num_rows': rows.count}
             job.status = Job.SUCCESS
             job.save()
             logger.debug(f"_query_worker(): done. job={job}")

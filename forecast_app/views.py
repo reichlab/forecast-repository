@@ -23,7 +23,7 @@ from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, Us
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange, Unit, Target
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_SCORE
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
@@ -34,7 +34,7 @@ from utils.project import config_dict_from_project, create_project_from_json, lo
     unit_rows_for_project, models_summary_table_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
-from utils.project_queries import validate_forecasts_query, validate_scores_query, _forecasts_query_worker, \
+from utils.project_queries import _forecasts_query_worker, \
     _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -497,7 +497,7 @@ def _param_val_from_request(request, param_name, choices):
 # ---- query functions ----
 #
 
-def query_forecasts_or_scores(request, project_pk, is_forecast, JOB_TYPE_QUERY_SCORES=None):
+def query_forecasts_or_scores(request, project_pk, is_forecast):
     """
     Shows a form allowing users to edit a JSON query and submit it to query either forecasts (if `is_forecast`) or
     scores (o/w).
@@ -511,26 +511,12 @@ def query_forecasts_or_scores(request, project_pk, is_forecast, JOB_TYPE_QUERY_S
 
     # create or process the form based on the method
     if request.method == 'POST':  # create and bind a form instance from the request
-        form = QueryForm(request.POST)
-        if form.is_valid():
-            query_str = form.cleaned_data['query']
-            query_type = form.cleaned_data['query_type']
-            form_is_forecast = (query_type == QueryForm.FORECAST_TYPE)
-
-            # validate the query against project. hopefully this doesn't timeout
-            query = json.loads(query_str)
-            validation_fcn = validate_forecasts_query if is_forecast else validate_scores_query
-            error_messages, _ = validation_fcn(project, query)
-            if error_messages:
-                return render(request, 'message.html',
-                              context={'title': f"The query was invalid",
-                                       'message': f"There were {len(error_messages)} errors processing the "
-                                                  f"{query_type} query. errors={error_messages}, "
-                                                  f"query={query_str}"})
-
-            # query is valid, so submit it and redirect to the new Job
-            query_job_type = JOB_TYPE_QUERY_FORECAST if is_forecast else JOB_TYPE_QUERY_SCORES
+        form = QueryForm(project, is_forecast, data=request.POST)
+        if form.is_valid():  # query is valid, so submit it and redirect to the new Job
+            cleaned_query_data = form.cleaned_data['query']
+            query_job_type = JOB_TYPE_QUERY_FORECAST if is_forecast else JOB_TYPE_QUERY_SCORE
             query_worker_fcn = _forecasts_query_worker if is_forecast else _scores_query_worker
+            query = json.loads(cleaned_query_data)
             job = _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request)
             messages.success(request, f"Query has been submitted.")
             return redirect('job-detail', pk=job.pk)
@@ -543,14 +529,16 @@ def query_forecasts_or_scores(request, project_pk, is_forecast, JOB_TYPE_QUERY_S
             default_query['types'] = ['point']
         else:
             default_query['scores'] = ['error']
-        form = QueryForm(initial={'query': json.dumps(default_query),
+        form = QueryForm(project, is_forecast,
+                         initial={'query': json.dumps(default_query),
                                   'query_type': QueryForm.FORECAST_TYPE if is_forecast else QueryForm.SCORE_TYPE})
 
     # render
-    return render(request, 'show_form.html',
-                  context={'title': f"Edit {'forecast' if is_forecast else 'scores'} query",
+    return render(request, 'query_form.html',
+                  context={'title': f"Edit {'Forecast' if is_forecast else 'Scores'} Query",
                            'button_name': 'Submit',
-                           'form': form})
+                           'form': form,
+                           'is_forecast': is_forecast})
 
 
 #

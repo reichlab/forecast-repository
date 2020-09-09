@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+    <h1>{{ title }}</h1>
+
+    <p>This form lets you edit and submit JSON to query {% if is_forecast %}forecasts{% else %}scores{% endif %}. The
+        query syntax is documented
+        <a href="{% if is_forecast %}https://docs.zoltardata.com/forecastqueryformat/{% else %}https://docs.zoltardata.com/scorequeryformat/{% endif %}"
+           target="_blank">here</a>.
+        Clicking <code>Submit</code> will send the query to Zoltar and take you to the new Job's
+        <a href="https://docs.zoltardata.com/forecasts/#check-an-uploads-status"
+           target="_blank">status page</a> where you can refresh to see how it's progressing. Once it's successful you
+        can then click the <code>Download CSV button</code> to get the query's
+        <a href="{% if is_forecast %}https://docs.zoltardata.com/fileformats/#forecast-data-format-csv{% else %}https://docs.zoltardata.com/fileformats/#score-data-format-csv{% endif %}"
+           target="_blank">results file</a>.
+    </p>
+
+    {% include 'show_form_snippet.html' %}
+
+{% endblock %}
