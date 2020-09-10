@@ -4,6 +4,15 @@
 
 {% block content %}
 
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+
+
     <h1>{{ title }}</h1>
 
     <p>This form lets you edit and submit JSON to query {% if is_forecast %}forecasts{% else %}scores{% endif %}. The

@@ -24,7 +24,7 @@ class QueryForm(forms.Form):
     SCORE_TYPE = 'scores'
     TYPE_CHOICES = ((FORECAST_TYPE, 'Forecasts'), (SCORE_TYPE, 'Scores'))
 
-    query = forms.CharField()
+    query = forms.CharField(help_text='Enter the JSON query to execute')
 
 
     def __init__(self, project, is_forecast, *args, **kwargs):

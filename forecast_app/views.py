@@ -543,6 +543,7 @@ def query_forecasts_or_scores(request, project_pk, is_forecast):
                   context={'title': f"Edit {'Forecast' if is_forecast else 'Scores'} Query",
                            'button_name': 'Submit',
                            'form': form,
+                           'project': project,
                            'is_forecast': is_forecast})
 
 
