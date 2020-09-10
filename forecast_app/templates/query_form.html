@@ -15,7 +15,8 @@
            target="_blank">status page</a> where you can refresh to see how it's progressing. Once it's successful you
         can then click the <code>Download CSV button</code> to get the query's
         <a href="{% if is_forecast %}https://docs.zoltardata.com/fileformats/#forecast-data-format-csv{% else %}https://docs.zoltardata.com/fileformats/#score-data-format-csv{% endif %}"
-           target="_blank">results file</a>.
+           target="_blank">results file</a>. An example valid query is shown below, but there are no guarantees that
+        there is data corresponding to it, i.e., that it will result in any rows.
     </p>
 
     {% include 'show_form_snippet.html' %}

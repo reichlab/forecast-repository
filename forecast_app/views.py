@@ -521,10 +521,15 @@ def query_forecasts_or_scores(request, project_pk, is_forecast):
             messages.success(request, f"Query has been submitted.")
             return redirect('job-detail', pk=job.pk)
     else:  # GET (or any other method): create the default form
-        default_query = {'models': [project.models.first().abbreviation],
-                         'units': [project.units.first().name],
-                         'targets': [project.targets.first().name],
-                         'timezeros': [project.timezeros.first().timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]}
+        first_model = project.models.first()
+        first_unit = project.units.first()
+        first_target = project.targets.first()
+        first_timezero = project.timezeros.first()
+        default_query = {'models': [first_model.abbreviation] if first_model else [],
+                         'units': [first_unit.name] if first_unit else [],
+                         'targets': [first_target.name] if first_target else [],
+                         'timezeros': [first_timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]
+                         if first_timezero else []}
         if is_forecast:
             default_query['types'] = ['point']
         else:
