@@ -182,6 +182,21 @@
 
     <hr> {# hack to add space before next #}
 
+
+    <h3>
+        {% if search_unit and search_target %}
+            {% if data_rows_bin or data_rows_named or data_rows_point or data_rows_quantile or data_rows_sample %}
+                <div>Found predictions:</div>
+                <hr> {# hack to add space before next #}
+            {% else %}
+                <div>No matching predictions.</div>
+            {% endif %}
+        {% else %}
+            <div>To search predictions, select Unit and Target then click &ldquo;Search&rdquo;.</div>
+        {% endif %}
+    </h3>
+
+
     {% if data_rows_bin %}
         {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
         <h4 id="bin_data" style="display: inline-block;">Bin data <small>({{ data_rows_bin|length }}
@@ -329,17 +344,6 @@
         </table>
         <hr> {# hack to add space before next #}
     {% endif %}
-
-
-    <h4>
-        {% if search_unit and search_target and not data_rows_bin and not data_rows_named and not data_rows_point and not data_rows_quantile and not data_rows_sample %}
-            <div>No matching predictions for &ldquo;{{ search_unit.name }}&rdquo; and
-                &ldquo;{{ search_target.name }}&rdquo;.
-            </div>
-        {% elif not search_unit and not search_target %}
-            <div>To search predictions, select a Unit and Target above and then click &ldquo;Search&rdquo;.</div>
-        {% endif %}
-    </h4>
 
 
     <!-- activate the https://datatables.net/ -->
