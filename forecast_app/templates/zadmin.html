@@ -105,49 +105,6 @@
     <hr> {# hack to get buttons to group visually with content above them #}
 
 
-    <h2>ScoreCsvFileCaches</h2>
-
-    {% if projects_sort_pk %}
-        <table class="table table-striped table-bordered">
-            <tr>
-                <th>Project</th>
-                <th>updated_at</th>
-                <th>is_file_exists</th>
-            </tr>
-            {% for project, _ in projects_sort_pk %}
-                <tr>
-                    <td>
-                        <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
-                    </td>
-                    <td>
-                        {{ project.score_csv_file_cache.updated_at|date:"Y-m-d H:i:s T" }}
-                    </td>
-                    <td>
-                        {{ project.score_csv_file_cache.is_file_exists|yesno:"v,x" }}
-                    </td>
-                </tr>
-            {% endfor %}
-        </table>
-
-        <form class="form-inline" style="display: inline-block;" method="POST"
-              action="{% url 'clear-score-csv-file-caches' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger">Clear All</button>
-        </form>
-
-        <form class="form-inline" style="display: inline-block;" method="POST"
-              action="{% url 'update-score-csv-file-caches' %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">Update All</button>
-        </form>
-
-    {% else %}
-        <small class="text-muted">(No projects)</small>
-    {% endif %}
-
-    <hr> {# hack to get buttons to group visually with content above them #}
-
-
     <h2>Scores</h2>
 
     {% if scores_sort_name %}

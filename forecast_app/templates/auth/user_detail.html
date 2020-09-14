@@ -114,7 +114,7 @@
                     <thead>
                     <tr>
                         <th>Project</th>
-                        <th>Model</th>
+                        <th>Abbreviation</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -123,7 +123,7 @@
                             <td><a href="{% url 'project-detail' forecast_model.project.pk %}">
                                 {{ forecast_model.project.name }}</a>
                             </td>
-                            <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.name }}</a></td>
+                            <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
                         </tr>
                     {% endfor %}
                     </tbody>

@@ -1,11 +1,7 @@
 import csv
 import datetime
-import io
 import logging
-import sys
 import tempfile
-from collections import defaultdict
-from itertools import groupby
 from pathlib import Path
 from wsgiref.util import FileWrapper
 
@@ -14,23 +10,20 @@ from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.db import connection
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     HttpResponseNotFound
 from django.utils.text import get_valid_filename
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
 from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
-from rq.timeouts import JobTimeoutException
 
-from forecast_app.models import Project, ForecastModel, Forecast, Score, ScoreValue, PointPrediction, Target
+from forecast_app.models import Project, ForecastModel, Forecast, PointPrediction, Target
 from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE
 from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
@@ -39,8 +32,9 @@ from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, i
     is_user_ok_view_project
 from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json, config_dict_from_project, query_forecasts_for_project
+from utils.project import create_project_from_json, config_dict_from_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
+from utils.project_queries import _forecasts_query_worker, _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -54,7 +48,7 @@ logger = logging.getLogger(__name__)
 @api_view(['GET'])
 def api_root(request, format=None):
     if not request.user.is_authenticated:
-        raise PermissionDenied
+        return HttpResponseForbidden()
 
     return Response({
         'projects': reverse('api-project-list', request=request, format=format),
@@ -73,7 +67,10 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
     file.
     """
     serializer_class = ProjectSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def get_queryset(self):
@@ -94,7 +91,7 @@ class ProjectList(UserPassesTestMixin, generics.ListAPIView):
             additional data in request.data.
         """
         if not is_user_ok_create_project(request.user):
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'project_config' not in request.data:
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -113,7 +110,10 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
     """
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -127,7 +127,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         """
         project = self.get_object()
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can delete the project
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         # imported here so that test_delete_project_iteratively() can patch via mock:
         from utils.project import delete_project_iteratively
@@ -150,7 +150,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         """
         project = self.get_object()
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can edit the project
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'project_config' not in request.data:
             return JsonResponse({'error': "No 'project_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -175,7 +175,10 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
     (ForecastModelSerializer). Note that `pk` is the project's pk.
     """
     serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -201,7 +204,7 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
 
         # check authorization, 'model_config'
         if not is_user_ok_create_model(request.user, project):
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'model_config' not in request.data:
             return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -248,7 +251,10 @@ class ProjectUnitList(UserPassesTestMixin, generics.ListAPIView):
     View that returns a list of Units in a Project, similar to ProjectTimeZeroList.
     """
     serializer_class = UnitSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -266,7 +272,10 @@ class ProjectTargetList(UserPassesTestMixin, generics.ListAPIView):
     View that returns a list of Targets in a Project, similar to ProjectTimeZeroList.
     """
     serializer_class = TargetSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -286,7 +295,10 @@ class ProjectTimeZeroList(UserPassesTestMixin, generics.ListAPIView):
     (TimeZeroSerializer). Note that `pk` is the project's pk.
     """
     serializer_class = TimeZeroSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -312,7 +324,7 @@ class ProjectTimeZeroList(UserPassesTestMixin, generics.ListAPIView):
         # check authorization, 'timezero_config'
         project = Project.objects.get(pk=self.kwargs['pk'])
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can add TimeZeros
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'timezero_config' not in request.data:
             return JsonResponse({'error': "No 'timezero_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -374,7 +386,10 @@ def validate_and_create_timezero(project, timezero_config, is_validate_only=Fals
 class UserDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -387,7 +402,10 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
     View that returns a list of Forecasts in a ForecastModel
     """
     serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -419,7 +437,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         # check authorization
         forecast_model = ForecastModel.objects.get(pk=self.kwargs['pk'])
         if not is_user_ok_upload_forecast(request, forecast_model):
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         # validate 'data_file'
         if 'data_file' not in request.data:
@@ -478,7 +496,10 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
 class JobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -489,7 +510,10 @@ class JobDetailView(UserPassesTestMixin, generics.RetrieveAPIView):
 class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = ForecastModel.objects.all()
     serializer_class = ForecastModelSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -511,7 +535,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
 
         # check authorization, 'model_config'
         if not is_user_ok_edit_model(request.user, forecast_model):
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'model_config' not in request.data:
             return JsonResponse({'error': "No 'model_config' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -554,7 +578,7 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
         """
         forecast_model = self.get_object()
         if not is_user_ok_edit_model(request.user, forecast_model):
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         response = self.destroy(request, *args, **kwargs)
         return response
@@ -563,7 +587,10 @@ class ForecastModelDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPI
 class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView):
     queryset = Forecast.objects.all()
     serializer_class = ForecastSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -579,7 +606,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
         """
         forecast = self.get_object()
         if not is_user_ok_delete_forecast(request.user, forecast):  # if ok delete forecast then ok to set source
-            raise PermissionDenied
+            return HttpResponseForbidden()
         elif 'source' not in request.data:
             return JsonResponse({'error': "No 'source' data."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -594,7 +621,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
         """
         forecast = self.get_object()
         if not is_user_ok_delete_forecast(request.user, forecast):
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         job = enqueue_delete_forecast(request.user, forecast)
         job_serializer = JobSerializer(job, context={'request': request})
@@ -604,7 +631,10 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
 class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -615,7 +645,10 @@ class UnitDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Target.objects.all()
     serializer_class = TargetSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -626,7 +659,10 @@ class TargetDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = TimeZero.objects.all()
     serializer_class = TimeZeroSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -637,7 +673,10 @@ class TimeZeroDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
     queryset = Project.objects.all()
     serializer_class = TruthSerializer
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        return HttpResponseForbidden()  # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
 
 
     def test_func(self):
@@ -664,7 +703,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         # check authorization
         project = self.get_object()
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can edit the project's truth
-            raise PermissionDenied
+            return HttpResponseForbidden()
 
         # validate 'data_file'
         if 'data_file' not in request.data:
@@ -702,14 +741,54 @@ def query_forecasts_endpoint(request, pk):
     :return: the serialized Job
     """
     # imported here so that test_api_forecast_queries() can patch via mock:
-    from utils.project import validate_forecasts_query
+    from utils.project_queries import validate_forecasts_query
 
 
+    return _query_endpoint(request, pk, validate_forecasts_query, JOB_TYPE_QUERY_FORECAST,
+                           _forecasts_query_worker)
+
+
+@api_view(['POST'])
+def query_scores_endpoint(request, pk):
+    """
+    Similar to query_forecasts_endpoint(), enqueues a query of the project's scores.
+
+    POST form fields:
+    - 'query' (required): a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation
+
+    :param request: a request
+    :param pk: a Project's pk
+    :return: the serialized Job
+    """
+    # imported here so that test_api_scores_queries() can patch via mock:
+    from utils.project_queries import validate_scores_query
+
+
+    return _query_endpoint(request, pk, validate_scores_query, JOB_TYPE_QUERY_SCORE, _scores_query_worker)
+
+
+def _query_endpoint(request, project_pk, query_validation_fcn, query_job_type, query_worker_fcn):
+    """
+    `query_forecasts_endpoint()` and `query_scores_endpoint()` helper
+
+    :param request: a request
+    :param project_pk: a Project's pk
+    :param query_validation_fcn: a function of 2 args (Project and query) that validates the query and returns a
+        2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)) . notice the second element
+        is itself a 5-tuple of validated object IDs. the function is either `validate_forecasts_query` or
+        `validate_scores_query`. there are two cases, which determine the return values: 1) valid query: error_messages
+        is [], and ID lists are valid integers. 2) invalid query: error_messages is a list of strings, and the ID lists
+        are all [].
+    :param query_job_type: is either JOB_TYPE_QUERY_FORECAST or JOB_TYPE_QUERY_SCORES. used for the new Job's `type`
+    :param query_worker_fcn: an enqueue() helper function of one arg (job_pk). the function is either
+    `_forecasts_query_worker` or `_scores_query_worker`
+    :return: the serialized Job
+    """
     if request.method != 'POST':
         return Response(f"Only POST is allowed at this endpoint", status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     # check authorization
-    project = get_object_or_404(Project, pk=pk)
+    project = get_object_or_404(Project, pk=project_pk)
     if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden()
 
@@ -719,90 +798,26 @@ def query_forecasts_endpoint(request, pk):
 
     query = request.data['query']
     logger.debug(f"query_forecasts_endpoint(): query={query}")
-    error_messages, _ = validate_forecasts_query(project, query)
+    error_messages, _ = query_validation_fcn(project, query)
     if error_messages:
         return JsonResponse({'error': f"Invalid query. error_messages='{error_messages}', query={query}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
-    # create the job
-    job = Job.objects.create(user=request.user)  # status = PENDING
-    job.input_json = {'type': JOB_TYPE_QUERY_FORECAST, 'project_pk': pk, 'query': query}
-    job.save()
-
-    queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)
-    queue.enqueue(_query_forecasts_worker, job.pk)
-    job.status = Job.QUEUED
-    job.save()
-
+    job = _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request)
     job_serializer = JobSerializer(job, context={'request': request})
     logger.debug(f"query_forecasts_endpoint(): query enqueued. job={job}")
     return JsonResponse(job_serializer.data)
 
 
-def _query_forecasts_worker(job_pk):
-    """
-    enqueue() helper function
-
-    assumes these input_json fields are present and valid:
-    - 'project_pk'
-    - 'query' (assume has passed `validate_forecasts_query()`)
-    """
-    # imported here so that test__query_forecasts_worker() can patch via mock:
-    from utils.cloud_file import upload_file
-
-
-    # run the query
-    job = get_object_or_404(Job, pk=job_pk)
-    project = get_object_or_404(Project, pk=job.input_json['project_pk'])
-    query = job.input_json['query']
-    try:
-        logger.debug(f"_query_forecasts_worker(): querying rows. query={query}. job={job}")
-        rows = query_forecasts_for_project(project, query)
-    except JobTimeoutException as jte:
-        job.status = Job.TIMEOUT
-        job.save()
-        logger.error(f"_query_forecasts_worker(): Job timeout: {jte!r}. job={job}")
-        return
-    except Exception as ex:
-        job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): error running query: {ex!r}. job={job}"
-        job.save()
-        logger.error(f"_query_forecasts_worker(): error: {ex!r}. job={job}")
-        return
-
-    # upload the file to cloud storage
-    try:
-        # we need a BytesIO for upload_file() (o/w it errors: "Unicode-objects must be encoded before hashing"), but
-        # writerows() needs a StringIO (o/w "a bytes-like object is required, not 'str'" error), so we use
-        # TextIOWrapper. BUT: https://docs.python.org/3.6/library/io.html#io.TextIOWrapper :
-        #     Text I/O over a binary storage (such as a file) is significantly slower than binary I/O over the same
-        #     storage, because it requires conversions between unicode and binary data using a character codec. This can
-        #     become noticeable handling huge amounts of text data like large log files.
-
-        # note: using a context is required o/w is closed and becomes unusable:
-        # per https://stackoverflow.com/questions/59079354/how-to-write-utf-8-csv-into-bytesio-in-python3 :
-        with io.BytesIO() as bytes_io:
-            logger.debug(f"_query_forecasts_worker(): writing {len(rows)} rows. job={job}")
-            text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
-            csv.writer(text_io_wrapper).writerows(rows)
-            text_io_wrapper.flush()
-            bytes_io.seek(0)
-
-            logger.debug(f"_query_forecasts_worker(): uploading file. job={job}")
-            upload_file(job, bytes_io)  # might raise S3 exception
-            job.status = Job.SUCCESS
-            job.output_json = {'num_rows': len(rows)}  # todo xx temp
-            job.save()
-            logger.debug(f"_query_forecasts_worker(): done. job={job}")
-    except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
-        job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): AWS error: {aws_exc!r}. job={job}"
-        job.save()
-        logger.error(f"_query_forecasts_worker(): AWS error: {aws_exc!r}. job={job}")
-    except Exception as ex:
-        job.status = Job.FAILED
-        job.failure_message = f"_query_forecasts_worker(): error: {ex!r}. job={job}"
-        job.save()
+def _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request):
+    job = Job.objects.create(user=request.user)  # status = PENDING
+    job.input_json = {'type': query_job_type, 'project_pk': project_pk, 'query': query}
+    job.save()
+    queue = django_rq.get_queue(QUERY_FORECAST_QUEUE_NAME)
+    queue.enqueue(query_worker_fcn, job.pk)
+    job.status = Job.QUEUED
+    job.save()
+    return job
 
 
 #
@@ -853,30 +868,6 @@ def csv_response_for_project_truth_data(project):
 
 
 #
-# Score data-related views
-#
-
-@api_view(['GET'])
-@renderer_classes((BrowsableAPIRenderer, CSVRenderer))  # todo xx BrowsableAPIRenderer needed?
-def download_score_data(request, pk):
-    """
-    :return: the Project's score data as CSV
-    """
-    project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden()
-
-    if project.score_csv_file_cache.is_file_exists():
-        return csv_response_for_cached_project_score_data(project)
-    else:
-        # return 404 Not Found b/c calling `csv_response_for_project_score_data()` in the calling thread (the web
-        # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
-        #   from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
-        #   return csv_response_for_project_score_data(project)
-        return HttpResponseNotFound(f"score CSV file not cached. project={project}")
-
-
-#
 # Forecast data-related views
 #
 
@@ -912,201 +903,6 @@ def json_response_for_forecast(forecast, request):
 
 
 #
-# Score data-related functions
-#
-
-SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'unit', 'target', 'truth']
-
-
-def _csv_filename_for_project_scores(project):
-    return get_valid_filename(project.name + '-scores.csv')
-
-
-def csv_response_for_cached_project_score_data(project):
-    """
-    Similar to csv_response_for_project_score_data(), but returns a response that's loaded from an existing S3 file.
-
-    :param project:
-    :return:
-    """
-    from utils.cloud_file import download_file
-
-
-    with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
-        try:
-            download_file(project.score_csv_file_cache, cloud_file_fp)
-            cloud_file_fp.seek(0)  # yes you have to do this!
-
-            # https://stackoverflow.com/questions/16538210/downloading-files-from-amazon-s3-using-django
-            csv_filename = _csv_filename_for_project_scores(project)
-            wrapper = FileWrapper(cloud_file_fp)
-            response = HttpResponse(wrapper, content_type='text/csv')
-            # response['Content-Length'] = os.path.getsize('/tmp/'+fname)
-            response['Content-Disposition'] = f'attachment; filename="{str(csv_filename)}"'
-            return response
-        except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
-            logger.error(f"csv_response_for_cached_project_score_data(): AWS error: {aws_exc!r}. project={project}")
-            return None
-        except Exception as ex:
-            logger.debug(f"csv_response_for_cached_project_score_data(): Error: {ex!r}. project={project}")
-            return None
-
-
-def csv_response_for_project_score_data(project):
-    """
-    Similar to csv_response_for_project_truth_data(), but returns a response with project's score data formatted as CSV.
-    """
-    response = HttpResponse(content_type='text/csv')
-    csv_filename = _csv_filename_for_project_scores(project)
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
-
-    # recall https://raw.githubusercontent.com/FluSightNetwork/cdc-flusight-ensemble/master/scores/scores.csv:
-    #   Model,Year,Epiweek,Season,Model Week,Location,Target,Score,Multi bin score
-    writer = csv.writer(response)
-    _write_csv_score_data_for_project(writer, project)
-    return response
-
-
-def _write_csv_score_data_for_project(csv_writer, project):
-    """
-    Writes all ScoreValue data for project into csv_writer. There is one column per ScoreValue BUT: all Scores are on
-    one line. Thus, the row 'key' is the (fixed) first five columns:
-
-        `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Unit.name, Target.name`
-
-    Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
-    the header. An example header and first few rows:
-
-        model,           timezero,    season,    unit,  target,          constant score,  Absolute Error
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  <blank>          2
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      2_biweek_ahead,  <blank>          1
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      3_biweek_ahead,  <blank>          9
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      4_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      5_biweek_ahead,  <blank>          8
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      1_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      2_biweek_ahead,  <blank>          6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
-
-    Notes:
-    - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
-    -  for the model column we use the model's abbreviation if it's not empty, otherwise we use its name
-    - NB: we were using get_valid_filename() to ensure values are CSV-compliant, i.e., no commas, returns, tabs, etc.
-      (a function that was as good as any), but we removed it to help performance in the loop
-    - we use groupby to group row 'keys' so that all score values are together
-    """
-    # re: scores order: it is crucial that order matches query ORDER BY ... sv.score_id so that columns match values
-    scores = Score.objects.all().order_by('pk')
-
-    # write header
-    score_csv_header = SCORE_CSV_HEADER_PREFIX + [score.csv_column_name() for score in scores]
-    csv_writer.writerow(score_csv_header)
-
-    # get the raw rows - sorted for groupby()
-    logger.debug(f"_write_csv_score_data_for_project(): 1/5 getting rows: project={project}")
-    sql = f"""
-        SELECT f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id, sv.value
-        FROM {ScoreValue._meta.db_table} AS sv
-            INNER JOIN {Score._meta.db_table} s ON sv.score_id = s.id
-            INNER JOIN {Forecast._meta.db_table} AS f ON sv.forecast_id = f.id
-            INNER JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-        WHERE fm.project_id = %s
-        ORDER BY f.forecast_model_id, f.time_zero_id, sv.unit_id, sv.target_id, sv.score_id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk,))
-        rows = cursor.fetchall()
-
-    # write grouped rows
-    logger.debug(f"_write_csv_score_data_for_project(): 2/5 preparing to iterate. project={project}, #rows={len(rows)}, "
-                 f"({sys.getsizeof(rows)} bytes)")
-    forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
-    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
-    unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
-    target_id_to_obj = {target.pk: target for target in project.targets.all()}
-    timezero_to_season_name = project.timezero_to_season_name()
-
-    logger.debug(f"_write_csv_score_data_for_project(): 3/5 getting truth. project={project}")
-    tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
-
-    logger.debug(f"_write_csv_score_data_for_project(): 4/5 iterating. project={project}")
-    num_warnings = 0
-    for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
-            in groupby(rows, key=lambda _: (_[0], _[1], _[2], _[3])):
-        # get truth. should be only one value
-        true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, time_zero_id, unit_id, target_id)
-        if error_string:
-            num_warnings += 1
-            continue  # skip this (forecast_model_id, time_zero_id, unit_id, target_id) combination's score row
-
-        forecast_model = forecast_model_id_to_obj[forecast_model_id]
-        time_zero = timezero_id_to_obj[time_zero_id]
-        unit = unit_id_to_obj[unit_id]
-        target = target_id_to_obj[target_id]
-        # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
-        #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
-        score_groups = list(score_id_value_grouper)
-        score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
-        score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores]
-        # while name and abbreviation are now both required to be non-empty, we leave the check here just in case:
-        csv_writer.writerow([forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name,
-                             time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                             timezero_to_season_name[time_zero],
-                             unit.name, target.name, true_value]
-                            + score_values)
-
-    # print warning count
-    logger.debug(f"_write_csv_score_data_for_project(): 5/5 done. project={project}, num_warnings={num_warnings}")
-
-
-def _tz_unit_targ_pks_to_truth_values(project):
-    """
-    Similar to Project.unit_target_name_tz_date_to_truth(), returns project's truth values as a nested dict
-    that's organized for easy access using these keys: [timezero_pk][unit_pk][target_id] -> truth_values (a list).
-    """
-    truth_data_qs = project.truth_data_qs() \
-        .order_by('time_zero__id', 'unit__id', 'target__id') \
-        .values_list('time_zero__id', 'unit__id', 'target__id',
-                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-
-    tz_unit_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
-    for time_zero_id, unit_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
-        unit_targ_pks_to_truth = {}  # {unit_pk: {target_id: truth_value}}
-        tz_unit_targ_pks_to_truth_vals[time_zero_id] = unit_targ_pks_to_truth
-        for unit_id, target_val_grouper in groupby(unit_target_val_grouper, key=lambda _: _[1]):
-            target_pk_to_truth = defaultdict(list)  # {target_id: truth_value}
-            unit_targ_pks_to_truth[unit_id] = target_pk_to_truth
-            for _, _, target_id, value_i, value_f, value_t, value_d, value_b in target_val_grouper:
-                value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-                target_pk_to_truth[target_id].append(value)
-
-    return tz_unit_targ_pks_to_truth_vals
-
-
-def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, unit_pk, target_pk):
-    """
-    :return: 2-tuple of the form: (truth_value, error_string) where error_string is non-None if the inputs were invalid.
-        in that case, truth_value is None. o/w truth_value is valid
-    """
-    if timezero_pk not in timezero_loc_target_pks_to_truth_values:
-        return None, 'timezero_pk not in truth'
-    elif unit_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
-        return None, 'unit_pk not in truth'
-    elif target_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk][unit_pk]:
-        return None, 'target_pk not in truth'
-
-    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][unit_pk][target_pk]
-    if len(truth_values) == 0:  # truth not available
-        return None, 'truth value not found'
-    elif len(truth_values) > 1:
-        return None, '>1 truth values found'
-
-    return truth_values[0], None
-
-
-#
 # Job data-related functions
 #
 
@@ -1120,16 +916,24 @@ def download_job_data(request, pk):
 
     :return: a Job's data as CSV
     """
-    # imported here so that test_api_job_data_download() can patch via mock:
-    from utils.cloud_file import download_file, _file_name_for_object
-
-
     job = get_object_or_404(Job, pk=pk)
     if (not request.user.is_authenticated) or ((not request.user.is_superuser) and (not request.user == job.user)):
         return HttpResponseForbidden()
 
     if (not isinstance(job.input_json, dict)) or ('query' not in job.input_json):
         return HttpResponseBadRequest(f"job.input_json did not contain a `query` key. job={job}")
+
+    return _download_job_data_request(job)
+
+
+def _download_job_data_request(job):
+    """
+    :param job: a Job
+    :return: the data file corresponding to `job` as a CSV file
+    """
+    # imported here so that test_api_job_data_download() can patch via mock:
+    from utils.cloud_file import download_file, _file_name_for_object
+
 
     with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:

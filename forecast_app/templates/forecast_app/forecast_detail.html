@@ -13,7 +13,8 @@
                     href="{{ forecast.forecast_model.project.get_absolute_url }}">{{ forecast.forecast_model.project.name }}</a>
             </li>
             <li class="breadcrumb-item"><a
-                    href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.name }}</a></li>
+                    href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.abbreviation }}</a>
+            </li>
             <li class="breadcrumb-item active">{{ forecast.time_zero.timezero_date|date:"Y-m-d" }}</li>
         </ol>
     </nav>
@@ -34,7 +35,8 @@
                 <tr>
                     <th>Model:</th>
                     <td>
-                        <a href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.name }}</a>
+                        <a href="{{ forecast.forecast_model.get_absolute_url }}">{{ forecast.forecast_model.abbreviation }}</a>
+                        ({{ forecast.forecast_model.name }})
                     </td>
                 </tr>
                 <tr>
@@ -186,9 +188,25 @@
 
     <hr> {# hack to add space before next #}
 
+
+    <h3>
+        {% if search_unit and search_target %}
+            {% if data_rows_bin or data_rows_named or data_rows_point or data_rows_quantile or data_rows_sample %}
+                <div>Found predictions:</div>
+                <hr> {# hack to add space before next #}
+            {% else %}
+                <div>No matching predictions.</div>
+            {% endif %}
+        {% else %}
+            <div>To search predictions, select Unit and Target then click &ldquo;Search&rdquo;.</div>
+        {% endif %}
+    </h3>
+
+
     {% if data_rows_bin %}
         {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
-        <h4 id="bin_data" style="display: inline-block;">Bin data <small>({{ data_rows_bin|length }} row{{ data_rows_bin|length|pluralize }})</small></h4>
+        <h4 id="bin_data" style="display: inline-block;">Bin data <small>({{ data_rows_bin|length }}
+            row{{ data_rows_bin|length|pluralize }})</small></h4>
         <a href="#bin_data">&para;</a>
 
         <table id="data_rows_bin_table" class="table table-striped table-bordered">
@@ -216,7 +234,8 @@
 
     {% if data_rows_named %}
         {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
-        <h4 id="named_data" style="display: inline-block;">Named data <small>({{ data_rows_named|length }} row{{ data_rows_named|pluralize }})</small></h4>
+        <h4 id="named_data" style="display: inline-block;">Named data <small>({{ data_rows_named|length }}
+            row{{ data_rows_named|pluralize }})</small></h4>
         <a href="#named_data">&para;</a>
 
         <table id="data_rows_named_table" class="table table-striped table-bordered">
@@ -249,7 +268,8 @@
 
     {% if data_rows_point %}
         {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
-        <h4 id="point_data" style="display: inline-block;">Point data <small>({{ data_rows_point|length }} row{{ data_rows_point|pluralize }})</small></h4>
+        <h4 id="point_data" style="display: inline-block;">Point data <small>({{ data_rows_point|length }}
+            row{{ data_rows_point|pluralize }})</small></h4>
         <a href="#point_data">&para;</a>
 
         <table id="data_rows_point_table" class="table table-striped table-bordered">
@@ -276,7 +296,8 @@
 
     {% if data_rows_quantile %}
         {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
-        <h4 id="quantile_data" style="display: inline-block;">Quantile data <small>({{ data_rows_quantile|length }} row{{ data_rows_quantile|pluralize }})</small></h4>
+        <h4 id="quantile_data" style="display: inline-block;">Quantile data <small>({{ data_rows_quantile|length }}
+            row{{ data_rows_quantile|pluralize }})</small></h4>
         <a href="#quantile_data">&para;</a>
 
         <table id="data_rows_quantile_table" class="table table-striped table-bordered">
@@ -305,7 +326,8 @@
 
     {% if data_rows_sample %}
         {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
-        <h4 id="sample_data" style="display: inline-block;">Sample data <small>({{ data_rows_sample|length }} row{{ data_rows_sample|pluralize }})</small></h4>
+        <h4 id="sample_data" style="display: inline-block;">Sample data <small>({{ data_rows_sample|length }}
+            row{{ data_rows_sample|pluralize }})</small></h4>
         <a href="#sample_data">&para;</a>
 
         <table id="data_rows_sample_table" class="table table-striped table-bordered">
@@ -328,15 +350,6 @@
         </table>
         <hr> {# hack to add space before next #}
     {% endif %}
-
-
-    <h4>
-    {% if search_unit and search_target and not data_rows_bin and not data_rows_named and not data_rows_point and not data_rows_quantile and not data_rows_sample %}
-        <div>No matching predictions for &ldquo;{{ search_unit.name }}&rdquo; and &ldquo;{{ search_target.name }}&rdquo;.</div>
-    {% elif not search_unit and not search_target %}
-        <div>To search predictions, select a Unit and Target above and then click &ldquo;Search&rdquo;.</div>
-    {% endif %}
-    </h4>
 
 
     <!-- activate the https://datatables.net/ -->

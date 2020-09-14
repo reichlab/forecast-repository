@@ -18,6 +18,12 @@ DATABASES = {
     }
 }
 
+#
+# ---- debug_toolbar ----
+#
+
+INSTALLED_APPS = INSTALLED_APPS + ['debug_toolbar']  # at end
+MIDDLEWARE = MIDDLEWARE + ['debug_toolbar.middleware.DebugToolbarMiddleware']  # at end
 
 #
 # ---- Django-RQ config ----
@@ -38,7 +44,6 @@ RQ_QUEUES = {
     },
 }
 
-
 #
 # ---- djangorestframework-jwt config ----
 #
@@ -52,4 +57,4 @@ RQ_QUEUES = {
 # http://whitenoise.evans.io/en/stable/django.html#using-whitenoise-in-development
 #
 
-INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # put at top, before 'django.contrib.staticfiles'
+INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # at top, before 'django.contrib.staticfiles'

@@ -1,7 +1,9 @@
 {# https://stackoverflow.com/questions/8474409/django-forms-and-bootstrap-css-classes-and-divs #}
 {% for field in form %}
     <fieldset class="control-group">
-        <label class="control-label" for="id_{{ field.name }}">{{ field.label }}</label>
+        {% if not field.is_hidden %}
+            <label class="control-label" for="id_{{ field.name }}">{{ field.label }}</label>
+        {% endif %}
         <div class="controls">
             {{ field }}
             <p class="text-muted">{{ field.help_text|safe }} </p>

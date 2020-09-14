@@ -10,28 +10,24 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.core import urlresolvers
-from django.core.exceptions import PermissionDenied
 from django.db import connection, transaction
 from django.db.models import Count
-from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseNotFound
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.text import get_valid_filename
 from django.views.generic import DetailView, ListView
 from rq.timeouts import JobTimeoutException
 
-from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm
+from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm, QueryForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange, Unit, Target, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
     QuantileDistribution
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_SCORE
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
-from forecast_app.models.score_csv_file_cache import enqueue_score_csv_file_cache_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
-from utils.cloud_file import delete_file, upload_file
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
     is_forecast_metadata_available, forecast_metadata
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
@@ -39,6 +35,8 @@ from utils.project import config_dict_from_project, create_project_from_json, lo
     unit_rows_for_project, models_summary_table_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
+from utils.project_queries import _forecasts_query_worker, \
+    _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -56,9 +54,9 @@ def robots_txt(request):
     # frequently by different bots
     disallow_urls = []  # relative URLs
     for project_id in Project.objects.all().values_list('id', flat=True):
-        for project_url_name in ['project-explorer', 'project-scores', 'project-score-data', 'download-project-scores',
-                                 'project-config', 'truth-data-detail', 'project-visualizations']:
-            disallow_urls.append(urlresolvers.reverse(project_url_name, args=[str(project_id)]))  # relative URLs
+        for project_url_name in ['project-explorer', 'project-scores', 'project-score-data', 'project-config',
+                                 'truth-data-detail', 'project-visualizations']:
+            disallow_urls.append(reverse(project_url_name, args=[str(project_id)]))  # relative URLs
     return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
 
 
@@ -122,12 +120,10 @@ def zadmin_model_score_changes(request):
 
 def zadmin(request):
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     Score.ensure_all_scores_exist()
-
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
-
     projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
     return render(
         request, 'zadmin.html',
@@ -144,7 +140,7 @@ def zadmin(request):
 
 def delete_jobs(request):
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding cloud file (the uploaded
     # file)
@@ -159,7 +155,7 @@ def clear_row_count_caches(request):
     this operation is fast.
     """
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     for project in Project.objects.all():
         project.row_count_cache.row_count = None
@@ -183,46 +179,13 @@ def update_row_count_caches(request):
     limit each job's duration.
     """
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     try:
         enqueue_row_count_updates_all_projs()
         messages.success(request, "Scheduled updating row count caches for all projects.")
     except redis.exceptions.ConnectionError as ce:
         messages.warning(request, "Error updating row count caches: {}.".format(ce))
-    return redirect('zadmin')  # hard-coded
-
-
-def clear_score_csv_file_caches(request):
-    """
-    View function that resets all projects' ScoreCsvFileCaches. Runs in the calling thread and therefore blocks.
-    However, this operation is relatively fast, but does depend on S3 access.
-    """
-    if not is_user_ok_admin(request.user):
-        raise PermissionDenied
-
-    for project in Project.objects.all():
-        project.score_csv_file_cache.delete_score_csv_file_cache()
-
-    messages.success(request, "All score csv file caches were cleared.")
-    return redirect('zadmin')  # hard-coded
-
-
-def update_score_csv_file_caches(request):
-    """
-    View function that enqueues updates of all projects' ScoreCsvFileCaches and then returns. Users are not notified
-    when the updates are done, and so must refresh, etc. Note that we choose to enqueue each project's update
-    separately, rather than a single enqueue that updates them all in a loop, b/c each one might take a while, and
-    we're trying to limit each job's duration.
-    """
-    if not is_user_ok_admin(request.user):
-        raise PermissionDenied
-
-    try:
-        enqueue_score_csv_file_cache_all_projs()
-        messages.success(request, "Scheduled updating score csv file caches for all projects.")
-    except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, "Error updating score csv file caches: {}.".format(ce))
     return redirect('zadmin')  # hard-coded
 
 
@@ -236,7 +199,7 @@ def update_all_scores(request, **kwargs):
         only changed models (if True) or all of them (False)
     """
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     try:
         is_only_changed = kwargs['is_only_changed']
@@ -258,7 +221,7 @@ def project_visualizations(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     return render(request, 'message.html',
                   context={'title': f"Project visualizations for '{project.name}'",
@@ -346,7 +309,7 @@ def project_explorer(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     return render(
         request,
@@ -364,7 +327,7 @@ def project_forecasts(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # create heatmap data
     vega_lite_spec = _vega_lite_spec_for_project(project)
@@ -403,7 +366,7 @@ def _vega_lite_spec_for_project(project):
                                "timezero": timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                                "is_forecast_present": 1 if forecast_id is not None else 0,
                                "forecast_id": forecast_id,
-                               "forecast_url": urlresolvers.reverse(
+                               "forecast_url": reverse(
                                    'forecast-detail', args=[str(forecast_id)]) if forecast_id else '',  # relative URL
                                })
 
@@ -452,7 +415,7 @@ def _vega_lite_spec_for_project(project):
 
 def clear_all_scores(request):
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # NB: runs in current thread
     for score in Score.objects.all():
@@ -463,7 +426,7 @@ def clear_all_scores(request):
 
 def delete_score_last_updates(request):
     if not is_user_ok_admin(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # NB: delete() runs in current thread
     ScoreLastUpdate.objects.all().delete()
@@ -481,7 +444,7 @@ def project_scores(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # NB: inner knowledge about the targets unit_to_mean_abs_error_rows_for_project() uses:
     step_ahead_targets = project.step_ahead_targets()
@@ -532,6 +495,60 @@ def _param_val_from_request(request, param_name, choices):
 
 
 #
+# ---- query functions ----
+#
+
+def query_forecasts_or_scores(request, project_pk, is_forecast):
+    """
+    Shows a form allowing users to edit a JSON query and submit it to query either forecasts (if `is_forecast`) or
+    scores (o/w).
+    """
+    from forecast_app.api_views import _create_query_job  # avoid circular imports
+
+
+    project = get_object_or_404(Project, pk=project_pk)
+    if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    # create or process the form based on the method
+    if request.method == 'POST':  # create and bind a form instance from the request
+        form = QueryForm(project, is_forecast, data=request.POST)
+        if form.is_valid():  # query is valid, so submit it and redirect to the new Job
+            cleaned_query_data = form.cleaned_data['query']
+            query_job_type = JOB_TYPE_QUERY_FORECAST if is_forecast else JOB_TYPE_QUERY_SCORE
+            query_worker_fcn = _forecasts_query_worker if is_forecast else _scores_query_worker
+            query = json.loads(cleaned_query_data)
+            job = _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request)
+            messages.success(request, f"Query has been submitted.")
+            return redirect('job-detail', pk=job.pk)
+    else:  # GET (or any other method): create the default form
+        first_model = project.models.first()
+        first_unit = project.units.first()
+        first_target = project.targets.first()
+        first_timezero = project.timezeros.first()
+        default_query = {'models': [first_model.abbreviation] if first_model else [],
+                         'units': [first_unit.name] if first_unit else [],
+                         'targets': [first_target.name] if first_target else [],
+                         'timezeros': [first_timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]
+                         if first_timezero else []}
+        if is_forecast:
+            default_query['types'] = ['point']
+        else:
+            default_query['scores'] = ['error']
+        form = QueryForm(project, is_forecast,
+                         initial={'query': json.dumps(default_query),
+                                  'query_type': QueryForm.FORECAST_TYPE if is_forecast else QueryForm.SCORE_TYPE})
+
+    # render
+    return render(request, 'query_form.html',
+                  context={'title': f"Edit {'Forecast' if is_forecast else 'Scores'} Query",
+                           'button_name': 'Submit',
+                           'form': form,
+                           'project': project,
+                           'is_forecast': is_forecast})
+
+
+#
 # ---- score data functions ----
 #
 
@@ -541,7 +558,7 @@ def project_score_data(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # set score_summaries
     score_summaries = [(score,
@@ -574,28 +591,6 @@ def _model_score_count_rows_for_project(project):
         return cursor.fetchall()
 
 
-def download_project_scores(request, project_pk):
-    """
-    Returns a response containing a CSV file for a project_pk's scores.
-    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
-        model's owner.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
-
-    from forecast_app.api_views import csv_response_for_cached_project_score_data  # avoid circular imports
-
-    if project.score_csv_file_cache.is_file_exists():
-        return csv_response_for_cached_project_score_data(project)
-    else:
-        # return 404 Not Found b/c calling `csv_response_for_project_score_data()` in the calling thread (the web
-        # process) will crash the production app due to Heroku Error R14 (Memory quota exceeded)
-        #   from forecast_app.api_views import csv_response_for_project_score_data  # avoid circular imports
-        #   return csv_response_for_project_score_data(project)
-        return HttpResponseNotFound(f"score CSV file not cached. project={project}")
-
-
 def download_project_config(request, project_pk):
     """
     View function that returns a response containing a JSON config file for project_pk.
@@ -604,7 +599,7 @@ def download_project_config(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     project_config = config_dict_from_project(project, request)
     filename = get_valid_filename(f'{project.name}-config.json')
@@ -623,7 +618,7 @@ def create_project_from_file(request):
     user. Runs in the calling thread and therefore blocks.
     """
     if not is_user_ok_create_project(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
     if is_error:
@@ -650,7 +645,7 @@ def create_project_from_form(request):
     :param user_pk: the on-behalf-of user. may not be the same as the authenticated user
     """
     if not is_user_ok_create_project(request.user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     new_project = Project(owner=request.user)
     if request.method == 'POST':
@@ -679,7 +674,7 @@ def edit_project_from_form(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if request.method == 'POST':
         project_form = ProjectForm(request.POST, instance=project)
@@ -704,7 +699,7 @@ def edit_project_from_file_preview(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)  # ?
 
     if request.method != 'POST':
         return HttpResponseBadRequest(f"only the POST method is supported")
@@ -736,7 +731,7 @@ def edit_project_from_file_execute(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if request.method != 'POST':
         return HttpResponseBadRequest(f"only the POST method is supported")
@@ -765,7 +760,7 @@ def delete_project(request, project_pk):
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     # imported here so that test_delete_project_iteratively() can patch via mock:
     from utils.project import delete_project_iteratively
@@ -784,7 +779,7 @@ def edit_user(request, user_pk):
     """
     detail_user = get_object_or_404(User, pk=user_pk)  # user page being edited
     if not is_user_ok_edit_user(request.user, detail_user):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if request.method == 'POST':
         user_model_form = UserModelForm(request.POST, instance=detail_user)
@@ -808,7 +803,7 @@ def change_password(request):
     Shows a form allowing the user to set her password.
     """
     if not request.user.is_authenticated:  # any authenticated user can edit her password
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if request.method == 'POST':
         password_form = UserPasswordChangeForm(request.user, request.POST)
@@ -834,7 +829,7 @@ def create_model(request, project_pk):
     user = request.user
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_create_model(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if request.method == 'POST':
         forecast_model_form = ForecastModelForm(request.POST)
@@ -862,7 +857,7 @@ def edit_model(request, model_pk):
     """
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
     if not is_user_ok_edit_model(request.user, forecast_model):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if request.method == 'POST':
         forecast_model_form = ForecastModelForm(request.POST, instance=forecast_model)
@@ -888,7 +883,7 @@ def delete_model(request, model_pk):
     user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
     if not is_user_ok_edit_model(request.user, forecast_model):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     forecast_model_name = forecast_model.name
     forecast_model.delete()
@@ -926,7 +921,11 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     Authorization: private projects can only be accessed by the project's owner or any of its model_owners
     """
     model = Project
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect) https://docs.djangoproject.com/en/1.11/topics/auth/default/#django.contrib.auth.mixins.AccessMixin.raise_exception
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
+        return HttpResponseForbidden(render(self.request, '403.html').content)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -997,10 +996,14 @@ def projects_and_roles_for_user(user):
 
 class UserDetailView(UserPassesTestMixin, DetailView):
     model = User
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
+        return HttpResponseForbidden(render(self.request, '403.html').content)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -1027,7 +1030,11 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
+        return HttpResponseForbidden(render(self.request, '403.html').content)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -1047,7 +1054,11 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
+        return HttpResponseForbidden(render(self.request, '403.html').content)
 
 
     def test_func(self):  # return True if the current user can access the view
@@ -1207,14 +1218,28 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
 class JobDetailView(UserPassesTestMixin, DetailView):
     model = Job
-    raise_exception = True  # o/w does HTTP_302_FOUND (redirect)
 
     context_object_name = 'job'
+
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
+        return HttpResponseForbidden(render(self.request, '403.html').content)
 
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
+
+
+    def get_context_data(self, **kwargs):
+        from utils.cloud_file import is_file_exists
+
+
+        job = self.get_object()
+        context = super().get_context_data(**kwargs)
+        context['is_file_exists'] = is_file_exists(job)[0]  # is_exists, size
+        return context
 
 
 #
@@ -1232,12 +1257,32 @@ def download_forecast(request, forecast_pk):
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     project = forecast.forecast_model.project
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
 
     return json_response_for_forecast(forecast, request)
+
+
+def download_job_data_file(request, pk):
+    """
+    Returns a CSV file containing the data (if any) corresponding to the passed Job's pk.
+    """
+    from forecast_app.api_views import _download_job_data_request  # avoid circular imports
+    from utils.cloud_file import is_file_exists
+
+
+    job = get_object_or_404(Job, pk=pk)
+    if not (request.user.is_superuser or (job.user == request.user)):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    if not is_file_exists(job)[0]:  # is_exists, size
+        return render(request, 'message.html',
+                      context={'title': f"No data for job {job.pk}",
+                               'message': f"The job {job.pk} has no associated data."})
+
+    return _download_job_data_request(job)
 
 
 #
@@ -1251,7 +1296,7 @@ def truth_detail(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     return render(
         request,
@@ -1269,7 +1314,7 @@ def delete_truth(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     project.delete_truth_data()
     return redirect('project-detail', pk=project_pk)
@@ -1282,7 +1327,7 @@ def upload_truth(request, project_pk):
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     if project.is_truth_data_loaded():
         return render(request, 'message.html',
@@ -1348,12 +1393,12 @@ def download_truth(request, project_pk):
     Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
         model's owner.
     """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        raise PermissionDenied
-
     from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
 
+
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     return csv_response_for_project_truth_data(project)
 
@@ -1372,7 +1417,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
     time_zero = get_object_or_404(TimeZero, pk=timezero_pk)
     if not is_user_ok_upload_forecast(request, forecast_model):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
     if is_error:
@@ -1481,7 +1526,7 @@ def delete_forecast(request, forecast_pk):
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     if not is_user_ok_delete_forecast(request.user, forecast):
-        raise PermissionDenied
+        return HttpResponseForbidden(render(request, '403.html').content)
 
     job = enqueue_delete_forecast(request.user, forecast)
     messages.success(request, f"Queued deleting the forecast: {forecast}.")
@@ -1565,6 +1610,9 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - is_error: True if there was an error, and False o/w. If true, it is actually an error message to show the user
         - job the new Job instance if not is_error. None o/w
     """
+    from utils.cloud_file import delete_file, upload_file
+
+
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "
                  f"content_type={data_file.content_type}")

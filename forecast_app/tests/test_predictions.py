@@ -1,5 +1,6 @@
 import datetime
 import json
+import unittest
 from pathlib import Path
 
 from django.test import TestCase
@@ -193,6 +194,7 @@ class PredictionsTestCase(TestCase):
         self.assertIn('invalid prediction_class', str(context.exception))
 
 
+    @unittest.skip("todo")
     def test_calc_named_distribution(self):
         abbrev_parms_exp_value = [
             ('norm', None, None, None, None),  # todo xx

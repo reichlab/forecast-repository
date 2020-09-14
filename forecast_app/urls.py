@@ -16,8 +16,6 @@ urlpatterns = [
     url(r'^zadmin/model_score_changes$', views.zadmin_model_score_changes, name='zadmin-model-score-changes'),
     url(r'^clear_row_count_caches$', views.clear_row_count_caches, name='clear-row-count-caches'),
     url(r'^update_row_count_caches$', views.update_row_count_caches, name='update-row-count-caches'),
-    url(r'^clear_score_csv_file_caches$', views.clear_score_csv_file_caches, name='clear-score-csv-file-caches'),
-    url(r'^update_score_csv_file_caches$', views.update_score_csv_file_caches, name='update-score-csv-file-caches'),
     url(r'^delete_jobs/$', views.delete_jobs, name='delete-file-jobs'),
 
     url(r'^update_all_scores$', views.update_all_scores, {'is_only_changed': False},
@@ -33,11 +31,13 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/forecasts', views.project_forecasts, name='project-forecasts'),
+    url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_forecasts_or_scores, {'is_forecast': True},
+        name='query-forecasts'),
     url(r'^project/(?P<project_pk>\d+)/explorer', views.project_explorer, name='project-explorer'),
     url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
+    url(r'^project/(?P<project_pk>\d+)/query_scores$', views.query_forecasts_or_scores, {'is_forecast': False},
+        name='query-scores'),
     url(r'^project/(?P<project_pk>\d+)/score_data$', views.project_score_data, name='project-score-data'),
-    url(r'^project/(?P<project_pk>\d+)/download_score_data$', views.download_project_scores,
-        name='download-project-scores'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
@@ -50,6 +50,7 @@ urlpatterns = [
     url(r'^user/(?P<pk>\d+)$', views.UserDetailView.as_view(), name='user-detail'),
 
     url(r'^job/(?P<pk>\d+)$', views.JobDetailView.as_view(), name='job-detail'),
+    url(r'^job/(?P<pk>\d+)/download$', views.download_job_data_file, name='download-job-data'),
 
     url(r'^forecast/(?P<pk>\d+)$', views.ForecastDetailView.as_view(), name='forecast-detail'),
     url(r'^forecast/(?P<forecast_pk>\d+)/download$', views.download_forecast, name='download-forecast'),

@@ -14,7 +14,6 @@ DATABASES = {
     }
 }
 
-
 #
 # ---- Django-RQ config ----
 #
@@ -34,7 +33,6 @@ RQ_QUEUES = {
     },
 }
 
-
 #
 # ---- djangorestframework-jwt config ----
 #
@@ -45,18 +43,17 @@ RQ_QUEUES = {
 
 
 #
-# ---- disable debug toolbar due to executemany() error when using sqlite3 ----
-#
-# ["TypeError: not enough arguments for format string" on executemany() INSERT in sqlite3 #1069]
-# https://github.com/jazzband/django-debug-toolbar/issues/1069
+# ---- debug_toolbar ----
 #
 
-INSTALLED_APPS.remove('debug_toolbar')
-MIDDLEWARE.remove('debug_toolbar.middleware.DebugToolbarMiddleware')
-
+# disable due to executemany() error when using sqlite3:
+# - ["TypeError: not enough arguments for format string" on executemany() INSERT in sqlite3 #1069]
+#   https://github.com/jazzband/django-debug-toolbar/issues/1069
+# INSTALLED_APPS = INSTALLED_APPS + ['debug_toolbar']  # at end
+# MIDDLEWARE = MIDDLEWARE + ['debug_toolbar.middleware.DebugToolbarMiddleware']  # at end
 
 #
 # http://whitenoise.evans.io/en/stable/django.html#using-whitenoise-in-development
 #
 
-INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # put at top, before 'django.contrib.staticfiles'
+INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # at top, before 'django.contrib.staticfiles'

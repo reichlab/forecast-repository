@@ -1,6 +1,5 @@
 import csv
 import datetime
-import io
 import json
 import logging
 import math
@@ -8,8 +7,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.api_views import _write_csv_score_data_for_project, _tz_unit_targ_pks_to_truth_values, \
-    csv_response_for_project_truth_data
+from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
@@ -22,7 +20,8 @@ from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
-from utils.project import load_truth_data, create_project_from_json, query_forecasts_for_project
+from utils.project import load_truth_data, create_project_from_json
+from utils.project_queries import query_forecasts_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -753,105 +752,6 @@ class ScoresTestCase(TestCase):
             self.assertEqual(unit, score_value.unit)
             self.assertEqual(target, score_value.target)
             self.assertEqual(exp_score, score_value.value)
-
-
-    #
-    # other tests
-    #
-
-    def test_download_scores_model_column_name(self):
-        self._download_scores_internal_test(self.forecast_model.abbreviation)  # 'abbrev'
-
-        self.forecast_model.abbreviation = 'model_abbrev'
-        self.forecast_model.save()
-        self._download_scores_internal_test(self.forecast_model.abbreviation)
-
-
-    def _download_scores_internal_test(self, exp_model_column_value):
-        Score.ensure_all_scores_exist()
-        _update_scores_for_all_projects()
-        string_io = io.StringIO()
-        csv_writer = csv.writer(string_io, delimiter=',')
-        _write_csv_score_data_for_project(csv_writer, self.project)
-        string_io.seek(0)
-
-        # read actual rows using csv reader for easier comparison to expected
-        act_csv_reader = csv.reader(string_io, delimiter=',')
-        act_rows = list(act_csv_reader)
-        with open('forecast_app/tests/scores/EW1-KoTsarima-2017-01-17_exp-download.csv', 'r') as fp:
-            exp_csv_reader = csv.reader(fp, delimiter=',')
-            exp_rows = list(exp_csv_reader)
-            for idx, (exp_row, act_row) in enumerate(zip(exp_rows, act_rows)):
-                if idx == 0:  # header
-                    self.assertEqual(exp_row, act_row)
-                    continue
-
-                # test non-numeric columns
-                self.assertEqual(exp_model_column_value, act_row[0])  # model
-                self.assertEqual(exp_row[1], act_row[1])  # timezero. format: YYYY_MM_DD_DATE_FORMAT
-                self.assertEqual(exp_row[2], act_row[2])  # season
-                self.assertEqual(exp_row[3], act_row[3])  # unit
-                self.assertEqual(exp_row[4], act_row[4])  # target
-
-
-                # test (numeric) values: error, abs_error, log_single_bin, log_multi_bin. NB: any could be ''
-                def test_float_or_empty(exp_val, act_val):
-                    self.assertEqual(exp_val, act_val) if (not exp_val) or (not act_val) \
-                        else self.assertAlmostEqual(float(exp_val), float(act_val))
-
-
-                test_float_or_empty(exp_row[5], act_row[5])  # 'error'
-                test_float_or_empty(exp_row[6], act_row[6])  # 'abs_error'
-                test_float_or_empty(exp_row[7], act_row[7])  # 'log_single_bin'  # always '' for setUpTestData()
-                test_float_or_empty(exp_row[8], act_row[8])  # 'log_multi_bin'   # ""
-
-
-    def test__tz_unit_targ_pks_to_truth_values(self):
-        tz_pk = self.time_zero.pk
-        loc1_pk = Unit.objects.filter(name='HHS Region 1').first().pk
-        loc2_pk = Unit.objects.filter(name='HHS Region 2').first().pk
-        loc3_pk = Unit.objects.filter(name='HHS Region 3').first().pk
-        loc4_pk = Unit.objects.filter(name='HHS Region 4').first().pk
-        loc5_pk = Unit.objects.filter(name='HHS Region 5').first().pk
-        loc6_pk = Unit.objects.filter(name='HHS Region 6').first().pk
-        loc7_pk = Unit.objects.filter(name='HHS Region 7').first().pk
-        loc8_pk = Unit.objects.filter(name='HHS Region 8').first().pk
-        loc9_pk = Unit.objects.filter(name='HHS Region 9').first().pk
-        loc10_pk = Unit.objects.filter(name='HHS Region 10').first().pk
-        loc11_pk = Unit.objects.filter(name='US National').first().pk
-        target1_pk = Target.objects.filter(name='Season onset').first().pk
-        target2_pk = Target.objects.filter(name='Season peak week').first().pk
-        target3_pk = Target.objects.filter(name='Season peak percentage').first().pk
-        target4_pk = Target.objects.filter(name='1 wk ahead').first().pk
-        target5_pk = Target.objects.filter(name='2 wk ahead').first().pk
-        target6_pk = Target.objects.filter(name='3 wk ahead').first().pk
-        target7_pk = Target.objects.filter(name='4 wk ahead').first().pk
-        exp_dict = {  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
-            tz_pk: {
-                loc1_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [3.19221],
-                          target4_pk: [1.52411], target5_pk: [1.73987], target6_pk: [2.06524], target7_pk: [2.51375]},
-                loc2_pk: {target1_pk: ['2016-11-20'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [6.93759],
-                          target4_pk: [5.07086], target5_pk: [5.68166], target6_pk: [6.01053], target7_pk: [6.49829]},
-                loc3_pk: {target1_pk: ['2016-12-18'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [5.20003],
-                          target4_pk: [2.81366], target5_pk: [3.09968], target6_pk: [3.45232], target7_pk: [3.73339]},
-                loc4_pk: {target1_pk: ['2016-11-13'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [5.5107],
-                          target4_pk: [2.89395], target5_pk: [3.68564], target6_pk: [3.69188], target7_pk: [4.53169]},
-                loc5_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [4.31787],
-                          target4_pk: [2.11757], target5_pk: [2.4432], target6_pk: [2.76295], target7_pk: [3.182]},
-                loc6_pk: {target1_pk: ['2017-01-08'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [9.87589],
-                          target4_pk: [4.80185], target5_pk: [5.26955], target6_pk: [6.10427], target7_pk: [8.13221]},
-                loc7_pk: {target1_pk: ['2016-12-25'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [6.35948],
-                          target4_pk: [2.75581], target5_pk: [3.46528], target6_pk: [4.56991], target7_pk: [5.52653]},
-                loc8_pk: {target1_pk: ['2016-12-18'], target2_pk: [datetime.date(2017, 2, 12)], target3_pk: [2.72703],
-                          target4_pk: [1.90851], target5_pk: [2.2668], target6_pk: [2.07104], target7_pk: [2.27632]},
-                loc9_pk: {target1_pk: ['2016-12-18'], target2_pk: [datetime.date(2016, 12, 25)], target3_pk: [3.30484],
-                          target4_pk: [2.83778], target5_pk: [2.68071], target6_pk: [2.9577], target7_pk: [3.03987]},
-                loc10_pk: {target1_pk: ['2016-12-11'], target2_pk: [datetime.date(2016, 12, 25)], target3_pk: [3.67061],
-                           target4_pk: [2.15197], target5_pk: [3.25108], target6_pk: [2.51434], target7_pk: [2.28634]},
-                loc11_pk: {target1_pk: ['2016-12-11'], target2_pk: [datetime.date(2017, 2, 5)], target3_pk: [5.06094],
-                           target4_pk: [3.07623], target5_pk: [3.50708], target6_pk: [3.79872], target7_pk: [4.43601]}}}
-        act_dict = _tz_unit_targ_pks_to_truth_values(self.forecast_model.project)
-        self.assertEqual(exp_dict, act_dict)
 
 
     def test_impetus_log_single_bin_bug(self):

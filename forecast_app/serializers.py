@@ -152,7 +152,6 @@ class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     time_interval_type = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
-    score_data = serializers.SerializerMethodField()
 
     models = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
     units = serializers.HyperlinkedRelatedField(view_name='api-unit-detail', many=True, read_only=True)
@@ -163,8 +162,8 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
-                  'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'score_data',
-                  'models', 'units', 'targets', 'timezeros',)
+                  'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'models', 'units', 'targets',
+                  'timezeros',)
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},
@@ -179,11 +178,6 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     def get_truth(self, project):
         request = self.context['request']
         return reverse('api-truth-detail', args=[project.pk], request=request)
-
-
-    def get_score_data(self, project):
-        request = self.context['request']
-        return reverse('api-score-data-download', args=[project.pk], request=request)
 
 
 class TruthSerializer(serializers.ModelSerializer):

@@ -28,13 +28,14 @@ class ProjectDiffTestCase(TestCase):
         project, _, _, _ = _make_docs_project(po_user)
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+        # first we remove 'id' and 'url' fields from serializers to ease testing
         current_config_dict = config_dict_from_project(project, APIRequestFactory().request())
-
-        # project fields: edit
-        edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['name'] = 'new name'
-        self.assertEqual([Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', edit_config_dict)],
-                         project_config_diff(current_config_dict, edit_config_dict))
+        for the_dict_list in [current_config_dict['units'], current_config_dict['targets'],
+                              current_config_dict['timezeros']]:
+            for the_dict in the_dict_list:
+                if 'id' in the_dict:
+                    del the_dict['id']
+                    del the_dict['url']
 
         # project fields: edit
         fields_new_values = [('name', 'new name'), ('is_public', False), ('description', 'new descr'),
@@ -50,31 +51,37 @@ class ProjectDiffTestCase(TestCase):
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
-        # project units: remove 'unit3', add 'unit4'
+        # project units: remove 'location3', add 'location4'
         edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['units'][2]['name'] = 'location4'  # 'unit3'
+        location_3_dict = [target_dict for target_dict in edit_config_dict['units']
+                           if target_dict['name'] == 'location3'][0]
+        location_3_dict['name'] = 'location4'  # 'location3'
         exp_changes = [Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None),
-                       Change(ObjectType.UNIT, 'location4', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['units'][2])]
+                       Change(ObjectType.UNIT, 'location4', ChangeType.OBJ_ADDED, None, location_3_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project timezeros: remove '2011-10-02', add '2011-10-22', edit '2011-10-09' fields
         edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['timezeros'][0]['timezero_date'] = '2011-10-22'  # was '2011-10-02'
-        edit_config_dict['timezeros'][1]['data_version_date'] = '2011-10-19'  # '2011-10-09'
-        edit_config_dict['timezeros'][1]['is_season_start'] = True  # false
-        edit_config_dict['timezeros'][1]['season_name'] = 'season name'  # null
+
+        tz_2011_10_02_dict = [target_dict for target_dict in edit_config_dict['timezeros']
+                              if target_dict['timezero_date'] == '2011-10-02'][0]
+        tz_2011_10_02_dict['timezero_date'] = '2011-10-22'  # was '2011-10-02'
+
+        tz_2011_10_09_dict = [target_dict for target_dict in edit_config_dict['timezeros']
+                              if target_dict['timezero_date'] == '2011-10-09'][0]
+        tz_2011_10_09_dict['data_version_date'] = '2011-10-19'  # '2011-10-09'
+        tz_2011_10_09_dict['is_season_start'] = True  # false
+        tz_2011_10_09_dict['season_name'] = 'season name'  # null
         exp_changes = [Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None),
-                       Change(ObjectType.TIMEZERO, '2011-10-22', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['timezeros'][0]),
+                       Change(ObjectType.TIMEZERO, '2011-10-22', ChangeType.OBJ_ADDED, None, tz_2011_10_02_dict),
                        Change(ObjectType.TIMEZERO, '2011-10-09', ChangeType.FIELD_EDITED, 'data_version_date',
-                              edit_config_dict['timezeros'][1]),
+                              tz_2011_10_09_dict),
                        Change(ObjectType.TIMEZERO, '2011-10-09', ChangeType.FIELD_EDITED, 'is_season_start',
-                              edit_config_dict['timezeros'][1]),
+                              tz_2011_10_09_dict),
                        Change(ObjectType.TIMEZERO, '2011-10-09', ChangeType.FIELD_ADDED, 'season_name',
-                              edit_config_dict['timezeros'][1])]
+                              tz_2011_10_09_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
@@ -82,64 +89,80 @@ class ProjectDiffTestCase(TestCase):
         # project targets: remove 'pct next week', add 'pct next week 2', edit 'cases next week' and 'Season peak week'
         # fields
         edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['targets'][0]['name'] = 'pct next week 2'  # was 'pct next week'
-        edit_config_dict['targets'][1]['description'] = 'new descr'  # 'cases next week'
-        edit_config_dict['targets'][1]['is_step_ahead'] = False
-        del (edit_config_dict['targets'][1]['step_ahead_increment'])
-        edit_config_dict['targets'][4]['description'] = 'new descr 2'  # 'Season peak week'
-        edit_config_dict['targets'][4]['is_step_ahead'] = True
-        edit_config_dict['targets'][4]['step_ahead_increment'] = 2
-        edit_config_dict['targets'][4]['unit'] = 'biweek'
+        pct_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                     if target_dict['name'] == 'pct next week'][0]
+        pct_next_week_target_dict['name'] = 'pct next week 2'  # was 'pct next week'
+
+        cases_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                       if target_dict['name'] == 'cases next week'][0]
+        cases_next_week_target_dict['description'] = 'new descr'  # 'cases next week'
+        cases_next_week_target_dict['is_step_ahead'] = False
+        del (cases_next_week_target_dict['step_ahead_increment'])
+
+        season_peak_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                        if target_dict['name'] == 'Season peak week'][0]
+        season_peak_week_target_dict['description'] = 'new descr 2'  # 'Season peak week'
+        season_peak_week_target_dict['is_step_ahead'] = True
+        season_peak_week_target_dict['step_ahead_increment'] = 2
+        season_peak_week_target_dict['unit'] = 'biweek'
+
         exp_changes = [Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.TARGET, 'pct next week 2', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['targets'][0]),
+                              pct_next_week_target_dict),
                        Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_REMOVED, 'step_ahead_increment',
                               None),
                        Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'description',
-                              edit_config_dict['targets'][1]),
+                              cases_next_week_target_dict),
                        Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'is_step_ahead',
-                              edit_config_dict['targets'][1]),
+                              cases_next_week_target_dict),
                        Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_ADDED, 'step_ahead_increment',
-                              edit_config_dict['targets'][4]),
+                              season_peak_week_target_dict),
                        Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'description',
-                              edit_config_dict['targets'][4]),
+                              season_peak_week_target_dict),
                        Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'is_step_ahead',
-                              edit_config_dict['targets'][4]),
+                              season_peak_week_target_dict),
                        Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'unit',
-                              edit_config_dict['targets'][4])]
+                              season_peak_week_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: edit 'pct next week' 'type' (non-editable) and 'description' (editable) fields
         edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['targets'][0]['type'] = 'discrete'  # 'pct next week'
-        edit_config_dict['targets'][0]['description'] = 'new descr'
+        pct_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                     if target_dict['name'] == 'pct next week'][0]
+        pct_next_week_target_dict['type'] = 'discrete'  # 'pct next week'
+        pct_next_week_target_dict['description'] = 'new descr'
         exp_changes = [Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['targets'][0]),
+                              pct_next_week_target_dict),
                        Change(ObjectType.TARGET, 'pct next week', ChangeType.FIELD_EDITED, 'description',
-                              edit_config_dict['targets'][0])]
+                              pct_next_week_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: edit 'cases next week': remove 'range' (non-editable)
         edit_config_dict = copy.deepcopy(current_config_dict)
-        del (edit_config_dict['targets'][1]['range'])  # 'cases next week
+        cases_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                       if target_dict['name'] == 'cases next week'][0]
+        del (cases_next_week_target_dict['range'])  # 'cases next week
+
         exp_changes = [Change(ObjectType.TARGET, 'cases next week', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.TARGET, 'cases next week', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['targets'][1])]
+                              cases_next_week_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
         # project targets: edit 'season severity': edit 'cats' (non-editable)
         edit_config_dict = copy.deepcopy(current_config_dict)
-        edit_config_dict['targets'][2]['cats'] = edit_config_dict['targets'][2]['cats'] + ['cat 2']  # 'season severity'
+        season_severity_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                       if target_dict['name'] == 'season severity'][0]
+        season_severity_target_dict['cats'] = season_severity_target_dict['cats'] + ['cat 2']
         exp_changes = [Change(ObjectType.TARGET, 'season severity', ChangeType.OBJ_REMOVED, None, None),
                        Change(ObjectType.TARGET, 'season severity', ChangeType.OBJ_ADDED, None,
-                              edit_config_dict['targets'][2])]
+                              season_severity_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
@@ -330,10 +353,10 @@ class ProjectDiffTestCase(TestCase):
         # Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', {'name': 'new project name', ...}]})
         self.assertEqual('new project name', project.name)
 
-        # Change(ObjectType.UNIT, 'unit3', ChangeType.OBJ_REMOVED, None, None)
+        # Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None)
         self.assertEqual(0, project.units.filter(name='location3').count())
 
-        # Change(ObjectType.UNIT, 'unit4', ChangeType.OBJ_ADDED, None, {'name': 'unit4'})
+        # Change(ObjectType.UNIT, 'location4', ChangeType.OBJ_ADDED, None, {'name': 'location4'})
         self.assertEqual(1, project.units.filter(name='location4').count())
 
         # Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None)
@@ -364,24 +387,38 @@ class ProjectDiffTestCase(TestCase):
 def _make_some_changes(edit_config_dict):
     # makes a useful variety of changes to edit_config_dict for testing
     edit_config_dict['name'] = 'new project name'  # edit project 'name'
-    edit_config_dict['units'][2]['name'] = 'location4'  # 'location3': remove and replace w/'location4'
-    edit_config_dict['timezeros'][0]['timezero_date'] = '2011-10-22'  # '2011-10-02': remove and replace w/'2011-10-22'
-    edit_config_dict['timezeros'][1]['data_version_date'] = '2011-10-19'  # '2011-10-09': edit 'data_version_date'
-    edit_config_dict['targets'][0]['type'] = 'discrete'  # 'pct next week': remove 'pct next week' and add back in
-    edit_config_dict['targets'][0]['range'] = [int(_) for _ in
-                                               edit_config_dict['targets'][0]['range']]  # o/w type mismatch
-    edit_config_dict['targets'][0]['cats'] = [int(_) for _ in edit_config_dict['targets'][0]['cats']]  # ""
-    edit_config_dict['targets'][0]['description'] = 'new descr'  # edit 'description' on removed object
-    edit_config_dict['targets'][1]['is_step_ahead'] = False  # 'cases next week': edit 'is_step_ahead'
-    del (edit_config_dict['targets'][1]['step_ahead_increment'])  # delete 'step_ahead_increment'
+
+    location_3_dict = [target_dict for target_dict in edit_config_dict['units']
+                       if target_dict['name'] == 'location3'][0]
+    location_3_dict['name'] = 'location4'  # 'location3': remove and replace w/'location4'
+
+    tz_2011_10_02_dict = [target_dict for target_dict in edit_config_dict['timezeros']
+                          if target_dict['timezero_date'] == '2011-10-02'][0]
+    tz_2011_10_02_dict['timezero_date'] = '2011-10-22'  # '2011-10-02': remove and replace w/'2011-10-22'
+
+    tz_2011_10_09_dict = [target_dict for target_dict in edit_config_dict['timezeros']
+                          if target_dict['timezero_date'] == '2011-10-09'][0]
+    tz_2011_10_09_dict['data_version_date'] = '2011-10-19'  # '2011-10-09': edit 'data_version_date'
+
+    pct_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                 if target_dict['name'] == 'pct next week'][0]
+    pct_next_week_target_dict['type'] = 'discrete'  # 'pct next week': remove 'pct next week' and add back in
+    pct_next_week_target_dict['range'] = [int(_) for _ in pct_next_week_target_dict['range']]  # o/w type mismatch
+    pct_next_week_target_dict['cats'] = [int(_) for _ in pct_next_week_target_dict['cats']]  # ""
+    pct_next_week_target_dict['description'] = 'new descr'  # edit 'description' on removed object
+
+    cases_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                   if target_dict['name'] == 'cases next week'][0]
+    cases_next_week_target_dict['is_step_ahead'] = False  # 'cases next week': edit 'is_step_ahead'
+    del (cases_next_week_target_dict['step_ahead_increment'])  # delete 'step_ahead_increment'
 
     # resulting Changes. notes:
     # - 'pct next week': duplicate OBJ_REMOVED and OBJ_ADDED
     # - 'pct next week': wasted FIELD_EDITED and OBJ_REMOVED
     #
     # [Change(ObjectType.PROJECT,  None,              ChangeType.FIELD_EDITED,  'name',                 {'name': 'new project name', ...}]}),
-    #  Change(ObjectType.UNIT, 'unit3',       ChangeType.OBJ_REMOVED,    None,                  None),
-    #  Change(ObjectType.UNIT, 'unit4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'unit4'}),
+    #  Change(ObjectType.UNIT, 'location3',       ChangeType.OBJ_REMOVED,    None,                  None),
+    #  Change(ObjectType.UNIT, 'location4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'location4'}),
     #  Change(ObjectType.TIMEZERO, '2011-10-02',      ChangeType.OBJ_REMOVED,    None,                  None),
     #  Change(ObjectType.TIMEZERO, '2011-10-22',      ChangeType.OBJ_ADDED,      None,                  {'timezero_date': '2011-10-22', ...}),
     #  Change(ObjectType.TIMEZERO, '2011-10-09',      ChangeType.FIELD_EDITED,  'data_version_date',    {'timezero_date': '2011-10-09', ...}),
