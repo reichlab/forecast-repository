@@ -10,11 +10,11 @@ from django.db import connection, transaction
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
-    SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction
+    SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction, \
+    ForecastModel
 from forecast_app.models.project import POSTGRES_NULL_VALUE
 from utils.project import _target_dict_for_target
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,6 @@ def json_io_dict_from_forecast(forecast, request):
         and target for visibility. see docs for details
     """
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
-
 
     unit_serializer_multi = UnitSerializer(forecast.forecast_model.project.units, many=True,
                                            context={'request': request})
@@ -847,12 +846,10 @@ def data_rows_from_forecast(forecast, unit, target):
     :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
     """
 
-
     # NB: for simplicity we use five separate queries. one big UNION got messy due to many NULLs (sparse)
     def coalesce_values(value_i, value_f, value_t, value_d, value_b):
         value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
         return value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-
 
     # bin
     sql = f"""
@@ -1036,3 +1033,54 @@ def is_forecast_metadata_available(forecast):
         (ForecastMetaPrediction, ForecastMetaUnit, and ForecastMetaTarget) for efficiency
     """
     return ForecastMetaPrediction.objects.filter(forecast=forecast).count() != 0
+
+
+def forecast_metadata_counts_for_project(project):
+    """
+    :param project: a Project
+    :return: dict with metadata count information for all forecasts in `project`. the dict maps:
+        forecast_id -> the 3-tuple (prediction_counts, unit_count, target_count) where:
+        - prediction_counts: (point_count, named_count, bin_count, sample_count, quantile_count) - a 5-tuple
+        - unit_count:        num_units
+        - target_count:      num_targets
+    """
+    forecast_id_to_counts = defaultdict(lambda: [None, None, None])  # return value. filled next
+
+    # query 1/2: get ForecastMetaPrediction counts
+    sql = f"""
+        SELECT fmp.forecast_id AS forecast_id, fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count
+        FROM {ForecastMetaPrediction._meta.db_table} AS fmp
+                 JOIN {Forecast._meta.db_table} AS f ON fmp.forecast_id = f.id
+                 JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
+        WHERE fm.project_id = %s;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        for forecast_id, point_count, named_count, bin_count, sample_count, quantile_count in batched_rows(cursor):
+            forecast_id_to_counts[forecast_id][0] = (point_count, named_count, bin_count, sample_count, quantile_count)
+
+    # query 2/2: get ForecastMetaUnit and ForecastMetaTarget counts
+    sql = f"""
+        SELECT fmt.forecast_id AS forecast_id, count(*) AS num_targets, 1 AS is_target_count
+        FROM forecast_app_forecastmetatarget AS fmt
+                 JOIN forecast_app_forecast AS f ON fmt.forecast_id = f.id
+                 JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+        WHERE fm.project_id = %s
+        GROUP BY fmt.forecast_id, fm.project_id
+        
+        UNION
+        
+        SELECT fmu.forecast_id AS forecast_id, count(*) AS num_units, 0 AS is_target_count
+        FROM forecast_app_forecastmetaunit AS fmu
+                 JOIN forecast_app_forecast AS f ON fmu.forecast_id = f.id
+                 JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+        WHERE fm.project_id = %s
+        GROUP BY fmu.forecast_id, fm.project_id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk, project.pk))
+        for forecast_id, count, is_target_count in batched_rows(cursor):
+            forecast_id_to_counts[forecast_id][2 if is_target_count else 1] = count
+
+    # done
+    return forecast_id_to_counts

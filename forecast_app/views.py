@@ -29,7 +29,7 @@ from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_pr
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
-    is_forecast_metadata_available, forecast_metadata
+    is_forecast_metadata_available, forecast_metadata, forecast_metadata_counts_for_project
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets, \
     unit_rows_for_project, models_summary_table_rows_for_project
@@ -38,7 +38,6 @@ from utils.project_diff import project_config_diff, database_changes_for_project
 from utils.project_queries import _forecasts_query_worker, \
     _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +226,6 @@ def project_visualizations(request, project_pk):
                   context={'title': f"Project visualizations for '{project.name}'",
                            'message': "Zoltar visualization is under construction."})
 
-
     # seasons = project.seasons()
     # season_name = _param_val_from_request(request, 'season_name', seasons)
     #
@@ -275,11 +273,9 @@ def _unit_to_actual_points(loc_tz_date_to_actual_vals):
         component expects: "[a JavaScript] array of the same length as timePoints"
     """
 
-
     def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
         return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
                 for tz_date in sorted(tz_date_to_actual.keys())]
-
 
     unit_to_actual_points = {unit: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
                              for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
@@ -292,11 +288,9 @@ def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
         loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals()
     """
 
-
     def max_from_tz_date_to_actual_dict(tz_date_to_actual):
         flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
         return max(flat_values) if flat_values else None  # NB: None is arbitrary
-
 
     unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
                           for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
@@ -347,62 +341,74 @@ def project_forecasts(request, project_pk):
 
 
 def _vega_lite_spec_for_project(project):
-    # create dict to capture existing forecasts: (forecast_model_id, timezero_id) -> forecast_id
-    fm_tz_ids_to_f_id = {}
-    forecasts_qs = Forecast.objects.filter(forecast_model__project=project) \
+    # collect existing forecast (heatmap cell) information
+    fm_tz_ids_to_f_id = {}  # existing Forecasts: (forecast_model_id, timezero_id) -> forecast_id
+    forecasts_qs = Forecast.objects \
+        .filter(forecast_model__project=project) \
         .values_list('id', 'forecast_model__id', 'time_zero__id')
-    existing_tz_ids = set()  # helps to exclude timezeros w/no forecasts from any models
     for f_id, fm_id, tz_id in forecasts_qs:
-        existing_tz_ids.add(tz_id)
         fm_tz_ids_to_f_id[(fm_id, tz_id)] = f_id
 
-    # create vega lite data values for all model/tz combinations, filling in missing forecasts
+    # get mapping from forecast_id to count 3-tuples:
+    #   ((point_count, named_count, bin_count, sample_count, quantile_count), num_units, num_targets)
+    forecast_id_to_counts = forecast_metadata_counts_for_project(project)
+
+    # create vega lite data values for all model/tz combinations, filling in missing forecasts. values are rows and keys
+    # are columns
     values = []
-    for forecast_model in project.models.all().order_by('abbreviation'):
-        for timezero in project.timezeros.all().order_by('timezero_date'):
-            forecast_id = fm_tz_ids_to_f_id.get((forecast_model.id, timezero.id), None)
-            if timezero.id in existing_tz_ids:
-                values.append({"fm_abbrev": forecast_model.abbreviation,
-                               "timezero": timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                               "is_forecast_present": 1 if forecast_id is not None else 0,
-                               "forecast_id": forecast_id,
-                               "forecast_url": reverse(
-                                   'forecast-detail', args=[str(forecast_id)]) if forecast_id else '',  # relative URL
-                               })
+    for fm_id, fm_abbrev in project.models.all().order_by('abbreviation').values_list('id', 'abbreviation'):
+        for tz_id, tz_tzdate in project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date'):
+            forecast_id = fm_tz_ids_to_f_id.get((fm_id, tz_id), None)
+            counts = forecast_id_to_counts[forecast_id]  # [None, None, None] if forecast_id is None (via defauldict)
+            if forecast_id:
+                values.append({'model': fm_abbrev,
+                               'timezero': tz_tzdate.strftime(YYYY_MM_DD_DATE_FORMAT),
+                               'forecast_url': reverse('forecast-detail', args=[str(forecast_id)]),  # relative URL
+                               'PNBSQ counts': counts[0],
+                               '# rows': sum(counts[0]),
+                               '# units': counts[1],
+                               '# targets': counts[2]})
 
     vega_lite_spec = {
         '$schema': 'https://vega.github.io/schema/vega-lite/v4.json',
-        'data': {
-            'values': values
+        'data': {'values': values},
+        # 'mark': {'type': 'rect', 'tooltip': True},  # True same as {'content': 'encoding'}
+        'mark': {'type': 'rect', 'tooltip': {'content': 'data'}},
+        'width': 'container',
+        'config': {
+            'view': {'step': 10},
+            'axis': {'grid': False},
+            'legend': {'disable': False, 'titleOrient': 'right'},
         },
-        'mark': {'type': 'rect', 'tooltip': True},
-        "width": "container",
-        "config": {
-            "view": {"step": 10},
-            "axis": {"grid": False},
-            'legend': {'disable': True},
-        },
-        "encoding": {
-            "x": {
-                "field": "timezero",
-                "timeUnit": "yearmonthdate",
-                "type": "temporal",
-                "title": None,
-                "axis": {"orient": "top", "format": '%Y-%m-%d'},
+        'encoding': {
+            'x': {
+                'field': 'timezero',
+                'timeUnit': 'yearmonthdate',
+                'type': 'temporal',
+                'title': None,
+                'axis': {'orient': 'top', 'format': '%Y-%m-%d'},
             },
-            "y": {
-                "field": "model",
-                "type": "nominal",
-                "title": None,
+            'y': {
+                'field': 'model',
+                'type': 'nominal',
+                'title': None,
             },
-            "href": {"field": "url"},
+            'href': {'field': 'forecast_url'},
+            "tooltip": [{"field": 'model'},
+                        {"field": 'timezero', 'type': 'temporal', 'format': '%Y-%m-%d'},
+                        {"field": 'forecast_url'},
+                        {"field": 'PNBSQ counts'},
+                        {"field": '# rows'},
+                        {"field": '# units'},
+                        {"field": '# targets'}],
             'color': {
-                'field': "has forecast",
-                'type': "nominal",
-                'scale': {
-                    "domain": ["0", "1"],
-                    "range": ["white", "steelblue"],
-                }
+                # 'field': '# rows',
+                # 'field': '# units',
+                'field': '# targets',
+                'type': 'quantitative',
+                # bug: https://observablehq.com/@ijlyttle/vega-lite-tooltip-formatting-issues -
+                # o/w get Error: Invalid specification above in tooltip encoding channel:
+                # "scale": {'type': 'threshold', 'domain': [30, 70], 'scheme': 'blues'},  # 'viridis'
             },
         },
     }
@@ -504,7 +510,6 @@ def query_forecasts_or_scores(request, project_pk, is_forecast):
     scores (o/w).
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
-
 
     project = get_object_or_404(Project, pk=project_pk)
     if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
@@ -765,7 +770,6 @@ def delete_project(request, project_pk):
     # imported here so that test_delete_project_iteratively() can patch via mock:
     from utils.project import delete_project_iteratively
 
-
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
@@ -898,7 +902,6 @@ def delete_model(request, model_pk):
 class UserListView(ListView):
     model = User
 
-
     def get_context_data(self, **kwargs):
         # collect user info
         user_projs_models = []  # 3-tuples: User, num_projs, num_models
@@ -922,16 +925,13 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     model = Project
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return is_user_ok_view_project(self.request.user, project)
-
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
@@ -950,7 +950,6 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
         return context
-
 
     @staticmethod
     def timezeros_num_forecasts(project):
@@ -1000,16 +999,13 @@ class UserDetailView(UserPassesTestMixin, DetailView):
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return is_user_ok_edit_user(self.request.user, detail_user)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1031,16 +1027,13 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast_model.project)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1055,16 +1048,13 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
-
 
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
@@ -1105,7 +1095,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_sample'] = data_rows_sample
         return context
 
-
     def forecast_metadata_cached(self):
         """
         ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
@@ -1127,7 +1116,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
         return pred_type_count_pairs, found_units, found_targets
-
 
     def forecast_metadata_dynamic(self):
         """
@@ -1169,7 +1157,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # done
         return pred_type_count_pairs, found_units, found_targets
-
 
     def search_forecast(self):
         """
@@ -1221,20 +1208,16 @@ class JobDetailView(UserPassesTestMixin, DetailView):
 
     context_object_name = 'job'
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
-
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
 
-
     def get_context_data(self, **kwargs):
         from utils.cloud_file import is_file_exists
-
 
         job = self.get_object()
         context = super().get_context_data(**kwargs)
@@ -1261,7 +1244,6 @@ def download_forecast(request, forecast_pk):
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
-
     return json_response_for_forecast(forecast, request)
 
 
@@ -1271,7 +1253,6 @@ def download_job_data_file(request, pk):
     """
     from forecast_app.api_views import _download_job_data_request  # avoid circular imports
     from utils.cloud_file import is_file_exists
-
 
     job = get_object_or_404(Job, pk=pk)
     if not (request.user.is_superuser or (job.user == request.user)):
@@ -1365,7 +1346,6 @@ def _upload_truth_worker(job_pk):
     # imported here so that test_process_upload_truth_job() can patch via mock:
     from forecast_app.models.job import job_cloud_file
 
-
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
             if 'project_pk' not in job.input_json:
@@ -1394,7 +1374,6 @@ def download_truth(request, project_pk):
         model's owner.
     """
     from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
-
 
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
@@ -1462,7 +1441,6 @@ def _upload_forecast_worker(job_pk):
     # imported here so that test__upload_forecast_worker() and test__upload_forecast_worker_blue_sky() can patch/mock
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
-
 
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
@@ -1611,7 +1589,6 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     from utils.cloud_file import delete_file, upload_file
-
 
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "

@@ -2,7 +2,6 @@ import logging
 
 from django.template import Template, Context
 
-
 logger = logging.getLogger(__name__)
 
 #
@@ -90,3 +89,32 @@ def get_or_create_super_po_mo_users(is_create_super):
     return (superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password,
             non_staff_user, non_staff_user_password) if is_create_super \
         else (po_user, po_user_password, mo_user, mo_user_password, non_staff_user, non_staff_user_password)
+
+
+#
+# SQL utilities
+#
+
+# "chunk" size of rows to fetch. used by batched_rows(cursor). value from `chunk_size=2000`:
+# https://docs.djangoproject.com/en/2.2/ref/models/querysets/#iterator
+SQL_ROWS_BATCH_SIZE = 2000
+
+
+def batched_rows(cursor):
+    """
+    Generator that retrieves rows from `cursor` in batches of size SQL_ROWS_BATCH_SIZE.
+
+    :param cursor: a cursor
+    :return: next row from cursor
+    """
+    while True:
+        rows = cursor.fetchmany(SQL_ROWS_BATCH_SIZE)
+        if not rows:
+            break
+
+        for row in rows:
+            yield row
+
+
+# for row in batched_rows(cursor):
+#     ...

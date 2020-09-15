@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from forecast_app.models import ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Forecast
 from utils.forecast import cache_forecast_metadata, clear_forecast_metadata, load_predictions_from_json_io_dict, \
-    forecast_metadata, is_forecast_metadata_available
+    forecast_metadata, is_forecast_metadata_available, forecast_metadata_counts_for_project
 from utils.make_minimal_projects import _make_docs_project
 from utils.utilities import get_or_create_super_po_mo_users
 
@@ -14,12 +14,10 @@ class ForecastMetadataTestCase(TestCase):
     """
     """
 
-
     @classmethod
     def setUpTestData(cls):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         cls.project, cls.time_zero, cls.forecast_model, cls.forecast = _make_docs_project(po_user)
-
 
     def test_cache_forecast_metadata_predictions(self):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
@@ -39,7 +37,6 @@ class ForecastMetadataTestCase(TestCase):
         cache_forecast_metadata(self.forecast)
         self.assertEqual(1, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
 
-
     def test_cache_forecast_metadata_units(self):
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=self.forecast).count())
 
@@ -52,7 +49,6 @@ class ForecastMetadataTestCase(TestCase):
         cache_forecast_metadata(self.forecast)
         self.assertEqual(3, forecast_meta_unit_qs.count())
 
-
     def test_cache_forecast_metadata_targets(self):
         self.assertEqual(0, ForecastMetaTarget.objects.filter(forecast=self.forecast).count())
 
@@ -64,7 +60,6 @@ class ForecastMetadataTestCase(TestCase):
         # second run first deletes existing rows, resulting in the same number as before
         cache_forecast_metadata(self.forecast)
         self.assertEqual(5, forecast_meta_target_qs.count())
-
 
     def test_cache_forecast_metadata_clears_first(self):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
@@ -82,7 +77,6 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=self.forecast).count())
         self.assertEqual(0, ForecastMetaTarget.objects.filter(forecast=self.forecast).count())
-
 
     def test_cache_forecast_metadata_second_forecast(self):
         # make sure only the passed forecast is cached
@@ -109,7 +103,6 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=forecast2).count())
         self.assertEqual(0, ForecastMetaTarget.objects.filter(forecast=forecast2).count())
 
-
     def test_metadata_for_forecast(self):
         cache_forecast_metadata(self.forecast)
         forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs = forecast_metadata(self.forecast)
@@ -129,9 +122,24 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(5, len(forecast_meta_target_qs))
         self.assertEqual({ForecastMetaTarget}, set(map(type, forecast_meta_target_qs)))
 
-
     def test_is_forecast_metadata_available(self):
         self.assertFalse(is_forecast_metadata_available(self.forecast))
 
         cache_forecast_metadata(self.forecast)
         self.assertTrue(is_forecast_metadata_available(self.forecast))
+
+    def tests_forecast_metadata_counts_for_project(self):
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json',
+                                            time_zero=self.time_zero, notes="a small prediction file")
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+        cache_forecast_metadata(self.forecast)
+        cache_forecast_metadata(forecast2)
+        forecast_id_to_counts = forecast_metadata_counts_for_project(self.project)
+        #  f_id:  [(point_count, named_count, bin_count, sample_count, quantile_count), num_units, num_targets]
+        # {   1:  [(11,          2,           16,        23,           10),             3,         5          ],
+        #     2:  [(11,          2,           16,        23,           10),             3,         5          ]}
+        self.assertEqual(sorted([self.forecast.id, forecast2.id]), sorted(forecast_id_to_counts.keys()))
+        self.assertEqual([(11, 2, 16, 23, 10), 3, 5], forecast_id_to_counts[self.forecast.id])
+        self.assertEqual([(11, 2, 16, 23, 10), 3, 5], forecast_id_to_counts[forecast2.id])
