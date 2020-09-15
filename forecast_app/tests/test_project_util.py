@@ -8,11 +8,11 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
 from forecast_app.models import Project, Target, ForecastModel, TimeZero, Forecast
-from utils.forecast import load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target, group_targets, \
     unit_rows_for_project, models_summary_table_rows_for_project
-from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import get_or_create_super_po_mo_users
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -663,6 +663,7 @@ class ProjectUtilTestCase(TestCase):
     def test_unit_rows_for_project(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # 2011, 10, 2
+        cache_forecast_metadata(forecast)  # required by _forecast_ids_to_unit_id_sets()
 
         # case: one model with one timezero. recall rows:
         # (model, newest_forecast_tz_date, newest_forecast_id,
@@ -678,6 +679,8 @@ class ProjectUtilTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+        cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_unit_id_sets()
+
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3, '(all)', '')]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
         self.assertEqual(exp_rows, act_rows)
@@ -695,6 +698,8 @@ class ProjectUtilTestCase(TestCase):
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
         load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
+        cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_unit_id_sets()
+
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3,
                      '(all)', ''),
                     (forecast_model2, str(time_zero3.timezero_date), forecast3.id, 1,

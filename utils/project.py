@@ -12,7 +12,7 @@ from django.db import connection
 from django.db import transaction
 from django.utils import timezone
 
-from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, Prediction
+from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, ForecastMetaUnit
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -788,31 +788,15 @@ def _forecast_ids_to_unit_id_sets(forecast_ids):
     :param forecast_ids: a list of Forecast IDs
     :return: a dict mapping each forecast_id to a set of its unit ids: {forecast_id -> set(unit_ids)}
     """
-    # NB: this query is somewhat expensive
     if not forecast_ids:
         return {}
 
-    # build up sql for all prediction types - each combined via UNION
-    param_str = ', '.join(['%s'] * len(forecast_ids))
-    pred_class_selects = []
-    for concrete_prediction_class in Prediction.concrete_subclasses():
-        sql = f"""
-            SELECT DISTINCT f.id AS f_id, p.unit_id AS pred_unit_id
-            FROM {Forecast._meta.db_table} AS f
-                     JOIN {concrete_prediction_class._meta.db_table} AS p
-                          ON f.id = p.forecast_id
-            WHERE f.id IN ({param_str})
-        """
-        pred_class_selects.append(sql)
-    sql = '\nUNION\n'.join(pred_class_selects)
-    sql += '\nORDER BY f_id;'
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast_ids * len(Prediction.concrete_subclasses())))
-        rows = cursor.fetchall()
-
-    # build the return value
     forecast_id_to_unit_id_set = {}
-    for forecast_id, unit_id_grouper in groupby(rows, key=lambda _: _[0]):
+    forecast_meta_unit_qs = ForecastMetaUnit.objects \
+        .filter(forecast__id__in=forecast_ids) \
+        .order_by('forecast__id', 'unit__id') \
+        .values_list('forecast__id', 'unit__id')  # ordered so we can groupby()
+    for forecast_id, unit_id_grouper in groupby(forecast_meta_unit_qs, key=lambda _: _[0]):
         forecast_id_to_unit_id_set[forecast_id] = {_[1] for _ in unit_id_grouper}
 
     return forecast_id_to_unit_id_set
