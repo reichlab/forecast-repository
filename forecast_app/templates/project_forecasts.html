@@ -23,27 +23,22 @@
                 Color by
             </button>
             <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <a class="dropdown-item" href="#" id="color_num_rows"># rows</a>
-                <a class="dropdown-item" href="#" id="color_num_units"># units</a>
-                <a class="dropdown-item" href="#" id="color_num_targets"># targets</a>
+                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=rows"
+                   id="color_num_rows"># rows</a>
+                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=units"
+                   id="color_num_units"># units</a>
+                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=targets"
+                   id="color_num_targets"># targets</a>
             </div>
         </div>
     </h4>
 
 
     {# Vega-Lite #}
-    {% comment %}
     <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
     <script src="https://cdn.jsdelivr.net/npm/vega-lite@4"></script>
     {# vega-embed gives this error: Source map error: Error: request failed with status 404. Resource URL: https://cdn.jsdelivr.net/npm/vega-embed@6 Source Map URL: vega-embed.min.js.map  #}
     <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-lite-api@0.13.0"></script>
-    {% endcomment %}
-
-    <script src="https://cdn.jsdelivr.net/npm/vega"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-lite"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-embed"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vega-lite-api"></script>
 
     {# Vega-Lite #}
     <div class="row">
@@ -95,33 +90,7 @@
         $(document).ready(function () {
             // activate the https://datatables.net/
             $('#forecasts_table').DataTable({
-                order: [[2, "desc"]],  // Upload time
-            });
-
-            // handle "Color by" vega-lite dropdown selections
-            $('#color_num_rows').click(function (e) {
-                console.log('xx r');
-                e.preventDefault();
-
-                // vl.register(vega, vegaLite, options);
-                // const cs = vl.vega.changeset();
-
-                {#  vl.color().vl.fieldQ('# rows');  // xx  #}
-                {#  vl.color.field('# rows');  // xx  #}
-
-                {#  vl.color(vl.fieldQ('# rows'));  #}
-                {#  vl.color().fieldQ('# rows');  #}
-                {#  vl.encoding(vl.color().fieldQ('# rows'));  #}
-            });
-            $('#color_num_units').click(function (e) {
-                e.preventDefault();
-                // xx
-                console.log('xx u');
-            });
-            $('#color_num_targets').click(function (e) {
-                e.preventDefault();
-                // xx
-                console.log('xx t');
+                order: [[1, "desc"]],  // Timezero
             });
         });
     </script>

@@ -758,7 +758,7 @@ def _project_explorer_unit_rows(project):
         (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     """
 
-    # get 3-tuples from models_summary_table_rows_for_project():
+    # get newest forecast info 3-tuples from models_summary_table_rows_for_project():
     #   (model, newest_forecast_tz_date, newest_forecast_id) tuples. from:
     # [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id,
     #  newest_forecast_id, newest_forecast_created_at]
@@ -770,7 +770,7 @@ def _project_explorer_unit_rows(project):
 
     # combine into 5-tuple: (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     unit_id_to_obj = {unit.id: unit for unit in project.units.all()}
-    all_unit_ids = set(project.units.values_list('id', flat=True))
+    all_unit_ids = set(unit_id_to_obj.keys())
     rows = []  # return value. filled next
     for model, newest_forecast_tz_date, newest_forecast_id in models_rows:
         present_unit_ids = forecast_id_to_unit_id_set[newest_forecast_id] \
