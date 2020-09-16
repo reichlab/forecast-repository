@@ -55,7 +55,7 @@ def delete_project_iteratively(project):
         timezero.delete()
 
     logger.info(f"delete_project_iteratively(): deleting remainder")
-    project.delete()  # deletes remaining references: RowCountCache, ScoreCsvFileCache
+    project.delete()  # deletes remaining references: RowCountCache
     logger.info(f"delete_project_iteratively(): done")
 
 

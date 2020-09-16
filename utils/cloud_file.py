@@ -23,8 +23,7 @@ logging.getLogger("boto3.resources.action").setLevel(logging.INFO)
 # The types of files currently include temporary forecast csv data file uploads and cached csv score files.
 #
 # Naming conventions: To simplify the code we use a simple naming convention with a single 'folder' namespace
-# (comparable to S3 buckets) and a filename based on the PK of the class of object involved. Naming assumes there's a
-# class corresponding to each type of file to be managed. Currently this includes Job and ScoreCsvFileCache.
+# (comparable to S3 buckets) and a filename based on the PK of the class of object involved.
 #
 # Folder names: To get the folder name we use the corresponding class name in lower case, e.g.,
 # Job -> 'job'. Note that for S3, this is then used as a postfix to dotted naming convention we've
@@ -39,10 +38,6 @@ logging.getLogger("boto3.resources.action").setLevel(logging.INFO)
 # Job:
 # - folder name: 'job' (S3 bucket: 'reichlab.zoltarapp.job')
 # - filename: Job.pk as a string
-#
-# ScoreCsvFileCache:
-# - folder name: 'scorecsvfilecache' (S3 bucket: 'reichlab.zoltarapp.scorecsvfilecache')
-# - filename: ScoreCsvFileCache.pk as a string
 #
 
 
