@@ -2,13 +2,14 @@ import logging
 
 from django.template import Template, Context
 
+
 logger = logging.getLogger(__name__)
+from django.contrib.auth.models import User
+
 
 #
 # __str__()-related functions
 #
-from django.contrib.auth.models import User
-
 
 def basic_str(obj):
     """
@@ -114,7 +115,3 @@ def batched_rows(cursor):
 
         for row in rows:
             yield row
-
-
-# for row in batched_rows(cursor):
-#     ...

@@ -608,7 +608,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
 
 
-    def test_process_upload_truth_job(self):
+    def test__upload_truth_worker_bad_inputs(self):
         # test `_upload_truth_worker()` error conditions. this test is complicated by that function's use of
         # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
@@ -618,19 +618,38 @@ class ProjectTestCase(TestCase):
             job.save()
             job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
             _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_truth_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
 
             # test no 'filename'
             job.input_json = {'project_pk': None}  # no 'filename'
             job.save()
             _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_truth_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
 
             # test bad 'project_pk'
             job.input_json = {'project_pk': -1, 'filename': None}
             job.save()
             _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_truth_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
+
+
+    def test__upload_truth_worker_blue_sky(self):
+        with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                patch('utils.project.load_truth_data') as load_truth_mock:
+            job = Job.objects.create()
+            job.input_json = {'project_pk': self.project.pk, 'filename': 'a name!'}
+            job.save()
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
+            _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
+            load_truth_mock.assert_called_once()
+            self.assertEqual(Job.SUCCESS, job.status)
 
 
     def test_last_update(self):

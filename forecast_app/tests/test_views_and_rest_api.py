@@ -1434,7 +1434,7 @@ class ViewsTestCase(TestCase):
             response = self.client.get(job_data_download_url)
             self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 
-            download_file_mock.side_effect = Exception()
+            download_file_mock.side_effect = Exception('download_file_mock Exception')
             self._authenticate_jwt_user(self.po_user, self.po_user_password)
             response = self.client.get(job_data_download_url)
             self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)

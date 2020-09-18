@@ -16,7 +16,7 @@ from jsonfield import JSONField
 from rq.timeouts import JobTimeoutException
 
 from forecast_repo.settings.base import UPLOAD_FILE_QUEUE_NAME
-from utils.cloud_file import delete_file, download_file
+from utils.cloud_file import delete_file
 from utils.utilities import basic_str
 
 
@@ -161,26 +161,20 @@ class Job(models.Model):
 @contextmanager
 def job_cloud_file(job_pk):
     """
-    A context manager for use by django_rq.enqueue() calls by views._upload_file().
-
-    Does the following setup:
-    - get the Job for job_pk
-    - download the corresponding cloud file data into a temporary file, setting the Job's status to
-      CLOUD_FILE_DOWNLOADED
-    - pass the temporary file's fp to this context's caller
-    - set the Job's status to SUCCESS
-
-    Does this cleanup:
-    - delete the cloud object, regardless of success or failure
+    A context manager for use by django_rq.enqueue() calls by views._upload_file(). It wraps the caller by first
+    downloading the file corresponding to `job_pk` and then returning a fp to it. Cleans up by deleting the job's file.
 
     :param job_pk: PK of the corresponding Job instance
     """
+    # imported here so that tests can patch via mock:
+    from utils.cloud_file import download_file
+
     # __enter__()
     job = get_object_or_404(Job, pk=job_pk)
-    logger.debug(f"job_cloud_file(): Started. job={job}")
+    logger.debug(f"job_cloud_file(): 1/4 Started. job={job}")
     with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
         try:
-            logger.debug(f"job_cloud_file(): Downloading from cloud. job={job}")
+            logger.debug(f"job_cloud_file(): 2/4 Downloading from cloud. job={job}")
             download_file(job, cloud_file_fp)
             cloud_file_fp.seek(0)  # yes you have to do this!
             job.status = Job.CLOUD_FILE_DOWNLOADED
@@ -189,13 +183,11 @@ def job_cloud_file(job_pk):
             # make the context call. we need TextIOWrapper ('a buffered text stream over a BufferedIOBase binary
             # stream') b/c cloud_file_fp is a <class '_io.BufferedRandom'>. o/w csv ->
             # 'iterator should return strings, not bytes'
-            logger.debug(f"job_cloud_file(): Calling context. job={job}")
+            logger.debug(f"job_cloud_file(): 3/4 Calling context. job={job}")
             cloud_file_fp = io.TextIOWrapper(cloud_file_fp, 'utf-8')
             yield job, cloud_file_fp
 
-            # __exit__()
-            job.status = Job.SUCCESS  # yay!
-            job.save()
+            # __exit__(). NB: does NOT do: `job.status = Job.SUCCESS` - that's left to the caller
             logger.debug(f"job_cloud_file(): Done. job={job}")
         except JobTimeoutException as jte:
             job.status = Job.TIMEOUT
@@ -224,7 +216,7 @@ def job_cloud_file(job_pk):
 
 @receiver(post_save, sender=Job)
 def send_notification_for_job(sender, instance, using, **kwargs):
-    # imported here so that test_email_notification() can patch via mock:
+    # imported here so that tests can patch via mock:
     from forecast_app.notifications import send_notification_email
 
 

@@ -6,6 +6,7 @@ from django.db.models import IntegerField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
+from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import Project
 from forecast_repo.settings.base import ROW_COUNT_UPDATE_QUEUE_NAME
@@ -68,6 +69,8 @@ def _update_project_row_count_cache_worker(project_pk):
     project = get_object_or_404(Project, pk=project_pk)
     try:
         project.row_count_cache.update_row_count_cache()
+    except JobTimeoutException as jte:
+        logger.error(f"_update_project_row_count_cache_worker(): Job timeout: {jte!r}. project={project}")
     except Exception as ex:
         logger.error(f"_update_project_row_count_cache_worker(): error: {ex!r}. project={project}")
 

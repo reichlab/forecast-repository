@@ -402,7 +402,7 @@ def _forecasts_query_worker(job_pk):
 
 
 def _query_worker(job_pk, query_project_fcn):
-    # imported here so that test__query_forecasts_worker() can patch via mock:
+    # imported here so that tests can patch via mock:
     from utils.cloud_file import upload_file
 
 

@@ -513,7 +513,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(["2019-12-22", "2019-12-29", "2020-01-05"], quantile_pred_dict['prediction']['value'])
 
 
-    def test__upload_forecast_worker(self):
+    def test__upload_forecast_worker_bad_inputs(self):
         # test `_upload_forecast_worker()` error conditions. this test is complicated by that function's use of
         # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
@@ -530,25 +530,68 @@ class ForecastTestCase(TestCase):
             job.input_json = {'forecast_model_pk': None}  # no 'timezero_pk'
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_preds_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
 
             # test no 'filename'
             job.input_json = {'forecast_model_pk': None, 'timezero_pk': None}  # no 'filename'
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_preds_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
 
             # test bad 'forecast_model_pk'
             job.input_json = {'forecast_model_pk': -1, 'timezero_pk': None, 'filename': None}
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_preds_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
 
             # test bad 'timezero_pk'
             job.input_json = {'forecast_model_pk': self.forecast_model.pk, 'timezero_pk': -1, 'filename': None}
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
+            job.refresh_from_db()
             load_preds_mock.assert_not_called()
+            self.assertEqual(Job.FAILED, job.status)
+
+
+    def test__upload_forecast_worker_atomic(self):
+        # test `_upload_forecast_worker()` does not create a Forecast if subsequent calls to
+        # `load_predictions_from_json_io_dict()` or `cache_forecast_metadata()` fail. this test is complicated by that
+        # function's use of the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+
+        with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
+                patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
+                patch('json.load') as json_load_mock:
+            job = Job.objects.create()
+            job.input_json = {'forecast_model_pk': forecast_model.pk, 'timezero_pk': time_zero.pk,
+                              'filename': 'a name!'}
+            job.save()
+
+            # test that no Forecast is created when load_predictions_from_json_io_dict() fails
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
+            load_preds_mock.side_effect = Exception('load_preds_mock Exception')
+            num_forecasts_before = forecast_model.forecasts.count()
+            _upload_forecast_worker(job.pk)
+            job.refresh_from_db()
+            self.assertEqual(num_forecasts_before, forecast_model.forecasts.count())
+            self.assertEqual(Job.FAILED, job.status)
+
+            # test when cache_forecast_metadata() fails
+            load_preds_mock.reset_mock(side_effect=True)
+            cache_metatdata_mock.side_effect = Exception('cache_metatdata_mock Exception')
+            num_forecasts_before = forecast_model.forecasts.count()
+            _upload_forecast_worker(job.pk)
+            job.refresh_from_db()
+            self.assertEqual(num_forecasts_before, forecast_model.forecasts.count())
+            self.assertEqual(Job.FAILED, job.status)
 
 
     def test__upload_forecast_worker_blue_sky(self):
@@ -568,5 +611,7 @@ class ForecastTestCase(TestCase):
             job.save()
             job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
             _upload_forecast_worker(job.pk)
+            job.refresh_from_db()
             load_preds_mock.assert_called_once()
             cache_metatdata_mock.assert_called_once()
+            self.assertEqual(Job.SUCCESS, job.status)

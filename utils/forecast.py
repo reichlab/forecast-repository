@@ -1002,7 +1002,9 @@ def _cache_forecast_metadata_worker(forecast_pk):
     """
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     try:
+        logger.debug(f"_cache_forecast_metadata_worker(): 1/2 starting: forecast_pk={forecast_pk}")
         cache_forecast_metadata(forecast)
+        logger.debug(f"_cache_forecast_metadata_worker(): 2/2 done: forecast_pk={forecast_pk}")
     except Exception as ex:
         logger.error(f"_cache_forecast_metadata_worker(): error: {ex!r}. forecast={forecast}")
 
@@ -1062,18 +1064,18 @@ def forecast_metadata_counts_for_project(project):
     # query 2/2: get ForecastMetaUnit and ForecastMetaTarget counts
     sql = f"""
         SELECT fmt.forecast_id AS forecast_id, count(*) AS num_targets, 1 AS is_target_count
-        FROM forecast_app_forecastmetatarget AS fmt
-                 JOIN forecast_app_forecast AS f ON fmt.forecast_id = f.id
-                 JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+        FROM {ForecastMetaTarget._meta.db_table} AS fmt
+                 JOIN {Forecast._meta.db_table} AS f ON fmt.forecast_id = f.id
+                 JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
         WHERE fm.project_id = %s
         GROUP BY fmt.forecast_id, fm.project_id
         
         UNION
         
         SELECT fmu.forecast_id AS forecast_id, count(*) AS num_units, 0 AS is_target_count
-        FROM forecast_app_forecastmetaunit AS fmu
-                 JOIN forecast_app_forecast AS f ON fmu.forecast_id = f.id
-                 JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+        FROM {ForecastMetaUnit._meta.db_table} AS fmu
+                 JOIN {Forecast._meta.db_table} AS f ON fmu.forecast_id = f.id
+                 JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
         WHERE fm.project_id = %s
         GROUP BY fmu.forecast_id, fm.project_id;
     """

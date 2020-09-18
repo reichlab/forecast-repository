@@ -31,13 +31,14 @@ from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
     is_forecast_metadata_available, forecast_metadata, forecast_metadata_counts_for_project
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
-from utils.project import config_dict_from_project, create_project_from_json, load_truth_data, group_targets, \
-    unit_rows_for_project, models_summary_table_rows_for_project
+from utils.project import config_dict_from_project, create_project_from_json, group_targets, unit_rows_for_project, \
+    models_summary_table_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, \
     _scores_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+
 
 logger = logging.getLogger(__name__)
 
@@ -273,9 +274,11 @@ def _unit_to_actual_points(loc_tz_date_to_actual_vals):
         component expects: "[a JavaScript] array of the same length as timePoints"
     """
 
+
     def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
         return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
                 for tz_date in sorted(tz_date_to_actual.keys())]
+
 
     unit_to_actual_points = {unit: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
                              for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
@@ -288,9 +291,11 @@ def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
         loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals()
     """
 
+
     def max_from_tz_date_to_actual_dict(tz_date_to_actual):
         flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
         return max(flat_values) if flat_values else None  # NB: None is arbitrary
+
 
     unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
                           for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
@@ -518,6 +523,7 @@ def query_forecasts_or_scores(request, project_pk, is_forecast):
     scores (o/w).
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
+
 
     project = get_object_or_404(Project, pk=project_pk)
     if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
@@ -775,8 +781,9 @@ def delete_project(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    # imported here so that test_delete_project_iteratively() can patch via mock:
+    # imported here so that tests can patch via mock:
     from utils.project import delete_project_iteratively
+
 
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
@@ -910,6 +917,7 @@ def delete_model(request, model_pk):
 class UserListView(ListView):
     model = User
 
+
     def get_context_data(self, **kwargs):
         # collect user info
         user_projs_models = []  # 3-tuples: User, num_projs, num_models
@@ -933,13 +941,16 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     model = Project
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return is_user_ok_view_project(self.request.user, project)
+
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
@@ -958,6 +969,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
         return context
+
 
     @staticmethod
     def timezeros_num_forecasts(project):
@@ -1008,13 +1020,16 @@ class UserDetailView(UserPassesTestMixin, DetailView):
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return is_user_ok_edit_user(self.request.user, detail_user)
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1036,13 +1051,16 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast_model.project)
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1064,13 +1082,16 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
+
 
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
@@ -1111,6 +1132,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_sample'] = data_rows_sample
         return context
 
+
     def forecast_metadata_cached(self):
         """
         ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
@@ -1132,6 +1154,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
         return pred_type_count_pairs, found_units, found_targets
+
 
     def forecast_metadata_dynamic(self):
         """
@@ -1173,6 +1196,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # done
         return pred_type_count_pairs, found_units, found_targets
+
 
     def search_forecast(self):
         """
@@ -1224,16 +1248,20 @@ class JobDetailView(UserPassesTestMixin, DetailView):
 
     context_object_name = 'job'
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
+
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
 
+
     def get_context_data(self, **kwargs):
         from utils.cloud_file import is_file_exists
+
 
         job = self.get_object()
         context = super().get_context_data(**kwargs)
@@ -1260,6 +1288,7 @@ def download_forecast(request, forecast_pk):
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
+
     return json_response_for_forecast(forecast, request)
 
 
@@ -1269,6 +1298,7 @@ def download_job_data_file(request, pk):
     """
     from forecast_app.api_views import _download_job_data_request  # avoid circular imports
     from utils.cloud_file import is_file_exists
+
 
     job = get_object_or_404(Job, pk=pk)
     if not (request.user.is_superuser or (job.user == request.user)):
@@ -1354,33 +1384,54 @@ def _upload_truth_worker(job_pk):
     """
     An _upload_file() enqueue() function that loads a truth file. Called by upload_truth().
 
-    - Expected Job.input_json key(s): 'project_pk' - passed to _upload_file()
+    - Expected Job.input_json key(s): 'project_pk', 'filename'
     - Saves Job.output_json key(s): None
 
     :param job_pk: the Job's pk
     """
-    # imported here so that test_process_upload_truth_job() can patch via mock:
+    # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
+    from utils.project import load_truth_data
+
 
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
             if 'project_pk' not in job.input_json:
-                logger.error(f"_upload_truth_worker(): missing 'project_pk' in job={job}")
+                job.status = Job.FAILED
+                job.failure_message = f"_upload_truth_worker(): missing 'project_pk' in job={job}"
+                job.save()
+                logger.error(job.failure_message)
                 return
             elif 'filename' not in job.input_json:
-                logger.error(f"_upload_truth_worker(): missing 'filename' in job={job}")
+                job.status = Job.FAILED
+                job.failure_message = f"_upload_truth_worker(): missing 'filename' in job={job}"
+                job.save()
+                logger.error(job.failure_message)
                 return
 
             project_pk = job.input_json['project_pk']
             project = Project.objects.filter(pk=project_pk).first()  # None if doesn't exist
             if not project:
-                logger.error(f"_upload_truth_worker(): no Project found for project_pk={project_pk}")
+                job.status = Job.FAILED
+                job.failure_message = f"_upload_truth_worker(): no Project found for project_pk={project_pk}"
+                job.save()
+                logger.error(job.failure_message)
                 return
 
             filename = job.input_json['filename']
             load_truth_data(project, cloud_file_fp, file_name=filename)
+            job.status = Job.SUCCESS
+            job.save()
+    except JobTimeoutException as jte:
+        job.status = Job.TIMEOUT
+        job.save()
+        logger.error(f"_upload_truth_worker(): Job timeout: {jte!r}. job={job}")
+        raise jte
     except Exception as ex:
-        logger.error(f"_upload_truth_worker(): error uploading: {ex!r}")
+        job.status = Job.FAILED
+        job.failure_message = f"_upload_truth_worker(): exception: {ex!r}. job={job}"
+        job.save()
+        logger.error(job.failure_message)
 
 
 def download_truth(request, project_pk):
@@ -1390,6 +1441,7 @@ def download_truth(request, project_pk):
         model's owner.
     """
     from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
+
 
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
@@ -1445,6 +1497,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     return redirect('job-detail', pk=job.pk)
 
 
+# @transaction.atomic
 def _upload_forecast_worker(job_pk):
     """
     An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast().
@@ -1454,63 +1507,73 @@ def _upload_forecast_worker(job_pk):
 
     :param job_pk: the Job's pk
     """
-    # imported here so that test__upload_forecast_worker() and test__upload_forecast_worker_blue_sky() can patch/mock
+    # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
-    try:
-        with job_cloud_file(job_pk) as (job, cloud_file_fp):
-            if 'forecast_model_pk' not in job.input_json:
-                logger.error(f"_upload_forecast_worker(): missing 'forecast_model_pk' in job={job}")
-                return
-            elif 'timezero_pk' not in job.input_json:
-                logger.error(f"_upload_forecast_worker(): missing 'timezero_pk' in job={job}")
-                return
-            elif 'filename' not in job.input_json:
-                logger.error(f"_upload_forecast_worker(): missing 'filename' in job={job}")
-                return
 
-            forecast_model_pk = job.input_json['forecast_model_pk']
-            timezero_pk = job.input_json['timezero_pk']
-            filename = job.input_json['filename']
+    with job_cloud_file(job_pk) as (job, cloud_file_fp):
+        if 'forecast_model_pk' not in job.input_json:
+            job.status = Job.FAILED
+            job.failure_message = f"_upload_forecast_worker(): missing 'forecast_model_pk' in job={job}"
+            job.save()
+            logger.error(job.failure_message)
+            return
+        elif 'timezero_pk' not in job.input_json:
+            job.status = Job.FAILED
+            job.failure_message = f"_upload_forecast_worker(): missing 'timezero_pk' in job={job}"
+            job.save()
+            logger.error(job.failure_message)
+            return
+        elif 'filename' not in job.input_json:
+            job.status = Job.FAILED
+            job.failure_message = f"_upload_forecast_worker(): missing 'filename' in job={job}"
+            job.save()
+            logger.error(job.failure_message)
+            return
 
-            forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
-            time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
-            if not forecast_model:
-                logger.error(f"_upload_forecast_worker(): no ForecastModel found for "
-                             f"forecast_model_pk={forecast_model_pk}")
-                return
-            elif not time_zero:
-                logger.error(f"no TimeZero found for timezero_pk={timezero_pk}")
-                return
+        forecast_model_pk = job.input_json['forecast_model_pk']
+        timezero_pk = job.input_json['timezero_pk']
+        filename = job.input_json['filename']
 
-            logger.debug(f"_upload_forecast_worker(): job={job}, forecast_model={forecast_model}, "
-                         f"time_zero={time_zero}")
+        forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
+        time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
+        if not forecast_model:
+            logger.error(f"_upload_forecast_worker(): no ForecastModel found for "
+                         f"forecast_model_pk={forecast_model_pk}. job={job}")
+            return
+        elif not time_zero:
+            logger.error(f"no TimeZero found for timezero_pk={timezero_pk}. job={job}")
+            return
+
+        try:
             with transaction.atomic():
-                logger.debug(f"_upload_forecast_worker(): creating Forecast")
+                logger.debug(f"_upload_forecast_worker(): 1/4 creating Forecast. job={job}, "
+                             f"forecast_model={forecast_model}, time_zero={time_zero}. job={job}")
                 notes = job.input_json.get('notes', '')
                 new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
-                                                       source=filename,
-                                                       notes=notes)
+                                                       source=filename, notes=notes)
                 json_io_dict = json.load(cloud_file_fp)
-                logger.debug(f"_upload_forecast_worker(): loading predictions")
-                try:
-                    load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)
-                    cache_forecast_metadata(new_forecast)
-                    job.output_json = {'forecast_pk': new_forecast.pk}
-                    job.save()
-                    logger.debug(f"_upload_forecast_worker(): done")
-                except JobTimeoutException as jte:
-                    job.status = Job.TIMEOUT
-                    job.save()
-                    logger.error(f"_upload_forecast_worker(): Job timeout: {jte!r}. job={job}")
-                except Exception as ex:
-                    job.status = Job.FAILED
-                    job.failure_message = f"_upload_forecast_worker(): error: {ex!r}. job={job}"
-                    job.save()
-                    logger.error(f"_upload_forecast_worker(): error: {ex!r}. job={job}")
-    except Exception as ex:
-        logger.error(f"_upload_forecast_worker(): error uploading: {ex!r}")
+
+                logger.debug(f"_upload_forecast_worker(): 2/4 loading predictions. job={job}")
+                load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)  # transaction.atomic
+
+                logger.debug(f"_upload_forecast_worker(): 3/4 caching metadata. job={job}")
+                cache_forecast_metadata(new_forecast)  # transaction.atomic
+                job.output_json = {'forecast_pk': new_forecast.pk}
+                job.status = Job.SUCCESS
+                job.save()
+                logger.debug(f"_upload_forecast_worker(): 4/4 done. job={job}")
+        except JobTimeoutException as jte:
+            job.status = Job.TIMEOUT
+            job.save()
+            logger.error(f"_upload_forecast_worker(): Job timeout: {jte!r}. job={job}")
+            raise jte
+        except Exception as ex:
+            job.status = Job.FAILED
+            job.failure_message = f"_upload_forecast_worker(): exception: {ex!r}. job={job}"
+            job.save()
+            logger.error(f"_upload_forecast_worker(): exception: {ex!r}. job={job}")
 
 
 def delete_forecast(request, forecast_pk):
@@ -1569,7 +1632,7 @@ def _delete_forecast_worker(job_pk):
         logger.error(f"_delete_forecast_worker(): Job timeout: {jte!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast_worker(): error running query: {ex!r}. job={job}"
+        job.failure_message = f"_delete_forecast_worker(): error: {ex!r}. job={job}"
         job.save()
         logger.error(f"_delete_forecast_worker(): error: {ex!r}. job={job}")
 
@@ -1605,6 +1668,7 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     from utils.cloud_file import delete_file, upload_file
+
 
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "

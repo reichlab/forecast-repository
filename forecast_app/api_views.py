@@ -129,7 +129,7 @@ class ProjectDetail(UserPassesTestMixin, generics.RetrieveDestroyAPIView):
         if not is_user_ok_edit_project(request.user, project):  # only the project owner can delete the project
             return HttpResponseForbidden()
 
-        # imported here so that test_delete_project_iteratively() can patch via mock:
+        # imported here so that tests can patch via mock:
         from utils.project import delete_project_iteratively
 
 
@@ -429,7 +429,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
-        # imported here so that test_api_upload_forecast() can patch via mock:
+        # imported here so that tests can patch via mock:
         from forecast_app.views import _upload_file, _upload_forecast_worker, is_user_ok_upload_forecast
         from forecast_repo.settings.base import MAX_UPLOAD_FILE_SIZE
 
@@ -695,7 +695,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         """
         # todo xx merge below with views.upload_forecast() and views.validate_data_file()
 
-        # imported here so that test_api_upload_forecast() can patch via mock:
+        # imported here so that tests can patch via mock:
         from forecast_app.views import _upload_file
         from forecast_repo.settings.base import MAX_UPLOAD_FILE_SIZE
 
@@ -740,7 +740,7 @@ def query_forecasts_endpoint(request, pk):
     :param pk: a Project's pk
     :return: the serialized Job
     """
-    # imported here so that test_api_forecast_queries() can patch via mock:
+    # imported here so that tests can patch via mock:
     from utils.project_queries import validate_forecasts_query
 
 
@@ -760,7 +760,7 @@ def query_scores_endpoint(request, pk):
     :param pk: a Project's pk
     :return: the serialized Job
     """
-    # imported here so that test_api_scores_queries() can patch via mock:
+    # imported here so that tests can patch via mock:
     from utils.project_queries import validate_scores_query
 
 
@@ -931,7 +931,7 @@ def _download_job_data_request(job):
     :param job: a Job
     :return: the data file corresponding to `job` as a CSV file
     """
-    # imported here so that test_api_job_data_download() can patch via mock:
+    # imported here so that tests can patch via mock:
     from utils.cloud_file import download_file, _file_name_for_object
 
 

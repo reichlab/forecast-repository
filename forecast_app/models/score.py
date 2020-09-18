@@ -4,6 +4,7 @@ import timeit
 import django_rq
 from django.db import models
 from django.shortcuts import get_object_or_404
+from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import Forecast, ForecastModel
 from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME
@@ -123,7 +124,7 @@ class Score(models.Model):
             score, is_created = Score.objects.get_or_create(abbreviation=abbreviation,
                                                             name=name, description=description)
             if is_created:
-                logger.info("ensure_all_scores_exist(): created: {}".format(score))
+                logger.debug("ensure_all_scores_exist(): created: {}".format(score))
 
 
     def update_score_for_model(self, forecast_model):
@@ -136,21 +137,23 @@ class Score(models.Model):
 
 
         start_time = timeit.default_timer()
-        logger.info(f"update_score_for_model(): entered. score={self}, {forecast_model}")
+        logger.debug(f"update_score_for_model(): 1/4 entered. score={self}, forecast_model={forecast_model}")
 
-        logger.info("update_score_for_model(): deleting existing ScoreValues for model")
+        logger.debug("update_score_for_model(): 2/4 deleting existing ScoreValues for model. "
+                     "score={self}, forecast_model={forecast_model}")
         forecast_model_score_value_qs = ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model)
         forecast_model_score_value_qs.delete()
 
         # e.g., 'calc_error' or 'calc_abs_error':
         calc_function = getattr(forecast_app.scores.definitions, 'calc_' + self.abbreviation)
-        logger.info(f"update_score_for_model(): calling calculation function: {calc_function}")
+        logger.debug(f"update_score_for_model(): 3/4 calling calculation function: {calc_function}. score={self}, "
+                     f"forecast_model={forecast_model}")
         calc_function(self, forecast_model)
 
         self.set_last_update_for_forecast_model(forecast_model)
-        logger.info(f"update_score_for_model(): done. score={self}, {forecast_model} -> "
-                    f"count={forecast_model_score_value_qs.count()} "
-                    f"total ScoreValues. time: {timeit.default_timer() - start_time}")
+        logger.debug(f"update_score_for_model(): 4/4 done. score={self}, forecast_model={forecast_model} -> "
+                     f"count={forecast_model_score_value_qs.count()} "
+                     f"total ScoreValues. time: {timeit.default_timer() - start_time}")
 
 
     def clear(self):
@@ -171,8 +174,8 @@ class Score(models.Model):
         :param dry_run: True means just print a report of Score/ForecastModel pairs that would be updated
         :return list of enqueued 2-tuples: (score, forecast_model)
         """
-        logger.info(f"enqueue_update_scores_for_all_models: entered. is_only_changed={is_only_changed}, "
-                    f"dry_run={dry_run}")
+        logger.debug(f"enqueue_update_scores_for_all_models: entered. is_only_changed={is_only_changed}, "
+                     f"dry_run={dry_run}")
         Score.ensure_all_scores_exist()
         queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
         enqueued_score_models = []  # 2-tuples: (score, forecast_model)
@@ -185,13 +188,14 @@ class Score(models.Model):
                 if is_only_changed and (not is_out_of_date):
                     continue
 
-                logger.info(f"enqueuing score update. {score}, {forecast_model} "
-                            f"{model_score_change.changed_at} > "
-                            f"{score_last_update.updated_at if score_last_update else '(no score_last_update)'}")
+                logger.debug(f"enqueuing score update. {score}, {forecast_model} "
+                             f"{model_score_change.changed_at} > "
+                             f"{score_last_update.updated_at if score_last_update else '(no score_last_update)'}")
                 if not dry_run:
                     queue.enqueue(_update_model_scores_worker, score.pk, forecast_model.pk)
                 enqueued_score_models.append((score, forecast_model))
-        logger.info(f"enqueue_update_scores_for_all_models: done. # enqueued_score_models={len(enqueued_score_models)}")
+        logger.debug(
+            f"enqueue_update_scores_for_all_models: done. # enqueued_score_models={len(enqueued_score_models)}")
         return enqueued_score_models
 
 
@@ -203,6 +207,9 @@ def _update_model_scores_worker(score_pk, forecast_model_pk):
     forecast_model = get_object_or_404(ForecastModel, pk=forecast_model_pk)
     try:
         score.update_score_for_model(forecast_model)
+    except JobTimeoutException as jte:
+        logger.error(f"_update_model_scores_worker(): Job timeout: {jte!r}. score={score}, "
+                     f"forecast_model={forecast_model}")
     except Exception as ex:
         logger.error(f"_update_model_scores_worker(): error: {ex!r}. score={score}, forecast_model={forecast_model}")
 
