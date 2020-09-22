@@ -726,17 +726,15 @@ def unit_rows_for_project(project):
          missing_unit_names). the last two are summarized if more than 7
     """
     # model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names:
-    unit_rows = _project_explorer_unit_rows(project)
-
     # add count column, and replace sets with strings, truncating if too long
     num_units = project.units.count()
 
 
     def unit_string(unit_names):
         if len(unit_names) == num_units:
-            return "(all)"
+            return '(all)'
         elif len(unit_names) > 7:  # magic number
-            return f"({len(unit_names)} units)"
+            return f'({len(unit_names)} units)'
         else:
             return ', '.join(sorted(unit_names))
 
@@ -747,7 +745,7 @@ def unit_rows_for_project(project):
     unit_rows = [(model, newest_forecast_tz_date, newest_forecast_id,
                   len(present_unit_names), unit_string(present_unit_names), unit_string(missing_unit_names))
                  for model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names in
-                 unit_rows]
+                 _project_explorer_unit_rows(project)]
     return unit_rows
 
 
@@ -762,11 +760,12 @@ def _project_explorer_unit_rows(project):
     #   (model, newest_forecast_tz_date, newest_forecast_id) tuples. from:
     # [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id,
     #  newest_forecast_id, newest_forecast_created_at]
-    models_rows = [(row[0], row[3], row[5]) for row in
-                   sorted(models_summary_table_rows_for_project(project), key=lambda _: _[0].name)]
+    models_rows = [(row[0], row[3], row[5]) for row in models_summary_table_rows_for_project(project)]
 
     # get corresponding unique Unit IDs for newest_forecast_ids
-    forecast_id_to_unit_id_set = _forecast_ids_to_unit_id_sets([_[-1] for _ in models_rows if _[-1] is not None])
+    forecast_ids = [newest_forecast_id for model, newest_forecast_tz_date, newest_forecast_id in models_rows
+                    if newest_forecast_id is not None]
+    forecast_id_to_unit_id_set = _forecast_ids_to_present_unit_id_sets(forecast_ids)
 
     # combine into 5-tuple: (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     unit_id_to_obj = {unit.id: unit for unit in project.units.all()}
@@ -783,7 +782,7 @@ def _project_explorer_unit_rows(project):
     return rows
 
 
-def _forecast_ids_to_unit_id_sets(forecast_ids):
+def _forecast_ids_to_present_unit_id_sets(forecast_ids):
     """
     :param forecast_ids: a list of Forecast IDs
     :return: a dict mapping each forecast_id to a set of its unit ids: {forecast_id -> set(unit_ids)}
@@ -797,6 +796,6 @@ def _forecast_ids_to_unit_id_sets(forecast_ids):
         .order_by('forecast__id', 'unit__id') \
         .values_list('forecast__id', 'unit__id')  # ordered so we can groupby()
     for forecast_id, unit_id_grouper in groupby(forecast_meta_unit_qs, key=lambda _: _[0]):
-        forecast_id_to_unit_id_set[forecast_id] = {_[1] for _ in unit_id_grouper}
+        forecast_id_to_unit_id_set[forecast_id] = {unit_id for forecast_id, unit_id in unit_id_grouper}
 
     return forecast_id_to_unit_id_set

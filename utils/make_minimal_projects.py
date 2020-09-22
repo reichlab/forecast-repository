@@ -8,8 +8,11 @@ import django
 
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from django.db import transaction
+
+
 django.setup()
-from utils.forecast import load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
 from utils.project import load_truth_data, create_project_from_json
 
@@ -122,6 +125,7 @@ def fill_cdc_project(project, mo_user, is_public):
 DOCS_PROJECT_NAME = "Docs Example Project"  # overrides the json file one
 
 
+@transaction.atomic
 def _make_docs_project(user):
     """
     Creates a project based on docs-project.json with forecasts from docs-predictions.json.
@@ -131,7 +135,7 @@ def _make_docs_project(user):
         click.echo("* deleting previous project: {}".format(found_project))
         found_project.delete()
 
-    project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), user)
+    project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), user)  # atomic
     project.name = DOCS_PROJECT_NAME
     project.save()
 
@@ -143,7 +147,8 @@ def _make_docs_project(user):
                                        time_zero=time_zero, notes="a small prediction file")
     with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
         json_io_dict_in = json.load(fp)
-        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
+        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
+        cache_forecast_metadata(forecast)  # atomic
 
     return project, time_zero, forecast_model, forecast
 

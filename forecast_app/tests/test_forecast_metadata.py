@@ -16,8 +16,11 @@ class ForecastMetadataTestCase(TestCase):
 
     @classmethod
     def setUpTestData(cls):
+        # recall that _make_docs_project() calls cache_forecast_metadata(), but the below tests assume it doesn't, so
+        # we clear here
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         cls.project, cls.time_zero, cls.forecast_model, cls.forecast = _make_docs_project(po_user)
+        clear_forecast_metadata(cls.forecast)
 
     def test_cache_forecast_metadata_predictions(self):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())

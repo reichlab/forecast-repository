@@ -662,8 +662,8 @@ class ProjectUtilTestCase(TestCase):
 
     def test_unit_rows_for_project(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        # recall that _make_docs_project() calls cache_forecast_metadata():
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # 2011, 10, 2
-        cache_forecast_metadata(forecast)  # required by _forecast_ids_to_unit_id_sets()
 
         # case: one model with one timezero. recall rows:
         # (model, newest_forecast_tz_date, newest_forecast_id,
@@ -679,7 +679,7 @@ class ProjectUtilTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
-        cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_unit_id_sets()
+            cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_present_unit_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3, '(all)', '')]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
@@ -698,7 +698,7 @@ class ProjectUtilTestCase(TestCase):
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
         load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
-        cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_unit_id_sets()
+        cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3,
                      '(all)', ''),
@@ -713,10 +713,9 @@ class ProjectUtilTestCase(TestCase):
         forecast.delete()
         forecast2.delete()
         forecast3.delete()
-        try:
-            exp_rows = [(forecast_model, 'None', None, 0, '', '(all)'),
-                        (forecast_model2, 'None', None, 0, '', '(all)')]
-            act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
-            self.assertEqual(exp_rows, act_rows)
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
+        # (model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
+        #  missing_unit_names):
+        exp_rows = [(forecast_model, 'None', None, 0, '', '(all)'),
+                    (forecast_model2, 'None', None, 0, '', '(all)')]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
+        self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))

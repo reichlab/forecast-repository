@@ -35,7 +35,7 @@
     {% if scores_sort_pk %}
         <ul>
             {% for score in scores_sort_pk %}
-                <li>{{ score.pk }}: {{ score.name }}</li>
+                <li>{{ score.pk }}: &ldquo;{{ score.abbreviation }}&ldquo;</li>
             {% endfor %}
         </ul>
     {% else %}

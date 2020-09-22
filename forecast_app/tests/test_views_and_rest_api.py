@@ -182,8 +182,6 @@ class ViewsTestCase(TestCase):
             (reverse('project-explorer', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-scores', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('project-score-data', args=[str(self.public_project.pk)]), self.OK_ALL),
-            (reverse('project-score-data', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-config', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-config', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('create-project-from-form', args=[]), self.ONLY_PO_MO),

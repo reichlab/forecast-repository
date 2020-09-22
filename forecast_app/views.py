@@ -54,8 +54,8 @@ def robots_txt(request):
     # frequently by different bots
     disallow_urls = []  # relative URLs
     for project_id in Project.objects.all().values_list('id', flat=True):
-        for project_url_name in ['project-explorer', 'project-scores', 'project-score-data', 'project-config',
-                                 'truth-data-detail', 'project-visualizations']:
+        for project_url_name in ['project-explorer', 'project-scores', 'project-config', 'truth-data-detail',
+                                 'project-visualizations']:
             disallow_urls.append(reverse(project_url_name, args=[str(project_id)]))  # relative URLs
     return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
 
@@ -369,14 +369,15 @@ def _vega_lite_spec_for_project(project, encoding_color_field):
     # create vega lite data values for all model/tz combinations, filling in missing forecasts. values are rows and keys
     # are columns
     values = []
-    tz_id_date = project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date')
+    tz_id_dates = project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date')
     for fm_id, fm_abbrev in project.models.all().order_by('abbreviation').values_list('id', 'abbreviation'):
-        for tz_id, tz_tzdate in tz_id_date:
+        for tz_id, tz_tzdate in tz_id_dates:
             forecast_id = fm_tz_ids_to_f_id.get((fm_id, tz_id), None)
             counts = forecast_id_to_counts[forecast_id]  # [None, None, None] if forecast_id is None (via defauldict)
             if forecast_id:
+                # 'T00:00:00' is per [Tooltip dates are off by one](https://github.com/vega/vega-lite/issues/6883):
                 values.append({'model': fm_abbrev,
-                               'timezero': tz_tzdate.strftime(YYYY_MM_DD_DATE_FORMAT),
+                               'timezero': tz_tzdate.strftime(YYYY_MM_DD_DATE_FORMAT) + 'T00:00:00',
                                'forecast_url': reverse('forecast-detail', args=[str(forecast_id)]),  # relative URL
                                '# rows': sum(counts[0]) if counts[0] is not None else 0,
                                '# units': counts[1],
@@ -570,25 +571,6 @@ def query_forecasts_or_scores(request, project_pk, is_forecast):
 #
 # ---- score data functions ----
 #
-
-def project_score_data(request, project_pk):
-    """
-    View function that renders a summary of all Scores in the passed Project.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    # set score_summaries
-    score_summaries = [(score,
-                        score.num_score_values_for_project(project),
-                        score.last_update_for_project(project))
-                       for score in sorted(Score.objects.all(), key=lambda score: score.name)]
-
-    return render(request, 'project_score_data.html',
-                  context={'project': project,
-                           'score_summaries': score_summaries})
-
 
 def _model_score_count_rows_for_project(project):
     """
@@ -1497,7 +1479,6 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     return redirect('job-detail', pk=job.pk)
 
 
-# @transaction.atomic
 def _upload_forecast_worker(job_pk):
     """
     An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast().

@@ -37,7 +37,6 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
     url(r'^project/(?P<project_pk>\d+)/query_scores$', views.query_forecasts_or_scores, {'is_forecast': False},
         name='query-scores'),
-    url(r'^project/(?P<project_pk>\d+)/score_data$', views.project_score_data, name='project-score-data'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
