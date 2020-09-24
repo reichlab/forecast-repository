@@ -32,7 +32,7 @@ from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_fro
     is_forecast_metadata_available, forecast_metadata, forecast_metadata_counts_for_project
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, group_targets, unit_rows_for_project, \
-    models_summary_table_rows_for_project
+    models_summary_table_rows_for_project, target_rows_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, \
@@ -227,45 +227,6 @@ def project_visualizations(request, project_pk):
                   context={'title': f"Project visualizations for '{project.name}'",
                            'message': "Zoltar visualization is under construction."})
 
-    # seasons = project.seasons()
-    # season_name = _param_val_from_request(request, 'season_name', seasons)
-    #
-    # # None if no targets in project:
-    # print("project_visualizations(): 1/3 calling flusight_unit_to_data_dict(): {}".format(project))
-    # unit_to_flusight_data_dict = flusight_unit_to_data_dict(project, season_name, request)
-    #
-    # time_interval_type_to_x_axis_label = {Project.WEEK_TIME_INTERVAL_TYPE: 'Epi week',
-    #                                       Project.BIWEEK_TIME_INTERVAL_TYPE: 'Biweek',
-    #                                       Project.MONTH_TIME_INTERVAL_TYPE: 'Month'}
-    # loc_tz_date_to_actual_vals = project.unit_timezero_date_to_actual_vals(season_name)
-    # unit_to_actual_points = _unit_to_actual_points(loc_tz_date_to_actual_vals)
-    # print("project_visualizations(): 2/3 calling unit_to_max_val(): {}".format(project))
-    # unit_to_max_val = project.unit_to_max_val(season_name, project.step_ahead_targets())
-    #
-    # # correct unit_to_max_val to account for max actual values
-    # unit_to_actual_max_val = _unit_to_actual_max_val(loc_tz_date_to_actual_vals)  # might be None
-    # for unit in unit_to_max_val:
-    #     if (unit_to_max_val[unit]) \
-    #             and (unit in unit_to_actual_max_val) \
-    #             and (unit_to_actual_max_val[unit]):
-    #         unit_to_max_val[unit] = max(unit_to_max_val[unit], unit_to_actual_max_val[unit])
-    #
-    # unit_names = sorted(project.units.all().values_list('name', flat=True))
-    # print("project_visualizations(): 3/3 rendering: {}".format(project))
-    # return render(
-    #     request,
-    #     'project_visualizations.html',
-    #     context={'project': project,
-    #              'unit': unit_names[0],
-    #              'units': unit_names,
-    #              'season_name': season_name,
-    #              'seasons': seasons,
-    #              'unit_to_flusight_data_dict': json.dumps(unit_to_flusight_data_dict),
-    #              'unit_to_actual_points': json.dumps(unit_to_actual_points),
-    #              'unit_to_max_val': json.dumps(unit_to_max_val),
-    #              'x_axis_label': time_interval_type_to_x_axis_label[project.time_interval_type],
-    #              'y_axis_label': project.visualization_y_label})
-
 
 def _unit_to_actual_points(loc_tz_date_to_actual_vals):
     """
@@ -305,18 +266,27 @@ def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
 def project_explorer(request, project_pk):
     """
     View function to render various exploration tabs for a particular project.
+
+    GET query parameters:
+    - `tab`: controls which tab is shown. choices:
+        <missing> (defaults to 'latest_units'), 'latest_units', 'latest_targets'
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    tab = request.GET.get('tab', 'latest_units')
     return render(
         request,
         'project_explorer.html',
         context={'project': project,
+
                  # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
                  # missing_unit_names:
-                 'unit_rows': unit_rows_for_project(project)})
+                 'unit_rows': unit_rows_for_project(project) if tab == 'latest_units' else [],
+
+                 # model, newest_forecast_tz_date, newest_forecast_id, target_group_name, target_group_count:
+                 'target_rows': target_rows_for_project(project) if tab == 'latest_targets' else []})
 
 
 def project_forecasts(request, project_pk):
@@ -326,7 +296,7 @@ def project_forecasts(request, project_pk):
 
     GET query parameters:
     - `colorby`: controls which data field is used to color the vega-lite heatmap.
-                 choices: <missing>, 'rows', 'units' (default), 'targets'
+                 choices: <missing> (defaults to 'units'), 'rows', 'units', 'targets'
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
@@ -363,7 +333,7 @@ def _vega_lite_spec_for_project(project, encoding_color_field):
         fm_tz_ids_to_f_id[(fm_id, tz_id)] = f_id
 
     # get mapping from forecast_id to count 3-tuples:
-    #   ((point_count, named_count, bin_count, sample_count, quantile_count), num_units, num_targets)
+    #   ((point_count, named_count, bin_count, sample_count, quantile_count), num_names, num_targets)
     forecast_id_to_counts = forecast_metadata_counts_for_project(project)
 
     # create vega lite data values for all model/tz combinations, filling in missing forecasts. values are rows and keys

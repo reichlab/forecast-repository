@@ -140,7 +140,7 @@ class ForecastMetadataTestCase(TestCase):
         cache_forecast_metadata(self.forecast)
         cache_forecast_metadata(forecast2)
         forecast_id_to_counts = forecast_metadata_counts_for_project(self.project)
-        #  f_id:  [(point_count, named_count, bin_count, sample_count, quantile_count), num_units, num_targets]
+        #  f_id:  [(point_count, named_count, bin_count, sample_count, quantile_count), num_names, num_targets]
         # {   1:  [(11,          2,           16,        23,           10),             3,         5          ],
         #     2:  [(11,          2,           16,        23,           10),             3,         5          ]}
         self.assertEqual(sorted([self.forecast.id, forecast2.id]), sorted(forecast_id_to_counts.keys()))

@@ -11,7 +11,7 @@ from forecast_app.models import Project, Target, ForecastModel, TimeZero, Foreca
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target, group_targets, \
-    unit_rows_for_project, models_summary_table_rows_for_project
+    unit_rows_for_project, models_summary_table_rows_for_project, target_rows_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -679,7 +679,7 @@ class ProjectUtilTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
-            cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_present_unit_id_sets()
+            cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3, '(all)', '')]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
@@ -698,7 +698,7 @@ class ProjectUtilTestCase(TestCase):
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
         load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
-        cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_id_sets()
+        cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3,
                      '(all)', ''),
@@ -718,4 +718,70 @@ class ProjectUtilTestCase(TestCase):
         exp_rows = [(forecast_model, 'None', None, 0, '', '(all)'),
                     (forecast_model2, 'None', None, 0, '', '(all)')]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4], row[5]) for row in unit_rows_for_project(project)]
+        self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
+
+
+    def test_target_rows_for_project(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        # recall that _make_docs_project() calls cache_forecast_metadata():
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # 2011, 10, 2
+
+        # case: one model with one timezero that has five groups of one target each.
+        # recall: `group_targets(project.targets.all())` (only one target/group in this case):
+        #   {'pct next week':    [(1, 'pct next week', 'continuous', True, 1, 'percent')],
+        #    'cases next week':  [(2, 'cases next week', 'discrete', True, 2, 'cases')],
+        #    'season severity':  [(3, 'season severity', 'nominal', False, None, None)],
+        #    'above baseline':   [(4, 'above baseline', 'binary', False, None, None)],
+        #    'Season peak week': [(5, 'Season peak week', 'date', False, None, 'week')]}
+        exp_rows = [(forecast_model, str(time_zero.timezero_date), forecast.id, 'Season peak week', 1),
+                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'above baseline', 1),
+                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'cases next week', 1),
+                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'pct next week', 1),
+                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'season severity', 1)]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
+        self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
+
+        # case: add a second forecast for a newer timezero
+        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                            time_zero=time_zero2, notes="a small prediction file")
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
+
+        exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 'Season peak week', 1),
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'above baseline', 1),
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'cases next week', 1),
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'pct next week', 1),
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'season severity', 1)]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
+        self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
+
+        # case: add a second model with only forecasts for one target
+        forecast_model2 = ForecastModel.objects.create(project=project, name=forecast_model.name + '2',
+                                                       abbreviation=forecast_model.abbreviation + '2')
+        time_zero3 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 4))
+        forecast3 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
+                                            time_zero=time_zero3, notes="a small prediction file")
+        json_io_dict = {
+            "meta": {},
+            "predictions": [{"unit": "location1",
+                             "target": "pct next week",
+                             "class": "point",
+                             "prediction": {"value": 2.1}}]}
+        load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
+        cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
+
+        exp_rows = exp_rows + [(forecast_model2, str(time_zero3.timezero_date), forecast3.id, 'pct next week', 1)]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
+        self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
+
+        # case: no forecasts
+        forecast.delete()
+        forecast2.delete()
+        forecast3.delete()
+        exp_rows = [(forecast_model, '', '', '', 0),
+                    (forecast_model2, '', '', '', 0)]
+        act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
         self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))

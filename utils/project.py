@@ -12,7 +12,7 @@ from django.db import connection
 from django.db import transaction
 from django.utils import timezone
 
-from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, ForecastMetaUnit
+from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, ForecastMetaUnit, ForecastMetaTarget
 from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -716,36 +716,55 @@ def models_summary_table_rows_for_project(project):
 # unit_rows_for_project()
 #
 
+SUMMARY_STRING_MAX_NAMES = 7
+
+
+def summary_string_for_names(names, num_names, summary_postfix):
+    """
+    Helper that shortens a list of strings based on length.
+
+    :param names: a list of strings
+    :param num_names: number of strings to compare to
+    :return:
+    """
+    if len(names) == num_names:
+        return '(all)'
+    elif len(names) > SUMMARY_STRING_MAX_NAMES:
+        return f'({len(names)} {summary_postfix})'
+    else:
+        return ', '.join(sorted(names))
+
+
 def unit_rows_for_project(project):
     """
-    A utility for the `forecast_app.views.project_explorer()` function.
+    A utility for the `forecast_app.views.project_explorer()` function. Returns a a list of lists that's used to
+    generate that function's table rows, which look something like:
+
+    +-----------------------+------------------------------+-------------+------------+------------+-------------------------|
+    | Abbreviation          | Team                         | # Forecasts | Oldest     | Newest     | Upload time             |
+    +-----------------------+------------------------------+-------------+------------+------------+-------------------------|
+    | YYG-ParamSearch       | Youyang Gu (YYG)             | 156         | 2020-04-13 | 2020-09-15 | 2020-09-16 08:28:26 EDT |
+    | CMU-TimeSeries        | Carnegie Mellon Delphi Group |   9         | 2020-07-20 | 2020-09-14 | 2020-09-14 20:53:37 EDT |
+    | CovidAnalytics-DELPHI | CovidAnalytics at MIT        |  23         | 2020-04-22 | 2020-09-14 | 2020-09-14 21:27:30 EDT |
+    |  ...                                                                                                                   |
+    +-----------------------+------------------------------+-------------+------------+------------+-------------------------|
 
     :param project: a Project
     :return: a list of 6-tuples for each model in `project`:
         (model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
-         missing_unit_names). the last two are summarized if more than 7
+         missing_unit_names). the last two are summarized via summary_string_for_names()
     """
     # model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names:
     # add count column, and replace sets with strings, truncating if too long
-    num_units = project.units.count()
-
-
-    def unit_string(unit_names):
-        if len(unit_names) == num_units:
-            return '(all)'
-        elif len(unit_names) > 7:  # magic number
-            return f'({len(unit_names)} units)'
-        else:
-            return ', '.join(sorted(unit_names))
-
-
     # add num_present_unit_names and change: (present_unit_names, missing_unit_names) to: summaries. -> becomes:
     # (model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
     #  missing_unit_names):
+    num_units = project.units.count()
     unit_rows = [(model, newest_forecast_tz_date, newest_forecast_id,
-                  len(present_unit_names), unit_string(present_unit_names), unit_string(missing_unit_names))
-                 for model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names in
-                 _project_explorer_unit_rows(project)]
+                  len(present_unit_names), summary_string_for_names(present_unit_names, num_units, 'units'),
+                  summary_string_for_names(missing_unit_names, num_units, 'units'))
+                 for model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names
+                 in _project_explorer_unit_rows(project)]
     return unit_rows
 
 
@@ -755,25 +774,21 @@ def _project_explorer_unit_rows(project):
     :return: list of 5-tuples of the form:
         (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     """
-
-    # get newest forecast info 3-tuples from models_summary_table_rows_for_project():
-    #   (model, newest_forecast_tz_date, newest_forecast_id) tuples. from:
-    # [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id,
-    #  newest_forecast_id, newest_forecast_created_at]
-    models_rows = [(row[0], row[3], row[5]) for row in models_summary_table_rows_for_project(project)]
+    # get newest forecast into 3-tuples from models_summary_table_rows_for_project()
+    models_rows = [(forecast_model, newest_forecast_tz_date, newest_forecast_id)
+                   for forecast_model, _, _, newest_forecast_tz_date, _, newest_forecast_id, _
+                   in models_summary_table_rows_for_project(project)]
 
     # get corresponding unique Unit IDs for newest_forecast_ids
-    forecast_ids = [newest_forecast_id for model, newest_forecast_tz_date, newest_forecast_id in models_rows
-                    if newest_forecast_id is not None]
-    forecast_id_to_unit_id_set = _forecast_ids_to_present_unit_id_sets(forecast_ids)
+    forecast_ids = [newest_forecast_id for _, _, newest_forecast_id in models_rows if newest_forecast_id is not None]
+    forecast_id_to_unit_id_set = _forecast_ids_to_present_unit_or_target_id_sets(forecast_ids, True)
 
     # combine into 5-tuple: (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     unit_id_to_obj = {unit.id: unit for unit in project.units.all()}
     all_unit_ids = set(unit_id_to_obj.keys())
     rows = []  # return value. filled next
     for model, newest_forecast_tz_date, newest_forecast_id in models_rows:
-        present_unit_ids = forecast_id_to_unit_id_set[newest_forecast_id] \
-            if newest_forecast_id in forecast_id_to_unit_id_set else set()
+        present_unit_ids = forecast_id_to_unit_id_set.get(newest_forecast_id, set())
         missing_unit_ids = all_unit_ids - present_unit_ids
         rows.append((model, newest_forecast_tz_date, newest_forecast_id,
                      {unit_id_to_obj[_].name for _ in present_unit_ids},
@@ -782,20 +797,83 @@ def _project_explorer_unit_rows(project):
     return rows
 
 
-def _forecast_ids_to_present_unit_id_sets(forecast_ids):
+def _forecast_ids_to_present_unit_or_target_id_sets(forecast_ids, is_unit):
     """
     :param forecast_ids: a list of Forecast IDs
-    :return: a dict mapping each forecast_id to a set of its unit ids: {forecast_id -> set(unit_ids)}
+    :param is_unit: True if should return Unit information. returns Target information o/w
+    :return: a dict mapping each forecast_id to a set of either its Unit or Targets ids, based on is_unit:
+        {forecast_id -> set(unit_or_target_ids)}
     """
     if not forecast_ids:
         return {}
 
     forecast_id_to_unit_id_set = {}
-    forecast_meta_unit_qs = ForecastMetaUnit.objects \
-        .filter(forecast__id__in=forecast_ids) \
-        .order_by('forecast__id', 'unit__id') \
-        .values_list('forecast__id', 'unit__id')  # ordered so we can groupby()
-    for forecast_id, unit_id_grouper in groupby(forecast_meta_unit_qs, key=lambda _: _[0]):
-        forecast_id_to_unit_id_set[forecast_id] = {unit_id for forecast_id, unit_id in unit_id_grouper}
+    if is_unit:
+        forecast_meta_unit_or_target_qs = ForecastMetaUnit.objects \
+            .filter(forecast__id__in=forecast_ids) \
+            .order_by('forecast__id', 'unit__id') \
+            .values_list('forecast__id', 'unit__id')  # ordered so we can groupby()
+    else:
+        forecast_meta_unit_or_target_qs = ForecastMetaTarget.objects \
+            .filter(forecast__id__in=forecast_ids) \
+            .order_by('forecast__id', 'target__id') \
+            .values_list('forecast__id', 'target__id')  # ordered so we can groupby()
+    for forecast_id, unit_or_target_id_grouper in groupby(forecast_meta_unit_or_target_qs, key=lambda _: _[0]):
+        forecast_id_to_unit_id_set[forecast_id] = {unit_id for forecast_id, unit_id in unit_or_target_id_grouper}
 
     return forecast_id_to_unit_id_set
+
+
+#
+# target_rows_for_project()
+#
+
+def target_rows_for_project(project):
+    """
+    A utility for the `forecast_app.views.project_explorer()` function. Returns a list of lists that's used to generate
+    that function's table rows, which look something like:
+
+    +-----------------------+---------------+--------------------+-----------+
+    | model                 | forecast date | target group       | # targets |
+    +-----------------------+---------------+--------------------+-----------+
+    | YYG-ParamSearch       | 2020-09-15    | wk ahead cum death | 6         |  # target group 1/2 for this model
+    | YYG-ParamSearch       | 2020-09-15    | wk ahead inc death | 6         |  # "" 2/2 ""
+    | CMU-TimeSeries        | 2020-09-14    | wk ahead inc case  | 4         |
+    | CMU-TimeSeries        | 2020-09-14    | wk ahead inc death | 4         |
+    | CovidAnalytics-DELPHI | 2020-09-14    | wk ahead cum death | 7         |
+    | CovidAnalytics-DELPHI | 2020-09-14    | wk ahead inc case  | 7         |
+    |  ...                                                                   |
+    +-----------------------+---------------+--------------------+-----------+
+
+    :param project: a Project
+    :return: a list of lists: G lists for each model in `project` where G is the number of target groups that that
+        model's latest forecast has predictions for. each list is a 5-tuple of the form:
+            [model, newest_forecast_tz_date, newest_forecast_id, target_group_name, target_group_count]
+        where target_group is as returned by `group_targets()`.
+    """
+    # get newest forecast into 3-tuples from models_summary_table_rows_for_project()
+    models_rows = [(forecast_model, newest_forecast_tz_date, newest_forecast_id)
+                   for forecast_model, _, _, newest_forecast_tz_date, _, newest_forecast_id, _
+                   in models_summary_table_rows_for_project(project)]
+
+    # get corresponding unique Target IDs for newest_forecast_ids
+    forecast_ids = [newest_forecast_id for _, _, newest_forecast_id in models_rows if newest_forecast_id is not None]
+    forecast_id_to_target_id_set = _forecast_ids_to_present_unit_or_target_id_sets(forecast_ids, False)
+
+    # build target_rows
+    target_rows = []  # return value. filled next
+    target_id_to_object = {target.id: target for target in project.targets.all()}
+    for forecast_model, newest_forecast_tz_date, newest_forecast_id in models_rows:
+        newest_forecast_target_ids = forecast_id_to_target_id_set.get(newest_forecast_id, [])
+        newest_forecast_targets = [target_id_to_object[target_id] for target_id in newest_forecast_target_ids]
+        if newest_forecast_targets:
+            # for target_group_name, targets in group_targets(newest_forecast_targets).items():
+            target_groups = group_targets(newest_forecast_targets)
+            for target_group_name in sorted(target_groups):
+                target_rows.append((forecast_model, newest_forecast_tz_date, newest_forecast_id,
+                                    target_group_name, len(target_groups[target_group_name])))
+        else:  # model has no forecasts so add a place-holder for it
+            target_rows.append((forecast_model, '', '', '', 0))
+
+    # done
+    return target_rows

@@ -1004,7 +1004,8 @@ class ViewsTestCase(TestCase):
 
 
     def test_api_edit_model(self):
-        # pretty much identical to `test_api_create_model()` :-/
+        # following is pretty much identical to `test_api_create_model()` :-/
+
         project2 = Project.objects.create(owner=self.po_user)
         forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev',
                                                        owner=self.po_user)

@@ -324,7 +324,7 @@ class Project(models.Model):
             .annotate(Max('value_i'), Max('value_f'))  # values() -> annotate() is a GROUP BY
         # [{'unit__name': 'HHS Region 1', 'value_i__max': None, 'value_f__max': 2.06145600601835}, ...]
 
-        # https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python
+        # per https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python :
         return {loc_max_val_dict['unit__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
                                                                   loc_max_val_dict['value_f__max']]))
                 for loc_max_val_dict in loc_max_val_qs}

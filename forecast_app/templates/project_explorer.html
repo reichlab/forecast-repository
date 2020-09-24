@@ -25,21 +25,33 @@
 
     <ul class="nav nav-tabs">
         <li class="nav-item">
-            <a class="nav-link active" href="#">Latest units ({{ project.units.count }})</a>
+            <a class="nav-link {% if unit_rows %}active{% endif %}"
+               href="{% url 'project-explorer' project.pk %}?tab=latest_units">
+                Latest units ({{ project.units.count }})</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if target_rows %}active{% endif %}"
+               href="{% url 'project-explorer' project.pk %}?tab=latest_targets">
+                Latest targets ({{ project.targets.count }})</a>
         </li>
     </ul>
 
 
-    {% if unit_rows %}
-        <table id="units_table" class="table table-striped table-bordered">
+    {% if unit_rows or target_rows %}
+        <table id="units_or_targets_table" class="table table-striped table-bordered">
             <thead>
             <tr>
                 <th>Model</th>
                 <th>Team</th>
                 <th>Forecast date</th>
-                <th># Units</th>
-                <th>Present</th>
-                <th>Missing</th>
+                {% if unit_rows %}
+                    <th># Units</th>
+                    <th>Present</th>
+                    <th>Missing</th>
+                {% else %}  {# target_rows #}
+                    <th>Target Group</th>
+                    <th># Targets</th>
+                {% endif %}
             </tr>
             </thead>
             <tfoot>
@@ -47,33 +59,61 @@
                 <th>Model</th>
                 <th>Team</th>
                 <th>Forecast date</th>
-                <th># Units</th>
-                <th>Present</th>
-                <th>Missing</th>
+                {% if unit_rows %}
+                    <th># Units</th>
+                    <th>Present</th>
+                    <th>Missing</th>
+                {% else %}  {# target_rows #}
+                    <th>Target Group</th>
+                    <th># Targets</th>
+                {% endif %}
             </tr>
             </tfoot>
             <tbody>
-            {% for forecast_model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names, missing_unit_names in unit_rows %}
-                <tr>
-                    <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
-                    <td>{{ forecast_model.team_name }}</td>
-                    <td>
-                        {% if newest_forecast_tz_date %}
-                            <a href="{% url 'forecast-detail' newest_forecast_id %}">
-                                {# handle whether dates came from db as objects or strings #}
-                                {% if newest_forecast_tz_date|get_class == 'date' %}
-                                    {{ newest_forecast_tz_date|date:"Y-m-d" }}
-                                {% else %}
-                                    {{ newest_forecast_tz_date }}
-                                {% endif %}
-                            </a>
-                        {% endif %}
-                    </td>
-                    <td>{{ num_present_unit_names }}</td>
-                    <td>{{ present_unit_names }}</td>
-                    <td>{{ missing_unit_names }}</td>
-                </tr>
-            {% endfor %}
+            {% if unit_rows %}
+                {% for forecast_model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names, missing_unit_names in unit_rows %}
+                    <tr>
+                        <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
+                        <td>{{ forecast_model.team_name }}</td>
+                        <td>
+                            {% if newest_forecast_tz_date %}
+                                <a href="{% url 'forecast-detail' newest_forecast_id %}">
+                                    {# handle whether dates came from db as objects or strings #}
+                                    {% if newest_forecast_tz_date|get_class == 'date' %}
+                                        {{ newest_forecast_tz_date|date:"Y-m-d" }}
+                                    {% else %}
+                                        {{ newest_forecast_tz_date }}
+                                    {% endif %}
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>{{ num_present_unit_names }}</td>
+                        <td>{{ present_unit_names }}</td>
+                        <td>{{ missing_unit_names }}</td>
+                    </tr>
+                {% endfor %}
+            {% else %}  {# target_rows #}
+                {% for forecast_model, newest_forecast_tz_date, newest_forecast_id, target_group_name, target_group_count in target_rows %}
+                    <tr>
+                        <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
+                        <td>{{ forecast_model.team_name }}</td>
+                        <td>
+                            {% if newest_forecast_tz_date %}
+                                <a href="{% url 'forecast-detail' newest_forecast_id %}">
+                                    {# handle whether dates came from db as objects or strings #}
+                                    {% if newest_forecast_tz_date|get_class == 'date' %}
+                                        {{ newest_forecast_tz_date|date:"Y-m-d" }}
+                                    {% else %}
+                                        {{ newest_forecast_tz_date }}
+                                    {% endif %}
+                                </a>
+                            {% endif %}
+                        </td>
+                        <td>{{ target_group_name }}</td>
+                        <td>{{ target_group_count }}</td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
             </tbody>
         </table>
     {% else %}
@@ -84,14 +124,14 @@
     <!-- activate the https://datatables.net/ -->
     <script>
         // Setup - add a text input to each footer cell
-        $('#units_table tfoot th').each(function () {
+        $('#units_or_targets_table tfoot th').each(function () {
             var title = $(this).text();
             $(this).html('<input type="text" class="form-control" placeholder="Search ' + title + '" />');
         });
 
         // DataTable
         $(document).ready(function () {
-            $('#units_table').DataTable({
+            $('#units_or_targets_table').DataTable({
                 order: [[2, "desc"]],  // Forecast date
                 initComplete: function () {
                     // Apply the search

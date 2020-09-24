@@ -28,7 +28,7 @@
       "description": "A forecasted integer number of cases for a future week.",
       "type": "discrete",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
+      "step_ahead_increment": 2,
       "unit": "cases",
       "range": [0, 100000],
       "cats": [0, 2, 50]
