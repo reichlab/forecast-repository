@@ -873,7 +873,7 @@ class UserListView(ListView):
     def get_context_data(self, **kwargs):
         # collect user info
         user_projs_models = []  # 3-tuples: User, num_projs, num_models
-        for user in self.get_queryset().all():
+        for user in self.get_queryset().all():  # slow naive approach
             num_projs = len(projects_and_roles_for_user(user))
             num_models = len(forecast_models_owned_by_user(user))
             user_projs_models.append((user, num_projs, num_models))

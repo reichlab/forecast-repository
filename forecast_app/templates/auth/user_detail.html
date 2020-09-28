@@ -55,7 +55,7 @@
     <h2>Projects</h2>
 
     {% if projects_and_roles %}
-        <p class="help-block">Projects involving {{ detail_user }}:</p>
+        <p class="text-muted">Projects involving {{ detail_user }}:</p>
 
         <div class="row">
             <div class="col-md-12">
@@ -106,7 +106,7 @@
     <h2>Models</h2>
 
     {% if owned_models %}
-        <p class="help-block">Models owned by {{ detail_user }}:</p>
+        <p class="text-muted">Models owned by {{ detail_user }}:</p>
 
         <div class="row">
             <div class="col-sm-8">
@@ -140,7 +140,7 @@
     <h2>Jobs <small>({{ jobs|length }})</small></h2>
 
     {% if jobs %}
-        <p class="help-block">Jobs created by {{ detail_user }}:</p>
+        <p class="text-muted">Jobs created by {{ detail_user }}:</p>
 
         <div class="row">
             <div class="col-md-12">
