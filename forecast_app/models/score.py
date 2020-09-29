@@ -139,8 +139,8 @@ class Score(models.Model):
         start_time = timeit.default_timer()
         logger.debug(f"update_score_for_model(): 1/4 entered. score={self}, forecast_model={forecast_model}")
 
-        logger.debug("update_score_for_model(): 2/4 deleting existing ScoreValues for model. "
-                     "score={self}, forecast_model={forecast_model}")
+        logger.debug(f"update_score_for_model(): 2/4 deleting existing ScoreValues for model. "
+                     f"score={self}, forecast_model={forecast_model}")
         forecast_model_score_value_qs = ScoreValue.objects.filter(score=self, forecast__forecast_model=forecast_model)
         forecast_model_score_value_qs.delete()
 
