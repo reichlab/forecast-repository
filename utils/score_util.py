@@ -166,6 +166,16 @@ def report(project_pk):
     for model, score, count in model_score_counts:  # 2/2 fill in actual
         model_to_score_to_count[model][score] = count
 
+    # print score and model PK reference
+    logger.info(f'* score IDs:')
+    for score in Score.objects.all().order_by('abbreviation'):
+        logger.info(f'- {score.abbreviation}\t{score.id}')
+
+    logger.info(f'* model IDs:')
+    for forecast_model in project.models.all().order_by('abbreviation'):
+        logger.info(f'- {forecast_model.abbreviation}\t{forecast_model.id}')
+
+
     # create csv
     logger.debug('saving csv')
     csv_filename = '/tmp/temp.csv'
