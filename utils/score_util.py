@@ -1,17 +1,19 @@
+import csv
 import logging
+from collections import defaultdict
 
 import click
 import django
 import django_rq
+import requests
+from django.db import connection
 from django.shortcuts import get_object_or_404
-
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from forecast_app.models.score import _update_model_scores_worker
-from forecast_app.models import Score, ScoreValue, Project, ForecastModel
-
+from forecast_app.models import Score, ScoreValue, Project, ForecastModel, Forecast
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +93,6 @@ def update(score_pk, project_pk, model_pk, no_enqueue):
     """
     from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME  # avoid circular imports
 
-
     Score.ensure_all_scores_exist()
 
     scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
@@ -132,6 +133,79 @@ def update_all_changed(dry_run):
     enqueued_score_model_pks = Score.enqueue_update_scores_for_all_models(is_only_changed=True, dry_run=dry_run)
     logger.info(f"enqueuing done. dry_run={dry_run}. {len(enqueued_score_model_pks)} Score/ForecastModel pairs. "
                 f"enqueued_score_model_pks={enqueued_score_model_pks}")
+
+
+@cli.command()
+@click.option('--project-pk')
+def report(project_pk):
+    """
+    A subcommand that creates a csv file whose rows are models and columns are scores, with ScoreValue counts in cells.
+    The file is useful for debugging failed model-score combinations. Output is a printed https://www.file.io/
+    (Ephemeral file sharing) download URL for the file.
+
+    :param project_pk: a valid Project pk
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    logger.info(f'report(): project={project}')
+
+    score_abbrevs = list(Score.objects.all()
+                         .order_by('id')
+                         .values_list('abbreviation', flat=True))
+    model_abbrevs = list(ForecastModel.objects
+                         .filter(project=project)
+                         .order_by('abbreviation')
+                         .values_list('abbreviation', flat=True))
+
+    # fill model_score_counts
+    logger.debug('getting counts')
+    model_score_counts = _model_score_counts(project)  # (model_abbrev, score_abbrev, num_score_values)
+    model_to_score_to_count = defaultdict(dict)  # [model_abbrev][score_abbrev] -> num_score_values
+    for model in model_abbrevs:  # 1/2 fill in all, defaulting to 0
+        for score in score_abbrevs:
+            model_to_score_to_count[model][score] = 0
+    for model, score, count in model_score_counts:  # 2/2 fill in actual
+        model_to_score_to_count[model][score] = count
+
+    # create csv
+    logger.debug('saving csv')
+    csv_filename = '/tmp/temp.csv'
+    with open(csv_filename, 'w') as fp:
+        csv_writer = csv.writer(fp, delimiter=',')
+        header = ['model'] + score_abbrevs
+        csv_writer.writerow(header)
+        for model in model_abbrevs:
+            row = [model]
+            for score in score_abbrevs:
+                row.append(model_to_score_to_count[model][score])
+            csv_writer.writerow(row)
+
+    # done! upload to file.io
+    logger.debug('uploading to file.io')
+    r = requests.post('https://file.io', files={'file': open(csv_filename, 'rb')})
+    # r.text: '{"success":true,"key":"iMt03r7jHCjE","link":"https://file.io/iMt03r7jHCjE","expiry":"14 days"}'
+    logger.info(f'done! r.text={r.text}')
+
+
+def _model_score_counts(project):
+    """
+    `report()` helper
+
+    :param project: a Project
+    :return: list of 3-tuples for all ForecastModel-Score combinations in `project`:
+        (model_abbrev, score_abbrev, num_score_values)
+    """
+    sql = f"""
+        SELECT fm.abbreviation AS model, s.abbreviation AS score, count(*)
+        FROM forecast_app_scorevalue AS sv
+                 JOIN {Score._meta.db_table} s ON sv.score_id = s.id
+                 JOIN {Forecast._meta.db_table} f on sv.forecast_id = f.id
+                 JOIN {ForecastModel._meta.db_table} fm on f.forecast_model_id = fm.id
+        WHERE fm.project_id = %s
+        GROUP BY fm.abbreviation, s.abbreviation;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.id,))
+        return cursor.fetchall()  # todo xx return batched_rows(cursor)
 
 
 if __name__ == '__main__':
