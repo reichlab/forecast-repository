@@ -58,17 +58,18 @@ def print_scores():
 
 
 @cli.command()
-@click.option('--score-pk')
-def clear(score_pk):
+@click.option('--score-abbrev')
+def clear(score_abbrev):
     """
     A subcommand that clears score values and last update dates, controlled by the args. Runs in the calling thread, and
     therefore blocks.
 
-    :param score_pk: if a valid Score pk then only that score is cleared. o/w all scores are cleared
+    :param score_abbrev: if a valid Score abbreviation then only that score is cleared. o/w all scores are cleared
     """
     Score.ensure_all_scores_exist()
 
-    scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
+    logger.info(f"clear(): score_abbrev={score_abbrev!r}")
+    scores = [get_object_or_404(Score, abbreviation=score_abbrev)] if score_abbrev else Score.objects.all()
     for score in scores:
         logger.info("clearing {}".format(score))
         score.clear()
@@ -76,30 +77,33 @@ def clear(score_pk):
 
 
 @cli.command()
-@click.option('--score-pk')
+@click.option('--score-abbrev')
 @click.option('--project-pk')
-@click.option('--model-pk')
+@click.option('--model-abbrev')
 @click.option('--no-enqueue', is_flag=True, default=False)
-def update(score_pk, project_pk, model_pk, no_enqueue):
+def update(score_abbrev, project_pk, model_abbrev, no_enqueue):
     """
     A subcommand that enqueues or (executes immediately) updating model scores, controlled by the args. NB: Does NOT
     exclude those that do not need updating according to how ForecastModel.forecasts_changed_at compares to
     ScoreLastUpdate.updated_at .
 
-    :param score_pk: if a valid Score pk then only that score is updated. o/w all scores are updated
-    :param project_pk: if a valid Project pk then only that project's models are updated. o/w defers to `model_pk` arg
-    :param model_pk: if a valid ForecastModel pk then only that model is updated. o/w all models are updated
+    :param score_abbrev: if a valid Score abbreviation then only that score is updated. o/w all scores are updated
+    :param project_pk: if a valid Project pk then only that project's models are updated. o/w defers to `model_abbrev` arg
+    :param model_abbrev: if a valid ForecastModel abbreviation then only that model is updated. o/w all models are updated
     :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
     from forecast_repo.settings.base import UPDATE_MODEL_SCORES_QUEUE_NAME  # avoid circular imports
 
     Score.ensure_all_scores_exist()
+    logger.info(f"update(): score_abbrev={score_abbrev!r}, project_pk={project_pk}, model_abbrev={model_abbrev!r}, "
+                f"no_enqueue={no_enqueue}")
 
-    scores = [get_object_or_404(Score, pk=score_pk)] if score_pk else Score.objects.all()
+    scores = [get_object_or_404(Score, abbreviation=score_abbrev)] if score_abbrev else Score.objects.all()
 
     # set models
     project = get_object_or_404(Project, pk=project_pk) if project_pk else None
-    model = get_object_or_404(ForecastModel, pk=model_pk) if model_pk else None
+    model = get_object_or_404(ForecastModel, project__id=project_pk, abbreviation=model_abbrev) \
+        if model_abbrev and project_pk else None
     if project:
         models = project.models.all()
     elif model:
@@ -145,6 +149,7 @@ def report(project_pk):
 
     :param project_pk: a valid Project pk
     """
+    logger.info(f"report(): project_pk={project_pk}")
     project = get_object_or_404(Project, pk=project_pk)
     logger.info(f'report(): project={project}')
 
@@ -174,7 +179,6 @@ def report(project_pk):
     logger.info(f'* model IDs:')
     for forecast_model in project.models.all().order_by('abbreviation'):
         logger.info(f'- {forecast_model.abbreviation}\t{forecast_model.id}')
-
 
     # create csv
     logger.debug('saving csv')
