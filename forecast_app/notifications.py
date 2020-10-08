@@ -16,4 +16,4 @@ def send_notification_email(address, subject, message):
         send_mail(subject, message, None, [address])  # from_email = DEFAULT_FROM_EMAIL
         logger.info("send_notification_email(): sent a message to: {}, subject: '{}'".format(address, subject))
     except AnymailError as ae:
-        logger.error("send_notification_email(): failed to send message: {}".format(ae))
+        logger.error("send_notification_email(): error: {}".format(ae))

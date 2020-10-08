@@ -425,13 +425,13 @@ def _query_worker(job_pk, query_project_fcn):
     except JobTimeoutException as jte:
         job.status = Job.TIMEOUT
         job.save()
-        logger.error(f"_query_worker(): Job timeout: {jte!r}. job={job}")
+        logger.error(f"_query_worker(): error: {jte!r}. job={job}")
         return
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_query_worker(): error running query: {ex!r}. job={job}"
+        job.failure_message = f"_query_worker(): error: {ex!r}"
         job.save()
-        logger.error(f"_query_worker(): error: {ex!r}. job={job}")
+        logger.error(job.failure_message + f". job={job}")
         return
 
     # upload the file to cloud storage
@@ -461,12 +461,13 @@ def _query_worker(job_pk, query_project_fcn):
             logger.debug(f"_query_worker(): done. job={job}")
     except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
         job.status = Job.FAILED
-        job.failure_message = f"_query_worker(): AWS error: {aws_exc!r}. job={job}"
+        job.failure_message = f"_query_worker(): error: {aws_exc!r}"
         job.save()
-        logger.error(f"_query_worker(): AWS error: {aws_exc!r}. job={job}")
+        logger.error(job.failure_message + f". job={job}")
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_query_worker(): error: {ex!r}. job={job}"
+        job.failure_message = f"_query_worker(): error: {ex!r}"
+        logger.error(job.failure_message + f". job={job}")
         job.save()
 
 

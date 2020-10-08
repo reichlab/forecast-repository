@@ -98,9 +98,9 @@ def delete_file(the_object):
         s3_resource.Object(_s3_bucket_name_for_object(the_object), _file_name_for_object(the_object)).delete()
         logger.debug("delete_file(): done: {}".format(the_object))
     except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
-        logger.error(f"delete_file(): AWS error: {aws_exc!r}. the_object={the_object}")
+        logger.error(f"delete_file(): error: {aws_exc!r}. the_object={the_object}")
     except Exception as ex:
-        logger.debug("delete_file(): failed: {}, {}".format(ex, the_object))
+        logger.debug(f"delete_file(): error: {ex!r}. the_object={the_object}")
 
 
 def download_file(the_object, data_file):

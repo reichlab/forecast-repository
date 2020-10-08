@@ -410,7 +410,7 @@ def execute_project_config_diff(project, changes):
         try:
             object_to_save.save()
         except Exception as ex:
-            message = f"execute_project_config_diff(): Exception saving: ex={ex}, object_to_save={object_to_save}"
+            message = f"execute_project_config_diff(): error trying to save: ex={ex}, object_to_save={object_to_save}"
             logger.error(message)
             raise RuntimeError(message)
 

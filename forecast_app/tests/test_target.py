@@ -54,7 +54,7 @@ class TargetTestCase(TestCase):
         model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': False}
         with self.assertRaises(django.db.utils.IntegrityError) as context:
             Target.objects.create(**model_init)
-        # self.assertIn('NOT NULL constraint failed: forecast_app_target.project_id', str(context.exception))  # sqlite3
+        # self.assertIn('NOT NULL constraint failed: {Target._meta.db_table}.project_id', str(context.exception))  # sqlite3
         # self.assertIn('null value in column "project_id" violates not-null constraint', str(context.exception))  # postgres
 
 

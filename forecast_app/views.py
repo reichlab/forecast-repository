@@ -1350,15 +1350,15 @@ def _upload_truth_worker(job_pk):
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
             if 'project_pk' not in job.input_json:
                 job.status = Job.FAILED
-                job.failure_message = f"_upload_truth_worker(): missing 'project_pk' in job={job}"
+                job.failure_message = f"_upload_truth_worker(): error: missing 'project_pk'"
                 job.save()
-                logger.error(job.failure_message)
+                logger.error(job.failure_message + f". job={job}")
                 return
             elif 'filename' not in job.input_json:
                 job.status = Job.FAILED
-                job.failure_message = f"_upload_truth_worker(): missing 'filename' in job={job}"
+                job.failure_message = f"_upload_truth_worker(): error: missing 'filename'"
                 job.save()
-                logger.error(job.failure_message)
+                logger.error(job.failure_message + f". job={job}")
                 return
 
             project_pk = job.input_json['project_pk']
@@ -1367,7 +1367,7 @@ def _upload_truth_worker(job_pk):
                 job.status = Job.FAILED
                 job.failure_message = f"_upload_truth_worker(): no Project found for project_pk={project_pk}"
                 job.save()
-                logger.error(job.failure_message)
+                logger.error(job.failure_message + f". job={job}")
                 return
 
             filename = job.input_json['filename']
@@ -1377,13 +1377,13 @@ def _upload_truth_worker(job_pk):
     except JobTimeoutException as jte:
         job.status = Job.TIMEOUT
         job.save()
-        logger.error(f"_upload_truth_worker(): Job timeout: {jte!r}. job={job}")
+        logger.error(f"_upload_truth_worker(): error: {jte!r}. job={job}")
         raise jte
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_upload_truth_worker(): exception: {ex!r}. job={job}"
+        job.failure_message = f"_upload_truth_worker(): error: {ex!r}"
         job.save()
-        logger.error(job.failure_message)
+        logger.error(job.failure_message + f". job={job}")
 
 
 def download_truth(request, project_pk):
@@ -1466,21 +1466,21 @@ def _upload_forecast_worker(job_pk):
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
         if 'forecast_model_pk' not in job.input_json:
             job.status = Job.FAILED
-            job.failure_message = f"_upload_forecast_worker(): missing 'forecast_model_pk' in job={job}"
+            job.failure_message = f"_upload_forecast_worker(): error: missing 'forecast_model_pk'"
             job.save()
-            logger.error(job.failure_message)
+            logger.error(job.failure_message + f". job={job}")
             return
         elif 'timezero_pk' not in job.input_json:
             job.status = Job.FAILED
-            job.failure_message = f"_upload_forecast_worker(): missing 'timezero_pk' in job={job}"
+            job.failure_message = f"_upload_forecast_worker(): error: missing 'timezero_pk'"
             job.save()
-            logger.error(job.failure_message)
+            logger.error(job.failure_message + f". job={job}")
             return
         elif 'filename' not in job.input_json:
             job.status = Job.FAILED
-            job.failure_message = f"_upload_forecast_worker(): missing 'filename' in job={job}"
+            job.failure_message = f"_upload_forecast_worker(): error: missing 'filename'"
             job.save()
-            logger.error(job.failure_message)
+            logger.error(job.failure_message + f". job={job}")
             return
 
         forecast_model_pk = job.input_json['forecast_model_pk']
@@ -1490,11 +1490,12 @@ def _upload_forecast_worker(job_pk):
         forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
         time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
         if not forecast_model:
-            logger.error(f"_upload_forecast_worker(): no ForecastModel found for "
+            logger.error(f"_upload_forecast_worker(): error: no ForecastModel found for "
                          f"forecast_model_pk={forecast_model_pk}. job={job}")
             return
         elif not time_zero:
-            logger.error(f"no TimeZero found for timezero_pk={timezero_pk}. job={job}")
+            logger.error(f"_upload_forecast_worker(): error: no TimeZero found for timezero_pk={timezero_pk}. "
+                         f"job={job}")
             return
 
         try:
@@ -1518,13 +1519,13 @@ def _upload_forecast_worker(job_pk):
         except JobTimeoutException as jte:
             job.status = Job.TIMEOUT
             job.save()
-            logger.error(f"_upload_forecast_worker(): Job timeout: {jte!r}. job={job}")
+            logger.error(f"_upload_forecast_worker(): error: {jte!r}. job={job}")
             raise jte
         except Exception as ex:
             job.status = Job.FAILED
-            job.failure_message = f"_upload_forecast_worker(): exception: {ex!r}. job={job}"
+            job.failure_message = f"_upload_forecast_worker(): error: {ex!r}"
             job.save()
-            logger.error(f"_upload_forecast_worker(): exception: {ex!r}. job={job}")
+            logger.error(job.failure_message + f". job={job}")
 
 
 def delete_forecast(request, forecast_pk):
@@ -1561,7 +1562,7 @@ def _delete_forecast_worker(job_pk):
     job = get_object_or_404(Job, pk=job_pk)
     if 'forecast_pk' not in job.input_json:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast_worker: did not find 'forecast_pk' in job={job}"
+        job.failure_message = f"_delete_forecast_worker: did not find 'forecast_pk'"
         job.save()
         return
 
@@ -1569,7 +1570,7 @@ def _delete_forecast_worker(job_pk):
     forecast = Forecast.objects.filter(id=forecast_pk).first()
     if not forecast:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast_worker: no Forecast with forecast_pk={forecast_pk}. job={job}"
+        job.failure_message = f"_delete_forecast_worker: no Forecast with forecast_pk={forecast_pk}"
         job.save()
         return
 
@@ -1580,12 +1581,12 @@ def _delete_forecast_worker(job_pk):
     except JobTimeoutException as jte:
         job.status = Job.TIMEOUT
         job.save()
-        logger.error(f"_delete_forecast_worker(): Job timeout: {jte!r}. job={job}")
+        logger.error(f"_delete_forecast_worker(): error: {jte!r}. job={job}")
     except Exception as ex:
         job.status = Job.FAILED
-        job.failure_message = f"_delete_forecast_worker(): error: {ex!r}. job={job}"
+        job.failure_message = f"_delete_forecast_worker(): error: {ex!r}"
         job.save()
-        logger.error(f"_delete_forecast_worker(): error: {ex!r}. job={job}")
+        logger.error(job.failure_message + f". job={job}")
 
 
 #
@@ -1642,15 +1643,14 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         logger.debug(f"_upload_file(): 2/3 Uploaded the file to cloud. job={job}")
     except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
         job.status = Job.FAILED
-        job.failure_message = f"_upload_file(): AWS error: {aws_exc!r}"
+        job.failure_message = f"_upload_file(): error: {aws_exc!r}"
         job.save()
-        logger.error(f"_upload_file(): AWS error: {aws_exc!r}. job={job}")
+        logger.error(job.failure_message + f". job={job}")
     except Exception as ex:
-        failure_message = f"_upload_file(): Error: {ex}. job={job}"
         job.status = Job.FAILED
-        job.failure_message = failure_message
+        job.failure_message = f"_upload_file(): error: {ex}"
         job.save()
-        logger.debug(failure_message)
+        logger.error(job.failure_message + f". job={job}")
         return "Error uploading file to cloud: {}. job={}".format(ex, job), None
 
     # enqueue a worker
@@ -1661,16 +1661,16 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         job.save()
         logger.debug("_upload_file(): 3/3 Enqueued the job: {}. job={}".format(rq_job, job))
     except Exception as ex:
-        failure_message = f"_upload_file(): FAILED_ENQUEUE: Error enqueuing the job: {ex}. job={job}"
         job.status = Job.FAILED
-        job.failure_message = failure_message
+        job.failure_message = f"_upload_file(): error: {ex}"
         job.save()
         try:
             delete_file(job)  # might raise S3 exception. NB: in current thread
         except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
-            logger.error(f"_upload_file(): AWS error: {aws_exc!r}. job={job}")
-            return f"_upload_file(): AWS error: {aws_exc!r}. job={job}", None
-        logger.debug(failure_message)
+            message = f"_upload_file(): error: {aws_exc!r}. job={job}"
+            logger.error(message)
+            return message, None
+        logger.debug(f"_upload_file(): error: {ex}. job={job}")
         return f"Error enqueuing the job: {ex}. job={job}", None
 
     logger.debug("_upload_file(): done")

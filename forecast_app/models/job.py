@@ -192,19 +192,19 @@ def job_cloud_file(job_pk):
         except JobTimeoutException as jte:
             job.status = Job.TIMEOUT
             job.save()
-            logger.error(f"job_cloud_file(): Job timeout: {jte!r}. job={job}")
+            logger.error(f"job_cloud_file(): error: {jte!r}. job={job}")
             raise jte
         except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
             job.status = Job.FAILED
-            job.failure_message = f"job_cloud_file(): AWS error: {aws_exc!r}"
+            job.failure_message = f"job_cloud_file(): error: {aws_exc!r}"
             job.save()
-            logger.error(f"job_cloud_file(): AWS error: {aws_exc!r}. job={job}")
+            logger.error(job.failure_message + f". job={job}")
             raise aws_exc
         except Exception as ex:
             job.status = Job.FAILED
-            job.failure_message = f"Failure processing the file: {ex!r}"
+            job.failure_message = f"job_cloud_file(): error: {ex!r}"
             job.save()
-            logger.error(f"job_cloud_file(): Error: {ex!r}. job={job}")
+            logger.error(job.failure_message + f". job={job}")
             raise ex
         finally:
             delete_file(job)  # NB: in current thread

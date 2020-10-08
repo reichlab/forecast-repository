@@ -70,7 +70,7 @@ def _update_project_row_count_cache_worker(project_pk):
     try:
         project.row_count_cache.update_row_count_cache()
     except JobTimeoutException as jte:
-        logger.error(f"_update_project_row_count_cache_worker(): Job timeout: {jte!r}. project={project}")
+        logger.error(f"_update_project_row_count_cache_worker(): error: {jte!r}. project={project}")
     except Exception as ex:
         logger.error(f"_update_project_row_count_cache_worker(): error: {ex!r}. project={project}")
 

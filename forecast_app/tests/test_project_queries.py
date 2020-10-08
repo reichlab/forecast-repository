@@ -296,7 +296,7 @@ class ProjectQueriesTestCase(TestCase):
 
             job.refresh_from_db()
             self.assertEqual(Job.FAILED, job.status)
-            self.assertIn("_query_worker(): AWS error", job.failure_message)
+            self.assertIn("_query_worker(): error", job.failure_message)
 
         # case: allow actual utils.cloud_file.upload_file(), which calls Bucket.put_object(). we don't actually do this
         # in this test b/c we don't want to hit S3, but it's commented here for debugging:
@@ -507,7 +507,7 @@ class ProjectQueriesTestCase(TestCase):
 
             job.refresh_from_db()
             self.assertEqual(Job.FAILED, job.status)
-            self.assertIn("_query_worker(): AWS error", job.failure_message)
+            self.assertIn("_query_worker(): error", job.failure_message)
 
         # case: allow actual utils.cloud_file.upload_file(), which calls Bucket.put_object(). we don't actually do this
         # in this test b/c we don't want to hit S3, but it's commented here for debugging:

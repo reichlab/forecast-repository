@@ -208,8 +208,7 @@ def _update_model_scores_worker(score_pk, forecast_model_pk):
     try:
         score.update_score_for_model(forecast_model)
     except JobTimeoutException as jte:
-        logger.error(f"_update_model_scores_worker(): Job timeout: {jte!r}. score={score}, "
-                     f"forecast_model={forecast_model}")
+        logger.error(f"_update_model_scores_worker(): error: {jte!r}. score={score}, forecast_model={forecast_model}")
     except Exception as ex:
         logger.error(f"_update_model_scores_worker(): error: {ex!r}. score={score}, forecast_model={forecast_model}")
 

@@ -24,7 +24,7 @@ from forecast_app.models import Project
 def delete_project_app(name):
     project = Project.objects.filter(name=name).first()  # None if doesn't exist
     if not project:
-        logger.error(f"Project not found: '{name}'")
+        logger.error(f"delete_project_app(): error: Project not found: {name!r}")
         return
 
     print(f"delete_project_app(): project={project}")

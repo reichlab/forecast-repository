@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404
 from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
     SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction, \
     ForecastModel
-from forecast_app.models.project import POSTGRES_NULL_VALUE
+from forecast_app.models.project import POSTGRES_NULL_VALUE, Unit
 from utils.project import _target_dict_for_target
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
@@ -855,8 +855,8 @@ def data_rows_from_forecast(forecast, unit, target):
     sql = f"""
         SELECT u.name, t.name, pred.prob, pred.cat_b, pred.cat_d, pred.cat_f, pred.cat_i, pred.cat_t
         FROM {BinDistribution._meta.db_table} AS pred
-                 JOIN forecast_app_unit u on pred.unit_id = u.id
-                 JOIN forecast_app_target t on pred.target_id = t.id
+                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
+                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
         WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
         ORDER BY unit_id, target_id, pred.id;
     """
@@ -869,8 +869,8 @@ def data_rows_from_forecast(forecast, unit, target):
     sql = f"""
         SELECT u.name, t.name, pred.family, pred.param1, pred.param2, pred.param3
         FROM {NamedDistribution._meta.db_table} AS pred
-                 JOIN forecast_app_unit u on pred.unit_id = u.id
-                 JOIN forecast_app_target t on pred.target_id = t.id
+                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
+                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
         WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
         ORDER BY unit_id, target_id, pred.id;
     """
@@ -884,8 +884,8 @@ def data_rows_from_forecast(forecast, unit, target):
     sql = f"""
         SELECT u.name, t.name, pred.value_b, pred.value_d, pred.value_f, pred.value_i, pred.value_t
         FROM {PointPrediction._meta.db_table} AS pred
-                 JOIN forecast_app_unit u on pred.unit_id = u.id
-                 JOIN forecast_app_target t on pred.target_id = t.id
+                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
+                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
         WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
         ORDER BY unit_id, target_id, pred.id;
     """
@@ -898,8 +898,8 @@ def data_rows_from_forecast(forecast, unit, target):
     sql = f"""
         SELECT u.name, t.name, pred.quantile, pred.value_d, pred.value_f, pred.value_i
         FROM {QuantileDistribution._meta.db_table} AS pred
-                 JOIN forecast_app_unit u on pred.unit_id = u.id
-                 JOIN forecast_app_target t on pred.target_id = t.id
+                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
+                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
         WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
         ORDER BY unit_id, target_id, pred.id;
     """
@@ -912,8 +912,8 @@ def data_rows_from_forecast(forecast, unit, target):
     sql = f"""
         SELECT u.name, t.name, pred.sample_b, pred.sample_d, pred.sample_f, pred.sample_i, pred.sample_t
         FROM {SampleDistribution._meta.db_table} AS pred
-                 JOIN forecast_app_unit u on pred.unit_id = u.id
-                 JOIN forecast_app_target t on pred.target_id = t.id
+                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
+                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
         WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
         ORDER BY unit_id, target_id, pred.id;
     """

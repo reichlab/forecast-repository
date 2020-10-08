@@ -210,7 +210,7 @@ def _model_score_counts(project):
     """
     sql = f"""
         SELECT fm.abbreviation AS model, s.abbreviation AS score, count(*)
-        FROM forecast_app_scorevalue AS sv
+        FROM {ScoreValue._meta.db_table} AS sv
                  JOIN {Score._meta.db_table} s ON sv.score_id = s.id
                  JOIN {Forecast._meta.db_table} f on sv.forecast_id = f.id
                  JOIN {ForecastModel._meta.db_table} fm on f.forecast_model_id = fm.id
