@@ -104,13 +104,15 @@ def update(score_abbrev, project_pk, model_abbrev, no_enqueue):
     project = get_object_or_404(Project, pk=project_pk) if project_pk else None
     model = get_object_or_404(ForecastModel, project__id=project_pk, abbreviation=model_abbrev) \
         if model_abbrev and project_pk else None
-    if project:
-        models = project.models.all()
-    elif model:
+    if model:
         models = [model]
+    elif project:
+        models = project.models.all()
     else:
         models = ForecastModel.objects.all()
 
+    logger.info(f"update(): project={project}, scores=({len(scores)}) {scores}, model={model}, "
+                f"models=({len(models)}) {models}")
     for score in scores:
         logger.info(f"* {score}")
         for forecast_model in models:
