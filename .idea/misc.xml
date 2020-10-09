@@ -3,7 +3,9 @@
   <component name="JavaScriptSettings">
     <option name="languageLevel" value="ES6" />
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_6" default="false" project-jdk-name="forecast-repository-aIKRoinE" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_6" default="false" project-jdk-name="Pipenv (forecast-repository)" project-jdk-type="Python SDK">
+    <output url="file://$PROJECT_DIR$/out" />
+  </component>
   <component name="SbtLocalSettings">
     <option name="modificationStamps">
       <map>
