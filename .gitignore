@@ -8,6 +8,8 @@ staticfiles
 .idea/**/workspace.xml
 .idea/**/tasks.xml
 .idea/dictionaries
+.idea/forecast_repo.iml
+.idea/misc.xml
 
 # Sensitive or high-churn files:
 .idea/**/dataSources/
@@ -74,4 +76,11 @@ dump.rdb
 
 # node modules
 *node_modules
+
+# local environment variable files
+local-postgres.env
+local-sqlite3.env
+
+# playground
+temp_app.py
 
