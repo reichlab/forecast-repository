@@ -57,8 +57,8 @@ class RowCountCache(models.Model):
 #
 
 def enqueue_row_count_updates_all_projs():
+    queue = django_rq.get_queue(ROW_COUNT_UPDATE_QUEUE_NAME)
     for project in Project.objects.all():
-        queue = django_rq.get_queue(ROW_COUNT_UPDATE_QUEUE_NAME)
         queue.enqueue(_update_project_row_count_cache_worker, project.pk)
 
 

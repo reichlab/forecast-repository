@@ -411,7 +411,7 @@ def _query_worker(job_pk, query_project_fcn):
     project = get_object_or_404(Project, pk=job.input_json['project_pk'])
     query = job.input_json['query']
     try:
-        logger.debug(f"_query_worker(): querying rows. query={query}. job={job}")
+        logger.debug(f"_query_worker(): 1/4 querying rows. query={query}. job={job}")
         # use a transaction to set the scope of the postgres `statement_timeout` parameter. statement_timeout raises
         # this error: django.db.utils.OperationalError ('canceling statement due to statement timeout'). Similarly,
         # idle_in_transaction_session_timeout raises django.db.utils.InternalError . todo does not consistently work!
@@ -446,19 +446,19 @@ def _query_worker(job_pk, query_project_fcn):
         # note: using a context is required o/w is closed and becomes unusable:
         # per https://stackoverflow.com/questions/59079354/how-to-write-utf-8-csv-into-bytesio-in-python3 :
         with io.BytesIO() as bytes_io:
-            logger.debug(f"_query_worker(): writing rows. job={job}")
+            logger.debug(f"_query_worker(): 2/4 writing rows. job={job}")
             text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
             rows = IterCounter(rows)
             csv.writer(text_io_wrapper).writerows(rows)
             text_io_wrapper.flush()
             bytes_io.seek(0)
 
-            logger.debug(f"_query_worker(): uploading file. job={job}")
+            logger.debug(f"_query_worker(): 3/4 uploading file. job={job}")
             upload_file(job, bytes_io)  # might raise S3 exception
             job.output_json = {'num_rows': rows.count}
             job.status = Job.SUCCESS
             job.save()
-            logger.debug(f"_query_worker(): done. job={job}")
+            logger.debug(f"_query_worker(): 4/4 done. job={job}")
     except (BotoCoreError, Boto3Error, ClientError, ConnectionClosedError) as aws_exc:
         job.status = Job.FAILED
         job.failure_message = f"_query_worker(): error: {aws_exc!r}"

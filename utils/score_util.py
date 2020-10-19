@@ -113,6 +113,7 @@ def update(score_abbrev, project_pk, model_abbrev, no_enqueue):
 
     logger.info(f"update(): project={project}, scores=({len(scores)}) {scores}, model={model}, "
                 f"models=({len(models)}) {models}")
+    queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
     for score in scores:
         logger.info(f"* {score}")
         for forecast_model in models:
@@ -121,7 +122,6 @@ def update(score_abbrev, project_pk, model_abbrev, no_enqueue):
                 _update_model_scores_worker(score.pk, forecast_model.pk)
             else:
                 logger.info(f"** enqueuing score={score}, forecast_model={forecast_model}")
-                queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
                 queue.enqueue(_update_model_scores_worker, score.pk, forecast_model.pk)
     logger.info("update done")
 
