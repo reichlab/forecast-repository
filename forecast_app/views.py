@@ -89,7 +89,7 @@ def projects(request):
 def zadmin_jobs(request):
     return render(
         request, 'zadmin_jobs.html',
-        context={'jobs': Job.objects.all()})  # datatable does order by
+        context={'jobs': Job.objects.select_related('user').all()})  # datatable does order by
 
 
 def zadmin_score_last_updates(request):
