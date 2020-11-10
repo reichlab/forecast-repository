@@ -194,21 +194,19 @@
             </tr>
             </thead>
             <tbody>
-            {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, oldest_forecast_id, newest_forecast_id, newest_forecast_created_at in models_rows %}
+            {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, newest_forecast_id, newest_forecast_created_at in models_rows %}
                 <tr>
                     <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
                     <td>{{ forecast_model.team_name }}</td>
                     <td>{{ num_forecasts }}</td>
                     <td>
                         {% if oldest_forecast_tz_date %}
-                            <a href="{% url 'forecast-detail' oldest_forecast_id %}">
-                                {# handle whether dates came from db as objects or strings #}
-                                {% if oldest_forecast_tz_date|get_class == 'date' %}
-                                    {{ oldest_forecast_tz_date|date:"Y-m-d" }}
-                                {% else %}
-                                    {{ oldest_forecast_tz_date }}
-                                {% endif %}
-                            </a>
+                            {# handle whether dates came from db as objects or strings #}
+                            {% if oldest_forecast_tz_date|get_class == 'date' %}
+                                {{ oldest_forecast_tz_date|date:"Y-m-d" }}
+                            {% else %}
+                                {{ oldest_forecast_tz_date }}
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td>
@@ -329,7 +327,9 @@
             $('#models_table').dataTable();
             $('#units_table').dataTable();
             $('#targets_table').dataTable();
-            var table = $('#timezeros_table').DataTable();
+            var table = $('#timezeros_table').DataTable({
+                order: [[0, "asc"]],  // timezero
+            });
 
             {# http://live.datatables.net/fehobiti/145/edit #}
             $.fn.dataTable.ext.search.push(

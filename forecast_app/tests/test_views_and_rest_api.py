@@ -92,12 +92,16 @@ class ViewsTestCase(TestCase):
                                                         abbreviation='abbrev5', description='',
                                                         home_url='http://example.com', owner=cls.mo_user)
         cls.public_forecast = load_cdc_csv_forecast_file(2016, cls.public_model, cls.csv_file_path, cls.public_tz1)
+        cls.public_forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.public_forecast.save()
 
         # private_model
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          abbreviation='abbrev', description='',
                                                          home_url='http://example.com', owner=cls.mo_user)
         cls.private_forecast = load_cdc_csv_forecast_file(2016, cls.private_model, cls.csv_file_path, cls.private_tz1)
+        cls.private_forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.private_forecast.save()
 
         # user/response pairs for testing authorization
         cls.OK_ALL = [(None, status.HTTP_200_OK),
@@ -225,7 +229,6 @@ class ViewsTestCase(TestCase):
             (reverse('download-forecast', args=[str(self.public_forecast.pk)]), self.OK_ALL),
             (reverse('download-forecast', args=[str(self.private_forecast.pk)]), self.ONLY_PO_MO),
         ]
-
         # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
         # the correct query params. however, 400 does indicate that the code passed the authorization portion
         for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
@@ -657,12 +660,14 @@ class ViewsTestCase(TestCase):
 
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
-        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'notes', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issue_date', 'notes',
+                    'forecast_data']
         self.assertEqual(1, len(response_dicts))
         self.assertEqual(exp_keys, list(response_dicts[0]))
 
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
-        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'notes', 'forecast_data']
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issue_date', 'notes',
+                    'forecast_data']
         self.assertEqual(exp_keys, list(response.data))
 
         # note that we only check top-level keys b/c we know json_response_for_forecast() uses
@@ -817,7 +822,8 @@ class ViewsTestCase(TestCase):
         # so we just test that delete() calls enqueue_delete_forecast(), and trust that enqueue_delete_forecast()
         # enqueues a _delete_forecast_worker() call (to simple to fail)
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
-        private_forecast2_pk = private_forecast2.pk
+        private_forecast2.issue_date -= datetime.timedelta(days=2)  # older version avoids unique constraint errors
+        private_forecast2.save()
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             json_response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
             response_json = json_response.json()  # JobSerializer
@@ -828,7 +834,7 @@ class ViewsTestCase(TestCase):
             self.assertEqual({'id', 'url', 'status', 'user', 'created_at', 'updated_at', 'failure_message',
                               'input_json', 'output_json'}, set(response_json.keys()))
             self.assertEqual(Job.QUEUED, response_json['status'])
-            self.assertEqual(private_forecast2_pk, response_json['input_json']['forecast_pk'])
+            self.assertEqual(private_forecast2.pk, response_json['input_json']['forecast_pk'])
 
         # test _delete_forecast_worker() itself (which is called by workers)
         private_forecast3 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)

@@ -269,7 +269,8 @@ class ForecastSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Forecast
-        fields = ('id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'notes', 'forecast_data',)
+        fields = ('id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issue_date', 'notes',
+                  'forecast_data',)
         extra_kwargs = {
             'url': {'view_name': 'api-forecast-detail'},
         }

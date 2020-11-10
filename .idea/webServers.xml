@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="f2d05828-b8d5-44ab-9d8b-7c6a0a04d4d6" name="loki.cs.umass.edu">
+        <fileTransfer accessType="SFTP" host="loki.cs.umass.edu" port="22" sshConfigId="e0730e3b-a0c0-4c78-b2e6-16b9385ad3ec" sshConfig="cornell@loki.cs.umass.edu:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

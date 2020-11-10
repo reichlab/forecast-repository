@@ -666,41 +666,73 @@ def _group_name_for_target(target):
 
 def models_summary_table_rows_for_project(project):
     """
-    :return: a list of rows suitable for rendering as a table. returns a 7-tuple:
-        [forecast_model, num_forecasts,
-         oldest_forecast_tz_date, newest_forecast_tz_date,
-         oldest_forecast_id, newest_forecast_id,
-         newest_forecast_created_at]
+    :return: a list of rows suitable for rendering as a table. returns a 6-tuple for each model in `project`:
+        [forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date,
+         newest_forecast_id, newest_forecast_created_at]
 
         NB: the dates and datetime are either objects OR strings depending on the database (postgres: objects,
         sqlite3: strings)
     """
-    # the self-join allows gives us the actual ID of the max timezero's forecast's ID.
-    # per https://stackoverflow.com/questions/18725168/sql-group-by-minimum-value-in-one-field-while-selecting-distinct-rows
+    # this query has three steps: 1) a CTE that groups forecast by model, calculating for each: number of forecasts, and
+    # min and max timezero_dates. 2) a CTE that joins that with forecasts and then groups to get forecasts corresponding
+    # to max timezero_dates, resulting in separate rows per forecast version (i.e., per issue_date), from which we group
+    # to get max issue_date. 3) a join on that with forecasts to get the actual forecast ids corresponding to the max
+    # issue_dates. note that this query does not return forecast ids (with max issue_dates) for min timezero_dates,
+    # which means we cannot link to them, only to the newest forecasts.
+    #
+    # final columns (one row/forecast model):
+    # - fm_id: ForecastModel.id
+    # - f_count: total number of forecasts in the model
+    # - min_time_zero_date, max_time_zero_date: min and max TimeZero.timezero_date in the model
+    # - f_id, f_created_at: Forecast.id and created_at for the forecast matching max_time_zero_date and the max
+    #                       issue_date for that
     sql = f"""
-        SELECT aggr_sel.fm_id, aggr_sel.fm_count, aggr_sel.min_tz_date, aggr_sel.max_tz_date, f2.id, f3.id, f3.created_at
-        FROM (SELECT fm1.id                 AS fm_id,
-                     count(fm1.id)          AS fm_count,
-                     min(tz1.timezero_date) AS min_tz_date,
-                     max(tz1.timezero_date) AS max_tz_date
-              FROM {ForecastModel._meta.db_table} fm1
-                       JOIN {Forecast._meta.db_table} AS f1 ON f1.forecast_model_id = fm1.id
-                       JOIN {TimeZero._meta.db_table} AS tz1 ON f1.time_zero_id = tz1.id
-              WHERE fm1.project_id = %s
-              GROUP BY fm1.id) AS aggr_sel
-                 JOIN {TimeZero._meta.db_table} AS tz2 ON tz2.timezero_date = aggr_sel.min_tz_date
-                 JOIN {TimeZero._meta.db_table} AS tz3 ON tz3.timezero_date = aggr_sel.max_tz_date
-                 JOIN {Forecast._meta.db_table} AS f2 ON f2.forecast_model_id = aggr_sel.fm_id AND tz2.id = f2.time_zero_id
-                 JOIN {Forecast._meta.db_table} AS f3 ON f3.forecast_model_id = aggr_sel.fm_id AND tz3.id = f3.time_zero_id
-        WHERE tz2.project_id = %s;
+        WITH
+            fm_min_max_tzs AS (
+                SELECT f.forecast_model_id   AS fm_id,
+                       COUNT(*)              AS f_count,
+                       MIN(tz.timezero_date) AS min_time_zero_date,
+                       MAX(tz.timezero_date) AS max_time_zero_date
+                FROM {Forecast._meta.db_table} AS f
+                         JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
+                         JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
+                WHERE fm.project_id = %s
+                GROUP BY f.forecast_model_id),
+            fm_max_issue_dates AS (
+                SELECT fm_min_max_tzs.fm_id              AS fm_id,
+                       fm_min_max_tzs.f_count            AS f_count,
+                       fm_min_max_tzs.min_time_zero_date AS min_time_zero_date,
+                       fm_min_max_tzs.max_time_zero_date AS max_time_zero_date,
+                       MAX(f.issue_date)                 AS max_issue_date
+                FROM fm_min_max_tzs
+                         JOIN {TimeZero._meta.db_table} tz ON tz.timezero_date = fm_min_max_tzs.max_time_zero_date
+                         JOIN {Forecast._meta.db_table} AS f
+                              ON f.forecast_model_id = fm_min_max_tzs.fm_id
+                                  AND f.time_zero_id = tz.id
+                GROUP BY fm_min_max_tzs.fm_id,
+                         fm_min_max_tzs.f_count,
+                         fm_min_max_tzs.min_time_zero_date,
+                         fm_min_max_tzs.max_time_zero_date)
+        SELECT fm_max_issue_dates.fm_id              AS fm_id,
+               fm_max_issue_dates.f_count            AS f_count,
+               fm_max_issue_dates.min_time_zero_date AS min_time_zero_date,
+               fm_max_issue_dates.max_time_zero_date AS max_time_zero_date,
+               f.id                                  AS f_id,
+               f.created_at                          AS f_created_at
+        FROM fm_max_issue_dates
+                 JOIN {TimeZero._meta.db_table} tz ON tz.timezero_date = fm_max_issue_dates.max_time_zero_date
+                 JOIN {Forecast._meta.db_table} AS f
+                      ON f.forecast_model_id = fm_max_issue_dates.fm_id
+                          AND f.time_zero_id = tz.id
+                          AND f.issue_date = fm_max_issue_dates.max_issue_date;
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk, project.pk,))
+        cursor.execute(sql, (project.pk,))
         rows = cursor.fetchall()
 
         # add model IDs with no forecasts (omitted by query)
         missing_model_ids = project.models \
-            .exclude(id__in=[_[0] for _ in rows]) \
+            .exclude(id__in=[row[0] for row in rows]) \
             .values_list('id', flat=True)
         for missing_model_id in missing_model_ids:
             rows.append((missing_model_id, 0, None, None, None, None, None))  # caller/view handles Nones
@@ -708,7 +740,7 @@ def models_summary_table_rows_for_project(project):
         forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
 
         # replace forecast_model_ids (row[0]) with objects
-        rows = [(forecast_model_id_to_obj[row[0]], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
+        rows = [(forecast_model_id_to_obj[row[0]], row[1], row[2], row[3], row[4], row[5]) for row in rows]
         return rows
 
 
@@ -776,7 +808,7 @@ def _project_explorer_unit_rows(project):
     """
     # get newest forecast into 3-tuples from models_summary_table_rows_for_project()
     models_rows = [(forecast_model, newest_forecast_tz_date, newest_forecast_id)
-                   for forecast_model, _, _, newest_forecast_tz_date, _, newest_forecast_id, _
+                   for forecast_model, _, _, newest_forecast_tz_date, newest_forecast_id, _
                    in models_summary_table_rows_for_project(project)]
 
     # get corresponding unique Unit IDs for newest_forecast_ids
@@ -853,7 +885,7 @@ def target_rows_for_project(project):
     """
     # get newest forecast into 3-tuples from models_summary_table_rows_for_project()
     models_rows = [(forecast_model, newest_forecast_tz_date, newest_forecast_id)
-                   for forecast_model, _, _, newest_forecast_tz_date, _, newest_forecast_id, _
+                   for forecast_model, _, _, newest_forecast_tz_date, newest_forecast_id, _
                    in models_summary_table_rows_for_project(project)]
 
     # get corresponding unique Target IDs for newest_forecast_ids

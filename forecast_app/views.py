@@ -1,5 +1,6 @@
 import json
 import logging
+from collections import defaultdict
 
 import django_rq
 import redis
@@ -926,12 +927,12 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     @staticmethod
     def timezeros_num_forecasts(project):
         """
-        :return: a list of tuples that relates project's TimeZeros to # Forecasts. sorted by time_zero
+        :return: a list of 2-tuples that relates project's TimeZeros to # Forecasts: (time_zero, num_forecasts)
         """
+        # annotate() is a GROUP BY. Count() arg doesn't matter. datatable does order by
         rows = Forecast.objects.filter(forecast_model__project=project) \
             .values('time_zero__id') \
-            .annotate(tz_count=Count('id')) \
-            .order_by('time_zero__timezero_date')  # NB: Count() param doesn't matter
+            .annotate(tz_count=Count('id'))
 
         # initialization is a work-around for missing LEFT JOIN items:
         timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
@@ -1021,10 +1022,20 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
         # set timezero_forecast_pairs, a list of (timezero, forecast) 2-tuples for every TimeZero in the model's
         # project, with forecast=None for any that are missing. first we get all of the model's projects TimeZeros,
         # then get all of the model's forecasts, then do an in-memory "join" to get the missing ones
-        timezero_forecast_pairs = []
-        tz_to_forecast = {forecast.time_zero: forecast for forecast in forecast_model.forecasts.all()}
-        for timezero in forecast_model.project.timezeros.all().order_by('timezero_date'):
-            timezero_forecast_pairs.append((timezero, tz_to_forecast.get(timezero)))
+        tz_to_forecasts = defaultdict(list)  # TimeZero -> list of its Forecasts ("versions")
+        for forecast in forecast_model.forecasts.select_related('time_zero').order_by('issue_date'):
+            # order_by('issue_date') allows us to name versions by index below
+            tz_to_forecasts[forecast.time_zero].append(forecast)
+
+        timezero_forecast_pairs = []  # TimeZero, Forecast, version_str
+        for timezero in forecast_model.project.timezeros.all():  # datatable does order by
+            if timezero in tz_to_forecasts:
+                forecasts = tz_to_forecasts[timezero]
+                for idx, forecast in enumerate(forecasts):
+                    version_str = "" if len(forecasts) == 1 else f"{idx + 1} of {len(forecasts)}"
+                    timezero_forecast_pairs.append((timezero, forecast, version_str))
+            else:
+                timezero_forecast_pairs.append((timezero, None, ""))
 
         context['timezero_forecast_pairs'] = timezero_forecast_pairs
         context['is_user_ok_edit_model'] = is_user_ok_edit_model(self.request.user, forecast_model)

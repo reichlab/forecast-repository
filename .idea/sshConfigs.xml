@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="loki.cs.umass.edu" id="e0730e3b-a0c0-4c78-b2e6-16b9385ad3ec" port="22" nameFormat="DESCRIPTIVE" username="cornell" />
+    </configs>
+  </component>
+</project>

@@ -620,17 +620,13 @@ class ProjectUtilTestCase(TestCase):
         exp_row = (forecast_model, forecast_model.forecasts.count(),
                    str(time_zero.timezero_date),  # oldest_forecast_tz_date
                    str(time_zero.timezero_date),  # newest_forecast_tz_date
-                   forecast.id, forecast.id,
-                   forecast.created_at.utctimetuple(),  # newest_forecast_created_at
-                   )
+                   forecast.id, forecast.created_at.utctimetuple())  # newest_forecast_created_at
         act_rows = models_summary_table_rows_for_project(project)
         act_rows = [(act_rows[0][0], act_rows[0][1],
                      str(act_rows[0][2]),  # oldest_forecast_tz_date
                      str(act_rows[0][3]),  # newest_forecast_tz_date
                      act_rows[0][4],
-                     act_rows[0][5],
-                     act_rows[0][6].utctimetuple(),  # newest_forecast_created_at
-                     )]
+                     act_rows[0][5].utctimetuple())]  # newest_forecast_created_at
 
         sql = f"""SELECT created_at FROM {Forecast._meta.db_table} WHERE id = %s;"""
         with connection.cursor() as cursor:
@@ -646,17 +642,13 @@ class ProjectUtilTestCase(TestCase):
         exp_row = (forecast_model, forecast_model.forecasts.count(),
                    str(time_zero.timezero_date),  # oldest_forecast_tz_date
                    str(time_zero2.timezero_date),  # newest_forecast_tz_date
-                   forecast.id, forecast2.id,
-                   forecast2.created_at.utctimetuple(),  # newest_forecast_created_at
-                   )
+                   forecast2.id, forecast2.created_at.utctimetuple())  # newest_forecast_created_at
         act_rows = models_summary_table_rows_for_project(project)
         act_rows = [(act_rows[0][0], act_rows[0][1],
                      str(act_rows[0][2]),  # oldest_forecast_tz_date
                      str(act_rows[0][3]),  # newest_forecast_tz_date
                      act_rows[0][4],
-                     act_rows[0][5],
-                     act_rows[0][6].utctimetuple(),  # newest_forecast_created_at
-                     )]
+                     act_rows[0][5].utctimetuple())]  # newest_forecast_created_at
         self.assertEqual([exp_row], act_rows)
 
 

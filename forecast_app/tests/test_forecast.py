@@ -36,6 +36,8 @@ class ForecastTestCase(TestCase):
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
+        cls.forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.forecast.save()
 
 
     def test_load_forecast_created_at_field(self):
@@ -376,9 +378,11 @@ class ForecastTestCase(TestCase):
 
         # bulk-deleting a model's forecasts will update its score_change.changed_at. (this basically tests that a signal
         # is used instead of a customized delete() - see set_model_changed_at() comment
-        for _ in range(2):
+        for idx in range(2):
             csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
-            load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero)
+            forecast = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero)
+            forecast.issue_date += datetime.timedelta(days=idx + 1)  # newer version avoids unique constraint errors
+            forecast.save()
         before_changed_at = forecast_model2.score_change.changed_at
         forecast_model2.forecasts.all().delete()
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
@@ -457,7 +461,8 @@ class ForecastTestCase(TestCase):
         self.assertEqual({'targets', 'forecast', 'units'}, set(out_meta.keys()))
         self.assertEqual({'cats', 'unit', 'name', 'is_step_ahead', 'type', 'description', 'id', 'url'},
                          set(out_meta['targets'][0].keys()))
-        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'notes', 'forecast_data', 'source', 'id', 'url'},
+        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'issue_date', 'notes', 'forecast_data', 'source',
+                          'id', 'url'},
                          set(out_meta['forecast'].keys()))
         self.assertEqual({'id', 'name', 'url'}, set(out_meta['units'][0].keys()))
         self.assertIsInstance(out_meta['forecast']['time_zero'], dict)  # test that time_zero is expanded, not URL
@@ -565,6 +570,8 @@ class ForecastTestCase(TestCase):
         # function's use of the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.save()
 
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
                 patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
@@ -600,6 +607,8 @@ class ForecastTestCase(TestCase):
         # https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.save()
 
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
                 patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \

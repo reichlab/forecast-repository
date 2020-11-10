@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% load humanize %}
+{% load tz %}
 
 {% block title %}Forecast: {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}{% endblock %}
 
@@ -54,12 +55,28 @@
                     </td>
                 </tr>
                 <tr>
+                    <th>Issue date:</th>
+                    <td>
+                        {{ forecast.issue_date|date:"Y-m-d" }}
+                        <small class="text-muted">(Version:
+                            <span class="badge badge-pill badge-light">
+                                {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}
+                            </span>
+                            / <span class="badge badge-pill badge-light">
+                                {{ forecast.issue_date|date:"Y-m-d" }}
+                            </span>)
+                        </small>
+                    </td>
+                </tr>
+                <tr>
                     <th>Data Source:</th>
                     <td>{{ forecast.source }}</td>
                 </tr>
                 <tr>
                     <th>Upload Time:</th>
-                    <td>{{ forecast.created_at|date:"Y-m-d H:i:s T" }}</td>
+                    <td>
+                        {% localtime off %} {{ forecast.created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
+                    </td>
                 </tr>
                 <tr>
                     <th>Notes:</th>

@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load tz %}
+
 {% block title %}Model: {{ forecastmodel.abbreviation }}{% endblock %}
 
 {% block content %}
@@ -7,7 +9,8 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
-            <li class="breadcrumb-item"><a href="{{ forecastmodel.project.get_absolute_url }}">{{ forecastmodel.project.name }}</a></li>
+            <li class="breadcrumb-item"><a
+                    href="{{ forecastmodel.project.get_absolute_url }}">{{ forecastmodel.project.name }}</a></li>
             <li class="breadcrumb-item active">{{ forecastmodel.abbreviation }}</li>
         </ol>
     </nav>
@@ -135,17 +138,17 @@
                 <th>Timezero</th>
                 <th>Data Source</th>
                 <th>Upload Time</th>
+                <th>Issue date</th>
+                <th>Version</th>
                 {% if is_user_ok_edit_model %}
                     <th>Action</th>
                 {% endif %}
             </tr>
             </thead>
             <tbody>
-            {% for timezero, forecast in timezero_forecast_pairs %}
+            {% for timezero, forecast, version in timezero_forecast_pairs %}
                 <tr>
-                    <td>
-                        {{ timezero.timezero_date|date:"Y-m-d" }}
-                    </td>
+                    <td>{{ timezero.timezero_date|date:"Y-m-d" }}</td>
                     <td>
                         {% if forecast %}
                             <a href="{{ forecast.get_absolute_url }}">{{ forecast.source }}</a>
@@ -153,9 +156,9 @@
                             <small class="text-muted">(No data)</small>
                         {% endif %}
                     </td>
-                    <td>
-                        {{ forecast.created_at|date:"Y-m-d H:i:s T" }}
-                    </td>
+                    <td>{% localtime off %} {{ forecast.created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</td>
+                    <td>{{ forecast.issue_date|date:"Y-m-d" }}</td>
+                    <td><small class="text-muted">{{ version }}</small></td>
                     {% if is_user_ok_edit_model %}
                         <td>
                             {% if forecast %}
@@ -198,7 +201,9 @@
     <!-- activate the https://datatables.net/ -->
     <script>
         $(document).ready(function () {
-            var table = $('#forecasts_table').DataTable();
+            var table = $('#forecasts_table').DataTable({
+                order: [[0, "asc"]],  // timezero
+            });
 
             {# http://live.datatables.net/fehobiti/145/edit #}
             $.fn.dataTable.ext.search.push(

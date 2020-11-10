@@ -378,11 +378,11 @@ class ProjectQueriesTestCase(TestCase):
     def test_query_scores_for_project(self):
         # add some more predictions to get more to work with
         time_zero_2 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-        forecast_2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json 2',
-                                             time_zero=time_zero_2, notes="f2")
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json 2',
+                                            time_zero=time_zero_2, notes="f2")
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast_2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
 
         forecast_model_2 = ForecastModel.objects.create(project=self.project, name='docs forecast model 2',
                                                         abbreviation='docs_mod_2')
@@ -448,11 +448,11 @@ class ProjectQueriesTestCase(TestCase):
     def test_query_scores_for_project_max_num_rows(self):
         # add some more predictions to get more to work with
         time_zero_2 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-        forecast_2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json 2',
-                                             time_zero=time_zero_2, notes="f2")
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json 2',
+                                            time_zero=time_zero_2, notes="f2")
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast_2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
 
         forecast_model_2 = ForecastModel.objects.create(project=self.project, name='docs forecast model 2',
                                                         abbreviation='docs_mod_2')

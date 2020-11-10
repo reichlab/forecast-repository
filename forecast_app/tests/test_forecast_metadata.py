@@ -1,3 +1,4 @@
+import datetime
 import json
 
 from django.db.models import QuerySet
@@ -14,6 +15,7 @@ class ForecastMetadataTestCase(TestCase):
     """
     """
 
+
     @classmethod
     def setUpTestData(cls):
         # recall that _make_docs_project() calls cache_forecast_metadata(), but the below tests assume it doesn't, so
@@ -21,6 +23,9 @@ class ForecastMetadataTestCase(TestCase):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         cls.project, cls.time_zero, cls.forecast_model, cls.forecast = _make_docs_project(po_user)
         clear_forecast_metadata(cls.forecast)
+        cls.forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.forecast.save()
+
 
     def test_cache_forecast_metadata_predictions(self):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
@@ -40,6 +45,7 @@ class ForecastMetadataTestCase(TestCase):
         cache_forecast_metadata(self.forecast)
         self.assertEqual(1, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
 
+
     def test_cache_forecast_metadata_units(self):
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=self.forecast).count())
 
@@ -52,6 +58,7 @@ class ForecastMetadataTestCase(TestCase):
         cache_forecast_metadata(self.forecast)
         self.assertEqual(3, forecast_meta_unit_qs.count())
 
+
     def test_cache_forecast_metadata_targets(self):
         self.assertEqual(0, ForecastMetaTarget.objects.filter(forecast=self.forecast).count())
 
@@ -63,6 +70,7 @@ class ForecastMetadataTestCase(TestCase):
         # second run first deletes existing rows, resulting in the same number as before
         cache_forecast_metadata(self.forecast)
         self.assertEqual(5, forecast_meta_target_qs.count())
+
 
     def test_cache_forecast_metadata_clears_first(self):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
@@ -80,6 +88,7 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=self.forecast).count())
         self.assertEqual(0, ForecastMetaTarget.objects.filter(forecast=self.forecast).count())
+
 
     def test_cache_forecast_metadata_second_forecast(self):
         # make sure only the passed forecast is cached
@@ -106,6 +115,7 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=forecast2).count())
         self.assertEqual(0, ForecastMetaTarget.objects.filter(forecast=forecast2).count())
 
+
     def test_metadata_for_forecast(self):
         cache_forecast_metadata(self.forecast)
         forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs = forecast_metadata(self.forecast)
@@ -125,11 +135,13 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(5, len(forecast_meta_target_qs))
         self.assertEqual({ForecastMetaTarget}, set(map(type, forecast_meta_target_qs)))
 
+
     def test_is_forecast_metadata_available(self):
         self.assertFalse(is_forecast_metadata_available(self.forecast))
 
         cache_forecast_metadata(self.forecast)
         self.assertTrue(is_forecast_metadata_available(self.forecast))
+
 
     def tests_forecast_metadata_counts_for_project(self):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json',

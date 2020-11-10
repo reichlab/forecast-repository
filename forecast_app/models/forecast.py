@@ -11,7 +11,17 @@ from utils.utilities import basic_str
 class Forecast(models.Model):
     """
     Represents a model's forecasted data. There is one Forecast for each of my ForecastModel's Project's TimeZeros.
+    Supports versioning via this 3-tuple: (forecast_model__id, time_zero__id, issue_date). That is, a Forecast's
+    "version" is the combination of those three. Put another way, within a ForecastModel, a forecast's version is the
+    (time_zero, issue_date) 2-tuple.
     """
+
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['forecast_model', 'time_zero', 'issue_date'], name='unique_version'),
+        ]
+
 
     forecast_model = models.ForeignKey(ForecastModel, related_name='forecasts', on_delete=models.CASCADE)
 
@@ -24,6 +34,10 @@ class Forecast(models.Model):
     # when this instance was created. basically the post-validation save date:
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # this Forecast's version - Forecast versions are named/identified by `issue_date`. defaults to the date at time of
+    # creation. only special users can edit this due wanting to implement some scientific integrity controls
+    issue_date = models.DateField(auto_now_add=True, db_index=True)
+
     # arbitrary information about this forecast
     notes = models.TextField(null=True, blank=True,
                              help_text="Text describing anything slightly different about a given forecast, e.g., a "
@@ -32,7 +46,7 @@ class Forecast(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.source, self.created_at))
+        return str((self.pk, self.time_zero, self.issue_date, self.source, self.created_at))
 
 
     def __str__(self):  # todo
