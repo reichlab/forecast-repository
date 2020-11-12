@@ -33,7 +33,7 @@ from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_fro
     is_forecast_metadata_available, forecast_metadata, forecast_metadata_counts_for_project
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, group_targets, unit_rows_for_project, \
-    models_summary_table_rows_for_project, target_rows_for_project
+    models_summary_table_rows_for_project, target_rows_for_project, latest_forecast_ids_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, \
@@ -308,15 +308,19 @@ def project_forecasts(request, project_pk):
                             'rows': '# rows',
                             'units': '# units',
                             'targets': '# targets'}[request.GET.get('colorby')]
-    vega_lite_spec = _vega_lite_spec_for_project(project, encoding_color_field)
+    forecast_id_to_counts = forecast_metadata_counts_for_project(project)
+    vega_lite_spec = _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field)
 
     # create forecasts table data
+    forecast_rows = []  # filled next
     rows_qs = Forecast.objects.filter(forecast_model__project=project) \
-        .values_list('id', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
+        .values_list('id', 'issue_date', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
                      'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
-    forecast_rows = [(reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_created_at,
-                      reverse('model-detail', args=[fm_id]), fm_abbrev)
-                     for f_id, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs]
+    for f_id, f_issue_date, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
+        counts = forecast_id_to_counts[f_id]  # [None, None, None] if forecast_id is None (via defauldict)
+        num_rows = sum(counts[0]) if counts[0] is not None else 0
+        forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issue_date, f_created_at,
+                              reverse('model-detail', args=[fm_id]), fm_abbrev, num_rows))
 
     return render(request, 'project_forecasts.html',
                   context={'project': project,
@@ -324,28 +328,18 @@ def project_forecasts(request, project_pk):
                            'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
 
 
-def _vega_lite_spec_for_project(project, encoding_color_field):
-    # collect existing forecast (heatmap cell) information
-    fm_tz_ids_to_f_id = {}  # existing Forecasts: (forecast_model_id, timezero_id) -> forecast_id
-    forecasts_qs = Forecast.objects \
-        .filter(forecast_model__project=project) \
-        .values_list('id', 'forecast_model__id', 'time_zero__id')
-    for f_id, fm_id, tz_id in forecasts_qs:
-        fm_tz_ids_to_f_id[(fm_id, tz_id)] = f_id
-
-    # get mapping from forecast_id to count 3-tuples:
-    #   ((point_count, named_count, bin_count, sample_count, quantile_count), num_names, num_targets)
-    forecast_id_to_counts = forecast_metadata_counts_for_project(project)
-
-    # create vega lite data values for all model/tz combinations, filling in missing forecasts. values are rows and keys
-    # are columns
-    values = []
+def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field):
+    """
+    A `project_forecasts()` helper that returns a Vega-Lite spec dict for a heatmap of all forecasts in project.
+    """
+    fm_tz_ids_to_f_id = latest_forecast_ids_for_project(project)  # ones with latest issue_date
     tz_id_dates = project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date')
+    values = []
     for fm_id, fm_abbrev in project.models.all().order_by('abbreviation').values_list('id', 'abbreviation'):
         for tz_id, tz_tzdate in tz_id_dates:
             forecast_id = fm_tz_ids_to_f_id.get((fm_id, tz_id), None)
             counts = forecast_id_to_counts[forecast_id]  # [None, None, None] if forecast_id is None (via defauldict)
-            if forecast_id:
+            if forecast_id is not None:
                 # 'T00:00:00' is per [Tooltip dates are off by one](https://github.com/vega/vega-lite/issues/6883):
                 values.append({'model': fm_abbrev,
                                'timezero': tz_tzdate.strftime(YYYY_MM_DD_DATE_FORMAT) + 'T00:00:00',

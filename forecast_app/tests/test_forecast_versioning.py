@@ -5,7 +5,7 @@ from django.test import TestCase
 
 from forecast_app.models import Forecast
 from utils.make_minimal_projects import _make_docs_project
-from utils.project import models_summary_table_rows_for_project
+from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -102,6 +102,12 @@ class ForecastVersionsTestCase(TestCase):
                    act_rows[0][4], act_rows[0][5].utctimetuple())  # id and created_at of ""
         self.assertEqual(exp_row, act_row)
 
+        # test `latest_forecast_ids_for_project()` b/c it's convenient here
+        exp_fm_tz_ids_to_f_id = {(self.forecast_model.id, self.tz1.id): f1.id,
+                                 (self.forecast_model.id, self.tz2.id): f2.id}
+        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project)
+        self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)
+
 
     def test_models_summary_table_rows_for_project_case_2(self):
         # case 2/3: three timezeros, three forecasts, oldest tz has two versions:
@@ -133,6 +139,12 @@ class ForecastVersionsTestCase(TestCase):
                    str(act_rows[0][3]),  # newest_forecast_tz_date
                    act_rows[0][4], act_rows[0][5].utctimetuple())  # id and created_at of ""
         self.assertEqual(exp_row, act_row)
+
+        # test `latest_forecast_ids_for_project()` b/c it's convenient here
+        exp_fm_tz_ids_to_f_id = {(self.forecast_model.id, self.tz1.id): f2.id,
+                                 (self.forecast_model.id, self.tz2.id): f3.id}
+        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project)
+        self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)
 
 
     def test_models_summary_table_rows_for_project_case_3(self):
@@ -169,3 +181,10 @@ class ForecastVersionsTestCase(TestCase):
                    str(act_rows[0][3]),  # newest_forecast_tz_date
                    act_rows[0][4], act_rows[0][5].utctimetuple())  # id and created_at of ""
         self.assertEqual(exp_row, act_row)
+
+        # test `latest_forecast_ids_for_project()` b/c it's convenient here
+        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project)
+        exp_fm_tz_ids_to_f_id = {(self.forecast_model.id, self.tz1.id): f1.id,
+                                 (self.forecast_model.id, self.tz2.id): f2.id,
+                                 (self.forecast_model.id, self.tz3.id): f4.id}
+        self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)

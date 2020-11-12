@@ -909,3 +909,41 @@ def target_rows_for_project(project):
 
     # done
     return target_rows
+
+
+#
+# latest_forecast_ids_for_project()
+#
+
+def latest_forecast_ids_for_project(project):
+    """
+    A `views._vega_lite_spec_for_project()` helper that returns a dict that maps (forecast_model_id, timezero_id)
+    2-tuples to the latest forecast's forecast_id based on issue_date.
+    """
+    sql = f"""
+        WITH fm_tz_max_issue_dates AS (
+            SELECT f.forecast_model_id AS fm_id,
+                   f.time_zero_id      AS tz_id,
+                   MAX(f.issue_date)   AS max_issue_date
+            FROM {Forecast._meta.db_table} AS f
+                     JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
+                     JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
+            WHERE fm.project_id = %s
+            GROUP BY f.forecast_model_id, f.time_zero_id
+        )
+        SELECT fm.id AS fm_id,
+               tz.id AS tz_id,
+               f.id  AS f_id
+        FROM fm_tz_max_issue_dates
+                 JOIN {TimeZero._meta.db_table} tz ON tz.id = fm_tz_max_issue_dates.tz_id
+                 JOIN {ForecastModel._meta.db_table} fm ON fm.id = fm_tz_max_issue_dates.fm_id
+                 JOIN {Forecast._meta.db_table} AS f
+                      ON f.forecast_model_id = fm_tz_max_issue_dates.fm_id
+                          AND f.time_zero_id = tz.id
+                          AND f.issue_date = fm_tz_max_issue_dates.max_issue_date;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        rows = cursor.fetchall()
+
+    return {(fm_id, tz_id): f_id for fm_id, tz_id, f_id, in rows}

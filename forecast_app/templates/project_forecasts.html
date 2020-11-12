@@ -59,14 +59,24 @@
             <tr>
                 <th>Model</th>
                 <th>Timezero</th>
+                <th>Issue Date</th>
                 <th>Upload Time</th>
+                <th># Rows</th>
             </tr>
             </thead>
             <tbody>
-            {% for forecast_url, timezero_date, created_at, model_url, model_abbrev in forecast_rows %}
+            {% for forecast_url, timezero_date, issue_date, created_at, model_url, model_abbrev, num_rows in forecast_rows %}
                 <tr>
                     <td><a href="{{ model_url }}">{{ model_abbrev }}</a></td>
                     <td><a href="{{ forecast_url }}">{{ timezero_date|date:"Y-m-d" }}</a></td>
+                    <td>
+                        {# handle whether datetimes came from db as objects or strings #}
+                        {% if issue_date|get_class == 'date' %}
+                            {{ issue_date|date:"Y-m-d" }}
+                        {% else %}
+                            {{ issue_date }}
+                        {% endif %}
+                    </td>
                     <td>
                         {# handle whether datetimes came from db as objects or strings #}
                         {% if created_at|get_class == 'datetime' %}
@@ -75,6 +85,7 @@
                             {{ created_at }}
                         {% endif %}
                     </td>
+                    <td>{{ num_rows }}</td>
                 </tr>
             {% endfor %}
             </tbody>
