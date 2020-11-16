@@ -332,7 +332,7 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
     """
     A `project_forecasts()` helper that returns a Vega-Lite spec dict for a heatmap of all forecasts in project.
     """
-    fm_tz_ids_to_f_id = latest_forecast_ids_for_project(project)  # ones with latest issue_date
+    fm_tz_ids_to_f_id = latest_forecast_ids_for_project(project, False)  # ones with latest issue_date
     tz_id_dates = project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date')
     values = []
     for fm_id, fm_abbrev in project.models.all().order_by('abbreviation').values_list('id', 'abbreviation'):

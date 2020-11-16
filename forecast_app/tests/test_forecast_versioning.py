@@ -105,7 +105,7 @@ class ForecastVersionsTestCase(TestCase):
         # test `latest_forecast_ids_for_project()` b/c it's convenient here
         exp_fm_tz_ids_to_f_id = {(self.forecast_model.id, self.tz1.id): f1.id,
                                  (self.forecast_model.id, self.tz2.id): f2.id}
-        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project)
+        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project, False)
         self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)
 
 
@@ -143,7 +143,7 @@ class ForecastVersionsTestCase(TestCase):
         # test `latest_forecast_ids_for_project()` b/c it's convenient here
         exp_fm_tz_ids_to_f_id = {(self.forecast_model.id, self.tz1.id): f2.id,
                                  (self.forecast_model.id, self.tz2.id): f3.id}
-        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project)
+        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project, False)
         self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)
 
 
@@ -183,7 +183,7 @@ class ForecastVersionsTestCase(TestCase):
         self.assertEqual(exp_row, act_row)
 
         # test `latest_forecast_ids_for_project()` b/c it's convenient here
-        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project)
+        act_fm_tz_ids_to_f_id = latest_forecast_ids_for_project(self.project, False)
         exp_fm_tz_ids_to_f_id = {(self.forecast_model.id, self.tz1.id): f1.id,
                                  (self.forecast_model.id, self.tz2.id): f2.id,
                                  (self.forecast_model.id, self.tz3.id): f4.id}

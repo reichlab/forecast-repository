@@ -15,7 +15,7 @@ from forecast_app.tests.test_scores import _update_scores_for_all_projects
 from utils.cdc_io import make_cdc_units_and_targets, load_cdc_csv_forecast_file
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
-from utils.project import load_truth_data
+from utils.project import load_truth_data, create_project_from_json
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_scores_query, _scores_query_worker, _tz_unit_targ_pks_to_truth_values, query_scores_for_project, \
     SCORE_CSV_HEADER_PREFIX
@@ -57,6 +57,20 @@ class ProjectQueriesTestCase(TestCase):
             error_messages, _ = validate_forecasts_query(self.project, {key_name: -1})
             self.assertEqual(1, len(error_messages))
             self.assertIn(f"'{key_name}' was not a list", error_messages[0])
+
+        # case: as_of is not a string, or is not a date in YYYY_MM_DD_DATE_FORMAT
+        error_messages, _ = validate_forecasts_query(self.project, {'as_of': -1})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn(f"'as_of' was not a string", error_messages[0])
+
+        error_messages, _ = validate_forecasts_query(self.project, {'as_of': '20201011'})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn(f"'as_of' was not in YYYY-MM-DD format", error_messages[0])
+
+        try:
+            validate_forecasts_query(self.project, {'as_of': '2020-10-11'})
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
         # case: bad object reference
         for key_name, exp_error_msg in [('models', 'model with abbreviation not found'),
@@ -266,6 +280,121 @@ class ProjectQueriesTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             list(query_forecasts_for_project(self.project, {}, max_num_rows=61))
         self.assertIn("number of rows exceeded maximum", str(context.exception))
+
+
+    def test_as_of_versions(self):
+        # tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
+        #
+        # Here's an example database with versions (header is timezeros, rows are forecast `issue_date`s). Each forecast
+        # only has one point prediction:
+        #
+        # +-----+-----+-----+
+        # |10/2 |10/9 |10/16|
+        # |tz1  |tz2  |tz3  |
+        # +=====+=====+=====+
+        # |10/2 |     |     |
+        # |f1   | -   | -   |  2.1
+        # +-----+-----+-----+
+        # |     |     |10/17|
+        # |-    | -   |f2   |  2.0
+        # +-----+-----+-----+
+        # |10/20|10/20|     |
+        # |f3   | f4  | -   |  3.567 | 10
+        # +-----+-----+-----+
+        #
+        # Here are some `as_of` examples (which forecast version would be used as of that date):
+        #
+        # +-----+----+----+----+
+        # |as_of|tz1 |tz2 |tz3 |
+        # +-----+----+----+----+
+        # |10/1 | -  | -  | -  |
+        # |10/3 | f1 | -  | -  |
+        # |10/18| f1 | -  | f2 |
+        # |10/20| f3 | f4 | f2 |
+        # |10/21| f3 | f4 | f2 |
+        # +-----+----+----+----+
+
+        # set up database
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model',
+                                                      abbreviation='docs_mod')
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+        tz3 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 16)).first()
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        json_io_dict = {"predictions": [{"unit": "location1",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 2.1}}]}
+        load_predictions_from_json_io_dict(f1, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz3)
+        json_io_dict = {"predictions": [{"unit": "location2",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 2.0}}]}
+        load_predictions_from_json_io_dict(f2, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        f2.issue_date = tz3.timezero_date + datetime.timedelta(days=1)
+        f2.save()
+
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
+        json_io_dict = {"predictions": [{"unit": "location3",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 3.567}}]}
+        load_predictions_from_json_io_dict(f3, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        f3.issue_date = tz1.timezero_date + datetime.timedelta(days=18)
+        f3.save()
+
+        f4 = Forecast.objects.create(forecast_model=forecast_model, source='f4', time_zero=tz2)
+        json_io_dict = {"predictions": [{"unit": "location3",
+                                         "target": "cases next week",
+                                         "class": "point",
+                                         "prediction": {"value": 10}}]}
+        load_predictions_from_json_io_dict(f4, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        f4.issue_date = f3.issue_date
+        f4.save()
+
+        # case: default (no `as_of`): no f1 (f3 is newer)
+        exp_rows = [['2011-10-16', 'location2', 'pct next week', 'point', 2.0],
+                    ['2011-10-02', 'location3', 'pct next week', 'point', 3.567],
+                    ['2011-10-09', 'location3', 'cases next week', 'point', 10]]
+        act_rows = list(query_forecasts_for_project(project, {}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/20: same as default
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-20'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/21: same as default
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-21'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/1: none
+        exp_rows = []
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-01'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/3: just f1
+        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1]]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-03'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/18: f1 and f2
+        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
+                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-18'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
 
 
     def test__forecasts_query_worker(self):

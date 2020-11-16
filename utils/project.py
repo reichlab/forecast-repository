@@ -915,11 +915,24 @@ def target_rows_for_project(project):
 # latest_forecast_ids_for_project()
 #
 
-def latest_forecast_ids_for_project(project):
+def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timezero_ids=None, as_of=None):
     """
-    A `views._vega_lite_spec_for_project()` helper that returns a dict that maps (forecast_model_id, timezero_id)
-    2-tuples to the latest forecast's forecast_id based on issue_date.
+    A multi-purpose utility that returns the latest forecast IDs fro all forecasts in project by honoring
+    `Forecast.issue_date`. Args customize filtering and return value.
+
+    :param project: a Project
+    :param is_only_f_id: boolean that controls the return value: True: return a list of the latest forecast IDs.
+        False: Return a a dict that maps (forecast_model_id, timezero_id) 2-tuples to the latest forecast's forecast_id
+    :param model_ids: optional list of ForecastModel.ids to filter by. None means include all models
+    :param timezero_ids: "" Timezero.ids "". None means include all TimeZeros
+    :param as_of: optional date string in YYYY_MM_DD_DATE_FORMAT used for filter based on `Forecast.issue_date`. (note
+        that both postgres and sqlite3 support that literal format)
     """
+    # build up the query based on args
+    select_ids = "SELECT f.id AS f_id" if is_only_f_id else "SELECT fm.id AS fm_id, tz.id AS tz_id, f.id  AS f_id"
+    and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
+    and_timezero_ids = f"AND tz.id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
+    and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
     sql = f"""
         WITH fm_tz_max_issue_dates AS (
             SELECT f.forecast_model_id AS fm_id,
@@ -928,12 +941,10 @@ def latest_forecast_ids_for_project(project):
             FROM {Forecast._meta.db_table} AS f
                      JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
                      JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
-            WHERE fm.project_id = %s
+            WHERE fm.project_id = %s  {and_model_ids}  {and_timezero_ids}  {and_issue_date}
             GROUP BY f.forecast_model_id, f.time_zero_id
         )
-        SELECT fm.id AS fm_id,
-               tz.id AS tz_id,
-               f.id  AS f_id
+        {select_ids}
         FROM fm_tz_max_issue_dates
                  JOIN {TimeZero._meta.db_table} tz ON tz.id = fm_tz_max_issue_dates.tz_id
                  JOIN {ForecastModel._meta.db_table} fm ON fm.id = fm_tz_max_issue_dates.fm_id
@@ -946,4 +957,4 @@ def latest_forecast_ids_for_project(project):
         cursor.execute(sql, (project.pk,))
         rows = cursor.fetchall()
 
-    return {(fm_id, tz_id): f_id for fm_id, tz_id, f_id, in rows}
+    return [row[0] for row in rows] if is_only_f_id else {(fm_id, tz_id): f_id for fm_id, tz_id, f_id, in rows}

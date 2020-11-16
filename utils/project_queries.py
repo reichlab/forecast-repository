@@ -14,7 +14,7 @@ from rq.timeouts import JobTimeoutException
 from forecast_app.models import BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
     QuantileDistribution, Forecast, Job, Project, Score, ScoreValue
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
-from utils.project import logger
+from utils.project import logger, latest_forecast_ids_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -37,8 +37,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     The 'class' of each row is named to be the same as Zoltar's utils.forecast.PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
     variable. Column ordering is FORECAST_CSV_HEADER.
 
-    `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to five keys, each
-    of which is a list of strings:
+    `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to six keys, five of which
+    are lists of strings:
 
     - 'models': optional list of ForecastModel.abbreviation strings
     - 'units': "" Unit.name strings
@@ -46,9 +46,13 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
     - 'types': optional list of type strings as defined in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values()
 
-    Note that _strings_ are passed to refer to server objects, not database IDs, which means validation will fail if the
-    referred-to objects are not found. Also, if multiple ones are found with the same name, the program will arbitrarily
-    choose one.
+    The sixth key allows searching based on `Forecast.issue_date`:
+    - 'as_of': optional inclusive issue_date in YYYY_MM_DD_DATE_FORMAT to limit the search to. the default behavior if
+               not passed is to use the newest forecast for each TimeZero.
+
+    Note that _strings_ are passed to refer to object *contents*, not database IDs, which means validation will fail if
+    the referred-to objects are not found. NB: If multiple objects are found with the same name then the program will
+    arbitrarily choose one.
 
     :param project: a Project
     :param query: a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation, and above
@@ -59,17 +63,9 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
 
 
-    # validate query and set query defaults ("all in project") if necessary
+    # validate query
     logger.debug(f"query_forecasts_for_project(): 1/4 validating query. query={query}, project={project}")
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types) = validate_forecasts_query(project, query)
-    if not model_ids:
-        model_ids = project.models.all().values_list('id', flat=True)  # default to all ForecastModels in Project
-    if not unit_ids:
-        unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
-    if not target_ids:
-        target_ids = project.targets.all().values_list('id', flat=True)  # "" Targets ""
-    if not timezero_ids:
-        timezero_ids = project.timezeros.all().values_list('id', flat=True)  # "" TimeZeros ""
 
     # get which types to include
     is_include_bin = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in types)
@@ -79,13 +75,20 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     is_include_quantile = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution] in types)
 
     # get Forecasts to be included, applying query's constraints
-    forecast_ids = Forecast.objects \
-        .filter(forecast_model__id__in=model_ids,
-                time_zero__id__in=timezero_ids) \
-        .values_list('id', flat=True)
+    forecast_ids = latest_forecast_ids_for_project(project, True, model_ids=model_ids, timezero_ids=timezero_ids,
+                                                   as_of=query.get('as_of', None))
 
     # create queries for each prediction type, but don't execute them yet. first check # rows and limit if necessary.
     # note that not all will be executed, depending on the 'types' key
+
+    # todo xx no unit_ids or target_ids -> do not pass '__in' !
+    # - https://stackoverflow.com/questions/30538718/django-filtering-based-on-optional-parameters
+    # - https://stackoverflow.com/questions/42760593/simplify-multiple-optional-filters-in-django
+    if not unit_ids:
+        unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
+    if not target_ids:
+        target_ids = project.targets.all().values_list('id', flat=True)  # "" Targets ""
+
     bin_qs = BinDistribution.objects.filter(forecast__id__in=list(forecast_ids),
                                             unit__id__in=list(unit_ids),
                                             target__id__in=list(target_ids)) \
@@ -250,12 +253,25 @@ def validate_forecasts_query(project, query):
 
     # validate keys
     actual_keys = set(query.keys())
-    expected_keys = {'models', 'units', 'targets', 'timezeros', 'types'}
+    expected_keys = {'models', 'units', 'targets', 'timezeros', 'types', 'as_of'}
     if not (actual_keys <= expected_keys):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
         return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+    # validate as_of
+    as_of = query.get('as_of', None)
+    if as_of is not None:
+        if type(as_of) != str:
+            error_messages.append(f"'as_of' was not a string: '{type(as_of)}'")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+        try:
+            datetime.datetime.strptime(as_of, YYYY_MM_DD_DATE_FORMAT).date()
+        except ValueError:
+            error_messages.append(f"'as_of' was not in YYYY-MM-DD format: {type(as_of)}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
@@ -418,7 +434,8 @@ def _query_worker(job_pk, query_project_fcn):
         if connection.vendor == 'postgresql':
             with transaction.atomic(), connection.cursor() as cursor:
                 cursor.execute(f"SET LOCAL statement_timeout = '{QUERY_FORECAST_STATEMENT_TIMEOUT}s';")
-                cursor.execute(f"SET LOCAL idle_in_transaction_session_timeout = '{QUERY_FORECAST_STATEMENT_TIMEOUT}s';")
+                cursor.execute(
+                    f"SET LOCAL idle_in_transaction_session_timeout = '{QUERY_FORECAST_STATEMENT_TIMEOUT}s';")
                 rows = query_project_fcn(project, query)
         else:
             rows = query_project_fcn(project, query)
