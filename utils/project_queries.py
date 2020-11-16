@@ -545,24 +545,13 @@ def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     # validate query and set query defaults ("all in project") if necessary
     logger.debug(f"query_scores_for_project(): 1/5 validating query. query={query}, project={project}")
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores) = validate_scores_query(project, query)
-    if not model_ids:
-        model_ids = project.models.all().values_list('id', flat=True)  # default to all ForecastModels in Project
-    if not unit_ids:
-        unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
-    if not target_ids:
-        target_ids = project.targets.all().values_list('id', flat=True)  # "" Targets ""
-    if not timezero_ids:
-        timezero_ids = project.timezeros.all().values_list('id', flat=True)  # "" TimeZeros ""
 
     # set scores, translating Score abbreviations to objects, defaultintg to all
     scores_qs = Score.objects.filter(abbreviation__in=scores).order_by('pk') if scores \
         else Score.objects.all().order_by('pk')
 
     # get Forecasts to be included, applying query's constraints
-    forecast_ids = Forecast.objects \
-        .filter(forecast_model__id__in=model_ids,
-                time_zero__id__in=timezero_ids) \
-        .values_list('id', flat=True)
+    forecast_ids = latest_forecast_ids_for_project(project, True, model_ids=model_ids, timezero_ids=timezero_ids)
 
     # write the header, which depends on which scores are being queried
     score_csv_header = SCORE_CSV_HEADER_PREFIX + [score.abbreviation for score in scores_qs]
@@ -575,6 +564,12 @@ def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
+
+    # todo xx no unit_ids or target_ids -> do not pass '__in' !
+    if not unit_ids:
+        unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
+    if not target_ids:
+        target_ids = project.targets.all().values_list('id', flat=True)  # "" Targets ""
 
     logger.debug(f"query_scores_for_project(): 3/5 getting truth. project={project}")
     tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
