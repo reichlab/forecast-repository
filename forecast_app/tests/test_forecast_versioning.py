@@ -1,9 +1,13 @@
 import datetime
+import json
+import unittest
 
 import django
 from django.test import TestCase
 
-from forecast_app.models import Forecast
+from forecast_app.models import Forecast, Score, TruthData, ScoreValue, TimeZero
+from forecast_app.scores.calc_interval import _calculate_interval_score_values
+from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project
 from utils.utilities import get_or_create_super_po_mo_users
@@ -188,3 +192,68 @@ class ForecastVersionsTestCase(TestCase):
                                  (self.forecast_model.id, self.tz2.id): f2.id,
                                  (self.forecast_model.id, self.tz3.id): f4.id}
         self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)
+
+
+    # copy of test_calc_interval_20_docs_project() that adds a version
+    @unittest.skip("todo remove this failing test when we remove scoring from zoltar proper")
+    def test_calc_interval_20_docs_project_additional_version(self):
+        Score.ensure_all_scores_exist()
+        interval_20_score = Score.objects.filter(abbreviation='interval_20').first()
+        self.assertIsNotNone(interval_20_score)
+
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+
+        unit_loc2 = project.units.filter(name='location2').first()
+        targ_pct_next_wk = project.targets.filter(name='pct next week').first()  # continuous
+        unit_loc3 = project.units.filter(name='location3').first()
+        targ_cases_next_wk = project.targets.filter(name='cases next week').first()  # discrete
+
+        # add two truths that result in two ScoreValues
+        project.delete_truth_data()
+        TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        ScoreValue.objects \
+            .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
+            .delete()  # usually done by update_score_for_model()
+        _calculate_interval_score_values(interval_20_score, forecast_model, 0.5)
+        self.assertEqual(2, interval_20_score.values.count())
+        self.assertEqual([2.8, 50], sorted(interval_20_score.values.all().values_list('value', flat=True)))
+
+        # add a second forecast for a newer timezero
+        time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                            time_zero=time_zero2, notes="a small prediction file")
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        ScoreValue.objects \
+            .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
+            .delete()  # usually done by update_score_for_model()
+        _calculate_interval_score_values(interval_20_score, forecast_model, 0.5)
+        self.assertEqual(4, interval_20_score.values.count())
+
+        # finally, add a new version to timezero
+        forecast.issue_date = forecast.time_zero.timezero_date
+        forecast.save()
+
+        forecast2.issue_date = forecast2.time_zero.timezero_date
+        forecast2.save()
+
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=time_zero)
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)  # atomic
+            cache_forecast_metadata(forecast2)  # atomic
+
+        # s/b no change from previous
+        ScoreValue.objects \
+            .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
+            .delete()  # usually done by update_score_for_model()
+
+        # RuntimeError: >2 lower_upper_interval_values: [2.2, 2.2, 5.0, 5.0]. timezero_id=4, unit_id=5, target_id=6
+        _calculate_interval_score_values(interval_20_score, forecast_model, 0.5)
+
+        self.assertEqual(4, interval_20_score.values.count())
