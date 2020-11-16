@@ -1445,41 +1445,67 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 
 
-    def test_api_put_forecast_source(self):
+    def test_api_patch_forecast(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
         forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
                                            time_zero=time_zero)
-        self.assertEqual('docs-predictions.json', forecast.source)
 
         # case: not authorized
         forecast_url = reverse('api-forecast-detail', args=[forecast.pk])
-        json_response = self.client.put(forecast_url, {}, format='json')
+        json_response = self.client.patch(forecast_url, {}, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
-        json_response = self.client.put(forecast_url, {
+        json_response = self.client.patch(forecast_url, {
             'Authorization': f'JWT {self._authenticate_jwt_user(self.non_staff_user, self.non_staff_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
 
-        # case: no 'source'
-        json_response = self.client.put(forecast_url, {
+        # case: unsupported field
+        json_response = self.client.patch(forecast_url, {
+            # no 'source' or 'issue_date' in payload
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-        self.assertEqual({'error': "No 'source' data."}, json_response.json())
+        self.assertEqual({'error': "Could not find supported field in data: ['Authorization']. Supported fields: "
+                                   "'source', 'issue_date'"},
+                         json_response.json())
 
-        # case: authorized
-        new_source = 'new source'
-        json_response = self.client.put(forecast_url, {
-            'source': new_source,
+        # case: set source: blue sky
+        old_source = forecast.source
+        new_source_str = 'new source'
+        json_response = self.client.patch(forecast_url, {
+            'source': new_source_str,
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         forecast.refresh_from_db()
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
-        self.assertEqual(new_source, forecast.source)
+        self.assertNotEqual(old_source, forecast.source)
+        self.assertEqual(new_source_str, forecast.source)
+
+        # case: set issue_date: bad date format
+        json_response = self.client.patch(forecast_url, {
+            'issue_date': '20201110',
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+        self.assertEqual({'error': "'issue_date' was not in YYYY-MM-DD format: '20201110'"},
+                         json_response.json())
+
+        # case: set issue_date: blue sky
+        old_issue_date = forecast.issue_date
+        new_issue_date_str = '2020-10-11'
+        json_response = self.client.patch(forecast_url, {
+            'issue_date': new_issue_date_str,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        forecast.refresh_from_db()
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertNotEqual(old_issue_date, forecast.issue_date)
+        self.assertEqual(datetime.datetime.strptime(new_issue_date_str, YYYY_MM_DD_DATE_FORMAT).date(),
+                         forecast.issue_date)
 
 
     def _authenticate_jwt_user(self, user, password):

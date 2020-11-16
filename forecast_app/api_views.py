@@ -599,20 +599,50 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
                is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
 
 
-    def put(self, request, *args, **kwargs):
+    def patch(self, request, *args, **kwargs):
         """
-        Handles the case of setting my source. PUT form fields:
-        - request.data (required) must have a 'source' field containing a string
+        Allows setting a single Forecast field. Currently supported fields are:
+        - source: a string
+        - issue_date: a date in YYYY_MM_DD_DATE_FORMAT
         """
         forecast = self.get_object()
-        if not is_user_ok_delete_forecast(request.user, forecast):  # if ok delete forecast then ok to set source
+        if not is_user_ok_delete_forecast(request.user, forecast):
             return HttpResponseForbidden()
-        elif 'source' not in request.data:
-            return JsonResponse({'error': "No 'source' data."}, status=status.HTTP_400_BAD_REQUEST)
 
-        forecast.source = request.data['source']
-        forecast.save()
-        return Response(status=status.HTTP_200_OK)
+        if 'source' in request.data:
+            forecast.source = request.data['source']
+            forecast.save()
+            return Response(status=status.HTTP_200_OK)
+        elif 'issue_date' in request.data:
+            issue_date_str = request.data['issue_date']
+            try:
+                issue_date = datetime.datetime.strptime(issue_date_str, YYYY_MM_DD_DATE_FORMAT).date()
+                forecast.issue_date = issue_date
+                forecast.save()
+                return Response(status=status.HTTP_200_OK)
+            except ValueError:
+                return JsonResponse({'error': f"'issue_date' was not in YYYY-MM-DD format: {issue_date_str!r}"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return JsonResponse({'error': f"Could not find supported field in data: {list(request.data.keys())}. "
+                                          f"Supported fields: 'source', 'issue_date'"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+
+    # def put(self, request, *args, **kwargs):
+    #     """
+    #     Handles the case of setting my source. PUT form fields:
+    #     - request.data (required) must have a 'source' field containing a string
+    #     """
+    #     forecast = self.get_object()
+    #     if not is_user_ok_delete_forecast(request.user, forecast):  # if ok delete forecast then ok to set source
+    #         return HttpResponseForbidden()
+    #     elif 'source' not in request.data:
+    #         return JsonResponse({'error': "No 'source' data."}, status=status.HTTP_400_BAD_REQUEST)
+    #
+    #     forecast.source = request.data['source']
+    #     forecast.save()
+    #     return Response(status=status.HTTP_200_OK)
 
 
     def delete(self, request, *args, **kwargs):
