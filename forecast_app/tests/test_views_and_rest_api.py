@@ -1485,6 +1485,18 @@ class ViewsTestCase(TestCase):
         self.assertNotEqual(old_source, forecast.source)
         self.assertEqual(new_source_str, forecast.source)
 
+        # case: set notes: blue sky
+        old_notes = forecast.notes
+        new_notes_str = 'new notes'
+        json_response = self.client.patch(forecast_url, {
+            'notes': new_notes_str,
+            'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
+        }, format='json')
+        forecast.refresh_from_db()
+        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+        self.assertNotEqual(old_notes, forecast.notes)
+        self.assertEqual(new_notes_str, forecast.notes)
+
         # case: set issue_date: bad date format
         json_response = self.client.patch(forecast_url, {
             'issue_date': '20201110',

@@ -81,9 +81,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     # create queries for each prediction type, but don't execute them yet. first check # rows and limit if necessary.
     # note that not all will be executed, depending on the 'types' key
 
-    # todo xx no unit_ids or target_ids -> do not pass '__in' !
-    # - https://stackoverflow.com/questions/30538718/django-filtering-based-on-optional-parameters
-    # - https://stackoverflow.com/questions/42760593/simplify-multiple-optional-filters-in-django
+    # todo no unit_ids or target_ids -> do not pass '__in'
     if not unit_ids:
         unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
     if not target_ids:
@@ -565,7 +563,7 @@ def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     target_id_to_obj = {target.pk: target for target in project.targets.all()}
     timezero_to_season_name = project.timezero_to_season_name()
 
-    # todo xx no unit_ids or target_ids -> do not pass '__in' !
+    # todo no unit_ids or target_ids -> do not pass '__in'
     if not unit_ids:
         unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
     if not target_ids:

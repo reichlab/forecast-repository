@@ -48,7 +48,7 @@
             <tr>
                 <th>Model</th>
                 <th>Team</th>
-                <th>Forecast date</th>
+                <th>Timezero</th>
                 {% if unit_rows %}
                     <th># Units</th>
                     <th>Present</th>
@@ -63,7 +63,7 @@
             <tr>
                 <th>Model</th>
                 <th>Team</th>
-                <th>Forecast date</th>
+                <th>Timezero</th>
                 {% if unit_rows %}
                     <th># Units</th>
                     <th>Present</th>
@@ -137,7 +137,7 @@
         // DataTable
         $(document).ready(function () {
             $('#units_or_targets_table').DataTable({
-                order: [[2, "desc"]],  // Forecast date
+                order: [[2, "desc"]],  // Timezero
                 initComplete: function () {
                     // Apply the search
                     this.api().columns().every(function () {

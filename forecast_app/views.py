@@ -1018,7 +1018,7 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
         # then get all of the model's forecasts, then do an in-memory "join" to get the missing ones
         tz_to_forecasts = defaultdict(list)  # TimeZero -> list of its Forecasts ("versions")
         for forecast in forecast_model.forecasts.select_related('time_zero').order_by('issue_date'):
-            # order_by('issue_date') allows us to name versions by index below
+            # order_by('issue_date') allows us to deterministically name versions by index
             tz_to_forecasts[forecast.time_zero].append(forecast)
 
         timezero_forecast_pairs = []  # TimeZero, Forecast, version_str
@@ -1073,9 +1073,19 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
         data_rows_sample = self.search_forecast()
 
+        # determine my version_str - must examine all forecasts for my timezero, similar to
+        # `views.ForecastModelDetailView.get_context_data()`.
+        # order_by('issue_date') allows us to deterministically name versions by index
+        forecast_version_ids = list(Forecast.objects.filter(time_zero=forecast.time_zero) \
+                                    .order_by('issue_date') \
+                                    .values_list('id', flat=True))
+        version_str = "" if len(forecast_version_ids) == 1 else \
+            f"{forecast_version_ids.index(forecast.id) + 1} of {len(forecast_version_ids)}"
+
         # done
         context = super().get_context_data(**kwargs)
         context['is_metadata_available'] = is_metadata_available
+        context['version_str'] = version_str
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
         context['found_units'] = sorted(found_units, key=lambda _: _.name)
         context['found_targets'] = found_targets

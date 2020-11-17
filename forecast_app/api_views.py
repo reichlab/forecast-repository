@@ -603,6 +603,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
         """
         Allows setting a single Forecast field. Currently supported fields are:
         - source: a string
+        - notes: a string
         - issue_date: a date in YYYY_MM_DD_DATE_FORMAT
         """
         forecast = self.get_object()
@@ -611,6 +612,10 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
 
         if 'source' in request.data:
             forecast.source = request.data['source']
+            forecast.save()
+            return Response(status=status.HTTP_200_OK)
+        elif 'notes' in request.data:
+            forecast.notes = request.data['notes']
             forecast.save()
             return Response(status=status.HTTP_200_OK)
         elif 'issue_date' in request.data:

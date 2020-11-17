@@ -58,14 +58,9 @@
                     <th>Issue date:</th>
                     <td>
                         {{ forecast.issue_date|date:"Y-m-d" }}
-                        <small class="text-muted">(Version:
-                            <span class="badge badge-pill badge-light">
-                                {{ forecast.time_zero.timezero_date|date:"Y-m-d" }}
-                            </span>
-                            / <span class="badge badge-pill badge-light">
-                                {{ forecast.issue_date|date:"Y-m-d" }}
-                            </span>)
-                        </small>
+                        {% if version_str %}
+                            <small class="text-muted">(Version {{ version_str }})</small>
+                        {% endif %}
                     </td>
                 </tr>
                 <tr>

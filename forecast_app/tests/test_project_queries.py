@@ -328,7 +328,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "pct next week",
                                          "class": "point",
                                          "prediction": {"value": 2.1}}]}
-        load_predictions_from_json_io_dict(f1, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        load_predictions_from_json_io_dict(f1, json_io_dict, False)
         f1.issue_date = tz1.timezero_date
         f1.save()
 
@@ -337,7 +337,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "pct next week",
                                          "class": "point",
                                          "prediction": {"value": 2.0}}]}
-        load_predictions_from_json_io_dict(f2, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        load_predictions_from_json_io_dict(f2, json_io_dict, False)
         f2.issue_date = tz3.timezero_date + datetime.timedelta(days=1)
         f2.save()
 
@@ -346,7 +346,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "pct next week",
                                          "class": "point",
                                          "prediction": {"value": 3.567}}]}
-        load_predictions_from_json_io_dict(f3, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        load_predictions_from_json_io_dict(f3, json_io_dict, False)
         f3.issue_date = tz1.timezero_date + datetime.timedelta(days=18)
         f3.save()
 
@@ -355,7 +355,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "cases next week",
                                          "class": "point",
                                          "prediction": {"value": 10}}]}
-        load_predictions_from_json_io_dict(f4, json_io_dict, False)  # todo xx cache_forecast_metadata()?
+        load_predictions_from_json_io_dict(f4, json_io_dict, False)
         f4.issue_date = f3.issue_date
         f4.save()
 
