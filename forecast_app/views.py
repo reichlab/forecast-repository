@@ -1076,9 +1076,11 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         # determine my version_str - must examine all forecasts for my timezero, similar to
         # `views.ForecastModelDetailView.get_context_data()`.
         # order_by('issue_date') allows us to deterministically name versions by index
-        forecast_version_ids = list(Forecast.objects.filter(time_zero=forecast.time_zero) \
-                                    .order_by('issue_date') \
-                                    .values_list('id', flat=True))
+        forecast_version_ids = Forecast.objects \
+            .filter(forecast_model=forecast.forecast_model, time_zero=forecast.time_zero) \
+            .order_by('issue_date') \
+            .values_list('id', flat=True)
+        forecast_version_ids = list(forecast_version_ids)
         version_str = "" if len(forecast_version_ids) == 1 else \
             f"{forecast_version_ids.index(forecast.id) + 1} of {len(forecast_version_ids)}"
 
