@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+from numbers import Number
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,7 +19,7 @@ from utils.make_minimal_projects import _make_docs_project
 from utils.project import load_truth_data, create_project_from_json
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_scores_query, _scores_query_worker, _tz_unit_targ_pks_to_truth_values, query_scores_for_project, \
-    SCORE_CSV_HEADER_PREFIX
+    SCORE_CSV_HEADER_PREFIX, validate_truth_query, _truth_query_worker, query_truth_for_project
 from utils.project_queries import validate_forecasts_query
 from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
 
@@ -501,7 +502,10 @@ class ProjectQueriesTestCase(TestCase):
         for exp_row, act_row in zip(exp_rows, act_rows):
             self.assertEqual(len(exp_row), len(act_row))
             for exp_row_val, act_row_val in zip(exp_row, act_row):
-                self.assertAlmostEqual(exp_row_val, act_row_val)  # handles non-floats via '==''
+                if isinstance(exp_row_val, Number) and isinstance(act_row_val, Number):
+                    self.assertAlmostEqual(exp_row_val, act_row_val)  # handles non-floats via '==''
+                else:
+                    self.assertEqual(exp_row_val, act_row_val)
 
 
     def test_query_scores_for_project(self):
@@ -705,3 +709,158 @@ class ProjectQueriesTestCase(TestCase):
                            target4_pk: [3.07623], target5_pk: [3.50708], target6_pk: [3.79872], target7_pk: [4.43601]}}}
         act_dict = _tz_unit_targ_pks_to_truth_values(forecast_model.project)
         self.assertEqual(exp_dict, act_dict)
+
+
+    #
+    # test truth queries
+    #
+
+    def test_validate_truth_query(self):
+        """
+        Nearly identical to test_validate_forecasts_query().
+        """
+        # case: query not a dict
+        error_messages, _ = validate_truth_query(self.project, -1)
+        self.assertEqual(1, len(error_messages))
+        self.assertIn("query was not a dict", error_messages[0])
+
+        # case: query contains invalid keys
+        error_messages, _ = validate_truth_query(self.project, {'foo': -1})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn("one or more query keys were invalid", error_messages[0])
+
+        for key_name in ['units', 'targets', 'timezeros']:
+            error_messages, _ = validate_truth_query(self.project, {key_name: -1})
+            self.assertEqual(1, len(error_messages))
+            self.assertIn(f"'{key_name}' was not a list", error_messages[0])
+
+        # case: bad object id
+        for key_name, exp_error_msg in [('units', 'unit with name not found'),
+                                        ('targets', 'target with name not found'),
+                                        ('timezeros', 'timezero with date not found')]:
+            error_messages, _ = validate_truth_query(self.project, {key_name: [-1]})
+            self.assertEqual(1, len(error_messages))
+            self.assertIn(exp_error_msg, error_messages[0])
+
+        # case: object references from other project (!)
+        project2, time_zero2, forecast_model2, forecast2 = _make_docs_project(self.po_user)
+        for query_dict, exp_error_msg in [
+            ({'units': [project2.units.first().name]}, 'unit with name not found'),
+            ({'targets': [project2.targets.first().name]}, 'target with name not found'),
+            ({'timezeros': [project2.timezeros.first().timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]},
+             'timezero with date not found')]:
+            error_messages, _ = validate_truth_query(self.project, query_dict)
+            self.assertEqual(1, len(error_messages))
+            self.assertIn(exp_error_msg, error_messages[0])
+
+        # case: blue sky
+        query = {'units': list(self.project.units.all().values_list('id', flat=True)),
+                 'targets': list(self.project.targets.all().values_list('id', flat=True)),
+                 'timezeros': list(self.project.timezeros.all().values_list('id', flat=True))}
+        error_messages, _ = validate_truth_query(self.project, query)
+        self.assertEqual(0, len(error_messages))
+
+
+    # def test_export_truth_data(self):
+    #     load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
+    #     response = csv_response_for_project_truth_data(self.project)
+    #     exp_content = ['timezero,unit,target,value',
+    #                    '2017-01-01,US National,1 wk ahead,0.73102',
+    #                    '2017-01-01,US National,2 wk ahead,0.688338',
+    #                    '2017-01-01,US National,3 wk ahead,0.732049',
+    #                    '2017-01-01,US National,4 wk ahead,0.911641',
+    #                    '2017-01-01,US National,Season peak percentage,',
+    #                    '2017-01-01,US National,Season peak week,',
+    #                    '2017-01-01,US National,Season onset,2017-11-20',
+    #                    '']
+    #     act_content = response.content.decode("utf-8").split('\r\n')
+    #     self.assertEqual(exp_content, act_content)
+
+    def test_query_truth_for_project(self):
+        # note: _make_docs_project() loads: tests/truth_data/docs-ground-truth.csv
+        # case: empty query -> all truth in project
+        exp_rows = [['2011-10-02', 'location1', 'Season peak week', '2019-12-15'],
+                    ['2011-10-02', 'location1', 'above baseline', True],
+                    ['2011-10-02', 'location1', 'cases next week', 10],
+                    ['2011-10-02', 'location1', 'pct next week', 4.5432],
+                    ['2011-10-02', 'location1', 'season severity', 'moderate'],
+                    ['2011-10-09', 'location2', 'Season peak week', '2019-12-29'],
+                    ['2011-10-09', 'location2', 'above baseline', True],
+                    ['2011-10-09', 'location2', 'cases next week', 3],
+                    ['2011-10-09', 'location2', 'pct next week', 99.9],
+                    ['2011-10-09', 'location2', 'season severity', 'severe'],
+                    ['2011-10-16', 'location1', 'Season peak week', '2019-12-22'],
+                    ['2011-10-16', 'location1', 'above baseline', False],
+                    ['2011-10-16', 'location1', 'cases next week', 0],
+                    ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
+        act_rows = query_truth_for_project(self.project, {})
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+        # case: only one unit
+        exp_rows = [['2011-10-02', 'location1', 'Season peak week', '2019-12-15'],
+                    ['2011-10-02', 'location1', 'above baseline', True],
+                    ['2011-10-02', 'location1', 'cases next week', 10],
+                    ['2011-10-02', 'location1', 'pct next week', 4.5432],
+                    ['2011-10-02', 'location1', 'season severity', 'moderate'],
+                    ['2011-10-16', 'location1', 'Season peak week', '2019-12-22'],
+                    ['2011-10-16', 'location1', 'above baseline', False],
+                    ['2011-10-16', 'location1', 'cases next week', 0],
+                    ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
+        act_rows = query_truth_for_project(self.project, {'units': ['location1']})
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+        # case: only one target
+        exp_rows = [['2011-10-02', 'location1', 'cases next week', 10],
+                    ['2011-10-09', 'location2', 'cases next week', 3],
+                    ['2011-10-16', 'location1', 'cases next week', 0]]  # sorted
+        act_rows = query_truth_for_project(self.project, {'targets': ['cases next week']})
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+        # case: only one timezero
+        exp_rows = [['2011-10-02', 'location1', 'Season peak week', '2019-12-15'],
+                    ['2011-10-02', 'location1', 'above baseline', True],
+                    ['2011-10-02', 'location1', 'cases next week', 10],
+                    ['2011-10-02', 'location1', 'pct next week', 4.5432],
+                    ['2011-10-02', 'location1', 'season severity', 'moderate']]  # sorted
+        act_rows = query_truth_for_project(self.project, {'timezeros': ['2011-10-02']})
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+
+    def test__truth_query_worker(self):
+        """
+        Nearly identical to test__forecasts_query_worker().
+        """
+        # tests the worker directly. above test verifies that it's called from `query_truth_endpoint()`
+
+        # ensure query_truth_for_project() is called
+        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.project.pk, 'query': {}})
+        with patch('utils.project_queries.query_truth_for_project') as query_mock, \
+                patch('utils.cloud_file.upload_file'):
+            _truth_query_worker(job.pk)
+            query_mock.assert_called_once_with(self.project, {})
+
+        # case: upload_file() does not error
+        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.project.pk, 'query': {}})
+        with patch('utils.cloud_file.upload_file') as upload_mock:
+            _truth_query_worker(job.pk)
+            upload_mock.assert_called_once()
+
+            job.refresh_from_db()
+            self.assertEqual(Job.SUCCESS, job.status)
+
+        # case: upload_file() errors. BotoCoreError: alt: Boto3Error, ClientError, ConnectionClosedError:
+        job = Job.objects.create(user=self.po_user, input_json={'project_pk': self.project.pk, 'query': {}})
+        with patch('utils.cloud_file.upload_file', side_effect=BotoCoreError()) as upload_mock, \
+                patch('forecast_app.notifications.send_notification_email'):
+            _truth_query_worker(job.pk)
+            upload_mock.assert_called_once()
+
+            job.refresh_from_db()
+            self.assertEqual(Job.FAILED, job.status)
+            self.assertIn("_query_worker(): error", job.failure_message)
+
+        # case: allow actual utils.cloud_file.upload_file(), which calls Bucket.put_object(). we don't actually do this
+        # in this test b/c we don't want to hit S3, but it's commented here for debugging:
+        # _truth_query_worker(job.pk)
+        # job.refresh_from_db()
+        # self.assertEqual(Job.SUCCESS, job.status)

@@ -182,12 +182,11 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
 class TruthSerializer(serializers.ModelSerializer):
     project = serializers.SerializerMethodField()
-    truth_data = serializers.SerializerMethodField()
 
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'project', 'truth_csv_filename', 'truth_updated_at', 'truth_data',)
+        fields = ('id', 'url', 'project', 'truth_csv_filename', 'truth_updated_at',)
         extra_kwargs = {
             'url': {'view_name': 'api-truth-detail'},
         }
@@ -196,11 +195,6 @@ class TruthSerializer(serializers.ModelSerializer):
     def get_project(self, project):
         request = self.context['request']
         return reverse('api-project-detail', args=[project.pk], request=request)
-
-
-    def get_truth_data(self, project):
-        request = self.context['request']
-        return reverse('api-truth-data-download', args=[project.pk], request=request)
 
 
 class UserSerializer(serializers.ModelSerializer):

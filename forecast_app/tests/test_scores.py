@@ -7,7 +7,6 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
@@ -21,7 +20,6 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
 from utils.project import load_truth_data, create_project_from_json
-from utils.project_queries import query_forecasts_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -867,15 +865,3 @@ def _make_covid19_project(user):
     project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), user)
     forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model', abbreviation='abbrev')
     return project, forecast_model
-
-
-def _dump_predictions(project):
-    print('* truth')
-    response = csv_response_for_project_truth_data(project)
-    for row in response.content.split(b'\n'):
-        print(row.decode().replace(',', '\t'))
-
-    print('* rows')
-    rows = query_forecasts_for_project(project, {})
-    for row in rows:
-        print(*row, sep='\t')

@@ -13,14 +13,10 @@ from utils.utilities import basic_str
 
 logger = logging.getLogger(__name__)
 
+
 #
 # ---- Project class ----
 #
-
-POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files
-
-TRUTH_CSV_HEADER = ['timezero', 'unit', 'target', 'value']
-
 
 class Project(models.Model):
     """

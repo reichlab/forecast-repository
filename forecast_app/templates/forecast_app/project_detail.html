@@ -131,6 +131,7 @@
                             {% if project.truth_updated_at %}
                                 <small class="text-muted">{{ project.truth_updated_at|date:"Y-m-d H:i:s T" }}</small>
                             {% endif %}
+                            [<a href="{% url 'query-truth' project.pk %}">Download</a>]
                         {% else %}
                             {# show that there's no truth data, optionally with upload button #}
                             {% if is_user_ok_edit_project %}

@@ -6,13 +6,13 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from forecast_app.models import ForecastModel
-from utils.project_queries import validate_forecasts_query, validate_scores_query
+from utils.project_queries import validate_forecasts_query, validate_scores_query, validate_truth_query
 from .models.project import Project
 
 
 class QueryForm(forms.Form):
     """
-    A form that can query either forecasts or scores. Fields and buttons:
+    A form that can query forecasts, scores, or truth. Fields and buttons:
         Query: [JSON text area]
         [Cancel] | [Submit]
 
@@ -20,17 +20,13 @@ class QueryForm(forms.Form):
         <link to docs>
         <button to fill in an example>
     """
-    FORECAST_TYPE = 'forecasts'
-    SCORE_TYPE = 'scores'
-    TYPE_CHOICES = ((FORECAST_TYPE, 'Forecasts'), (SCORE_TYPE, 'Scores'))
-
     query = forms.CharField(help_text='Enter the JSON query to execute')
 
 
-    def __init__(self, project, is_forecast, *args, **kwargs):
+    def __init__(self, project, query_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.project = project
-        self.is_forecast = is_forecast
+        self.query_type = query_type
         for field_name, field in self.fields.items():
             field.widget.attrs['class'] = 'form-control'
 
@@ -38,11 +34,16 @@ class QueryForm(forms.Form):
 
 
     def clean_query(self):
+        from .views import QueryType  # avoid circular imports
+
         cleaned_query_data = self.cleaned_data['query']
         try:
             query_json = json.loads(cleaned_query_data)
             if isinstance(query_json, dict):  # must be a JSON object
-                validation_fcn = validate_forecasts_query if self.is_forecast else validate_scores_query
+                validation_fcn = {QueryType.FORECASTS: validate_forecasts_query,
+                                  QueryType.SCORES: validate_scores_query,
+                                  QueryType.TRUTH: validate_truth_query,
+                                  }[self.query_type]
                 error_messages, _ = validation_fcn(self.project, query_json)
                 if error_messages:  # invalid query
                     raise ValidationError(error_messages)

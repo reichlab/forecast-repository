@@ -44,8 +44,9 @@ class ForecastVersionsTestCase(TestCase):
 
 
     def test_multiple_forecasts_per_timezero(self):
-        # test forecast.issue_date
-        self.assertEqual(self.forecast.created_at.date(), self.forecast.issue_date)
+        # note: we do not test forecast.issue_date b/c: 1) we can trust Forecast.created_at and Forecast.issue_date are
+        # correct via auto_now_add, and 2) these are not always equal due to timezone differences:
+        # self.forecast.created_at.date(), self.forecast.issue_date
 
         # test starting version counts
         self.assertEqual(1, len(Forecast.objects.filter(time_zero=self.time_zero)))

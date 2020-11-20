@@ -67,11 +67,6 @@
 
     {% if project.is_truth_data_loaded %}
         {% include 'truth_data_snippet.html' with project=project %}
-
-        <form id="download_form" class="form-inline" method="POST" action="{% url 'download-truth' project.pk %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">Download CSV</button>
-        </form>
     {% else %}
         <h4>Preview of {{ project.get_num_truth_rows|intword|intcomma }}
             row{{ project.get_num_truth_rows|pluralize }}</h4>

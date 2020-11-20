@@ -1,3 +1,4 @@
+import enum
 import json
 import logging
 from collections import defaultdict
@@ -25,7 +26,7 @@ from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Scor
     Prediction, ModelScoreChange, Unit, Target, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
     QuantileDistribution
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_SCORE
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
 from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
@@ -37,7 +38,7 @@ from utils.project import config_dict_from_project, create_project_from_json, gr
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, \
-    _scores_query_worker
+    _scores_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -483,10 +484,23 @@ def _param_val_from_request(request, param_name, choices):
 # ---- query functions ----
 #
 
-def query_forecasts_or_scores(request, project_pk, is_forecast):
+class QueryType(enum.Enum):
     """
-    Shows a form allowing users to edit a JSON query and submit it to query either forecasts (if `is_forecast`) or
-    scores (o/w).
+    Types of queries that `query_project()` can handle.
+    """
+    FORECASTS = enum.auto()
+    SCORES = enum.auto()
+    TRUTH = enum.auto()
+
+
+def query_project(request, project_pk, query_type):
+    """
+    Shows a form allowing users to edit a JSON query and submit it to query forecasts, scores, or truth based on
+    query_type.
+
+    :param request: a Request
+    :param project_pk: a Project.pk
+    :param query_type: a QueryType enum value indicating the type of query to run
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
 
@@ -497,40 +511,58 @@ def query_forecasts_or_scores(request, project_pk, is_forecast):
 
     # create or process the form based on the method
     if request.method == 'POST':  # create and bind a form instance from the request
-        form = QueryForm(project, is_forecast, data=request.POST)
+        form = QueryForm(project, query_type, data=request.POST)
         if form.is_valid():  # query is valid, so submit it and redirect to the new Job
             cleaned_query_data = form.cleaned_data['query']
-            query_job_type = JOB_TYPE_QUERY_FORECAST if is_forecast else JOB_TYPE_QUERY_SCORE
-            query_worker_fcn = _forecasts_query_worker if is_forecast else _scores_query_worker
+            query_job_type = {QueryType.FORECASTS: JOB_TYPE_QUERY_FORECAST,
+                              QueryType.SCORES: JOB_TYPE_QUERY_SCORE,
+                              QueryType.TRUTH: JOB_TYPE_QUERY_TRUTH,
+                              }[query_type]
+            query_worker_fcn = {QueryType.FORECASTS: _forecasts_query_worker,
+                                QueryType.SCORES: _scores_query_worker,
+                                QueryType.TRUTH: _truth_query_worker,
+                                }[query_type]
             query = json.loads(cleaned_query_data)
             job = _create_query_job(project_pk, query, query_job_type, query_worker_fcn, request)
             messages.success(request, f"Query has been submitted.")
             return redirect('job-detail', pk=job.pk)
     else:  # GET (or any other method): create the default form
-        first_model = project.models.first()
+        # which params to include in which query_type:
+        #            forecasts? scores? truth?
+        # units:     v          v       v
+        # targets:   v          v       v
+        # timezeros: v          v       v
+        # models:    v          v       x
+        # types:     v          x       x
+        # as_of:     v          x       x
+        # scores:    x          v       x
         first_unit = project.units.first()
         first_target = project.targets.first()
         first_timezero = project.timezeros.first()
-        default_query = {'models': [first_model.abbreviation] if first_model else [],
-                         'units': [first_unit.name] if first_unit else [],
+        default_query = {'units': [first_unit.name] if first_unit else [],
                          'targets': [first_target.name] if first_target else [],
                          'timezeros': [first_timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]
                          if first_timezero else []}
-        if is_forecast:
+        if (query_type == QueryType.FORECASTS) or (query_type == QueryType.SCORES):
+            first_model = project.models.first()
+            default_query['models'] = [first_model.abbreviation] if first_model else []
+        if query_type == QueryType.FORECASTS:
             default_query['types'] = ['point']
-        else:
+            first_forecast = Forecast.objects.filter(forecast_model__project=project).first()
+            if first_forecast:
+                default_query['as_of'] = first_forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        elif query_type == QueryType.SCORES:
             default_query['scores'] = ['error']
-        form = QueryForm(project, is_forecast,
-                         initial={'query': json.dumps(default_query),
-                                  'query_type': QueryForm.FORECAST_TYPE if is_forecast else QueryForm.SCORE_TYPE})
+        form = QueryForm(project, query_type, initial={'query': json.dumps(default_query)})
 
     # render
+    query_type_str = {QueryType.FORECASTS: 'forecast', QueryType.SCORES: 'scores', QueryType.TRUTH: 'truth'}[query_type]
     return render(request, 'query_form.html',
-                  context={'title': f"Edit {'Forecast' if is_forecast else 'Scores'} Query",
+                  context={'title': f"Edit {query_type_str} query",
                            'button_name': 'Submit',
                            'form': form,
                            'project': project,
-                           'is_forecast': is_forecast})
+                           'query_type_str': query_type_str})
 
 
 #
@@ -1401,22 +1433,6 @@ def _upload_truth_worker(job_pk):
         job.failure_message = f"_upload_truth_worker(): error: {ex!r}"
         job.save()
         logger.error(job.failure_message + f". job={job}")
-
-
-def download_truth(request, project_pk):
-    """
-    Returns a response containing a CSV file for a project_pk's data.
-    Authorization: The project is public, or the logged-in user is a superuser, the Project's owner, or the forecast's
-        model's owner.
-    """
-    from forecast_app.api_views import csv_response_for_project_truth_data  # avoid circular imports
-
-
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    return csv_response_for_project_truth_data(project)
 
 
 #

@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, ForecastMetaUnit, ForecastMetaTarget
-from forecast_app.models.project import POSTGRES_NULL_VALUE, TRUTH_CSV_HEADER, TimeZero
+from forecast_app.models.project import TimeZero
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -382,6 +382,9 @@ def _create_project(project_dict, owner):
 #
 # load_truth_data()
 #
+
+TRUTH_CSV_HEADER = ['timezero', 'unit', 'target', 'value']
+
 
 @transaction.atomic
 def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_na_none=False):
@@ -958,3 +961,6 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
         rows = cursor.fetchall()
 
     return [row[0] for row in rows] if is_only_f_id else {(fm_id, tz_id): f_id for fm_id, tz_id, f_id, in rows}
+
+
+POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files

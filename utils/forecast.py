@@ -12,8 +12,8 @@ from django.shortcuts import get_object_or_404
 from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
     SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction, \
     ForecastModel
-from forecast_app.models.project import POSTGRES_NULL_VALUE, Unit
-from utils.project import _target_dict_for_target
+from forecast_app.models.project import Unit
+from utils.project import _target_dict_for_target, POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
 logger = logging.getLogger(__name__)
@@ -836,6 +836,14 @@ def _insert_prediction_rows(prediction_class, columns_names, rows):
 # data_rows_from_forecast()
 #
 
+def coalesce_values(value_i, value_f, value_t, value_d, value_b):
+    """
+    Utility that returns the first value that's non-None, formatting in YYYY_MM_DD_DATE_FORMAT if a date.
+    """
+    value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+    return value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
+
+
 def data_rows_from_forecast(forecast, unit, target):
     """
     Returns rows for each concrete prediction type that are suitable tabular display.
@@ -845,12 +853,7 @@ def data_rows_from_forecast(forecast, unit, target):
     :param target: a Target ""
     :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
     """
-
     # NB: for simplicity we use five separate queries. one big UNION got messy due to many NULLs (sparse)
-    def coalesce_values(value_i, value_f, value_t, value_d, value_b):
-        value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-        return value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-
     # bin
     sql = f"""
         SELECT u.name, t.name, pred.prob, pred.cat_b, pred.cat_d, pred.cat_f, pred.cat_i, pred.cat_t

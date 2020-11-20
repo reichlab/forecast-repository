@@ -7,7 +7,6 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from forecast_app.api_views import csv_response_for_project_truth_data
 from forecast_app.models import Project, TimeZero, Target, Job, Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _unit_to_actual_points, _unit_to_actual_max_val, \
@@ -122,22 +121,6 @@ class ProjectTestCase(TestCase):
             .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(exp_rows, list(act_rows))
-
-
-    def test_export_truth_data(self):
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
-        response = csv_response_for_project_truth_data(self.project)
-        exp_content = ['timezero,unit,target,value',
-                       '2017-01-01,US National,1 wk ahead,0.73102',
-                       '2017-01-01,US National,2 wk ahead,0.688338',
-                       '2017-01-01,US National,3 wk ahead,0.732049',
-                       '2017-01-01,US National,4 wk ahead,0.911641',
-                       '2017-01-01,US National,Season peak percentage,',
-                       '2017-01-01,US National,Season peak week,',
-                       '2017-01-01,US National,Season onset,2017-11-20',
-                       '']
-        act_content = response.content.decode("utf-8").split('\r\n')
-        self.assertEqual(exp_content, act_content)
 
 
     def test_timezeros_unique(self):

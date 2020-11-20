@@ -12,11 +12,11 @@ from rest_framework.generics import get_object_or_404
 from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution, Forecast, Job, Project, Score, ScoreValue
+    QuantileDistribution, Job, Project, Score, ScoreValue
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
-from utils.project import logger, latest_forecast_ids_for_project
+from utils.forecast import coalesce_values
+from utils.project import logger, latest_forecast_ids_for_project, TRUTH_CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 #
 # query_forecasts_for_project()
@@ -55,13 +55,12 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     arbitrarily choose one.
 
     :param project: a Project
-    :param query: a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation, and above
-        for a summary. NB: assumes it has passed validation via `validate_forecasts_query()`
+    :param query: a dict specifying the query parameters as described above. NB: assumes it has passed validation via
+        `validate_forecasts_query()`
     :param max_num_rows: the number of rows at which this function raises a RuntimeError
     :return: a list of CSV rows including the header
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
-
 
     # validate query
     logger.debug(f"query_forecasts_for_project(): 1/4 validating query. query={query}, project={project}")
@@ -218,7 +217,6 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, prediction_class):
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
 
-
     model_str = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
     timezero_str = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
     season = timezero_to_season_name[time_zero]
@@ -239,7 +237,6 @@ def validate_forecasts_query(project, query):
         are all [].
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
-
 
     # return value. filled next
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, types = [], [], [], [], [], []
@@ -388,17 +385,14 @@ class IterCounter(object):
     per https://stackoverflow.com/questions/6309277/how-to-count-the-items-in-a-generator-consumed-by-other-code
     """
 
-
     def __init__(self, it):
         self._iter = it
         self.count = 0
-
 
     def _counterWrapper(self, it):
         for i in it:
             yield i
             self.count += 1
-
 
     def __iter__(self):
         return self._counterWrapper(self._iter)
@@ -418,7 +412,6 @@ def _forecasts_query_worker(job_pk):
 def _query_worker(job_pk, query_project_fcn):
     # imported here so that tests can patch via mock:
     from utils.cloud_file import upload_file
-
 
     # run the query
     job = get_object_or_404(Job, pk=job_pk)
@@ -544,7 +537,7 @@ def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     logger.debug(f"query_scores_for_project(): 1/5 validating query. query={query}, project={project}")
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores) = validate_scores_query(project, query)
 
-    # set scores, translating Score abbreviations to objects, defaultintg to all
+    # set scores, translating Score abbreviations to objects, defaulting to all
     scores_qs = Score.objects.filter(abbreviation__in=scores).order_by('pk') if scores \
         else Score.objects.all().order_by('pk')
 
@@ -667,14 +660,13 @@ def validate_scores_query(project, query):
     """
     from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR  # avoid circular imports
 
-
     # return value. filled next
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, scores = [], [], [], [], [], []
 
     # validate query type
     if not isinstance(query, dict):
         error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
 
     # validate keys
     actual_keys = set(query.keys())
@@ -683,7 +675,7 @@ def validate_scores_query(project, query):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
@@ -699,10 +691,6 @@ def validate_scores_query(project, query):
     return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
 
 
-#
-# _scores_query_worker()
-#
-
 def _scores_query_worker(job_pk):
     """
     enqueue() helper function
@@ -712,3 +700,117 @@ def _scores_query_worker(job_pk):
     - 'query' (assume has passed `validate_scores_query()`)
     """
     _query_worker(job_pk, query_scores_for_project)
+
+
+#
+# query_truth_for_project()
+#
+
+# todo xx OLD
+def csv_response_for_project_truth_data(project):
+    writer = csv.writer(response)
+    writer.writerow(TRUTH_CSV_HEADER)
+    # self.truth_data_qs().order_by('id').values_list('time_zero__timezero_date', 'unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b \
+            in project.get_truth_data_rows():
+        timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+        writer.writerow([timezero_date, unit_name, target_name, truth_value])
+
+
+def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
+    """
+    Top-level function for querying truth within project. Runs in the calling thread and therefore blocks.
+    Returns a list of rows in a Zoltar-specific CSV row format. The columns are defined in TRUTH_CSV_HEADER, as detailed
+    at https://docs.zoltardata.com/fileformats/#truth-data-format-csv .
+
+    `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to three keys, all of which
+    are lists of strings:
+
+    - 'units': "" Unit.name strings
+    - 'targets': "" Target.name strings
+    - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
+
+    Note that _strings_ are passed to refer to object *contents*, not database IDs, which means validation will fail if
+    the referred-to objects are not found. NB: If multiple objects are found with the same name then the program will
+    arbitrarily choose one.
+
+    NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
+    to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
+    filename to hopefully hint at what's going on.
+
+    :param project: a Project
+    :param query: a dict specifying the query parameters as described above. NB: assumes it has passed validation via
+        `validate_truth_query()`
+    :param max_num_rows: the number of rows at which this function raises a RuntimeError
+    :return: a list of CSV rows including the header
+    """
+    # validate query
+    logger.debug(f"query_truth_for_project(): 1/xx validating query. query={query}, project={project}")
+    error_messages, (unit_ids, target_ids, timezero_ids) = validate_truth_query(project, query)
+
+    # get the rows, building up a QuerySet in steps
+    truth_data_qs = project.truth_data_qs()
+
+    if unit_ids:
+        truth_data_qs = truth_data_qs.filter(unit__id__in=unit_ids)
+    if target_ids:
+        truth_data_qs = truth_data_qs.filter(target__id__in=target_ids)
+    if timezero_ids:
+        truth_data_qs = truth_data_qs.filter(time_zero__id__in=timezero_ids)
+
+    # get and check the number of rows
+    num_rows = truth_data_qs.count()
+    if num_rows > max_num_rows:
+        raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
+
+    # done
+    truth_data_qs = truth_data_qs.order_by('id').values_list('time_zero__timezero_date', 'unit__name', 'target__name',
+                                                             'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    return [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name,
+             coalesce_values(value_i, value_f, value_t, value_d, value_b)]
+            for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b in truth_data_qs]
+
+
+def validate_truth_query(project, query):
+    """
+    Validates `query` according to the parameters documented at https://docs.zoltardata.com/ . Nearly identical to
+    validate_forecasts_query() except only validates "units", "targets", and "timezeros".
+
+    :param project: as passed from `query_forecasts_for_project()`
+    :param query: ""
+    :return: a 2-tuple: (error_messages, (unit_ids, target_ids, timezero_ids))
+    """
+    # return value. filled next
+    error_messages, unit_ids, target_ids, timezero_ids = [], [], [], []
+
+    # validate query type
+    if not isinstance(query, dict):
+        error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
+        return [error_messages, (unit_ids, target_ids, timezero_ids)]
+
+    # validate keys
+    actual_keys = set(query.keys())
+    expected_keys = {'units', 'targets', 'timezeros'}
+    if not (actual_keys <= expected_keys):
+        error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
+                              f"expected_keys={expected_keys}")
+        # return even though we could technically continue
+        return [error_messages, (unit_ids, target_ids, timezero_ids)]
+
+    # validate object IDs that strings refer to
+    error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
+
+    # done (may or may not be valid)
+    return [error_messages, (unit_ids, target_ids, timezero_ids)]
+
+
+def _truth_query_worker(job_pk):
+    """
+    enqueue() helper function
+
+    assumes these input_json fields are present and valid:
+    - 'project_pk'
+    - 'query' (assume has passed `validate_truth_query()`)
+    """
+    _query_worker(job_pk, query_truth_for_project)

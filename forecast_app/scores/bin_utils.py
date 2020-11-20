@@ -7,7 +7,7 @@ from django.db import connection
 
 from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, ScoreValue, TargetLwr, Target, \
     BinDistribution, PointPrediction
-from forecast_app.models.project import POSTGRES_NULL_VALUE
+from utils.project import POSTGRES_NULL_VALUE
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
 
 

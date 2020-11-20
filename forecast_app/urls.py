@@ -1,9 +1,9 @@
 from django.conf.urls import url, include
 
 from . import views
-
-
 # todo xx should probably terminate all of the following with '$'. should also think about necessity of trailing '/'
+
+
 urlpatterns = [
     url(r'^$', views.index, name='index'),
     url(r'^robots.txt$', views.robots_txt, name='robots'),
@@ -31,18 +31,19 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
     url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/forecasts', views.project_forecasts, name='project-forecasts'),
-    url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_forecasts_or_scores, {'is_forecast': True},
-        name='query-forecasts'),
+    url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_project,
+        {'query_type': views.QueryType.FORECASTS}, name='query-forecasts'),
     url(r'^project/(?P<project_pk>\d+)/explorer', views.project_explorer, name='project-explorer'),
     url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
-    url(r'^project/(?P<project_pk>\d+)/query_scores$', views.query_forecasts_or_scores, {'is_forecast': False},
-        name='query-scores'),
+    url(r'^project/(?P<project_pk>\d+)/query_scores$', views.query_project,
+        {'query_type': views.QueryType.SCORES}, name='query-scores'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
     url(r'^project/(?P<project_pk>\d+)/truth/delete$', views.delete_truth, name='delete-truth'),
     url(r'^project/(?P<project_pk>\d+)/truth/upload/$', views.upload_truth, name='upload-truth'),
-    url(r'^project/(?P<project_pk>\d+)/truth/download$', views.download_truth, name='download-truth'),
+    url(r'^project/(?P<project_pk>\d+)/query_truth$', views.query_project,
+        {'query_type': views.QueryType.TRUTH}, name='query-truth'),
 
     url(r'^model/(?P<pk>\d+)$', views.ForecastModelDetailView.as_view(), name='model-detail'),
 

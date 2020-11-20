@@ -1,8 +1,6 @@
-import csv
 import datetime
 import logging
 import tempfile
-from pathlib import Path
 from wsgiref.util import FileWrapper
 
 import django_rq
@@ -21,10 +19,10 @@ from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework_csv.renderers import CSVRenderer
 
-from forecast_app.models import Project, ForecastModel, Forecast, PointPrediction, Target
+from forecast_app.models import Project, ForecastModel, Forecast, Target
 from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE
-from forecast_app.models.project import TRUTH_CSV_HEADER, TimeZero, Unit
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
+from forecast_app.models.project import TimeZero, Unit
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
 from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
@@ -34,7 +32,43 @@ from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
-from utils.project_queries import _forecasts_query_worker, _scores_query_worker
+from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+import datetime
+import logging
+import tempfile
+from wsgiref.util import FileWrapper
+
+import django_rq
+from boto3.exceptions import Boto3Error
+from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.models import User
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
+    HttpResponseNotFound
+from django.utils.text import get_valid_filename
+from rest_framework import generics, status
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.generics import get_object_or_404
+from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+from rest_framework_csv.renderers import CSVRenderer
+
+from forecast_app.models import Project, ForecastModel, Forecast, Target
+from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
+from forecast_app.models.project import TimeZero, Unit
+from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
+    TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
+from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
+    _upload_truth_worker, enqueue_delete_forecast, is_user_ok_delete_forecast, is_user_ok_create_project, \
+    is_user_ok_view_project
+from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
+from utils.forecast import json_io_dict_from_forecast
+from utils.project import create_project_from_json, config_dict_from_project
+from utils.project_diff import execute_project_config_diff, project_config_diff
+from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -779,8 +813,7 @@ def query_forecasts_endpoint(request, pk):
     from utils.project_queries import validate_forecasts_query
 
 
-    return _query_endpoint(request, pk, validate_forecasts_query, JOB_TYPE_QUERY_FORECAST,
-                           _forecasts_query_worker)
+    return _query_endpoint(request, pk, validate_forecasts_query, JOB_TYPE_QUERY_FORECAST, _forecasts_query_worker)
 
 
 @api_view(['POST'])
@@ -800,6 +833,25 @@ def query_scores_endpoint(request, pk):
 
 
     return _query_endpoint(request, pk, validate_scores_query, JOB_TYPE_QUERY_SCORE, _scores_query_worker)
+
+
+@api_view(['POST'])
+def query_truth_endpoint(request, pk):
+    """
+    Similar to query_forecasts_endpoint(), enqueues a query of the project's truth.
+
+    POST form fields:
+    - 'query' (required): a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation
+
+    :param request: a request
+    :param pk: a Project's pk
+    :return: the serialized Job
+    """
+    # imported here so that tests can patch via mock:
+    from utils.project_queries import validate_truth_query
+
+
+    return _query_endpoint(request, pk, validate_truth_query, JOB_TYPE_QUERY_TRUTH, _truth_query_worker)
 
 
 def _query_endpoint(request, project_pk, query_validation_fcn, query_job_type, query_worker_fcn):
@@ -853,53 +905,6 @@ def _create_query_job(project_pk, query, query_job_type, query_worker_fcn, reque
     job.status = Job.QUEUED
     job.save()
     return job
-
-
-#
-# Truth data-related views
-#
-
-@api_view(['GET'])
-@renderer_classes((BrowsableAPIRenderer, CSVRenderer))  # todo xx BrowsableAPIRenderer needed?
-def download_truth_data(request, pk):
-    """
-    :return: the Project's truth data as CSV. note that the actual data is wrapped by metadata
-    """
-    project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden()
-
-    return csv_response_for_project_truth_data(project)
-
-
-def csv_response_for_project_truth_data(project):
-    """
-    Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
-    CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
-    to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
-    filename to hopefully hint at what's going on.
-    """
-    response = HttpResponse(content_type='text/csv')
-
-    # two cases for deciding the filename to put in download response:
-    # 1) original ends with .csv -> orig-name.csv -> orig-name-validated.csv
-    # 2) "" does not end "" -> orig-name.csv.foo -> orig-name.csv.foo-validated.csv
-    csv_filename_path = Path(project.truth_csv_filename)
-    if csv_filename_path.suffix.lower() == '.csv':
-        csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
-    else:
-        csv_filename = csv_filename_path.name + '-validated.csv'
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
-
-    writer = csv.writer(response)
-    writer.writerow(TRUTH_CSV_HEADER)
-    for timezero_date, unit_name, target_name, \
-        value_i, value_f, value_t, value_d, value_b in project.get_truth_data_rows():
-        timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-        writer.writerow([timezero_date, unit_name, target_name, truth_value])
-
-    return response
 
 
 #
