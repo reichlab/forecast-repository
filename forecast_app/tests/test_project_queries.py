@@ -16,7 +16,7 @@ from forecast_app.tests.test_scores import _update_scores_for_all_projects
 from utils.cdc_io import make_cdc_units_and_targets, load_cdc_csv_forecast_file
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
-from utils.project import load_truth_data, create_project_from_json
+from utils.project import load_truth_data, create_project_from_json, TRUTH_CSV_HEADER
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_scores_query, _scores_query_worker, _tz_unit_targ_pks_to_truth_values, query_scores_for_project, \
     SCORE_CSV_HEADER_PREFIX, validate_truth_query, _truth_query_worker, query_truth_for_project
@@ -499,6 +499,7 @@ class ProjectQueriesTestCase(TestCase):
         """
         Utility that iterates over the two lists' elements, calling assertAlmostEqual on each
         """
+        self.assertEqual(len(exp_rows), len(act_rows))
         for exp_row, act_row in zip(exp_rows, act_rows):
             self.assertEqual(len(exp_row), len(act_row))
             for exp_row_val, act_row_val in zip(exp_row, act_row):
@@ -761,21 +762,6 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(0, len(error_messages))
 
 
-    # def test_export_truth_data(self):
-    #     load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
-    #     response = csv_response_for_project_truth_data(self.project)
-    #     exp_content = ['timezero,unit,target,value',
-    #                    '2017-01-01,US National,1 wk ahead,0.73102',
-    #                    '2017-01-01,US National,2 wk ahead,0.688338',
-    #                    '2017-01-01,US National,3 wk ahead,0.732049',
-    #                    '2017-01-01,US National,4 wk ahead,0.911641',
-    #                    '2017-01-01,US National,Season peak percentage,',
-    #                    '2017-01-01,US National,Season peak week,',
-    #                    '2017-01-01,US National,Season onset,2017-11-20',
-    #                    '']
-    #     act_content = response.content.decode("utf-8").split('\r\n')
-    #     self.assertEqual(exp_content, act_content)
-
     def test_query_truth_for_project(self):
         # note: _make_docs_project() loads: tests/truth_data/docs-ground-truth.csv
         # case: empty query -> all truth in project
@@ -794,6 +780,7 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-16', 'location1', 'cases next week', 0],
                     ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
         act_rows = query_truth_for_project(self.project, {})
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
         # case: only one unit
@@ -807,6 +794,7 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-16', 'location1', 'cases next week', 0],
                     ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
         act_rows = query_truth_for_project(self.project, {'units': ['location1']})
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
         # case: only one target
@@ -814,6 +802,7 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-09', 'location2', 'cases next week', 3],
                     ['2011-10-16', 'location1', 'cases next week', 0]]  # sorted
         act_rows = query_truth_for_project(self.project, {'targets': ['cases next week']})
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
         # case: only one timezero
@@ -823,7 +812,19 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-02', 'location1', 'pct next week', 4.5432],
                     ['2011-10-02', 'location1', 'season severity', 'moderate']]  # sorted
         act_rows = query_truth_for_project(self.project, {'timezeros': ['2011-10-02']})
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+
+    def test_query_truth_for_project_max_num_rows(self):
+        try:
+            list(query_truth_for_project(self.project, {}, max_num_rows=14))  # actual number of rows = 14
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
+        with self.assertRaises(RuntimeError) as context:
+            list(query_truth_for_project(self.project, {}, max_num_rows=13))
+        self.assertIn("number of rows exceeded maximum", str(context.exception))
 
 
     def test__truth_query_worker(self):

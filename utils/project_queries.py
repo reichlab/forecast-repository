@@ -706,18 +706,6 @@ def _scores_query_worker(job_pk):
 # query_truth_for_project()
 #
 
-# todo xx OLD
-def csv_response_for_project_truth_data(project):
-    writer = csv.writer(response)
-    writer.writerow(TRUTH_CSV_HEADER)
-    # self.truth_data_qs().order_by('id').values_list('time_zero__timezero_date', 'unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-    for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b \
-            in project.get_truth_data_rows():
-        timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-        writer.writerow([timezero_date, unit_name, target_name, truth_value])
-
-
 def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     """
     Top-level function for querying truth within project. Runs in the calling thread and therefore blocks.
@@ -767,9 +755,10 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     # done
     truth_data_qs = truth_data_qs.order_by('id').values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                                                              'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-    return [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name,
-             coalesce_values(value_i, value_f, value_t, value_d, value_b)]
-            for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b in truth_data_qs]
+    return [TRUTH_CSV_HEADER] + [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name,
+                                  coalesce_values(value_i, value_f, value_t, value_d, value_b)]
+                                 for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b
+                                 in truth_data_qs]
 
 
 def validate_truth_query(project, query):

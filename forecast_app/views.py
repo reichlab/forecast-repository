@@ -510,6 +510,9 @@ def query_project(request, project_pk, query_type):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     # create or process the form based on the method
+    if not isinstance(query_type, QueryType):
+        raise RuntimeError(f"query_project(): invalid query_type: {query_type!r} ({type(query_type)})")
+
     if request.method == 'POST':  # create and bind a form instance from the request
         form = QueryForm(project, query_type, data=request.POST)
         if form.is_valid():  # query is valid, so submit it and redirect to the new Job
@@ -551,7 +554,7 @@ def query_project(request, project_pk, query_type):
             first_forecast = Forecast.objects.filter(forecast_model__project=project).first()
             if first_forecast:
                 default_query['as_of'] = first_forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        elif query_type == QueryType.SCORES:
+        if query_type == QueryType.SCORES:
             default_query['scores'] = ['error']
         form = QueryForm(project, query_type, initial={'query': json.dumps(default_query)})
 
