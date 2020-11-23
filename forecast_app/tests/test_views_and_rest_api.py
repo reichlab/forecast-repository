@@ -169,12 +169,19 @@ class ViewsTestCase(TestCase):
             (reverse('download-job-data', args=[str(self.job.pk)]), self.ONLY_PO),
 
             (reverse('zadmin'), self.ONLY_SU_200),
+            (reverse('zadmin-jobs'), self.ONLY_SU_200),
+            (reverse('zadmin-score-last-updates'), self.ONLY_SU_200),
+            (reverse('zadmin-model-score-changes'), self.ONLY_SU_200),
             (reverse('clear-row-count-caches'), self.ONLY_SU_302),
             (reverse('update-row-count-caches'), self.ONLY_SU_302),
-            (reverse('update-all-scores'), self.ONLY_SU_302),
             (reverse('delete-file-jobs'), self.ONLY_SU_302),
+
+            (reverse('update-all-scores'), self.ONLY_SU_302),
+            (reverse('update-all-scores-changed'), self.ONLY_SU_302),
             (reverse('clear-all-scores'), self.ONLY_SU_302),
             (reverse('delete-score-last-updates'), self.ONLY_SU_302),
+
+            (reverse('user-list'), self.ONLY_SU_200),
 
             (reverse('project-detail', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-detail', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),

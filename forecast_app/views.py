@@ -89,12 +89,18 @@ def projects(request):
 #
 
 def zadmin_jobs(request):
+    if not is_user_ok_admin(request.user):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
     return render(
         request, 'zadmin_jobs.html',
         context={'jobs': Job.objects.select_related('user').all()})  # datatable does order by
 
 
 def zadmin_score_last_updates(request):
+    if not is_user_ok_admin(request.user):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
     Score.ensure_all_scores_exist()
 
     # build score_last_update_rows. NB: num_score_values_for_model() took a long time, so we removed it. o/w the page
@@ -114,6 +120,9 @@ def zadmin_score_last_updates(request):
 
 
 def zadmin_model_score_changes(request):
+    if not is_user_ok_admin(request.user):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
     model_score_changes = ModelScoreChange.objects.all().order_by('changed_at')
     return render(
         request, 'zadmin_model_score_changes.html',
@@ -896,8 +905,16 @@ def delete_model(request, model_pk):
 # ---- List views ----
 #
 
-class UserListView(ListView):
+class UserListView(UserPassesTestMixin, ListView):
     model = User
+
+    def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
+        # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
+        return HttpResponseForbidden(render(self.request, '403.html').content)
+
+
+    def test_func(self):  # return True if the current user can access the view
+        return is_user_ok_admin(self.request.user)
 
 
     def get_context_data(self, **kwargs):
