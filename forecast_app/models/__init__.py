@@ -9,7 +9,6 @@ from .model_score_change import ModelScoreChange
 from .prediction import Prediction, PointPrediction, NamedDistribution, EmpiricalDistribution, \
     BinDistribution, SampleDistribution, QuantileDistribution
 from .project import Project, Unit, TimeZero
-from .row_count_cache import RowCountCache
 from .score import Score, ScoreValue, ScoreLastUpdate
 from .target import Target, TargetCat, TargetLwr, TargetRange
 from .truth_data import TruthData

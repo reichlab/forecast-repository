@@ -1037,7 +1037,7 @@ def is_forecast_metadata_available(forecast):
     :return: True if `forecast` has a ForecastMetaPrediction, and False o/w. we only check it instead of all three
         (ForecastMetaPrediction, ForecastMetaUnit, and ForecastMetaTarget) for efficiency
     """
-    return ForecastMetaPrediction.objects.filter(forecast=forecast).count() != 0
+    return ForecastMetaPrediction.objects.filter(forecast=forecast).exists()
 
 
 def forecast_metadata_counts_for_project(project):

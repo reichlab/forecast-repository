@@ -275,7 +275,7 @@ class Project(models.Model):
     def get_num_forecast_rows_all_models(self):
         """
         :return: the total number of data rows across all my models' forecasts, for all types of Predictions. can be
-        expensive for large databases
+            slow for large databases
         """
         from forecast_app.models import Prediction  # avoid circular imports
 
@@ -286,9 +286,9 @@ class Project(models.Model):
 
     def get_num_forecast_rows_all_models_estimated(self):
         """
-        :return: like get_num_forecast_rows_all_models(), but returns an estimate that is much faster to calculate. the estimate
-            is based on getting the number of rows for an arbitrary Forecast and then multiplying by the number of
-            forecasts times the number of models in me. it will be exact for projects whose models all have the same
+        :return: like get_num_forecast_rows_all_models(), but returns an estimate that is much faster to calculate. the
+            estimate is based on getting the number of rows for an arbitrary Forecast and then multiplying by the number
+            of forecasts times the number of models in me. it will be exact for projects whose models all have the same
             number of rows
         """
         first_model = self.models.first()

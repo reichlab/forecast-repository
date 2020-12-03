@@ -1,46 +1,20 @@
 {% load humanize %}
 
+{{ num_models|apnumber|capfirst }} model{{ num_models|pluralize }},
+{{ num_forecasts|apnumber }} forecast{{ num_forecasts|pluralize }},
 
-{# proj_summary_counts: 3-tuple summarizing total counts in project: (num_models, num_forecasts, num_rows_estimated) #}
-{{ proj_summary_counts.0|apnumber|capfirst }} model{{ proj_summary_counts.0|pluralize }},
-{{ proj_summary_counts.1|apnumber }} forecast{{ proj_summary_counts.1|pluralize }},
-
-
-{% if project.row_count_cache.row_count != None %}
+{% if num_rows_exact != 0 %}
     {% if use_intword %}
-        {{ project.row_count_cache.row_count|intword|intcomma }}
+        {{ num_rows_exact|intword|intcomma }}
     {% else %}
-        {{ project.row_count_cache.row_count|intcomma }}
+        {{ num_rows_exact|intcomma }}
     {% endif %}
-    row{{ project.row_count_cache.row_count|pluralize }} as of
-    {{ project.row_count_cache.updated_at|date:"Y-m-d" }}
+    row{{ num_rows_exact|pluralize }}
 {% else %}
     {% if use_intword %}
-        {{ proj_summary_counts.2|intword|intcomma }}
+        {{ num_rows_est|intword|intcomma }}
     {% else %}
-        {{ proj_summary_counts.2|intcomma }}
+        {{ num_rows_est|intcomma }}
     {% endif %}
-    row{{ proj_summary_counts.2|pluralize }} (est)
+    row{{ num_rows_est|pluralize }} (est)
 {% endif %}
-
-
-
-{% comment %}
-{% if use_intword %}
-    {{ proj_summary_counts.2|intword|intcomma }}
-{% else %}
-    {{ proj_summary_counts.2|intcomma }}
-{% endif %}
-
-row{{ proj_summary_counts.2|pluralize }} (estimated)
-
-{% if project.row_count_cache.row_count != None %},
-    {% if use_intword %}
-        {{ project.row_count_cache.row_count|intword|intcomma }}
-    {% else %}
-        {{ project.row_count_cache.row_count|intcomma }}
-    {% endif %}
-    row{{ project.row_count_cache.row_count|pluralize }} (actual) as of
-    {{ project.row_count_cache.updated_at|date:"Y-m-d" }}
-{% endif %}
-{% endcomment %}

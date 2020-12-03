@@ -24,10 +24,9 @@ from rq.timeouts import JobTimeoutException
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm, QueryForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
     Prediction, ModelScoreChange, Unit, Target, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution
+    QuantileDistribution, ForecastMetaPrediction
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
-from forecast_app.models.row_count_cache import enqueue_row_count_updates_all_projs
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
@@ -73,15 +72,33 @@ def projects(request):
                                     if is_user_ok_view_project(request.user, project)],
                                    reverse=True, key=lambda _: (_[1] is not None, _[1]))
 
+    # list of 5-tuples: (project, num_models, num_forecasts, num_rows_est, num_rows_exact):
+    projects_info = [(project_last_update[0], *project_summary_info(project_last_update[0]))
+                     for project_last_update in projects_last_updates]
     return render(
         request,
         'projects.html',
-        # authorization same as api_views.ProjectList.get_queryset().
-        # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
-        context={'projects': [_[0] for _ in projects_last_updates],
+        context={'projects_info': projects_info,
                  'is_user_ok_create_project': is_user_ok_create_project(request.user),
                  'num_public_projects': len(Project.objects.filter(is_public=True)),
                  'num_private_projects': len(Project.objects.filter(is_public=False))})
+
+
+def project_summary_info(project):
+    """
+    Helper for views showing project summary information like # models, # forecasts, and # rows.
+
+    :param project: a Project
+    :return a 4-tuple: (num_models, num_forecasts, num_rows_est, num_rows_exact). num_rows_exact is None if no exact
+        count is available
+    """
+    # set num_rows_exact. note that ideally we would verify that every Forecast in all of project's models has a
+    # ForecastMetaPrediction, but for simplicity we simply sum them all, which will be zero if none are present. this
+    # case cannot be differentiated from the one where there are ForecastMetaPredictions but their counts are all zero,
+    # but that seems unlikely
+    num_rows_exact = sum([sum([fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count])
+                          for fmp in ForecastMetaPrediction.objects.filter(forecast__forecast_model__project=project)])
+    return (*project.get_summary_counts(), num_rows_exact)
 
 
 #
@@ -144,7 +161,6 @@ def zadmin(request):
                  'max_num_query_rows': MAX_NUM_QUERY_ROWS,
                  'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
                  'projects_sort_pk': projects_sort_pk,
-                 'projects_sort_rcc_last_update': Project.objects.order_by('-row_count_cache__updated_at'),
                  'scores_sort_name': Score.objects.all().order_by('name'),
                  'scores_sort_pk': Score.objects.all().order_by('pk')})
 
@@ -158,46 +174,6 @@ def delete_jobs(request):
     Job.objects.all().delete()
     messages.success(request, "Deleted all Jobs.")
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
-
-
-def clear_row_count_caches(request):
-    """
-    View function that resets all projects' RowCountCaches. Runs in the calling thread and therefore blocks. However,
-    this operation is fast.
-    """
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    for project in Project.objects.all():
-        project.row_count_cache.row_count = None
-        project.row_count_cache.save()
-
-    messages.success(request, "All row count caches were cleared.")
-
-    # redirect to same page. NB: many ways to do this, with limitations. some that I tried in Firefox include
-    # `return HttpResponseRedirect(request.path_info)` -> "The page isn’t redirecting properly",
-    # `return redirect('')` -> "Reverse for '' not found.", and others. This did work, but had a caveat
-    # ("many users/browsers have the http_referer turned off"):
-    # `return redirect(request.META['HTTP_REFERER'])`. in the end I decided to hard-code, knowing the referring page
-    return redirect('zadmin')  # hard-coded
-
-
-def update_row_count_caches(request):
-    """
-    View function that enqueues updates of all projects' RowCountCaches and then returns. Users are not notified when
-    the updates are done, and so must refresh, etc. Note that we choose to enqueue each project's update separately,
-    rather than a single enqueue that updates them all in a loop, b/c each one might take a while, and we're trying to
-    limit each job's duration.
-    """
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    try:
-        enqueue_row_count_updates_all_projs()
-        messages.success(request, "Scheduled updating row count caches for all projects.")
-    except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, "Error updating row count caches: {}.".format(ce))
-    return redirect('zadmin')  # hard-coded
 
 
 def update_all_scores(request, **kwargs):
@@ -908,6 +884,7 @@ def delete_model(request, model_pk):
 class UserListView(UserPassesTestMixin, ListView):
     model = User
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
@@ -967,6 +944,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
+        context['project_summary_info'] = project_summary_info(project)
         return context
 
 

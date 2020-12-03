@@ -151,14 +151,6 @@ export PATH="/Applications/Postgres.app/Contents/Versions/9.6/bin:${PATH}" ; exp
 python3 manage.py runserver --settings=forecast_repo.settings.local_sqlite3
 ```
 
-1. Execute the functions that insert onto the queue, e.g.,
-```$bash
-cd ~/IdeaProjects/django-redis-play
-pipenv shell
-export PATH="/Applications/Postgres.app/Contents/Versions/9.6/bin:${PATH}" ; export DJANGO_SETTINGS_MODULE=forecast_repo.settings.local_sqlite3 ; export PYTHONPATH=.
-python3 utils/row_count_util.py update
-```
-
 1. Optionally monitor the progress in the web app
 - [http://127.0.0.1:8000/zadmin](http://127.0.0.1:8000/zadmin)
 

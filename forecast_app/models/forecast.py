@@ -86,7 +86,7 @@ class Forecast(models.Model):
 
     def get_num_rows(self):
         """
-        :return: the total of number of data rows in me, for all types of Predictions
+        :return: the total of number of data rows in me, for all types of Predictions. can be slow for large databases
         """
         from forecast_app.models import Prediction  # avoid circular imports
 

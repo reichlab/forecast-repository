@@ -14,8 +14,6 @@ urlpatterns = [
     url(r'^zadmin/jobs$', views.zadmin_jobs, name='zadmin-jobs'),
     url(r'^zadmin/score_last_updates$', views.zadmin_score_last_updates, name='zadmin-score-last-updates'),
     url(r'^zadmin/model_score_changes$', views.zadmin_model_score_changes, name='zadmin-model-score-changes'),
-    url(r'^clear_row_count_caches$', views.clear_row_count_caches, name='clear-row-count-caches'),
-    url(r'^update_row_count_caches$', views.update_row_count_caches, name='update-row-count-caches'),
     url(r'^delete_jobs/$', views.delete_jobs, name='delete-file-jobs'),
 
     url(r'^update_all_scores$', views.update_all_scores, {'is_only_changed': False},

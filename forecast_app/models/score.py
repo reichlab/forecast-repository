@@ -242,7 +242,7 @@ class ScoreValue(models.Model):
 
 class ScoreLastUpdate(models.Model):
     """
-    Similar to RowCountCache, records the last time a particular Score was updated for a particular ForecastModel.
+    Records the last time a particular Score was updated for a particular ForecastModel.
     """
 
     forecast_model = models.ForeignKey(ForecastModel, on_delete=models.CASCADE)

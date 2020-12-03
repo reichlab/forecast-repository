@@ -44,7 +44,7 @@
         {% include 'choose_project_config_snippet.html' with action_url='create-project-from-file' %}
     {% endif %}
 
-    {% if projects %}
+    {% if projects_info %}
         <p class="text-muted">There are {{ num_public_projects }} public project{{ num_public_projects|pluralize }}
             and {{ num_private_projects }} project{{ num_private_projects|pluralize }} with access limited to
             collaborators only.</p>
@@ -57,38 +57,36 @@
                 <th>Description</th>
                 <th>Summary</th>
             </tr>
-            {% for project in projects %}
-                {% with proj_summary_counts=project.get_summary_counts %}
-                    <tr>
-                        <td>
-                            <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
-                        </td>
-                        <td>
-                            {% if project.logo_url %}
-                                <div id="projectLogoDiv"><a href="{{ project.home_url }}"><img
-                                        src="{{ project.logo_url }}"></a>
-                                </div>
-                            {% else %}
-                                <small class="text-muted">(No logo)</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if project.owner %}
-                                <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
-                            {% else %}
-                                <small class="text-muted">(No owner)</small>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ project.description|linebreaksbr }}
-                        </td>
-                        <td title="Est. row counts" class="text-muted">
-                            {% include 'visibility_snippet.html' with project=project %}
-                            <br>
-                            {% include "project_count_snippet.html" with project=project proj_summary_counts=proj_summary_counts use_intword=True %}
-                        </td>
-                    </tr>
-                {% endwith %}
+            {% for project, num_models, num_forecasts, num_rows_est, num_rows_exact in projects_info %}
+                <tr>
+                    <td>
+                        <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
+                    </td>
+                    <td>
+                        {% if project.logo_url %}
+                            <div id="projectLogoDiv"><a href="{{ project.home_url }}"><img
+                                    src="{{ project.logo_url }}"></a>
+                            </div>
+                        {% else %}
+                            <small class="text-muted">(No logo)</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if project.owner %}
+                            <a href="{% url 'user-detail' project.owner.pk %}">{{ project.owner.username }}</a>
+                        {% else %}
+                            <small class="text-muted">(No owner)</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ project.description|linebreaksbr }}
+                    </td>
+                    <td title="Est. row counts" class="text-muted">
+                        {% include 'visibility_snippet.html' with project=project %}
+                        <br>
+                        {% include "project_count_snippet.html" with project=project num_models=num_models num_forecasts=num_forecasts num_rows_est=num_rows_est num_rows_exact=num_rows_exact use_intword=True %}
+                    </td>
+                </tr>
             {% endfor %}
         </table>
     {% else %}

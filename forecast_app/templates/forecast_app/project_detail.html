@@ -64,11 +64,9 @@
                 <tr>
                     <th>Summary:</th>
                     <td>
-                        {% with proj_summary_counts=project.get_summary_counts %}
                             <span class="text-muted">
-                            {% include "project_count_snippet.html" with project=project proj_summary_counts=proj_summary_counts use_intword=False %}
+                            {% include "project_count_snippet.html" with project=project num_models=project_summary_info.0 num_forecasts=project_summary_info.1 num_rows_est=project_summary_info.2 num_rows_exact=project_summary_info.3 use_intword=False %}
                         </span>
-                        {% endwith %}
                     </td>
                 </tr>
                 <tr>

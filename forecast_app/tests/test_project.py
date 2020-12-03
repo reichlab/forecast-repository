@@ -142,16 +142,6 @@ class ProjectTestCase(TestCase):
                          8019 * 2)  # exact b/c uniform forecasts
 
 
-    def test_row_count_cache(self):
-        self.assertIsNotNone(self.project.row_count_cache)  # verify post_save worked
-        # assume last_update default works
-        self.assertIsNone(self.project.row_count_cache.row_count)
-
-        self.project.row_count_cache.update_row_count_cache()
-        # NB: we assume last_update default works
-        self.assertEqual(self.project.get_num_forecast_rows_all_models(), self.project.row_count_cache.row_count)
-
-
     def test_summary_counts(self):
         self.assertEqual((1, 1, 8019), self.project.get_summary_counts())  # num_models, num_forecasts, num_rows
 
