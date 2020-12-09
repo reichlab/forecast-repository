@@ -1,6 +1,7 @@
 import csv
 import datetime
 import io
+import string
 from collections import defaultdict
 from itertools import groupby
 
@@ -102,7 +103,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
         sql = _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, target_ids, timezero_ids,
                                                   query.get('as_of', None))
-        logger.debug(f"query_forecasts_for_project(): 2.{idx + 1}/3 getting {prediction_class.__name__}s")
+        logger.debug(f"query_forecasts_for_project(): 2{string.ascii_letters[idx]}/3 getting "
+                     f"{prediction_class.__name__}s")
         with connection.cursor() as cursor:
             cursor.execute(sql, (project.pk,))
             for row in batched_rows(cursor):
