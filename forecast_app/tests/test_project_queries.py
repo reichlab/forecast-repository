@@ -154,6 +154,7 @@ class ProjectQueriesTestCase(TestCase):
         # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[11], row[12], row[13], row[14])
                     for row in rows]
+        print('xx', exp_rows_named, sorted(act_rows))
         self.assertEqual(exp_rows_named, sorted(act_rows))
 
         # ---- case: all PointPredictions in project. check value column ----
@@ -283,6 +284,70 @@ class ProjectQueriesTestCase(TestCase):
         self.assertIn("number of rows exceeded maximum", str(context.exception))
 
 
+    def test_as_of_versions_partial_updates(self):
+        # tests the case where users have updated only parts of a former forecast, which breaks `as_of` functionality as
+        # initially written (it was operating at the forecast/timezero/issue_date level, not factoring in the
+        # unit/target level). this example is from [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0).
+        # NB: for convenience we adapt this example to use docs-project.json timezeros, units, and targets.
+        #
+        # forecasts:
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # |    key      |           forecast table           |    prediction table   |
+        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |  tzd = TimeZero.timezero_date
+        # | f1          | modelA   | tz1.tzd    | tz1        | u2   | t1     | 6     |
+        # |xf2xxxxxxxxxx|xmodelAxxx|xtz2.tzdxxxx|xtz1xxxxxxxx|xu1xxx|xt1xxxxx|x4xxxxx| <- row not present (strikeout): current practice is that teams submit duplicates of old forecasts
+        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        #
+        # desired as_of query {all units, all targets, all timezeroes, all models, as_of = tz2.tzd} returns:
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |
+        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        #
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        forecast_model = ForecastModel.objects.create(project=project, name='modelA', abbreviation='modelA')
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        u1 = 'location1'
+        u2 = 'location2'
+        t1 = 'cases next week'
+        json_io_dict = {"predictions": [{"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},
+                                        {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 6}}]}
+        load_predictions_from_json_io_dict(f1, json_io_dict, False)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        json_io_dict = {"predictions": [{"unit": u2, "target": t1, "class": "point", "prediction": {"value": 7}}]}
+        load_predictions_from_json_io_dict(f2, json_io_dict, False)
+        f2.issue_date = tz2.timezero_date
+        f2.save()
+
+        # case: {all units, all targets, all timezeroes, all models, as_of = tz2.tzd}
+        exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
+                    [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 7]]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: same except as_of = tz1.tzd
+        exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
+                    [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 6]]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+
     def test_as_of_versions(self):
         # tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
         #
@@ -360,10 +425,11 @@ class ProjectQueriesTestCase(TestCase):
         f4.issue_date = f3.issue_date
         f4.save()
 
-        # case: default (no `as_of`): no f1 (f3 is newer)
-        exp_rows = [['2011-10-16', 'location2', 'pct next week', 'point', 2.0],
+        # case: default (no `as_of`): all rows (no values are "shadowed")
+        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
                     ['2011-10-02', 'location3', 'pct next week', 'point', 3.567],
-                    ['2011-10-09', 'location3', 'cases next week', 'point', 10]]
+                    ['2011-10-09', 'location3', 'cases next week', 'point', 10],
+                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
         act_rows = list(query_forecasts_for_project(project, {}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(exp_rows, act_rows)

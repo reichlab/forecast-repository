@@ -383,6 +383,8 @@ def _create_project(project_dict, owner):
 # load_truth_data()
 #
 
+POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files
+
 TRUTH_CSV_HEADER = ['timezero', 'unit', 'target', 'value']
 
 
@@ -918,9 +920,9 @@ def target_rows_for_project(project):
 # latest_forecast_ids_for_project()
 #
 
-def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timezero_ids=None, as_of=None):
+def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timezero_ids=None):
     """
-    A multi-purpose utility that returns the latest forecast IDs fro all forecasts in project by honoring
+    A multi-purpose utility that returns the latest forecast IDs for all forecasts in project by honoring
     `Forecast.issue_date`. Args customize filtering and return value.
 
     :param project: a Project
@@ -932,28 +934,24 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
         that both postgres and sqlite3 support that literal format)
     """
     # build up the query based on args
-    select_ids = "SELECT f.id AS f_id" if is_only_f_id else "SELECT fm.id AS fm_id, tz.id AS tz_id, f.id  AS f_id"
+    select_ids = "f.id AS f_id" if is_only_f_id else "fm_tz_max_issue_dates.fm_id AS fm_id, fm_tz_max_issue_dates.tz_id AS tz_id, f.id AS f_id"
     and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
-    and_timezero_ids = f"AND tz.id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
-    and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
+    and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     sql = f"""
         WITH fm_tz_max_issue_dates AS (
             SELECT f.forecast_model_id AS fm_id,
                    f.time_zero_id      AS tz_id,
                    MAX(f.issue_date)   AS max_issue_date
             FROM {Forecast._meta.db_table} AS f
-                     JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
                      JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
-            WHERE fm.project_id = %s  {and_model_ids}  {and_timezero_ids}  {and_issue_date}
+            WHERE fm.project_id = %s  {and_model_ids}  {and_timezero_ids}
             GROUP BY f.forecast_model_id, f.time_zero_id
         )
-        {select_ids}
+        SELECT {select_ids}
         FROM fm_tz_max_issue_dates
-                 JOIN {TimeZero._meta.db_table} tz ON tz.id = fm_tz_max_issue_dates.tz_id
-                 JOIN {ForecastModel._meta.db_table} fm ON fm.id = fm_tz_max_issue_dates.fm_id
                  JOIN {Forecast._meta.db_table} AS f
                       ON f.forecast_model_id = fm_tz_max_issue_dates.fm_id
-                          AND f.time_zero_id = tz.id
+                          AND f.time_zero_id = fm_tz_max_issue_dates.tz_id
                           AND f.issue_date = fm_tz_max_issue_dates.max_issue_date;
     """
     with connection.cursor() as cursor:
@@ -961,6 +959,3 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
         rows = cursor.fetchall()
 
     return [row[0] for row in rows] if is_only_f_id else {(fm_id, tz_id): f_id for fm_id, tz_id, f_id, in rows}
-
-
-POSTGRES_NULL_VALUE = 'NULL'  # used for Postgres-specific loading of rows from csv data files

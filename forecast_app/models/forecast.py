@@ -10,10 +10,10 @@ from utils.utilities import basic_str
 
 class Forecast(models.Model):
     """
-    Represents a model's forecasted data. There is one Forecast for each of my ForecastModel's Project's TimeZeros.
-    Supports versioning via this 3-tuple: (forecast_model__id, time_zero__id, issue_date). That is, a Forecast's
-    "version" is the combination of those three. Put another way, within a ForecastModel, a forecast's version is the
-    (time_zero, issue_date) 2-tuple.
+    Represents a model's forecasted data. There are one or more Forecasts for each of my ForecastModel's Project's
+    TimeZeros. Supports versioning via this 3-tuple: (forecast_model__id, time_zero__id, issue_date). That is, a
+    Forecast's "version" is the combination of those three. Put another way, within a ForecastModel, a forecast's
+    version is the (time_zero, issue_date) 2-tuple.
     """
 
 
