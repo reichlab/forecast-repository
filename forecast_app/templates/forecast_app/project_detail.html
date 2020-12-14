@@ -122,10 +122,10 @@
                 <tr>
                     <th>Truth Data:</th>
                     <td>
-                        {% if project.is_truth_data_loaded %}
+                        {% if is_truth_data_loaded %}
                             {# show a link to the truth detail #}
                             <a href="{% url 'truth-data-detail' project.pk %}">{{ project.truth_csv_filename }}</a>
-                            <small class="text-muted">({{ project.get_num_truth_rows|intword|intcomma }} rows)</small>
+                            <small class="text-muted">({{ num_truth_rows|intword|intcomma }} rows)</small>
                             {% if project.truth_updated_at %}
                                 <small class="text-muted">{{ project.truth_updated_at|date:"Y-m-d H:i:s T" }}</small>
                             {% endif %}

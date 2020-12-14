@@ -8,6 +8,7 @@ from django.db import models
 from django.db.models import ManyToManyField, Max
 from django.urls import reverse
 
+from utils.project_truth import truth_data_qs
 from utils.utilities import basic_str
 
 
@@ -350,61 +351,6 @@ class Project(models.Model):
     # truth data-related functions
     #
 
-    def is_truth_data_loaded(self):
-        """
-        :return: True if I have truth data loaded via load_truth_data(). Actually, returns the count, which acts as a
-            boolean.
-        """
-        return self.truth_data_qs().exists()
-
-
-    def get_truth_data_preview(self):
-        """
-        :return: view helper function that returns a preview of my truth data in the form of a table that's represented
-            as a nested list of rows. each row: [timezero_date, unit_name, target_name, truth_value]
-        """
-        from forecast_app.models import PointPrediction  # avoid circular imports
-
-
-        rows = self.truth_data_qs().values_list('time_zero__timezero_date', 'unit__name', 'target__name',
-                                                'value_i', 'value_f', 'value_t', 'value_d', 'value_b')[:10]
-        return [[timezero_date, unit_name, target_name,
-                 PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)]
-                for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b in rows]
-
-
-    def get_num_truth_rows(self):
-        return self.truth_data_qs().count()
-
-
-    def get_truth_data_rows(self):
-        """
-        Returns all of my data as a a list of rows, excluding any PKs and FKs columns, and ordered by PK.
-        """
-        return list(self.truth_data_qs()
-                    .order_by('id')
-                    .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
-                                 'value_i', 'value_f', 'value_t', 'value_d', 'value_b'))
-
-
-    def truth_data_qs(self):
-        """
-        :return: A QuerySet of my TruthData.
-        """
-        from forecast_app.models import TruthData  # avoid circular imports
-
-
-        return TruthData.objects.filter(time_zero__project=self)
-
-
-    def delete_truth_data(self):
-        self.truth_data_qs().delete()
-        self.truth_csv_filename = ''
-        self.truth_updated_at = None
-        self.save()
-        self._update_model_score_changes()
-
-
     def reference_target_for_actual_values(self):
         """
         Returns the target in me that should act as the one to use when computing an 'actual' step-ahead value from
@@ -454,18 +400,18 @@ class Project(models.Model):
         loc_target_tz_date_to_truth = {}
         # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
         # at all for the second groupby() call below
-        truth_data_qs = self.truth_data_qs() \
+        the_truth_data_qs = truth_data_qs(self) \
             .order_by('unit__name', 'target__name') \
             .values_list('unit__id', 'target__id', 'time_zero__timezero_date',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         if season_name:
             season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-            truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
-                                                 time_zero__timezero_date__lte=season_end_date)
+            the_truth_data_qs = the_truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
+                                                         time_zero__timezero_date__lte=season_end_date)
 
         unit_pks_to_names = {unit.id: unit.name for unit in self.units.all()}
         target_pks_to_names = {target.id: target.name for target in self.targets.all()}
-        for unit_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+        for unit_id, loc_target_tz_grouper in groupby(the_truth_data_qs, key=lambda _: _[0]):
             if unit_id not in unit_pks_to_names:
                 continue
 

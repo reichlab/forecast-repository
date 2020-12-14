@@ -7,7 +7,8 @@ from django.test import TestCase
 from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution, Target
 from forecast_app.models.target import TargetRange
 from utils.forecast import load_predictions_from_json_io_dict
-from utils.project import create_project_from_json, load_truth_data
+from utils.project import create_project_from_json
+from utils.project_truth import load_truth_data, truth_data_qs
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -955,7 +956,7 @@ class PredictionValidationTestCase(TestCase):
 
     def test_the_value_of_truth_data_should_be_interpretable_as_the_corresponding_data_type_of_specified_target(self):
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))  # 14 rows
-        self.assertEqual(14, self.project.truth_data_qs().count())
+        self.assertEqual(14, truth_data_qs(self.project).count())
 
         exp_rows = [(datetime.date(2011, 10, 2), 'location1', 'pct next week', None, 4.5432, None, None, None),
                     (datetime.date(2011, 10, 2), 'location1', 'cases next week', 10, None, None, None, None),
@@ -974,7 +975,7 @@ class PredictionValidationTestCase(TestCase):
                     (datetime.date(2011, 10, 16), 'location1', 'above baseline', None, None, None, None, False),
                     (datetime.date(2011, 10, 16), 'location1', 'Season peak week', None, None, None,
                      datetime.date(2019, 12, 22), None)]
-        act_rows_qs = self.project.truth_data_qs() \
+        act_rows_qs = truth_data_qs(self.project) \
             .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(exp_rows, list(act_rows_qs))

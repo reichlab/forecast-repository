@@ -17,7 +17,8 @@ from utils.utilities import get_or_create_super_po_mo_users
 from forecast_app.models.project import TimeZero
 from forecast_app.models import Project, ForecastModel
 from utils.project import create_project_from_json, _validate_and_create_units, _validate_and_create_targets, \
-    delete_project_iteratively, load_truth_data
+    delete_project_iteratively
+from utils.project_truth import load_truth_data
 from utils.cdc_io import load_cdc_csv_forecast_file
 
 

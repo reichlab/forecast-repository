@@ -10,8 +10,7 @@ from forecast_app.models.forecast_model import ForecastModel
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project, _score_value_rows_for_season
-from utils.project import load_truth_data
-
+from utils.project_truth import load_truth_data
 
 logging.getLogger().setLevel(logging.ERROR)
 

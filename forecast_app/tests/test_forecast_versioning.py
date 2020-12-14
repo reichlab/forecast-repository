@@ -10,6 +10,7 @@ from forecast_app.scores.calc_interval import _calculate_interval_score_values
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project
+from utils.project_truth import delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -211,7 +212,7 @@ class ForecastVersionsTestCase(TestCase):
         targ_cases_next_wk = project.targets.filter(name='cases next week').first()  # discrete
 
         # add two truths that result in two ScoreValues
-        project.delete_truth_data()
+        delete_truth_data(project)
         TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
         TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \

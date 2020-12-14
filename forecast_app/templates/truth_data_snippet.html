@@ -1,6 +1,6 @@
 {% load humanize %}
 
-<h4>Preview of {{ project.get_num_truth_rows|intword|intcomma }} row{{ project.get_num_truth_rows|pluralize }}</h4>
+<h4>Preview of {{ num_truth_rows|intword|intcomma }} row{{ num_truth_rows|pluralize }}</h4>
 <table class="table table-striped">
     <thead>
     <tr>
@@ -11,7 +11,7 @@
     </tr>
     </thead>
     <tbody>
-    {% for timezero_date, unit, target_name, value in project.get_truth_data_preview %}
+    {% for timezero_date, unit, target_name, value in truth_data_preview %}
         <tr>
             <td>{{ timezero_date }}</td>
             <td>{{ unit }}</td>

@@ -131,7 +131,7 @@
         </script>
 
     {% else %}
-        <p class="text-muted">({% if not project.is_truth_data_loaded %}No truth data loaded into project.{% else %}
+        <p class="text-muted">({% if not is_truth_data_loaded %}No truth data loaded into project.{% else %}
             Could not calculate scores.{% endif %})</p>
     {% endif %}
 

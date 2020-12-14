@@ -15,8 +15,10 @@ from forecast_app.models import BinDistribution, NamedDistribution, PointPredict
     QuantileDistribution, Job, Project, Score, ScoreValue
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.forecast import coalesce_values
-from utils.project import logger, latest_forecast_ids_for_project, TRUTH_CSV_HEADER
+from utils.project import logger, latest_forecast_ids_for_project
+from utils.project_truth import TRUTH_CSV_HEADER, truth_data_qs
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+
 
 #
 # query_forecasts_for_project()
@@ -61,6 +63,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     :return: a list of CSV rows including the header
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+
 
     # validate query
     logger.debug(f"query_forecasts_for_project(): 1/4 validating query. query={query}, project={project}")
@@ -217,6 +220,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, prediction_class):
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
 
+
     model_str = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
     timezero_str = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
     season = timezero_to_season_name[time_zero]
@@ -237,6 +241,7 @@ def validate_forecasts_query(project, query):
         are all [].
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+
 
     # return value. filled next
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, types = [], [], [], [], [], []
@@ -385,14 +390,17 @@ class IterCounter(object):
     per https://stackoverflow.com/questions/6309277/how-to-count-the-items-in-a-generator-consumed-by-other-code
     """
 
+
     def __init__(self, it):
         self._iter = it
         self.count = 0
+
 
     def _counterWrapper(self, it):
         for i in it:
             yield i
             self.count += 1
+
 
     def __iter__(self):
         return self._counterWrapper(self._iter)
@@ -412,6 +420,7 @@ def _forecasts_query_worker(job_pk):
 def _query_worker(job_pk, query_project_fcn):
     # imported here so that tests can patch via mock:
     from utils.cloud_file import upload_file
+
 
     # run the query
     job = get_object_or_404(Job, pk=job_pk)
@@ -613,13 +622,13 @@ def _tz_unit_targ_pks_to_truth_values(project):
     Similar to Project.unit_target_name_tz_date_to_truth(), returns project's truth values as a nested dict
     that's organized for easy access using these keys: [timezero_pk][unit_pk][target_id] -> truth_values (a list).
     """
-    truth_data_qs = project.truth_data_qs() \
+    the_truth_data_qs = truth_data_qs(project) \
         .order_by('time_zero__id', 'unit__id', 'target__id') \
         .values_list('time_zero__id', 'unit__id', 'target__id',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
 
     tz_unit_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
-    for time_zero_id, unit_target_val_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
+    for time_zero_id, unit_target_val_grouper in groupby(the_truth_data_qs, key=lambda _: _[0]):
         unit_targ_pks_to_truth = {}  # {unit_pk: {target_id: truth_value}}
         tz_unit_targ_pks_to_truth_vals[time_zero_id] = unit_targ_pks_to_truth
         for unit_id, target_val_grouper in groupby(unit_target_val_grouper, key=lambda _: _[1]):
@@ -659,6 +668,7 @@ def validate_scores_query(project, query):
     validate_forecasts_query() except validates `query`'s `scores` field instead of `type`.
     """
     from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR  # avoid circular imports
+
 
     # return value. filled next
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, scores = [], [], [], [], [], []
@@ -738,27 +748,27 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     error_messages, (unit_ids, target_ids, timezero_ids) = validate_truth_query(project, query)
 
     # get the rows, building up a QuerySet in steps
-    truth_data_qs = project.truth_data_qs()
-
+    the_truth_data_qs = truth_data_qs(project)
     if unit_ids:
-        truth_data_qs = truth_data_qs.filter(unit__id__in=unit_ids)
+        the_truth_data_qs = the_truth_data_qs.filter(unit__id__in=unit_ids)
     if target_ids:
-        truth_data_qs = truth_data_qs.filter(target__id__in=target_ids)
+        the_truth_data_qs = the_truth_data_qs.filter(target__id__in=target_ids)
     if timezero_ids:
-        truth_data_qs = truth_data_qs.filter(time_zero__id__in=timezero_ids)
+        the_truth_data_qs = the_truth_data_qs.filter(time_zero__id__in=timezero_ids)
 
     # get and check the number of rows
-    num_rows = truth_data_qs.count()
+    num_rows = the_truth_data_qs.count()
     if num_rows > max_num_rows:
         raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
 
     # done
-    truth_data_qs = truth_data_qs.order_by('id').values_list('time_zero__timezero_date', 'unit__name', 'target__name',
-                                                             'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    the_truth_data_qs = the_truth_data_qs.order_by('id') \
+        .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
+                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
     return [TRUTH_CSV_HEADER] + [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name,
                                   coalesce_values(value_i, value_f, value_t, value_d, value_b)]
                                  for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b
-                                 in truth_data_qs]
+                                 in the_truth_data_qs]
 
 
 def validate_truth_query(project, query):

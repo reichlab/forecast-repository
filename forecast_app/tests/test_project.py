@@ -15,7 +15,9 @@ from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
-from utils.project import create_project_from_json, load_truth_data
+from utils.project import create_project_from_json
+from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth_data_preview, truth_data_qs, \
+    delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -40,13 +42,13 @@ class ProjectTestCase(TestCase):
 
     def test_load_truth_data(self):
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
-        self.assertEqual(7, self.project.truth_data_qs().count())
-        self.assertTrue(self.project.is_truth_data_loaded())
+        self.assertEqual(7, truth_data_qs(self.project).count())
+        self.assertTrue(is_truth_data_loaded(self.project))
         self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
         self.assertIsInstance(self.project.truth_updated_at, datetime.datetime)
 
-        self.project.delete_truth_data()
-        self.assertFalse(self.project.is_truth_data_loaded())
+        delete_truth_data(self.project)
+        self.assertFalse(is_truth_data_loaded(self.project))
         self.assertFalse(self.project.truth_csv_filename)
         self.assertIsNone(self.project.truth_updated_at)
 
@@ -64,12 +66,12 @@ class ProjectTestCase(TestCase):
 
         project2 = Project.objects.create()
         make_cdc_units_and_targets(project2)
-        self.assertEqual(0, project2.truth_data_qs().count())
-        self.assertFalse(project2.is_truth_data_loaded())
+        self.assertEqual(0, truth_data_qs(project2).count())
+        self.assertFalse(is_truth_data_loaded(project2))
 
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2017, 1, 1))
         load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
-        self.assertEqual(7, project2.truth_data_qs().count())
+        self.assertEqual(7, truth_data_qs(project2).count())
 
         # test get_truth_data_preview()
         exp_truth_preview = [
@@ -80,7 +82,7 @@ class ProjectTestCase(TestCase):
             [datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None],
             [datetime.date(2017, 1, 1), 'US National', 'Season peak week', None],
             [datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20']]
-        self.assertEqual(sorted(exp_truth_preview), sorted(project2.get_truth_data_preview()))
+        self.assertEqual(sorted(exp_truth_preview), sorted(get_truth_data_preview(project2)))
 
 
     def test_load_truth_data_other_files(self):
@@ -94,7 +96,7 @@ class ProjectTestCase(TestCase):
                     (datetime.date(2017, 1, 1), 'US National', 'Season onset', None, None, '2017-11-20', None, None),
                     (datetime.date(2017, 1, 1), 'US National', 'Season peak percentage', None, None, None, None, None),
                     (datetime.date(2017, 1, 1), 'US National', 'Season peak week', None, None, None, None, None)]
-        act_rows = self.project.truth_data_qs() \
+        act_rows = truth_data_qs(self.project) \
             .order_by('unit__name', 'target__name') \
             .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
@@ -116,7 +118,7 @@ class ProjectTestCase(TestCase):
                     (datetime.date(2016, 10, 30), 'US National', 'Season peak week',
                      None, None, None, datetime.date(2017, 2, 5), None)]
 
-        act_rows = project2.truth_data_qs() \
+        act_rows = truth_data_qs(project2) \
             .order_by('unit__name', 'target__name') \
             .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
@@ -440,7 +442,7 @@ class ProjectTestCase(TestCase):
         TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2016, 12, 25))
         # we omit 20170108
 
-        self.project.delete_truth_data()
+        delete_truth_data(self.project)
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/mean-abs-error-truths-dups.csv'),
                         is_convert_na_none=True)
 
@@ -585,7 +587,7 @@ class ProjectTestCase(TestCase):
         # test `_upload_truth_worker()` error conditions. this test is complicated by that function's use of
         # the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
-                patch('utils.project.load_truth_data') as load_truth_mock:
+                patch('utils.project_truth.load_truth_data') as load_truth_mock:
             job = Job.objects.create()
             job.input_json = {}  # no 'project_pk'
             job.save()
@@ -614,7 +616,7 @@ class ProjectTestCase(TestCase):
 
     def test__upload_truth_worker_blue_sky(self):
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
-                patch('utils.project.load_truth_data') as load_truth_mock:
+                patch('utils.project_truth.load_truth_data') as load_truth_mock:
             job = Job.objects.create()
             job.input_json = {'project_pk': self.project.pk, 'filename': 'a name!'}
             job.save()
@@ -647,7 +649,7 @@ class ProjectTestCase(TestCase):
         self.assertEqual(project.truth_updated_at, project.last_update())
 
         # delete truth (no truth, yes forecasts)
-        project.delete_truth_data()
+        delete_truth_data(project)
         self.assertEqual(forecast2.created_at, project.last_update())
 
         # delete forecasts (no truth, no forecasts)

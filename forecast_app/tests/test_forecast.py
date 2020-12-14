@@ -19,7 +19,8 @@ from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
-from utils.project import load_truth_data, create_project_from_json
+from utils.project import create_project_from_json
+from utils.project_truth import load_truth_data, delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -407,7 +408,7 @@ class ForecastTestCase(TestCase):
 
         # deleting project truth should update all of its models' score_change.changed_at
         before_changed_at = forecast_model2.score_change.changed_at
-        project2.delete_truth_data()
+        delete_truth_data(project2)
         forecast_model2.score_change.refresh_from_db()
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
 

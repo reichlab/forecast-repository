@@ -38,6 +38,7 @@ from utils.project_diff import project_config_diff, database_changes_for_project
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, \
     _scores_query_worker, _truth_query_worker
+from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, get_num_truth_rows, delete_truth_data
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -450,6 +451,7 @@ def project_scores(request, project_pk):
                  'unit': unit_names[0],
                  'units': unit_names,
                  'is_all_units_have_rows': is_all_units_have_rows,
+                 'is_truth_data_loaded': is_truth_data_loaded(project),
                  'unit_to_rows_and_mins': json.dumps(unit_to_rows_and_mins),  # converts None -> null
                  })
 
@@ -944,6 +946,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
+        context['num_truth_rows'] = get_num_truth_rows(project)
+        context['is_truth_data_loaded'] = is_truth_data_loaded(project)
         context['project_summary_info'] = project_summary_info(project)
         return context
 
@@ -1328,6 +1332,9 @@ def truth_detail(request, project_pk):
         request,
         'truth_data_detail.html',
         context={'project': project,
+                 'num_truth_rows': get_num_truth_rows(project),
+                 'truth_data_preview': get_truth_data_preview(project),
+                 'is_truth_data_loaded': is_truth_data_loaded(project),
                  'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 
@@ -1342,7 +1349,7 @@ def delete_truth(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    project.delete_truth_data()
+    delete_truth_data(project)
     return redirect('project-detail', pk=project_pk)
 
 
@@ -1355,7 +1362,7 @@ def upload_truth(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    if project.is_truth_data_loaded():
+    if is_truth_data_loaded(project):
         return render(request, 'message.html',
                       context={'title': "Truth data already loaded.",
                                'message': "The project already has truth data. Please delete it and then upload again."})
@@ -1390,7 +1397,7 @@ def _upload_truth_worker(job_pk):
     """
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
-    from utils.project import load_truth_data
+    from utils.project_truth import load_truth_data
 
 
     try:

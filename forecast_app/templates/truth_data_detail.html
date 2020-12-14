@@ -20,7 +20,7 @@
             <a href="{% url 'api-truth-detail' project.pk %}" class="btn btn-primary btn-sm" role="button">API</a>
         {% endif %}
 
-        {% if is_user_ok_edit_project and project.is_truth_data_loaded %}
+        {% if is_user_ok_edit_project and is_truth_data_loaded %}
             {# show a button inside a modal dialog for deleting the truth #}
 
             {# Delete truth: a button that shows a hidden confirm modal when clicked #}
@@ -42,7 +42,7 @@
                 <tr>
                     <th>Upload filename:</th>
                     <td>
-                        {% if project.is_truth_data_loaded %}
+                        {% if is_truth_data_loaded %}
                             {{ project.truth_csv_filename }}
                         {% else %}
                             <small class="text-muted">(No truth data)</small>
@@ -65,11 +65,10 @@
     </div>
 
 
-    {% if project.is_truth_data_loaded %}
-        {% include 'truth_data_snippet.html' with project=project %}
+    {% if is_truth_data_loaded %}
+        {% include 'truth_data_snippet.html' with num_truth_rows=num_truth_rows truth_data_preview=truth_data_preview %}
     {% else %}
-        <h4>Preview of {{ project.get_num_truth_rows|intword|intcomma }}
-            row{{ project.get_num_truth_rows|pluralize }}</h4>
+        <h4>Preview of {{ num_truth_rows|intword|intcomma }}row{{ num_truth_rows|pluralize }}</h4>
         <small class="text-muted">(No data)</small>
     {% endif %}
 
