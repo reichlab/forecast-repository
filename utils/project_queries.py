@@ -619,12 +619,12 @@ def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
 
 def _tz_unit_targ_pks_to_truth_values(project):
     """
-    Similar to Project.unit_target_name_tz_date_to_truth(), returns project's truth values as a nested dict
-    that's organized for easy access using these keys: [timezero_pk][unit_pk][target_id] -> truth_values (a list).
+    Returns project's truth values as a nested dict that's organized for easy access using these keys:
+    [timezero_pk][unit_pk][target_id] -> truth_values (a list).
     """
     the_truth_data_qs = truth_data_qs(project) \
-        .order_by('time_zero__id', 'unit__id', 'target__id') \
-        .values_list('time_zero__id', 'unit__id', 'target__id',
+        .order_by('forecast__time_zero__id', 'unit__id', 'target__id') \
+        .values_list('forecast__time_zero__id', 'unit__id', 'target__id',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
 
     tz_unit_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
@@ -754,7 +754,7 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     if target_ids:
         the_truth_data_qs = the_truth_data_qs.filter(target__id__in=target_ids)
     if timezero_ids:
-        the_truth_data_qs = the_truth_data_qs.filter(time_zero__id__in=timezero_ids)
+        the_truth_data_qs = the_truth_data_qs.filter(forecast__time_zero__id__in=timezero_ids)
 
     # get and check the number of rows
     num_rows = the_truth_data_qs.count()
@@ -763,7 +763,7 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
 
     # done
     the_truth_data_qs = the_truth_data_qs.order_by('id') \
-        .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
+        .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
     return [TRUTH_CSV_HEADER] + [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name,
                                   coalesce_values(value_i, value_f, value_t, value_d, value_b)]

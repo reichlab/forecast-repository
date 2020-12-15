@@ -121,8 +121,7 @@ def _prediction_dicts_for_timezero_points(project_timezeros, timezero_to_points)
 
 def _model_id_to_unit_timezero_points(project, season_name, step_ahead_targets):
     """
-    Similar to Project.unit_target_name_tz_date_to_truth(), returns forecast_model's truth values as a nested dict
-    that's organized for easy access using these keys:
+    Returns forecast_model's truth values as a nested dict that's organized for easy access using these keys:
 
         [forecast_model][unit][timezero_date] -> point_values (a list)
 

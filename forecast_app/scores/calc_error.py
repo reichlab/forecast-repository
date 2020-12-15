@@ -54,7 +54,7 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     timezero_id_to_forecast_id = {forecast.time_zero.pk: forecast.pk for forecast in forecast_model.forecasts.all()}
     the_truth_data_qs = truth_data_qs(forecast_model.project) \
         .filter(target__in=targets) \
-        .values_list('time_zero__id', 'unit__id', 'target__id',
+        .values_list('forecast__time_zero__id', 'unit__id', 'target__id',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')  # only one of value_* is non-None
     num_warnings = 0
     for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in the_truth_data_qs:

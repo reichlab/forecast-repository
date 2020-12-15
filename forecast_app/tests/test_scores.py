@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
+from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, PointPrediction
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_to_lwrs, \
@@ -20,7 +20,8 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
 from utils.project import create_project_from_json
-from utils.project_truth import load_truth_data, truth_data_qs, delete_truth_data
+from utils.project_truth import load_truth_data, truth_data_qs, delete_truth_data, oracle_model_for_project, \
+    create_oracle_model_for_project, get_truth_data_rows
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -423,13 +424,14 @@ class ScoresTestCase(TestCase):
                 },
             }
         }
-        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, _tz_loc_targ_pk_to_true_lwr(project2))
+        act_tz_loc_targ_pk_to_true_lwr = _tz_loc_targ_pk_to_true_lwr(project2)
+        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, act_tz_loc_targ_pk_to_true_lwr)
 
         # test when truth value is None. requires TargetLwr lwr and upper be None as well, or won't match
         # _tz_loc_targ_pk_to_true_lwr() query
         truth_data = truth_data_qs(project2) \
             .filter(unit__name='TH01', target__name='1_biweek_ahead') \
-            .first()  # TruthData: (78, 2, 12, 8, '.', 2, None, None, None, None)
+            .first()  # PointPrediction: (165, 4, 12, 8, '.', 2, None, None, None, None)
         truth_data.value_i = None  # was 2. value_i is for discrete targets
         truth_data.save()
 
@@ -610,9 +612,9 @@ class ScoresTestCase(TestCase):
         ]:
             delete_truth_data(project)
             # NB: use correct value column for target type
-            TruthData.objects.create(time_zero=time_zero, unit=unit, target=target,
-                                     value_i=truth if target == targ_cases_next_wk else None,
-                                     value_f=truth if target == targ_pct_next_wk else None)
+            _add_truth_row(time_zero=time_zero, unit=unit, target=target,
+                           value_i=truth if target == targ_cases_next_wk else None,
+                           value_f=truth if target == targ_pct_next_wk else None)
             ScoreValue.objects \
                 .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
                 .delete()  # usually done by update_score_for_model()
@@ -626,8 +628,8 @@ class ScoresTestCase(TestCase):
 
         # add two truths that result in two ScoreValues
         delete_truth_data(project)
-        TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
-        TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        _add_truth_row(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        _add_truth_row(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
             .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
@@ -642,8 +644,8 @@ class ScoresTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
-        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
-        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        _add_truth_row(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        _add_truth_row(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
             .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
@@ -673,7 +675,7 @@ class ScoresTestCase(TestCase):
             (52919, 3205),  # case 5/5) truth > u
         ]:
             delete_truth_data(project)
-            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            _add_truth_row(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_20_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_20_score.values.count())
 
@@ -701,7 +703,7 @@ class ScoresTestCase(TestCase):
             (52239, 100),  # case 3/3) truth > l/u
         ]:
             delete_truth_data(project)
-            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            _add_truth_row(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_100_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_100_score.values.count())
 
@@ -743,7 +745,7 @@ class ScoresTestCase(TestCase):
             (52507, 802.0),  # case 5/5) truth > u
         ]:
             delete_truth_data(project)
-            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            _add_truth_row(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_50_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_50_score.values.count())
 
@@ -806,6 +808,19 @@ class ScoresTestCase(TestCase):
 #
 # ---- utilities ----
 #
+
+def _add_truth_row(time_zero, unit, target, value_i=None, value_f=None, value_t=None, value_d=None, value_b=None):
+    """
+    Adds a single PointPrediction for the passed TimeZero. First creates a Forecast for the oracle model if necessary.
+    Basically a simplified and specialized version of `load_truth_data()`.
+    """
+    oracle_model = oracle_model_for_project(time_zero.project) or create_oracle_model_for_project(time_zero.project)
+    forecast_for_time_zero = oracle_model.forecast_for_time_zero(time_zero)
+    if not forecast_for_time_zero:
+        forecast_for_time_zero = Forecast.objects.create(forecast_model=oracle_model, time_zero=time_zero)
+    PointPrediction.objects.create(forecast=forecast_for_time_zero, unit=unit, target=target,
+                                   value_i=value_i, value_f=value_f, value_t=value_t, value_d=value_d, value_b=value_b)
+
 
 def _update_scores_for_all_projects():
     # update all scores for all projects. useful mainly for tests b/c runs in the calling thread and therefore blocks

@@ -216,41 +216,6 @@ def project_visualizations(request, project_pk):
                            'message': "Zoltar visualization is under construction."})
 
 
-def _unit_to_actual_points(loc_tz_date_to_actual_vals):
-    """
-    :return: view function that returns a dict mapping unit to a list of actual values found in
-        loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals(). it is what the D3
-        component expects: "[a JavaScript] array of the same length as timePoints"
-    """
-
-
-    def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
-        return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
-                for tz_date in sorted(tz_date_to_actual.keys())]
-
-
-    unit_to_actual_points = {unit: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                             for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-    return unit_to_actual_points
-
-
-def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
-    """
-    :return: view function that returns a dict mapping each unit to the maximum value found in
-        loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals()
-    """
-
-
-    def max_from_tz_date_to_actual_dict(tz_date_to_actual):
-        flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
-        return max(flat_values) if flat_values else None  # NB: None is arbitrary
-
-
-    unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
-                          for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-    return unit_to_actual_max
-
-
 def project_explorer(request, project_pk):
     """
     View function to render various exploration tabs for a particular project.
@@ -977,7 +942,7 @@ def forecast_models_owned_by_user(user):
     :param user: a User
     :return: searches all ForecastModels and returns those where the owner is user
     """
-    return ForecastModel.objects.filter(owner=user)
+    return ForecastModel.objects.filter(owner=user, is_oracle=False)
 
 
 def projects_and_roles_for_user(user):

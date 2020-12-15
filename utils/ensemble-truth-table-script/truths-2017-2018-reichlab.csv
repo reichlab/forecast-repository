@@ -3,4003 +3,2265 @@ timezero,unit,target,value
 2017-07-23,US National,2 wk ahead,0.688338
 2017-07-23,US National,3 wk ahead,0.732049
 2017-07-23,US National,4 wk ahead,0.911641
-2017-07-23,US National,Season peak percentage,NA
-2017-07-23,US National,Season peak week,NA
 2017-07-23,US National,Season onset,2017-11-19
 2017-07-30,US National,1 wk ahead,0.688338
 2017-07-30,US National,2 wk ahead,0.732049
 2017-07-30,US National,3 wk ahead,0.911641
 2017-07-30,US National,4 wk ahead,1.02105
-2017-07-30,US National,Season peak percentage,NA
-2017-07-30,US National,Season peak week,NA
 2017-07-30,US National,Season onset,2017-11-19
 2017-08-06,US National,1 wk ahead,0.732049
 2017-08-06,US National,2 wk ahead,0.911641
 2017-08-06,US National,3 wk ahead,1.02105
 2017-08-06,US National,4 wk ahead,1.09335
-2017-08-06,US National,Season peak percentage,NA
-2017-08-06,US National,Season peak week,NA
 2017-08-06,US National,Season onset,2017-11-19
 2017-08-13,US National,1 wk ahead,0.911641
 2017-08-13,US National,2 wk ahead,1.02105
 2017-08-13,US National,3 wk ahead,1.09335
 2017-08-13,US National,4 wk ahead,1.09515
-2017-08-13,US National,Season peak percentage,NA
-2017-08-13,US National,Season peak week,NA
 2017-08-13,US National,Season onset,2017-11-19
 2017-08-20,US National,1 wk ahead,1.02105
 2017-08-20,US National,2 wk ahead,1.09335
 2017-08-20,US National,3 wk ahead,1.09515
 2017-08-20,US National,4 wk ahead,1.09699
-2017-08-20,US National,Season peak percentage,NA
-2017-08-20,US National,Season peak week,NA
 2017-08-20,US National,Season onset,2017-11-19
 2017-08-27,US National,1 wk ahead,1.09335
 2017-08-27,US National,2 wk ahead,1.09515
 2017-08-27,US National,3 wk ahead,1.09699
 2017-08-27,US National,4 wk ahead,1.18823
-2017-08-27,US National,Season peak percentage,NA
-2017-08-27,US National,Season peak week,NA
 2017-08-27,US National,Season onset,2017-11-19
 2017-09-03,US National,1 wk ahead,1.09515
 2017-09-03,US National,2 wk ahead,1.09699
 2017-09-03,US National,3 wk ahead,1.18823
 2017-09-03,US National,4 wk ahead,1.2694
-2017-09-03,US National,Season peak percentage,NA
-2017-09-03,US National,Season peak week,NA
 2017-09-03,US National,Season onset,2017-11-19
 2017-09-10,US National,1 wk ahead,1.09699
 2017-09-10,US National,2 wk ahead,1.18823
 2017-09-10,US National,3 wk ahead,1.2694
 2017-09-10,US National,4 wk ahead,1.30851
-2017-09-10,US National,Season peak percentage,NA
-2017-09-10,US National,Season peak week,NA
 2017-09-10,US National,Season onset,2017-11-19
 2017-09-17,US National,1 wk ahead,1.18823
 2017-09-17,US National,2 wk ahead,1.2694
 2017-09-17,US National,3 wk ahead,1.30851
 2017-09-17,US National,4 wk ahead,1.34548
-2017-09-17,US National,Season peak percentage,NA
-2017-09-17,US National,Season peak week,NA
 2017-09-17,US National,Season onset,2017-11-19
 2017-09-24,US National,1 wk ahead,1.2694
 2017-09-24,US National,2 wk ahead,1.30851
 2017-09-24,US National,3 wk ahead,1.34548
 2017-09-24,US National,4 wk ahead,1.5222
-2017-09-24,US National,Season peak percentage,NA
-2017-09-24,US National,Season peak week,NA
 2017-09-24,US National,Season onset,2017-11-19
 2017-10-01,US National,1 wk ahead,1.30851
 2017-10-01,US National,2 wk ahead,1.34548
 2017-10-01,US National,3 wk ahead,1.5222
 2017-10-01,US National,4 wk ahead,1.75088
-2017-10-01,US National,Season peak percentage,NA
-2017-10-01,US National,Season peak week,NA
 2017-10-01,US National,Season onset,2017-11-19
 2017-10-08,US National,1 wk ahead,1.34548
 2017-10-08,US National,2 wk ahead,1.5222
 2017-10-08,US National,3 wk ahead,1.75088
 2017-10-08,US National,4 wk ahead,1.8912
-2017-10-08,US National,Season peak percentage,NA
-2017-10-08,US National,Season peak week,NA
 2017-10-08,US National,Season onset,2017-11-19
 2017-10-15,US National,1 wk ahead,1.5222
 2017-10-15,US National,2 wk ahead,1.75088
 2017-10-15,US National,3 wk ahead,1.8912
 2017-10-15,US National,4 wk ahead,2.06127
-2017-10-15,US National,Season peak percentage,NA
-2017-10-15,US National,Season peak week,NA
 2017-10-15,US National,Season onset,2017-11-19
 2017-10-22,US National,1 wk ahead,1.75088
 2017-10-22,US National,2 wk ahead,1.8912
 2017-10-22,US National,3 wk ahead,2.06127
 2017-10-22,US National,4 wk ahead,2.28404
-2017-10-22,US National,Season peak percentage,NA
-2017-10-22,US National,Season peak week,NA
 2017-10-22,US National,Season onset,2017-11-19
 2017-10-29,US National,1 wk ahead,1.8912
 2017-10-29,US National,2 wk ahead,2.06127
 2017-10-29,US National,3 wk ahead,2.28404
 2017-10-29,US National,4 wk ahead,2.29103
-2017-10-29,US National,Season peak percentage,NA
-2017-10-29,US National,Season peak week,NA
 2017-10-29,US National,Season onset,2017-11-19
 2017-11-05,US National,1 wk ahead,2.06127
 2017-11-05,US National,2 wk ahead,2.28404
 2017-11-05,US National,3 wk ahead,2.29103
 2017-11-05,US National,4 wk ahead,2.58774
-2017-11-05,US National,Season peak percentage,NA
-2017-11-05,US National,Season peak week,NA
 2017-11-05,US National,Season onset,2017-11-19
 2017-11-12,US National,1 wk ahead,2.28404
 2017-11-12,US National,2 wk ahead,2.29103
 2017-11-12,US National,3 wk ahead,2.58774
 2017-11-12,US National,4 wk ahead,3.37224
-2017-11-12,US National,Season peak percentage,NA
-2017-11-12,US National,Season peak week,NA
 2017-11-12,US National,Season onset,2017-11-19
 2017-11-19,US National,1 wk ahead,2.29103
 2017-11-19,US National,2 wk ahead,2.58774
 2017-11-19,US National,3 wk ahead,3.37224
 2017-11-19,US National,4 wk ahead,4.74661
-2017-11-19,US National,Season peak percentage,NA
-2017-11-19,US National,Season peak week,NA
 2017-11-19,US National,Season onset,2017-11-19
 2017-11-26,US National,1 wk ahead,2.58774
 2017-11-26,US National,2 wk ahead,3.37224
 2017-11-26,US National,3 wk ahead,4.74661
 2017-11-26,US National,4 wk ahead,5.71471
-2017-11-26,US National,Season peak percentage,NA
-2017-11-26,US National,Season peak week,NA
 2017-11-26,US National,Season onset,2017-11-19
 2017-12-03,US National,1 wk ahead,3.37224
 2017-12-03,US National,2 wk ahead,4.74661
 2017-12-03,US National,3 wk ahead,5.71471
 2017-12-03,US National,4 wk ahead,5.77012
-2017-12-03,US National,Season peak percentage,NA
-2017-12-03,US National,Season peak week,NA
 2017-12-03,US National,Season onset,2017-11-19
 2017-12-10,US National,1 wk ahead,4.74661
 2017-12-10,US National,2 wk ahead,5.71471
 2017-12-10,US National,3 wk ahead,5.77012
 2017-12-10,US National,4 wk ahead,5.92444
-2017-12-10,US National,Season peak percentage,NA
-2017-12-10,US National,Season peak week,NA
 2017-12-10,US National,Season onset,2017-11-19
 2017-12-17,US National,1 wk ahead,5.71471
 2017-12-17,US National,2 wk ahead,5.77012
 2017-12-17,US National,3 wk ahead,5.92444
 2017-12-17,US National,4 wk ahead,6.53335
-2017-12-17,US National,Season peak percentage,NA
-2017-12-17,US National,Season peak week,NA
 2017-12-17,US National,Season onset,2017-11-19
 2017-12-24,US National,1 wk ahead,5.77012
 2017-12-24,US National,2 wk ahead,5.92444
 2017-12-24,US National,3 wk ahead,6.53335
 2017-12-24,US National,4 wk ahead,7.16325
-2017-12-24,US National,Season peak percentage,NA
-2017-12-24,US National,Season peak week,NA
 2017-12-24,US National,Season onset,2017-11-19
 2017-12-31,US National,1 wk ahead,5.92444
 2017-12-31,US National,2 wk ahead,6.53335
 2017-12-31,US National,3 wk ahead,7.16325
 2017-12-31,US National,4 wk ahead,7.49592
-2017-12-31,US National,Season peak percentage,NA
-2017-12-31,US National,Season peak week,NA
 2017-12-31,US National,Season onset,2017-11-19
 2018-01-07,US National,1 wk ahead,6.53335
 2018-01-07,US National,2 wk ahead,7.16325
 2018-01-07,US National,3 wk ahead,7.49592
 2018-01-07,US National,4 wk ahead,7.36699
-2018-01-07,US National,Season peak percentage,NA
-2018-01-07,US National,Season peak week,NA
 2018-01-07,US National,Season onset,2017-11-19
 2018-01-14,US National,1 wk ahead,7.16325
 2018-01-14,US National,2 wk ahead,7.49592
 2018-01-14,US National,3 wk ahead,7.36699
 2018-01-14,US National,4 wk ahead,6.42946
-2018-01-14,US National,Season peak percentage,NA
-2018-01-14,US National,Season peak week,NA
 2018-01-14,US National,Season onset,2017-11-19
 2018-01-21,US National,1 wk ahead,7.49592
 2018-01-21,US National,2 wk ahead,7.36699
 2018-01-21,US National,3 wk ahead,6.42946
 2018-01-21,US National,4 wk ahead,4.93283
-2018-01-21,US National,Season peak percentage,NA
-2018-01-21,US National,Season peak week,NA
 2018-01-21,US National,Season onset,2017-11-19
 2018-01-28,US National,1 wk ahead,7.36699
 2018-01-28,US National,2 wk ahead,6.42946
 2018-01-28,US National,3 wk ahead,4.93283
 2018-01-28,US National,4 wk ahead,3.71249
-2018-01-28,US National,Season peak percentage,NA
-2018-01-28,US National,Season peak week,NA
 2018-01-28,US National,Season onset,2017-11-19
 2018-02-04,US National,1 wk ahead,6.42946
 2018-02-04,US National,2 wk ahead,4.93283
 2018-02-04,US National,3 wk ahead,3.71249
 2018-02-04,US National,4 wk ahead,3.17664
-2018-02-04,US National,Season peak percentage,NA
-2018-02-04,US National,Season peak week,NA
 2018-02-04,US National,Season onset,2017-11-19
 2018-02-11,US National,1 wk ahead,4.93283
 2018-02-11,US National,2 wk ahead,3.71249
 2018-02-11,US National,3 wk ahead,3.17664
 2018-02-11,US National,4 wk ahead,2.77281
-2018-02-11,US National,Season peak percentage,NA
-2018-02-11,US National,Season peak week,NA
 2018-02-11,US National,Season onset,2017-11-19
 2018-02-18,US National,1 wk ahead,3.71249
 2018-02-18,US National,2 wk ahead,3.17664
 2018-02-18,US National,3 wk ahead,2.77281
 2018-02-18,US National,4 wk ahead,2.4799
-2018-02-18,US National,Season peak percentage,NA
-2018-02-18,US National,Season peak week,NA
 2018-02-18,US National,Season onset,2017-11-19
 2018-02-25,US National,1 wk ahead,3.17664
 2018-02-25,US National,2 wk ahead,2.77281
 2018-02-25,US National,3 wk ahead,2.4799
 2018-02-25,US National,4 wk ahead,2.39999
-2018-02-25,US National,Season peak percentage,NA
-2018-02-25,US National,Season peak week,NA
 2018-02-25,US National,Season onset,2017-11-19
 2018-03-04,US National,1 wk ahead,2.77281
 2018-03-04,US National,2 wk ahead,2.4799
 2018-03-04,US National,3 wk ahead,2.39999
 2018-03-04,US National,4 wk ahead,2.0691
-2018-03-04,US National,Season peak percentage,NA
-2018-03-04,US National,Season peak week,NA
 2018-03-04,US National,Season onset,2017-11-19
 2018-03-11,US National,1 wk ahead,2.4799
 2018-03-11,US National,2 wk ahead,2.39999
 2018-03-11,US National,3 wk ahead,2.0691
 2018-03-11,US National,4 wk ahead,1.79553
-2018-03-11,US National,Season peak percentage,NA
-2018-03-11,US National,Season peak week,NA
 2018-03-11,US National,Season onset,2017-11-19
 2018-03-18,US National,1 wk ahead,2.39999
 2018-03-18,US National,2 wk ahead,2.0691
 2018-03-18,US National,3 wk ahead,1.79553
 2018-03-18,US National,4 wk ahead,1.61508
-2018-03-18,US National,Season peak percentage,NA
-2018-03-18,US National,Season peak week,NA
 2018-03-18,US National,Season onset,2017-11-19
 2018-03-25,US National,1 wk ahead,2.0691
 2018-03-25,US National,2 wk ahead,1.79553
 2018-03-25,US National,3 wk ahead,1.61508
 2018-03-25,US National,4 wk ahead,1.5342
-2018-03-25,US National,Season peak percentage,NA
-2018-03-25,US National,Season peak week,NA
 2018-03-25,US National,Season onset,2017-11-19
 2018-04-01,US National,1 wk ahead,1.79553
 2018-04-01,US National,2 wk ahead,1.61508
 2018-04-01,US National,3 wk ahead,1.5342
 2018-04-01,US National,4 wk ahead,1.54622
-2018-04-01,US National,Season peak percentage,NA
-2018-04-01,US National,Season peak week,NA
 2018-04-01,US National,Season onset,2017-11-19
 2018-04-08,US National,1 wk ahead,1.61508
 2018-04-08,US National,2 wk ahead,1.5342
 2018-04-08,US National,3 wk ahead,1.54622
-2018-04-08,US National,4 wk ahead,NA
-2018-04-08,US National,Season peak percentage,NA
-2018-04-08,US National,Season peak week,NA
 2018-04-08,US National,Season onset,2017-11-19
 2018-04-15,US National,1 wk ahead,1.5342
 2018-04-15,US National,2 wk ahead,1.54622
-2018-04-15,US National,3 wk ahead,NA
-2018-04-15,US National,4 wk ahead,NA
-2018-04-15,US National,Season peak percentage,NA
-2018-04-15,US National,Season peak week,NA
 2018-04-15,US National,Season onset,2017-11-19
 2018-04-22,US National,1 wk ahead,1.54622
-2018-04-22,US National,2 wk ahead,NA
-2018-04-22,US National,3 wk ahead,NA
-2018-04-22,US National,4 wk ahead,NA
-2018-04-22,US National,Season peak percentage,NA
-2018-04-22,US National,Season peak week,NA
 2018-04-22,US National,Season onset,2017-11-19
-2018-04-29,US National,1 wk ahead,NA
-2018-04-29,US National,2 wk ahead,NA
-2018-04-29,US National,3 wk ahead,NA
-2018-04-29,US National,4 wk ahead,NA
-2018-04-29,US National,Season peak percentage,NA
-2018-04-29,US National,Season peak week,NA
 2018-04-29,US National,Season onset,2017-11-19
-2018-05-06,US National,1 wk ahead,NA
-2018-05-06,US National,2 wk ahead,NA
-2018-05-06,US National,3 wk ahead,NA
-2018-05-06,US National,4 wk ahead,NA
-2018-05-06,US National,Season peak percentage,NA
-2018-05-06,US National,Season peak week,NA
 2018-05-06,US National,Season onset,2017-11-19
-2018-05-13,US National,1 wk ahead,NA
-2018-05-13,US National,2 wk ahead,NA
-2018-05-13,US National,3 wk ahead,NA
-2018-05-13,US National,4 wk ahead,NA
-2018-05-13,US National,Season peak percentage,NA
-2018-05-13,US National,Season peak week,NA
 2018-05-13,US National,Season onset,2017-11-19
-2018-05-20,US National,1 wk ahead,NA
-2018-05-20,US National,2 wk ahead,NA
-2018-05-20,US National,3 wk ahead,NA
-2018-05-20,US National,4 wk ahead,NA
-2018-05-20,US National,Season peak percentage,NA
-2018-05-20,US National,Season peak week,NA
 2018-05-20,US National,Season onset,2017-11-19
-2018-05-27,US National,1 wk ahead,NA
-2018-05-27,US National,2 wk ahead,NA
-2018-05-27,US National,3 wk ahead,NA
-2018-05-27,US National,4 wk ahead,NA
-2018-05-27,US National,Season peak percentage,NA
-2018-05-27,US National,Season peak week,NA
 2018-05-27,US National,Season onset,2017-11-19
-2018-06-03,US National,1 wk ahead,NA
-2018-06-03,US National,2 wk ahead,NA
-2018-06-03,US National,3 wk ahead,NA
-2018-06-03,US National,4 wk ahead,NA
-2018-06-03,US National,Season peak percentage,NA
-2018-06-03,US National,Season peak week,NA
 2018-06-03,US National,Season onset,2017-11-19
-2018-06-10,US National,1 wk ahead,NA
-2018-06-10,US National,2 wk ahead,NA
-2018-06-10,US National,3 wk ahead,NA
-2018-06-10,US National,4 wk ahead,NA
-2018-06-10,US National,Season peak percentage,NA
-2018-06-10,US National,Season peak week,NA
 2018-06-10,US National,Season onset,2017-11-19
-2018-06-17,US National,1 wk ahead,NA
-2018-06-17,US National,2 wk ahead,NA
-2018-06-17,US National,3 wk ahead,NA
-2018-06-17,US National,4 wk ahead,NA
-2018-06-17,US National,Season peak percentage,NA
-2018-06-17,US National,Season peak week,NA
 2018-06-17,US National,Season onset,2017-11-19
-2018-06-24,US National,1 wk ahead,NA
-2018-06-24,US National,2 wk ahead,NA
-2018-06-24,US National,3 wk ahead,NA
-2018-06-24,US National,4 wk ahead,NA
-2018-06-24,US National,Season peak percentage,NA
-2018-06-24,US National,Season peak week,NA
 2018-06-24,US National,Season onset,2017-11-19
-2018-07-01,US National,1 wk ahead,NA
-2018-07-01,US National,2 wk ahead,NA
-2018-07-01,US National,3 wk ahead,NA
-2018-07-01,US National,4 wk ahead,NA
-2018-07-01,US National,Season peak percentage,NA
-2018-07-01,US National,Season peak week,NA
 2018-07-01,US National,Season onset,2017-11-19
-2018-07-08,US National,1 wk ahead,NA
-2018-07-08,US National,2 wk ahead,NA
-2018-07-08,US National,3 wk ahead,NA
-2018-07-08,US National,4 wk ahead,NA
-2018-07-08,US National,Season peak percentage,NA
-2018-07-08,US National,Season peak week,NA
 2018-07-08,US National,Season onset,2017-11-19
-2018-07-15,US National,1 wk ahead,NA
-2018-07-15,US National,2 wk ahead,NA
-2018-07-15,US National,3 wk ahead,NA
-2018-07-15,US National,4 wk ahead,NA
-2018-07-15,US National,Season peak percentage,NA
-2018-07-15,US National,Season peak week,NA
 2018-07-15,US National,Season onset,2017-11-19
 2017-07-23,HHS Region 1,1 wk ahead,0.303222
 2017-07-23,HHS Region 1,2 wk ahead,0.286054
 2017-07-23,HHS Region 1,3 wk ahead,0.341359
 2017-07-23,HHS Region 1,4 wk ahead,0.325429
-2017-07-23,HHS Region 1,Season peak percentage,NA
-2017-07-23,HHS Region 1,Season peak week,NA
 2017-07-23,HHS Region 1,Season onset,2017-11-19
 2017-07-30,HHS Region 1,1 wk ahead,0.286054
 2017-07-30,HHS Region 1,2 wk ahead,0.341359
 2017-07-30,HHS Region 1,3 wk ahead,0.325429
 2017-07-30,HHS Region 1,4 wk ahead,0.339203
-2017-07-30,HHS Region 1,Season peak percentage,NA
-2017-07-30,HHS Region 1,Season peak week,NA
 2017-07-30,HHS Region 1,Season onset,2017-11-19
 2017-08-06,HHS Region 1,1 wk ahead,0.341359
 2017-08-06,HHS Region 1,2 wk ahead,0.325429
 2017-08-06,HHS Region 1,3 wk ahead,0.339203
 2017-08-06,HHS Region 1,4 wk ahead,0.289899
-2017-08-06,HHS Region 1,Season peak percentage,NA
-2017-08-06,HHS Region 1,Season peak week,NA
 2017-08-06,HHS Region 1,Season onset,2017-11-19
 2017-08-13,HHS Region 1,1 wk ahead,0.325429
 2017-08-13,HHS Region 1,2 wk ahead,0.339203
 2017-08-13,HHS Region 1,3 wk ahead,0.289899
 2017-08-13,HHS Region 1,4 wk ahead,0.469752
-2017-08-13,HHS Region 1,Season peak percentage,NA
-2017-08-13,HHS Region 1,Season peak week,NA
 2017-08-13,HHS Region 1,Season onset,2017-11-19
 2017-08-20,HHS Region 1,1 wk ahead,0.339203
 2017-08-20,HHS Region 1,2 wk ahead,0.289899
 2017-08-20,HHS Region 1,3 wk ahead,0.469752
 2017-08-20,HHS Region 1,4 wk ahead,0.441854
-2017-08-20,HHS Region 1,Season peak percentage,NA
-2017-08-20,HHS Region 1,Season peak week,NA
 2017-08-20,HHS Region 1,Season onset,2017-11-19
 2017-08-27,HHS Region 1,1 wk ahead,0.289899
 2017-08-27,HHS Region 1,2 wk ahead,0.469752
 2017-08-27,HHS Region 1,3 wk ahead,0.441854
 2017-08-27,HHS Region 1,4 wk ahead,0.467866
-2017-08-27,HHS Region 1,Season peak percentage,NA
-2017-08-27,HHS Region 1,Season peak week,NA
 2017-08-27,HHS Region 1,Season onset,2017-11-19
 2017-09-03,HHS Region 1,1 wk ahead,0.469752
 2017-09-03,HHS Region 1,2 wk ahead,0.441854
 2017-09-03,HHS Region 1,3 wk ahead,0.467866
 2017-09-03,HHS Region 1,4 wk ahead,0.719043
-2017-09-03,HHS Region 1,Season peak percentage,NA
-2017-09-03,HHS Region 1,Season peak week,NA
 2017-09-03,HHS Region 1,Season onset,2017-11-19
 2017-09-10,HHS Region 1,1 wk ahead,0.441854
 2017-09-10,HHS Region 1,2 wk ahead,0.467866
 2017-09-10,HHS Region 1,3 wk ahead,0.719043
 2017-09-10,HHS Region 1,4 wk ahead,0.802789
-2017-09-10,HHS Region 1,Season peak percentage,NA
-2017-09-10,HHS Region 1,Season peak week,NA
 2017-09-10,HHS Region 1,Season onset,2017-11-19
 2017-09-17,HHS Region 1,1 wk ahead,0.467866
 2017-09-17,HHS Region 1,2 wk ahead,0.719043
 2017-09-17,HHS Region 1,3 wk ahead,0.802789
 2017-09-17,HHS Region 1,4 wk ahead,0.818709
-2017-09-17,HHS Region 1,Season peak percentage,NA
-2017-09-17,HHS Region 1,Season peak week,NA
 2017-09-17,HHS Region 1,Season onset,2017-11-19
 2017-09-24,HHS Region 1,1 wk ahead,0.719043
 2017-09-24,HHS Region 1,2 wk ahead,0.802789
 2017-09-24,HHS Region 1,3 wk ahead,0.818709
 2017-09-24,HHS Region 1,4 wk ahead,0.976353
-2017-09-24,HHS Region 1,Season peak percentage,NA
-2017-09-24,HHS Region 1,Season peak week,NA
 2017-09-24,HHS Region 1,Season onset,2017-11-19
 2017-10-01,HHS Region 1,1 wk ahead,0.802789
 2017-10-01,HHS Region 1,2 wk ahead,0.818709
 2017-10-01,HHS Region 1,3 wk ahead,0.976353
 2017-10-01,HHS Region 1,4 wk ahead,0.954496
-2017-10-01,HHS Region 1,Season peak percentage,NA
-2017-10-01,HHS Region 1,Season peak week,NA
 2017-10-01,HHS Region 1,Season onset,2017-11-19
 2017-10-08,HHS Region 1,1 wk ahead,0.818709
 2017-10-08,HHS Region 1,2 wk ahead,0.976353
 2017-10-08,HHS Region 1,3 wk ahead,0.954496
 2017-10-08,HHS Region 1,4 wk ahead,1.08602
-2017-10-08,HHS Region 1,Season peak percentage,NA
-2017-10-08,HHS Region 1,Season peak week,NA
 2017-10-08,HHS Region 1,Season onset,2017-11-19
 2017-10-15,HHS Region 1,1 wk ahead,0.976353
 2017-10-15,HHS Region 1,2 wk ahead,0.954496
 2017-10-15,HHS Region 1,3 wk ahead,1.08602
 2017-10-15,HHS Region 1,4 wk ahead,1.19528
-2017-10-15,HHS Region 1,Season peak percentage,NA
-2017-10-15,HHS Region 1,Season peak week,NA
 2017-10-15,HHS Region 1,Season onset,2017-11-19
 2017-10-22,HHS Region 1,1 wk ahead,0.954496
 2017-10-22,HHS Region 1,2 wk ahead,1.08602
 2017-10-22,HHS Region 1,3 wk ahead,1.19528
 2017-10-22,HHS Region 1,4 wk ahead,1.60758
-2017-10-22,HHS Region 1,Season peak percentage,NA
-2017-10-22,HHS Region 1,Season peak week,NA
 2017-10-22,HHS Region 1,Season onset,2017-11-19
 2017-10-29,HHS Region 1,1 wk ahead,1.08602
 2017-10-29,HHS Region 1,2 wk ahead,1.19528
 2017-10-29,HHS Region 1,3 wk ahead,1.60758
 2017-10-29,HHS Region 1,4 wk ahead,1.54422
-2017-10-29,HHS Region 1,Season peak percentage,NA
-2017-10-29,HHS Region 1,Season peak week,NA
 2017-10-29,HHS Region 1,Season onset,2017-11-19
 2017-11-05,HHS Region 1,1 wk ahead,1.19528
 2017-11-05,HHS Region 1,2 wk ahead,1.60758
 2017-11-05,HHS Region 1,3 wk ahead,1.54422
 2017-11-05,HHS Region 1,4 wk ahead,1.66318
-2017-11-05,HHS Region 1,Season peak percentage,NA
-2017-11-05,HHS Region 1,Season peak week,NA
 2017-11-05,HHS Region 1,Season onset,2017-11-19
 2017-11-12,HHS Region 1,1 wk ahead,1.60758
 2017-11-12,HHS Region 1,2 wk ahead,1.54422
 2017-11-12,HHS Region 1,3 wk ahead,1.66318
 2017-11-12,HHS Region 1,4 wk ahead,1.80378
-2017-11-12,HHS Region 1,Season peak percentage,NA
-2017-11-12,HHS Region 1,Season peak week,NA
 2017-11-12,HHS Region 1,Season onset,2017-11-19
 2017-11-19,HHS Region 1,1 wk ahead,1.54422
 2017-11-19,HHS Region 1,2 wk ahead,1.66318
 2017-11-19,HHS Region 1,3 wk ahead,1.80378
 2017-11-19,HHS Region 1,4 wk ahead,2.25236
-2017-11-19,HHS Region 1,Season peak percentage,NA
-2017-11-19,HHS Region 1,Season peak week,NA
 2017-11-19,HHS Region 1,Season onset,2017-11-19
 2017-11-26,HHS Region 1,1 wk ahead,1.66318
 2017-11-26,HHS Region 1,2 wk ahead,1.80378
 2017-11-26,HHS Region 1,3 wk ahead,2.25236
 2017-11-26,HHS Region 1,4 wk ahead,2.84524
-2017-11-26,HHS Region 1,Season peak percentage,NA
-2017-11-26,HHS Region 1,Season peak week,NA
 2017-11-26,HHS Region 1,Season onset,2017-11-19
 2017-12-03,HHS Region 1,1 wk ahead,1.80378
 2017-12-03,HHS Region 1,2 wk ahead,2.25236
 2017-12-03,HHS Region 1,3 wk ahead,2.84524
 2017-12-03,HHS Region 1,4 wk ahead,2.94419
-2017-12-03,HHS Region 1,Season peak percentage,NA
-2017-12-03,HHS Region 1,Season peak week,NA
 2017-12-03,HHS Region 1,Season onset,2017-11-19
 2017-12-10,HHS Region 1,1 wk ahead,2.25236
 2017-12-10,HHS Region 1,2 wk ahead,2.84524
 2017-12-10,HHS Region 1,3 wk ahead,2.94419
 2017-12-10,HHS Region 1,4 wk ahead,2.88543
-2017-12-10,HHS Region 1,Season peak percentage,NA
-2017-12-10,HHS Region 1,Season peak week,NA
 2017-12-10,HHS Region 1,Season onset,2017-11-19
 2017-12-17,HHS Region 1,1 wk ahead,2.84524
 2017-12-17,HHS Region 1,2 wk ahead,2.94419
 2017-12-17,HHS Region 1,3 wk ahead,2.88543
 2017-12-17,HHS Region 1,4 wk ahead,3.74414
-2017-12-17,HHS Region 1,Season peak percentage,NA
-2017-12-17,HHS Region 1,Season peak week,NA
 2017-12-17,HHS Region 1,Season onset,2017-11-19
 2017-12-24,HHS Region 1,1 wk ahead,2.94419
 2017-12-24,HHS Region 1,2 wk ahead,2.88543
 2017-12-24,HHS Region 1,3 wk ahead,3.74414
 2017-12-24,HHS Region 1,4 wk ahead,4.33013
-2017-12-24,HHS Region 1,Season peak percentage,NA
-2017-12-24,HHS Region 1,Season peak week,NA
 2017-12-24,HHS Region 1,Season onset,2017-11-19
 2017-12-31,HHS Region 1,1 wk ahead,2.88543
 2017-12-31,HHS Region 1,2 wk ahead,3.74414
 2017-12-31,HHS Region 1,3 wk ahead,4.33013
 2017-12-31,HHS Region 1,4 wk ahead,5.23809
-2017-12-31,HHS Region 1,Season peak percentage,NA
-2017-12-31,HHS Region 1,Season peak week,NA
 2017-12-31,HHS Region 1,Season onset,2017-11-19
 2018-01-07,HHS Region 1,1 wk ahead,3.74414
 2018-01-07,HHS Region 1,2 wk ahead,4.33013
 2018-01-07,HHS Region 1,3 wk ahead,5.23809
 2018-01-07,HHS Region 1,4 wk ahead,5.81607
-2018-01-07,HHS Region 1,Season peak percentage,NA
-2018-01-07,HHS Region 1,Season peak week,NA
 2018-01-07,HHS Region 1,Season onset,2017-11-19
 2018-01-14,HHS Region 1,1 wk ahead,4.33013
 2018-01-14,HHS Region 1,2 wk ahead,5.23809
 2018-01-14,HHS Region 1,3 wk ahead,5.81607
 2018-01-14,HHS Region 1,4 wk ahead,5.31225
-2018-01-14,HHS Region 1,Season peak percentage,NA
-2018-01-14,HHS Region 1,Season peak week,NA
 2018-01-14,HHS Region 1,Season onset,2017-11-19
 2018-01-21,HHS Region 1,1 wk ahead,5.23809
 2018-01-21,HHS Region 1,2 wk ahead,5.81607
 2018-01-21,HHS Region 1,3 wk ahead,5.31225
 2018-01-21,HHS Region 1,4 wk ahead,4.43902
-2018-01-21,HHS Region 1,Season peak percentage,NA
-2018-01-21,HHS Region 1,Season peak week,NA
 2018-01-21,HHS Region 1,Season onset,2017-11-19
 2018-01-28,HHS Region 1,1 wk ahead,5.81607
 2018-01-28,HHS Region 1,2 wk ahead,5.31225
 2018-01-28,HHS Region 1,3 wk ahead,4.43902
 2018-01-28,HHS Region 1,4 wk ahead,3.44823
-2018-01-28,HHS Region 1,Season peak percentage,NA
-2018-01-28,HHS Region 1,Season peak week,NA
 2018-01-28,HHS Region 1,Season onset,2017-11-19
 2018-02-04,HHS Region 1,1 wk ahead,5.31225
 2018-02-04,HHS Region 1,2 wk ahead,4.43902
 2018-02-04,HHS Region 1,3 wk ahead,3.44823
 2018-02-04,HHS Region 1,4 wk ahead,2.5545
-2018-02-04,HHS Region 1,Season peak percentage,NA
-2018-02-04,HHS Region 1,Season peak week,NA
 2018-02-04,HHS Region 1,Season onset,2017-11-19
 2018-02-11,HHS Region 1,1 wk ahead,4.43902
 2018-02-11,HHS Region 1,2 wk ahead,3.44823
 2018-02-11,HHS Region 1,3 wk ahead,2.5545
 2018-02-11,HHS Region 1,4 wk ahead,2.44589
-2018-02-11,HHS Region 1,Season peak percentage,NA
-2018-02-11,HHS Region 1,Season peak week,NA
 2018-02-11,HHS Region 1,Season onset,2017-11-19
 2018-02-18,HHS Region 1,1 wk ahead,3.44823
 2018-02-18,HHS Region 1,2 wk ahead,2.5545
 2018-02-18,HHS Region 1,3 wk ahead,2.44589
 2018-02-18,HHS Region 1,4 wk ahead,2.08479
-2018-02-18,HHS Region 1,Season peak percentage,NA
-2018-02-18,HHS Region 1,Season peak week,NA
 2018-02-18,HHS Region 1,Season onset,2017-11-19
 2018-02-25,HHS Region 1,1 wk ahead,2.5545
 2018-02-25,HHS Region 1,2 wk ahead,2.44589
 2018-02-25,HHS Region 1,3 wk ahead,2.08479
 2018-02-25,HHS Region 1,4 wk ahead,2.18102
-2018-02-25,HHS Region 1,Season peak percentage,NA
-2018-02-25,HHS Region 1,Season peak week,NA
 2018-02-25,HHS Region 1,Season onset,2017-11-19
 2018-03-04,HHS Region 1,1 wk ahead,2.44589
 2018-03-04,HHS Region 1,2 wk ahead,2.08479
 2018-03-04,HHS Region 1,3 wk ahead,2.18102
 2018-03-04,HHS Region 1,4 wk ahead,2.02512
-2018-03-04,HHS Region 1,Season peak percentage,NA
-2018-03-04,HHS Region 1,Season peak week,NA
 2018-03-04,HHS Region 1,Season onset,2017-11-19
 2018-03-11,HHS Region 1,1 wk ahead,2.08479
 2018-03-11,HHS Region 1,2 wk ahead,2.18102
 2018-03-11,HHS Region 1,3 wk ahead,2.02512
 2018-03-11,HHS Region 1,4 wk ahead,1.89034
-2018-03-11,HHS Region 1,Season peak percentage,NA
-2018-03-11,HHS Region 1,Season peak week,NA
 2018-03-11,HHS Region 1,Season onset,2017-11-19
 2018-03-18,HHS Region 1,1 wk ahead,2.18102
 2018-03-18,HHS Region 1,2 wk ahead,2.02512
 2018-03-18,HHS Region 1,3 wk ahead,1.89034
 2018-03-18,HHS Region 1,4 wk ahead,1.70864
-2018-03-18,HHS Region 1,Season peak percentage,NA
-2018-03-18,HHS Region 1,Season peak week,NA
 2018-03-18,HHS Region 1,Season onset,2017-11-19
 2018-03-25,HHS Region 1,1 wk ahead,2.02512
 2018-03-25,HHS Region 1,2 wk ahead,1.89034
 2018-03-25,HHS Region 1,3 wk ahead,1.70864
 2018-03-25,HHS Region 1,4 wk ahead,1.47214
-2018-03-25,HHS Region 1,Season peak percentage,NA
-2018-03-25,HHS Region 1,Season peak week,NA
 2018-03-25,HHS Region 1,Season onset,2017-11-19
 2018-04-01,HHS Region 1,1 wk ahead,1.89034
 2018-04-01,HHS Region 1,2 wk ahead,1.70864
 2018-04-01,HHS Region 1,3 wk ahead,1.47214
 2018-04-01,HHS Region 1,4 wk ahead,1.31018
-2018-04-01,HHS Region 1,Season peak percentage,NA
-2018-04-01,HHS Region 1,Season peak week,NA
 2018-04-01,HHS Region 1,Season onset,2017-11-19
 2018-04-08,HHS Region 1,1 wk ahead,1.70864
 2018-04-08,HHS Region 1,2 wk ahead,1.47214
 2018-04-08,HHS Region 1,3 wk ahead,1.31018
-2018-04-08,HHS Region 1,4 wk ahead,NA
-2018-04-08,HHS Region 1,Season peak percentage,NA
-2018-04-08,HHS Region 1,Season peak week,NA
 2018-04-08,HHS Region 1,Season onset,2017-11-19
 2018-04-15,HHS Region 1,1 wk ahead,1.47214
 2018-04-15,HHS Region 1,2 wk ahead,1.31018
-2018-04-15,HHS Region 1,3 wk ahead,NA
-2018-04-15,HHS Region 1,4 wk ahead,NA
-2018-04-15,HHS Region 1,Season peak percentage,NA
-2018-04-15,HHS Region 1,Season peak week,NA
 2018-04-15,HHS Region 1,Season onset,2017-11-19
 2018-04-22,HHS Region 1,1 wk ahead,1.31018
-2018-04-22,HHS Region 1,2 wk ahead,NA
-2018-04-22,HHS Region 1,3 wk ahead,NA
-2018-04-22,HHS Region 1,4 wk ahead,NA
-2018-04-22,HHS Region 1,Season peak percentage,NA
-2018-04-22,HHS Region 1,Season peak week,NA
 2018-04-22,HHS Region 1,Season onset,2017-11-19
-2018-04-29,HHS Region 1,1 wk ahead,NA
-2018-04-29,HHS Region 1,2 wk ahead,NA
-2018-04-29,HHS Region 1,3 wk ahead,NA
-2018-04-29,HHS Region 1,4 wk ahead,NA
-2018-04-29,HHS Region 1,Season peak percentage,NA
-2018-04-29,HHS Region 1,Season peak week,NA
 2018-04-29,HHS Region 1,Season onset,2017-11-19
-2018-05-06,HHS Region 1,1 wk ahead,NA
-2018-05-06,HHS Region 1,2 wk ahead,NA
-2018-05-06,HHS Region 1,3 wk ahead,NA
-2018-05-06,HHS Region 1,4 wk ahead,NA
-2018-05-06,HHS Region 1,Season peak percentage,NA
-2018-05-06,HHS Region 1,Season peak week,NA
 2018-05-06,HHS Region 1,Season onset,2017-11-19
-2018-05-13,HHS Region 1,1 wk ahead,NA
-2018-05-13,HHS Region 1,2 wk ahead,NA
-2018-05-13,HHS Region 1,3 wk ahead,NA
-2018-05-13,HHS Region 1,4 wk ahead,NA
-2018-05-13,HHS Region 1,Season peak percentage,NA
-2018-05-13,HHS Region 1,Season peak week,NA
 2018-05-13,HHS Region 1,Season onset,2017-11-19
-2018-05-20,HHS Region 1,1 wk ahead,NA
-2018-05-20,HHS Region 1,2 wk ahead,NA
-2018-05-20,HHS Region 1,3 wk ahead,NA
-2018-05-20,HHS Region 1,4 wk ahead,NA
-2018-05-20,HHS Region 1,Season peak percentage,NA
-2018-05-20,HHS Region 1,Season peak week,NA
 2018-05-20,HHS Region 1,Season onset,2017-11-19
-2018-05-27,HHS Region 1,1 wk ahead,NA
-2018-05-27,HHS Region 1,2 wk ahead,NA
-2018-05-27,HHS Region 1,3 wk ahead,NA
-2018-05-27,HHS Region 1,4 wk ahead,NA
-2018-05-27,HHS Region 1,Season peak percentage,NA
-2018-05-27,HHS Region 1,Season peak week,NA
 2018-05-27,HHS Region 1,Season onset,2017-11-19
-2018-06-03,HHS Region 1,1 wk ahead,NA
-2018-06-03,HHS Region 1,2 wk ahead,NA
-2018-06-03,HHS Region 1,3 wk ahead,NA
-2018-06-03,HHS Region 1,4 wk ahead,NA
-2018-06-03,HHS Region 1,Season peak percentage,NA
-2018-06-03,HHS Region 1,Season peak week,NA
 2018-06-03,HHS Region 1,Season onset,2017-11-19
-2018-06-10,HHS Region 1,1 wk ahead,NA
-2018-06-10,HHS Region 1,2 wk ahead,NA
-2018-06-10,HHS Region 1,3 wk ahead,NA
-2018-06-10,HHS Region 1,4 wk ahead,NA
-2018-06-10,HHS Region 1,Season peak percentage,NA
-2018-06-10,HHS Region 1,Season peak week,NA
 2018-06-10,HHS Region 1,Season onset,2017-11-19
-2018-06-17,HHS Region 1,1 wk ahead,NA
-2018-06-17,HHS Region 1,2 wk ahead,NA
-2018-06-17,HHS Region 1,3 wk ahead,NA
-2018-06-17,HHS Region 1,4 wk ahead,NA
-2018-06-17,HHS Region 1,Season peak percentage,NA
-2018-06-17,HHS Region 1,Season peak week,NA
 2018-06-17,HHS Region 1,Season onset,2017-11-19
-2018-06-24,HHS Region 1,1 wk ahead,NA
-2018-06-24,HHS Region 1,2 wk ahead,NA
-2018-06-24,HHS Region 1,3 wk ahead,NA
-2018-06-24,HHS Region 1,4 wk ahead,NA
-2018-06-24,HHS Region 1,Season peak percentage,NA
-2018-06-24,HHS Region 1,Season peak week,NA
 2018-06-24,HHS Region 1,Season onset,2017-11-19
-2018-07-01,HHS Region 1,1 wk ahead,NA
-2018-07-01,HHS Region 1,2 wk ahead,NA
-2018-07-01,HHS Region 1,3 wk ahead,NA
-2018-07-01,HHS Region 1,4 wk ahead,NA
-2018-07-01,HHS Region 1,Season peak percentage,NA
-2018-07-01,HHS Region 1,Season peak week,NA
 2018-07-01,HHS Region 1,Season onset,2017-11-19
-2018-07-08,HHS Region 1,1 wk ahead,NA
-2018-07-08,HHS Region 1,2 wk ahead,NA
-2018-07-08,HHS Region 1,3 wk ahead,NA
-2018-07-08,HHS Region 1,4 wk ahead,NA
-2018-07-08,HHS Region 1,Season peak percentage,NA
-2018-07-08,HHS Region 1,Season peak week,NA
 2018-07-08,HHS Region 1,Season onset,2017-11-19
-2018-07-15,HHS Region 1,1 wk ahead,NA
-2018-07-15,HHS Region 1,2 wk ahead,NA
-2018-07-15,HHS Region 1,3 wk ahead,NA
-2018-07-15,HHS Region 1,4 wk ahead,NA
-2018-07-15,HHS Region 1,Season peak percentage,NA
-2018-07-15,HHS Region 1,Season peak week,NA
 2018-07-15,HHS Region 1,Season onset,2017-11-19
 2017-07-23,HHS Region 2,1 wk ahead,1.32634
 2017-07-23,HHS Region 2,2 wk ahead,1.34713
 2017-07-23,HHS Region 2,3 wk ahead,1.15738
 2017-07-23,HHS Region 2,4 wk ahead,1.41483
-2017-07-23,HHS Region 2,Season peak percentage,NA
-2017-07-23,HHS Region 2,Season peak week,NA
 2017-07-23,HHS Region 2,Season onset,2017-12-03
 2017-07-30,HHS Region 2,1 wk ahead,1.34713
 2017-07-30,HHS Region 2,2 wk ahead,1.15738
 2017-07-30,HHS Region 2,3 wk ahead,1.41483
 2017-07-30,HHS Region 2,4 wk ahead,1.32425
-2017-07-30,HHS Region 2,Season peak percentage,NA
-2017-07-30,HHS Region 2,Season peak week,NA
 2017-07-30,HHS Region 2,Season onset,2017-12-03
 2017-08-06,HHS Region 2,1 wk ahead,1.15738
 2017-08-06,HHS Region 2,2 wk ahead,1.41483
 2017-08-06,HHS Region 2,3 wk ahead,1.32425
 2017-08-06,HHS Region 2,4 wk ahead,1.46271
-2017-08-06,HHS Region 2,Season peak percentage,NA
-2017-08-06,HHS Region 2,Season peak week,NA
 2017-08-06,HHS Region 2,Season onset,2017-12-03
 2017-08-13,HHS Region 2,1 wk ahead,1.41483
 2017-08-13,HHS Region 2,2 wk ahead,1.32425
 2017-08-13,HHS Region 2,3 wk ahead,1.46271
 2017-08-13,HHS Region 2,4 wk ahead,1.41239
-2017-08-13,HHS Region 2,Season peak percentage,NA
-2017-08-13,HHS Region 2,Season peak week,NA
 2017-08-13,HHS Region 2,Season onset,2017-12-03
 2017-08-20,HHS Region 2,1 wk ahead,1.32425
 2017-08-20,HHS Region 2,2 wk ahead,1.46271
 2017-08-20,HHS Region 2,3 wk ahead,1.41239
 2017-08-20,HHS Region 2,4 wk ahead,1.5084
-2017-08-20,HHS Region 2,Season peak percentage,NA
-2017-08-20,HHS Region 2,Season peak week,NA
 2017-08-20,HHS Region 2,Season onset,2017-12-03
 2017-08-27,HHS Region 2,1 wk ahead,1.46271
 2017-08-27,HHS Region 2,2 wk ahead,1.41239
 2017-08-27,HHS Region 2,3 wk ahead,1.5084
 2017-08-27,HHS Region 2,4 wk ahead,1.55442
-2017-08-27,HHS Region 2,Season peak percentage,NA
-2017-08-27,HHS Region 2,Season peak week,NA
 2017-08-27,HHS Region 2,Season onset,2017-12-03
 2017-09-03,HHS Region 2,1 wk ahead,1.41239
 2017-09-03,HHS Region 2,2 wk ahead,1.5084
 2017-09-03,HHS Region 2,3 wk ahead,1.55442
 2017-09-03,HHS Region 2,4 wk ahead,1.52964
-2017-09-03,HHS Region 2,Season peak percentage,NA
-2017-09-03,HHS Region 2,Season peak week,NA
 2017-09-03,HHS Region 2,Season onset,2017-12-03
 2017-09-10,HHS Region 2,1 wk ahead,1.5084
 2017-09-10,HHS Region 2,2 wk ahead,1.55442
 2017-09-10,HHS Region 2,3 wk ahead,1.52964
 2017-09-10,HHS Region 2,4 wk ahead,1.63699
-2017-09-10,HHS Region 2,Season peak percentage,NA
-2017-09-10,HHS Region 2,Season peak week,NA
 2017-09-10,HHS Region 2,Season onset,2017-12-03
 2017-09-17,HHS Region 2,1 wk ahead,1.55442
 2017-09-17,HHS Region 2,2 wk ahead,1.52964
 2017-09-17,HHS Region 2,3 wk ahead,1.63699
 2017-09-17,HHS Region 2,4 wk ahead,1.86708
-2017-09-17,HHS Region 2,Season peak percentage,NA
-2017-09-17,HHS Region 2,Season peak week,NA
 2017-09-17,HHS Region 2,Season onset,2017-12-03
 2017-09-24,HHS Region 2,1 wk ahead,1.52964
 2017-09-24,HHS Region 2,2 wk ahead,1.63699
 2017-09-24,HHS Region 2,3 wk ahead,1.86708
 2017-09-24,HHS Region 2,4 wk ahead,2.09091
-2017-09-24,HHS Region 2,Season peak percentage,NA
-2017-09-24,HHS Region 2,Season peak week,NA
 2017-09-24,HHS Region 2,Season onset,2017-12-03
 2017-10-01,HHS Region 2,1 wk ahead,1.63699
 2017-10-01,HHS Region 2,2 wk ahead,1.86708
 2017-10-01,HHS Region 2,3 wk ahead,2.09091
 2017-10-01,HHS Region 2,4 wk ahead,2.41627
-2017-10-01,HHS Region 2,Season peak percentage,NA
-2017-10-01,HHS Region 2,Season peak week,NA
 2017-10-01,HHS Region 2,Season onset,2017-12-03
 2017-10-08,HHS Region 2,1 wk ahead,1.86708
 2017-10-08,HHS Region 2,2 wk ahead,2.09091
 2017-10-08,HHS Region 2,3 wk ahead,2.41627
 2017-10-08,HHS Region 2,4 wk ahead,2.39732
-2017-10-08,HHS Region 2,Season peak percentage,NA
-2017-10-08,HHS Region 2,Season peak week,NA
 2017-10-08,HHS Region 2,Season onset,2017-12-03
 2017-10-15,HHS Region 2,1 wk ahead,2.09091
 2017-10-15,HHS Region 2,2 wk ahead,2.41627
 2017-10-15,HHS Region 2,3 wk ahead,2.39732
 2017-10-15,HHS Region 2,4 wk ahead,2.828
-2017-10-15,HHS Region 2,Season peak percentage,NA
-2017-10-15,HHS Region 2,Season peak week,NA
 2017-10-15,HHS Region 2,Season onset,2017-12-03
 2017-10-22,HHS Region 2,1 wk ahead,2.41627
 2017-10-22,HHS Region 2,2 wk ahead,2.39732
 2017-10-22,HHS Region 2,3 wk ahead,2.828
 2017-10-22,HHS Region 2,4 wk ahead,2.83733
-2017-10-22,HHS Region 2,Season peak percentage,NA
-2017-10-22,HHS Region 2,Season peak week,NA
 2017-10-22,HHS Region 2,Season onset,2017-12-03
 2017-10-29,HHS Region 2,1 wk ahead,2.39732
 2017-10-29,HHS Region 2,2 wk ahead,2.828
 2017-10-29,HHS Region 2,3 wk ahead,2.83733
 2017-10-29,HHS Region 2,4 wk ahead,2.97265
-2017-10-29,HHS Region 2,Season peak percentage,NA
-2017-10-29,HHS Region 2,Season peak week,NA
 2017-10-29,HHS Region 2,Season onset,2017-12-03
 2017-11-05,HHS Region 2,1 wk ahead,2.828
 2017-11-05,HHS Region 2,2 wk ahead,2.83733
 2017-11-05,HHS Region 2,3 wk ahead,2.97265
 2017-11-05,HHS Region 2,4 wk ahead,3.15216
-2017-11-05,HHS Region 2,Season peak percentage,NA
-2017-11-05,HHS Region 2,Season peak week,NA
 2017-11-05,HHS Region 2,Season onset,2017-12-03
 2017-11-12,HHS Region 2,1 wk ahead,2.83733
 2017-11-12,HHS Region 2,2 wk ahead,2.97265
 2017-11-12,HHS Region 2,3 wk ahead,3.15216
 2017-11-12,HHS Region 2,4 wk ahead,3.59161
-2017-11-12,HHS Region 2,Season peak percentage,NA
-2017-11-12,HHS Region 2,Season peak week,NA
 2017-11-12,HHS Region 2,Season onset,2017-12-03
 2017-11-19,HHS Region 2,1 wk ahead,2.97265
 2017-11-19,HHS Region 2,2 wk ahead,3.15216
 2017-11-19,HHS Region 2,3 wk ahead,3.59161
 2017-11-19,HHS Region 2,4 wk ahead,4.3243
-2017-11-19,HHS Region 2,Season peak percentage,NA
-2017-11-19,HHS Region 2,Season peak week,NA
 2017-11-19,HHS Region 2,Season onset,2017-12-03
 2017-11-26,HHS Region 2,1 wk ahead,3.15216
 2017-11-26,HHS Region 2,2 wk ahead,3.59161
 2017-11-26,HHS Region 2,3 wk ahead,4.3243
 2017-11-26,HHS Region 2,4 wk ahead,4.52747
-2017-11-26,HHS Region 2,Season peak percentage,NA
-2017-11-26,HHS Region 2,Season peak week,NA
 2017-11-26,HHS Region 2,Season onset,2017-12-03
 2017-12-03,HHS Region 2,1 wk ahead,3.59161
 2017-12-03,HHS Region 2,2 wk ahead,4.3243
 2017-12-03,HHS Region 2,3 wk ahead,4.52747
 2017-12-03,HHS Region 2,4 wk ahead,4.93792
-2017-12-03,HHS Region 2,Season peak percentage,NA
-2017-12-03,HHS Region 2,Season peak week,NA
 2017-12-03,HHS Region 2,Season onset,2017-12-03
 2017-12-10,HHS Region 2,1 wk ahead,4.3243
 2017-12-10,HHS Region 2,2 wk ahead,4.52747
 2017-12-10,HHS Region 2,3 wk ahead,4.93792
 2017-12-10,HHS Region 2,4 wk ahead,5.89362
-2017-12-10,HHS Region 2,Season peak percentage,NA
-2017-12-10,HHS Region 2,Season peak week,NA
 2017-12-10,HHS Region 2,Season onset,2017-12-03
 2017-12-17,HHS Region 2,1 wk ahead,4.52747
 2017-12-17,HHS Region 2,2 wk ahead,4.93792
 2017-12-17,HHS Region 2,3 wk ahead,5.89362
 2017-12-17,HHS Region 2,4 wk ahead,6.831
-2017-12-17,HHS Region 2,Season peak percentage,NA
-2017-12-17,HHS Region 2,Season peak week,NA
 2017-12-17,HHS Region 2,Season onset,2017-12-03
 2017-12-24,HHS Region 2,1 wk ahead,4.93792
 2017-12-24,HHS Region 2,2 wk ahead,5.89362
 2017-12-24,HHS Region 2,3 wk ahead,6.831
 2017-12-24,HHS Region 2,4 wk ahead,8.44625
-2017-12-24,HHS Region 2,Season peak percentage,NA
-2017-12-24,HHS Region 2,Season peak week,NA
 2017-12-24,HHS Region 2,Season onset,2017-12-03
 2017-12-31,HHS Region 2,1 wk ahead,5.89362
 2017-12-31,HHS Region 2,2 wk ahead,6.831
 2017-12-31,HHS Region 2,3 wk ahead,8.44625
 2017-12-31,HHS Region 2,4 wk ahead,9.84631
-2017-12-31,HHS Region 2,Season peak percentage,NA
-2017-12-31,HHS Region 2,Season peak week,NA
 2017-12-31,HHS Region 2,Season onset,2017-12-03
 2018-01-07,HHS Region 2,1 wk ahead,6.831
 2018-01-07,HHS Region 2,2 wk ahead,8.44625
 2018-01-07,HHS Region 2,3 wk ahead,9.84631
 2018-01-07,HHS Region 2,4 wk ahead,10.3506
-2018-01-07,HHS Region 2,Season peak percentage,NA
-2018-01-07,HHS Region 2,Season peak week,NA
 2018-01-07,HHS Region 2,Season onset,2017-12-03
 2018-01-14,HHS Region 2,1 wk ahead,8.44625
 2018-01-14,HHS Region 2,2 wk ahead,9.84631
 2018-01-14,HHS Region 2,3 wk ahead,10.3506
 2018-01-14,HHS Region 2,4 wk ahead,10.1735
-2018-01-14,HHS Region 2,Season peak percentage,NA
-2018-01-14,HHS Region 2,Season peak week,NA
 2018-01-14,HHS Region 2,Season onset,2017-12-03
 2018-01-21,HHS Region 2,1 wk ahead,9.84631
 2018-01-21,HHS Region 2,2 wk ahead,10.3506
 2018-01-21,HHS Region 2,3 wk ahead,10.1735
 2018-01-21,HHS Region 2,4 wk ahead,7.37541
-2018-01-21,HHS Region 2,Season peak percentage,NA
-2018-01-21,HHS Region 2,Season peak week,NA
 2018-01-21,HHS Region 2,Season onset,2017-12-03
 2018-01-28,HHS Region 2,1 wk ahead,10.3506
 2018-01-28,HHS Region 2,2 wk ahead,10.1735
 2018-01-28,HHS Region 2,3 wk ahead,7.37541
 2018-01-28,HHS Region 2,4 wk ahead,4.96355
-2018-01-28,HHS Region 2,Season peak percentage,NA
-2018-01-28,HHS Region 2,Season peak week,NA
 2018-01-28,HHS Region 2,Season onset,2017-12-03
 2018-02-04,HHS Region 2,1 wk ahead,10.1735
 2018-02-04,HHS Region 2,2 wk ahead,7.37541
 2018-02-04,HHS Region 2,3 wk ahead,4.96355
 2018-02-04,HHS Region 2,4 wk ahead,4.65425
-2018-02-04,HHS Region 2,Season peak percentage,NA
-2018-02-04,HHS Region 2,Season peak week,NA
 2018-02-04,HHS Region 2,Season onset,2017-12-03
 2018-02-11,HHS Region 2,1 wk ahead,7.37541
 2018-02-11,HHS Region 2,2 wk ahead,4.96355
 2018-02-11,HHS Region 2,3 wk ahead,4.65425
 2018-02-11,HHS Region 2,4 wk ahead,3.68725
-2018-02-11,HHS Region 2,Season peak percentage,NA
-2018-02-11,HHS Region 2,Season peak week,NA
 2018-02-11,HHS Region 2,Season onset,2017-12-03
 2018-02-18,HHS Region 2,1 wk ahead,4.96355
 2018-02-18,HHS Region 2,2 wk ahead,4.65425
 2018-02-18,HHS Region 2,3 wk ahead,3.68725
 2018-02-18,HHS Region 2,4 wk ahead,3.20983
-2018-02-18,HHS Region 2,Season peak percentage,NA
-2018-02-18,HHS Region 2,Season peak week,NA
 2018-02-18,HHS Region 2,Season onset,2017-12-03
 2018-02-25,HHS Region 2,1 wk ahead,4.65425
 2018-02-25,HHS Region 2,2 wk ahead,3.68725
 2018-02-25,HHS Region 2,3 wk ahead,3.20983
 2018-02-25,HHS Region 2,4 wk ahead,3.22079
-2018-02-25,HHS Region 2,Season peak percentage,NA
-2018-02-25,HHS Region 2,Season peak week,NA
 2018-02-25,HHS Region 2,Season onset,2017-12-03
 2018-03-04,HHS Region 2,1 wk ahead,3.68725
 2018-03-04,HHS Region 2,2 wk ahead,3.20983
 2018-03-04,HHS Region 2,3 wk ahead,3.22079
 2018-03-04,HHS Region 2,4 wk ahead,2.88186
-2018-03-04,HHS Region 2,Season peak percentage,NA
-2018-03-04,HHS Region 2,Season peak week,NA
 2018-03-04,HHS Region 2,Season onset,2017-12-03
 2018-03-11,HHS Region 2,1 wk ahead,3.20983
 2018-03-11,HHS Region 2,2 wk ahead,3.22079
 2018-03-11,HHS Region 2,3 wk ahead,2.88186
 2018-03-11,HHS Region 2,4 wk ahead,2.54854
-2018-03-11,HHS Region 2,Season peak percentage,NA
-2018-03-11,HHS Region 2,Season peak week,NA
 2018-03-11,HHS Region 2,Season onset,2017-12-03
 2018-03-18,HHS Region 2,1 wk ahead,3.22079
 2018-03-18,HHS Region 2,2 wk ahead,2.88186
 2018-03-18,HHS Region 2,3 wk ahead,2.54854
 2018-03-18,HHS Region 2,4 wk ahead,2.31845
-2018-03-18,HHS Region 2,Season peak percentage,NA
-2018-03-18,HHS Region 2,Season peak week,NA
 2018-03-18,HHS Region 2,Season onset,2017-12-03
 2018-03-25,HHS Region 2,1 wk ahead,2.88186
 2018-03-25,HHS Region 2,2 wk ahead,2.54854
 2018-03-25,HHS Region 2,3 wk ahead,2.31845
 2018-03-25,HHS Region 2,4 wk ahead,2.24362
-2018-03-25,HHS Region 2,Season peak percentage,NA
-2018-03-25,HHS Region 2,Season peak week,NA
 2018-03-25,HHS Region 2,Season onset,2017-12-03
 2018-04-01,HHS Region 2,1 wk ahead,2.54854
 2018-04-01,HHS Region 2,2 wk ahead,2.31845
 2018-04-01,HHS Region 2,3 wk ahead,2.24362
 2018-04-01,HHS Region 2,4 wk ahead,3.07724
-2018-04-01,HHS Region 2,Season peak percentage,NA
-2018-04-01,HHS Region 2,Season peak week,NA
 2018-04-01,HHS Region 2,Season onset,2017-12-03
 2018-04-08,HHS Region 2,1 wk ahead,2.31845
 2018-04-08,HHS Region 2,2 wk ahead,2.24362
 2018-04-08,HHS Region 2,3 wk ahead,3.07724
-2018-04-08,HHS Region 2,4 wk ahead,NA
-2018-04-08,HHS Region 2,Season peak percentage,NA
-2018-04-08,HHS Region 2,Season peak week,NA
 2018-04-08,HHS Region 2,Season onset,2017-12-03
 2018-04-15,HHS Region 2,1 wk ahead,2.24362
 2018-04-15,HHS Region 2,2 wk ahead,3.07724
-2018-04-15,HHS Region 2,3 wk ahead,NA
-2018-04-15,HHS Region 2,4 wk ahead,NA
-2018-04-15,HHS Region 2,Season peak percentage,NA
-2018-04-15,HHS Region 2,Season peak week,NA
 2018-04-15,HHS Region 2,Season onset,2017-12-03
 2018-04-22,HHS Region 2,1 wk ahead,3.07724
-2018-04-22,HHS Region 2,2 wk ahead,NA
-2018-04-22,HHS Region 2,3 wk ahead,NA
-2018-04-22,HHS Region 2,4 wk ahead,NA
-2018-04-22,HHS Region 2,Season peak percentage,NA
-2018-04-22,HHS Region 2,Season peak week,NA
 2018-04-22,HHS Region 2,Season onset,2017-12-03
-2018-04-29,HHS Region 2,1 wk ahead,NA
-2018-04-29,HHS Region 2,2 wk ahead,NA
-2018-04-29,HHS Region 2,3 wk ahead,NA
-2018-04-29,HHS Region 2,4 wk ahead,NA
-2018-04-29,HHS Region 2,Season peak percentage,NA
-2018-04-29,HHS Region 2,Season peak week,NA
 2018-04-29,HHS Region 2,Season onset,2017-12-03
-2018-05-06,HHS Region 2,1 wk ahead,NA
-2018-05-06,HHS Region 2,2 wk ahead,NA
-2018-05-06,HHS Region 2,3 wk ahead,NA
-2018-05-06,HHS Region 2,4 wk ahead,NA
-2018-05-06,HHS Region 2,Season peak percentage,NA
-2018-05-06,HHS Region 2,Season peak week,NA
 2018-05-06,HHS Region 2,Season onset,2017-12-03
-2018-05-13,HHS Region 2,1 wk ahead,NA
-2018-05-13,HHS Region 2,2 wk ahead,NA
-2018-05-13,HHS Region 2,3 wk ahead,NA
-2018-05-13,HHS Region 2,4 wk ahead,NA
-2018-05-13,HHS Region 2,Season peak percentage,NA
-2018-05-13,HHS Region 2,Season peak week,NA
 2018-05-13,HHS Region 2,Season onset,2017-12-03
-2018-05-20,HHS Region 2,1 wk ahead,NA
-2018-05-20,HHS Region 2,2 wk ahead,NA
-2018-05-20,HHS Region 2,3 wk ahead,NA
-2018-05-20,HHS Region 2,4 wk ahead,NA
-2018-05-20,HHS Region 2,Season peak percentage,NA
-2018-05-20,HHS Region 2,Season peak week,NA
 2018-05-20,HHS Region 2,Season onset,2017-12-03
-2018-05-27,HHS Region 2,1 wk ahead,NA
-2018-05-27,HHS Region 2,2 wk ahead,NA
-2018-05-27,HHS Region 2,3 wk ahead,NA
-2018-05-27,HHS Region 2,4 wk ahead,NA
-2018-05-27,HHS Region 2,Season peak percentage,NA
-2018-05-27,HHS Region 2,Season peak week,NA
 2018-05-27,HHS Region 2,Season onset,2017-12-03
-2018-06-03,HHS Region 2,1 wk ahead,NA
-2018-06-03,HHS Region 2,2 wk ahead,NA
-2018-06-03,HHS Region 2,3 wk ahead,NA
-2018-06-03,HHS Region 2,4 wk ahead,NA
-2018-06-03,HHS Region 2,Season peak percentage,NA
-2018-06-03,HHS Region 2,Season peak week,NA
 2018-06-03,HHS Region 2,Season onset,2017-12-03
-2018-06-10,HHS Region 2,1 wk ahead,NA
-2018-06-10,HHS Region 2,2 wk ahead,NA
-2018-06-10,HHS Region 2,3 wk ahead,NA
-2018-06-10,HHS Region 2,4 wk ahead,NA
-2018-06-10,HHS Region 2,Season peak percentage,NA
-2018-06-10,HHS Region 2,Season peak week,NA
 2018-06-10,HHS Region 2,Season onset,2017-12-03
-2018-06-17,HHS Region 2,1 wk ahead,NA
-2018-06-17,HHS Region 2,2 wk ahead,NA
-2018-06-17,HHS Region 2,3 wk ahead,NA
-2018-06-17,HHS Region 2,4 wk ahead,NA
-2018-06-17,HHS Region 2,Season peak percentage,NA
-2018-06-17,HHS Region 2,Season peak week,NA
 2018-06-17,HHS Region 2,Season onset,2017-12-03
-2018-06-24,HHS Region 2,1 wk ahead,NA
-2018-06-24,HHS Region 2,2 wk ahead,NA
-2018-06-24,HHS Region 2,3 wk ahead,NA
-2018-06-24,HHS Region 2,4 wk ahead,NA
-2018-06-24,HHS Region 2,Season peak percentage,NA
-2018-06-24,HHS Region 2,Season peak week,NA
 2018-06-24,HHS Region 2,Season onset,2017-12-03
-2018-07-01,HHS Region 2,1 wk ahead,NA
-2018-07-01,HHS Region 2,2 wk ahead,NA
-2018-07-01,HHS Region 2,3 wk ahead,NA
-2018-07-01,HHS Region 2,4 wk ahead,NA
-2018-07-01,HHS Region 2,Season peak percentage,NA
-2018-07-01,HHS Region 2,Season peak week,NA
 2018-07-01,HHS Region 2,Season onset,2017-12-03
-2018-07-08,HHS Region 2,1 wk ahead,NA
-2018-07-08,HHS Region 2,2 wk ahead,NA
-2018-07-08,HHS Region 2,3 wk ahead,NA
-2018-07-08,HHS Region 2,4 wk ahead,NA
-2018-07-08,HHS Region 2,Season peak percentage,NA
-2018-07-08,HHS Region 2,Season peak week,NA
 2018-07-08,HHS Region 2,Season onset,2017-12-03
-2018-07-15,HHS Region 2,1 wk ahead,NA
-2018-07-15,HHS Region 2,2 wk ahead,NA
-2018-07-15,HHS Region 2,3 wk ahead,NA
-2018-07-15,HHS Region 2,4 wk ahead,NA
-2018-07-15,HHS Region 2,Season peak percentage,NA
-2018-07-15,HHS Region 2,Season peak week,NA
 2018-07-15,HHS Region 2,Season onset,2017-12-03
 2017-07-23,HHS Region 3,1 wk ahead,0.797999
 2017-07-23,HHS Region 3,2 wk ahead,0.586092
 2017-07-23,HHS Region 3,3 wk ahead,0.611163
 2017-07-23,HHS Region 3,4 wk ahead,0.623141
-2017-07-23,HHS Region 3,Season peak percentage,NA
-2017-07-23,HHS Region 3,Season peak week,NA
 2017-07-23,HHS Region 3,Season onset,2017-12-17
 2017-07-30,HHS Region 3,1 wk ahead,0.586092
 2017-07-30,HHS Region 3,2 wk ahead,0.611163
 2017-07-30,HHS Region 3,3 wk ahead,0.623141
 2017-07-30,HHS Region 3,4 wk ahead,0.781271
-2017-07-30,HHS Region 3,Season peak percentage,NA
-2017-07-30,HHS Region 3,Season peak week,NA
 2017-07-30,HHS Region 3,Season onset,2017-12-17
 2017-08-06,HHS Region 3,1 wk ahead,0.611163
 2017-08-06,HHS Region 3,2 wk ahead,0.623141
 2017-08-06,HHS Region 3,3 wk ahead,0.781271
 2017-08-06,HHS Region 3,4 wk ahead,0.855259
-2017-08-06,HHS Region 3,Season peak percentage,NA
-2017-08-06,HHS Region 3,Season peak week,NA
 2017-08-06,HHS Region 3,Season onset,2017-12-17
 2017-08-13,HHS Region 3,1 wk ahead,0.623141
 2017-08-13,HHS Region 3,2 wk ahead,0.781271
 2017-08-13,HHS Region 3,3 wk ahead,0.855259
 2017-08-13,HHS Region 3,4 wk ahead,0.755999
-2017-08-13,HHS Region 3,Season peak percentage,NA
-2017-08-13,HHS Region 3,Season peak week,NA
 2017-08-13,HHS Region 3,Season onset,2017-12-17
 2017-08-20,HHS Region 3,1 wk ahead,0.781271
 2017-08-20,HHS Region 3,2 wk ahead,0.855259
 2017-08-20,HHS Region 3,3 wk ahead,0.755999
 2017-08-20,HHS Region 3,4 wk ahead,0.85242
-2017-08-20,HHS Region 3,Season peak percentage,NA
-2017-08-20,HHS Region 3,Season peak week,NA
 2017-08-20,HHS Region 3,Season onset,2017-12-17
 2017-08-27,HHS Region 3,1 wk ahead,0.855259
 2017-08-27,HHS Region 3,2 wk ahead,0.755999
 2017-08-27,HHS Region 3,3 wk ahead,0.85242
 2017-08-27,HHS Region 3,4 wk ahead,0.980626
-2017-08-27,HHS Region 3,Season peak percentage,NA
-2017-08-27,HHS Region 3,Season peak week,NA
 2017-08-27,HHS Region 3,Season onset,2017-12-17
 2017-09-03,HHS Region 3,1 wk ahead,0.755999
 2017-09-03,HHS Region 3,2 wk ahead,0.85242
 2017-09-03,HHS Region 3,3 wk ahead,0.980626
 2017-09-03,HHS Region 3,4 wk ahead,0.926452
-2017-09-03,HHS Region 3,Season peak percentage,NA
-2017-09-03,HHS Region 3,Season peak week,NA
 2017-09-03,HHS Region 3,Season onset,2017-12-17
 2017-09-10,HHS Region 3,1 wk ahead,0.85242
 2017-09-10,HHS Region 3,2 wk ahead,0.980626
 2017-09-10,HHS Region 3,3 wk ahead,0.926452
 2017-09-10,HHS Region 3,4 wk ahead,0.990782
-2017-09-10,HHS Region 3,Season peak percentage,NA
-2017-09-10,HHS Region 3,Season peak week,NA
 2017-09-10,HHS Region 3,Season onset,2017-12-17
 2017-09-17,HHS Region 3,1 wk ahead,0.980626
 2017-09-17,HHS Region 3,2 wk ahead,0.926452
 2017-09-17,HHS Region 3,3 wk ahead,0.990782
 2017-09-17,HHS Region 3,4 wk ahead,1.02534
-2017-09-17,HHS Region 3,Season peak percentage,NA
-2017-09-17,HHS Region 3,Season peak week,NA
 2017-09-17,HHS Region 3,Season onset,2017-12-17
 2017-09-24,HHS Region 3,1 wk ahead,0.926452
 2017-09-24,HHS Region 3,2 wk ahead,0.990782
 2017-09-24,HHS Region 3,3 wk ahead,1.02534
 2017-09-24,HHS Region 3,4 wk ahead,1.12025
-2017-09-24,HHS Region 3,Season peak percentage,NA
-2017-09-24,HHS Region 3,Season peak week,NA
 2017-09-24,HHS Region 3,Season onset,2017-12-17
 2017-10-01,HHS Region 3,1 wk ahead,0.990782
 2017-10-01,HHS Region 3,2 wk ahead,1.02534
 2017-10-01,HHS Region 3,3 wk ahead,1.12025
 2017-10-01,HHS Region 3,4 wk ahead,1.18165
-2017-10-01,HHS Region 3,Season peak percentage,NA
-2017-10-01,HHS Region 3,Season peak week,NA
 2017-10-01,HHS Region 3,Season onset,2017-12-17
 2017-10-08,HHS Region 3,1 wk ahead,1.02534
 2017-10-08,HHS Region 3,2 wk ahead,1.12025
 2017-10-08,HHS Region 3,3 wk ahead,1.18165
 2017-10-08,HHS Region 3,4 wk ahead,1.3044
-2017-10-08,HHS Region 3,Season peak percentage,NA
-2017-10-08,HHS Region 3,Season peak week,NA
 2017-10-08,HHS Region 3,Season onset,2017-12-17
 2017-10-15,HHS Region 3,1 wk ahead,1.12025
 2017-10-15,HHS Region 3,2 wk ahead,1.18165
 2017-10-15,HHS Region 3,3 wk ahead,1.3044
 2017-10-15,HHS Region 3,4 wk ahead,1.58192
-2017-10-15,HHS Region 3,Season peak percentage,NA
-2017-10-15,HHS Region 3,Season peak week,NA
 2017-10-15,HHS Region 3,Season onset,2017-12-17
 2017-10-22,HHS Region 3,1 wk ahead,1.18165
 2017-10-22,HHS Region 3,2 wk ahead,1.3044
 2017-10-22,HHS Region 3,3 wk ahead,1.58192
 2017-10-22,HHS Region 3,4 wk ahead,1.64146
-2017-10-22,HHS Region 3,Season peak percentage,NA
-2017-10-22,HHS Region 3,Season peak week,NA
 2017-10-22,HHS Region 3,Season onset,2017-12-17
 2017-10-29,HHS Region 3,1 wk ahead,1.3044
 2017-10-29,HHS Region 3,2 wk ahead,1.58192
 2017-10-29,HHS Region 3,3 wk ahead,1.64146
 2017-10-29,HHS Region 3,4 wk ahead,1.60804
-2017-10-29,HHS Region 3,Season peak percentage,NA
-2017-10-29,HHS Region 3,Season peak week,NA
 2017-10-29,HHS Region 3,Season onset,2017-12-17
 2017-11-05,HHS Region 3,1 wk ahead,1.58192
 2017-11-05,HHS Region 3,2 wk ahead,1.64146
 2017-11-05,HHS Region 3,3 wk ahead,1.60804
 2017-11-05,HHS Region 3,4 wk ahead,1.63331
-2017-11-05,HHS Region 3,Season peak percentage,NA
-2017-11-05,HHS Region 3,Season peak week,NA
 2017-11-05,HHS Region 3,Season onset,2017-12-17
 2017-11-12,HHS Region 3,1 wk ahead,1.64146
 2017-11-12,HHS Region 3,2 wk ahead,1.60804
 2017-11-12,HHS Region 3,3 wk ahead,1.63331
 2017-11-12,HHS Region 3,4 wk ahead,1.84008
-2017-11-12,HHS Region 3,Season peak percentage,NA
-2017-11-12,HHS Region 3,Season peak week,NA
 2017-11-12,HHS Region 3,Season onset,2017-12-17
 2017-11-19,HHS Region 3,1 wk ahead,1.60804
 2017-11-19,HHS Region 3,2 wk ahead,1.63331
 2017-11-19,HHS Region 3,3 wk ahead,1.84008
 2017-11-19,HHS Region 3,4 wk ahead,2.29943
-2017-11-19,HHS Region 3,Season peak percentage,NA
-2017-11-19,HHS Region 3,Season peak week,NA
 2017-11-19,HHS Region 3,Season onset,2017-12-17
 2017-11-26,HHS Region 3,1 wk ahead,1.63331
 2017-11-26,HHS Region 3,2 wk ahead,1.84008
 2017-11-26,HHS Region 3,3 wk ahead,2.29943
 2017-11-26,HHS Region 3,4 wk ahead,3.53653
-2017-11-26,HHS Region 3,Season peak percentage,NA
-2017-11-26,HHS Region 3,Season peak week,NA
 2017-11-26,HHS Region 3,Season onset,2017-12-17
 2017-12-03,HHS Region 3,1 wk ahead,1.84008
 2017-12-03,HHS Region 3,2 wk ahead,2.29943
 2017-12-03,HHS Region 3,3 wk ahead,3.53653
 2017-12-03,HHS Region 3,4 wk ahead,3.45163
-2017-12-03,HHS Region 3,Season peak percentage,NA
-2017-12-03,HHS Region 3,Season peak week,NA
 2017-12-03,HHS Region 3,Season onset,2017-12-17
 2017-12-10,HHS Region 3,1 wk ahead,2.29943
 2017-12-10,HHS Region 3,2 wk ahead,3.53653
 2017-12-10,HHS Region 3,3 wk ahead,3.45163
 2017-12-10,HHS Region 3,4 wk ahead,3.69783
-2017-12-10,HHS Region 3,Season peak percentage,NA
-2017-12-10,HHS Region 3,Season peak week,NA
 2017-12-10,HHS Region 3,Season onset,2017-12-17
 2017-12-17,HHS Region 3,1 wk ahead,3.53653
 2017-12-17,HHS Region 3,2 wk ahead,3.45163
 2017-12-17,HHS Region 3,3 wk ahead,3.69783
 2017-12-17,HHS Region 3,4 wk ahead,4.75439
-2017-12-17,HHS Region 3,Season peak percentage,NA
-2017-12-17,HHS Region 3,Season peak week,NA
 2017-12-17,HHS Region 3,Season onset,2017-12-17
 2017-12-24,HHS Region 3,1 wk ahead,3.45163
 2017-12-24,HHS Region 3,2 wk ahead,3.69783
 2017-12-24,HHS Region 3,3 wk ahead,4.75439
 2017-12-24,HHS Region 3,4 wk ahead,5.95911
-2017-12-24,HHS Region 3,Season peak percentage,NA
-2017-12-24,HHS Region 3,Season peak week,NA
 2017-12-24,HHS Region 3,Season onset,2017-12-17
 2017-12-31,HHS Region 3,1 wk ahead,3.69783
 2017-12-31,HHS Region 3,2 wk ahead,4.75439
 2017-12-31,HHS Region 3,3 wk ahead,5.95911
 2017-12-31,HHS Region 3,4 wk ahead,7.05372
-2017-12-31,HHS Region 3,Season peak percentage,NA
-2017-12-31,HHS Region 3,Season peak week,NA
 2017-12-31,HHS Region 3,Season onset,2017-12-17
 2018-01-07,HHS Region 3,1 wk ahead,4.75439
 2018-01-07,HHS Region 3,2 wk ahead,5.95911
 2018-01-07,HHS Region 3,3 wk ahead,7.05372
 2018-01-07,HHS Region 3,4 wk ahead,7.50235
-2018-01-07,HHS Region 3,Season peak percentage,NA
-2018-01-07,HHS Region 3,Season peak week,NA
 2018-01-07,HHS Region 3,Season onset,2017-12-17
 2018-01-14,HHS Region 3,1 wk ahead,5.95911
 2018-01-14,HHS Region 3,2 wk ahead,7.05372
 2018-01-14,HHS Region 3,3 wk ahead,7.50235
 2018-01-14,HHS Region 3,4 wk ahead,7.33941
-2018-01-14,HHS Region 3,Season peak percentage,NA
-2018-01-14,HHS Region 3,Season peak week,NA
 2018-01-14,HHS Region 3,Season onset,2017-12-17
 2018-01-21,HHS Region 3,1 wk ahead,7.05372
 2018-01-21,HHS Region 3,2 wk ahead,7.50235
 2018-01-21,HHS Region 3,3 wk ahead,7.33941
 2018-01-21,HHS Region 3,4 wk ahead,5.52566
-2018-01-21,HHS Region 3,Season peak percentage,NA
-2018-01-21,HHS Region 3,Season peak week,NA
 2018-01-21,HHS Region 3,Season onset,2017-12-17
 2018-01-28,HHS Region 3,1 wk ahead,7.50235
 2018-01-28,HHS Region 3,2 wk ahead,7.33941
 2018-01-28,HHS Region 3,3 wk ahead,5.52566
 2018-01-28,HHS Region 3,4 wk ahead,3.7731
-2018-01-28,HHS Region 3,Season peak percentage,NA
-2018-01-28,HHS Region 3,Season peak week,NA
 2018-01-28,HHS Region 3,Season onset,2017-12-17
 2018-02-04,HHS Region 3,1 wk ahead,7.33941
 2018-02-04,HHS Region 3,2 wk ahead,5.52566
 2018-02-04,HHS Region 3,3 wk ahead,3.7731
 2018-02-04,HHS Region 3,4 wk ahead,2.88842
-2018-02-04,HHS Region 3,Season peak percentage,NA
-2018-02-04,HHS Region 3,Season peak week,NA
 2018-02-04,HHS Region 3,Season onset,2017-12-17
 2018-02-11,HHS Region 3,1 wk ahead,5.52566
 2018-02-11,HHS Region 3,2 wk ahead,3.7731
 2018-02-11,HHS Region 3,3 wk ahead,2.88842
 2018-02-11,HHS Region 3,4 wk ahead,2.66368
-2018-02-11,HHS Region 3,Season peak percentage,NA
-2018-02-11,HHS Region 3,Season peak week,NA
 2018-02-11,HHS Region 3,Season onset,2017-12-17
 2018-02-18,HHS Region 3,1 wk ahead,3.7731
 2018-02-18,HHS Region 3,2 wk ahead,2.88842
 2018-02-18,HHS Region 3,3 wk ahead,2.66368
 2018-02-18,HHS Region 3,4 wk ahead,2.52268
-2018-02-18,HHS Region 3,Season peak percentage,NA
-2018-02-18,HHS Region 3,Season peak week,NA
 2018-02-18,HHS Region 3,Season onset,2017-12-17
 2018-02-25,HHS Region 3,1 wk ahead,2.88842
 2018-02-25,HHS Region 3,2 wk ahead,2.66368
 2018-02-25,HHS Region 3,3 wk ahead,2.52268
 2018-02-25,HHS Region 3,4 wk ahead,2.47337
-2018-02-25,HHS Region 3,Season peak percentage,NA
-2018-02-25,HHS Region 3,Season peak week,NA
 2018-02-25,HHS Region 3,Season onset,2017-12-17
 2018-03-04,HHS Region 3,1 wk ahead,2.66368
 2018-03-04,HHS Region 3,2 wk ahead,2.52268
 2018-03-04,HHS Region 3,3 wk ahead,2.47337
 2018-03-04,HHS Region 3,4 wk ahead,1.97889
-2018-03-04,HHS Region 3,Season peak percentage,NA
-2018-03-04,HHS Region 3,Season peak week,NA
 2018-03-04,HHS Region 3,Season onset,2017-12-17
 2018-03-11,HHS Region 3,1 wk ahead,2.52268
 2018-03-11,HHS Region 3,2 wk ahead,2.47337
 2018-03-11,HHS Region 3,3 wk ahead,1.97889
 2018-03-11,HHS Region 3,4 wk ahead,1.72394
-2018-03-11,HHS Region 3,Season peak percentage,NA
-2018-03-11,HHS Region 3,Season peak week,NA
 2018-03-11,HHS Region 3,Season onset,2017-12-17
 2018-03-18,HHS Region 3,1 wk ahead,2.47337
 2018-03-18,HHS Region 3,2 wk ahead,1.97889
 2018-03-18,HHS Region 3,3 wk ahead,1.72394
 2018-03-18,HHS Region 3,4 wk ahead,1.49352
-2018-03-18,HHS Region 3,Season peak percentage,NA
-2018-03-18,HHS Region 3,Season peak week,NA
 2018-03-18,HHS Region 3,Season onset,2017-12-17
 2018-03-25,HHS Region 3,1 wk ahead,1.97889
 2018-03-25,HHS Region 3,2 wk ahead,1.72394
 2018-03-25,HHS Region 3,3 wk ahead,1.49352
 2018-03-25,HHS Region 3,4 wk ahead,1.37978
-2018-03-25,HHS Region 3,Season peak percentage,NA
-2018-03-25,HHS Region 3,Season peak week,NA
 2018-03-25,HHS Region 3,Season onset,2017-12-17
 2018-04-01,HHS Region 3,1 wk ahead,1.72394
 2018-04-01,HHS Region 3,2 wk ahead,1.49352
 2018-04-01,HHS Region 3,3 wk ahead,1.37978
 2018-04-01,HHS Region 3,4 wk ahead,1.45895
-2018-04-01,HHS Region 3,Season peak percentage,NA
-2018-04-01,HHS Region 3,Season peak week,NA
 2018-04-01,HHS Region 3,Season onset,2017-12-17
 2018-04-08,HHS Region 3,1 wk ahead,1.49352
 2018-04-08,HHS Region 3,2 wk ahead,1.37978
 2018-04-08,HHS Region 3,3 wk ahead,1.45895
-2018-04-08,HHS Region 3,4 wk ahead,NA
-2018-04-08,HHS Region 3,Season peak percentage,NA
-2018-04-08,HHS Region 3,Season peak week,NA
 2018-04-08,HHS Region 3,Season onset,2017-12-17
 2018-04-15,HHS Region 3,1 wk ahead,1.37978
 2018-04-15,HHS Region 3,2 wk ahead,1.45895
-2018-04-15,HHS Region 3,3 wk ahead,NA
-2018-04-15,HHS Region 3,4 wk ahead,NA
-2018-04-15,HHS Region 3,Season peak percentage,NA
-2018-04-15,HHS Region 3,Season peak week,NA
 2018-04-15,HHS Region 3,Season onset,2017-12-17
 2018-04-22,HHS Region 3,1 wk ahead,1.45895
-2018-04-22,HHS Region 3,2 wk ahead,NA
-2018-04-22,HHS Region 3,3 wk ahead,NA
-2018-04-22,HHS Region 3,4 wk ahead,NA
-2018-04-22,HHS Region 3,Season peak percentage,NA
-2018-04-22,HHS Region 3,Season peak week,NA
 2018-04-22,HHS Region 3,Season onset,2017-12-17
-2018-04-29,HHS Region 3,1 wk ahead,NA
-2018-04-29,HHS Region 3,2 wk ahead,NA
-2018-04-29,HHS Region 3,3 wk ahead,NA
-2018-04-29,HHS Region 3,4 wk ahead,NA
-2018-04-29,HHS Region 3,Season peak percentage,NA
-2018-04-29,HHS Region 3,Season peak week,NA
 2018-04-29,HHS Region 3,Season onset,2017-12-17
-2018-05-06,HHS Region 3,1 wk ahead,NA
-2018-05-06,HHS Region 3,2 wk ahead,NA
-2018-05-06,HHS Region 3,3 wk ahead,NA
-2018-05-06,HHS Region 3,4 wk ahead,NA
-2018-05-06,HHS Region 3,Season peak percentage,NA
-2018-05-06,HHS Region 3,Season peak week,NA
 2018-05-06,HHS Region 3,Season onset,2017-12-17
-2018-05-13,HHS Region 3,1 wk ahead,NA
-2018-05-13,HHS Region 3,2 wk ahead,NA
-2018-05-13,HHS Region 3,3 wk ahead,NA
-2018-05-13,HHS Region 3,4 wk ahead,NA
-2018-05-13,HHS Region 3,Season peak percentage,NA
-2018-05-13,HHS Region 3,Season peak week,NA
 2018-05-13,HHS Region 3,Season onset,2017-12-17
-2018-05-20,HHS Region 3,1 wk ahead,NA
-2018-05-20,HHS Region 3,2 wk ahead,NA
-2018-05-20,HHS Region 3,3 wk ahead,NA
-2018-05-20,HHS Region 3,4 wk ahead,NA
-2018-05-20,HHS Region 3,Season peak percentage,NA
-2018-05-20,HHS Region 3,Season peak week,NA
 2018-05-20,HHS Region 3,Season onset,2017-12-17
-2018-05-27,HHS Region 3,1 wk ahead,NA
-2018-05-27,HHS Region 3,2 wk ahead,NA
-2018-05-27,HHS Region 3,3 wk ahead,NA
-2018-05-27,HHS Region 3,4 wk ahead,NA
-2018-05-27,HHS Region 3,Season peak percentage,NA
-2018-05-27,HHS Region 3,Season peak week,NA
 2018-05-27,HHS Region 3,Season onset,2017-12-17
-2018-06-03,HHS Region 3,1 wk ahead,NA
-2018-06-03,HHS Region 3,2 wk ahead,NA
-2018-06-03,HHS Region 3,3 wk ahead,NA
-2018-06-03,HHS Region 3,4 wk ahead,NA
-2018-06-03,HHS Region 3,Season peak percentage,NA
-2018-06-03,HHS Region 3,Season peak week,NA
 2018-06-03,HHS Region 3,Season onset,2017-12-17
-2018-06-10,HHS Region 3,1 wk ahead,NA
-2018-06-10,HHS Region 3,2 wk ahead,NA
-2018-06-10,HHS Region 3,3 wk ahead,NA
-2018-06-10,HHS Region 3,4 wk ahead,NA
-2018-06-10,HHS Region 3,Season peak percentage,NA
-2018-06-10,HHS Region 3,Season peak week,NA
 2018-06-10,HHS Region 3,Season onset,2017-12-17
-2018-06-17,HHS Region 3,1 wk ahead,NA
-2018-06-17,HHS Region 3,2 wk ahead,NA
-2018-06-17,HHS Region 3,3 wk ahead,NA
-2018-06-17,HHS Region 3,4 wk ahead,NA
-2018-06-17,HHS Region 3,Season peak percentage,NA
-2018-06-17,HHS Region 3,Season peak week,NA
 2018-06-17,HHS Region 3,Season onset,2017-12-17
-2018-06-24,HHS Region 3,1 wk ahead,NA
-2018-06-24,HHS Region 3,2 wk ahead,NA
-2018-06-24,HHS Region 3,3 wk ahead,NA
-2018-06-24,HHS Region 3,4 wk ahead,NA
-2018-06-24,HHS Region 3,Season peak percentage,NA
-2018-06-24,HHS Region 3,Season peak week,NA
 2018-06-24,HHS Region 3,Season onset,2017-12-17
-2018-07-01,HHS Region 3,1 wk ahead,NA
-2018-07-01,HHS Region 3,2 wk ahead,NA
-2018-07-01,HHS Region 3,3 wk ahead,NA
-2018-07-01,HHS Region 3,4 wk ahead,NA
-2018-07-01,HHS Region 3,Season peak percentage,NA
-2018-07-01,HHS Region 3,Season peak week,NA
 2018-07-01,HHS Region 3,Season onset,2017-12-17
-2018-07-08,HHS Region 3,1 wk ahead,NA
-2018-07-08,HHS Region 3,2 wk ahead,NA
-2018-07-08,HHS Region 3,3 wk ahead,NA
-2018-07-08,HHS Region 3,4 wk ahead,NA
-2018-07-08,HHS Region 3,Season peak percentage,NA
-2018-07-08,HHS Region 3,Season peak week,NA
 2018-07-08,HHS Region 3,Season onset,2017-12-17
-2018-07-15,HHS Region 3,1 wk ahead,NA
-2018-07-15,HHS Region 3,2 wk ahead,NA
-2018-07-15,HHS Region 3,3 wk ahead,NA
-2018-07-15,HHS Region 3,4 wk ahead,NA
-2018-07-15,HHS Region 3,Season peak percentage,NA
-2018-07-15,HHS Region 3,Season peak week,NA
 2018-07-15,HHS Region 3,Season onset,2017-12-17
 2017-07-23,HHS Region 4,1 wk ahead,0.476357
 2017-07-23,HHS Region 4,2 wk ahead,0.483647
 2017-07-23,HHS Region 4,3 wk ahead,0.674289
 2017-07-23,HHS Region 4,4 wk ahead,0.782429
-2017-07-23,HHS Region 4,Season peak percentage,NA
-2017-07-23,HHS Region 4,Season peak week,NA
 2017-07-23,HHS Region 4,Season onset,2017-11-05
 2017-07-30,HHS Region 4,1 wk ahead,0.483647
 2017-07-30,HHS Region 4,2 wk ahead,0.674289
 2017-07-30,HHS Region 4,3 wk ahead,0.782429
 2017-07-30,HHS Region 4,4 wk ahead,1.11294
-2017-07-30,HHS Region 4,Season peak percentage,NA
-2017-07-30,HHS Region 4,Season peak week,NA
 2017-07-30,HHS Region 4,Season onset,2017-11-05
 2017-08-06,HHS Region 4,1 wk ahead,0.674289
 2017-08-06,HHS Region 4,2 wk ahead,0.782429
 2017-08-06,HHS Region 4,3 wk ahead,1.11294
 2017-08-06,HHS Region 4,4 wk ahead,1.17542
-2017-08-06,HHS Region 4,Season peak percentage,NA
-2017-08-06,HHS Region 4,Season peak week,NA
 2017-08-06,HHS Region 4,Season onset,2017-11-05
 2017-08-13,HHS Region 4,1 wk ahead,0.782429
 2017-08-13,HHS Region 4,2 wk ahead,1.11294
 2017-08-13,HHS Region 4,3 wk ahead,1.17542
 2017-08-13,HHS Region 4,4 wk ahead,0.937823
-2017-08-13,HHS Region 4,Season peak percentage,NA
-2017-08-13,HHS Region 4,Season peak week,NA
 2017-08-13,HHS Region 4,Season onset,2017-11-05
 2017-08-20,HHS Region 4,1 wk ahead,1.11294
 2017-08-20,HHS Region 4,2 wk ahead,1.17542
 2017-08-20,HHS Region 4,3 wk ahead,0.937823
 2017-08-20,HHS Region 4,4 wk ahead,0.902408
-2017-08-20,HHS Region 4,Season peak percentage,NA
-2017-08-20,HHS Region 4,Season peak week,NA
 2017-08-20,HHS Region 4,Season onset,2017-11-05
 2017-08-27,HHS Region 4,1 wk ahead,1.17542
 2017-08-27,HHS Region 4,2 wk ahead,0.937823
 2017-08-27,HHS Region 4,3 wk ahead,0.902408
 2017-08-27,HHS Region 4,4 wk ahead,1.02557
-2017-08-27,HHS Region 4,Season peak percentage,NA
-2017-08-27,HHS Region 4,Season peak week,NA
 2017-08-27,HHS Region 4,Season onset,2017-11-05
 2017-09-03,HHS Region 4,1 wk ahead,0.937823
 2017-09-03,HHS Region 4,2 wk ahead,0.902408
 2017-09-03,HHS Region 4,3 wk ahead,1.02557
 2017-09-03,HHS Region 4,4 wk ahead,1.16474
-2017-09-03,HHS Region 4,Season peak percentage,NA
-2017-09-03,HHS Region 4,Season peak week,NA
 2017-09-03,HHS Region 4,Season onset,2017-11-05
 2017-09-10,HHS Region 4,1 wk ahead,0.902408
 2017-09-10,HHS Region 4,2 wk ahead,1.02557
 2017-09-10,HHS Region 4,3 wk ahead,1.16474
 2017-09-10,HHS Region 4,4 wk ahead,1.2559
-2017-09-10,HHS Region 4,Season peak percentage,NA
-2017-09-10,HHS Region 4,Season peak week,NA
 2017-09-10,HHS Region 4,Season onset,2017-11-05
 2017-09-17,HHS Region 4,1 wk ahead,1.02557
 2017-09-17,HHS Region 4,2 wk ahead,1.16474
 2017-09-17,HHS Region 4,3 wk ahead,1.2559
 2017-09-17,HHS Region 4,4 wk ahead,1.25906
-2017-09-17,HHS Region 4,Season peak percentage,NA
-2017-09-17,HHS Region 4,Season peak week,NA
 2017-09-17,HHS Region 4,Season onset,2017-11-05
 2017-09-24,HHS Region 4,1 wk ahead,1.16474
 2017-09-24,HHS Region 4,2 wk ahead,1.2559
 2017-09-24,HHS Region 4,3 wk ahead,1.25906
 2017-09-24,HHS Region 4,4 wk ahead,1.59472
-2017-09-24,HHS Region 4,Season peak percentage,NA
-2017-09-24,HHS Region 4,Season peak week,NA
 2017-09-24,HHS Region 4,Season onset,2017-11-05
 2017-10-01,HHS Region 4,1 wk ahead,1.2559
 2017-10-01,HHS Region 4,2 wk ahead,1.25906
 2017-10-01,HHS Region 4,3 wk ahead,1.59472
 2017-10-01,HHS Region 4,4 wk ahead,1.78955
-2017-10-01,HHS Region 4,Season peak percentage,NA
-2017-10-01,HHS Region 4,Season peak week,NA
 2017-10-01,HHS Region 4,Season onset,2017-11-05
 2017-10-08,HHS Region 4,1 wk ahead,1.25906
 2017-10-08,HHS Region 4,2 wk ahead,1.59472
 2017-10-08,HHS Region 4,3 wk ahead,1.78955
 2017-10-08,HHS Region 4,4 wk ahead,2.12802
-2017-10-08,HHS Region 4,Season peak percentage,NA
-2017-10-08,HHS Region 4,Season peak week,NA
 2017-10-08,HHS Region 4,Season onset,2017-11-05
 2017-10-15,HHS Region 4,1 wk ahead,1.59472
 2017-10-15,HHS Region 4,2 wk ahead,1.78955
 2017-10-15,HHS Region 4,3 wk ahead,2.12802
 2017-10-15,HHS Region 4,4 wk ahead,2.22418
-2017-10-15,HHS Region 4,Season peak percentage,NA
-2017-10-15,HHS Region 4,Season peak week,NA
 2017-10-15,HHS Region 4,Season onset,2017-11-05
 2017-10-22,HHS Region 4,1 wk ahead,1.78955
 2017-10-22,HHS Region 4,2 wk ahead,2.12802
 2017-10-22,HHS Region 4,3 wk ahead,2.22418
 2017-10-22,HHS Region 4,4 wk ahead,2.54255
-2017-10-22,HHS Region 4,Season peak percentage,NA
-2017-10-22,HHS Region 4,Season peak week,NA
 2017-10-22,HHS Region 4,Season onset,2017-11-05
 2017-10-29,HHS Region 4,1 wk ahead,2.12802
 2017-10-29,HHS Region 4,2 wk ahead,2.22418
 2017-10-29,HHS Region 4,3 wk ahead,2.54255
 2017-10-29,HHS Region 4,4 wk ahead,2.23681
-2017-10-29,HHS Region 4,Season peak percentage,NA
-2017-10-29,HHS Region 4,Season peak week,NA
 2017-10-29,HHS Region 4,Season onset,2017-11-05
 2017-11-05,HHS Region 4,1 wk ahead,2.22418
 2017-11-05,HHS Region 4,2 wk ahead,2.54255
 2017-11-05,HHS Region 4,3 wk ahead,2.23681
 2017-11-05,HHS Region 4,4 wk ahead,2.5325
-2017-11-05,HHS Region 4,Season peak percentage,NA
-2017-11-05,HHS Region 4,Season peak week,NA
 2017-11-05,HHS Region 4,Season onset,2017-11-05
 2017-11-12,HHS Region 4,1 wk ahead,2.54255
 2017-11-12,HHS Region 4,2 wk ahead,2.23681
 2017-11-12,HHS Region 4,3 wk ahead,2.5325
 2017-11-12,HHS Region 4,4 wk ahead,3.10558
-2017-11-12,HHS Region 4,Season peak percentage,NA
-2017-11-12,HHS Region 4,Season peak week,NA
 2017-11-12,HHS Region 4,Season onset,2017-11-05
 2017-11-19,HHS Region 4,1 wk ahead,2.23681
 2017-11-19,HHS Region 4,2 wk ahead,2.5325
 2017-11-19,HHS Region 4,3 wk ahead,3.10558
 2017-11-19,HHS Region 4,4 wk ahead,4.64179
-2017-11-19,HHS Region 4,Season peak percentage,NA
-2017-11-19,HHS Region 4,Season peak week,NA
 2017-11-19,HHS Region 4,Season onset,2017-11-05
 2017-11-26,HHS Region 4,1 wk ahead,2.5325
 2017-11-26,HHS Region 4,2 wk ahead,3.10558
 2017-11-26,HHS Region 4,3 wk ahead,4.64179
 2017-11-26,HHS Region 4,4 wk ahead,5.34024
-2017-11-26,HHS Region 4,Season peak percentage,NA
-2017-11-26,HHS Region 4,Season peak week,NA
 2017-11-26,HHS Region 4,Season onset,2017-11-05
 2017-12-03,HHS Region 4,1 wk ahead,3.10558
 2017-12-03,HHS Region 4,2 wk ahead,4.64179
 2017-12-03,HHS Region 4,3 wk ahead,5.34024
 2017-12-03,HHS Region 4,4 wk ahead,5.36524
-2017-12-03,HHS Region 4,Season peak percentage,NA
-2017-12-03,HHS Region 4,Season peak week,NA
 2017-12-03,HHS Region 4,Season onset,2017-11-05
 2017-12-10,HHS Region 4,1 wk ahead,4.64179
 2017-12-10,HHS Region 4,2 wk ahead,5.34024
 2017-12-10,HHS Region 4,3 wk ahead,5.36524
 2017-12-10,HHS Region 4,4 wk ahead,6.66816
-2017-12-10,HHS Region 4,Season peak percentage,NA
-2017-12-10,HHS Region 4,Season peak week,NA
 2017-12-10,HHS Region 4,Season onset,2017-11-05
 2017-12-17,HHS Region 4,1 wk ahead,5.34024
 2017-12-17,HHS Region 4,2 wk ahead,5.36524
 2017-12-17,HHS Region 4,3 wk ahead,6.66816
 2017-12-17,HHS Region 4,4 wk ahead,8.36567
-2017-12-17,HHS Region 4,Season peak percentage,NA
-2017-12-17,HHS Region 4,Season peak week,NA
 2017-12-17,HHS Region 4,Season onset,2017-11-05
 2017-12-24,HHS Region 4,1 wk ahead,5.36524
 2017-12-24,HHS Region 4,2 wk ahead,6.66816
 2017-12-24,HHS Region 4,3 wk ahead,8.36567
 2017-12-24,HHS Region 4,4 wk ahead,9.20087
-2017-12-24,HHS Region 4,Season peak percentage,NA
-2017-12-24,HHS Region 4,Season peak week,NA
 2017-12-24,HHS Region 4,Season onset,2017-11-05
 2017-12-31,HHS Region 4,1 wk ahead,6.66816
 2017-12-31,HHS Region 4,2 wk ahead,8.36567
 2017-12-31,HHS Region 4,3 wk ahead,9.20087
 2017-12-31,HHS Region 4,4 wk ahead,9.22181
-2017-12-31,HHS Region 4,Season peak percentage,NA
-2017-12-31,HHS Region 4,Season peak week,NA
 2017-12-31,HHS Region 4,Season onset,2017-11-05
 2018-01-07,HHS Region 4,1 wk ahead,8.36567
 2018-01-07,HHS Region 4,2 wk ahead,9.20087
 2018-01-07,HHS Region 4,3 wk ahead,9.22181
 2018-01-07,HHS Region 4,4 wk ahead,9.01636
-2018-01-07,HHS Region 4,Season peak percentage,NA
-2018-01-07,HHS Region 4,Season peak week,NA
 2018-01-07,HHS Region 4,Season onset,2017-11-05
 2018-01-14,HHS Region 4,1 wk ahead,9.20087
 2018-01-14,HHS Region 4,2 wk ahead,9.22181
 2018-01-14,HHS Region 4,3 wk ahead,9.01636
 2018-01-14,HHS Region 4,4 wk ahead,6.95202
-2018-01-14,HHS Region 4,Season peak percentage,NA
-2018-01-14,HHS Region 4,Season peak week,NA
 2018-01-14,HHS Region 4,Season onset,2017-11-05
 2018-01-21,HHS Region 4,1 wk ahead,9.22181
 2018-01-21,HHS Region 4,2 wk ahead,9.01636
 2018-01-21,HHS Region 4,3 wk ahead,6.95202
 2018-01-21,HHS Region 4,4 wk ahead,4.72431
-2018-01-21,HHS Region 4,Season peak percentage,NA
-2018-01-21,HHS Region 4,Season peak week,NA
 2018-01-21,HHS Region 4,Season onset,2017-11-05
 2018-01-28,HHS Region 4,1 wk ahead,9.01636
 2018-01-28,HHS Region 4,2 wk ahead,6.95202
 2018-01-28,HHS Region 4,3 wk ahead,4.72431
 2018-01-28,HHS Region 4,4 wk ahead,3.05412
-2018-01-28,HHS Region 4,Season peak percentage,NA
-2018-01-28,HHS Region 4,Season peak week,NA
 2018-01-28,HHS Region 4,Season onset,2017-11-05
 2018-02-04,HHS Region 4,1 wk ahead,6.95202
 2018-02-04,HHS Region 4,2 wk ahead,4.72431
 2018-02-04,HHS Region 4,3 wk ahead,3.05412
 2018-02-04,HHS Region 4,4 wk ahead,2.7393
-2018-02-04,HHS Region 4,Season peak percentage,NA
-2018-02-04,HHS Region 4,Season peak week,NA
 2018-02-04,HHS Region 4,Season onset,2017-11-05
 2018-02-11,HHS Region 4,1 wk ahead,4.72431
 2018-02-11,HHS Region 4,2 wk ahead,3.05412
 2018-02-11,HHS Region 4,3 wk ahead,2.7393
 2018-02-11,HHS Region 4,4 wk ahead,2.48011
-2018-02-11,HHS Region 4,Season peak percentage,NA
-2018-02-11,HHS Region 4,Season peak week,NA
 2018-02-11,HHS Region 4,Season onset,2017-11-05
 2018-02-18,HHS Region 4,1 wk ahead,3.05412
 2018-02-18,HHS Region 4,2 wk ahead,2.7393
 2018-02-18,HHS Region 4,3 wk ahead,2.48011
 2018-02-18,HHS Region 4,4 wk ahead,2.10232
-2018-02-18,HHS Region 4,Season peak percentage,NA
-2018-02-18,HHS Region 4,Season peak week,NA
 2018-02-18,HHS Region 4,Season onset,2017-11-05
 2018-02-25,HHS Region 4,1 wk ahead,2.7393
 2018-02-25,HHS Region 4,2 wk ahead,2.48011
 2018-02-25,HHS Region 4,3 wk ahead,2.10232
 2018-02-25,HHS Region 4,4 wk ahead,2.09713
-2018-02-25,HHS Region 4,Season peak percentage,NA
-2018-02-25,HHS Region 4,Season peak week,NA
 2018-02-25,HHS Region 4,Season onset,2017-11-05
 2018-03-04,HHS Region 4,1 wk ahead,2.48011
 2018-03-04,HHS Region 4,2 wk ahead,2.10232
 2018-03-04,HHS Region 4,3 wk ahead,2.09713
 2018-03-04,HHS Region 4,4 wk ahead,1.80745
-2018-03-04,HHS Region 4,Season peak percentage,NA
-2018-03-04,HHS Region 4,Season peak week,NA
 2018-03-04,HHS Region 4,Season onset,2017-11-05
 2018-03-11,HHS Region 4,1 wk ahead,2.10232
 2018-03-11,HHS Region 4,2 wk ahead,2.09713
 2018-03-11,HHS Region 4,3 wk ahead,1.80745
 2018-03-11,HHS Region 4,4 wk ahead,1.53654
-2018-03-11,HHS Region 4,Season peak percentage,NA
-2018-03-11,HHS Region 4,Season peak week,NA
 2018-03-11,HHS Region 4,Season onset,2017-11-05
 2018-03-18,HHS Region 4,1 wk ahead,2.09713
 2018-03-18,HHS Region 4,2 wk ahead,1.80745
 2018-03-18,HHS Region 4,3 wk ahead,1.53654
 2018-03-18,HHS Region 4,4 wk ahead,1.37777
-2018-03-18,HHS Region 4,Season peak percentage,NA
-2018-03-18,HHS Region 4,Season peak week,NA
 2018-03-18,HHS Region 4,Season onset,2017-11-05
 2018-03-25,HHS Region 4,1 wk ahead,1.80745
 2018-03-25,HHS Region 4,2 wk ahead,1.53654
 2018-03-25,HHS Region 4,3 wk ahead,1.37777
 2018-03-25,HHS Region 4,4 wk ahead,1.30174
-2018-03-25,HHS Region 4,Season peak percentage,NA
-2018-03-25,HHS Region 4,Season peak week,NA
 2018-03-25,HHS Region 4,Season onset,2017-11-05
 2018-04-01,HHS Region 4,1 wk ahead,1.53654
 2018-04-01,HHS Region 4,2 wk ahead,1.37777
 2018-04-01,HHS Region 4,3 wk ahead,1.30174
 2018-04-01,HHS Region 4,4 wk ahead,1.30758
-2018-04-01,HHS Region 4,Season peak percentage,NA
-2018-04-01,HHS Region 4,Season peak week,NA
 2018-04-01,HHS Region 4,Season onset,2017-11-05
 2018-04-08,HHS Region 4,1 wk ahead,1.37777
 2018-04-08,HHS Region 4,2 wk ahead,1.30174
 2018-04-08,HHS Region 4,3 wk ahead,1.30758
-2018-04-08,HHS Region 4,4 wk ahead,NA
-2018-04-08,HHS Region 4,Season peak percentage,NA
-2018-04-08,HHS Region 4,Season peak week,NA
 2018-04-08,HHS Region 4,Season onset,2017-11-05
 2018-04-15,HHS Region 4,1 wk ahead,1.30174
 2018-04-15,HHS Region 4,2 wk ahead,1.30758
-2018-04-15,HHS Region 4,3 wk ahead,NA
-2018-04-15,HHS Region 4,4 wk ahead,NA
-2018-04-15,HHS Region 4,Season peak percentage,NA
-2018-04-15,HHS Region 4,Season peak week,NA
 2018-04-15,HHS Region 4,Season onset,2017-11-05
 2018-04-22,HHS Region 4,1 wk ahead,1.30758
-2018-04-22,HHS Region 4,2 wk ahead,NA
-2018-04-22,HHS Region 4,3 wk ahead,NA
-2018-04-22,HHS Region 4,4 wk ahead,NA
-2018-04-22,HHS Region 4,Season peak percentage,NA
-2018-04-22,HHS Region 4,Season peak week,NA
 2018-04-22,HHS Region 4,Season onset,2017-11-05
-2018-04-29,HHS Region 4,1 wk ahead,NA
-2018-04-29,HHS Region 4,2 wk ahead,NA
-2018-04-29,HHS Region 4,3 wk ahead,NA
-2018-04-29,HHS Region 4,4 wk ahead,NA
-2018-04-29,HHS Region 4,Season peak percentage,NA
-2018-04-29,HHS Region 4,Season peak week,NA
 2018-04-29,HHS Region 4,Season onset,2017-11-05
-2018-05-06,HHS Region 4,1 wk ahead,NA
-2018-05-06,HHS Region 4,2 wk ahead,NA
-2018-05-06,HHS Region 4,3 wk ahead,NA
-2018-05-06,HHS Region 4,4 wk ahead,NA
-2018-05-06,HHS Region 4,Season peak percentage,NA
-2018-05-06,HHS Region 4,Season peak week,NA
 2018-05-06,HHS Region 4,Season onset,2017-11-05
-2018-05-13,HHS Region 4,1 wk ahead,NA
-2018-05-13,HHS Region 4,2 wk ahead,NA
-2018-05-13,HHS Region 4,3 wk ahead,NA
-2018-05-13,HHS Region 4,4 wk ahead,NA
-2018-05-13,HHS Region 4,Season peak percentage,NA
-2018-05-13,HHS Region 4,Season peak week,NA
 2018-05-13,HHS Region 4,Season onset,2017-11-05
-2018-05-20,HHS Region 4,1 wk ahead,NA
-2018-05-20,HHS Region 4,2 wk ahead,NA
-2018-05-20,HHS Region 4,3 wk ahead,NA
-2018-05-20,HHS Region 4,4 wk ahead,NA
-2018-05-20,HHS Region 4,Season peak percentage,NA
-2018-05-20,HHS Region 4,Season peak week,NA
 2018-05-20,HHS Region 4,Season onset,2017-11-05
-2018-05-27,HHS Region 4,1 wk ahead,NA
-2018-05-27,HHS Region 4,2 wk ahead,NA
-2018-05-27,HHS Region 4,3 wk ahead,NA
-2018-05-27,HHS Region 4,4 wk ahead,NA
-2018-05-27,HHS Region 4,Season peak percentage,NA
-2018-05-27,HHS Region 4,Season peak week,NA
 2018-05-27,HHS Region 4,Season onset,2017-11-05
-2018-06-03,HHS Region 4,1 wk ahead,NA
-2018-06-03,HHS Region 4,2 wk ahead,NA
-2018-06-03,HHS Region 4,3 wk ahead,NA
-2018-06-03,HHS Region 4,4 wk ahead,NA
-2018-06-03,HHS Region 4,Season peak percentage,NA
-2018-06-03,HHS Region 4,Season peak week,NA
 2018-06-03,HHS Region 4,Season onset,2017-11-05
-2018-06-10,HHS Region 4,1 wk ahead,NA
-2018-06-10,HHS Region 4,2 wk ahead,NA
-2018-06-10,HHS Region 4,3 wk ahead,NA
-2018-06-10,HHS Region 4,4 wk ahead,NA
-2018-06-10,HHS Region 4,Season peak percentage,NA
-2018-06-10,HHS Region 4,Season peak week,NA
 2018-06-10,HHS Region 4,Season onset,2017-11-05
-2018-06-17,HHS Region 4,1 wk ahead,NA
-2018-06-17,HHS Region 4,2 wk ahead,NA
-2018-06-17,HHS Region 4,3 wk ahead,NA
-2018-06-17,HHS Region 4,4 wk ahead,NA
-2018-06-17,HHS Region 4,Season peak percentage,NA
-2018-06-17,HHS Region 4,Season peak week,NA
 2018-06-17,HHS Region 4,Season onset,2017-11-05
-2018-06-24,HHS Region 4,1 wk ahead,NA
-2018-06-24,HHS Region 4,2 wk ahead,NA
-2018-06-24,HHS Region 4,3 wk ahead,NA
-2018-06-24,HHS Region 4,4 wk ahead,NA
-2018-06-24,HHS Region 4,Season peak percentage,NA
-2018-06-24,HHS Region 4,Season peak week,NA
 2018-06-24,HHS Region 4,Season onset,2017-11-05
-2018-07-01,HHS Region 4,1 wk ahead,NA
-2018-07-01,HHS Region 4,2 wk ahead,NA
-2018-07-01,HHS Region 4,3 wk ahead,NA
-2018-07-01,HHS Region 4,4 wk ahead,NA
-2018-07-01,HHS Region 4,Season peak percentage,NA
-2018-07-01,HHS Region 4,Season peak week,NA
 2018-07-01,HHS Region 4,Season onset,2017-11-05
-2018-07-08,HHS Region 4,1 wk ahead,NA
-2018-07-08,HHS Region 4,2 wk ahead,NA
-2018-07-08,HHS Region 4,3 wk ahead,NA
-2018-07-08,HHS Region 4,4 wk ahead,NA
-2018-07-08,HHS Region 4,Season peak percentage,NA
-2018-07-08,HHS Region 4,Season peak week,NA
 2018-07-08,HHS Region 4,Season onset,2017-11-05
-2018-07-15,HHS Region 4,1 wk ahead,NA
-2018-07-15,HHS Region 4,2 wk ahead,NA
-2018-07-15,HHS Region 4,3 wk ahead,NA
-2018-07-15,HHS Region 4,4 wk ahead,NA
-2018-07-15,HHS Region 4,Season peak percentage,NA
-2018-07-15,HHS Region 4,Season peak week,NA
 2018-07-15,HHS Region 4,Season onset,2017-11-05
 2017-07-23,HHS Region 5,1 wk ahead,0.602327
 2017-07-23,HHS Region 5,2 wk ahead,0.612967
 2017-07-23,HHS Region 5,3 wk ahead,0.637141
 2017-07-23,HHS Region 5,4 wk ahead,0.627954
-2017-07-23,HHS Region 5,Season peak percentage,NA
-2017-07-23,HHS Region 5,Season peak week,NA
 2017-07-23,HHS Region 5,Season onset,2017-12-03
 2017-07-30,HHS Region 5,1 wk ahead,0.612967
 2017-07-30,HHS Region 5,2 wk ahead,0.637141
 2017-07-30,HHS Region 5,3 wk ahead,0.627954
 2017-07-30,HHS Region 5,4 wk ahead,0.724628
-2017-07-30,HHS Region 5,Season peak percentage,NA
-2017-07-30,HHS Region 5,Season peak week,NA
 2017-07-30,HHS Region 5,Season onset,2017-12-03
 2017-08-06,HHS Region 5,1 wk ahead,0.637141
 2017-08-06,HHS Region 5,2 wk ahead,0.627954
 2017-08-06,HHS Region 5,3 wk ahead,0.724628
 2017-08-06,HHS Region 5,4 wk ahead,0.859425
-2017-08-06,HHS Region 5,Season peak percentage,NA
-2017-08-06,HHS Region 5,Season peak week,NA
 2017-08-06,HHS Region 5,Season onset,2017-12-03
 2017-08-13,HHS Region 5,1 wk ahead,0.627954
 2017-08-13,HHS Region 5,2 wk ahead,0.724628
 2017-08-13,HHS Region 5,3 wk ahead,0.859425
 2017-08-13,HHS Region 5,4 wk ahead,1.04165
-2017-08-13,HHS Region 5,Season peak percentage,NA
-2017-08-13,HHS Region 5,Season peak week,NA
 2017-08-13,HHS Region 5,Season onset,2017-12-03
 2017-08-20,HHS Region 5,1 wk ahead,0.724628
 2017-08-20,HHS Region 5,2 wk ahead,0.859425
 2017-08-20,HHS Region 5,3 wk ahead,1.04165
 2017-08-20,HHS Region 5,4 wk ahead,1.11121
-2017-08-20,HHS Region 5,Season peak percentage,NA
-2017-08-20,HHS Region 5,Season peak week,NA
 2017-08-20,HHS Region 5,Season onset,2017-12-03
 2017-08-27,HHS Region 5,1 wk ahead,0.859425
 2017-08-27,HHS Region 5,2 wk ahead,1.04165
 2017-08-27,HHS Region 5,3 wk ahead,1.11121
 2017-08-27,HHS Region 5,4 wk ahead,1.29017
-2017-08-27,HHS Region 5,Season peak percentage,NA
-2017-08-27,HHS Region 5,Season peak week,NA
 2017-08-27,HHS Region 5,Season onset,2017-12-03
 2017-09-03,HHS Region 5,1 wk ahead,1.04165
 2017-09-03,HHS Region 5,2 wk ahead,1.11121
 2017-09-03,HHS Region 5,3 wk ahead,1.29017
 2017-09-03,HHS Region 5,4 wk ahead,1.13891
-2017-09-03,HHS Region 5,Season peak percentage,NA
-2017-09-03,HHS Region 5,Season peak week,NA
 2017-09-03,HHS Region 5,Season onset,2017-12-03
 2017-09-10,HHS Region 5,1 wk ahead,1.11121
 2017-09-10,HHS Region 5,2 wk ahead,1.29017
 2017-09-10,HHS Region 5,3 wk ahead,1.13891
 2017-09-10,HHS Region 5,4 wk ahead,1.16794
-2017-09-10,HHS Region 5,Season peak percentage,NA
-2017-09-10,HHS Region 5,Season peak week,NA
 2017-09-10,HHS Region 5,Season onset,2017-12-03
 2017-09-17,HHS Region 5,1 wk ahead,1.29017
 2017-09-17,HHS Region 5,2 wk ahead,1.13891
 2017-09-17,HHS Region 5,3 wk ahead,1.16794
 2017-09-17,HHS Region 5,4 wk ahead,1.14124
-2017-09-17,HHS Region 5,Season peak percentage,NA
-2017-09-17,HHS Region 5,Season peak week,NA
 2017-09-17,HHS Region 5,Season onset,2017-12-03
 2017-09-24,HHS Region 5,1 wk ahead,1.13891
 2017-09-24,HHS Region 5,2 wk ahead,1.16794
 2017-09-24,HHS Region 5,3 wk ahead,1.14124
 2017-09-24,HHS Region 5,4 wk ahead,1.23184
-2017-09-24,HHS Region 5,Season peak percentage,NA
-2017-09-24,HHS Region 5,Season peak week,NA
 2017-09-24,HHS Region 5,Season onset,2017-12-03
 2017-10-01,HHS Region 5,1 wk ahead,1.16794
 2017-10-01,HHS Region 5,2 wk ahead,1.14124
 2017-10-01,HHS Region 5,3 wk ahead,1.23184
 2017-10-01,HHS Region 5,4 wk ahead,1.22548
-2017-10-01,HHS Region 5,Season peak percentage,NA
-2017-10-01,HHS Region 5,Season peak week,NA
 2017-10-01,HHS Region 5,Season onset,2017-12-03
 2017-10-08,HHS Region 5,1 wk ahead,1.14124
 2017-10-08,HHS Region 5,2 wk ahead,1.23184
 2017-10-08,HHS Region 5,3 wk ahead,1.22548
 2017-10-08,HHS Region 5,4 wk ahead,1.32836
-2017-10-08,HHS Region 5,Season peak percentage,NA
-2017-10-08,HHS Region 5,Season peak week,NA
 2017-10-08,HHS Region 5,Season onset,2017-12-03
 2017-10-15,HHS Region 5,1 wk ahead,1.23184
 2017-10-15,HHS Region 5,2 wk ahead,1.22548
 2017-10-15,HHS Region 5,3 wk ahead,1.32836
 2017-10-15,HHS Region 5,4 wk ahead,1.21227
-2017-10-15,HHS Region 5,Season peak percentage,NA
-2017-10-15,HHS Region 5,Season peak week,NA
 2017-10-15,HHS Region 5,Season onset,2017-12-03
 2017-10-22,HHS Region 5,1 wk ahead,1.22548
 2017-10-22,HHS Region 5,2 wk ahead,1.32836
 2017-10-22,HHS Region 5,3 wk ahead,1.21227
 2017-10-22,HHS Region 5,4 wk ahead,1.54383
-2017-10-22,HHS Region 5,Season peak percentage,NA
-2017-10-22,HHS Region 5,Season peak week,NA
 2017-10-22,HHS Region 5,Season onset,2017-12-03
 2017-10-29,HHS Region 5,1 wk ahead,1.32836
 2017-10-29,HHS Region 5,2 wk ahead,1.21227
 2017-10-29,HHS Region 5,3 wk ahead,1.54383
 2017-10-29,HHS Region 5,4 wk ahead,1.59973
-2017-10-29,HHS Region 5,Season peak percentage,NA
-2017-10-29,HHS Region 5,Season peak week,NA
 2017-10-29,HHS Region 5,Season onset,2017-12-03
 2017-11-05,HHS Region 5,1 wk ahead,1.21227
 2017-11-05,HHS Region 5,2 wk ahead,1.54383
 2017-11-05,HHS Region 5,3 wk ahead,1.59973
 2017-11-05,HHS Region 5,4 wk ahead,1.92288
-2017-11-05,HHS Region 5,Season peak percentage,NA
-2017-11-05,HHS Region 5,Season peak week,NA
 2017-11-05,HHS Region 5,Season onset,2017-12-03
 2017-11-12,HHS Region 5,1 wk ahead,1.54383
 2017-11-12,HHS Region 5,2 wk ahead,1.59973
 2017-11-12,HHS Region 5,3 wk ahead,1.92288
 2017-11-12,HHS Region 5,4 wk ahead,2.18404
-2017-11-12,HHS Region 5,Season peak percentage,NA
-2017-11-12,HHS Region 5,Season peak week,NA
 2017-11-12,HHS Region 5,Season onset,2017-12-03
 2017-11-19,HHS Region 5,1 wk ahead,1.59973
 2017-11-19,HHS Region 5,2 wk ahead,1.92288
 2017-11-19,HHS Region 5,3 wk ahead,2.18404
 2017-11-19,HHS Region 5,4 wk ahead,3.19187
-2017-11-19,HHS Region 5,Season peak percentage,NA
-2017-11-19,HHS Region 5,Season peak week,NA
 2017-11-19,HHS Region 5,Season onset,2017-12-03
 2017-11-26,HHS Region 5,1 wk ahead,1.92288
 2017-11-26,HHS Region 5,2 wk ahead,2.18404
 2017-11-26,HHS Region 5,3 wk ahead,3.19187
 2017-11-26,HHS Region 5,4 wk ahead,4.75027
-2017-11-26,HHS Region 5,Season peak percentage,NA
-2017-11-26,HHS Region 5,Season peak week,NA
 2017-11-26,HHS Region 5,Season onset,2017-12-03
 2017-12-03,HHS Region 5,1 wk ahead,2.18404
 2017-12-03,HHS Region 5,2 wk ahead,3.19187
 2017-12-03,HHS Region 5,3 wk ahead,4.75027
 2017-12-03,HHS Region 5,4 wk ahead,4.41441
-2017-12-03,HHS Region 5,Season peak percentage,NA
-2017-12-03,HHS Region 5,Season peak week,NA
 2017-12-03,HHS Region 5,Season onset,2017-12-03
 2017-12-10,HHS Region 5,1 wk ahead,3.19187
 2017-12-10,HHS Region 5,2 wk ahead,4.75027
 2017-12-10,HHS Region 5,3 wk ahead,4.41441
 2017-12-10,HHS Region 5,4 wk ahead,4.71296
-2017-12-10,HHS Region 5,Season peak percentage,NA
-2017-12-10,HHS Region 5,Season peak week,NA
 2017-12-10,HHS Region 5,Season onset,2017-12-03
 2017-12-17,HHS Region 5,1 wk ahead,4.75027
 2017-12-17,HHS Region 5,2 wk ahead,4.41441
 2017-12-17,HHS Region 5,3 wk ahead,4.71296
 2017-12-17,HHS Region 5,4 wk ahead,5.06626
-2017-12-17,HHS Region 5,Season peak percentage,NA
-2017-12-17,HHS Region 5,Season peak week,NA
 2017-12-17,HHS Region 5,Season onset,2017-12-03
 2017-12-24,HHS Region 5,1 wk ahead,4.41441
 2017-12-24,HHS Region 5,2 wk ahead,4.71296
 2017-12-24,HHS Region 5,3 wk ahead,5.06626
 2017-12-24,HHS Region 5,4 wk ahead,5.29509
-2017-12-24,HHS Region 5,Season peak percentage,NA
-2017-12-24,HHS Region 5,Season peak week,NA
 2017-12-24,HHS Region 5,Season onset,2017-12-03
 2017-12-31,HHS Region 5,1 wk ahead,4.71296
 2017-12-31,HHS Region 5,2 wk ahead,5.06626
 2017-12-31,HHS Region 5,3 wk ahead,5.29509
 2017-12-31,HHS Region 5,4 wk ahead,5.65908
-2017-12-31,HHS Region 5,Season peak percentage,NA
-2017-12-31,HHS Region 5,Season peak week,NA
 2017-12-31,HHS Region 5,Season onset,2017-12-03
 2018-01-07,HHS Region 5,1 wk ahead,5.06626
 2018-01-07,HHS Region 5,2 wk ahead,5.29509
 2018-01-07,HHS Region 5,3 wk ahead,5.65908
 2018-01-07,HHS Region 5,4 wk ahead,5.79787
-2018-01-07,HHS Region 5,Season peak percentage,NA
-2018-01-07,HHS Region 5,Season peak week,NA
 2018-01-07,HHS Region 5,Season onset,2017-12-03
 2018-01-14,HHS Region 5,1 wk ahead,5.29509
 2018-01-14,HHS Region 5,2 wk ahead,5.65908
 2018-01-14,HHS Region 5,3 wk ahead,5.79787
 2018-01-14,HHS Region 5,4 wk ahead,4.66426
-2018-01-14,HHS Region 5,Season peak percentage,NA
-2018-01-14,HHS Region 5,Season peak week,NA
 2018-01-14,HHS Region 5,Season onset,2017-12-03
 2018-01-21,HHS Region 5,1 wk ahead,5.65908
 2018-01-21,HHS Region 5,2 wk ahead,5.79787
 2018-01-21,HHS Region 5,3 wk ahead,4.66426
 2018-01-21,HHS Region 5,4 wk ahead,3.79546
-2018-01-21,HHS Region 5,Season peak percentage,NA
-2018-01-21,HHS Region 5,Season peak week,NA
 2018-01-21,HHS Region 5,Season onset,2017-12-03
 2018-01-28,HHS Region 5,1 wk ahead,5.79787
 2018-01-28,HHS Region 5,2 wk ahead,4.66426
 2018-01-28,HHS Region 5,3 wk ahead,3.79546
 2018-01-28,HHS Region 5,4 wk ahead,2.93913
-2018-01-28,HHS Region 5,Season peak percentage,NA
-2018-01-28,HHS Region 5,Season peak week,NA
 2018-01-28,HHS Region 5,Season onset,2017-12-03
 2018-02-04,HHS Region 5,1 wk ahead,4.66426
 2018-02-04,HHS Region 5,2 wk ahead,3.79546
 2018-02-04,HHS Region 5,3 wk ahead,2.93913
 2018-02-04,HHS Region 5,4 wk ahead,2.61969
-2018-02-04,HHS Region 5,Season peak percentage,NA
-2018-02-04,HHS Region 5,Season peak week,NA
 2018-02-04,HHS Region 5,Season onset,2017-12-03
 2018-02-11,HHS Region 5,1 wk ahead,3.79546
 2018-02-11,HHS Region 5,2 wk ahead,2.93913
 2018-02-11,HHS Region 5,3 wk ahead,2.61969
 2018-02-11,HHS Region 5,4 wk ahead,2.28629
-2018-02-11,HHS Region 5,Season peak percentage,NA
-2018-02-11,HHS Region 5,Season peak week,NA
 2018-02-11,HHS Region 5,Season onset,2017-12-03
 2018-02-18,HHS Region 5,1 wk ahead,2.93913
 2018-02-18,HHS Region 5,2 wk ahead,2.61969
 2018-02-18,HHS Region 5,3 wk ahead,2.28629
 2018-02-18,HHS Region 5,4 wk ahead,2.20342
-2018-02-18,HHS Region 5,Season peak percentage,NA
-2018-02-18,HHS Region 5,Season peak week,NA
 2018-02-18,HHS Region 5,Season onset,2017-12-03
 2018-02-25,HHS Region 5,1 wk ahead,2.61969
 2018-02-25,HHS Region 5,2 wk ahead,2.28629
 2018-02-25,HHS Region 5,3 wk ahead,2.20342
 2018-02-25,HHS Region 5,4 wk ahead,2.14736
-2018-02-25,HHS Region 5,Season peak percentage,NA
-2018-02-25,HHS Region 5,Season peak week,NA
 2018-02-25,HHS Region 5,Season onset,2017-12-03
 2018-03-04,HHS Region 5,1 wk ahead,2.28629
 2018-03-04,HHS Region 5,2 wk ahead,2.20342
 2018-03-04,HHS Region 5,3 wk ahead,2.14736
 2018-03-04,HHS Region 5,4 wk ahead,1.73606
-2018-03-04,HHS Region 5,Season peak percentage,NA
-2018-03-04,HHS Region 5,Season peak week,NA
 2018-03-04,HHS Region 5,Season onset,2017-12-03
 2018-03-11,HHS Region 5,1 wk ahead,2.20342
 2018-03-11,HHS Region 5,2 wk ahead,2.14736
 2018-03-11,HHS Region 5,3 wk ahead,1.73606
 2018-03-11,HHS Region 5,4 wk ahead,1.6555
-2018-03-11,HHS Region 5,Season peak percentage,NA
-2018-03-11,HHS Region 5,Season peak week,NA
 2018-03-11,HHS Region 5,Season onset,2017-12-03
 2018-03-18,HHS Region 5,1 wk ahead,2.14736
 2018-03-18,HHS Region 5,2 wk ahead,1.73606
 2018-03-18,HHS Region 5,3 wk ahead,1.6555
 2018-03-18,HHS Region 5,4 wk ahead,1.42352
-2018-03-18,HHS Region 5,Season peak percentage,NA
-2018-03-18,HHS Region 5,Season peak week,NA
 2018-03-18,HHS Region 5,Season onset,2017-12-03
 2018-03-25,HHS Region 5,1 wk ahead,1.73606
 2018-03-25,HHS Region 5,2 wk ahead,1.6555
 2018-03-25,HHS Region 5,3 wk ahead,1.42352
 2018-03-25,HHS Region 5,4 wk ahead,1.38759
-2018-03-25,HHS Region 5,Season peak percentage,NA
-2018-03-25,HHS Region 5,Season peak week,NA
 2018-03-25,HHS Region 5,Season onset,2017-12-03
 2018-04-01,HHS Region 5,1 wk ahead,1.6555
 2018-04-01,HHS Region 5,2 wk ahead,1.42352
 2018-04-01,HHS Region 5,3 wk ahead,1.38759
 2018-04-01,HHS Region 5,4 wk ahead,1.03766
-2018-04-01,HHS Region 5,Season peak percentage,NA
-2018-04-01,HHS Region 5,Season peak week,NA
 2018-04-01,HHS Region 5,Season onset,2017-12-03
 2018-04-08,HHS Region 5,1 wk ahead,1.42352
 2018-04-08,HHS Region 5,2 wk ahead,1.38759
 2018-04-08,HHS Region 5,3 wk ahead,1.03766
-2018-04-08,HHS Region 5,4 wk ahead,NA
-2018-04-08,HHS Region 5,Season peak percentage,NA
-2018-04-08,HHS Region 5,Season peak week,NA
 2018-04-08,HHS Region 5,Season onset,2017-12-03
 2018-04-15,HHS Region 5,1 wk ahead,1.38759
 2018-04-15,HHS Region 5,2 wk ahead,1.03766
-2018-04-15,HHS Region 5,3 wk ahead,NA
-2018-04-15,HHS Region 5,4 wk ahead,NA
-2018-04-15,HHS Region 5,Season peak percentage,NA
-2018-04-15,HHS Region 5,Season peak week,NA
 2018-04-15,HHS Region 5,Season onset,2017-12-03
 2018-04-22,HHS Region 5,1 wk ahead,1.03766
-2018-04-22,HHS Region 5,2 wk ahead,NA
-2018-04-22,HHS Region 5,3 wk ahead,NA
-2018-04-22,HHS Region 5,4 wk ahead,NA
-2018-04-22,HHS Region 5,Season peak percentage,NA
-2018-04-22,HHS Region 5,Season peak week,NA
 2018-04-22,HHS Region 5,Season onset,2017-12-03
-2018-04-29,HHS Region 5,1 wk ahead,NA
-2018-04-29,HHS Region 5,2 wk ahead,NA
-2018-04-29,HHS Region 5,3 wk ahead,NA
-2018-04-29,HHS Region 5,4 wk ahead,NA
-2018-04-29,HHS Region 5,Season peak percentage,NA
-2018-04-29,HHS Region 5,Season peak week,NA
 2018-04-29,HHS Region 5,Season onset,2017-12-03
-2018-05-06,HHS Region 5,1 wk ahead,NA
-2018-05-06,HHS Region 5,2 wk ahead,NA
-2018-05-06,HHS Region 5,3 wk ahead,NA
-2018-05-06,HHS Region 5,4 wk ahead,NA
-2018-05-06,HHS Region 5,Season peak percentage,NA
-2018-05-06,HHS Region 5,Season peak week,NA
 2018-05-06,HHS Region 5,Season onset,2017-12-03
-2018-05-13,HHS Region 5,1 wk ahead,NA
-2018-05-13,HHS Region 5,2 wk ahead,NA
-2018-05-13,HHS Region 5,3 wk ahead,NA
-2018-05-13,HHS Region 5,4 wk ahead,NA
-2018-05-13,HHS Region 5,Season peak percentage,NA
-2018-05-13,HHS Region 5,Season peak week,NA
 2018-05-13,HHS Region 5,Season onset,2017-12-03
-2018-05-20,HHS Region 5,1 wk ahead,NA
-2018-05-20,HHS Region 5,2 wk ahead,NA
-2018-05-20,HHS Region 5,3 wk ahead,NA
-2018-05-20,HHS Region 5,4 wk ahead,NA
-2018-05-20,HHS Region 5,Season peak percentage,NA
-2018-05-20,HHS Region 5,Season peak week,NA
 2018-05-20,HHS Region 5,Season onset,2017-12-03
-2018-05-27,HHS Region 5,1 wk ahead,NA
-2018-05-27,HHS Region 5,2 wk ahead,NA
-2018-05-27,HHS Region 5,3 wk ahead,NA
-2018-05-27,HHS Region 5,4 wk ahead,NA
-2018-05-27,HHS Region 5,Season peak percentage,NA
-2018-05-27,HHS Region 5,Season peak week,NA
 2018-05-27,HHS Region 5,Season onset,2017-12-03
-2018-06-03,HHS Region 5,1 wk ahead,NA
-2018-06-03,HHS Region 5,2 wk ahead,NA
-2018-06-03,HHS Region 5,3 wk ahead,NA
-2018-06-03,HHS Region 5,4 wk ahead,NA
-2018-06-03,HHS Region 5,Season peak percentage,NA
-2018-06-03,HHS Region 5,Season peak week,NA
 2018-06-03,HHS Region 5,Season onset,2017-12-03
-2018-06-10,HHS Region 5,1 wk ahead,NA
-2018-06-10,HHS Region 5,2 wk ahead,NA
-2018-06-10,HHS Region 5,3 wk ahead,NA
-2018-06-10,HHS Region 5,4 wk ahead,NA
-2018-06-10,HHS Region 5,Season peak percentage,NA
-2018-06-10,HHS Region 5,Season peak week,NA
 2018-06-10,HHS Region 5,Season onset,2017-12-03
-2018-06-17,HHS Region 5,1 wk ahead,NA
-2018-06-17,HHS Region 5,2 wk ahead,NA
-2018-06-17,HHS Region 5,3 wk ahead,NA
-2018-06-17,HHS Region 5,4 wk ahead,NA
-2018-06-17,HHS Region 5,Season peak percentage,NA
-2018-06-17,HHS Region 5,Season peak week,NA
 2018-06-17,HHS Region 5,Season onset,2017-12-03
-2018-06-24,HHS Region 5,1 wk ahead,NA
-2018-06-24,HHS Region 5,2 wk ahead,NA
-2018-06-24,HHS Region 5,3 wk ahead,NA
-2018-06-24,HHS Region 5,4 wk ahead,NA
-2018-06-24,HHS Region 5,Season peak percentage,NA
-2018-06-24,HHS Region 5,Season peak week,NA
 2018-06-24,HHS Region 5,Season onset,2017-12-03
-2018-07-01,HHS Region 5,1 wk ahead,NA
-2018-07-01,HHS Region 5,2 wk ahead,NA
-2018-07-01,HHS Region 5,3 wk ahead,NA
-2018-07-01,HHS Region 5,4 wk ahead,NA
-2018-07-01,HHS Region 5,Season peak percentage,NA
-2018-07-01,HHS Region 5,Season peak week,NA
 2018-07-01,HHS Region 5,Season onset,2017-12-03
-2018-07-08,HHS Region 5,1 wk ahead,NA
-2018-07-08,HHS Region 5,2 wk ahead,NA
-2018-07-08,HHS Region 5,3 wk ahead,NA
-2018-07-08,HHS Region 5,4 wk ahead,NA
-2018-07-08,HHS Region 5,Season peak percentage,NA
-2018-07-08,HHS Region 5,Season peak week,NA
 2018-07-08,HHS Region 5,Season onset,2017-12-03
-2018-07-15,HHS Region 5,1 wk ahead,NA
-2018-07-15,HHS Region 5,2 wk ahead,NA
-2018-07-15,HHS Region 5,3 wk ahead,NA
-2018-07-15,HHS Region 5,4 wk ahead,NA
-2018-07-15,HHS Region 5,Season peak percentage,NA
-2018-07-15,HHS Region 5,Season peak week,NA
 2018-07-15,HHS Region 5,Season onset,2017-12-03
 2017-07-23,HHS Region 6,1 wk ahead,1.15229
 2017-07-23,HHS Region 6,2 wk ahead,0.96867
 2017-07-23,HHS Region 6,3 wk ahead,1.02289
 2017-07-23,HHS Region 6,4 wk ahead,1.66769
-2017-07-23,HHS Region 6,Season peak percentage,NA
-2017-07-23,HHS Region 6,Season peak week,NA
 2017-07-23,HHS Region 6,Season onset,2017-11-26
 2017-07-30,HHS Region 6,1 wk ahead,0.96867
 2017-07-30,HHS Region 6,2 wk ahead,1.02289
 2017-07-30,HHS Region 6,3 wk ahead,1.66769
 2017-07-30,HHS Region 6,4 wk ahead,1.74834
-2017-07-30,HHS Region 6,Season peak percentage,NA
-2017-07-30,HHS Region 6,Season peak week,NA
 2017-07-30,HHS Region 6,Season onset,2017-11-26
 2017-08-06,HHS Region 6,1 wk ahead,1.02289
 2017-08-06,HHS Region 6,2 wk ahead,1.66769
 2017-08-06,HHS Region 6,3 wk ahead,1.74834
 2017-08-06,HHS Region 6,4 wk ahead,1.78512
-2017-08-06,HHS Region 6,Season peak percentage,NA
-2017-08-06,HHS Region 6,Season peak week,NA
 2017-08-06,HHS Region 6,Season onset,2017-11-26
 2017-08-13,HHS Region 6,1 wk ahead,1.66769
 2017-08-13,HHS Region 6,2 wk ahead,1.74834
 2017-08-13,HHS Region 6,3 wk ahead,1.78512
 2017-08-13,HHS Region 6,4 wk ahead,1.76123
-2017-08-13,HHS Region 6,Season peak percentage,NA
-2017-08-13,HHS Region 6,Season peak week,NA
 2017-08-13,HHS Region 6,Season onset,2017-11-26
 2017-08-20,HHS Region 6,1 wk ahead,1.74834
 2017-08-20,HHS Region 6,2 wk ahead,1.78512
 2017-08-20,HHS Region 6,3 wk ahead,1.76123
 2017-08-20,HHS Region 6,4 wk ahead,1.60371
-2017-08-20,HHS Region 6,Season peak percentage,NA
-2017-08-20,HHS Region 6,Season peak week,NA
 2017-08-20,HHS Region 6,Season onset,2017-11-26
 2017-08-27,HHS Region 6,1 wk ahead,1.78512
 2017-08-27,HHS Region 6,2 wk ahead,1.76123
 2017-08-27,HHS Region 6,3 wk ahead,1.60371
 2017-08-27,HHS Region 6,4 wk ahead,1.79261
-2017-08-27,HHS Region 6,Season peak percentage,NA
-2017-08-27,HHS Region 6,Season peak week,NA
 2017-08-27,HHS Region 6,Season onset,2017-11-26
 2017-09-03,HHS Region 6,1 wk ahead,1.76123
 2017-09-03,HHS Region 6,2 wk ahead,1.60371
 2017-09-03,HHS Region 6,3 wk ahead,1.79261
 2017-09-03,HHS Region 6,4 wk ahead,1.91595
-2017-09-03,HHS Region 6,Season peak percentage,NA
-2017-09-03,HHS Region 6,Season peak week,NA
 2017-09-03,HHS Region 6,Season onset,2017-11-26
 2017-09-10,HHS Region 6,1 wk ahead,1.60371
 2017-09-10,HHS Region 6,2 wk ahead,1.79261
 2017-09-10,HHS Region 6,3 wk ahead,1.91595
 2017-09-10,HHS Region 6,4 wk ahead,2.04769
-2017-09-10,HHS Region 6,Season peak percentage,NA
-2017-09-10,HHS Region 6,Season peak week,NA
 2017-09-10,HHS Region 6,Season onset,2017-11-26
 2017-09-17,HHS Region 6,1 wk ahead,1.79261
 2017-09-17,HHS Region 6,2 wk ahead,1.91595
 2017-09-17,HHS Region 6,3 wk ahead,2.04769
 2017-09-17,HHS Region 6,4 wk ahead,2.02153
-2017-09-17,HHS Region 6,Season peak percentage,NA
-2017-09-17,HHS Region 6,Season peak week,NA
 2017-09-17,HHS Region 6,Season onset,2017-11-26
 2017-09-24,HHS Region 6,1 wk ahead,1.91595
 2017-09-24,HHS Region 6,2 wk ahead,2.04769
 2017-09-24,HHS Region 6,3 wk ahead,2.02153
 2017-09-24,HHS Region 6,4 wk ahead,2.23701
-2017-09-24,HHS Region 6,Season peak percentage,NA
-2017-09-24,HHS Region 6,Season peak week,NA
 2017-09-24,HHS Region 6,Season onset,2017-11-26
 2017-10-01,HHS Region 6,1 wk ahead,2.04769
 2017-10-01,HHS Region 6,2 wk ahead,2.02153
 2017-10-01,HHS Region 6,3 wk ahead,2.23701
 2017-10-01,HHS Region 6,4 wk ahead,2.94144
-2017-10-01,HHS Region 6,Season peak percentage,NA
-2017-10-01,HHS Region 6,Season peak week,NA
 2017-10-01,HHS Region 6,Season onset,2017-11-26
 2017-10-08,HHS Region 6,1 wk ahead,2.02153
 2017-10-08,HHS Region 6,2 wk ahead,2.23701
 2017-10-08,HHS Region 6,3 wk ahead,2.94144
 2017-10-08,HHS Region 6,4 wk ahead,3.30743
-2017-10-08,HHS Region 6,Season peak percentage,NA
-2017-10-08,HHS Region 6,Season peak week,NA
 2017-10-08,HHS Region 6,Season onset,2017-11-26
 2017-10-15,HHS Region 6,1 wk ahead,2.23701
 2017-10-15,HHS Region 6,2 wk ahead,2.94144
 2017-10-15,HHS Region 6,3 wk ahead,3.30743
 2017-10-15,HHS Region 6,4 wk ahead,3.90415
-2017-10-15,HHS Region 6,Season peak percentage,NA
-2017-10-15,HHS Region 6,Season peak week,NA
 2017-10-15,HHS Region 6,Season onset,2017-11-26
 2017-10-22,HHS Region 6,1 wk ahead,2.94144
 2017-10-22,HHS Region 6,2 wk ahead,3.30743
 2017-10-22,HHS Region 6,3 wk ahead,3.90415
 2017-10-22,HHS Region 6,4 wk ahead,4.09261
-2017-10-22,HHS Region 6,Season peak percentage,NA
-2017-10-22,HHS Region 6,Season peak week,NA
 2017-10-22,HHS Region 6,Season onset,2017-11-26
 2017-10-29,HHS Region 6,1 wk ahead,3.30743
 2017-10-29,HHS Region 6,2 wk ahead,3.90415
 2017-10-29,HHS Region 6,3 wk ahead,4.09261
 2017-10-29,HHS Region 6,4 wk ahead,4.61822
-2017-10-29,HHS Region 6,Season peak percentage,NA
-2017-10-29,HHS Region 6,Season peak week,NA
 2017-10-29,HHS Region 6,Season onset,2017-11-26
 2017-11-05,HHS Region 6,1 wk ahead,3.90415
 2017-11-05,HHS Region 6,2 wk ahead,4.09261
 2017-11-05,HHS Region 6,3 wk ahead,4.61822
 2017-11-05,HHS Region 6,4 wk ahead,5.12266
-2017-11-05,HHS Region 6,Season peak percentage,NA
-2017-11-05,HHS Region 6,Season peak week,NA
 2017-11-05,HHS Region 6,Season onset,2017-11-26
 2017-11-12,HHS Region 6,1 wk ahead,4.09261
 2017-11-12,HHS Region 6,2 wk ahead,4.61822
 2017-11-12,HHS Region 6,3 wk ahead,5.12266
 2017-11-12,HHS Region 6,4 wk ahead,7.99198
-2017-11-12,HHS Region 6,Season peak percentage,NA
-2017-11-12,HHS Region 6,Season peak week,NA
 2017-11-12,HHS Region 6,Season onset,2017-11-26
 2017-11-19,HHS Region 6,1 wk ahead,4.61822
 2017-11-19,HHS Region 6,2 wk ahead,5.12266
 2017-11-19,HHS Region 6,3 wk ahead,7.99198
 2017-11-19,HHS Region 6,4 wk ahead,11.5904
-2017-11-19,HHS Region 6,Season peak percentage,NA
-2017-11-19,HHS Region 6,Season peak week,NA
 2017-11-19,HHS Region 6,Season onset,2017-11-26
 2017-11-26,HHS Region 6,1 wk ahead,5.12266
 2017-11-26,HHS Region 6,2 wk ahead,7.99198
 2017-11-26,HHS Region 6,3 wk ahead,11.5904
 2017-11-26,HHS Region 6,4 wk ahead,10.4037
-2017-11-26,HHS Region 6,Season peak percentage,NA
-2017-11-26,HHS Region 6,Season peak week,NA
 2017-11-26,HHS Region 6,Season onset,2017-11-26
 2017-12-03,HHS Region 6,1 wk ahead,7.99198
 2017-12-03,HHS Region 6,2 wk ahead,11.5904
 2017-12-03,HHS Region 6,3 wk ahead,10.4037
 2017-12-03,HHS Region 6,4 wk ahead,11.0059
-2017-12-03,HHS Region 6,Season peak percentage,NA
-2017-12-03,HHS Region 6,Season peak week,NA
 2017-12-03,HHS Region 6,Season onset,2017-11-26
 2017-12-10,HHS Region 6,1 wk ahead,11.5904
 2017-12-10,HHS Region 6,2 wk ahead,10.4037
 2017-12-10,HHS Region 6,3 wk ahead,11.0059
 2017-12-10,HHS Region 6,4 wk ahead,11.5043
-2017-12-10,HHS Region 6,Season peak percentage,NA
-2017-12-10,HHS Region 6,Season peak week,NA
 2017-12-10,HHS Region 6,Season onset,2017-11-26
 2017-12-17,HHS Region 6,1 wk ahead,10.4037
 2017-12-17,HHS Region 6,2 wk ahead,11.0059
 2017-12-17,HHS Region 6,3 wk ahead,11.5043
 2017-12-17,HHS Region 6,4 wk ahead,11.716
-2017-12-17,HHS Region 6,Season peak percentage,NA
-2017-12-17,HHS Region 6,Season peak week,NA
 2017-12-17,HHS Region 6,Season onset,2017-11-26
 2017-12-24,HHS Region 6,1 wk ahead,11.0059
 2017-12-24,HHS Region 6,2 wk ahead,11.5043
 2017-12-24,HHS Region 6,3 wk ahead,11.716
 2017-12-24,HHS Region 6,4 wk ahead,12.7142
-2017-12-24,HHS Region 6,Season peak percentage,NA
-2017-12-24,HHS Region 6,Season peak week,NA
 2017-12-24,HHS Region 6,Season onset,2017-11-26
 2017-12-31,HHS Region 6,1 wk ahead,11.5043
 2017-12-31,HHS Region 6,2 wk ahead,11.716
 2017-12-31,HHS Region 6,3 wk ahead,12.7142
 2017-12-31,HHS Region 6,4 wk ahead,12.4931
-2017-12-31,HHS Region 6,Season peak percentage,NA
-2017-12-31,HHS Region 6,Season peak week,NA
 2017-12-31,HHS Region 6,Season onset,2017-11-26
 2018-01-07,HHS Region 6,1 wk ahead,11.716
 2018-01-07,HHS Region 6,2 wk ahead,12.7142
 2018-01-07,HHS Region 6,3 wk ahead,12.4931
 2018-01-07,HHS Region 6,4 wk ahead,11.3564
-2018-01-07,HHS Region 6,Season peak percentage,NA
-2018-01-07,HHS Region 6,Season peak week,NA
 2018-01-07,HHS Region 6,Season onset,2017-11-26
 2018-01-14,HHS Region 6,1 wk ahead,12.7142
 2018-01-14,HHS Region 6,2 wk ahead,12.4931
 2018-01-14,HHS Region 6,3 wk ahead,11.3564
 2018-01-14,HHS Region 6,4 wk ahead,9.55066
-2018-01-14,HHS Region 6,Season peak percentage,NA
-2018-01-14,HHS Region 6,Season peak week,NA
 2018-01-14,HHS Region 6,Season onset,2017-11-26
 2018-01-21,HHS Region 6,1 wk ahead,12.4931
 2018-01-21,HHS Region 6,2 wk ahead,11.3564
 2018-01-21,HHS Region 6,3 wk ahead,9.55066
 2018-01-21,HHS Region 6,4 wk ahead,7.2525
-2018-01-21,HHS Region 6,Season peak percentage,NA
-2018-01-21,HHS Region 6,Season peak week,NA
 2018-01-21,HHS Region 6,Season onset,2017-11-26
 2018-01-28,HHS Region 6,1 wk ahead,11.3564
 2018-01-28,HHS Region 6,2 wk ahead,9.55066
 2018-01-28,HHS Region 6,3 wk ahead,7.2525
 2018-01-28,HHS Region 6,4 wk ahead,5.34288
-2018-01-28,HHS Region 6,Season peak percentage,NA
-2018-01-28,HHS Region 6,Season peak week,NA
 2018-01-28,HHS Region 6,Season onset,2017-11-26
 2018-02-04,HHS Region 6,1 wk ahead,9.55066
 2018-02-04,HHS Region 6,2 wk ahead,7.2525
 2018-02-04,HHS Region 6,3 wk ahead,5.34288
 2018-02-04,HHS Region 6,4 wk ahead,4.26976
-2018-02-04,HHS Region 6,Season peak percentage,NA
-2018-02-04,HHS Region 6,Season peak week,NA
 2018-02-04,HHS Region 6,Season onset,2017-11-26
 2018-02-11,HHS Region 6,1 wk ahead,7.2525
 2018-02-11,HHS Region 6,2 wk ahead,5.34288
 2018-02-11,HHS Region 6,3 wk ahead,4.26976
 2018-02-11,HHS Region 6,4 wk ahead,3.34884
-2018-02-11,HHS Region 6,Season peak percentage,NA
-2018-02-11,HHS Region 6,Season peak week,NA
 2018-02-11,HHS Region 6,Season onset,2017-11-26
 2018-02-18,HHS Region 6,1 wk ahead,5.34288
 2018-02-18,HHS Region 6,2 wk ahead,4.26976
 2018-02-18,HHS Region 6,3 wk ahead,3.34884
 2018-02-18,HHS Region 6,4 wk ahead,2.84125
-2018-02-18,HHS Region 6,Season peak percentage,NA
-2018-02-18,HHS Region 6,Season peak week,NA
 2018-02-18,HHS Region 6,Season onset,2017-11-26
 2018-02-25,HHS Region 6,1 wk ahead,4.26976
 2018-02-25,HHS Region 6,2 wk ahead,3.34884
 2018-02-25,HHS Region 6,3 wk ahead,2.84125
 2018-02-25,HHS Region 6,4 wk ahead,2.97029
-2018-02-25,HHS Region 6,Season peak percentage,NA
-2018-02-25,HHS Region 6,Season peak week,NA
 2018-02-25,HHS Region 6,Season onset,2017-11-26
 2018-03-04,HHS Region 6,1 wk ahead,3.34884
 2018-03-04,HHS Region 6,2 wk ahead,2.84125
 2018-03-04,HHS Region 6,3 wk ahead,2.97029
 2018-03-04,HHS Region 6,4 wk ahead,2.48462
-2018-03-04,HHS Region 6,Season peak percentage,NA
-2018-03-04,HHS Region 6,Season peak week,NA
 2018-03-04,HHS Region 6,Season onset,2017-11-26
 2018-03-11,HHS Region 6,1 wk ahead,2.84125
 2018-03-11,HHS Region 6,2 wk ahead,2.97029
 2018-03-11,HHS Region 6,3 wk ahead,2.48462
 2018-03-11,HHS Region 6,4 wk ahead,2.25308
-2018-03-11,HHS Region 6,Season peak percentage,NA
-2018-03-11,HHS Region 6,Season peak week,NA
 2018-03-11,HHS Region 6,Season onset,2017-11-26
 2018-03-18,HHS Region 6,1 wk ahead,2.97029
 2018-03-18,HHS Region 6,2 wk ahead,2.48462
 2018-03-18,HHS Region 6,3 wk ahead,2.25308
 2018-03-18,HHS Region 6,4 wk ahead,2.14447
-2018-03-18,HHS Region 6,Season peak percentage,NA
-2018-03-18,HHS Region 6,Season peak week,NA
 2018-03-18,HHS Region 6,Season onset,2017-11-26
 2018-03-25,HHS Region 6,1 wk ahead,2.48462
 2018-03-25,HHS Region 6,2 wk ahead,2.25308
 2018-03-25,HHS Region 6,3 wk ahead,2.14447
 2018-03-25,HHS Region 6,4 wk ahead,2.11314
-2018-03-25,HHS Region 6,Season peak percentage,NA
-2018-03-25,HHS Region 6,Season peak week,NA
 2018-03-25,HHS Region 6,Season onset,2017-11-26
 2018-04-01,HHS Region 6,1 wk ahead,2.25308
 2018-04-01,HHS Region 6,2 wk ahead,2.14447
 2018-04-01,HHS Region 6,3 wk ahead,2.11314
 2018-04-01,HHS Region 6,4 wk ahead,2.1298
-2018-04-01,HHS Region 6,Season peak percentage,NA
-2018-04-01,HHS Region 6,Season peak week,NA
 2018-04-01,HHS Region 6,Season onset,2017-11-26
 2018-04-08,HHS Region 6,1 wk ahead,2.14447
 2018-04-08,HHS Region 6,2 wk ahead,2.11314
 2018-04-08,HHS Region 6,3 wk ahead,2.1298
-2018-04-08,HHS Region 6,4 wk ahead,NA
-2018-04-08,HHS Region 6,Season peak percentage,NA
-2018-04-08,HHS Region 6,Season peak week,NA
 2018-04-08,HHS Region 6,Season onset,2017-11-26
 2018-04-15,HHS Region 6,1 wk ahead,2.11314
 2018-04-15,HHS Region 6,2 wk ahead,2.1298
-2018-04-15,HHS Region 6,3 wk ahead,NA
-2018-04-15,HHS Region 6,4 wk ahead,NA
-2018-04-15,HHS Region 6,Season peak percentage,NA
-2018-04-15,HHS Region 6,Season peak week,NA
 2018-04-15,HHS Region 6,Season onset,2017-11-26
 2018-04-22,HHS Region 6,1 wk ahead,2.1298
-2018-04-22,HHS Region 6,2 wk ahead,NA
-2018-04-22,HHS Region 6,3 wk ahead,NA
-2018-04-22,HHS Region 6,4 wk ahead,NA
-2018-04-22,HHS Region 6,Season peak percentage,NA
-2018-04-22,HHS Region 6,Season peak week,NA
 2018-04-22,HHS Region 6,Season onset,2017-11-26
-2018-04-29,HHS Region 6,1 wk ahead,NA
-2018-04-29,HHS Region 6,2 wk ahead,NA
-2018-04-29,HHS Region 6,3 wk ahead,NA
-2018-04-29,HHS Region 6,4 wk ahead,NA
-2018-04-29,HHS Region 6,Season peak percentage,NA
-2018-04-29,HHS Region 6,Season peak week,NA
 2018-04-29,HHS Region 6,Season onset,2017-11-26
-2018-05-06,HHS Region 6,1 wk ahead,NA
-2018-05-06,HHS Region 6,2 wk ahead,NA
-2018-05-06,HHS Region 6,3 wk ahead,NA
-2018-05-06,HHS Region 6,4 wk ahead,NA
-2018-05-06,HHS Region 6,Season peak percentage,NA
-2018-05-06,HHS Region 6,Season peak week,NA
 2018-05-06,HHS Region 6,Season onset,2017-11-26
-2018-05-13,HHS Region 6,1 wk ahead,NA
-2018-05-13,HHS Region 6,2 wk ahead,NA
-2018-05-13,HHS Region 6,3 wk ahead,NA
-2018-05-13,HHS Region 6,4 wk ahead,NA
-2018-05-13,HHS Region 6,Season peak percentage,NA
-2018-05-13,HHS Region 6,Season peak week,NA
 2018-05-13,HHS Region 6,Season onset,2017-11-26
-2018-05-20,HHS Region 6,1 wk ahead,NA
-2018-05-20,HHS Region 6,2 wk ahead,NA
-2018-05-20,HHS Region 6,3 wk ahead,NA
-2018-05-20,HHS Region 6,4 wk ahead,NA
-2018-05-20,HHS Region 6,Season peak percentage,NA
-2018-05-20,HHS Region 6,Season peak week,NA
 2018-05-20,HHS Region 6,Season onset,2017-11-26
-2018-05-27,HHS Region 6,1 wk ahead,NA
-2018-05-27,HHS Region 6,2 wk ahead,NA
-2018-05-27,HHS Region 6,3 wk ahead,NA
-2018-05-27,HHS Region 6,4 wk ahead,NA
-2018-05-27,HHS Region 6,Season peak percentage,NA
-2018-05-27,HHS Region 6,Season peak week,NA
 2018-05-27,HHS Region 6,Season onset,2017-11-26
-2018-06-03,HHS Region 6,1 wk ahead,NA
-2018-06-03,HHS Region 6,2 wk ahead,NA
-2018-06-03,HHS Region 6,3 wk ahead,NA
-2018-06-03,HHS Region 6,4 wk ahead,NA
-2018-06-03,HHS Region 6,Season peak percentage,NA
-2018-06-03,HHS Region 6,Season peak week,NA
 2018-06-03,HHS Region 6,Season onset,2017-11-26
-2018-06-10,HHS Region 6,1 wk ahead,NA
-2018-06-10,HHS Region 6,2 wk ahead,NA
-2018-06-10,HHS Region 6,3 wk ahead,NA
-2018-06-10,HHS Region 6,4 wk ahead,NA
-2018-06-10,HHS Region 6,Season peak percentage,NA
-2018-06-10,HHS Region 6,Season peak week,NA
 2018-06-10,HHS Region 6,Season onset,2017-11-26
-2018-06-17,HHS Region 6,1 wk ahead,NA
-2018-06-17,HHS Region 6,2 wk ahead,NA
-2018-06-17,HHS Region 6,3 wk ahead,NA
-2018-06-17,HHS Region 6,4 wk ahead,NA
-2018-06-17,HHS Region 6,Season peak percentage,NA
-2018-06-17,HHS Region 6,Season peak week,NA
 2018-06-17,HHS Region 6,Season onset,2017-11-26
-2018-06-24,HHS Region 6,1 wk ahead,NA
-2018-06-24,HHS Region 6,2 wk ahead,NA
-2018-06-24,HHS Region 6,3 wk ahead,NA
-2018-06-24,HHS Region 6,4 wk ahead,NA
-2018-06-24,HHS Region 6,Season peak percentage,NA
-2018-06-24,HHS Region 6,Season peak week,NA
 2018-06-24,HHS Region 6,Season onset,2017-11-26
-2018-07-01,HHS Region 6,1 wk ahead,NA
-2018-07-01,HHS Region 6,2 wk ahead,NA
-2018-07-01,HHS Region 6,3 wk ahead,NA
-2018-07-01,HHS Region 6,4 wk ahead,NA
-2018-07-01,HHS Region 6,Season peak percentage,NA
-2018-07-01,HHS Region 6,Season peak week,NA
 2018-07-01,HHS Region 6,Season onset,2017-11-26
-2018-07-08,HHS Region 6,1 wk ahead,NA
-2018-07-08,HHS Region 6,2 wk ahead,NA
-2018-07-08,HHS Region 6,3 wk ahead,NA
-2018-07-08,HHS Region 6,4 wk ahead,NA
-2018-07-08,HHS Region 6,Season peak percentage,NA
-2018-07-08,HHS Region 6,Season peak week,NA
 2018-07-08,HHS Region 6,Season onset,2017-11-26
-2018-07-15,HHS Region 6,1 wk ahead,NA
-2018-07-15,HHS Region 6,2 wk ahead,NA
-2018-07-15,HHS Region 6,3 wk ahead,NA
-2018-07-15,HHS Region 6,4 wk ahead,NA
-2018-07-15,HHS Region 6,Season peak percentage,NA
-2018-07-15,HHS Region 6,Season peak week,NA
 2018-07-15,HHS Region 6,Season onset,2017-11-26
 2017-07-23,HHS Region 7,1 wk ahead,0.174172
 2017-07-23,HHS Region 7,2 wk ahead,0.115888
 2017-07-23,HHS Region 7,3 wk ahead,0.112074
 2017-07-23,HHS Region 7,4 wk ahead,0.233776
-2017-07-23,HHS Region 7,Season peak percentage,NA
-2017-07-23,HHS Region 7,Season peak week,NA
 2017-07-23,HHS Region 7,Season onset,2017-12-03
 2017-07-30,HHS Region 7,1 wk ahead,0.115888
 2017-07-30,HHS Region 7,2 wk ahead,0.112074
 2017-07-30,HHS Region 7,3 wk ahead,0.233776
 2017-07-30,HHS Region 7,4 wk ahead,0.142496
-2017-07-30,HHS Region 7,Season peak percentage,NA
-2017-07-30,HHS Region 7,Season peak week,NA
 2017-07-30,HHS Region 7,Season onset,2017-12-03
 2017-08-06,HHS Region 7,1 wk ahead,0.112074
 2017-08-06,HHS Region 7,2 wk ahead,0.233776
 2017-08-06,HHS Region 7,3 wk ahead,0.142496
 2017-08-06,HHS Region 7,4 wk ahead,0.396513
-2017-08-06,HHS Region 7,Season peak percentage,NA
-2017-08-06,HHS Region 7,Season peak week,NA
 2017-08-06,HHS Region 7,Season onset,2017-12-03
 2017-08-13,HHS Region 7,1 wk ahead,0.233776
 2017-08-13,HHS Region 7,2 wk ahead,0.142496
 2017-08-13,HHS Region 7,3 wk ahead,0.396513
 2017-08-13,HHS Region 7,4 wk ahead,0.27963
-2017-08-13,HHS Region 7,Season peak percentage,NA
-2017-08-13,HHS Region 7,Season peak week,NA
 2017-08-13,HHS Region 7,Season onset,2017-12-03
 2017-08-20,HHS Region 7,1 wk ahead,0.142496
 2017-08-20,HHS Region 7,2 wk ahead,0.396513
 2017-08-20,HHS Region 7,3 wk ahead,0.27963
 2017-08-20,HHS Region 7,4 wk ahead,0.535088
-2017-08-20,HHS Region 7,Season peak percentage,NA
-2017-08-20,HHS Region 7,Season peak week,NA
 2017-08-20,HHS Region 7,Season onset,2017-12-03
 2017-08-27,HHS Region 7,1 wk ahead,0.396513
 2017-08-27,HHS Region 7,2 wk ahead,0.27963
 2017-08-27,HHS Region 7,3 wk ahead,0.535088
 2017-08-27,HHS Region 7,4 wk ahead,0.54052
-2017-08-27,HHS Region 7,Season peak percentage,NA
-2017-08-27,HHS Region 7,Season peak week,NA
 2017-08-27,HHS Region 7,Season onset,2017-12-03
 2017-09-03,HHS Region 7,1 wk ahead,0.27963
 2017-09-03,HHS Region 7,2 wk ahead,0.535088
 2017-09-03,HHS Region 7,3 wk ahead,0.54052
 2017-09-03,HHS Region 7,4 wk ahead,0.625799
-2017-09-03,HHS Region 7,Season peak percentage,NA
-2017-09-03,HHS Region 7,Season peak week,NA
 2017-09-03,HHS Region 7,Season onset,2017-12-03
 2017-09-10,HHS Region 7,1 wk ahead,0.535088
 2017-09-10,HHS Region 7,2 wk ahead,0.54052
 2017-09-10,HHS Region 7,3 wk ahead,0.625799
 2017-09-10,HHS Region 7,4 wk ahead,0.700961
-2017-09-10,HHS Region 7,Season peak percentage,NA
-2017-09-10,HHS Region 7,Season peak week,NA
 2017-09-10,HHS Region 7,Season onset,2017-12-03
 2017-09-17,HHS Region 7,1 wk ahead,0.54052
 2017-09-17,HHS Region 7,2 wk ahead,0.625799
 2017-09-17,HHS Region 7,3 wk ahead,0.700961
 2017-09-17,HHS Region 7,4 wk ahead,0.832588
-2017-09-17,HHS Region 7,Season peak percentage,NA
-2017-09-17,HHS Region 7,Season peak week,NA
 2017-09-17,HHS Region 7,Season onset,2017-12-03
 2017-09-24,HHS Region 7,1 wk ahead,0.625799
 2017-09-24,HHS Region 7,2 wk ahead,0.700961
 2017-09-24,HHS Region 7,3 wk ahead,0.832588
 2017-09-24,HHS Region 7,4 wk ahead,0.943455
-2017-09-24,HHS Region 7,Season peak percentage,NA
-2017-09-24,HHS Region 7,Season peak week,NA
 2017-09-24,HHS Region 7,Season onset,2017-12-03
 2017-10-01,HHS Region 7,1 wk ahead,0.700961
 2017-10-01,HHS Region 7,2 wk ahead,0.832588
 2017-10-01,HHS Region 7,3 wk ahead,0.943455
 2017-10-01,HHS Region 7,4 wk ahead,1.16063
-2017-10-01,HHS Region 7,Season peak percentage,NA
-2017-10-01,HHS Region 7,Season peak week,NA
 2017-10-01,HHS Region 7,Season onset,2017-12-03
 2017-10-08,HHS Region 7,1 wk ahead,0.832588
 2017-10-08,HHS Region 7,2 wk ahead,0.943455
 2017-10-08,HHS Region 7,3 wk ahead,1.16063
 2017-10-08,HHS Region 7,4 wk ahead,1.25174
-2017-10-08,HHS Region 7,Season peak percentage,NA
-2017-10-08,HHS Region 7,Season peak week,NA
 2017-10-08,HHS Region 7,Season onset,2017-12-03
 2017-10-15,HHS Region 7,1 wk ahead,0.943455
 2017-10-15,HHS Region 7,2 wk ahead,1.16063
 2017-10-15,HHS Region 7,3 wk ahead,1.25174
 2017-10-15,HHS Region 7,4 wk ahead,1.40765
-2017-10-15,HHS Region 7,Season peak percentage,NA
-2017-10-15,HHS Region 7,Season peak week,NA
 2017-10-15,HHS Region 7,Season onset,2017-12-03
 2017-10-22,HHS Region 7,1 wk ahead,1.16063
 2017-10-22,HHS Region 7,2 wk ahead,1.25174
 2017-10-22,HHS Region 7,3 wk ahead,1.40765
 2017-10-22,HHS Region 7,4 wk ahead,1.72814
-2017-10-22,HHS Region 7,Season peak percentage,NA
-2017-10-22,HHS Region 7,Season peak week,NA
 2017-10-22,HHS Region 7,Season onset,2017-12-03
 2017-10-29,HHS Region 7,1 wk ahead,1.25174
 2017-10-29,HHS Region 7,2 wk ahead,1.40765
 2017-10-29,HHS Region 7,3 wk ahead,1.72814
 2017-10-29,HHS Region 7,4 wk ahead,1.47504
-2017-10-29,HHS Region 7,Season peak percentage,NA
-2017-10-29,HHS Region 7,Season peak week,NA
 2017-10-29,HHS Region 7,Season onset,2017-12-03
 2017-11-05,HHS Region 7,1 wk ahead,1.40765
 2017-11-05,HHS Region 7,2 wk ahead,1.72814
 2017-11-05,HHS Region 7,3 wk ahead,1.47504
 2017-11-05,HHS Region 7,4 wk ahead,2.05556
-2017-11-05,HHS Region 7,Season peak percentage,NA
-2017-11-05,HHS Region 7,Season peak week,NA
 2017-11-05,HHS Region 7,Season onset,2017-12-03
 2017-11-12,HHS Region 7,1 wk ahead,1.72814
 2017-11-12,HHS Region 7,2 wk ahead,1.47504
 2017-11-12,HHS Region 7,3 wk ahead,2.05556
 2017-11-12,HHS Region 7,4 wk ahead,2.75837
-2017-11-12,HHS Region 7,Season peak percentage,NA
-2017-11-12,HHS Region 7,Season peak week,NA
 2017-11-12,HHS Region 7,Season onset,2017-12-03
 2017-11-19,HHS Region 7,1 wk ahead,1.47504
 2017-11-19,HHS Region 7,2 wk ahead,2.05556
 2017-11-19,HHS Region 7,3 wk ahead,2.75837
 2017-11-19,HHS Region 7,4 wk ahead,4.32304
-2017-11-19,HHS Region 7,Season peak percentage,NA
-2017-11-19,HHS Region 7,Season peak week,NA
 2017-11-19,HHS Region 7,Season onset,2017-12-03
 2017-11-26,HHS Region 7,1 wk ahead,2.05556
 2017-11-26,HHS Region 7,2 wk ahead,2.75837
 2017-11-26,HHS Region 7,3 wk ahead,4.32304
 2017-11-26,HHS Region 7,4 wk ahead,7.25157
-2017-11-26,HHS Region 7,Season peak percentage,NA
-2017-11-26,HHS Region 7,Season peak week,NA
 2017-11-26,HHS Region 7,Season onset,2017-12-03
 2017-12-03,HHS Region 7,1 wk ahead,2.75837
 2017-12-03,HHS Region 7,2 wk ahead,4.32304
 2017-12-03,HHS Region 7,3 wk ahead,7.25157
 2017-12-03,HHS Region 7,4 wk ahead,7.62744
-2017-12-03,HHS Region 7,Season peak percentage,NA
-2017-12-03,HHS Region 7,Season peak week,NA
 2017-12-03,HHS Region 7,Season onset,2017-12-03
 2017-12-10,HHS Region 7,1 wk ahead,4.32304
 2017-12-10,HHS Region 7,2 wk ahead,7.25157
 2017-12-10,HHS Region 7,3 wk ahead,7.62744
 2017-12-10,HHS Region 7,4 wk ahead,6.72613
-2017-12-10,HHS Region 7,Season peak percentage,NA
-2017-12-10,HHS Region 7,Season peak week,NA
 2017-12-10,HHS Region 7,Season onset,2017-12-03
 2017-12-17,HHS Region 7,1 wk ahead,7.25157
 2017-12-17,HHS Region 7,2 wk ahead,7.62744
 2017-12-17,HHS Region 7,3 wk ahead,6.72613
 2017-12-17,HHS Region 7,4 wk ahead,8.3421
-2017-12-17,HHS Region 7,Season peak percentage,NA
-2017-12-17,HHS Region 7,Season peak week,NA
 2017-12-17,HHS Region 7,Season onset,2017-12-03
 2017-12-24,HHS Region 7,1 wk ahead,7.62744
 2017-12-24,HHS Region 7,2 wk ahead,6.72613
 2017-12-24,HHS Region 7,3 wk ahead,8.3421
 2017-12-24,HHS Region 7,4 wk ahead,8.86645
-2017-12-24,HHS Region 7,Season peak percentage,NA
-2017-12-24,HHS Region 7,Season peak week,NA
 2017-12-24,HHS Region 7,Season onset,2017-12-03
 2017-12-31,HHS Region 7,1 wk ahead,6.72613
 2017-12-31,HHS Region 7,2 wk ahead,8.3421
 2017-12-31,HHS Region 7,3 wk ahead,8.86645
 2017-12-31,HHS Region 7,4 wk ahead,8.80663
-2017-12-31,HHS Region 7,Season peak percentage,NA
-2017-12-31,HHS Region 7,Season peak week,NA
 2017-12-31,HHS Region 7,Season onset,2017-12-03
 2018-01-07,HHS Region 7,1 wk ahead,8.3421
 2018-01-07,HHS Region 7,2 wk ahead,8.86645
 2018-01-07,HHS Region 7,3 wk ahead,8.80663
 2018-01-07,HHS Region 7,4 wk ahead,8.74478
-2018-01-07,HHS Region 7,Season peak percentage,NA
-2018-01-07,HHS Region 7,Season peak week,NA
 2018-01-07,HHS Region 7,Season onset,2017-12-03
 2018-01-14,HHS Region 7,1 wk ahead,8.86645
 2018-01-14,HHS Region 7,2 wk ahead,8.80663
 2018-01-14,HHS Region 7,3 wk ahead,8.74478
 2018-01-14,HHS Region 7,4 wk ahead,7.79645
-2018-01-14,HHS Region 7,Season peak percentage,NA
-2018-01-14,HHS Region 7,Season peak week,NA
 2018-01-14,HHS Region 7,Season onset,2017-12-03
 2018-01-21,HHS Region 7,1 wk ahead,8.80663
 2018-01-21,HHS Region 7,2 wk ahead,8.74478
 2018-01-21,HHS Region 7,3 wk ahead,7.79645
 2018-01-21,HHS Region 7,4 wk ahead,5.61847
-2018-01-21,HHS Region 7,Season peak percentage,NA
-2018-01-21,HHS Region 7,Season peak week,NA
 2018-01-21,HHS Region 7,Season onset,2017-12-03
 2018-01-28,HHS Region 7,1 wk ahead,8.74478
 2018-01-28,HHS Region 7,2 wk ahead,7.79645
 2018-01-28,HHS Region 7,3 wk ahead,5.61847
 2018-01-28,HHS Region 7,4 wk ahead,4.01667
-2018-01-28,HHS Region 7,Season peak percentage,NA
-2018-01-28,HHS Region 7,Season peak week,NA
 2018-01-28,HHS Region 7,Season onset,2017-12-03
 2018-02-04,HHS Region 7,1 wk ahead,7.79645
 2018-02-04,HHS Region 7,2 wk ahead,5.61847
 2018-02-04,HHS Region 7,3 wk ahead,4.01667
 2018-02-04,HHS Region 7,4 wk ahead,3.59342
-2018-02-04,HHS Region 7,Season peak percentage,NA
-2018-02-04,HHS Region 7,Season peak week,NA
 2018-02-04,HHS Region 7,Season onset,2017-12-03
 2018-02-11,HHS Region 7,1 wk ahead,5.61847
 2018-02-11,HHS Region 7,2 wk ahead,4.01667
 2018-02-11,HHS Region 7,3 wk ahead,3.59342
 2018-02-11,HHS Region 7,4 wk ahead,2.49904
-2018-02-11,HHS Region 7,Season peak percentage,NA
-2018-02-11,HHS Region 7,Season peak week,NA
 2018-02-11,HHS Region 7,Season onset,2017-12-03
 2018-02-18,HHS Region 7,1 wk ahead,4.01667
 2018-02-18,HHS Region 7,2 wk ahead,3.59342
 2018-02-18,HHS Region 7,3 wk ahead,2.49904
 2018-02-18,HHS Region 7,4 wk ahead,2.73415
-2018-02-18,HHS Region 7,Season peak percentage,NA
-2018-02-18,HHS Region 7,Season peak week,NA
 2018-02-18,HHS Region 7,Season onset,2017-12-03
 2018-02-25,HHS Region 7,1 wk ahead,3.59342
 2018-02-25,HHS Region 7,2 wk ahead,2.49904
 2018-02-25,HHS Region 7,3 wk ahead,2.73415
 2018-02-25,HHS Region 7,4 wk ahead,1.9826
-2018-02-25,HHS Region 7,Season peak percentage,NA
-2018-02-25,HHS Region 7,Season peak week,NA
 2018-02-25,HHS Region 7,Season onset,2017-12-03
 2018-03-04,HHS Region 7,1 wk ahead,2.49904
 2018-03-04,HHS Region 7,2 wk ahead,2.73415
 2018-03-04,HHS Region 7,3 wk ahead,1.9826
 2018-03-04,HHS Region 7,4 wk ahead,1.79228
-2018-03-04,HHS Region 7,Season peak percentage,NA
-2018-03-04,HHS Region 7,Season peak week,NA
 2018-03-04,HHS Region 7,Season onset,2017-12-03
 2018-03-11,HHS Region 7,1 wk ahead,2.73415
 2018-03-11,HHS Region 7,2 wk ahead,1.9826
 2018-03-11,HHS Region 7,3 wk ahead,1.79228
 2018-03-11,HHS Region 7,4 wk ahead,1.40037
-2018-03-11,HHS Region 7,Season peak percentage,NA
-2018-03-11,HHS Region 7,Season peak week,NA
 2018-03-11,HHS Region 7,Season onset,2017-12-03
 2018-03-18,HHS Region 7,1 wk ahead,1.9826
 2018-03-18,HHS Region 7,2 wk ahead,1.79228
 2018-03-18,HHS Region 7,3 wk ahead,1.40037
 2018-03-18,HHS Region 7,4 wk ahead,0.929415
-2018-03-18,HHS Region 7,Season peak percentage,NA
-2018-03-18,HHS Region 7,Season peak week,NA
 2018-03-18,HHS Region 7,Season onset,2017-12-03
 2018-03-25,HHS Region 7,1 wk ahead,1.79228
 2018-03-25,HHS Region 7,2 wk ahead,1.40037
 2018-03-25,HHS Region 7,3 wk ahead,0.929415
 2018-03-25,HHS Region 7,4 wk ahead,1.04336
-2018-03-25,HHS Region 7,Season peak percentage,NA
-2018-03-25,HHS Region 7,Season peak week,NA
 2018-03-25,HHS Region 7,Season onset,2017-12-03
 2018-04-01,HHS Region 7,1 wk ahead,1.40037
 2018-04-01,HHS Region 7,2 wk ahead,0.929415
 2018-04-01,HHS Region 7,3 wk ahead,1.04336
 2018-04-01,HHS Region 7,4 wk ahead,0.498421
-2018-04-01,HHS Region 7,Season peak percentage,NA
-2018-04-01,HHS Region 7,Season peak week,NA
 2018-04-01,HHS Region 7,Season onset,2017-12-03
 2018-04-08,HHS Region 7,1 wk ahead,0.929415
 2018-04-08,HHS Region 7,2 wk ahead,1.04336
 2018-04-08,HHS Region 7,3 wk ahead,0.498421
-2018-04-08,HHS Region 7,4 wk ahead,NA
-2018-04-08,HHS Region 7,Season peak percentage,NA
-2018-04-08,HHS Region 7,Season peak week,NA
 2018-04-08,HHS Region 7,Season onset,2017-12-03
 2018-04-15,HHS Region 7,1 wk ahead,1.04336
 2018-04-15,HHS Region 7,2 wk ahead,0.498421
-2018-04-15,HHS Region 7,3 wk ahead,NA
-2018-04-15,HHS Region 7,4 wk ahead,NA
-2018-04-15,HHS Region 7,Season peak percentage,NA
-2018-04-15,HHS Region 7,Season peak week,NA
 2018-04-15,HHS Region 7,Season onset,2017-12-03
 2018-04-22,HHS Region 7,1 wk ahead,0.498421
-2018-04-22,HHS Region 7,2 wk ahead,NA
-2018-04-22,HHS Region 7,3 wk ahead,NA
-2018-04-22,HHS Region 7,4 wk ahead,NA
-2018-04-22,HHS Region 7,Season peak percentage,NA
-2018-04-22,HHS Region 7,Season peak week,NA
 2018-04-22,HHS Region 7,Season onset,2017-12-03
-2018-04-29,HHS Region 7,1 wk ahead,NA
-2018-04-29,HHS Region 7,2 wk ahead,NA
-2018-04-29,HHS Region 7,3 wk ahead,NA
-2018-04-29,HHS Region 7,4 wk ahead,NA
-2018-04-29,HHS Region 7,Season peak percentage,NA
-2018-04-29,HHS Region 7,Season peak week,NA
 2018-04-29,HHS Region 7,Season onset,2017-12-03
-2018-05-06,HHS Region 7,1 wk ahead,NA
-2018-05-06,HHS Region 7,2 wk ahead,NA
-2018-05-06,HHS Region 7,3 wk ahead,NA
-2018-05-06,HHS Region 7,4 wk ahead,NA
-2018-05-06,HHS Region 7,Season peak percentage,NA
-2018-05-06,HHS Region 7,Season peak week,NA
 2018-05-06,HHS Region 7,Season onset,2017-12-03
-2018-05-13,HHS Region 7,1 wk ahead,NA
-2018-05-13,HHS Region 7,2 wk ahead,NA
-2018-05-13,HHS Region 7,3 wk ahead,NA
-2018-05-13,HHS Region 7,4 wk ahead,NA
-2018-05-13,HHS Region 7,Season peak percentage,NA
-2018-05-13,HHS Region 7,Season peak week,NA
 2018-05-13,HHS Region 7,Season onset,2017-12-03
-2018-05-20,HHS Region 7,1 wk ahead,NA
-2018-05-20,HHS Region 7,2 wk ahead,NA
-2018-05-20,HHS Region 7,3 wk ahead,NA
-2018-05-20,HHS Region 7,4 wk ahead,NA
-2018-05-20,HHS Region 7,Season peak percentage,NA
-2018-05-20,HHS Region 7,Season peak week,NA
 2018-05-20,HHS Region 7,Season onset,2017-12-03
-2018-05-27,HHS Region 7,1 wk ahead,NA
-2018-05-27,HHS Region 7,2 wk ahead,NA
-2018-05-27,HHS Region 7,3 wk ahead,NA
-2018-05-27,HHS Region 7,4 wk ahead,NA
-2018-05-27,HHS Region 7,Season peak percentage,NA
-2018-05-27,HHS Region 7,Season peak week,NA
 2018-05-27,HHS Region 7,Season onset,2017-12-03
-2018-06-03,HHS Region 7,1 wk ahead,NA
-2018-06-03,HHS Region 7,2 wk ahead,NA
-2018-06-03,HHS Region 7,3 wk ahead,NA
-2018-06-03,HHS Region 7,4 wk ahead,NA
-2018-06-03,HHS Region 7,Season peak percentage,NA
-2018-06-03,HHS Region 7,Season peak week,NA
 2018-06-03,HHS Region 7,Season onset,2017-12-03
-2018-06-10,HHS Region 7,1 wk ahead,NA
-2018-06-10,HHS Region 7,2 wk ahead,NA
-2018-06-10,HHS Region 7,3 wk ahead,NA
-2018-06-10,HHS Region 7,4 wk ahead,NA
-2018-06-10,HHS Region 7,Season peak percentage,NA
-2018-06-10,HHS Region 7,Season peak week,NA
 2018-06-10,HHS Region 7,Season onset,2017-12-03
-2018-06-17,HHS Region 7,1 wk ahead,NA
-2018-06-17,HHS Region 7,2 wk ahead,NA
-2018-06-17,HHS Region 7,3 wk ahead,NA
-2018-06-17,HHS Region 7,4 wk ahead,NA
-2018-06-17,HHS Region 7,Season peak percentage,NA
-2018-06-17,HHS Region 7,Season peak week,NA
 2018-06-17,HHS Region 7,Season onset,2017-12-03
-2018-06-24,HHS Region 7,1 wk ahead,NA
-2018-06-24,HHS Region 7,2 wk ahead,NA
-2018-06-24,HHS Region 7,3 wk ahead,NA
-2018-06-24,HHS Region 7,4 wk ahead,NA
-2018-06-24,HHS Region 7,Season peak percentage,NA
-2018-06-24,HHS Region 7,Season peak week,NA
 2018-06-24,HHS Region 7,Season onset,2017-12-03
-2018-07-01,HHS Region 7,1 wk ahead,NA
-2018-07-01,HHS Region 7,2 wk ahead,NA
-2018-07-01,HHS Region 7,3 wk ahead,NA
-2018-07-01,HHS Region 7,4 wk ahead,NA
-2018-07-01,HHS Region 7,Season peak percentage,NA
-2018-07-01,HHS Region 7,Season peak week,NA
 2018-07-01,HHS Region 7,Season onset,2017-12-03
-2018-07-08,HHS Region 7,1 wk ahead,NA
-2018-07-08,HHS Region 7,2 wk ahead,NA
-2018-07-08,HHS Region 7,3 wk ahead,NA
-2018-07-08,HHS Region 7,4 wk ahead,NA
-2018-07-08,HHS Region 7,Season peak percentage,NA
-2018-07-08,HHS Region 7,Season peak week,NA
 2018-07-08,HHS Region 7,Season onset,2017-12-03
-2018-07-15,HHS Region 7,1 wk ahead,NA
-2018-07-15,HHS Region 7,2 wk ahead,NA
-2018-07-15,HHS Region 7,3 wk ahead,NA
-2018-07-15,HHS Region 7,4 wk ahead,NA
-2018-07-15,HHS Region 7,Season peak percentage,NA
-2018-07-15,HHS Region 7,Season peak week,NA
 2018-07-15,HHS Region 7,Season onset,2017-12-03
 2017-07-23,HHS Region 8,1 wk ahead,0.33984
 2017-07-23,HHS Region 8,2 wk ahead,0.359646
 2017-07-23,HHS Region 8,3 wk ahead,0.326402
 2017-07-23,HHS Region 8,4 wk ahead,0.419146
-2017-07-23,HHS Region 8,Season peak percentage,NA
-2017-07-23,HHS Region 8,Season peak week,NA
 2017-07-23,HHS Region 8,Season onset,2017-12-10
 2017-07-30,HHS Region 8,1 wk ahead,0.359646
 2017-07-30,HHS Region 8,2 wk ahead,0.326402
 2017-07-30,HHS Region 8,3 wk ahead,0.419146
 2017-07-30,HHS Region 8,4 wk ahead,0.714684
-2017-07-30,HHS Region 8,Season peak percentage,NA
-2017-07-30,HHS Region 8,Season peak week,NA
 2017-07-30,HHS Region 8,Season onset,2017-12-10
 2017-08-06,HHS Region 8,1 wk ahead,0.326402
 2017-08-06,HHS Region 8,2 wk ahead,0.419146
 2017-08-06,HHS Region 8,3 wk ahead,0.714684
 2017-08-06,HHS Region 8,4 wk ahead,0.800955
-2017-08-06,HHS Region 8,Season peak percentage,NA
-2017-08-06,HHS Region 8,Season peak week,NA
 2017-08-06,HHS Region 8,Season onset,2017-12-10
 2017-08-13,HHS Region 8,1 wk ahead,0.419146
 2017-08-13,HHS Region 8,2 wk ahead,0.714684
 2017-08-13,HHS Region 8,3 wk ahead,0.800955
 2017-08-13,HHS Region 8,4 wk ahead,0.331921
-2017-08-13,HHS Region 8,Season peak percentage,NA
-2017-08-13,HHS Region 8,Season peak week,NA
 2017-08-13,HHS Region 8,Season onset,2017-12-10
 2017-08-20,HHS Region 8,1 wk ahead,0.714684
 2017-08-20,HHS Region 8,2 wk ahead,0.800955
 2017-08-20,HHS Region 8,3 wk ahead,0.331921
 2017-08-20,HHS Region 8,4 wk ahead,0.427048
-2017-08-20,HHS Region 8,Season peak percentage,NA
-2017-08-20,HHS Region 8,Season peak week,NA
 2017-08-20,HHS Region 8,Season onset,2017-12-10
 2017-08-27,HHS Region 8,1 wk ahead,0.800955
 2017-08-27,HHS Region 8,2 wk ahead,0.331921
 2017-08-27,HHS Region 8,3 wk ahead,0.427048
 2017-08-27,HHS Region 8,4 wk ahead,0.518725
-2017-08-27,HHS Region 8,Season peak percentage,NA
-2017-08-27,HHS Region 8,Season peak week,NA
 2017-08-27,HHS Region 8,Season onset,2017-12-10
 2017-09-03,HHS Region 8,1 wk ahead,0.331921
 2017-09-03,HHS Region 8,2 wk ahead,0.427048
 2017-09-03,HHS Region 8,3 wk ahead,0.518725
 2017-09-03,HHS Region 8,4 wk ahead,0.473862
-2017-09-03,HHS Region 8,Season peak percentage,NA
-2017-09-03,HHS Region 8,Season peak week,NA
 2017-09-03,HHS Region 8,Season onset,2017-12-10
 2017-09-10,HHS Region 8,1 wk ahead,0.427048
 2017-09-10,HHS Region 8,2 wk ahead,0.518725
 2017-09-10,HHS Region 8,3 wk ahead,0.473862
 2017-09-10,HHS Region 8,4 wk ahead,0.559737
-2017-09-10,HHS Region 8,Season peak percentage,NA
-2017-09-10,HHS Region 8,Season peak week,NA
 2017-09-10,HHS Region 8,Season onset,2017-12-10
 2017-09-17,HHS Region 8,1 wk ahead,0.518725
 2017-09-17,HHS Region 8,2 wk ahead,0.473862
 2017-09-17,HHS Region 8,3 wk ahead,0.559737
 2017-09-17,HHS Region 8,4 wk ahead,0.56036
-2017-09-17,HHS Region 8,Season peak percentage,NA
-2017-09-17,HHS Region 8,Season peak week,NA
 2017-09-17,HHS Region 8,Season onset,2017-12-10
 2017-09-24,HHS Region 8,1 wk ahead,0.473862
 2017-09-24,HHS Region 8,2 wk ahead,0.559737
 2017-09-24,HHS Region 8,3 wk ahead,0.56036
 2017-09-24,HHS Region 8,4 wk ahead,0.697806
-2017-09-24,HHS Region 8,Season peak percentage,NA
-2017-09-24,HHS Region 8,Season peak week,NA
 2017-09-24,HHS Region 8,Season onset,2017-12-10
 2017-10-01,HHS Region 8,1 wk ahead,0.559737
 2017-10-01,HHS Region 8,2 wk ahead,0.56036
 2017-10-01,HHS Region 8,3 wk ahead,0.697806
 2017-10-01,HHS Region 8,4 wk ahead,0.696317
-2017-10-01,HHS Region 8,Season peak percentage,NA
-2017-10-01,HHS Region 8,Season peak week,NA
 2017-10-01,HHS Region 8,Season onset,2017-12-10
 2017-10-08,HHS Region 8,1 wk ahead,0.56036
 2017-10-08,HHS Region 8,2 wk ahead,0.697806
 2017-10-08,HHS Region 8,3 wk ahead,0.696317
 2017-10-08,HHS Region 8,4 wk ahead,0.772616
-2017-10-08,HHS Region 8,Season peak percentage,NA
-2017-10-08,HHS Region 8,Season peak week,NA
 2017-10-08,HHS Region 8,Season onset,2017-12-10
 2017-10-15,HHS Region 8,1 wk ahead,0.697806
 2017-10-15,HHS Region 8,2 wk ahead,0.696317
 2017-10-15,HHS Region 8,3 wk ahead,0.772616
 2017-10-15,HHS Region 8,4 wk ahead,0.842635
-2017-10-15,HHS Region 8,Season peak percentage,NA
-2017-10-15,HHS Region 8,Season peak week,NA
 2017-10-15,HHS Region 8,Season onset,2017-12-10
 2017-10-22,HHS Region 8,1 wk ahead,0.696317
 2017-10-22,HHS Region 8,2 wk ahead,0.772616
 2017-10-22,HHS Region 8,3 wk ahead,0.842635
 2017-10-22,HHS Region 8,4 wk ahead,0.935773
-2017-10-22,HHS Region 8,Season peak percentage,NA
-2017-10-22,HHS Region 8,Season peak week,NA
 2017-10-22,HHS Region 8,Season onset,2017-12-10
 2017-10-29,HHS Region 8,1 wk ahead,0.772616
 2017-10-29,HHS Region 8,2 wk ahead,0.842635
 2017-10-29,HHS Region 8,3 wk ahead,0.935773
 2017-10-29,HHS Region 8,4 wk ahead,0.949215
-2017-10-29,HHS Region 8,Season peak percentage,NA
-2017-10-29,HHS Region 8,Season peak week,NA
 2017-10-29,HHS Region 8,Season onset,2017-12-10
 2017-11-05,HHS Region 8,1 wk ahead,0.842635
 2017-11-05,HHS Region 8,2 wk ahead,0.935773
 2017-11-05,HHS Region 8,3 wk ahead,0.949215
 2017-11-05,HHS Region 8,4 wk ahead,1.13026
-2017-11-05,HHS Region 8,Season peak percentage,NA
-2017-11-05,HHS Region 8,Season peak week,NA
 2017-11-05,HHS Region 8,Season onset,2017-12-10
 2017-11-12,HHS Region 8,1 wk ahead,0.935773
 2017-11-12,HHS Region 8,2 wk ahead,0.949215
 2017-11-12,HHS Region 8,3 wk ahead,1.13026
 2017-11-12,HHS Region 8,4 wk ahead,1.32627
-2017-11-12,HHS Region 8,Season peak percentage,NA
-2017-11-12,HHS Region 8,Season peak week,NA
 2017-11-12,HHS Region 8,Season onset,2017-12-10
 2017-11-19,HHS Region 8,1 wk ahead,0.949215
 2017-11-19,HHS Region 8,2 wk ahead,1.13026
 2017-11-19,HHS Region 8,3 wk ahead,1.32627
 2017-11-19,HHS Region 8,4 wk ahead,1.9373
-2017-11-19,HHS Region 8,Season peak percentage,NA
-2017-11-19,HHS Region 8,Season peak week,NA
 2017-11-19,HHS Region 8,Season onset,2017-12-10
 2017-11-26,HHS Region 8,1 wk ahead,1.13026
 2017-11-26,HHS Region 8,2 wk ahead,1.32627
 2017-11-26,HHS Region 8,3 wk ahead,1.9373
 2017-11-26,HHS Region 8,4 wk ahead,2.42683
-2017-11-26,HHS Region 8,Season peak percentage,NA
-2017-11-26,HHS Region 8,Season peak week,NA
 2017-11-26,HHS Region 8,Season onset,2017-12-10
 2017-12-03,HHS Region 8,1 wk ahead,1.32627
 2017-12-03,HHS Region 8,2 wk ahead,1.9373
 2017-12-03,HHS Region 8,3 wk ahead,2.42683
 2017-12-03,HHS Region 8,4 wk ahead,2.55283
-2017-12-03,HHS Region 8,Season peak percentage,NA
-2017-12-03,HHS Region 8,Season peak week,NA
 2017-12-03,HHS Region 8,Season onset,2017-12-10
 2017-12-10,HHS Region 8,1 wk ahead,1.9373
 2017-12-10,HHS Region 8,2 wk ahead,2.42683
 2017-12-10,HHS Region 8,3 wk ahead,2.55283
 2017-12-10,HHS Region 8,4 wk ahead,2.62087
-2017-12-10,HHS Region 8,Season peak percentage,NA
-2017-12-10,HHS Region 8,Season peak week,NA
 2017-12-10,HHS Region 8,Season onset,2017-12-10
 2017-12-17,HHS Region 8,1 wk ahead,2.42683
 2017-12-17,HHS Region 8,2 wk ahead,2.55283
 2017-12-17,HHS Region 8,3 wk ahead,2.62087
 2017-12-17,HHS Region 8,4 wk ahead,2.77017
-2017-12-17,HHS Region 8,Season peak percentage,NA
-2017-12-17,HHS Region 8,Season peak week,NA
 2017-12-17,HHS Region 8,Season onset,2017-12-10
 2017-12-24,HHS Region 8,1 wk ahead,2.55283
 2017-12-24,HHS Region 8,2 wk ahead,2.62087
 2017-12-24,HHS Region 8,3 wk ahead,2.77017
 2017-12-24,HHS Region 8,4 wk ahead,2.82828
-2017-12-24,HHS Region 8,Season peak percentage,NA
-2017-12-24,HHS Region 8,Season peak week,NA
 2017-12-24,HHS Region 8,Season onset,2017-12-10
 2017-12-31,HHS Region 8,1 wk ahead,2.62087
 2017-12-31,HHS Region 8,2 wk ahead,2.77017
 2017-12-31,HHS Region 8,3 wk ahead,2.82828
 2017-12-31,HHS Region 8,4 wk ahead,3.25365
-2017-12-31,HHS Region 8,Season peak percentage,NA
-2017-12-31,HHS Region 8,Season peak week,NA
 2017-12-31,HHS Region 8,Season onset,2017-12-10
 2018-01-07,HHS Region 8,1 wk ahead,2.77017
 2018-01-07,HHS Region 8,2 wk ahead,2.82828
 2018-01-07,HHS Region 8,3 wk ahead,3.25365
 2018-01-07,HHS Region 8,4 wk ahead,3.18504
-2018-01-07,HHS Region 8,Season peak percentage,NA
-2018-01-07,HHS Region 8,Season peak week,NA
 2018-01-07,HHS Region 8,Season onset,2017-12-10
 2018-01-14,HHS Region 8,1 wk ahead,2.82828
 2018-01-14,HHS Region 8,2 wk ahead,3.25365
 2018-01-14,HHS Region 8,3 wk ahead,3.18504
 2018-01-14,HHS Region 8,4 wk ahead,3.02921
-2018-01-14,HHS Region 8,Season peak percentage,NA
-2018-01-14,HHS Region 8,Season peak week,NA
 2018-01-14,HHS Region 8,Season onset,2017-12-10
 2018-01-21,HHS Region 8,1 wk ahead,3.25365
 2018-01-21,HHS Region 8,2 wk ahead,3.18504
 2018-01-21,HHS Region 8,3 wk ahead,3.02921
 2018-01-21,HHS Region 8,4 wk ahead,2.94334
-2018-01-21,HHS Region 8,Season peak percentage,NA
-2018-01-21,HHS Region 8,Season peak week,NA
 2018-01-21,HHS Region 8,Season onset,2017-12-10
 2018-01-28,HHS Region 8,1 wk ahead,3.18504
 2018-01-28,HHS Region 8,2 wk ahead,3.02921
 2018-01-28,HHS Region 8,3 wk ahead,2.94334
 2018-01-28,HHS Region 8,4 wk ahead,2.16698
-2018-01-28,HHS Region 8,Season peak percentage,NA
-2018-01-28,HHS Region 8,Season peak week,NA
 2018-01-28,HHS Region 8,Season onset,2017-12-10
 2018-02-04,HHS Region 8,1 wk ahead,3.02921
 2018-02-04,HHS Region 8,2 wk ahead,2.94334
 2018-02-04,HHS Region 8,3 wk ahead,2.16698
 2018-02-04,HHS Region 8,4 wk ahead,1.89726
-2018-02-04,HHS Region 8,Season peak percentage,NA
-2018-02-04,HHS Region 8,Season peak week,NA
 2018-02-04,HHS Region 8,Season onset,2017-12-10
 2018-02-11,HHS Region 8,1 wk ahead,2.94334
 2018-02-11,HHS Region 8,2 wk ahead,2.16698
 2018-02-11,HHS Region 8,3 wk ahead,1.89726
 2018-02-11,HHS Region 8,4 wk ahead,1.61178
-2018-02-11,HHS Region 8,Season peak percentage,NA
-2018-02-11,HHS Region 8,Season peak week,NA
 2018-02-11,HHS Region 8,Season onset,2017-12-10
 2018-02-18,HHS Region 8,1 wk ahead,2.16698
 2018-02-18,HHS Region 8,2 wk ahead,1.89726
 2018-02-18,HHS Region 8,3 wk ahead,1.61178
 2018-02-18,HHS Region 8,4 wk ahead,1.27324
-2018-02-18,HHS Region 8,Season peak percentage,NA
-2018-02-18,HHS Region 8,Season peak week,NA
 2018-02-18,HHS Region 8,Season onset,2017-12-10
 2018-02-25,HHS Region 8,1 wk ahead,1.89726
 2018-02-25,HHS Region 8,2 wk ahead,1.61178
 2018-02-25,HHS Region 8,3 wk ahead,1.27324
 2018-02-25,HHS Region 8,4 wk ahead,1.08781
-2018-02-25,HHS Region 8,Season peak percentage,NA
-2018-02-25,HHS Region 8,Season peak week,NA
 2018-02-25,HHS Region 8,Season onset,2017-12-10
 2018-03-04,HHS Region 8,1 wk ahead,1.61178
 2018-03-04,HHS Region 8,2 wk ahead,1.27324
 2018-03-04,HHS Region 8,3 wk ahead,1.08781
 2018-03-04,HHS Region 8,4 wk ahead,1.12735
-2018-03-04,HHS Region 8,Season peak percentage,NA
-2018-03-04,HHS Region 8,Season peak week,NA
 2018-03-04,HHS Region 8,Season onset,2017-12-10
 2018-03-11,HHS Region 8,1 wk ahead,1.27324
 2018-03-11,HHS Region 8,2 wk ahead,1.08781
 2018-03-11,HHS Region 8,3 wk ahead,1.12735
 2018-03-11,HHS Region 8,4 wk ahead,0.844841
-2018-03-11,HHS Region 8,Season peak percentage,NA
-2018-03-11,HHS Region 8,Season peak week,NA
 2018-03-11,HHS Region 8,Season onset,2017-12-10
 2018-03-18,HHS Region 8,1 wk ahead,1.08781
 2018-03-18,HHS Region 8,2 wk ahead,1.12735
 2018-03-18,HHS Region 8,3 wk ahead,0.844841
 2018-03-18,HHS Region 8,4 wk ahead,0.691902
-2018-03-18,HHS Region 8,Season peak percentage,NA
-2018-03-18,HHS Region 8,Season peak week,NA
 2018-03-18,HHS Region 8,Season onset,2017-12-10
 2018-03-25,HHS Region 8,1 wk ahead,1.12735
 2018-03-25,HHS Region 8,2 wk ahead,0.844841
 2018-03-25,HHS Region 8,3 wk ahead,0.691902
 2018-03-25,HHS Region 8,4 wk ahead,0.783205
-2018-03-25,HHS Region 8,Season peak percentage,NA
-2018-03-25,HHS Region 8,Season peak week,NA
 2018-03-25,HHS Region 8,Season onset,2017-12-10
 2018-04-01,HHS Region 8,1 wk ahead,0.844841
 2018-04-01,HHS Region 8,2 wk ahead,0.691902
 2018-04-01,HHS Region 8,3 wk ahead,0.783205
 2018-04-01,HHS Region 8,4 wk ahead,0.642495
-2018-04-01,HHS Region 8,Season peak percentage,NA
-2018-04-01,HHS Region 8,Season peak week,NA
 2018-04-01,HHS Region 8,Season onset,2017-12-10
 2018-04-08,HHS Region 8,1 wk ahead,0.691902
 2018-04-08,HHS Region 8,2 wk ahead,0.783205
 2018-04-08,HHS Region 8,3 wk ahead,0.642495
-2018-04-08,HHS Region 8,4 wk ahead,NA
-2018-04-08,HHS Region 8,Season peak percentage,NA
-2018-04-08,HHS Region 8,Season peak week,NA
 2018-04-08,HHS Region 8,Season onset,2017-12-10
 2018-04-15,HHS Region 8,1 wk ahead,0.783205
 2018-04-15,HHS Region 8,2 wk ahead,0.642495
-2018-04-15,HHS Region 8,3 wk ahead,NA
-2018-04-15,HHS Region 8,4 wk ahead,NA
-2018-04-15,HHS Region 8,Season peak percentage,NA
-2018-04-15,HHS Region 8,Season peak week,NA
 2018-04-15,HHS Region 8,Season onset,2017-12-10
 2018-04-22,HHS Region 8,1 wk ahead,0.642495
-2018-04-22,HHS Region 8,2 wk ahead,NA
-2018-04-22,HHS Region 8,3 wk ahead,NA
-2018-04-22,HHS Region 8,4 wk ahead,NA
-2018-04-22,HHS Region 8,Season peak percentage,NA
-2018-04-22,HHS Region 8,Season peak week,NA
 2018-04-22,HHS Region 8,Season onset,2017-12-10
-2018-04-29,HHS Region 8,1 wk ahead,NA
-2018-04-29,HHS Region 8,2 wk ahead,NA
-2018-04-29,HHS Region 8,3 wk ahead,NA
-2018-04-29,HHS Region 8,4 wk ahead,NA
-2018-04-29,HHS Region 8,Season peak percentage,NA
-2018-04-29,HHS Region 8,Season peak week,NA
 2018-04-29,HHS Region 8,Season onset,2017-12-10
-2018-05-06,HHS Region 8,1 wk ahead,NA
-2018-05-06,HHS Region 8,2 wk ahead,NA
-2018-05-06,HHS Region 8,3 wk ahead,NA
-2018-05-06,HHS Region 8,4 wk ahead,NA
-2018-05-06,HHS Region 8,Season peak percentage,NA
-2018-05-06,HHS Region 8,Season peak week,NA
 2018-05-06,HHS Region 8,Season onset,2017-12-10
-2018-05-13,HHS Region 8,1 wk ahead,NA
-2018-05-13,HHS Region 8,2 wk ahead,NA
-2018-05-13,HHS Region 8,3 wk ahead,NA
-2018-05-13,HHS Region 8,4 wk ahead,NA
-2018-05-13,HHS Region 8,Season peak percentage,NA
-2018-05-13,HHS Region 8,Season peak week,NA
 2018-05-13,HHS Region 8,Season onset,2017-12-10
-2018-05-20,HHS Region 8,1 wk ahead,NA
-2018-05-20,HHS Region 8,2 wk ahead,NA
-2018-05-20,HHS Region 8,3 wk ahead,NA
-2018-05-20,HHS Region 8,4 wk ahead,NA
-2018-05-20,HHS Region 8,Season peak percentage,NA
-2018-05-20,HHS Region 8,Season peak week,NA
 2018-05-20,HHS Region 8,Season onset,2017-12-10
-2018-05-27,HHS Region 8,1 wk ahead,NA
-2018-05-27,HHS Region 8,2 wk ahead,NA
-2018-05-27,HHS Region 8,3 wk ahead,NA
-2018-05-27,HHS Region 8,4 wk ahead,NA
-2018-05-27,HHS Region 8,Season peak percentage,NA
-2018-05-27,HHS Region 8,Season peak week,NA
 2018-05-27,HHS Region 8,Season onset,2017-12-10
-2018-06-03,HHS Region 8,1 wk ahead,NA
-2018-06-03,HHS Region 8,2 wk ahead,NA
-2018-06-03,HHS Region 8,3 wk ahead,NA
-2018-06-03,HHS Region 8,4 wk ahead,NA
-2018-06-03,HHS Region 8,Season peak percentage,NA
-2018-06-03,HHS Region 8,Season peak week,NA
 2018-06-03,HHS Region 8,Season onset,2017-12-10
-2018-06-10,HHS Region 8,1 wk ahead,NA
-2018-06-10,HHS Region 8,2 wk ahead,NA
-2018-06-10,HHS Region 8,3 wk ahead,NA
-2018-06-10,HHS Region 8,4 wk ahead,NA
-2018-06-10,HHS Region 8,Season peak percentage,NA
-2018-06-10,HHS Region 8,Season peak week,NA
 2018-06-10,HHS Region 8,Season onset,2017-12-10
-2018-06-17,HHS Region 8,1 wk ahead,NA
-2018-06-17,HHS Region 8,2 wk ahead,NA
-2018-06-17,HHS Region 8,3 wk ahead,NA
-2018-06-17,HHS Region 8,4 wk ahead,NA
-2018-06-17,HHS Region 8,Season peak percentage,NA
-2018-06-17,HHS Region 8,Season peak week,NA
 2018-06-17,HHS Region 8,Season onset,2017-12-10
-2018-06-24,HHS Region 8,1 wk ahead,NA
-2018-06-24,HHS Region 8,2 wk ahead,NA
-2018-06-24,HHS Region 8,3 wk ahead,NA
-2018-06-24,HHS Region 8,4 wk ahead,NA
-2018-06-24,HHS Region 8,Season peak percentage,NA
-2018-06-24,HHS Region 8,Season peak week,NA
 2018-06-24,HHS Region 8,Season onset,2017-12-10
-2018-07-01,HHS Region 8,1 wk ahead,NA
-2018-07-01,HHS Region 8,2 wk ahead,NA
-2018-07-01,HHS Region 8,3 wk ahead,NA
-2018-07-01,HHS Region 8,4 wk ahead,NA
-2018-07-01,HHS Region 8,Season peak percentage,NA
-2018-07-01,HHS Region 8,Season peak week,NA
 2018-07-01,HHS Region 8,Season onset,2017-12-10
-2018-07-08,HHS Region 8,1 wk ahead,NA
-2018-07-08,HHS Region 8,2 wk ahead,NA
-2018-07-08,HHS Region 8,3 wk ahead,NA
-2018-07-08,HHS Region 8,4 wk ahead,NA
-2018-07-08,HHS Region 8,Season peak percentage,NA
-2018-07-08,HHS Region 8,Season peak week,NA
 2018-07-08,HHS Region 8,Season onset,2017-12-10
-2018-07-15,HHS Region 8,1 wk ahead,NA
-2018-07-15,HHS Region 8,2 wk ahead,NA
-2018-07-15,HHS Region 8,3 wk ahead,NA
-2018-07-15,HHS Region 8,4 wk ahead,NA
-2018-07-15,HHS Region 8,Season peak percentage,NA
-2018-07-15,HHS Region 8,Season peak week,NA
 2018-07-15,HHS Region 8,Season onset,2017-12-10
 2017-07-23,HHS Region 9,1 wk ahead,0.892872
 2017-07-23,HHS Region 9,2 wk ahead,0.912778
 2017-07-23,HHS Region 9,3 wk ahead,1.012
 2017-07-23,HHS Region 9,4 wk ahead,1.26206
-2017-07-23,HHS Region 9,Season peak percentage,NA
-2017-07-23,HHS Region 9,Season peak week,NA
 2017-07-23,HHS Region 9,Season onset,2017-12-03
 2017-07-30,HHS Region 9,1 wk ahead,0.912778
 2017-07-30,HHS Region 9,2 wk ahead,1.012
 2017-07-30,HHS Region 9,3 wk ahead,1.26206
 2017-07-30,HHS Region 9,4 wk ahead,1.28077
-2017-07-30,HHS Region 9,Season peak percentage,NA
-2017-07-30,HHS Region 9,Season peak week,NA
 2017-07-30,HHS Region 9,Season onset,2017-12-03
 2017-08-06,HHS Region 9,1 wk ahead,1.012
 2017-08-06,HHS Region 9,2 wk ahead,1.26206
 2017-08-06,HHS Region 9,3 wk ahead,1.28077
 2017-08-06,HHS Region 9,4 wk ahead,1.30647
-2017-08-06,HHS Region 9,Season peak percentage,NA
-2017-08-06,HHS Region 9,Season peak week,NA
 2017-08-06,HHS Region 9,Season onset,2017-12-03
 2017-08-13,HHS Region 9,1 wk ahead,1.26206
 2017-08-13,HHS Region 9,2 wk ahead,1.28077
 2017-08-13,HHS Region 9,3 wk ahead,1.30647
 2017-08-13,HHS Region 9,4 wk ahead,1.57206
-2017-08-13,HHS Region 9,Season peak percentage,NA
-2017-08-13,HHS Region 9,Season peak week,NA
 2017-08-13,HHS Region 9,Season onset,2017-12-03
 2017-08-20,HHS Region 9,1 wk ahead,1.28077
 2017-08-20,HHS Region 9,2 wk ahead,1.30647
 2017-08-20,HHS Region 9,3 wk ahead,1.57206
 2017-08-20,HHS Region 9,4 wk ahead,1.47989
-2017-08-20,HHS Region 9,Season peak percentage,NA
-2017-08-20,HHS Region 9,Season peak week,NA
 2017-08-20,HHS Region 9,Season onset,2017-12-03
 2017-08-27,HHS Region 9,1 wk ahead,1.30647
 2017-08-27,HHS Region 9,2 wk ahead,1.57206
 2017-08-27,HHS Region 9,3 wk ahead,1.47989
 2017-08-27,HHS Region 9,4 wk ahead,1.45307
-2017-08-27,HHS Region 9,Season peak percentage,NA
-2017-08-27,HHS Region 9,Season peak week,NA
 2017-08-27,HHS Region 9,Season onset,2017-12-03
 2017-09-03,HHS Region 9,1 wk ahead,1.57206
 2017-09-03,HHS Region 9,2 wk ahead,1.47989
 2017-09-03,HHS Region 9,3 wk ahead,1.45307
 2017-09-03,HHS Region 9,4 wk ahead,1.77994
-2017-09-03,HHS Region 9,Season peak percentage,NA
-2017-09-03,HHS Region 9,Season peak week,NA
 2017-09-03,HHS Region 9,Season onset,2017-12-03
 2017-09-10,HHS Region 9,1 wk ahead,1.47989
 2017-09-10,HHS Region 9,2 wk ahead,1.45307
 2017-09-10,HHS Region 9,3 wk ahead,1.77994
 2017-09-10,HHS Region 9,4 wk ahead,1.574
-2017-09-10,HHS Region 9,Season peak percentage,NA
-2017-09-10,HHS Region 9,Season peak week,NA
 2017-09-10,HHS Region 9,Season onset,2017-12-03
 2017-09-17,HHS Region 9,1 wk ahead,1.45307
 2017-09-17,HHS Region 9,2 wk ahead,1.77994
 2017-09-17,HHS Region 9,3 wk ahead,1.574
 2017-09-17,HHS Region 9,4 wk ahead,1.60334
-2017-09-17,HHS Region 9,Season peak percentage,NA
-2017-09-17,HHS Region 9,Season peak week,NA
 2017-09-17,HHS Region 9,Season onset,2017-12-03
 2017-09-24,HHS Region 9,1 wk ahead,1.77994
 2017-09-24,HHS Region 9,2 wk ahead,1.574
 2017-09-24,HHS Region 9,3 wk ahead,1.60334
 2017-09-24,HHS Region 9,4 wk ahead,1.75925
-2017-09-24,HHS Region 9,Season peak percentage,NA
-2017-09-24,HHS Region 9,Season peak week,NA
 2017-09-24,HHS Region 9,Season onset,2017-12-03
 2017-10-01,HHS Region 9,1 wk ahead,1.574
 2017-10-01,HHS Region 9,2 wk ahead,1.60334
 2017-10-01,HHS Region 9,3 wk ahead,1.75925
 2017-10-01,HHS Region 9,4 wk ahead,2.04786
-2017-10-01,HHS Region 9,Season peak percentage,NA
-2017-10-01,HHS Region 9,Season peak week,NA
 2017-10-01,HHS Region 9,Season onset,2017-12-03
 2017-10-08,HHS Region 9,1 wk ahead,1.60334
 2017-10-08,HHS Region 9,2 wk ahead,1.75925
 2017-10-08,HHS Region 9,3 wk ahead,2.04786
 2017-10-08,HHS Region 9,4 wk ahead,1.95639
-2017-10-08,HHS Region 9,Season peak percentage,NA
-2017-10-08,HHS Region 9,Season peak week,NA
 2017-10-08,HHS Region 9,Season onset,2017-12-03
 2017-10-15,HHS Region 9,1 wk ahead,1.75925
 2017-10-15,HHS Region 9,2 wk ahead,2.04786
 2017-10-15,HHS Region 9,3 wk ahead,1.95639
 2017-10-15,HHS Region 9,4 wk ahead,2.04657
-2017-10-15,HHS Region 9,Season peak percentage,NA
-2017-10-15,HHS Region 9,Season peak week,NA
 2017-10-15,HHS Region 9,Season onset,2017-12-03
 2017-10-22,HHS Region 9,1 wk ahead,2.04786
 2017-10-22,HHS Region 9,2 wk ahead,1.95639
 2017-10-22,HHS Region 9,3 wk ahead,2.04657
 2017-10-22,HHS Region 9,4 wk ahead,2.21828
-2017-10-22,HHS Region 9,Season peak percentage,NA
-2017-10-22,HHS Region 9,Season peak week,NA
 2017-10-22,HHS Region 9,Season onset,2017-12-03
 2017-10-29,HHS Region 9,1 wk ahead,1.95639
 2017-10-29,HHS Region 9,2 wk ahead,2.04657
 2017-10-29,HHS Region 9,3 wk ahead,2.21828
 2017-10-29,HHS Region 9,4 wk ahead,2.19885
-2017-10-29,HHS Region 9,Season peak percentage,NA
-2017-10-29,HHS Region 9,Season peak week,NA
 2017-10-29,HHS Region 9,Season onset,2017-12-03
 2017-11-05,HHS Region 9,1 wk ahead,2.04657
 2017-11-05,HHS Region 9,2 wk ahead,2.21828
 2017-11-05,HHS Region 9,3 wk ahead,2.19885
 2017-11-05,HHS Region 9,4 wk ahead,2.64398
-2017-11-05,HHS Region 9,Season peak percentage,NA
-2017-11-05,HHS Region 9,Season peak week,NA
 2017-11-05,HHS Region 9,Season onset,2017-12-03
 2017-11-12,HHS Region 9,1 wk ahead,2.21828
 2017-11-12,HHS Region 9,2 wk ahead,2.19885
 2017-11-12,HHS Region 9,3 wk ahead,2.64398
 2017-11-12,HHS Region 9,4 wk ahead,3.60818
-2017-11-12,HHS Region 9,Season peak percentage,NA
-2017-11-12,HHS Region 9,Season peak week,NA
 2017-11-12,HHS Region 9,Season onset,2017-12-03
 2017-11-19,HHS Region 9,1 wk ahead,2.19885
 2017-11-19,HHS Region 9,2 wk ahead,2.64398
 2017-11-19,HHS Region 9,3 wk ahead,3.60818
 2017-11-19,HHS Region 9,4 wk ahead,4.83018
-2017-11-19,HHS Region 9,Season peak percentage,NA
-2017-11-19,HHS Region 9,Season peak week,NA
 2017-11-19,HHS Region 9,Season onset,2017-12-03
 2017-11-26,HHS Region 9,1 wk ahead,2.64398
 2017-11-26,HHS Region 9,2 wk ahead,3.60818
 2017-11-26,HHS Region 9,3 wk ahead,4.83018
 2017-11-26,HHS Region 9,4 wk ahead,6.97185
-2017-11-26,HHS Region 9,Season peak percentage,NA
-2017-11-26,HHS Region 9,Season peak week,NA
 2017-11-26,HHS Region 9,Season onset,2017-12-03
 2017-12-03,HHS Region 9,1 wk ahead,3.60818
 2017-12-03,HHS Region 9,2 wk ahead,4.83018
 2017-12-03,HHS Region 9,3 wk ahead,6.97185
 2017-12-03,HHS Region 9,4 wk ahead,6.65761
-2017-12-03,HHS Region 9,Season peak percentage,NA
-2017-12-03,HHS Region 9,Season peak week,NA
 2017-12-03,HHS Region 9,Season onset,2017-12-03
 2017-12-10,HHS Region 9,1 wk ahead,4.83018
 2017-12-10,HHS Region 9,2 wk ahead,6.97185
 2017-12-10,HHS Region 9,3 wk ahead,6.65761
 2017-12-10,HHS Region 9,4 wk ahead,4.92899
-2017-12-10,HHS Region 9,Season peak percentage,NA
-2017-12-10,HHS Region 9,Season peak week,NA
 2017-12-10,HHS Region 9,Season onset,2017-12-03
 2017-12-17,HHS Region 9,1 wk ahead,6.97185
 2017-12-17,HHS Region 9,2 wk ahead,6.65761
 2017-12-17,HHS Region 9,3 wk ahead,4.92899
 2017-12-17,HHS Region 9,4 wk ahead,4.24711
-2017-12-17,HHS Region 9,Season peak percentage,NA
-2017-12-17,HHS Region 9,Season peak week,NA
 2017-12-17,HHS Region 9,Season onset,2017-12-03
 2017-12-24,HHS Region 9,1 wk ahead,6.65761
 2017-12-24,HHS Region 9,2 wk ahead,4.92899
 2017-12-24,HHS Region 9,3 wk ahead,4.24711
 2017-12-24,HHS Region 9,4 wk ahead,4.06345
-2017-12-24,HHS Region 9,Season peak percentage,NA
-2017-12-24,HHS Region 9,Season peak week,NA
 2017-12-24,HHS Region 9,Season onset,2017-12-03
 2017-12-31,HHS Region 9,1 wk ahead,4.92899
 2017-12-31,HHS Region 9,2 wk ahead,4.24711
 2017-12-31,HHS Region 9,3 wk ahead,4.06345
 2017-12-31,HHS Region 9,4 wk ahead,4.17059
-2017-12-31,HHS Region 9,Season peak percentage,NA
-2017-12-31,HHS Region 9,Season peak week,NA
 2017-12-31,HHS Region 9,Season onset,2017-12-03
 2018-01-07,HHS Region 9,1 wk ahead,4.24711
 2018-01-07,HHS Region 9,2 wk ahead,4.06345
 2018-01-07,HHS Region 9,3 wk ahead,4.17059
 2018-01-07,HHS Region 9,4 wk ahead,3.86335
-2018-01-07,HHS Region 9,Season peak percentage,NA
-2018-01-07,HHS Region 9,Season peak week,NA
 2018-01-07,HHS Region 9,Season onset,2017-12-03
 2018-01-14,HHS Region 9,1 wk ahead,4.06345
 2018-01-14,HHS Region 9,2 wk ahead,4.17059
 2018-01-14,HHS Region 9,3 wk ahead,3.86335
 2018-01-14,HHS Region 9,4 wk ahead,3.84673
-2018-01-14,HHS Region 9,Season peak percentage,NA
-2018-01-14,HHS Region 9,Season peak week,NA
 2018-01-14,HHS Region 9,Season onset,2017-12-03
 2018-01-21,HHS Region 9,1 wk ahead,4.17059
 2018-01-21,HHS Region 9,2 wk ahead,3.86335
 2018-01-21,HHS Region 9,3 wk ahead,3.84673
 2018-01-21,HHS Region 9,4 wk ahead,3.56411
-2018-01-21,HHS Region 9,Season peak percentage,NA
-2018-01-21,HHS Region 9,Season peak week,NA
 2018-01-21,HHS Region 9,Season onset,2017-12-03
 2018-01-28,HHS Region 9,1 wk ahead,3.86335
 2018-01-28,HHS Region 9,2 wk ahead,3.84673
 2018-01-28,HHS Region 9,3 wk ahead,3.56411
 2018-01-28,HHS Region 9,4 wk ahead,3.89931
-2018-01-28,HHS Region 9,Season peak percentage,NA
-2018-01-28,HHS Region 9,Season peak week,NA
 2018-01-28,HHS Region 9,Season onset,2017-12-03
 2018-02-04,HHS Region 9,1 wk ahead,3.84673
 2018-02-04,HHS Region 9,2 wk ahead,3.56411
 2018-02-04,HHS Region 9,3 wk ahead,3.89931
 2018-02-04,HHS Region 9,4 wk ahead,3.34854
-2018-02-04,HHS Region 9,Season peak percentage,NA
-2018-02-04,HHS Region 9,Season peak week,NA
 2018-02-04,HHS Region 9,Season onset,2017-12-03
 2018-02-11,HHS Region 9,1 wk ahead,3.56411
 2018-02-11,HHS Region 9,2 wk ahead,3.89931
 2018-02-11,HHS Region 9,3 wk ahead,3.34854
 2018-02-11,HHS Region 9,4 wk ahead,3.18253
-2018-02-11,HHS Region 9,Season peak percentage,NA
-2018-02-11,HHS Region 9,Season peak week,NA
 2018-02-11,HHS Region 9,Season onset,2017-12-03
 2018-02-18,HHS Region 9,1 wk ahead,3.89931
 2018-02-18,HHS Region 9,2 wk ahead,3.34854
 2018-02-18,HHS Region 9,3 wk ahead,3.18253
 2018-02-18,HHS Region 9,4 wk ahead,2.86127
-2018-02-18,HHS Region 9,Season peak percentage,NA
-2018-02-18,HHS Region 9,Season peak week,NA
 2018-02-18,HHS Region 9,Season onset,2017-12-03
 2018-02-25,HHS Region 9,1 wk ahead,3.34854
 2018-02-25,HHS Region 9,2 wk ahead,3.18253
 2018-02-25,HHS Region 9,3 wk ahead,2.86127
 2018-02-25,HHS Region 9,4 wk ahead,2.64117
-2018-02-25,HHS Region 9,Season peak percentage,NA
-2018-02-25,HHS Region 9,Season peak week,NA
 2018-02-25,HHS Region 9,Season onset,2017-12-03
 2018-03-04,HHS Region 9,1 wk ahead,3.18253
 2018-03-04,HHS Region 9,2 wk ahead,2.86127
 2018-03-04,HHS Region 9,3 wk ahead,2.64117
 2018-03-04,HHS Region 9,4 wk ahead,2.35923
-2018-03-04,HHS Region 9,Season peak percentage,NA
-2018-03-04,HHS Region 9,Season peak week,NA
 2018-03-04,HHS Region 9,Season onset,2017-12-03
 2018-03-11,HHS Region 9,1 wk ahead,2.86127
 2018-03-11,HHS Region 9,2 wk ahead,2.64117
 2018-03-11,HHS Region 9,3 wk ahead,2.35923
 2018-03-11,HHS Region 9,4 wk ahead,1.93843
-2018-03-11,HHS Region 9,Season peak percentage,NA
-2018-03-11,HHS Region 9,Season peak week,NA
 2018-03-11,HHS Region 9,Season onset,2017-12-03
 2018-03-18,HHS Region 9,1 wk ahead,2.64117
 2018-03-18,HHS Region 9,2 wk ahead,2.35923
 2018-03-18,HHS Region 9,3 wk ahead,1.93843
 2018-03-18,HHS Region 9,4 wk ahead,1.83313
-2018-03-18,HHS Region 9,Season peak percentage,NA
-2018-03-18,HHS Region 9,Season peak week,NA
 2018-03-18,HHS Region 9,Season onset,2017-12-03
 2018-03-25,HHS Region 9,1 wk ahead,2.35923
 2018-03-25,HHS Region 9,2 wk ahead,1.93843
 2018-03-25,HHS Region 9,3 wk ahead,1.83313
 2018-03-25,HHS Region 9,4 wk ahead,1.69266
-2018-03-25,HHS Region 9,Season peak percentage,NA
-2018-03-25,HHS Region 9,Season peak week,NA
 2018-03-25,HHS Region 9,Season onset,2017-12-03
 2018-04-01,HHS Region 9,1 wk ahead,1.93843
 2018-04-01,HHS Region 9,2 wk ahead,1.83313
 2018-04-01,HHS Region 9,3 wk ahead,1.69266
 2018-04-01,HHS Region 9,4 wk ahead,1.75618
-2018-04-01,HHS Region 9,Season peak percentage,NA
-2018-04-01,HHS Region 9,Season peak week,NA
 2018-04-01,HHS Region 9,Season onset,2017-12-03
 2018-04-08,HHS Region 9,1 wk ahead,1.83313
 2018-04-08,HHS Region 9,2 wk ahead,1.69266
 2018-04-08,HHS Region 9,3 wk ahead,1.75618
-2018-04-08,HHS Region 9,4 wk ahead,NA
-2018-04-08,HHS Region 9,Season peak percentage,NA
-2018-04-08,HHS Region 9,Season peak week,NA
 2018-04-08,HHS Region 9,Season onset,2017-12-03
 2018-04-15,HHS Region 9,1 wk ahead,1.69266
 2018-04-15,HHS Region 9,2 wk ahead,1.75618
-2018-04-15,HHS Region 9,3 wk ahead,NA
-2018-04-15,HHS Region 9,4 wk ahead,NA
-2018-04-15,HHS Region 9,Season peak percentage,NA
-2018-04-15,HHS Region 9,Season peak week,NA
 2018-04-15,HHS Region 9,Season onset,2017-12-03
 2018-04-22,HHS Region 9,1 wk ahead,1.75618
-2018-04-22,HHS Region 9,2 wk ahead,NA
-2018-04-22,HHS Region 9,3 wk ahead,NA
-2018-04-22,HHS Region 9,4 wk ahead,NA
-2018-04-22,HHS Region 9,Season peak percentage,NA
-2018-04-22,HHS Region 9,Season peak week,NA
 2018-04-22,HHS Region 9,Season onset,2017-12-03
-2018-04-29,HHS Region 9,1 wk ahead,NA
-2018-04-29,HHS Region 9,2 wk ahead,NA
-2018-04-29,HHS Region 9,3 wk ahead,NA
-2018-04-29,HHS Region 9,4 wk ahead,NA
-2018-04-29,HHS Region 9,Season peak percentage,NA
-2018-04-29,HHS Region 9,Season peak week,NA
 2018-04-29,HHS Region 9,Season onset,2017-12-03
-2018-05-06,HHS Region 9,1 wk ahead,NA
-2018-05-06,HHS Region 9,2 wk ahead,NA
-2018-05-06,HHS Region 9,3 wk ahead,NA
-2018-05-06,HHS Region 9,4 wk ahead,NA
-2018-05-06,HHS Region 9,Season peak percentage,NA
-2018-05-06,HHS Region 9,Season peak week,NA
 2018-05-06,HHS Region 9,Season onset,2017-12-03
-2018-05-13,HHS Region 9,1 wk ahead,NA
-2018-05-13,HHS Region 9,2 wk ahead,NA
-2018-05-13,HHS Region 9,3 wk ahead,NA
-2018-05-13,HHS Region 9,4 wk ahead,NA
-2018-05-13,HHS Region 9,Season peak percentage,NA
-2018-05-13,HHS Region 9,Season peak week,NA
 2018-05-13,HHS Region 9,Season onset,2017-12-03
-2018-05-20,HHS Region 9,1 wk ahead,NA
-2018-05-20,HHS Region 9,2 wk ahead,NA
-2018-05-20,HHS Region 9,3 wk ahead,NA
-2018-05-20,HHS Region 9,4 wk ahead,NA
-2018-05-20,HHS Region 9,Season peak percentage,NA
-2018-05-20,HHS Region 9,Season peak week,NA
 2018-05-20,HHS Region 9,Season onset,2017-12-03
-2018-05-27,HHS Region 9,1 wk ahead,NA
-2018-05-27,HHS Region 9,2 wk ahead,NA
-2018-05-27,HHS Region 9,3 wk ahead,NA
-2018-05-27,HHS Region 9,4 wk ahead,NA
-2018-05-27,HHS Region 9,Season peak percentage,NA
-2018-05-27,HHS Region 9,Season peak week,NA
 2018-05-27,HHS Region 9,Season onset,2017-12-03
-2018-06-03,HHS Region 9,1 wk ahead,NA
-2018-06-03,HHS Region 9,2 wk ahead,NA
-2018-06-03,HHS Region 9,3 wk ahead,NA
-2018-06-03,HHS Region 9,4 wk ahead,NA
-2018-06-03,HHS Region 9,Season peak percentage,NA
-2018-06-03,HHS Region 9,Season peak week,NA
 2018-06-03,HHS Region 9,Season onset,2017-12-03
-2018-06-10,HHS Region 9,1 wk ahead,NA
-2018-06-10,HHS Region 9,2 wk ahead,NA
-2018-06-10,HHS Region 9,3 wk ahead,NA
-2018-06-10,HHS Region 9,4 wk ahead,NA
-2018-06-10,HHS Region 9,Season peak percentage,NA
-2018-06-10,HHS Region 9,Season peak week,NA
 2018-06-10,HHS Region 9,Season onset,2017-12-03
-2018-06-17,HHS Region 9,1 wk ahead,NA
-2018-06-17,HHS Region 9,2 wk ahead,NA
-2018-06-17,HHS Region 9,3 wk ahead,NA
-2018-06-17,HHS Region 9,4 wk ahead,NA
-2018-06-17,HHS Region 9,Season peak percentage,NA
-2018-06-17,HHS Region 9,Season peak week,NA
 2018-06-17,HHS Region 9,Season onset,2017-12-03
-2018-06-24,HHS Region 9,1 wk ahead,NA
-2018-06-24,HHS Region 9,2 wk ahead,NA
-2018-06-24,HHS Region 9,3 wk ahead,NA
-2018-06-24,HHS Region 9,4 wk ahead,NA
-2018-06-24,HHS Region 9,Season peak percentage,NA
-2018-06-24,HHS Region 9,Season peak week,NA
 2018-06-24,HHS Region 9,Season onset,2017-12-03
-2018-07-01,HHS Region 9,1 wk ahead,NA
-2018-07-01,HHS Region 9,2 wk ahead,NA
-2018-07-01,HHS Region 9,3 wk ahead,NA
-2018-07-01,HHS Region 9,4 wk ahead,NA
-2018-07-01,HHS Region 9,Season peak percentage,NA
-2018-07-01,HHS Region 9,Season peak week,NA
 2018-07-01,HHS Region 9,Season onset,2017-12-03
-2018-07-08,HHS Region 9,1 wk ahead,NA
-2018-07-08,HHS Region 9,2 wk ahead,NA
-2018-07-08,HHS Region 9,3 wk ahead,NA
-2018-07-08,HHS Region 9,4 wk ahead,NA
-2018-07-08,HHS Region 9,Season peak percentage,NA
-2018-07-08,HHS Region 9,Season peak week,NA
 2018-07-08,HHS Region 9,Season onset,2017-12-03
-2018-07-15,HHS Region 9,1 wk ahead,NA
-2018-07-15,HHS Region 9,2 wk ahead,NA
-2018-07-15,HHS Region 9,3 wk ahead,NA
-2018-07-15,HHS Region 9,4 wk ahead,NA
-2018-07-15,HHS Region 9,Season peak percentage,NA
-2018-07-15,HHS Region 9,Season peak week,NA
 2018-07-15,HHS Region 9,Season onset,2017-12-03
 2017-07-23,HHS Region 10,1 wk ahead,0.364459
 2017-07-23,HHS Region 10,2 wk ahead,0.240377
 2017-07-23,HHS Region 10,3 wk ahead,0.126923
 2017-07-23,HHS Region 10,4 wk ahead,0.241729
-2017-07-23,HHS Region 10,Season peak percentage,NA
-2017-07-23,HHS Region 10,Season peak week,NA
 2017-07-23,HHS Region 10,Season onset,2017-12-17
 2017-07-30,HHS Region 10,1 wk ahead,0.240377
 2017-07-30,HHS Region 10,2 wk ahead,0.126923
 2017-07-30,HHS Region 10,3 wk ahead,0.241729
 2017-07-30,HHS Region 10,4 wk ahead,0.293072
-2017-07-30,HHS Region 10,Season peak percentage,NA
-2017-07-30,HHS Region 10,Season peak week,NA
 2017-07-30,HHS Region 10,Season onset,2017-12-17
 2017-08-06,HHS Region 10,1 wk ahead,0.126923
 2017-08-06,HHS Region 10,2 wk ahead,0.241729
 2017-08-06,HHS Region 10,3 wk ahead,0.293072
 2017-08-06,HHS Region 10,4 wk ahead,0.222412
-2017-08-06,HHS Region 10,Season peak percentage,NA
-2017-08-06,HHS Region 10,Season peak week,NA
 2017-08-06,HHS Region 10,Season onset,2017-12-17
 2017-08-13,HHS Region 10,1 wk ahead,0.241729
 2017-08-13,HHS Region 10,2 wk ahead,0.293072
 2017-08-13,HHS Region 10,3 wk ahead,0.222412
 2017-08-13,HHS Region 10,4 wk ahead,0.450716
-2017-08-13,HHS Region 10,Season peak percentage,NA
-2017-08-13,HHS Region 10,Season peak week,NA
 2017-08-13,HHS Region 10,Season onset,2017-12-17
 2017-08-20,HHS Region 10,1 wk ahead,0.293072
 2017-08-20,HHS Region 10,2 wk ahead,0.222412
 2017-08-20,HHS Region 10,3 wk ahead,0.450716
 2017-08-20,HHS Region 10,4 wk ahead,0.451331
-2017-08-20,HHS Region 10,Season peak percentage,NA
-2017-08-20,HHS Region 10,Season peak week,NA
 2017-08-20,HHS Region 10,Season onset,2017-12-17
 2017-08-27,HHS Region 10,1 wk ahead,0.222412
 2017-08-27,HHS Region 10,2 wk ahead,0.450716
 2017-08-27,HHS Region 10,3 wk ahead,0.451331
 2017-08-27,HHS Region 10,4 wk ahead,0.378646
-2017-08-27,HHS Region 10,Season peak percentage,NA
-2017-08-27,HHS Region 10,Season peak week,NA
 2017-08-27,HHS Region 10,Season onset,2017-12-17
 2017-09-03,HHS Region 10,1 wk ahead,0.450716
 2017-09-03,HHS Region 10,2 wk ahead,0.451331
 2017-09-03,HHS Region 10,3 wk ahead,0.378646
 2017-09-03,HHS Region 10,4 wk ahead,0.520871
-2017-09-03,HHS Region 10,Season peak percentage,NA
-2017-09-03,HHS Region 10,Season peak week,NA
 2017-09-03,HHS Region 10,Season onset,2017-12-17
 2017-09-10,HHS Region 10,1 wk ahead,0.451331
 2017-09-10,HHS Region 10,2 wk ahead,0.378646
 2017-09-10,HHS Region 10,3 wk ahead,0.520871
 2017-09-10,HHS Region 10,4 wk ahead,0.63234
-2017-09-10,HHS Region 10,Season peak percentage,NA
-2017-09-10,HHS Region 10,Season peak week,NA
 2017-09-10,HHS Region 10,Season onset,2017-12-17
 2017-09-17,HHS Region 10,1 wk ahead,0.378646
 2017-09-17,HHS Region 10,2 wk ahead,0.520871
 2017-09-17,HHS Region 10,3 wk ahead,0.63234
 2017-09-17,HHS Region 10,4 wk ahead,0.799399
-2017-09-17,HHS Region 10,Season peak percentage,NA
-2017-09-17,HHS Region 10,Season peak week,NA
 2017-09-17,HHS Region 10,Season onset,2017-12-17
 2017-09-24,HHS Region 10,1 wk ahead,0.520871
 2017-09-24,HHS Region 10,2 wk ahead,0.63234
 2017-09-24,HHS Region 10,3 wk ahead,0.799399
 2017-09-24,HHS Region 10,4 wk ahead,0.706956
-2017-09-24,HHS Region 10,Season peak percentage,NA
-2017-09-24,HHS Region 10,Season peak week,NA
 2017-09-24,HHS Region 10,Season onset,2017-12-17
 2017-10-01,HHS Region 10,1 wk ahead,0.63234
 2017-10-01,HHS Region 10,2 wk ahead,0.799399
 2017-10-01,HHS Region 10,3 wk ahead,0.706956
 2017-10-01,HHS Region 10,4 wk ahead,0.956682
-2017-10-01,HHS Region 10,Season peak percentage,NA
-2017-10-01,HHS Region 10,Season peak week,NA
 2017-10-01,HHS Region 10,Season onset,2017-12-17
 2017-10-08,HHS Region 10,1 wk ahead,0.799399
 2017-10-08,HHS Region 10,2 wk ahead,0.706956
 2017-10-08,HHS Region 10,3 wk ahead,0.956682
 2017-10-08,HHS Region 10,4 wk ahead,1.00098
-2017-10-08,HHS Region 10,Season peak percentage,NA
-2017-10-08,HHS Region 10,Season peak week,NA
 2017-10-08,HHS Region 10,Season onset,2017-12-17
 2017-10-15,HHS Region 10,1 wk ahead,0.706956
 2017-10-15,HHS Region 10,2 wk ahead,0.956682
 2017-10-15,HHS Region 10,3 wk ahead,1.00098
 2017-10-15,HHS Region 10,4 wk ahead,0.929811
-2017-10-15,HHS Region 10,Season peak percentage,NA
-2017-10-15,HHS Region 10,Season peak week,NA
 2017-10-15,HHS Region 10,Season onset,2017-12-17
 2017-10-22,HHS Region 10,1 wk ahead,0.956682
 2017-10-22,HHS Region 10,2 wk ahead,1.00098
 2017-10-22,HHS Region 10,3 wk ahead,0.929811
 2017-10-22,HHS Region 10,4 wk ahead,1.25088
-2017-10-22,HHS Region 10,Season peak percentage,NA
-2017-10-22,HHS Region 10,Season peak week,NA
 2017-10-22,HHS Region 10,Season onset,2017-12-17
 2017-10-29,HHS Region 10,1 wk ahead,1.00098
 2017-10-29,HHS Region 10,2 wk ahead,0.929811
 2017-10-29,HHS Region 10,3 wk ahead,1.25088
 2017-10-29,HHS Region 10,4 wk ahead,1.20543
-2017-10-29,HHS Region 10,Season peak percentage,NA
-2017-10-29,HHS Region 10,Season peak week,NA
 2017-10-29,HHS Region 10,Season onset,2017-12-17
 2017-11-05,HHS Region 10,1 wk ahead,0.929811
 2017-11-05,HHS Region 10,2 wk ahead,1.25088
 2017-11-05,HHS Region 10,3 wk ahead,1.20543
 2017-11-05,HHS Region 10,4 wk ahead,1.11517
-2017-11-05,HHS Region 10,Season peak percentage,NA
-2017-11-05,HHS Region 10,Season peak week,NA
 2017-11-05,HHS Region 10,Season onset,2017-12-17
 2017-11-12,HHS Region 10,1 wk ahead,1.25088
 2017-11-12,HHS Region 10,2 wk ahead,1.20543
 2017-11-12,HHS Region 10,3 wk ahead,1.11517
 2017-11-12,HHS Region 10,4 wk ahead,1.30968
-2017-11-12,HHS Region 10,Season peak percentage,NA
-2017-11-12,HHS Region 10,Season peak week,NA
 2017-11-12,HHS Region 10,Season onset,2017-12-17
 2017-11-19,HHS Region 10,1 wk ahead,1.20543
 2017-11-19,HHS Region 10,2 wk ahead,1.11517
 2017-11-19,HHS Region 10,3 wk ahead,1.30968
 2017-11-19,HHS Region 10,4 wk ahead,2.15611
-2017-11-19,HHS Region 10,Season peak percentage,NA
-2017-11-19,HHS Region 10,Season peak week,NA
 2017-11-19,HHS Region 10,Season onset,2017-12-17
 2017-11-26,HHS Region 10,1 wk ahead,1.11517
 2017-11-26,HHS Region 10,2 wk ahead,1.30968
 2017-11-26,HHS Region 10,3 wk ahead,2.15611
 2017-11-26,HHS Region 10,4 wk ahead,4.34775
-2017-11-26,HHS Region 10,Season peak percentage,NA
-2017-11-26,HHS Region 10,Season peak week,NA
 2017-11-26,HHS Region 10,Season onset,2017-12-17
 2017-12-03,HHS Region 10,1 wk ahead,1.30968
 2017-12-03,HHS Region 10,2 wk ahead,2.15611
 2017-12-03,HHS Region 10,3 wk ahead,4.34775
 2017-12-03,HHS Region 10,4 wk ahead,4.78676
-2017-12-03,HHS Region 10,Season peak percentage,NA
-2017-12-03,HHS Region 10,Season peak week,NA
 2017-12-03,HHS Region 10,Season onset,2017-12-17
 2017-12-10,HHS Region 10,1 wk ahead,2.15611
 2017-12-10,HHS Region 10,2 wk ahead,4.34775
 2017-12-10,HHS Region 10,3 wk ahead,4.78676
 2017-12-10,HHS Region 10,4 wk ahead,4.15034
-2017-12-10,HHS Region 10,Season peak percentage,NA
-2017-12-10,HHS Region 10,Season peak week,NA
 2017-12-10,HHS Region 10,Season onset,2017-12-17
 2017-12-17,HHS Region 10,1 wk ahead,4.34775
 2017-12-17,HHS Region 10,2 wk ahead,4.78676
 2017-12-17,HHS Region 10,3 wk ahead,4.15034
 2017-12-17,HHS Region 10,4 wk ahead,3.86796
-2017-12-17,HHS Region 10,Season peak percentage,NA
-2017-12-17,HHS Region 10,Season peak week,NA
 2017-12-17,HHS Region 10,Season onset,2017-12-17
 2017-12-24,HHS Region 10,1 wk ahead,4.78676
 2017-12-24,HHS Region 10,2 wk ahead,4.15034
 2017-12-24,HHS Region 10,3 wk ahead,3.86796
 2017-12-24,HHS Region 10,4 wk ahead,3.99004
-2017-12-24,HHS Region 10,Season peak percentage,NA
-2017-12-24,HHS Region 10,Season peak week,NA
 2017-12-24,HHS Region 10,Season onset,2017-12-17
 2017-12-31,HHS Region 10,1 wk ahead,4.15034
 2017-12-31,HHS Region 10,2 wk ahead,3.86796
 2017-12-31,HHS Region 10,3 wk ahead,3.99004
 2017-12-31,HHS Region 10,4 wk ahead,3.68608
-2017-12-31,HHS Region 10,Season peak percentage,NA
-2017-12-31,HHS Region 10,Season peak week,NA
 2017-12-31,HHS Region 10,Season onset,2017-12-17
 2018-01-07,HHS Region 10,1 wk ahead,3.86796
 2018-01-07,HHS Region 10,2 wk ahead,3.99004
 2018-01-07,HHS Region 10,3 wk ahead,3.68608
 2018-01-07,HHS Region 10,4 wk ahead,2.95319
-2018-01-07,HHS Region 10,Season peak percentage,NA
-2018-01-07,HHS Region 10,Season peak week,NA
 2018-01-07,HHS Region 10,Season onset,2017-12-17
 2018-01-14,HHS Region 10,1 wk ahead,3.99004
 2018-01-14,HHS Region 10,2 wk ahead,3.68608
 2018-01-14,HHS Region 10,3 wk ahead,2.95319
 2018-01-14,HHS Region 10,4 wk ahead,2.68389
-2018-01-14,HHS Region 10,Season peak percentage,NA
-2018-01-14,HHS Region 10,Season peak week,NA
 2018-01-14,HHS Region 10,Season onset,2017-12-17
 2018-01-21,HHS Region 10,1 wk ahead,3.68608
 2018-01-21,HHS Region 10,2 wk ahead,2.95319
 2018-01-21,HHS Region 10,3 wk ahead,2.68389
 2018-01-21,HHS Region 10,4 wk ahead,2.77469
-2018-01-21,HHS Region 10,Season peak percentage,NA
-2018-01-21,HHS Region 10,Season peak week,NA
 2018-01-21,HHS Region 10,Season onset,2017-12-17
 2018-01-28,HHS Region 10,1 wk ahead,2.95319
 2018-01-28,HHS Region 10,2 wk ahead,2.68389
 2018-01-28,HHS Region 10,3 wk ahead,2.77469
 2018-01-28,HHS Region 10,4 wk ahead,2.39539
-2018-01-28,HHS Region 10,Season peak percentage,NA
-2018-01-28,HHS Region 10,Season peak week,NA
 2018-01-28,HHS Region 10,Season onset,2017-12-17
 2018-02-04,HHS Region 10,1 wk ahead,2.68389
 2018-02-04,HHS Region 10,2 wk ahead,2.77469
 2018-02-04,HHS Region 10,3 wk ahead,2.39539
 2018-02-04,HHS Region 10,4 wk ahead,1.95685
-2018-02-04,HHS Region 10,Season peak percentage,NA
-2018-02-04,HHS Region 10,Season peak week,NA
 2018-02-04,HHS Region 10,Season onset,2017-12-17
 2018-02-11,HHS Region 10,1 wk ahead,2.77469
 2018-02-11,HHS Region 10,2 wk ahead,2.39539
 2018-02-11,HHS Region 10,3 wk ahead,1.95685
 2018-02-11,HHS Region 10,4 wk ahead,2.49214
-2018-02-11,HHS Region 10,Season peak percentage,NA
-2018-02-11,HHS Region 10,Season peak week,NA
 2018-02-11,HHS Region 10,Season onset,2017-12-17
 2018-02-18,HHS Region 10,1 wk ahead,2.39539
 2018-02-18,HHS Region 10,2 wk ahead,1.95685
 2018-02-18,HHS Region 10,3 wk ahead,2.49214
 2018-02-18,HHS Region 10,4 wk ahead,2.22076
-2018-02-18,HHS Region 10,Season peak percentage,NA
-2018-02-18,HHS Region 10,Season peak week,NA
 2018-02-18,HHS Region 10,Season onset,2017-12-17
 2018-02-25,HHS Region 10,1 wk ahead,1.95685
 2018-02-25,HHS Region 10,2 wk ahead,2.49214
 2018-02-25,HHS Region 10,3 wk ahead,2.22076
 2018-02-25,HHS Region 10,4 wk ahead,1.88927
-2018-02-25,HHS Region 10,Season peak percentage,NA
-2018-02-25,HHS Region 10,Season peak week,NA
 2018-02-25,HHS Region 10,Season onset,2017-12-17
 2018-03-04,HHS Region 10,1 wk ahead,2.49214
 2018-03-04,HHS Region 10,2 wk ahead,2.22076
 2018-03-04,HHS Region 10,3 wk ahead,1.88927
 2018-03-04,HHS Region 10,4 wk ahead,1.6901
-2018-03-04,HHS Region 10,Season peak percentage,NA
-2018-03-04,HHS Region 10,Season peak week,NA
 2018-03-04,HHS Region 10,Season onset,2017-12-17
 2018-03-11,HHS Region 10,1 wk ahead,2.22076
 2018-03-11,HHS Region 10,2 wk ahead,1.88927
 2018-03-11,HHS Region 10,3 wk ahead,1.6901
 2018-03-11,HHS Region 10,4 wk ahead,1.1636
-2018-03-11,HHS Region 10,Season peak percentage,NA
-2018-03-11,HHS Region 10,Season peak week,NA
 2018-03-11,HHS Region 10,Season onset,2017-12-17
 2018-03-18,HHS Region 10,1 wk ahead,1.88927
 2018-03-18,HHS Region 10,2 wk ahead,1.6901
 2018-03-18,HHS Region 10,3 wk ahead,1.1636
 2018-03-18,HHS Region 10,4 wk ahead,1.08508
-2018-03-18,HHS Region 10,Season peak percentage,NA
-2018-03-18,HHS Region 10,Season peak week,NA
 2018-03-18,HHS Region 10,Season onset,2017-12-17
 2018-03-25,HHS Region 10,1 wk ahead,1.6901
 2018-03-25,HHS Region 10,2 wk ahead,1.1636
 2018-03-25,HHS Region 10,3 wk ahead,1.08508
 2018-03-25,HHS Region 10,4 wk ahead,0.75943
-2018-03-25,HHS Region 10,Season peak percentage,NA
-2018-03-25,HHS Region 10,Season peak week,NA
 2018-03-25,HHS Region 10,Season onset,2017-12-17
 2018-04-01,HHS Region 10,1 wk ahead,1.1636
 2018-04-01,HHS Region 10,2 wk ahead,1.08508
 2018-04-01,HHS Region 10,3 wk ahead,0.75943
 2018-04-01,HHS Region 10,4 wk ahead,0.785857
-2018-04-01,HHS Region 10,Season peak percentage,NA
-2018-04-01,HHS Region 10,Season peak week,NA
 2018-04-01,HHS Region 10,Season onset,2017-12-17
 2018-04-08,HHS Region 10,1 wk ahead,1.08508
 2018-04-08,HHS Region 10,2 wk ahead,0.75943
 2018-04-08,HHS Region 10,3 wk ahead,0.785857
-2018-04-08,HHS Region 10,4 wk ahead,NA
-2018-04-08,HHS Region 10,Season peak percentage,NA
-2018-04-08,HHS Region 10,Season peak week,NA
 2018-04-08,HHS Region 10,Season onset,2017-12-17
 2018-04-15,HHS Region 10,1 wk ahead,0.75943
 2018-04-15,HHS Region 10,2 wk ahead,0.785857
-2018-04-15,HHS Region 10,3 wk ahead,NA
-2018-04-15,HHS Region 10,4 wk ahead,NA
-2018-04-15,HHS Region 10,Season peak percentage,NA
-2018-04-15,HHS Region 10,Season peak week,NA
 2018-04-15,HHS Region 10,Season onset,2017-12-17
 2018-04-22,HHS Region 10,1 wk ahead,0.785857
-2018-04-22,HHS Region 10,2 wk ahead,NA
-2018-04-22,HHS Region 10,3 wk ahead,NA
-2018-04-22,HHS Region 10,4 wk ahead,NA
-2018-04-22,HHS Region 10,Season peak percentage,NA
-2018-04-22,HHS Region 10,Season peak week,NA
 2018-04-22,HHS Region 10,Season onset,2017-12-17
-2018-04-29,HHS Region 10,1 wk ahead,NA
-2018-04-29,HHS Region 10,2 wk ahead,NA
-2018-04-29,HHS Region 10,3 wk ahead,NA
-2018-04-29,HHS Region 10,4 wk ahead,NA
-2018-04-29,HHS Region 10,Season peak percentage,NA
-2018-04-29,HHS Region 10,Season peak week,NA
 2018-04-29,HHS Region 10,Season onset,2017-12-17
-2018-05-06,HHS Region 10,1 wk ahead,NA
-2018-05-06,HHS Region 10,2 wk ahead,NA
-2018-05-06,HHS Region 10,3 wk ahead,NA
-2018-05-06,HHS Region 10,4 wk ahead,NA
-2018-05-06,HHS Region 10,Season peak percentage,NA
-2018-05-06,HHS Region 10,Season peak week,NA
 2018-05-06,HHS Region 10,Season onset,2017-12-17
-2018-05-13,HHS Region 10,1 wk ahead,NA
-2018-05-13,HHS Region 10,2 wk ahead,NA
-2018-05-13,HHS Region 10,3 wk ahead,NA
-2018-05-13,HHS Region 10,4 wk ahead,NA
-2018-05-13,HHS Region 10,Season peak percentage,NA
-2018-05-13,HHS Region 10,Season peak week,NA
 2018-05-13,HHS Region 10,Season onset,2017-12-17
-2018-05-20,HHS Region 10,1 wk ahead,NA
-2018-05-20,HHS Region 10,2 wk ahead,NA
-2018-05-20,HHS Region 10,3 wk ahead,NA
-2018-05-20,HHS Region 10,4 wk ahead,NA
-2018-05-20,HHS Region 10,Season peak percentage,NA
-2018-05-20,HHS Region 10,Season peak week,NA
 2018-05-20,HHS Region 10,Season onset,2017-12-17
-2018-05-27,HHS Region 10,1 wk ahead,NA
-2018-05-27,HHS Region 10,2 wk ahead,NA
-2018-05-27,HHS Region 10,3 wk ahead,NA
-2018-05-27,HHS Region 10,4 wk ahead,NA
-2018-05-27,HHS Region 10,Season peak percentage,NA
-2018-05-27,HHS Region 10,Season peak week,NA
 2018-05-27,HHS Region 10,Season onset,2017-12-17
-2018-06-03,HHS Region 10,1 wk ahead,NA
-2018-06-03,HHS Region 10,2 wk ahead,NA
-2018-06-03,HHS Region 10,3 wk ahead,NA
-2018-06-03,HHS Region 10,4 wk ahead,NA
-2018-06-03,HHS Region 10,Season peak percentage,NA
-2018-06-03,HHS Region 10,Season peak week,NA
 2018-06-03,HHS Region 10,Season onset,2017-12-17
-2018-06-10,HHS Region 10,1 wk ahead,NA
-2018-06-10,HHS Region 10,2 wk ahead,NA
-2018-06-10,HHS Region 10,3 wk ahead,NA
-2018-06-10,HHS Region 10,4 wk ahead,NA
-2018-06-10,HHS Region 10,Season peak percentage,NA
-2018-06-10,HHS Region 10,Season peak week,NA
 2018-06-10,HHS Region 10,Season onset,2017-12-17
-2018-06-17,HHS Region 10,1 wk ahead,NA
-2018-06-17,HHS Region 10,2 wk ahead,NA
-2018-06-17,HHS Region 10,3 wk ahead,NA
-2018-06-17,HHS Region 10,4 wk ahead,NA
-2018-06-17,HHS Region 10,Season peak percentage,NA
-2018-06-17,HHS Region 10,Season peak week,NA
 2018-06-17,HHS Region 10,Season onset,2017-12-17
-2018-06-24,HHS Region 10,1 wk ahead,NA
-2018-06-24,HHS Region 10,2 wk ahead,NA
-2018-06-24,HHS Region 10,3 wk ahead,NA
-2018-06-24,HHS Region 10,4 wk ahead,NA
-2018-06-24,HHS Region 10,Season peak percentage,NA
-2018-06-24,HHS Region 10,Season peak week,NA
 2018-06-24,HHS Region 10,Season onset,2017-12-17
-2018-07-01,HHS Region 10,1 wk ahead,NA
-2018-07-01,HHS Region 10,2 wk ahead,NA
-2018-07-01,HHS Region 10,3 wk ahead,NA
-2018-07-01,HHS Region 10,4 wk ahead,NA
-2018-07-01,HHS Region 10,Season peak percentage,NA
-2018-07-01,HHS Region 10,Season peak week,NA
 2018-07-01,HHS Region 10,Season onset,2017-12-17
-2018-07-08,HHS Region 10,1 wk ahead,NA
-2018-07-08,HHS Region 10,2 wk ahead,NA
-2018-07-08,HHS Region 10,3 wk ahead,NA
-2018-07-08,HHS Region 10,4 wk ahead,NA
-2018-07-08,HHS Region 10,Season peak percentage,NA
-2018-07-08,HHS Region 10,Season peak week,NA
 2018-07-08,HHS Region 10,Season onset,2017-12-17
-2018-07-15,HHS Region 10,1 wk ahead,NA
-2018-07-15,HHS Region 10,2 wk ahead,NA
-2018-07-15,HHS Region 10,3 wk ahead,NA
-2018-07-15,HHS Region 10,4 wk ahead,NA
-2018-07-15,HHS Region 10,Season peak percentage,NA
-2018-07-15,HHS Region 10,Season peak week,NA
 2018-07-15,HHS Region 10,Season onset,2017-12-17

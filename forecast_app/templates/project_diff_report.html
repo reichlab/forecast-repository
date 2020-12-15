@@ -33,7 +33,7 @@
         {% if database_changes %}
             <h2>Changes that will delete data</h2>
             <ul>
-                {% for change, num_points, num_named, num_bins, num_samples, num_truth in database_changes %}
+                {% for change, num_points, num_named, num_bins, num_samples, num_quantiles, num_truth in database_changes %}
                     <li>
                         {{ change.change_type.name }}: {{ change.object_type.name|title }}
                         &ldquo;{{ change.object_pk }}&rdquo;
@@ -47,6 +47,8 @@
                                 <li>{{ num_bins }} bin prediction{{ num_bins|pluralize }}</li>{% endif %}
                             {% if num_samples %}
                                 <li>{{ num_samples }} sample{{ num_samples|pluralize }}</li>{% endif %}
+                            {% if num_quantiles %}
+                                <li>{{ num_quantiles }} sample{{ num_quantiles|pluralize }}</li>{% endif %}
                             {% if num_truth %}
                                 <li>{{ num_truth }} truth row{{ num_truth|pluralize }}</li>{% endif %}
                         </ul>

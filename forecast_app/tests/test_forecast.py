@@ -397,7 +397,9 @@ class ForecastTestCase(TestCase):
         # Project._update_model_score_changes() is called
         with patch('forecast_app.models.Project._update_model_score_changes') as update_mock:
             load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
-            self.assertEqual(2, update_mock.call_count)  # called once each: delete_truth_data(), load_truth_data()
+            # _update_model_score_changes() is potentially called by: delete_truth_data(), load_truth_data(), however
+            # the former does not call it if there is no oracle model
+            self.assertEqual(1, update_mock.call_count)
 
         # adding project truth should update all of its models' score_change.changed_at. test with one model
         forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')

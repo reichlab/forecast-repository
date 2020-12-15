@@ -5,8 +5,9 @@ import unittest
 import django
 from django.test import TestCase
 
-from forecast_app.models import Forecast, Score, TruthData, ScoreValue, TimeZero
+from forecast_app.models import Forecast, Score, ScoreValue, TimeZero
 from forecast_app.scores.calc_interval import _calculate_interval_score_values
+from forecast_app.tests.test_scores import _add_truth_row
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project
@@ -50,8 +51,8 @@ class ForecastVersionsTestCase(TestCase):
         # self.forecast.created_at.date(), self.forecast.issue_date
 
         # test starting version counts
-        self.assertEqual(1, len(Forecast.objects.filter(time_zero=self.time_zero)))
-        self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2)))
+        self.assertEqual(1, len(Forecast.objects.filter(time_zero=self.time_zero, forecast_model__is_oracle=False)))
+        self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2, forecast_model__is_oracle=False)))
 
         # add a second forecast to tz1, test count. first change issue_date so that we don't have an integrity error
         # (i.e., that it looks like the same version)
@@ -59,13 +60,13 @@ class ForecastVersionsTestCase(TestCase):
         self.forecast.save()
 
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-        self.assertEqual(2, len(Forecast.objects.filter(time_zero=self.time_zero)))
-        self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2)))
+        self.assertEqual(2, len(Forecast.objects.filter(time_zero=self.time_zero, forecast_model__is_oracle=False)))
+        self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2, forecast_model__is_oracle=False)))
 
         # delete one of the forecasts, test count
         forecast2.delete()
-        self.assertEqual(1, len(Forecast.objects.filter(time_zero=self.time_zero)))
-        self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2)))
+        self.assertEqual(1, len(Forecast.objects.filter(time_zero=self.time_zero, forecast_model__is_oracle=False)))
+        self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2, forecast_model__is_oracle=False)))
 
         # test that there is only one "version" of every forecast: exactly 0 or 1 forecasts are allowed with the same
         # (timezero_id, issue_date) 2-tuple per model. do so by trying to add a second forecast for that combination.
@@ -213,8 +214,8 @@ class ForecastVersionsTestCase(TestCase):
 
         # add two truths that result in two ScoreValues
         delete_truth_data(project)
-        TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
-        TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        _add_truth_row(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        _add_truth_row(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
             .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
@@ -229,8 +230,8 @@ class ForecastVersionsTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
-        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
-        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        _add_truth_row(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        _add_truth_row(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
             .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()

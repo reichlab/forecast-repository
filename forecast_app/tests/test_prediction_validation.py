@@ -976,7 +976,7 @@ class PredictionValidationTestCase(TestCase):
                     (datetime.date(2011, 10, 16), 'location1', 'Season peak week', None, None, None,
                      datetime.date(2019, 12, 22), None)]
         act_rows_qs = truth_data_qs(self.project) \
-            .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
+            .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(exp_rows, list(act_rows_qs))
 

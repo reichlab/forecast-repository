@@ -54,6 +54,7 @@ class ForecastModel(models.Model):
     project = models.ForeignKey(Project, related_name='models', on_delete=models.CASCADE,
                                 help_text="The model's project")
     name = models.TextField(help_text="The name of your model in 50 characters or less.")
+    is_oracle = models.BooleanField(default=False, help_text="True if this model acts as a truth oracle.")
     abbreviation = models.TextField(help_text="Short name for the model in 15 alphanumeric characters or less. Used in "
                                               "the 'model' column in downloaded CSV score files.")
     team_name = models.TextField(help_text="The name of your team in 50 characters or less.")

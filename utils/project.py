@@ -468,7 +468,7 @@ def models_summary_table_rows_for_project(project):
                 FROM {Forecast._meta.db_table} AS f
                          JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
                          JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
-                WHERE fm.project_id = %s
+                WHERE fm.project_id = %s AND NOT fm.is_oracle
                 GROUP BY f.forecast_model_id),
             fm_max_issue_dates AS (
                 SELECT fm_min_max_tzs.fm_id              AS fm_id,
@@ -503,7 +503,7 @@ def models_summary_table_rows_for_project(project):
         rows = cursor.fetchall()
 
         # add model IDs with no forecasts (omitted by query)
-        missing_model_ids = project.models \
+        missing_model_ids = project.models.filter(is_oracle=False) \
             .exclude(id__in=[row[0] for row in rows]) \
             .values_list('id', flat=True)
         for missing_model_id in missing_model_ids:
@@ -713,7 +713,7 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
             FROM {Forecast._meta.db_table} AS f
                      JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
                      JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
-            WHERE fm.project_id = %s  {and_model_ids}  {and_timezero_ids}  {and_issue_date}
+            WHERE fm.project_id = %s AND NOT fm.is_oracle  {and_model_ids}  {and_timezero_ids}  {and_issue_date}
             GROUP BY f.forecast_model_id, f.time_zero_id
         )
         {select_ids}
