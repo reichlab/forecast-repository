@@ -4,11 +4,9 @@ import io
 import logging
 from collections import defaultdict
 
-from django.db import transaction
-from django.utils import timezone
+from django.db import transaction, connection
 
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +41,6 @@ def create_oracle_model_for_project(project):
     """
     from forecast_app.models import ForecastModel  # avoid circular imports
 
-
     oracle_model = oracle_model_for_project(project)
     if oracle_model:
         raise RuntimeError(f"existing oracle model found: {oracle_model}")
@@ -71,7 +68,6 @@ def truth_data_qs(project):
     :return: A QuerySet of project's truth data - PointPrediction instances.
     """
     from forecast_app.models import PointPrediction  # avoid circular imports
-
 
     oracle_model = oracle_model_for_project(project)
     if not oracle_model:
@@ -118,7 +114,6 @@ def get_truth_data_preview(project):
     """
     from forecast_app.models import PointPrediction  # avoid circular imports
 
-
     rows = truth_data_qs(project).values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
                                               'value_i', 'value_f', 'value_t', 'value_d', 'value_b')[:10]
     return [[timezero_date, unit_name, target_name,
@@ -133,11 +128,6 @@ def delete_truth_data(project):
         return
 
     oracle_model.forecasts.all().delete()
-
-    project.truth_csv_filename = ''
-    project.truth_updated_at = None
-    project.save()
-
     project._update_model_score_changes()
 
 
@@ -206,9 +196,6 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
 
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
-    project.truth_csv_filename = file_name or truth_file_path_or_fp.name
-    project.truth_updated_at = timezone.now()
-    project.save()
     project._update_model_score_changes()
     logger.debug(f"load_truth_data(): done")
 
@@ -216,12 +203,10 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
 @transaction.atomic  # todo xx think nested transactions!
 def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none):
     from forecast_app.models import Forecast  # avoid circular imports
-    from utils.forecast import load_predictions_from_json_io_dict  # avoid circular imports
-
 
     # load, validate, and replace with objects and parsed values
-    logger.debug(f"_load_truth_data(): entered. calling _load_truth_data_rows()")
-    rows = _load_truth_data_rows(project, truth_file_fp, is_convert_na_none)
+    logger.debug(f"_load_truth_data(): entered. calling _read_truth_data_rows()")
+    rows = _read_truth_data_rows(project, truth_file_fp, is_convert_na_none)
     if not rows:
         return 0
 
@@ -234,12 +219,12 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     forecasts = []  # ones created
     logger.debug(f"_load_truth_data(): creating and loading {len(timezero_groups)} forecasts. source={source!r}")
     for timezero, timezero_rows in timezero_groups.items():
-        json_io_dict = _json_io_dict_from_truth_rows(timezero_rows)
         forecast = Forecast.objects.create(forecast_model=oracle_model, source=source, time_zero=timezero,
                                            notes=f"oracle forecast")
-        # todo xx are cats validated below?:
-        logger.debug(f"_load_truth_data(): loading forecast={forecast}")
-        load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)
+        # add forecast_id:
+        timezero_rows = [[forecast.id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b]
+                         for unit_id, target_id, value_i, value_f, value_t, value_d, value_b in timezero_rows]
+        _load_truth_data_rows_for_forecast(forecast, timezero_rows)
         forecasts.append(forecast)
 
     # set all issue_dates to be the same - this avoids an edge case where midnight is spanned and some are a day later.
@@ -255,14 +240,48 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     return len(rows)
 
 
-def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
+def _load_truth_data_rows_for_forecast(forecast, rows):
+    """
+    `_load_truth_data()` helper that loads rows as PointPredictions in forecast.
+
+    :param forecast: an oracle model Forecast
+    :param rows: a list of 8-tuples: (forecast_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b)
+    """
+    from forecast_app.models import PointPrediction  # avoid circular imports
+
+    with connection.cursor() as cursor:
+        columns = ['forecast_id', 'unit_id', 'target_id', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b']
+        if connection.vendor == 'postgresql':
+            string_io = io.StringIO()
+            csv_writer = csv.writer(string_io, delimiter=',')
+            for forecast_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in rows:
+                # note that we translate None -> POSTGRES_NULL_VALUE for the nullable column
+                csv_writer.writerow([forecast_id, unit_id, target_id,
+                                     value_i if value_i is not None else POSTGRES_NULL_VALUE,
+                                     value_f if value_f is not None else POSTGRES_NULL_VALUE,
+                                     value_t if value_t is not None else POSTGRES_NULL_VALUE,
+                                     value_d if value_d is not None else POSTGRES_NULL_VALUE,
+                                     value_b if value_b is not None else POSTGRES_NULL_VALUE])
+            string_io.seek(0)
+            cursor.copy_from(string_io, PointPrediction._meta.db_table, columns=columns, sep=',',
+                             null=POSTGRES_NULL_VALUE)
+        else:  # 'sqlite', etc.
+            column_names = ', '.join(columns)
+            sql = f"""
+                INSERT INTO {PointPrediction._meta.db_table} ({column_names})
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
+            """
+            cursor.executemany(sql, rows)
+
+
+def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
     """
     Similar to _cleaned_rows_from_cdc_csv_file(), loads, validates, and cleans the rows in csv_file_fp.
 
-    :return: a list of 4-tuples: [timezero, unit, target, parsed_value] (first three are objects)
+    :return: a list of 8-tuples: (timezero, unit, target, value_i, value_f, value_t, value_d, value_b)
+        (first three are objects)
     """
     from forecast_app.models import Target  # avoid circular imports
-
 
     csv_reader = csv.reader(csv_file_fp, delimiter=',')
 
@@ -359,18 +378,23 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                                f"combination must be contained within the set of valid values for the target. "
                                f"parsed_value={parsed_value}, cats_values={cats_values}")
 
-        # valid!
-        rows.append((time_zero, unit_name_to_obj[unit_name], target, parsed_value))
+        # valid
+        value_i = parsed_value if data_types[0] == Target.INTEGER_DATA_TYPE else None
+        value_f = parsed_value if data_types[0] == Target.FLOAT_DATA_TYPE else None
+        value_t = parsed_value if data_types[0] == Target.TEXT_DATA_TYPE else None
+        value_d = parsed_value if data_types[0] == Target.DATE_DATA_TYPE else None
+        value_b = parsed_value if data_types[0] == Target.BOOLEAN_DATA_TYPE else None
+        rows.append((time_zero, unit_name_to_obj[unit_name], target, value_i, value_f, value_t, value_d, value_b))
 
     # report warnings
     for time_zero, count in timezero_to_missing_count.items():
-        logger.warning("_load_truth_data_rows(): timezero not found in project: {}: {} row(s)"
+        logger.warning("_read_truth_data_rows(): timezero not found in project: {}: {} row(s)"
                        .format(time_zero, count))
     for unit_name, count in unit_to_missing_count.items():
-        logger.warning("_load_truth_data_rows(): Unit not found in project: {!r}: {} row(s)"
+        logger.warning("_read_truth_data_rows(): Unit not found in project: {!r}: {} row(s)"
                        .format(unit_name, count))
     for target_name, count in target_to_missing_count.items():
-        logger.warning("_load_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
+        logger.warning("_read_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
                        .format(target_name, count))
 
     # done
@@ -381,34 +405,12 @@ def _timezero_groups_from_truth_rows(rows):
     """
     _load_truth_data() helper that groups rows by timezero and returns a dict that maps TimeZeros to corresponding rows.
 
-    :param rows: list of 4-tuples: [timezero, unit, target, parsed_value] (first three are objects)
-    :return: a dict that maps each TimeZero to a list of its corresponding rows. row format same 4-tuples as input
+    :param rows: a list of 8-tuples: (timezero, unit, target, value_i, value_f, value_t, value_d, value_b)
+        (first three are objects)
+    :return: a dict that maps each TimeZero to a list of its corresponding rows. each key's rows are transformed from
+        the input to 7-tuples: (unit_id, target_id, value_i, value_f, value_t, value_d, value_b)
     """
     timezero_to_rows = defaultdict(list)
-    for timezero, unit, target, parsed_value in rows:
-        timezero_to_rows[timezero].append([timezero, unit, target, parsed_value])
+    for timezero, unit, target, value_i, value_f, value_t, value_d, value_b in rows:
+        timezero_to_rows[timezero].append([unit.id, target.id, value_i, value_f, value_t, value_d, value_b])
     return timezero_to_rows
-
-
-def _json_io_dict_from_truth_rows(rows):
-    """
-    _load_truth_data() helper that returns a json_io_dict containing the point data in rows, suitable for use by
-    `load_predictions_from_json_io_dict()`
-
-    :param rows: list of 4-tuples: [timezero, unit, target, parsed_value] (first three are objects)
-    :return: a "JSON IO dict" (aka 'json_io_dict' by callers)
-    """
-    from forecast_app.models import Target, PointPrediction  # avoid circular imports
-    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
-
-
-    prediction_dicts = []
-    for timezero, unit, target, parsed_value in rows:
-        is_date_target = (Target.DATE_DATA_TYPE in target.data_types())
-        if is_date_target:
-            parsed_value = parsed_value.strftime(YYYY_MM_DD_DATE_FORMAT)
-        prediction_dicts.append({"unit": unit.name,
-                                 "target": target.name,
-                                 'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
-                                 'prediction': {'value': parsed_value}})
-    return {'meta': {}, 'predictions': prediction_dicts}

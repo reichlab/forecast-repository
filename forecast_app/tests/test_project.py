@@ -7,18 +7,16 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Target, Job, Forecast
+from forecast_app.models import Project, TimeZero, Job, Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _upload_truth_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
-from utils.make_thai_moph_project import create_thai_units_and_targets
 from utils.project import create_project_from_json
 from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth_data_preview, truth_data_qs, \
     delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
-
 
 logging.getLogger().setLevel(logging.ERROR)
 
@@ -26,7 +24,6 @@ logging.getLogger().setLevel(logging.ERROR)
 class ProjectTestCase(TestCase):
     """
     """
-
 
     @classmethod
     def setUpTestData(cls):
@@ -38,18 +35,13 @@ class ProjectTestCase(TestCase):
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
 
-
     def test_load_truth_data(self):
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
         self.assertEqual(5, truth_data_qs(self.project).count())
         self.assertTrue(is_truth_data_loaded(self.project))
-        self.assertEqual('truths-ok.csv', self.project.truth_csv_filename)
-        self.assertIsInstance(self.project.truth_updated_at, datetime.datetime)
 
         delete_truth_data(self.project)
         self.assertFalse(is_truth_data_loaded(self.project))
-        self.assertFalse(self.project.truth_csv_filename)
-        self.assertIsNone(self.project.truth_updated_at)
 
         # csv references non-existent TimeZero in Project: should not raise error
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
@@ -80,7 +72,6 @@ class ProjectTestCase(TestCase):
             [datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641],
             [datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20']]
         self.assertEqual(sorted(exp_truth_preview), sorted(get_truth_data_preview(project2)))
-
 
     def test_load_truth_data_other_files(self):
         # test truth files that used to be in yyyymmdd or yyyyww (EW) formats
@@ -119,7 +110,6 @@ class ProjectTestCase(TestCase):
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(exp_rows, list(act_rows))
 
-
     def test_timezeros_unique(self):
         project = Project.objects.create()
         with self.assertRaises(ValidationError) as context:
@@ -129,7 +119,6 @@ class ProjectTestCase(TestCase):
             project.save()
         self.assertIn("found duplicate TimeZero.timezero_date", str(context.exception))
 
-
     def test_get_num_rows(self):
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
@@ -138,10 +127,8 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
                          8019 * 2)  # exact b/c uniform forecasts
 
-
     def test_summary_counts(self):
         self.assertEqual((1, 1, 8019), self.project.get_summary_counts())  # num_models, num_forecasts, num_rows
-
 
     def test_timezero_seasons(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -262,15 +249,12 @@ class ProjectTestCase(TestCase):
         for timezero, exp_season_name in timezero_to_exp_season_name.items():
             self.assertEqual(exp_season_name, project2.season_name_containing_timezero(timezero))
 
-
     def test_visualization_targets(self):
         self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
                          [target.name for target in self.project.step_ahead_targets()])
 
-
     def test_timezeros_num_forecasts(self):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
-
 
     def test__upload_truth_worker_bad_inputs(self):
         # test `_upload_truth_worker()` error conditions. this test is complicated by that function's use of
@@ -302,7 +286,6 @@ class ProjectTestCase(TestCase):
             load_truth_mock.assert_not_called()
             self.assertEqual(Job.FAILED, job.status)
 
-
     def test__upload_truth_worker_blue_sky(self):
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
                 patch('utils.project_truth.load_truth_data') as load_truth_mock:
@@ -314,7 +297,6 @@ class ProjectTestCase(TestCase):
             job.refresh_from_db()
             load_truth_mock.assert_called_once()
             self.assertEqual(Job.SUCCESS, job.status)
-
 
     def test_last_update(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -331,25 +313,6 @@ class ProjectTestCase(TestCase):
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
         self.assertEqual(forecast2.created_at, project.last_update())
-
-        # update truth (yes truth, yes forecasts)
-        project.truth_updated_at = forecast2.created_at + datetime.timedelta(days=1)
-        project.save()
-        self.assertEqual(project.truth_updated_at, project.last_update())
-
-        # delete truth (no truth, yes forecasts)
-        delete_truth_data(project)
-        self.assertEqual(forecast2.created_at, project.last_update())
-
-        # delete forecasts (no truth, no forecasts)
-        forecast.delete()
-        forecast2.delete()
-        self.assertEqual(None, project.last_update())
-
-        # yes truth, no forecasts
-        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        forecast.delete()
-        self.assertEqual(project.truth_updated_at, project.last_update())
 
 
 def _exp_loc_tz_date_to_actual_vals_season_1a():
