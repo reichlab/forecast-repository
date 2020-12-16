@@ -637,7 +637,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(5, len(response.data))  # assume contents are checked below
 
         response = self.client.get(reverse('api-truth-detail', args=[self.public_project.pk]), format='json')
-        self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_updated_at'], list(response.data))
+        self.assertEqual(['id', 'url', 'project'], list(response.data))
 
         unit_us_nat = self.public_project.units.filter(name='US National').first()
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))

@@ -1,6 +1,4 @@
 import logging
-from collections import defaultdict
-from itertools import groupby
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -8,7 +6,6 @@ from django.db import models
 from django.db.models import ManyToManyField, Max
 from django.urls import reverse
 
-from utils.project_truth import truth_data_qs
 from utils.utilities import basic_str
 
 
@@ -56,13 +53,8 @@ class Project(models.Model):
                                           choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE,
                                           help_text="Used when visualizing the x axis label.")
     visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
-
-    truth_csv_filename = models.TextField(help_text="Name of the truth csv file that was uploaded.")
-    truth_updated_at = models.DateTimeField(blank=True, null=True, help_text="The last time the truth was updated.")
-
     description = models.TextField(help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
-
     home_url = models.URLField(help_text="The project's home site.")
     logo_url = models.URLField(blank=True, null=True, help_text="The project's optional logo image.")
     core_data = models.URLField(
@@ -244,16 +236,14 @@ class Project(models.Model):
 
     def last_update(self):
         """
-        Returns the datetime.datetime of the last time this project was "updated". currently only uses
-        Project.truth_updated_at, and Forecast.created_at for all models in me.
+        Returns the datetime.datetime of the last time this project was "updated": the latest Forecast's created_at.
+        Returns None if no forecasts.
         """
         from .forecast import Forecast  # avoid circular imports
 
 
         latest_forecast = Forecast.objects.filter(forecast_model__project=self).order_by('-created_at').first()
-        update_dates = [self.truth_updated_at, latest_forecast.created_at if latest_forecast else None]
-        # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
-        return sorted(update_dates, key=lambda _: (_ is not None, _))[-1]
+        return latest_forecast.created_at if latest_forecast else None
 
 
     #

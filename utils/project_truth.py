@@ -98,6 +98,15 @@ def is_truth_data_loaded(project):
     return truth_data_qs(project).exists()
 
 
+def first_truth_data_forecast(project):
+    """
+    :param project: a Project
+    :return: the first Forecast in project's oracle ForecastModel, or None if no truth is loaded
+    """
+    oracle_model = oracle_model_for_project(project)
+    return None if not oracle_model else oracle_model.forecasts.first()
+
+
 def get_num_truth_rows(project):
     return truth_data_qs(project).count()
 
@@ -219,13 +228,17 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     # group rows by timezero and then create and load oracle Forecasts for each group, passing them as
     # json_io_dicts. NB: these forecasts are identified as coming from the same truth file via all forecasts
     # having the same source and issue_date
+    timezero_groups = _timezero_groups_from_truth_rows(rows)
+
     source = file_name if file_name else ''
     forecasts = []  # ones created
-    for timezero, timezero_rows in _timezero_groups_from_truth_rows(rows).items():
+    logger.debug(f"_load_truth_data(): creating and loading {len(timezero_groups)} forecasts. source={source!r}")
+    for timezero, timezero_rows in timezero_groups.items():
         json_io_dict = _json_io_dict_from_truth_rows(timezero_rows)
         forecast = Forecast.objects.create(forecast_model=oracle_model, source=source, time_zero=timezero,
                                            notes=f"oracle forecast")
         # todo xx are cats validated below?:
+        logger.debug(f"_load_truth_data(): loading forecast={forecast}")
         load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)
         forecasts.append(forecast)
 
@@ -233,6 +246,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     # arbitrarily use the first forecast's issue_date
     if forecasts:
         issue_date = forecasts[0].issue_date
+        logger.debug(f"_load_truth_data(): setting issue_dates to {issue_date}, # forecasts={len(forecasts)}")
         for forecast in forecasts:
             forecast.issue_date = issue_date
             forecast.save()
@@ -265,11 +279,14 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
     rows = []  # return value. filled next
-    unit_name_to_obj = {unit.name: unit for unit in project.units.all()}
-    target_name_to_obj = {target.name: target for target in project.targets.all()}
+
     timezero_to_missing_count = defaultdict(int)  # to minimize warnings
     unit_to_missing_count = defaultdict(int)
     target_to_missing_count = defaultdict(int)
+
+    unit_name_to_obj = {unit.name: unit for unit in project.units.all()}
+    target_name_to_obj = {target.name: target for target in project.targets.all()}
+    timezero_date_to_obj = {}  # caches Project.time_zero_for_timezero_date()
     target_to_cats_values = {}  # caches Target.cats_values()
     range_to_range_tuple = {}  # caches Target.range_tuple()
     for row in csv_reader:
@@ -278,9 +295,14 @@ def _load_truth_data_rows(project, csv_file_fp, is_convert_na_none):
 
         timezero_date, unit_name, target_name, value = row
 
-        # validate timezero_date
-        time_zero = project.time_zero_for_timezero_date(
-            datetime.datetime.strptime(timezero_date, YYYY_MM_DD_DATE_FORMAT))
+        # validate and cache timezero_date
+        if timezero_date in timezero_date_to_obj:
+            time_zero = timezero_date_to_obj[timezero_date]
+        else:
+            time_zero = project.time_zero_for_timezero_date(datetime.datetime.strptime(
+                timezero_date, YYYY_MM_DD_DATE_FORMAT))  # might be None
+            timezero_date_to_obj[timezero_date] = time_zero
+
         if not time_zero:
             timezero_to_missing_count[timezero_date] += 1
             continue
