@@ -10,7 +10,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
             <li class="breadcrumb-item"><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></li>
-            <li class="breadcrumb-item active">{{ project.truth_csv_filename }}</li>
+            <li class="breadcrumb-item active">Truth</li>
         </ol>
     </nav>
 
@@ -43,7 +43,7 @@
                     <th>Upload filename:</th>
                     <td>
                         {% if is_truth_data_loaded %}
-                            {{ project.truth_csv_filename }}
+                            {{ first_truth_forecast.source }}
                         {% else %}
                             <small class="text-muted">(No truth data)</small>
                         {% endif %}
@@ -52,13 +52,25 @@
                 <tr>
                     <th>Updated at:</th>
                     <td>
-                        {% if project.truth_updated_at %}
-                            {{ project.truth_updated_at|date:"Y-m-d H:i:s T" }}
+                        {% if is_truth_data_loaded %}
+                            {{ first_truth_forecast.created_at|date:"Y-m-d" }}
                         {% else %}
                             <small class="text-muted">(No update date found)</small>
                         {% endif %}
                     </td>
                 </tr>
+                {% if request.user.is_superuser %}
+                    <tr>
+                        <th>Oracle model:</th>
+                        <td>
+                            {% if is_truth_data_loaded %}
+                                <a href="{% url 'model-detail' oracle_model.pk %}">{{ oracle_model.abbreviation }}</a>
+                            {% else %}
+                                <small class="text-muted">(No truth data)</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endif %}
                 </tbody>
             </table>
         </div>

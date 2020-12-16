@@ -258,8 +258,8 @@ class Project(models.Model):
         from .forecast import Forecast  # avoid circular imports
 
 
-        return self.models.filter(project=self).count(), \
-               Forecast.objects.filter(forecast_model__project=self).count(), \
+        return self.models.filter(project=self, is_oracle=False).count(), \
+               Forecast.objects.filter(forecast_model__project=self, forecast_model__is_oracle=False).count(), \
                self.get_num_forecast_rows_all_models_estimated()
 
 
