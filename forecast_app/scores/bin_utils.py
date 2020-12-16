@@ -6,9 +6,9 @@ from itertools import groupby
 from django.db import connection
 
 from forecast_app.models import ScoreValue, TargetLwr, Target, BinDistribution, \
-    PointPrediction, Forecast, ForecastModel
+    PointPrediction, Forecast, ForecastModel, TimeZero
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
-from utils.project_truth import POSTGRES_NULL_VALUE
+from utils.project_truth import POSTGRES_NULL_VALUE, oracle_model_for_project
 from utils.utilities import batched_rows
 
 
@@ -88,14 +88,37 @@ def _truth_data_pks_for_forecast_model(forecast_model):
     :return: truth data in forecast_model as a list of 5-tuples where truth_value is the non-null truth value in
         value_i and value_f truth data: (time_zero_pk, forecast_pk, unit_pk, target_pk, truth_value)
     """
+    oracle_model = oracle_model_for_project(forecast_model.project)
+    if not oracle_model:
+        return []
+
+    #     SELECT truthd.time_zero_id, f.id, truthd.unit_id, truthd.target_id, COALESCE(truthd.value_i, truthd.value_f)
+    #     FROM {TruthData._meta.db_table} AS truthd
+    #            LEFT JOIN {TimeZero._meta.db_table} AS tz ON truthd.time_zero_id = tz.id
+    #            LEFT JOIN {Forecast._meta.db_table} AS f ON tz.id = f.time_zero_id
+    #     WHERE f.forecast_model_id = %s;
+
     sql = f"""
-        SELECT f.time_zero_id, f.id, pp.unit_id, pp.target_id, COALESCE(pp.value_i, pp.value_f)
-        FROM {PointPrediction._meta.db_table} AS pp
-               LEFT JOIN {Forecast._meta.db_table} AS f ON pp.forecast_id = f.id
+        WITH pp_truth_ids AS (
+            SELECT f.time_zero_id                   AS tz_id,
+                   pp.unit_id                       AS unit_id,
+                   pp.target_id                     AS target_id,
+                   COALESCE(pp.value_i, pp.value_f) AS truth_value
+            FROM {PointPrediction._meta.db_table} AS pp
+                     JOIN {Forecast._meta.db_table} AS f ON pp.forecast_id = f.id
+            WHERE f.forecast_model_id = %s
+        )
+        SELECT pp_truth_ids.tz_id       AS tz_id,
+               f.id                     AS f_id,
+               pp_truth_ids.unit_id     AS unit_id,
+               pp_truth_ids.target_id   AS target_id,
+               pp_truth_ids.truth_value AS truth_value
+        FROM pp_truth_ids
+                 JOIN {Forecast._meta.db_table} AS f ON pp_truth_ids.tz_id = f.time_zero_id
         WHERE f.forecast_model_id = %s;
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast_model.pk,))
+        cursor.execute(sql, (oracle_model.pk, forecast_model.pk,))
         return cursor.fetchall()
 
 
