@@ -53,7 +53,7 @@
                     <th>Updated at:</th>
                     <td>
                         {% if is_truth_data_loaded %}
-                            {{ first_truth_forecast.created_at|date:"Y-m-d" }}
+                            {{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}
                         {% else %}
                             <small class="text-muted">(No update date found)</small>
                         {% endif %}
