@@ -200,7 +200,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     logger.debug(f"load_truth_data(): done")
 
 
-@transaction.atomic  # todo xx think nested transactions!
+@transaction.atomic
 def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none):
     from forecast_app.models import Forecast  # avoid circular imports
 

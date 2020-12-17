@@ -978,7 +978,7 @@ class PredictionValidationTestCase(TestCase):
         act_rows_qs = truth_data_qs(self.project) \
             .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(exp_rows, list(act_rows_qs))
+        self.assertEqual(sorted(exp_rows), sorted(act_rows_qs))
 
 
     def test_truth_value_not_compatible_with_target_data_type(self):

@@ -7,6 +7,7 @@ from forecast_app.models import Project, Target, TimeZero, ForecastModel, Foreca
 from forecast_app.models.job import Job
 from forecast_app.models.project import Unit
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user
+from utils.project_truth import first_truth_data_forecast
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -153,7 +154,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     time_interval_type = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
 
-    models = serializers.HyperlinkedRelatedField(view_name='api-model-detail', many=True, read_only=True)
+    models = serializers.SerializerMethodField()  # HyperlinkedRelatedField did not allow excluding non-oracle models
     units = serializers.HyperlinkedRelatedField(view_name='api-unit-detail', many=True, read_only=True)
     targets = serializers.HyperlinkedRelatedField(view_name='api-target-detail', many=True, read_only=True)
     timezeros = serializers.HyperlinkedRelatedField(view_name='api-timezero-detail', many=True, read_only=True)
@@ -171,6 +172,15 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         }
 
 
+    def get_models(self, project):
+        # per [Possibility to filter HyperlinkedIdentityField with many=True with queryset](https://github.com/encode/django-rest-framework/issues/3932)
+        request = self.context['request']
+        models = []
+        for forecast_model in project.models.filter(is_oracle=False):
+            models.append(reverse('api-model-detail', args=[forecast_model.pk], request=request))
+        return models
+
+
     def get_time_interval_type(self, project):
         return project.time_interval_type_as_str()
 
@@ -182,11 +192,13 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
 
 class TruthSerializer(serializers.ModelSerializer):
     project = serializers.SerializerMethodField()
+    source = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
 
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'project',)
+        fields = ('id', 'url', 'project', 'source', 'created_at',)
         extra_kwargs = {
             'url': {'view_name': 'api-truth-detail'},
         }
@@ -195,6 +207,16 @@ class TruthSerializer(serializers.ModelSerializer):
     def get_project(self, project):
         request = self.context['request']
         return reverse('api-project-detail', args=[project.pk], request=request)
+
+
+    def get_source(self, project):
+        first_truth_forecast = first_truth_data_forecast(project)
+        return first_truth_forecast.source if first_truth_forecast else None
+
+
+    def get_created_at(self, project):
+        first_truth_forecast = first_truth_data_forecast(project)
+        return first_truth_forecast.created_at if first_truth_forecast else None
 
 
 class UserSerializer(serializers.ModelSerializer):
