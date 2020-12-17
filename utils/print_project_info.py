@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.project_truth import truth_data_qs
+from utils.project_truth import truth_data_qs, first_truth_data_forecast
 from django.contrib.auth.models import User
 from forecast_app.models import Project
 
@@ -32,9 +32,11 @@ def main(verbosity, project_pk):
 
 def print_project_info(project, verbosity):
     # verbosity == 1
-    click.echo(f"\n\n* {project}. truth: # rows={truth_data_qs(project).count()}. owner={project.owner}, "
-               f"model_owners={project.model_owners.all()}, (num_models, num_forecasts, num_rows): "
-               f"{project.get_summary_counts()}")
+    first_truth_forecast = first_truth_data_forecast(project)
+    click.echo(f"\n\n* {project}. truth: # rows={truth_data_qs(project).count()}, "
+               f"source={first_truth_forecast.source!r}, created_at={first_truth_forecast.created_at}. "
+               f"owner={project.owner}, model_owners={project.model_owners.all()}, (num_models, num_forecasts, "
+               f"num_rows): {project.get_summary_counts()}")
     if verbosity == 1:
         return
 

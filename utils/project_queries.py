@@ -17,10 +17,7 @@ from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.forecast import coalesce_values
 from utils.project import logger, latest_forecast_ids_for_project
 from utils.project_truth import TRUTH_CSV_HEADER, truth_data_qs
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-from utils.project import logger, latest_forecast_ids_for_project, TRUTH_CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
-
 
 
 #
@@ -223,7 +220,7 @@ def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, t
             FROM {Forecast._meta.db_table} AS f
                      JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
                      JOIN {prediction_class._meta.db_table} pred ON f.id = pred.forecast_id
-            WHERE fm.project_id = %s {and_model_ids} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
+            WHERE fm.project_id = %s AND NOT fm.is_oracle {and_model_ids} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
             GROUP BY fm.id, f.time_zero_id, pred.unit_id, pred.target_id
         )
         SELECT inner_table.fm_id    AS fm_id,
@@ -247,6 +244,7 @@ def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, t
 def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, prediction_class):
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
 
+
     model_str = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
     timezero_str = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
     season = timezero_to_season_name[time_zero]
@@ -267,6 +265,7 @@ def validate_forecasts_query(project, query):
         are all [].
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+
 
     # return value. filled next
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, types = [], [], [], [], [], []
@@ -415,14 +414,17 @@ class IterCounter(object):
     per https://stackoverflow.com/questions/6309277/how-to-count-the-items-in-a-generator-consumed-by-other-code
     """
 
+
     def __init__(self, it):
         self._iter = it
         self.count = 0
+
 
     def _counterWrapper(self, it):
         for i in it:
             yield i
             self.count += 1
+
 
     def __iter__(self):
         return self._counterWrapper(self._iter)
@@ -442,6 +444,7 @@ def _forecasts_query_worker(job_pk):
 def _query_worker(job_pk, query_project_fcn):
     # imported here so that tests can patch via mock:
     from utils.cloud_file import upload_file
+
 
     # run the query
     job = get_object_or_404(Job, pk=job_pk)
@@ -689,6 +692,7 @@ def validate_scores_query(project, query):
     validate_forecasts_query() except validates `query`'s `scores` field instead of `type`.
     """
     from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR  # avoid circular imports
+
 
     # return value. filled next
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, scores = [], [], [], [], [], []
