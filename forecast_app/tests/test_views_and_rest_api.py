@@ -17,7 +17,8 @@ from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
-from utils.project import delete_project_iteratively, load_truth_data, create_project_from_json
+from utils.project import delete_project_iteratively, create_project_from_json
+from utils.project_truth import load_truth_data
 from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
@@ -636,7 +637,7 @@ class ViewsTestCase(TestCase):
         self.assertEqual(5, len(response.data))  # assume contents are checked below
 
         response = self.client.get(reverse('api-truth-detail', args=[self.public_project.pk]), format='json')
-        self.assertEqual(['id', 'url', 'project', 'truth_csv_filename', 'truth_updated_at'], list(response.data))
+        self.assertEqual(['id', 'url', 'project', 'source', 'created_at'], list(response.data))
 
         unit_us_nat = self.public_project.units.filter(name='US National').first()
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))

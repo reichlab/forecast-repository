@@ -14,7 +14,8 @@ from django.db import transaction
 django.setup()
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
-from utils.project import load_truth_data, create_project_from_json
+from utils.project import create_project_from_json
+from utils.project_truth import load_truth_data
 
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from forecast_app.models import Project, TimeZero, ForecastModel, Forecast

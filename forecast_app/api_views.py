@@ -222,7 +222,7 @@ class ProjectForecastModelList(UserPassesTestMixin, generics.ListAPIView):
 
     def get_queryset(self):
         project = Project.objects.get(pk=self.kwargs['pk'])
-        return project.models
+        return project.models.filter(is_oracle=False)
 
 
     def post(self, request, *args, **kwargs):

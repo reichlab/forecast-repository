@@ -38,8 +38,9 @@ from utils.project_diff import project_config_diff, database_changes_for_project
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, \
     _scores_query_worker, _truth_query_worker
+from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, get_num_truth_rows, delete_truth_data, \
+    first_truth_data_forecast, oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 logger = logging.getLogger(__name__)
 
@@ -215,41 +216,6 @@ def project_visualizations(request, project_pk):
                            'message': "Zoltar visualization is under construction."})
 
 
-def _unit_to_actual_points(loc_tz_date_to_actual_vals):
-    """
-    :return: view function that returns a dict mapping unit to a list of actual values found in
-        loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals(). it is what the D3
-        component expects: "[a JavaScript] array of the same length as timePoints"
-    """
-
-
-    def actual_list_from_tz_date_to_actual_dict(tz_date_to_actual):
-        return [tz_date_to_actual[tz_date][0] if isinstance(tz_date_to_actual[tz_date], list) else None
-                for tz_date in sorted(tz_date_to_actual.keys())]
-
-
-    unit_to_actual_points = {unit: actual_list_from_tz_date_to_actual_dict(tz_date_to_actual)
-                             for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-    return unit_to_actual_points
-
-
-def _unit_to_actual_max_val(loc_tz_date_to_actual_vals):
-    """
-    :return: view function that returns a dict mapping each unit to the maximum value found in
-        loc_tz_date_to_actual_vals, which is as returned by unit_timezero_date_to_actual_vals()
-    """
-
-
-    def max_from_tz_date_to_actual_dict(tz_date_to_actual):
-        flat_values = [item for sublist in tz_date_to_actual.values() if sublist for item in sublist]
-        return max(flat_values) if flat_values else None  # NB: None is arbitrary
-
-
-    unit_to_actual_max = {unit: max_from_tz_date_to_actual_dict(tz_date_to_actual)
-                          for unit, tz_date_to_actual in loc_tz_date_to_actual_vals.items()}
-    return unit_to_actual_max
-
-
 def project_explorer(request, project_pk):
     """
     View function to render various exploration tabs for a particular project.
@@ -299,7 +265,7 @@ def project_forecasts(request, project_pk):
 
     # create forecasts table data
     forecast_rows = []  # filled next
-    rows_qs = Forecast.objects.filter(forecast_model__project=project) \
+    rows_qs = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
         .values_list('id', 'issue_date', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
                      'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
     for f_id, f_issue_date, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
@@ -450,6 +416,7 @@ def project_scores(request, project_pk):
                  'unit': unit_names[0],
                  'units': unit_names,
                  'is_all_units_have_rows': is_all_units_have_rows,
+                 'is_truth_data_loaded': is_truth_data_loaded(project),
                  'unit_to_rows_and_mins': json.dumps(unit_to_rows_and_mins),  # converts None -> null
                  })
 
@@ -488,7 +455,6 @@ def query_project(request, project_pk, query_type):
     :param query_type: a QueryType enum value indicating the type of query to run
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
-
 
     project = get_object_or_404(Project, pk=project_pk)
     if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
@@ -751,7 +717,6 @@ def delete_project(request, project_pk):
     # imported here so that tests can patch via mock:
     from utils.project import delete_project_iteratively
 
-
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
@@ -884,15 +849,12 @@ def delete_model(request, model_pk):
 class UserListView(UserPassesTestMixin, ListView):
     model = User
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         return is_user_ok_admin(self.request.user)
-
 
     def get_context_data(self, **kwargs):
         # collect user info
@@ -917,16 +879,13 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     model = Project
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return is_user_ok_view_project(self.request.user, project)
-
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
@@ -944,9 +903,11 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
+        context['num_truth_rows'] = get_num_truth_rows(project)
+        context['is_truth_data_loaded'] = is_truth_data_loaded(project)
+        context['first_truth_forecast'] = first_truth_data_forecast(project)
         context['project_summary_info'] = project_summary_info(project)
         return context
-
 
     @staticmethod
     def timezeros_num_forecasts(project):
@@ -973,7 +934,7 @@ def forecast_models_owned_by_user(user):
     :param user: a User
     :return: searches all ForecastModels and returns those where the owner is user
     """
-    return ForecastModel.objects.filter(owner=user)
+    return ForecastModel.objects.filter(owner=user, is_oracle=False)
 
 
 def projects_and_roles_for_user(user):
@@ -997,16 +958,13 @@ class UserDetailView(UserPassesTestMixin, DetailView):
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return is_user_ok_edit_user(self.request.user, detail_user)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1028,16 +986,13 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast_model.project)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1069,16 +1024,13 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
-
 
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
@@ -1131,7 +1083,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_sample'] = data_rows_sample
         return context
 
-
     def forecast_metadata_cached(self):
         """
         ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
@@ -1153,7 +1104,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
         return pred_type_count_pairs, found_units, found_targets
-
 
     def forecast_metadata_dynamic(self):
         """
@@ -1195,7 +1145,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # done
         return pred_type_count_pairs, found_units, found_targets
-
 
     def search_forecast(self):
         """
@@ -1247,20 +1196,16 @@ class JobDetailView(UserPassesTestMixin, DetailView):
 
     context_object_name = 'job'
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
-
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
 
-
     def get_context_data(self, **kwargs):
         from utils.cloud_file import is_file_exists
-
 
         job = self.get_object()
         context = super().get_context_data(**kwargs)
@@ -1287,7 +1232,6 @@ def download_forecast(request, forecast_pk):
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
-
     return json_response_for_forecast(forecast, request)
 
 
@@ -1297,7 +1241,6 @@ def download_job_data_file(request, pk):
     """
     from forecast_app.api_views import _download_job_data_request  # avoid circular imports
     from utils.cloud_file import is_file_exists
-
 
     job = get_object_or_404(Job, pk=pk)
     if not (request.user.is_superuser or (job.user == request.user)):
@@ -1328,6 +1271,11 @@ def truth_detail(request, project_pk):
         request,
         'truth_data_detail.html',
         context={'project': project,
+                 'num_truth_rows': get_num_truth_rows(project),
+                 'truth_data_preview': get_truth_data_preview(project),
+                 'first_truth_forecast': first_truth_data_forecast(project),
+                 'is_truth_data_loaded': is_truth_data_loaded(project),
+                 'oracle_model': oracle_model_for_project(project),
                  'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 
@@ -1342,7 +1290,7 @@ def delete_truth(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    project.delete_truth_data()
+    delete_truth_data(project)
     return redirect('project-detail', pk=project_pk)
 
 
@@ -1355,7 +1303,7 @@ def upload_truth(request, project_pk):
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    if project.is_truth_data_loaded():
+    if is_truth_data_loaded(project):
         return render(request, 'message.html',
                       context={'title': "Truth data already loaded.",
                                'message': "The project already has truth data. Please delete it and then upload again."})
@@ -1390,8 +1338,7 @@ def _upload_truth_worker(job_pk):
     """
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
-    from utils.project import load_truth_data
-
+    from utils.project_truth import load_truth_data
 
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
@@ -1492,7 +1439,6 @@ def _upload_forecast_worker(job_pk):
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
-
 
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
         if 'forecast_model_pk' not in job.input_json:
@@ -1651,7 +1597,6 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     from utils.cloud_file import delete_file, upload_file
-
 
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "

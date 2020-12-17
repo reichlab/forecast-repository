@@ -180,7 +180,7 @@ class Score(models.Model):
         queue = django_rq.get_queue(UPDATE_MODEL_SCORES_QUEUE_NAME)
         enqueued_score_models = []  # 2-tuples: (score, forecast_model)
         for score in cls.objects.all():
-            for forecast_model in ForecastModel.objects.all():
+            for forecast_model in ForecastModel.objects.filter(is_oracle=False):
                 model_score_change = forecast_model.score_change
                 score_last_update = score.last_update_for_forecast_model(forecast_model)  # None o/w
                 is_out_of_date = (score_last_update is None) or \

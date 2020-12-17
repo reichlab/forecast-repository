@@ -16,7 +16,8 @@ from forecast_app.tests.test_scores import _update_scores_for_all_projects
 from utils.cdc_io import make_cdc_units_and_targets, load_cdc_csv_forecast_file
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
-from utils.project import load_truth_data, create_project_from_json, TRUTH_CSV_HEADER
+from utils.project import create_project_from_json
+from utils.project_truth import TRUTH_CSV_HEADER, load_truth_data
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_scores_query, _scores_query_worker, _tz_unit_targ_pks_to_truth_values, query_scores_for_project, \
     SCORE_CSV_HEADER_PREFIX, validate_truth_query, _truth_query_worker, query_truth_for_project

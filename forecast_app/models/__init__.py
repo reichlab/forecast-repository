@@ -11,6 +11,5 @@ from .prediction import Prediction, PointPrediction, NamedDistribution, Empirica
 from .project import Project, Unit, TimeZero
 from .score import Score, ScoreValue, ScoreLastUpdate
 from .target import Target, TargetCat, TargetLwr, TargetRange
-from .truth_data import TruthData
 
 # __all__ = ['Article', 'Publication']

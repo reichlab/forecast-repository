@@ -19,7 +19,8 @@ from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
-from utils.project import load_truth_data, create_project_from_json
+from utils.project import create_project_from_json
+from utils.project_truth import load_truth_data, delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -396,7 +397,9 @@ class ForecastTestCase(TestCase):
         # Project._update_model_score_changes() is called
         with patch('forecast_app.models.Project._update_model_score_changes') as update_mock:
             load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
-            self.assertEqual(2, update_mock.call_count)  # called once each: delete_truth_data(), load_truth_data()
+            # _update_model_score_changes() is potentially called by: delete_truth_data(), load_truth_data(), however
+            # the former does not call it if there is no oracle model
+            self.assertEqual(1, update_mock.call_count)
 
         # adding project truth should update all of its models' score_change.changed_at. test with one model
         forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
@@ -407,7 +410,7 @@ class ForecastTestCase(TestCase):
 
         # deleting project truth should update all of its models' score_change.changed_at
         before_changed_at = forecast_model2.score_change.changed_at
-        project2.delete_truth_data()
+        delete_truth_data(project2)
         forecast_model2.score_change.refresh_from_db()
         self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
 

@@ -1,13 +1,11 @@
-# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 import click
 import django
-
 from django.shortcuts import get_object_or_404
-
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
+from utils.project_truth import truth_data_qs
 from django.contrib.auth.models import User
 from forecast_app.models import Project
 
@@ -34,8 +32,7 @@ def main(verbosity, project_pk):
 
 def print_project_info(project, verbosity):
     # verbosity == 1
-    click.echo(f"\n\n* {project}. truth: # rows={project.truth_data_qs().count()}, "
-               f"updated_at={project.truth_updated_at}. owner={project.owner}, "
+    click.echo(f"\n\n* {project}. truth: # rows={truth_data_qs(project).count()}. owner={project.owner}, "
                f"model_owners={project.model_owners.all()}, (num_models, num_forecasts, num_rows): "
                f"{project.get_summary_counts()}")
     if verbosity == 1:

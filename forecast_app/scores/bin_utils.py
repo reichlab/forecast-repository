@@ -5,10 +5,11 @@ from itertools import groupby
 
 from django.db import connection
 
-from forecast_app.models import TruthData, TimeZero, Forecast, ForecastModel, ScoreValue, TargetLwr, Target, \
-    BinDistribution, PointPrediction
-from utils.project import POSTGRES_NULL_VALUE
+from forecast_app.models import ScoreValue, TargetLwr, Target, BinDistribution, \
+    PointPrediction, Forecast, ForecastModel, TimeZero
 from forecast_app.scores.definitions import _validate_score_targets_and_data, logger
+from utils.project_truth import POSTGRES_NULL_VALUE, oracle_model_for_project
+from utils.utilities import batched_rows
 
 
 def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
@@ -36,7 +37,7 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
     # it is convenient to iterate over truths to get all timezero/unit/target combinations. this will omit forecasts
     # with no truth, but that's OK b/c without truth, a forecast makes no contribution to the score. we use direct SQL
-    # to work with PKs and avoid ORM object lookup overhead, mainly for TruthData -> TimeZero -> Forecast -> PK.
+    # to work with PKs and avoid ORM object lookup overhead, mainly for truth data -> TimeZero -> Forecast -> PK.
     # we collect all ScoreValue rows and then bulk insert them as an optimization, rather than create separate ORM
     # instances:
     score_values = []  # list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
@@ -81,23 +82,43 @@ def _calc_bin_score(score, forecast_model, save_score_fcn, **kwargs):
 
 def _truth_data_pks_for_forecast_model(forecast_model):
     """
-    NB: Only compares TruthData.value_i and TruthData.value_f columns. todo xx should base this on Target.type?
+    NB: Only compares value_i and value_f truth data columns. todo xx should base this on Target.type?
 
     :param forecast_model: a ForecastModel
-    :return: truth data in forecast_model as a list of 5-tuples where truth_value is the (first?) non-null truth value
-        in TruthData.value_i and TruthData.value_f: (time_zero_pk, forecast_pk, unit_pk, target_pk, truth_value)
-
+    :return: truth data in forecast_model as a list of 5-tuples where truth_value is the non-null truth value in
+        value_i and value_f truth data: (time_zero_pk, forecast_pk, unit_pk, target_pk, truth_value)
     """
+    oracle_model = oracle_model_for_project(forecast_model.project)
+    if not oracle_model:
+        return []
+
+    #     SELECT truthd.time_zero_id, f.id, truthd.unit_id, truthd.target_id, COALESCE(truthd.value_i, truthd.value_f)
+    #     FROM {TruthData._meta.db_table} AS truthd
+    #            LEFT JOIN {TimeZero._meta.db_table} AS tz ON truthd.time_zero_id = tz.id
+    #            LEFT JOIN {Forecast._meta.db_table} AS f ON tz.id = f.time_zero_id
+    #     WHERE f.forecast_model_id = %s;
+
     sql = f"""
-        SELECT truthd.time_zero_id, f.id, truthd.unit_id, truthd.target_id, COALESCE(truthd.value_i, truthd.value_f)
-        FROM {TruthData._meta.db_table} AS truthd
-               LEFT JOIN {TimeZero._meta.db_table} AS tz ON truthd.time_zero_id = tz.id
-               LEFT JOIN {Forecast._meta.db_table} AS f ON tz.id = f.time_zero_id
-               LEFT JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-        WHERE fm.id = %s;
+        WITH pp_truth_ids AS (
+            SELECT f.time_zero_id                   AS tz_id,
+                   pp.unit_id                       AS unit_id,
+                   pp.target_id                     AS target_id,
+                   COALESCE(pp.value_i, pp.value_f) AS truth_value
+            FROM {PointPrediction._meta.db_table} AS pp
+                     JOIN {Forecast._meta.db_table} AS f ON pp.forecast_id = f.id
+            WHERE f.forecast_model_id = %s
+        )
+        SELECT pp_truth_ids.tz_id       AS tz_id,
+               f.id                     AS f_id,
+               pp_truth_ids.unit_id     AS unit_id,
+               pp_truth_ids.target_id   AS target_id,
+               pp_truth_ids.truth_value AS truth_value
+        FROM pp_truth_ids
+                 JOIN {Forecast._meta.db_table} AS f ON pp_truth_ids.tz_id = f.time_zero_id
+        WHERE f.forecast_model_id = %s;
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast_model.pk,))
+        cursor.execute(sql, (oracle_model.pk, forecast_model.pk,))
         return cursor.fetchall()
 
 
@@ -138,41 +159,40 @@ def _insert_score_values(score_values):
 
 def _tz_loc_targ_pk_to_true_lwr(project):
     """
-    Returns project's TruthData merged with the project's TargetLwrs:
+    Returns project's truth data merged with the project's TargetLwrs:
 
         [timezero_pk][unit_pk][target_pk] -> true_lwr
 
     We need the TargetLwr to get lwr and upper for the truth.
-    NB: Only compares TruthData.value_i and TruthData.value_f columns. todo xx should base this on Target.type?
+    NB: Only compares value_i and value_f truth data columns. todo xx should base this on Target.type?
     """
     sql = f"""
-        SELECT truthd.time_zero_id, truthd.unit_id, truthd.target_id, targlwr.lwr
-        FROM {TruthData._meta.db_table} as truthd
-               LEFT JOIN {TargetLwr._meta.db_table} as targlwr
-                    ON truthd.target_id = targlwr.target_id
-               LEFT JOIN {Target._meta.db_table} as target
-                    ON targlwr.target_id = target.id
-        WHERE target.project_id = %s
-          AND ((COALESCE(truthd.value_i, truthd.value_f) >= targlwr.lwr) OR
-               ((COALESCE(truthd.value_i, truthd.value_f) IS NULL) AND (targlwr.lwr IS NULL)))
-          AND ((COALESCE(truthd.value_i, truthd.value_f) < targlwr.upper) OR
-               ((COALESCE(truthd.value_i, truthd.value_f) IS NULL) AND (targlwr.upper IS NULL)))
-        ORDER BY truthd.time_zero_id, truthd.unit_id, truthd.target_id, targlwr.lwr
+        SELECT f.time_zero_id, pp.unit_id, pp.target_id, targlwr.lwr
+        FROM {PointPrediction._meta.db_table} AS pp
+               LEFT JOIN {Forecast._meta.db_table} AS f ON pp.forecast_id = f.id
+               LEFT JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
+               LEFT JOIN {TargetLwr._meta.db_table} as targlwr ON pp.target_id = targlwr.target_id
+               LEFT JOIN {Target._meta.db_table} as target ON targlwr.target_id = target.id
+        WHERE target.project_id = %s AND fm.is_oracle
+          AND ((COALESCE(pp.value_i, pp.value_f) >= targlwr.lwr) OR
+               ((COALESCE(pp.value_i, pp.value_f) IS NULL) AND (targlwr.lwr IS NULL)))
+          AND ((COALESCE(pp.value_i, pp.value_f) < targlwr.upper) OR
+               ((COALESCE(pp.value_i, pp.value_f) IS NULL) AND (targlwr.upper IS NULL)))
+        ORDER BY f.time_zero_id, pp.unit_id, pp.target_id, targlwr.lwr
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
-        rows = cursor.fetchall()
 
-    # build the dict
-    tz_loc_targ_pks_to_true_lwr = {}  # {timezero_pk: {unit_pk: {target_id: true_lwr}}}
-    for time_zero_id, loc_target_val_grouper in groupby(rows, key=lambda _: _[0]):
-        loc_targ_pks_to_truth_bin_start = {}  # {unit_pk: {target_id: true_lwr}}
-        tz_loc_targ_pks_to_true_lwr[time_zero_id] = loc_targ_pks_to_truth_bin_start
-        for unit_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
-            target_pk_to_truth = {}  # {target_id: true_lwr}
-            loc_targ_pks_to_truth_bin_start[unit_id] = target_pk_to_truth
-            for _, _, target_id, true_lwr in target_val_grouper:
-                target_pk_to_truth[target_id] = true_lwr
+        # build the dict
+        tz_loc_targ_pks_to_true_lwr = {}  # {timezero_pk: {unit_pk: {target_id: true_lwr}}}
+        for time_zero_id, loc_target_val_grouper in groupby(batched_rows(cursor), key=lambda _: _[0]):
+            loc_targ_pks_to_truth_bin_start = {}  # {unit_pk: {target_id: true_lwr}}
+            tz_loc_targ_pks_to_true_lwr[time_zero_id] = loc_targ_pks_to_truth_bin_start
+            for unit_id, target_val_grouper in groupby(loc_target_val_grouper, key=lambda _: _[1]):
+                target_pk_to_truth = {}  # {target_id: true_lwr}
+                loc_targ_pks_to_truth_bin_start[unit_id] = target_pk_to_truth
+                for _, _, target_id, true_lwr in target_val_grouper:
+                    target_pk_to_truth[target_id] = true_lwr
 
     return tz_loc_targ_pks_to_true_lwr
 

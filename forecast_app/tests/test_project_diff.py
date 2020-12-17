@@ -198,11 +198,12 @@ class ProjectDiffTestCase(TestCase):
         _make_some_changes(edit_config_dict)
 
         changes = project_config_diff(out_config_dict, edit_config_dict)
-        self.assertEqual(  # change, num_points, num_named, num_bins, num_samples, num_truth
-            [(Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None), 3, 0, 2, 10, 0),
-             (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 3, 1, 3, 5, 3),
-             (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 11, 2, 16, 23, 5)],
-            database_changes_for_project_config_diff(project, changes))
+        exp_changes = [  # change, num_points, num_named, num_bins, num_samples, num_quantiles, num_truth
+            (Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None), 3, 0, 2, 10, 2, 0),
+            (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 3, 1, 3, 5, 5, 3),
+            (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 11, 2, 16, 23, 10, 5)]
+        act_changes = database_changes_for_project_config_diff(project, changes)
+        self.assertEqual(exp_changes, act_changes)
 
 
     def test_execute_project_config_diff(self):
@@ -236,13 +237,14 @@ class ProjectDiffTestCase(TestCase):
 
         # # print a little report
         # print(f"* Analyzed {len(changes)} changes. Results:")
-        # for change, num_points, num_named, num_bins, num_samples, num_truth in \
+        # for change, num_points, num_named, num_bins, num_samples, num_quantiles, num_truth in \
         #         database_changes_for_project_config_diff(project, changes):
         #     print(f"- {change.change_type.name} on {change.object_type.name} {change.object_pk!r} will delete:\n"
         #           f"  = {num_points} point predictions\n"
         #           f"  = {num_named} named predictions\n"
         #           f"  = {num_bins} bin predictions\n"
         #           f"  = {num_samples} samples\n"
+        #           f"  = {num_quantiles} quantiles\n"
         #           f"  = {num_truth} truth rows")
 
         # same tests as test_execute_project_config_diff():

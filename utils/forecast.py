@@ -13,8 +13,10 @@ from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Ta
     SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction, \
     ForecastModel
 from forecast_app.models.project import Unit
-from utils.project import _target_dict_for_target, POSTGRES_NULL_VALUE
+from utils.project import _target_dict_for_target
+from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ def json_io_dict_from_forecast(forecast, request):
         and target for visibility. see docs for details
     """
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
+
 
     unit_serializer_multi = UnitSerializer(forecast.forecast_model.project.units, many=True,
                                            context={'request': request})

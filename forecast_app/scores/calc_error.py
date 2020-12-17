@@ -2,6 +2,7 @@ import logging
 from itertools import groupby
 
 from forecast_app.models import PointPrediction
+from utils.project_truth import truth_data_qs
 
 
 logger = logging.getLogger(__name__)
@@ -51,12 +52,12 @@ def _calculate_error_score_values(score, forecast_model, is_absolute_error):
     # an optimization, rather than create separate ORM instances
     score_values = []  # list of 5-tuples: (score.pk, forecast.pk, unit.pk, target.pk, score_value)
     timezero_id_to_forecast_id = {forecast.time_zero.pk: forecast.pk for forecast in forecast_model.forecasts.all()}
-    truth_data_qs = forecast_model.project.truth_data_qs() \
+    the_truth_data_qs = truth_data_qs(forecast_model.project) \
         .filter(target__in=targets) \
-        .values_list('time_zero__id', 'unit__id', 'target__id',
+        .values_list('forecast__time_zero__id', 'unit__id', 'target__id',
                      'value_i', 'value_f', 'value_t', 'value_d', 'value_b')  # only one of value_* is non-None
     num_warnings = 0
-    for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in truth_data_qs:
+    for timezero_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b in the_truth_data_qs:
         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
         if truth_value is None:
             num_warnings += 1

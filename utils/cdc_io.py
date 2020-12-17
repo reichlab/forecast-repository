@@ -84,7 +84,7 @@ def json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp):
 
 def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
     """
-    Loads the rows from cdc_csv_file_fp, cleans them, and then returns them as a list. Does some basic validation,
+    Loads the rows from truth_file_fp, cleans them, and then returns them as a list. Does some basic validation,
     but does not check units and targets. This is b/c Units and Targets might not yet exist (if they're
     dynamically created by this method's callers). Does *not* skip bin rows where the value is 0.
 

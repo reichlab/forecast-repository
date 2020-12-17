@@ -7,7 +7,7 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, TruthData
+from forecast_app.models import Project, TimeZero, Unit, Target, TargetLwr, Forecast, PointPrediction
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.score import Score, ScoreValue
 from forecast_app.scores.bin_utils import _tz_loc_targ_pk_to_true_lwr, _targ_pk_to_lwrs, \
@@ -19,7 +19,9 @@ from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import create_thai_units_and_targets
-from utils.project import load_truth_data, create_project_from_json
+from utils.project import create_project_from_json
+from utils.project_truth import load_truth_data, truth_data_qs, delete_truth_data, oracle_model_for_project, \
+    create_oracle_model_for_project, get_truth_data_rows
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -114,7 +116,7 @@ class ScoresTestCase(TestCase):
         self.assertAlmostEqual(math.log(0.20253796115633), score_value.value)
 
         # test when truth falls exactly on Bin_end_notincl
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         # this takes us to the next bin:
         #   US National,1 wk ahead,Bin,percent,1.6,1.7,0.0770752152650201
         #   -> math.log(0.0770752152650201) = -2.562973512284597
@@ -126,7 +128,7 @@ class ScoresTestCase(TestCase):
         self.assertAlmostEqual(math.log(0.0770752152650201), score_value.value)
 
         # test when truth falls exactly on Bin_start_incl
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         truth_data.value_f = 1.5  # 1.5 -> same bin: US National,1 wk ahead,Bin,percent,1.5,1.6,0.20253796115633
         truth_data.save()
 
@@ -142,7 +144,7 @@ class ScoresTestCase(TestCase):
         bin_dist.cat_f = 0.0
         bin_dist.save()
 
-        truth_data = project2.truth_data_qs() \
+        truth_data = truth_data_qs(project2) \
             .filter(unit__name='US National', target__name='1 wk ahead') \
             .first()
         truth_data.value_f = 1.65  # 1.65 -> bin: US National,1 wk ahead,Bin,percent,1.6,1.7,0  # NB: value is now 0
@@ -267,7 +269,7 @@ class ScoresTestCase(TestCase):
         self.assertAlmostEqual(math.log(bin_value_sum), score_value.value)
 
         # case 2a:
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         # value_f for continuous targets. -> bin: US National,1 wk ahead,Bin,percent,0,0.1,1.39332920335022e-07 :
         truth_data.value_f = 0
         truth_data.save()
@@ -280,7 +282,7 @@ class ScoresTestCase(TestCase):
         self.assertAlmostEqual(math.log(bin_value_sum), log_multi_bin_score.values.first().value)
 
         # case 2b:
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         truth_data.value_f = 0.1  # -> US National,1 wk ahead,Bin,percent,0.1,0.2,1.39332920335022e-07
         truth_data.save()
 
@@ -291,7 +293,7 @@ class ScoresTestCase(TestCase):
         self.assertAlmostEqual(math.log(bin_value_sum), log_multi_bin_score.values.first().value)
 
         # case 3a:
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         truth_data.value_f = 13  # -> US National,1 wk ahead,Bin,percent,13,100,1.39332920335022e-07
         truth_data.save()
 
@@ -302,7 +304,7 @@ class ScoresTestCase(TestCase):
         self.assertAlmostEqual(math.log(bin_value_sum), log_multi_bin_score.values.first().value)
 
         # case 3b:
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         truth_data.value_f = 12.95  # -> US National,1 wk ahead,Bin,percent,12.9,13,1.39332920335022e-07
         truth_data.save()
 
@@ -321,7 +323,7 @@ class ScoresTestCase(TestCase):
         # case: truth = None, but no forecast bin start/end that's None -> no matching bin -> use zero for predicted
         # value (rather than not generating a ScoreValue at all). this test also tests the
         # LOG_SINGLE_BIN_NEGATIVE_INFINITY case
-        truth_data = project2.truth_data_qs().filter(unit__name='US National', target__name='1 wk ahead').first()
+        truth_data = truth_data_qs(project2).filter(unit__name='US National', target__name='1 wk ahead').first()
         truth_data.value_f = None  # -> no matching bin
         truth_data.save()
 
@@ -422,13 +424,14 @@ class ScoresTestCase(TestCase):
                 },
             }
         }
-        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, _tz_loc_targ_pk_to_true_lwr(project2))
+        act_tz_loc_targ_pk_to_true_lwr = _tz_loc_targ_pk_to_true_lwr(project2)
+        self.assertEqual(exp_tz_loc_targ_pk_to_true_lwr, act_tz_loc_targ_pk_to_true_lwr)
 
         # test when truth value is None. requires TargetLwr lwr and upper be None as well, or won't match
         # _tz_loc_targ_pk_to_true_lwr() query
-        truth_data = project2.truth_data_qs() \
+        truth_data = truth_data_qs(project2) \
             .filter(unit__name='TH01', target__name='1_biweek_ahead') \
-            .first()  # TruthData: (78, 2, 12, 8, '.', 2, None, None, None, None)
+            .first()  # PointPrediction: (165, 4, 12, 8, '.', 2, None, None, None, None)
         truth_data.value_i = None  # was 2. value_i is for discrete targets
         truth_data.save()
 
@@ -501,7 +504,7 @@ class ScoresTestCase(TestCase):
         # case: truth = None, but no bin start/end that's None -> no matching bin -> no ScoreValue created.
         # we'll change this row:
         #   20170423	TH01	1_biweek_ahead	2  # 2 -> None
-        truth_data = project2.truth_data_qs() \
+        truth_data = truth_data_qs(project2) \
             .filter(unit__name='TH01', target__name='1_biweek_ahead') \
             .first()
         truth_data.value_i = None  # -> no matching bin. value_i is for discrete targets
@@ -607,11 +610,11 @@ class ScoresTestCase(TestCase):
             (unit_loc3, targ_cases_next_wk, 0, 50),  # case 6/7) truth == u
             (unit_loc3, targ_cases_next_wk, 50, 50),  # case 7/7) truth == u
         ]:
-            project.delete_truth_data()
+            delete_truth_data(project)
             # NB: use correct value column for target type
-            TruthData.objects.create(time_zero=time_zero, unit=unit, target=target,
-                                     value_i=truth if target == targ_cases_next_wk else None,
-                                     value_f=truth if target == targ_pct_next_wk else None)
+            _add_truth_row(time_zero=time_zero, unit=unit, target=target,
+                           value_i=truth if target == targ_cases_next_wk else None,
+                           value_f=truth if target == targ_pct_next_wk else None)
             ScoreValue.objects \
                 .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
                 .delete()  # usually done by update_score_for_model()
@@ -624,9 +627,9 @@ class ScoresTestCase(TestCase):
             self.assertAlmostEqual(exp_score, score_value.value)
 
         # add two truths that result in two ScoreValues
-        project.delete_truth_data()
-        TruthData.objects.create(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
-        TruthData.objects.create(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        delete_truth_data(project)
+        _add_truth_row(time_zero=time_zero, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        _add_truth_row(time_zero=time_zero, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
             .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
@@ -641,8 +644,8 @@ class ScoresTestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
-        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
-        TruthData.objects.create(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
+        _add_truth_row(time_zero=time_zero2, unit=unit_loc2, target=targ_pct_next_wk, value_f=2.2)  # 2/7)
+        _add_truth_row(time_zero=time_zero2, unit=unit_loc3, target=targ_cases_next_wk, value_i=50)  # 6/7
         ScoreValue.objects \
             .filter(score=interval_20_score, forecast__forecast_model=forecast_model) \
             .delete()  # usually done by update_score_for_model()
@@ -671,8 +674,8 @@ class ScoresTestCase(TestCase):
             (52695, 965),  # case 4/5) truth == u
             (52919, 3205),  # case 5/5) truth > u
         ]:
-            project.delete_truth_data()
-            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            delete_truth_data(project)
+            _add_truth_row(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_20_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_20_score.values.count())
 
@@ -699,8 +702,8 @@ class ScoresTestCase(TestCase):
             (52189, 0),  # case 2/3) truth = l/u
             (52239, 100),  # case 3/3) truth > l/u
         ]:
-            project.delete_truth_data()
-            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            delete_truth_data(project)
+            _add_truth_row(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_100_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_100_score.values.count())
 
@@ -741,8 +744,8 @@ class ScoresTestCase(TestCase):
             (52419, 450.0),  # case 4/5) truth == u
             (52507, 802.0),  # case 5/5) truth > u
         ]:
-            project.delete_truth_data()
-            TruthData.objects.create(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
+            delete_truth_data(project)
+            _add_truth_row(time_zero=forecast.time_zero, unit=unit, target=target, value_i=truth)
             interval_50_score.update_score_for_model(forecast_model)
             self.assertEqual(1, interval_50_score.values.count())
 
@@ -805,6 +808,19 @@ class ScoresTestCase(TestCase):
 #
 # ---- utilities ----
 #
+
+def _add_truth_row(time_zero, unit, target, value_i=None, value_f=None, value_t=None, value_d=None, value_b=None):
+    """
+    Adds a single PointPrediction for the passed TimeZero. First creates a Forecast for the oracle model if necessary.
+    Basically a simplified and specialized version of `load_truth_data()`.
+    """
+    oracle_model = oracle_model_for_project(time_zero.project) or create_oracle_model_for_project(time_zero.project)
+    forecast_for_time_zero = oracle_model.forecast_for_time_zero(time_zero)
+    if not forecast_for_time_zero:
+        forecast_for_time_zero = Forecast.objects.create(forecast_model=oracle_model, time_zero=time_zero)
+    PointPrediction.objects.create(forecast=forecast_for_time_zero, unit=unit, target=target,
+                                   value_i=value_i, value_f=value_f, value_t=value_t, value_d=value_d, value_b=value_b)
+
 
 def _update_scores_for_all_projects():
     # update all scores for all projects. useful mainly for tests b/c runs in the calling thread and therefore blocks

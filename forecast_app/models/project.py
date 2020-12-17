@@ -1,6 +1,4 @@
 import logging
-from collections import defaultdict
-from itertools import groupby
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -55,13 +53,8 @@ class Project(models.Model):
                                           choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE,
                                           help_text="Used when visualizing the x axis label.")
     visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
-
-    truth_csv_filename = models.TextField(help_text="Name of the truth csv file that was uploaded.")
-    truth_updated_at = models.DateTimeField(blank=True, null=True, help_text="The last time the truth was updated.")
-
     description = models.TextField(help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
-
     home_url = models.URLField(help_text="The project's home site.")
     logo_url = models.URLField(blank=True, null=True, help_text="The project's optional logo image.")
     core_data = models.URLField(
@@ -243,16 +236,14 @@ class Project(models.Model):
 
     def last_update(self):
         """
-        Returns the datetime.datetime of the last time this project was "updated". currently only uses
-        Project.truth_updated_at, and Forecast.created_at for all models in me.
+        Returns the datetime.datetime of the last time this project was "updated": the latest Forecast's created_at.
+        Returns None if no forecasts.
         """
         from .forecast import Forecast  # avoid circular imports
 
 
         latest_forecast = Forecast.objects.filter(forecast_model__project=self).order_by('-created_at').first()
-        update_dates = [self.truth_updated_at, latest_forecast.created_at if latest_forecast else None]
-        # per https://stackoverflow.com/questions/19868767/how-do-i-sort-a-list-with-nones-last
-        return sorted(update_dates, key=lambda _: (_ is not None, _))[-1]
+        return latest_forecast.created_at if latest_forecast else None
 
 
     #
@@ -267,8 +258,8 @@ class Project(models.Model):
         from .forecast import Forecast  # avoid circular imports
 
 
-        return self.models.filter(project=self).count(), \
-               Forecast.objects.filter(forecast_model__project=self).count(), \
+        return self.models.filter(project=self, is_oracle=False).count(), \
+               Forecast.objects.filter(forecast_model__project=self, forecast_model__is_oracle=False).count(), \
                self.get_num_forecast_rows_all_models_estimated()
 
 
@@ -347,199 +338,6 @@ class Project(models.Model):
 
 
     #
-    # truth data-related functions
-    #
-
-    def is_truth_data_loaded(self):
-        """
-        :return: True if I have truth data loaded via load_truth_data(). Actually, returns the count, which acts as a
-            boolean.
-        """
-        return self.truth_data_qs().exists()
-
-
-    def get_truth_data_preview(self):
-        """
-        :return: view helper function that returns a preview of my truth data in the form of a table that's represented
-            as a nested list of rows. each row: [timezero_date, unit_name, target_name, truth_value]
-        """
-        from forecast_app.models import PointPrediction  # avoid circular imports
-
-
-        rows = self.truth_data_qs().values_list('time_zero__timezero_date', 'unit__name', 'target__name',
-                                                'value_i', 'value_f', 'value_t', 'value_d', 'value_b')[:10]
-        return [[timezero_date, unit_name, target_name,
-                 PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)]
-                for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b in rows]
-
-
-    def get_num_truth_rows(self):
-        return self.truth_data_qs().count()
-
-
-    def get_truth_data_rows(self):
-        """
-        Returns all of my data as a a list of rows, excluding any PKs and FKs columns, and ordered by PK.
-        """
-        return list(self.truth_data_qs()
-                    .order_by('id')
-                    .values_list('time_zero__timezero_date', 'unit__name', 'target__name',
-                                 'value_i', 'value_f', 'value_t', 'value_d', 'value_b'))
-
-
-    def truth_data_qs(self):
-        """
-        :return: A QuerySet of my TruthData.
-        """
-        from forecast_app.models import TruthData  # avoid circular imports
-
-
-        return TruthData.objects.filter(time_zero__project=self)
-
-
-    def delete_truth_data(self):
-        self.truth_data_qs().delete()
-        self.truth_csv_filename = ''
-        self.truth_updated_at = None
-        self.save()
-        self._update_model_score_changes()
-
-
-    def reference_target_for_actual_values(self):
-        """
-        Returns the target in me that should act as the one to use when computing an 'actual' step-ahead value from
-        loaded truth data. We try to use the one that is the fewest step ahead steps available, starting with zero and
-        going up from there. Returns None if no appropriate targets were found, say if there are no targets, or only
-        negative ones.
-
-        _About calculating 'actual' step-head values from truth data_: Loaded truth data contains actual values by way
-        of the project's 'step ahead' targets. Some projects provide a zero step ahead target (whose
-        step_ahead_increment is 0), which is what we need to get the an actual value for a particular
-        [unit][timezero_date] combination: Just index in to the desired timezero_date. However, other projects
-        provide only non-zero targets, e.g., '1 wk ahead' (whose step_ahead_increment is 1). In these cases we need a
-        'reference' target to use, which we then apply to move that many steps ahead in the project's TimeZeros (sorted
-        by date) to get the actual (0 step ahead) value for that timezero_date. For example, if we wan the actual value
-        for this truth data:
-
-            timezero   unit       target       value
-            20170723   HHS Region 1   1 wk ahead   0.303222
-            20170730   HHS Region 1   1 wk ahead   0.286054
-
-        And if we are using '1 wk ahead' as our reference target, then to get the actual step-ahead value for the
-        [unit][timezero_date] combination of ['20170730']['HHS Region 1'] we need to work backwards 1
-        step_ahead_increment to ['20170723']['HHS Region 1'] and use the '1 wk ahead' target's value, i.e., 0.303222. In
-        our example above, there is actual step-ahead value for 20170723.
-
-        Generally, the definition is:
-            actual[unit][timezero_date] = truth[unit][ref_target][timezero_date - ref_target_incr]
-        """
-        from forecast_app.models import Target  # avoid circular imports
-
-
-        return Target.objects.filter(project=self, is_step_ahead=True, step_ahead_increment__gte=0) \
-            .order_by('step_ahead_increment') \
-            .first()
-
-
-    def unit_target_name_tz_date_to_truth(self, season_name=None):
-        """
-        Returns my truth values as a dict that's organized for easy access, as in:
-        unit_target_name_tz_date_to_truth[unit_name][target_name][timezero_date]. Only includes data from
-        season_name, which is None if I have no seasons.
-        """
-        from forecast_app.models import PointPrediction  # avoid circular imports
-
-
-        logger.debug(f"unit_target_name_tz_date_to_truth(): entered. project={self}, season_name={season_name}")
-        loc_target_tz_date_to_truth = {}
-        # NB: ordering by target__id is arbitrary. it could be target__name, but it doesn't matter as long it's grouped
-        # at all for the second groupby() call below
-        truth_data_qs = self.truth_data_qs() \
-            .order_by('unit__name', 'target__name') \
-            .values_list('unit__id', 'target__id', 'time_zero__timezero_date',
-                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        if season_name:
-            season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-            truth_data_qs = truth_data_qs.filter(time_zero__timezero_date__gte=season_start_date,
-                                                 time_zero__timezero_date__lte=season_end_date)
-
-        unit_pks_to_names = {unit.id: unit.name for unit in self.units.all()}
-        target_pks_to_names = {target.id: target.name for target in self.targets.all()}
-        for unit_id, loc_target_tz_grouper in groupby(truth_data_qs, key=lambda _: _[0]):
-            if unit_id not in unit_pks_to_names:
-                continue
-
-            target_tz_date_to_truth = {}
-            loc_target_tz_date_to_truth[unit_pks_to_names[unit_id]] = target_tz_date_to_truth
-            for target_id, target_tz_grouper in groupby(loc_target_tz_grouper, key=lambda _: _[1]):
-                if target_id not in target_pks_to_names:
-                    continue
-
-                tz_date_to_truth = defaultdict(list)
-                target_tz_date_to_truth[target_pks_to_names[target_id]] = tz_date_to_truth
-                for _, _, tz_date, value_i, value_f, value_t, value_d, value_b in target_tz_grouper:
-                    value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-                    tz_date_to_truth[tz_date].append(value)
-        logger.debug(f"unit_target_name_tz_date_to_truth(): done ({len(loc_target_tz_date_to_truth)}). "
-                     f"project={self}, season_name={season_name}")
-        return loc_target_tz_date_to_truth
-
-
-    #
-    # actual data-related functions
-    #
-
-    def unit_timezero_date_to_actual_vals(self, season_name):
-        """
-        Returns 'actual' step-ahead values from loaded truth data as a dict that's organized for easy access, as in:
-        unit_timezero_date_to_actual_vals[unit][timezero_date] . Returns {} if no
-        reference_target_for_actual_values().
-
-        :param season_name: optional season. None means return all data
-        """
-
-
-        def is_tz_date_in_season(timezero_date):
-            return (timezero_date >= season_start_date) and (timezero_date <= season_end_date)
-
-
-        ref_target = self.reference_target_for_actual_values()
-        if not ref_target:
-            return {}
-
-        if season_name:
-            season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-
-        # build tz_date_to_next_tz_date by zipping ordered TimeZeros, staggered by the ref_target's step_ahead_increment
-        tz_dates = TimeZero.objects.filter(project=self) \
-            .order_by('timezero_date') \
-            .values_list('timezero_date', flat=True)
-        tz_date_to_next_tz_date = dict(zip(tz_dates, tz_dates[ref_target.step_ahead_increment:]))
-
-        # get loc_target_tz_date_to_truth(). we use all seasons b/c might need TimeZero from a previous season to get
-        # this one. recall: [unit][target_name][timezero_date] -> truth
-        loc_target_tz_date_to_truth = self.unit_target_name_tz_date_to_truth()  # target__id
-        loc_tz_date_to_actual_vals = {}  # [unit][timezero_date] -> actual
-        for unit in loc_target_tz_date_to_truth:
-            # default to None so that any TimeZeros missing from loc_target_tz_date_to_truth are present:
-            unit_dict = {}
-            for timezero in tz_dates:
-                if not season_name or is_tz_date_in_season(timezero):
-                    unit_dict[timezero] = None
-            loc_tz_date_to_actual_vals[unit] = unit_dict
-            for truth_tz_date in loc_target_tz_date_to_truth[unit][ref_target.name]:
-                if truth_tz_date not in tz_date_to_next_tz_date:  # trying to project beyond last truth date
-                    continue
-
-                actual_tz_date = tz_date_to_next_tz_date[truth_tz_date]
-                truth_value = loc_target_tz_date_to_truth[unit][ref_target.name][truth_tz_date]
-                is_actual_in_season = is_tz_date_in_season(actual_tz_date) if season_name else True
-                if is_actual_in_season:
-                    unit_dict[actual_tz_date] = truth_value
-        return loc_tz_date_to_actual_vals
-
-
-    #
     # Score-related functions
     #
 
@@ -547,7 +345,7 @@ class Project(models.Model):
         """
         Marks all my models' ModelScoreChange to now.
         """
-        for forecast_model in self.models.all():
+        for forecast_model in self.models.filter(is_oracle=False):
             forecast_model.score_change.update_changed_at()
 
 
