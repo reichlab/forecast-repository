@@ -21,7 +21,7 @@ from rest_framework_csv.renderers import CSVRenderer
 
 from forecast_app.models import Project, ForecastModel, Forecast, Target
 from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_TRUTH
 from forecast_app.models.project import TimeZero, Unit
 from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
     TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
@@ -32,43 +32,7 @@ from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.forecast import json_io_dict_from_forecast
 from utils.project import create_project_from_json, config_dict_from_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
-from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-import datetime
-import logging
-import tempfile
-from wsgiref.util import FileWrapper
-
-import django_rq
-from boto3.exceptions import Boto3Error
-from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
-from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib.auth.models import User
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
-    HttpResponseNotFound
-from django.utils.text import get_valid_filename
-from rest_framework import generics, status
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.generics import get_object_or_404
-from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
-from rest_framework.response import Response
-from rest_framework.reverse import reverse
-from rest_framework_csv.renderers import CSVRenderer
-
-from forecast_app.models import Project, ForecastModel, Forecast, Target
-from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
-from forecast_app.models.project import TimeZero, Unit
-from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
-from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
-    _upload_truth_worker, enqueue_delete_forecast, is_user_ok_delete_forecast, is_user_ok_create_project, \
-    is_user_ok_view_project
-from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
-from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json, config_dict_from_project
-from utils.project_diff import execute_project_config_diff, project_config_diff
-from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
+from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -817,25 +781,6 @@ def query_forecasts_endpoint(request, pk):
 
 
 @api_view(['POST'])
-def query_scores_endpoint(request, pk):
-    """
-    Similar to query_forecasts_endpoint(), enqueues a query of the project's scores.
-
-    POST form fields:
-    - 'query' (required): a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation
-
-    :param request: a request
-    :param pk: a Project's pk
-    :return: the serialized Job
-    """
-    # imported here so that tests can patch via mock:
-    from utils.project_queries import validate_scores_query
-
-
-    return _query_endpoint(request, pk, validate_scores_query, JOB_TYPE_QUERY_SCORE, _scores_query_worker)
-
-
-@api_view(['POST'])
 def query_truth_endpoint(request, pk):
     """
     Similar to query_forecasts_endpoint(), enqueues a query of the project's truth.
@@ -856,19 +801,19 @@ def query_truth_endpoint(request, pk):
 
 def _query_endpoint(request, project_pk, query_validation_fcn, query_job_type, query_worker_fcn):
     """
-    `query_forecasts_endpoint()` and `query_scores_endpoint()` helper
+    `query_forecasts_endpoint()` and `_truth_query_worker()` helper
 
     :param request: a request
     :param project_pk: a Project's pk
     :param query_validation_fcn: a function of 2 args (Project and query) that validates the query and returns a
         2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)) . notice the second element
         is itself a 5-tuple of validated object IDs. the function is either `validate_forecasts_query` or
-        `validate_scores_query`. there are two cases, which determine the return values: 1) valid query: error_messages
+        `_truth_query_worker`. there are two cases, which determine the return values: 1) valid query: error_messages
         is [], and ID lists are valid integers. 2) invalid query: error_messages is a list of strings, and the ID lists
         are all [].
-    :param query_job_type: is either JOB_TYPE_QUERY_FORECAST or JOB_TYPE_QUERY_SCORES. used for the new Job's `type`
+    :param query_job_type: is either JOB_TYPE_QUERY_FORECAST or JOB_TYPE_QUERY_TRUTH. used for the new Job's `type`
     :param query_worker_fcn: an enqueue() helper function of one arg (job_pk). the function is either
-    `_forecasts_query_worker` or `_scores_query_worker`
+        `_forecasts_query_worker` or `_truth_query_worker`
     :return: the serialized Job
     """
     if request.method != 'POST':

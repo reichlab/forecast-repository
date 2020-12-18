@@ -9,11 +9,9 @@ from unittest.mock import patch
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
-from forecast_app.models import Project, TimeZero, Score, Job
+from forecast_app.models import Project, TimeZero, Job
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
-from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR
-from forecast_app.tests.test_scores import _make_thai_log_score_project
 from forecast_app.views import _upload_forecast_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.forecast import json_io_dict_from_forecast, load_predictions_from_json_io_dict
@@ -113,19 +111,6 @@ class ForecastTestCase(TestCase):
             .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
         self.assertEqual(4, bin_distribution_qs.count())
         self.assertEqual(exp_bins, list(bin_distribution_qs))
-
-
-    def test_load_forecast_thai_point_json_type(self):
-        # exposes a bug where 0-valued bin points are loaded as null
-        project2, forecast_model2, forecast2, time_zero2 = _make_thai_log_score_project()
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
-        act_json_io_dict = json_io_dict_from_forecast(forecast2, APIRequestFactory().request())
-        # recall that json predictions are sorted by unit, type
-        exp_pred_dict = {'unit': 'TH01', 'target': '1_biweek_ahead', 'class': 'point', 'prediction': {'value': 0}}
-        act_pred_dict = [pred_dict for pred_dict in act_json_io_dict['predictions']
-                         if (pred_dict['unit'] == 'TH01') and (pred_dict['target'] == '1_biweek_ahead')][0]
-        self.assertEqual(exp_pred_dict, act_pred_dict)
 
 
     def test_load_forecasts_from_dir(self):
@@ -354,93 +339,6 @@ class ForecastTestCase(TestCase):
         self.assertEqual(forecast2, self.forecast_model.forecast_for_time_zero(time_zero))
 
         forecast2.delete()
-
-
-    def test_model_score_change_forecasts(self):
-        # creating a new model should set its score_change.changed_at
-        project2 = Project.objects.create()
-        make_cdc_units_and_targets(project2)
-        time_zero = TimeZero.objects.create(project=project2, timezero_date=datetime.date.today())
-        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
-        self.assertIsInstance(forecast_model2.score_change.changed_at, datetime.datetime)
-
-        # adding a forecast should update its model's score_change.changed_at
-        before_changed_at = forecast_model2.score_change.changed_at
-        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
-        forecast2 = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero)
-        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
-        self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
-
-        # deleting a forecast should update its model's score_change.changed_at
-        before_changed_at = forecast_model2.score_change.changed_at
-        forecast2.delete()
-        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
-        self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
-
-        # bulk-deleting a model's forecasts will update its score_change.changed_at. (this basically tests that a signal
-        # is used instead of a customized delete() - see set_model_changed_at() comment
-        for idx in range(2):
-            csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
-            forecast = load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, time_zero)
-            forecast.issue_date += datetime.timedelta(days=idx + 1)  # newer version avoids unique constraint errors
-            forecast.save()
-        before_changed_at = forecast_model2.score_change.changed_at
-        forecast_model2.forecasts.all().delete()
-        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
-        self.assertLess(before_changed_at, forecast_model2.score_change.changed_at)  # was updated later
-
-
-    def test_model_score_change_truths(self):
-        project2 = Project.objects.create()
-        make_cdc_units_and_targets(project2)
-        # adding project truth should update all of its models' score_change.changed_at. test with no models -> ensure
-        # Project._update_model_score_changes() is called
-        with patch('forecast_app.models.Project._update_model_score_changes') as update_mock:
-            load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
-            # _update_model_score_changes() is potentially called by: delete_truth_data(), load_truth_data(), however
-            # the former does not call it if there is no oracle model
-            self.assertEqual(1, update_mock.call_count)
-
-        # adding project truth should update all of its models' score_change.changed_at. test with one model
-        forecast_model2 = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
-        before_changed_at = forecast_model2.score_change.changed_at
-        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-ok.csv'))
-        forecast_model2.score_change.refresh_from_db()
-        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
-
-        # deleting project truth should update all of its models' score_change.changed_at
-        before_changed_at = forecast_model2.score_change.changed_at
-        delete_truth_data(project2)
-        forecast_model2.score_change.refresh_from_db()
-        self.assertNotEqual(before_changed_at, forecast_model2.score_change.changed_at)
-
-
-    def test_enqueue_update_scores_for_all_models(self):
-        # tests that Score.enqueue_update_scores_for_all_models() should only enqueue scores for changed models
-
-        # test that with ModelScoreChanges but no ScoreLastUpdate, all Score/ForecastModel pairs are updated
-        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
-            Score.enqueue_update_scores_for_all_models(is_only_changed=True)
-            self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), enqueue_mock.call_count)  # 6 scores * 1 model
-
-        # make all ScoreLastUpdates be after self.forecast_model's update, which means none should update
-        Score.ensure_all_scores_exist()
-        for score in Score.objects.all():
-            score.set_last_update_for_forecast_model(self.forecast_model)
-        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
-            Score.enqueue_update_scores_for_all_models(is_only_changed=True)
-            enqueue_mock.assert_not_called()
-
-        # same, but pass is_only_changed=False -> all Score/ForecastModel pairs should update
-        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
-            Score.enqueue_update_scores_for_all_models(is_only_changed=False)
-            self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), enqueue_mock.call_count)
-
-        # loading truth should result in all Score/ForecastModel pairs being updated
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
-        with patch('rq.queue.Queue.enqueue') as enqueue_mock:
-            Score.enqueue_update_scores_for_all_models(is_only_changed=True)
-            self.assertEqual(len(SCORE_ABBREV_TO_NAME_AND_DESCR), enqueue_mock.call_count)
 
 
     def test_json_io_dict_from_forecast(self):

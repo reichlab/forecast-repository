@@ -18,8 +18,8 @@ from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, create_project_from_json
+from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.project_truth import load_truth_data
-from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 
@@ -171,14 +171,7 @@ class ViewsTestCase(TestCase):
 
             (reverse('zadmin'), self.ONLY_SU_200),
             (reverse('zadmin-jobs'), self.ONLY_SU_200),
-            (reverse('zadmin-score-last-updates'), self.ONLY_SU_200),
-            (reverse('zadmin-model-score-changes'), self.ONLY_SU_200),
             (reverse('delete-file-jobs'), self.ONLY_SU_302),
-
-            (reverse('update-all-scores'), self.ONLY_SU_302),
-            (reverse('update-all-scores-changed'), self.ONLY_SU_302),
-            (reverse('clear-all-scores'), self.ONLY_SU_302),
-            (reverse('delete-score-last-updates'), self.ONLY_SU_302),
 
             (reverse('user-list'), self.ONLY_SU_200),
 
@@ -190,8 +183,6 @@ class ViewsTestCase(TestCase):
             (reverse('project-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-explorer', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-explorer', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('project-scores', args=[str(self.public_project.pk)]), self.OK_ALL),
-            (reverse('project-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-config', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-config', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('create-project-from-form', args=[]), self.ONLY_PO_MO),
@@ -205,8 +196,6 @@ class ViewsTestCase(TestCase):
 
             (reverse('query-forecasts', args=[str(self.public_project.pk)]), self.ONLY_PO_MO_STAFF),
             (reverse('query-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('query-scores', args=[str(self.public_project.pk)]), self.ONLY_PO_MO_STAFF),
-            (reverse('query-scores', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('query-truth', args=[str(self.public_project.pk)]), self.ONLY_PO_MO_STAFF),
             (reverse('query-truth', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
 
@@ -1341,54 +1330,6 @@ class ViewsTestCase(TestCase):
         # case: unauthenticated user (authenticated tested above)
         self.client.logout()  # AnonymousUser
         json_response = self.client.post(forecast_queries_url, {
-            'query': {},
-        }, format='json')
-        self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)
-
-
-    @patch('rq.queue.Queue.enqueue')
-    def test_api_scores_queries(self, enqueue_mock):
-        """
-        Nearly identical to test_api_forecast_queries().
-        """
-        scores_queries_url = reverse('api-scores-queries', args=[str(self.public_project.pk)])
-        jwt_token = self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
-
-        # test that GET is not accepted
-        response = self.client.get(scores_queries_url)
-        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
-
-        # case: no 'query'
-        response = self.client.post(scores_queries_url, {
-            'Authorization': f'JWT {jwt_token}',
-            # 'query': {},
-        }, format='json')
-        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
-        self.assertEqual({'error': "No 'query' form field."}, response.json())
-
-        # ensure `validate_scores_query()` is called. the actual validate is tested in test_project_queries.py
-        with patch('utils.project_queries.validate_scores_query', return_value=([], None)) as validate_mock:
-            self.client.post(scores_queries_url, {
-                'Authorization': f'JWT {jwt_token}',
-                'query': {'hi': 1},
-            }, format='json')
-            validate_mock.assert_called_once_with(self.public_project, {'hi': 1})
-
-        # case: blue sky: test that POST enqueues _scores_query_worker and returns a Job
-        enqueue_mock.reset_mock()
-        json_response = self.client.post(scores_queries_url, {
-            'Authorization': f'JWT {jwt_token}',
-            'query': {},
-        }, format='json')
-        response_json = json_response.json()  # JobSerializer
-        enqueue_mock.assert_called_once_with(_scores_query_worker, response_json['id'])  # job.pk
-
-        self.assertEqual(status.HTTP_200_OK, json_response.status_code)
-        self.assertEqual(Job.QUEUED, response_json['status'])
-
-        # case: unauthenticated user (authenticated tested above)
-        self.client.logout()  # AnonymousUser
-        json_response = self.client.post(scores_queries_url, {
             'query': {},
         }, format='json')
         self.assertEqual(status.HTTP_403_FORBIDDEN, json_response.status_code)

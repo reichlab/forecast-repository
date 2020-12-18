@@ -20,7 +20,7 @@ logging.getLogger("boto3.resources.action").setLevel(logging.INFO)
 # the service-specific details in case we want to change providers in the future. That said, this file implements the
 # functionality in S3.
 #
-# The types of files currently include temporary forecast csv data file uploads and cached csv score files.
+# The types of files currently include temporary forecast and truth csv data file uploads.
 #
 # Naming conventions: To simplify the code we use a simple naming convention with a single 'folder' namespace
 # (comparable to S3 buckets) and a filename based on the PK of the class of object involved.

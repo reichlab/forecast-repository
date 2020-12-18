@@ -12,16 +12,7 @@ urlpatterns = [
 
     url(r'^zadmin$', views.zadmin, name='zadmin'),
     url(r'^zadmin/jobs$', views.zadmin_jobs, name='zadmin-jobs'),
-    url(r'^zadmin/score_last_updates$', views.zadmin_score_last_updates, name='zadmin-score-last-updates'),
-    url(r'^zadmin/model_score_changes$', views.zadmin_model_score_changes, name='zadmin-model-score-changes'),
     url(r'^delete_jobs/$', views.delete_jobs, name='delete-file-jobs'),
-
-    url(r'^update_all_scores$', views.update_all_scores, {'is_only_changed': False},
-        name='update-all-scores'),
-    url(r'^update_all_scores_changed$', views.update_all_scores, {'is_only_changed': True},
-        name='update-all-scores-changed'),
-    url(r'^clear_all_scores$', views.clear_all_scores, name='clear-all-scores'),
-    url(r'^delete_score_last_updates$', views.delete_score_last_updates, name='delete-score-last-updates'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),  # requires trailing slash and no $
     url(r'^users$', views.UserListView.as_view(), name='user-list'),
@@ -32,9 +23,6 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_project,
         {'query_type': views.QueryType.FORECASTS}, name='query-forecasts'),
     url(r'^project/(?P<project_pk>\d+)/explorer', views.project_explorer, name='project-explorer'),
-    url(r'^project/(?P<project_pk>\d+)/scores$', views.project_scores, name='project-scores'),
-    url(r'^project/(?P<project_pk>\d+)/query_scores$', views.query_project,
-        {'query_type': views.QueryType.SCORES}, name='query-scores'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),

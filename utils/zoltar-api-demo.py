@@ -59,7 +59,6 @@ def demo_zoltar_api_app(forecast_csv_file):
     #  'template': 'http://127.0.0.1:8000/api/project/4/template/',
     #  'truth': 'http://127.0.0.1:8000/api/project/4/truth/',
     #  'model_owners': ['http://127.0.0.1:8000/api/user/3/'],
-    #  'score_data': 'http://127.0.0.1:8000/api/project/4/score_data/',
     #  'models': ['http://127.0.0.1:8000/api/model/5/', 'http://127.0.0.1:8000/api/model/6/'],
     #  'units': [{'name': 'HHS Region 1'}, {'name': 'HHS Region 2'}, {'name': 'HHS Region 3'},
     #                {'name': 'HHS Region 4'}, {'name': 'HHS Region 5'}, {'name': 'HHS Region 6'},

@@ -337,18 +337,6 @@ class Project(models.Model):
             .order_by('name')
 
 
-    #
-    # Score-related functions
-    #
-
-    def _update_model_score_changes(self):
-        """
-        Marks all my models' ModelScoreChange to now.
-        """
-        for forecast_model in self.models.filter(is_oracle=False):
-            forecast_model.score_change.update_changed_at()
-
-
 #
 # ---- Unit class ----
 #
