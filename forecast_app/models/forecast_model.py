@@ -55,8 +55,7 @@ class ForecastModel(models.Model):
                                 help_text="The model's project")
     name = models.TextField(help_text="The name of your model in 50 characters or less.")
     is_oracle = models.BooleanField(default=False, help_text="True if this model acts as a truth oracle.")
-    abbreviation = models.TextField(help_text="Short name for the model in 15 alphanumeric characters or less. Used in "
-                                              "the 'model' column in downloaded CSV score files.")
+    abbreviation = models.TextField(help_text="Short name for the model in 15 alphanumeric characters or less.")
     team_name = models.TextField(help_text="The name of your team in 50 characters or less.")
     description = models.TextField(help_text="A few paragraphs describing the model. Please see documentation for "
                                              "what should be included here - information on reproducing the model’s "

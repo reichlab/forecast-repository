@@ -128,7 +128,6 @@ def delete_truth_data(project):
         return
 
     oracle_model.forecasts.all().delete()
-    project._update_model_score_changes()
 
 
 #
@@ -196,7 +195,6 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
 
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
-    project._update_model_score_changes()
     logger.debug(f"load_truth_data(): done")
 
 

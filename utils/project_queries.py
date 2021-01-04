@@ -12,7 +12,7 @@ from rest_framework.generics import get_object_or_404
 from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution, Job, Project, Score, ScoreValue, Forecast, ForecastModel
+    QuantileDistribution, Job, Project, Forecast, ForecastModel
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.forecast import coalesce_values
 from utils.project import logger, latest_forecast_ids_for_project
@@ -245,10 +245,9 @@ def validate_forecasts_query(project, query):
     :param project: as passed from `query_forecasts_for_project()`
     :param query: ""
     :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)) . notice the second
-        element is itself a 5-tuple of validated object IDs. the function is either `validate_forecasts_query` or
-        `validate_scores_query`. there are two cases, which determine the return values: 1) valid query: error_messages
-        is [], and ID lists are valid integers. 2) invalid query: error_messages is a list of strings, and the ID lists
-        are all [].
+        element is itself a 5-tuple of validated object IDs. there are two cases, which determine the return values:
+        1) valid query: error_messages is [], and ID lists are valid integers. 2) invalid query: error_messages is a
+        list of strings, and the ID lists are all [].
     """
     from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
 
@@ -305,8 +304,8 @@ def validate_forecasts_query(project, query):
 
 def _validate_query_ids(project, query):
     """
-    A validate_forecasts_query() and query_scores_for_project() helper that validates the four of the five query keys
-    that are strings referring to server object IDs.
+    A validate_forecasts_query() helper that validates the four of the five query keys that are strings referring to
+    server object IDs.
 
     :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids))
     """
@@ -496,230 +495,6 @@ def _query_worker(job_pk, query_project_fcn):
         job.failure_message = f"_query_worker(): error: {ex!r}"
         logger.error(job.failure_message + f". job={job}")
         job.save()
-
-
-#
-# query_scores_for_project()
-#
-
-SCORE_CSV_HEADER_PREFIX = ['model', 'timezero', 'season', 'unit', 'target', 'truth']
-
-
-def query_scores_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
-    """
-    Top-level function for querying scores within project. Runs in the calling thread and therefore blocks.
-
-    There is one column per ScoreValue BUT: all Scores are on one line. Thus, the row 'key' is the (fixed) first five
-    columns:
-
-        `ForecastModel.abbreviation | ForecastModel.name , TimeZero.timezero_date, season, Unit.name, Target.name`
-
-    Followed on the same line by a variable number of ScoreValue.value columns, one for each Score. Score names are in
-    the header. An example header and first few rows:
-
-        model,           timezero,    season,    unit,  target,          constant score,  Absolute Error
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  1                <blank>
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      1_biweek_ahead,  <blank>           2
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      2_biweek_ahead,  <blank>           1
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      3_biweek_ahead,  <blank>           9
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      4_biweek_ahead,  <blank>           6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH01,      5_biweek_ahead,  <blank>           8
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      1_biweek_ahead,  <blank>           6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      2_biweek_ahead,  <blank>           6
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      3_biweek_ahead,  <blank>          37
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      4_biweek_ahead,  <blank>          25
-        gam_lag1_tops3,  2017-04-23,  2017-2018  TH02,      5_biweek_ahead,  <blank>          62
-
-    `query` is documented at https://docs.zoltardata.com/, but briefly, like query_forecasts_for_project(), it is a dict
-    that contains up to five keys, each of which is a list of strings::
-
-    - 'models': optional list of ForecastModel.abbreviation strings
-    - 'units': "" Unit.name strings
-    - 'targets': "" Target.name strings
-    - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
-    - 'scores': optional list of score abbreviations as defined in SCORE_ABBREV_TO_NAME_AND_DESCR keys
-
-    Notes:
-    - `season` is each TimeZero's containing season_name, similar to Project.timezeros_in_season().
-    -  for the model column we use the model's abbreviation if it's not empty, otherwise we use its name
-    - NB: we were using get_valid_filename() to ensure values are CSV-compliant, i.e., no commas, returns, tabs, etc.
-      (a function that was as good as any), but we removed it to help performance in the loop
-    - we use groupby to group row 'keys' so that all score values are together
-
-    :param project: a Project
-    :param query: a dict specifying the query parameters. see https://docs.zoltardata.com/ for documentation, and above
-        for a summary. NB: assumes it has passed validation via `validate_forecasts_query()`
-    :param max_num_rows: the number of rows at which this function raises a RuntimeError
-    :return: a list of CSV rows including the header
-    """
-    # validate query and set query defaults ("all in project") if necessary
-    logger.debug(f"query_scores_for_project(): 1/5 validating query. query={query}, project={project}")
-    error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores) = validate_scores_query(project, query)
-
-    # set scores, translating Score abbreviations to objects, defaulting to all
-    scores_qs = Score.objects.filter(abbreviation__in=scores).order_by('pk') if scores \
-        else Score.objects.all().order_by('pk')
-
-    # get Forecasts to be included, applying query's constraints
-    forecast_ids = latest_forecast_ids_for_project(project, True, model_ids=model_ids, timezero_ids=timezero_ids)
-
-    # write the header, which depends on which scores are being queried
-    score_csv_header = SCORE_CSV_HEADER_PREFIX + [score.abbreviation for score in scores_qs]
-    yield score_csv_header
-
-    # do the query - sorted for groupby(). todo xx use IDs!
-    logger.debug(f"query_scores_for_project(): 2/5 preparing to iterate: project={project}")
-    forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
-    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
-    unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
-    target_id_to_obj = {target.pk: target for target in project.targets.all()}
-    timezero_to_season_name = project.timezero_to_season_name()
-
-    # todo no unit_ids or target_ids -> do not pass '__in'
-    if not unit_ids:
-        unit_ids = project.units.all().values_list('id', flat=True)  # "" Units ""
-    if not target_ids:
-        target_ids = project.targets.all().values_list('id', flat=True)  # "" Targets ""
-
-    logger.debug(f"query_scores_for_project(): 3/5 getting truth. project={project}")
-    tz_unit_targ_pks_to_truth_vals = _tz_unit_targ_pks_to_truth_values(project)
-
-    logger.debug(f"query_scores_for_project(): 4/5 iterating. project={project}")
-    score_value_qs = ScoreValue.objects \
-        .filter(score__id__in=list(scores_qs.values_list('id', flat=True)),
-                forecast__id__in=list(forecast_ids),
-                unit__id__in=list(unit_ids),
-                target__id__in=list(target_ids)) \
-        .order_by('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__id', 'target__id', 'score__id') \
-        .values_list('forecast__forecast_model__id', 'forecast__time_zero__id', 'unit__id', 'target__id',
-                     'score__id', 'value')
-
-    num_rows = score_value_qs.count()
-    if num_rows > max_num_rows:
-        raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
-
-    num_warnings = 0
-    for (forecast_model_id, time_zero_id, unit_id, target_id), score_id_value_grouper \
-            in groupby(score_value_qs.iterator(), key=lambda _: (_[0], _[1], _[2], _[3])):
-        # get truth. should be only one value
-        true_value, error_string = _validate_truth(tz_unit_targ_pks_to_truth_vals, time_zero_id, unit_id, target_id)
-        if error_string:
-            num_warnings += 1
-            continue  # skip this (forecast_model_id, time_zero_id, unit_id, target_id) combination's score row
-
-        forecast_model = forecast_model_id_to_obj[forecast_model_id]
-        time_zero = timezero_id_to_obj[time_zero_id]
-        unit = unit_id_to_obj[unit_id]
-        target = target_id_to_obj[target_id]
-        # ex score_groups: [(1, 18, 1, 1, 1, 1.0), (1, 18, 1, 1, 2, 2.0)]  # multiple scores per group
-        #                  [(1, 18, 1, 2, 2, 0.0)]                         # single score
-        score_groups = list(score_id_value_grouper)
-        score_id_to_value = {score_group[-2]: score_group[-1] for score_group in score_groups}
-        score_values = [score_id_to_value[score.id] if score.id in score_id_to_value else None for score in scores_qs]
-
-        # while name and abbreviation are now both required to be non-empty, we leave the check here just in case:
-        model_name = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
-        yield [model_name, time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-               timezero_to_season_name[time_zero], unit.name, target.name, true_value] + score_values
-
-    # print warning count
-    logger.debug(f"query_scores_for_project(): 5/5 done. num_rows={num_rows}, num_warnings={num_warnings}, "
-                 f"project={project}")
-
-
-def _tz_unit_targ_pks_to_truth_values(project):
-    """
-    Returns project's truth values as a nested dict that's organized for easy access using these keys:
-    [timezero_pk][unit_pk][target_id] -> truth_values (a list).
-    """
-    the_truth_data_qs = truth_data_qs(project) \
-        .order_by('forecast__time_zero__id', 'unit__id', 'target__id') \
-        .values_list('forecast__time_zero__id', 'unit__id', 'target__id',
-                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-
-    tz_unit_targ_pks_to_truth_vals = {}  # {timezero_pk: {unit_pk: {target_id: truth_value}}}
-    for time_zero_id, unit_target_val_grouper in groupby(the_truth_data_qs, key=lambda _: _[0]):
-        unit_targ_pks_to_truth = {}  # {unit_pk: {target_id: truth_value}}
-        tz_unit_targ_pks_to_truth_vals[time_zero_id] = unit_targ_pks_to_truth
-        for unit_id, target_val_grouper in groupby(unit_target_val_grouper, key=lambda _: _[1]):
-            target_pk_to_truth = defaultdict(list)  # {target_id: truth_value}
-            unit_targ_pks_to_truth[unit_id] = target_pk_to_truth
-            for _, _, target_id, value_i, value_f, value_t, value_d, value_b in target_val_grouper:
-                value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-                target_pk_to_truth[target_id].append(value)
-
-    return tz_unit_targ_pks_to_truth_vals
-
-
-def _validate_truth(timezero_loc_target_pks_to_truth_values, timezero_pk, unit_pk, target_pk):
-    """
-    :return: 2-tuple of the form: (truth_value, error_string) where error_string is non-None if the inputs were invalid.
-        in that case, truth_value is None. o/w truth_value is valid
-    """
-    if timezero_pk not in timezero_loc_target_pks_to_truth_values:
-        return None, 'timezero_pk not in truth'
-    elif unit_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk]:
-        return None, 'unit_pk not in truth'
-    elif target_pk not in timezero_loc_target_pks_to_truth_values[timezero_pk][unit_pk]:
-        return None, 'target_pk not in truth'
-
-    truth_values = timezero_loc_target_pks_to_truth_values[timezero_pk][unit_pk][target_pk]
-    if len(truth_values) == 0:  # truth not available
-        return None, 'truth value not found'
-    elif len(truth_values) > 1:
-        return None, '>1 truth values found'
-
-    return truth_values[0], None
-
-
-def validate_scores_query(project, query):
-    """
-    Validates `query` according to the parameters documented at https://docs.zoltardata.com/ . Nearly identical to
-    validate_forecasts_query() except validates `query`'s `scores` field instead of `type`.
-    """
-    from forecast_app.scores.definitions import SCORE_ABBREV_TO_NAME_AND_DESCR  # avoid circular imports
-
-
-    # return value. filled next
-    error_messages, model_ids, unit_ids, target_ids, timezero_ids, scores = [], [], [], [], [], []
-
-    # validate query type
-    if not isinstance(query, dict):
-        error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-    # validate keys
-    actual_keys = set(query.keys())
-    expected_keys = {'models', 'units', 'targets', 'timezeros', 'scores'}
-    if not (actual_keys <= expected_keys):
-        error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
-                              f"expected_keys={expected_keys}")
-        # return even though we could technically continue
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-    # validate object IDs that strings refer to
-    error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
-
-    # validate score abbreviations
-    if 'scores' in query:
-        scores = query['scores']
-        if not (set(scores) <= set(SCORE_ABBREV_TO_NAME_AND_DESCR.keys())):
-            error_messages.append(f"one or more scores were invalid abbreviations. scores={scores}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-    # done (may or may not be valid)
-    return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, scores)]
-
-
-def _scores_query_worker(job_pk):
-    """
-    enqueue() helper function
-
-    assumes these input_json fields are present and valid:
-    - 'project_pk'
-    - 'query' (assume has passed `validate_scores_query()`)
-    """
-    _query_worker(job_pk, query_scores_for_project)
 
 
 #

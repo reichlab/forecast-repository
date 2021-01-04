@@ -18,12 +18,14 @@ from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth
     delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
+
 logging.getLogger().setLevel(logging.ERROR)
 
 
 class ProjectTestCase(TestCase):
     """
     """
+
 
     @classmethod
     def setUpTestData(cls):
@@ -34,6 +36,7 @@ class ProjectTestCase(TestCase):
         cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='fm1', abbreviation='abbrev')
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
+
 
     def test_load_truth_data(self):
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
@@ -73,6 +76,7 @@ class ProjectTestCase(TestCase):
             [datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20']]
         self.assertEqual(sorted(exp_truth_preview), sorted(get_truth_data_preview(project2)))
 
+
     def test_load_truth_data_other_files(self):
         # test truth files that used to be in yyyymmdd or yyyyww (EW) formats
         # truths-ok.csv (2017-01-17-truths.csv would basically test the same)
@@ -92,7 +96,7 @@ class ProjectTestCase(TestCase):
         project2 = Project.objects.create()
         TimeZero.objects.create(project=project2, timezero_date=datetime.date(2016, 10, 30))
         make_cdc_units_and_targets(project2)
-        load_truth_data(project2, Path('forecast_app/tests/scores/truths-2016-2017-reichlab-small.csv'),
+        load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-2016-2017-reichlab-small.csv'),
                         is_convert_na_none=True)
         exp_rows = [(datetime.date(2016, 10, 30), 'US National', '1 wk ahead', None, 1.55838, None, None, None),
                     (datetime.date(2016, 10, 30), 'US National', '2 wk ahead', None, 1.64639, None, None, None),
@@ -110,6 +114,7 @@ class ProjectTestCase(TestCase):
                          'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(exp_rows, list(act_rows))
 
+
     def test_timezeros_unique(self):
         project = Project.objects.create()
         with self.assertRaises(ValidationError) as context:
@@ -119,6 +124,7 @@ class ProjectTestCase(TestCase):
             project.save()
         self.assertIn("found duplicate TimeZero.timezero_date", str(context.exception))
 
+
     def test_get_num_rows(self):
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
@@ -127,8 +133,10 @@ class ProjectTestCase(TestCase):
         self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
                          8019 * 2)  # exact b/c uniform forecasts
 
+
     def test_summary_counts(self):
         self.assertEqual((1, 1, 8019), self.project.get_summary_counts())  # num_models, num_forecasts, num_rows
+
 
     def test_timezero_seasons(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -249,12 +257,15 @@ class ProjectTestCase(TestCase):
         for timezero, exp_season_name in timezero_to_exp_season_name.items():
             self.assertEqual(exp_season_name, project2.season_name_containing_timezero(timezero))
 
+
     def test_visualization_targets(self):
         self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
                          [target.name for target in self.project.step_ahead_targets()])
 
+
     def test_timezeros_num_forecasts(self):
         self.assertEqual([(self.time_zero, 1)], ProjectDetailView.timezeros_num_forecasts(self.project))
+
 
     def test__upload_truth_worker_bad_inputs(self):
         # test `_upload_truth_worker()` error conditions. this test is complicated by that function's use of
@@ -286,6 +297,7 @@ class ProjectTestCase(TestCase):
             load_truth_mock.assert_not_called()
             self.assertEqual(Job.FAILED, job.status)
 
+
     def test__upload_truth_worker_blue_sky(self):
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
                 patch('utils.project_truth.load_truth_data') as load_truth_mock:
@@ -297,6 +309,7 @@ class ProjectTestCase(TestCase):
             job.refresh_from_db()
             load_truth_mock.assert_called_once()
             self.assertEqual(Job.SUCCESS, job.status)
+
 
     def test_last_update(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)

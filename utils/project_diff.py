@@ -330,7 +330,6 @@ def database_changes_for_project_config_diff(project, changes):
     - Prediction.unit (PointPrediction.unit, NamedDistribution.unit, BinDistribution.unit,
                            SampleDistribution.unit)
     - truth data (PointPrediction).unit
-    x ScoreValue.unit (we do not count this b/c scores are generated from above data)
 
     :param project: a Project whose data is being analyzed for changes
     :param changes: list of Changes as returned by project_config_diff()

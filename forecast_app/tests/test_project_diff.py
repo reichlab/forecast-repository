@@ -7,7 +7,6 @@ from pathlib import Path
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
-from forecast_app.tests.test_scores import _update_scores_for_all_projects
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import config_dict_from_project
 from utils.project_diff import project_config_diff, Change, order_project_config_diff, execute_project_config_diff, \
@@ -171,7 +170,6 @@ class ProjectDiffTestCase(TestCase):
     def test_order_project_config_diff(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        _update_scores_for_all_projects()
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
@@ -189,7 +187,6 @@ class ProjectDiffTestCase(TestCase):
     def test_database_changes_for_project_config_diff(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        _update_scores_for_all_projects()
 
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
         #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
@@ -209,7 +206,6 @@ class ProjectDiffTestCase(TestCase):
     def test_execute_project_config_diff(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        _update_scores_for_all_projects()
 
         # make some changes
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
@@ -270,7 +266,6 @@ class ProjectDiffTestCase(TestCase):
     def test_serialize_change_list(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        _update_scores_for_all_projects()
 
         # make some changes
         # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:

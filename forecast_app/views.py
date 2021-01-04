@@ -4,7 +4,6 @@ import logging
 from collections import defaultdict
 
 import django_rq
-import redis
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django import db
@@ -22,25 +21,23 @@ from django.views.generic import DetailView, ListView
 from rq.timeouts import JobTimeoutException
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm, QueryForm
-from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, ScoreValue, Score, ScoreLastUpdate, \
-    Prediction, ModelScoreChange, Unit, Target, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution, ForecastMetaPrediction
+from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Prediction, Unit, Target, BinDistribution, \
+    NamedDistribution, PointPrediction, SampleDistribution, QuantileDistribution, ForecastMetaPrediction
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
+    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_TRUTH
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
     is_forecast_metadata_available, forecast_metadata, forecast_metadata_counts_for_project
-from utils.mean_absolute_error import unit_to_mean_abs_error_rows_for_project
 from utils.project import config_dict_from_project, create_project_from_json, group_targets, unit_rows_for_project, \
     models_summary_table_rows_for_project, target_rows_for_project, latest_forecast_ids_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
-from utils.project_queries import _forecasts_query_worker, \
-    _scores_query_worker, _truth_query_worker
+from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, get_num_truth_rows, delete_truth_data, \
     first_truth_data_forecast, oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +53,7 @@ def robots_txt(request):
     # frequently by different bots
     disallow_urls = []  # relative URLs
     for project_id in Project.objects.all().values_list('id', flat=True):
-        for project_url_name in ['project-explorer', 'project-scores', 'project-config', 'truth-data-detail',
-                                 'project-visualizations']:
+        for project_url_name in ['project-explorer', 'project-config', 'truth-data-detail', 'project-visualizations']:
             disallow_urls.append(reverse(project_url_name, args=[str(project_id)]))  # relative URLs
     return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
 
@@ -115,43 +111,10 @@ def zadmin_jobs(request):
         context={'jobs': Job.objects.select_related('user').all()})  # datatable does order by
 
 
-def zadmin_score_last_updates(request):
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    Score.ensure_all_scores_exist()
-
-    # build score_last_update_rows. NB: num_score_values_for_model() took a long time, so we removed it. o/w the page
-    # timed out on Heroku. was: score_last_update.score.num_score_values_for_model(score_last_update.forecast_model)
-    score_last_update_rows = []  # forecast_model, score, num_score_values, last_update
-    for score_last_update in ScoreLastUpdate.objects \
-            .order_by('score__name', 'forecast_model__project__name', 'forecast_model__name'):
-        score_last_update_rows.append(
-            (score_last_update.forecast_model,
-             score_last_update.score,
-             score_last_update.updated_at,
-             score_last_update.forecast_model.score_change.changed_at > score_last_update.updated_at))
-
-    return render(
-        request, 'zadmin_score_last_updates.html',
-        context={'score_last_update_rows': score_last_update_rows})
-
-
-def zadmin_model_score_changes(request):
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    model_score_changes = ModelScoreChange.objects.all().order_by('changed_at')
-    return render(
-        request, 'zadmin_model_score_changes.html',
-        context={'model_score_changes': model_score_changes})
-
-
 def zadmin(request):
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    Score.ensure_all_scores_exist()
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
     projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
     return render(
@@ -161,9 +124,7 @@ def zadmin(request):
                  's3_bucket_prefix': S3_BUCKET_PREFIX,
                  'max_num_query_rows': MAX_NUM_QUERY_ROWS,
                  'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
-                 'projects_sort_pk': projects_sort_pk,
-                 'scores_sort_name': Score.objects.all().order_by('name'),
-                 'scores_sort_pk': Score.objects.all().order_by('pk')})
+                 'projects_sort_pk': projects_sort_pk})
 
 
 def delete_jobs(request):
@@ -175,28 +136,6 @@ def delete_jobs(request):
     Job.objects.all().delete()
     messages.success(request, "Deleted all Jobs.")
     return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
-
-
-def update_all_scores(request, **kwargs):
-    """
-    View function that enqueues updates of all scores for all models in all projects, regardless of whether each model
-    has changed since the last score update.
-
-    :param kwargs: has a single 'is_only_changed' key that's either True or False. this is passed to
-        Score.enqueue_update_scores_for_all_models(), which means this arg controls whether updates are enqueued for
-        only changed models (if True) or all of them (False)
-    """
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    try:
-        is_only_changed = kwargs['is_only_changed']
-        enqueued_score_model_pks = Score.enqueue_update_scores_for_all_models(is_only_changed=is_only_changed)
-        messages.success(request, f"Scheduled {len(enqueued_score_model_pks)} score updates for all projects. "
-                                  f"is_only_changed={is_only_changed}")
-    except redis.exceptions.ConnectionError as ce:
-        messages.warning(request, f"Error updating scores: {ce}.")
-    return redirect('zadmin')  # hard-coded
 
 
 #
@@ -347,92 +286,6 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
 
 
 #
-# ---- score utility functions ----
-#
-
-def clear_all_scores(request):
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    # NB: runs in current thread
-    for score in Score.objects.all():
-        score.clear()
-    messages.success(request, "Cleared all Scores.")
-    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
-
-
-def delete_score_last_updates(request):
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    # NB: delete() runs in current thread
-    ScoreLastUpdate.objects.all().delete()
-    messages.success(request, "Deleted all ScoreLastUpdates.")
-    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
-
-
-#
-# ---- scores function ----
-#
-
-def project_scores(request, project_pk):
-    """
-    View function to render various scores for a particular project.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    # NB: inner knowledge about the targets unit_to_mean_abs_error_rows_for_project() uses:
-    step_ahead_targets = project.step_ahead_targets()
-    if not step_ahead_targets:
-        return render(request, 'message.html',
-                      context={'title': "Required targets not found",
-                               'message': "The project does not have the required score-related targets."})
-
-    seasons = project.seasons()
-    season_name = _param_val_from_request(request, 'season_name', seasons)
-    try:
-        logger.debug("project_scores(): calling: unit_to_mean_abs_error_rows_for_project(). project={}, "
-                     "season_name={}".format(project, season_name))
-        unit_to_rows_and_mins = unit_to_mean_abs_error_rows_for_project(project, season_name)
-        is_all_units_have_rows = unit_to_rows_and_mins and all(unit_to_rows_and_mins.values())
-        logger.debug("project_scores(): done: unit_to_mean_abs_error_rows_for_project()")
-    except Exception as ex:
-        return render(request, 'message.html',
-                      context={'title': "Got an error trying to calculate scores.",
-                               'message': f"The error was: &ldquo;<span class=\"bg-danger\">{ex!r}</span>&rdquo;"})
-
-    unit_names = project.units.all().order_by('name').values_list('name', flat=True)
-    model_pk_to_name_and_url = {forecast_model.pk: [forecast_model.name, forecast_model.get_absolute_url()]
-                                for forecast_model in project.models.all()}
-    return render(
-        request,
-        'project_scores.html',
-        context={'project': project,
-                 'model_pk_to_name_and_url': model_pk_to_name_and_url,
-                 'season_name': season_name,
-                 'seasons': seasons,
-                 'unit': unit_names[0],
-                 'units': unit_names,
-                 'is_all_units_have_rows': is_all_units_have_rows,
-                 'is_truth_data_loaded': is_truth_data_loaded(project),
-                 'unit_to_rows_and_mins': json.dumps(unit_to_rows_and_mins),  # converts None -> null
-                 })
-
-
-def _param_val_from_request(request, param_name, choices):
-    """
-    :return param_name's value from query parameters. else use last one in choices, or None if no choices
-    """
-    param_val = request.GET[param_name] if param_name in request.GET else None
-    if param_val in choices:
-        return param_val
-    else:
-        return choices[-1] if choices else None
-
-
-#
 # ---- query functions ----
 #
 
@@ -441,20 +294,19 @@ class QueryType(enum.Enum):
     Types of queries that `query_project()` can handle.
     """
     FORECASTS = enum.auto()
-    SCORES = enum.auto()
     TRUTH = enum.auto()
 
 
 def query_project(request, project_pk, query_type):
     """
-    Shows a form allowing users to edit a JSON query and submit it to query forecasts, scores, or truth based on
-    query_type.
+    Shows a form allowing users to edit a JSON query and submit it to query forecasts or truth based on query_type.
 
     :param request: a Request
     :param project_pk: a Project.pk
     :param query_type: a QueryType enum value indicating the type of query to run
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
+
 
     project = get_object_or_404(Project, pk=project_pk)
     if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
@@ -469,11 +321,9 @@ def query_project(request, project_pk, query_type):
         if form.is_valid():  # query is valid, so submit it and redirect to the new Job
             cleaned_query_data = form.cleaned_data['query']
             query_job_type = {QueryType.FORECASTS: JOB_TYPE_QUERY_FORECAST,
-                              QueryType.SCORES: JOB_TYPE_QUERY_SCORE,
                               QueryType.TRUTH: JOB_TYPE_QUERY_TRUTH,
                               }[query_type]
             query_worker_fcn = {QueryType.FORECASTS: _forecasts_query_worker,
-                                QueryType.SCORES: _scores_query_worker,
                                 QueryType.TRUTH: _truth_query_worker,
                                 }[query_type]
             query = json.loads(cleaned_query_data)
@@ -482,14 +332,13 @@ def query_project(request, project_pk, query_type):
             return redirect('job-detail', pk=job.pk)
     else:  # GET (or any other method): create the default form
         # which params to include in which query_type:
-        #            forecasts? scores? truth?
-        # units:     v          v       v
-        # targets:   v          v       v
-        # timezeros: v          v       v
-        # models:    v          v       x
-        # types:     v          x       x
-        # as_of:     v          x       x
-        # scores:    x          v       x
+        #            forecasts? truth?
+        # units:     v          v
+        # targets:   v          v
+        # timezeros: v          v
+        # models:    v          x
+        # types:     v          x
+        # as_of:     v          x
         first_unit = project.units.first()
         first_target = project.targets.first()
         first_timezero = project.timezeros.first()
@@ -497,7 +346,7 @@ def query_project(request, project_pk, query_type):
                          'targets': [first_target.name] if first_target else [],
                          'timezeros': [first_timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]
                          if first_timezero else []}
-        if (query_type == QueryType.FORECASTS) or (query_type == QueryType.SCORES):
+        if query_type == QueryType.FORECASTS:
             first_model = project.models.first()
             default_query['models'] = [first_model.abbreviation] if first_model else []
         if query_type == QueryType.FORECASTS:
@@ -505,12 +354,10 @@ def query_project(request, project_pk, query_type):
             first_forecast = Forecast.objects.filter(forecast_model__project=project).first()
             if first_forecast:
                 default_query['as_of'] = first_forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        if query_type == QueryType.SCORES:
-            default_query['scores'] = ['error']
         form = QueryForm(project, query_type, initial={'query': json.dumps(default_query)})
 
     # render
-    query_type_str = {QueryType.FORECASTS: 'forecast', QueryType.SCORES: 'scores', QueryType.TRUTH: 'truth'}[query_type]
+    query_type_str = {QueryType.FORECASTS: 'forecast', QueryType.TRUTH: 'truth'}[query_type]
     return render(request, 'query_form.html',
                   context={'title': f"Edit {query_type_str} query",
                            'button_name': 'Submit',
@@ -520,28 +367,8 @@ def query_project(request, project_pk, query_type):
 
 
 #
-# ---- score data functions ----
+# ---- download_project_config() functions ----
 #
-
-def _model_score_count_rows_for_project(project):
-    """
-    :return list of rows summarizing score information for project
-    """
-    # todo xx use meta for column names
-    sql = """
-        SELECT fm.id, sv.score_id, count(fm.id)
-        FROM {scorevalue_table_name} AS sv
-                    LEFT JOIN {forecast_table_name} AS f ON sv.forecast_id = f.id
-                    LEFT JOIN {forecastmodel_forecast_table_name} AS fm ON f.forecast_model_id = fm.id
-        WHERE fm.project_id = %s
-        GROUP BY sv.score_id, fm.id;
-    """.format(scorevalue_table_name=ScoreValue._meta.db_table,
-               forecast_table_name=Forecast._meta.db_table,
-               forecastmodel_forecast_table_name=ForecastModel._meta.db_table)
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk,))
-        return cursor.fetchall()
-
 
 def download_project_config(request, project_pk):
     """
@@ -717,6 +544,7 @@ def delete_project(request, project_pk):
     # imported here so that tests can patch via mock:
     from utils.project import delete_project_iteratively
 
+
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
@@ -849,12 +677,15 @@ def delete_model(request, model_pk):
 class UserListView(UserPassesTestMixin, ListView):
     model = User
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         return is_user_ok_admin(self.request.user)
+
 
     def get_context_data(self, **kwargs):
         # collect user info
@@ -879,13 +710,16 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     model = Project
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return is_user_ok_view_project(self.request.user, project)
+
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
@@ -908,6 +742,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['first_truth_forecast'] = first_truth_data_forecast(project)
         context['project_summary_info'] = project_summary_info(project)
         return context
+
 
     @staticmethod
     def timezeros_num_forecasts(project):
@@ -958,13 +793,16 @@ class UserDetailView(UserPassesTestMixin, DetailView):
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return is_user_ok_edit_user(self.request.user, detail_user)
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -986,13 +824,16 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast_model.project)
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1024,13 +865,16 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
+
 
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
@@ -1083,6 +927,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_sample'] = data_rows_sample
         return context
 
+
     def forecast_metadata_cached(self):
         """
         ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
@@ -1104,6 +949,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
         return pred_type_count_pairs, found_units, found_targets
+
 
     def forecast_metadata_dynamic(self):
         """
@@ -1145,6 +991,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # done
         return pred_type_count_pairs, found_units, found_targets
+
 
     def search_forecast(self):
         """
@@ -1196,16 +1043,20 @@ class JobDetailView(UserPassesTestMixin, DetailView):
 
     context_object_name = 'job'
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
+
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
 
+
     def get_context_data(self, **kwargs):
         from utils.cloud_file import is_file_exists
+
 
         job = self.get_object()
         context = super().get_context_data(**kwargs)
@@ -1232,6 +1083,7 @@ def download_forecast(request, forecast_pk):
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
+
     return json_response_for_forecast(forecast, request)
 
 
@@ -1241,6 +1093,7 @@ def download_job_data_file(request, pk):
     """
     from forecast_app.api_views import _download_job_data_request  # avoid circular imports
     from utils.cloud_file import is_file_exists
+
 
     job = get_object_or_404(Job, pk=pk)
     if not (request.user.is_superuser or (job.user == request.user)):
@@ -1339,6 +1192,7 @@ def _upload_truth_worker(job_pk):
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
     from utils.project_truth import load_truth_data
+
 
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
@@ -1439,6 +1293,7 @@ def _upload_forecast_worker(job_pk):
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
+
 
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
         if 'forecast_model_pk' not in job.input_json:
@@ -1597,6 +1452,7 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     from utils.cloud_file import delete_file, upload_file
+
 
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "

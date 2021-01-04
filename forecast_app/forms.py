@@ -6,13 +6,13 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from forecast_app.models import ForecastModel
-from utils.project_queries import validate_forecasts_query, validate_scores_query, validate_truth_query
+from utils.project_queries import validate_forecasts_query, validate_truth_query
 from .models.project import Project
 
 
 class QueryForm(forms.Form):
     """
-    A form that can query forecasts, scores, or truth. Fields and buttons:
+    A form that can query forecasts or truth. Fields and buttons:
         Query: [JSON text area]
         [Cancel] | [Submit]
 
@@ -41,7 +41,6 @@ class QueryForm(forms.Form):
             query_json = json.loads(cleaned_query_data)
             if isinstance(query_json, dict):  # must be a JSON object
                 validation_fcn = {QueryType.FORECASTS: validate_forecasts_query,
-                                  QueryType.SCORES: validate_scores_query,
                                   QueryType.TRUTH: validate_truth_query,
                                   }[self.query_type]
                 error_messages, _ = validation_fcn(self.project, query_json)

@@ -106,8 +106,6 @@ class NamedDistribution(Prediction):
     Each family has a definition that describes parameter semantics, parameter types, abbreviations, and `calculate()`
     implementations - see FAMILY_DEFINITIONS. FAMILY_CHOICES below defines the family_id for each family, which is
     referenced in FAMILY_DEFINITIONS.
-
-    To add a new named distribution: todo xx details - ala the Score class docs
     """
 
     NORM_DIST = 0
