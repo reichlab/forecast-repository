@@ -76,14 +76,6 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     is_include_sample = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution] in types)
     is_include_quantile = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution] in types)
 
-    # default units, targets, and timezeros to all if not passed
-    if not unit_ids:
-        unit_ids = project.units.all().values_list('id', flat=True)
-    if not target_ids:
-        target_ids = project.targets.all().values_list('id', flat=True)
-    if not timezero_ids:
-        timezero_ids = project.timezeros.all().values_list('id', flat=True)
-
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
     unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
@@ -209,34 +201,28 @@ def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, t
         pred_select = f"pred.quantile AS quantile, pred.value_i AS value_i, pred.value_f as value_f, " \
                       f"pred.value_d AS value_d"
 
-    # set sql
     sql = f"""
-        WITH fm_tz_u_t_max_issue_dates AS (
-            SELECT fm.id             AS fm_id,
-                   f.time_zero_id    AS tz_id,
-                   pred.unit_id      AS pred_uid,
-                   pred.target_id    AS pred_tid,
-                   MAX(f.issue_date) AS max_issue_date
-            FROM {Forecast._meta.db_table} AS f
-                     JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
-                     JOIN {prediction_class._meta.db_table} pred ON f.id = pred.forecast_id
+        WITH ranked_rows AS (
+            SELECT f.forecast_model_id  AS fm_id,
+                   f.time_zero_id       AS tz_id,
+                   pred.unit_id         AS unit_id,
+                   pred.target_id       AS target_id,
+                   {pred_select},
+                   RANK() OVER (
+                       PARTITION BY fm.id, f.time_zero_id, pred.unit_id, pred.target_id
+                       ORDER BY f.issue_date DESC) AS rownum
+            FROM {prediction_class._meta.db_table} AS pred
+                     JOIN {Forecast._meta.db_table} f ON pred.forecast_id = f.id
+                     JOIN {ForecastModel._meta.db_table} fm on f.forecast_model_id = fm.id
             WHERE fm.project_id = %s AND NOT fm.is_oracle {and_model_ids} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
-            GROUP BY fm.id, f.time_zero_id, pred.unit_id, pred.target_id
         )
-        SELECT inner_table.fm_id    AS fm_id,
-               inner_table.tz_id    AS tz_id,
-               inner_table.pred_uid AS unit_id,
-               inner_table.pred_tid AS target_id,
+        SELECT pred.fm_id      AS fm_id,
+               pred.tz_id      AS tz_id,
+               pred.unit_id    AS unit_id,
+               pred.target_id  AS target_id,
                {pred_select}
-        FROM fm_tz_u_t_max_issue_dates AS inner_table
-                 JOIN {Forecast._meta.db_table} AS f
-                      ON f.forecast_model_id = inner_table.fm_id
-                          AND f.time_zero_id = inner_table.tz_id
-                          AND f.issue_date = inner_table.max_issue_date
-                 JOIN {prediction_class._meta.db_table} pred
-                      ON pred.forecast_id = f.id
-                          AND pred.unit_id = inner_table.pred_uid
-                          AND pred.target_id = inner_table.pred_tid;
+        FROM ranked_rows AS pred
+        WHERE pred.rownum = 1;
     """
     return sql
 

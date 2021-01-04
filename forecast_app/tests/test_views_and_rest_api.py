@@ -18,8 +18,8 @@ from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
 from forecast_app.views import _delete_forecast_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
 from utils.project import delete_project_iteratively, create_project_from_json
-from utils.project_truth import load_truth_data
 from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
+from utils.project_truth import load_truth_data
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
 
 

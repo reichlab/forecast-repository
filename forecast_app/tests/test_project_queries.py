@@ -429,10 +429,10 @@ class ProjectQueriesTestCase(TestCase):
         exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
                     ['2011-10-02', 'location3', 'pct next week', 'point', 3.567],
                     ['2011-10-09', 'location3', 'cases next week', 'point', 10],
-                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
+                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]  # sorted
         act_rows = list(query_forecasts_for_project(project, {}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(exp_rows, sorted(act_rows))
 
         # case: 10/20: same as default
         act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-20'}))

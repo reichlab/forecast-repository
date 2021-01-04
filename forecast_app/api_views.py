@@ -34,42 +34,6 @@ from utils.project import create_project_from_json, config_dict_from_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-import datetime
-import logging
-import tempfile
-from wsgiref.util import FileWrapper
-
-import django_rq
-from boto3.exceptions import Boto3Error
-from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
-from django.contrib.auth.mixins import UserPassesTestMixin
-from django.contrib.auth.models import User
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
-    HttpResponseNotFound
-from django.utils.text import get_valid_filename
-from rest_framework import generics, status
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.generics import get_object_or_404
-from rest_framework.renderers import JSONRenderer, BrowsableAPIRenderer
-from rest_framework.response import Response
-from rest_framework.reverse import reverse
-from rest_framework_csv.renderers import CSVRenderer
-
-from forecast_app.models import Project, ForecastModel, Forecast, Target
-from forecast_app.models.job import Job, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
-    JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_SCORE, JOB_TYPE_QUERY_TRUTH
-from forecast_app.models.project import TimeZero, Unit
-from forecast_app.serializers import ProjectSerializer, UserSerializer, ForecastModelSerializer, ForecastSerializer, \
-    TruthSerializer, JobSerializer, TimeZeroSerializer, UnitSerializer, TargetSerializer
-from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, is_user_ok_create_model, \
-    _upload_truth_worker, enqueue_delete_forecast, is_user_ok_delete_forecast, is_user_ok_create_project, \
-    is_user_ok_view_project
-from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
-from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json, config_dict_from_project
-from utils.project_diff import execute_project_config_diff, project_config_diff
-from utils.project_queries import _forecasts_query_worker, _scores_query_worker, _truth_query_worker
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
