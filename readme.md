@@ -10,6 +10,10 @@ https://github.com/reichlab/forecast-repository .
 Zoltar requires Python 3.6 or higher.
 
 
+# Postgres version
+Zoltar has been tested against Postgres 9.6.
+
+
 # Email-based notification requirements
 Zoltar uses [Anymail](https://github.com/anymail/django-anymail) to abstract access to the transactional email server
 that's used for notifications. (Currently we only have notifications about file uploads.) Anymail can be used for a
@@ -107,10 +111,6 @@ pipenv install django-anymail[sendgrid,sendinblue]
 ```
 
 
-# Utils
-The files under utils/ are currently project-specific ones. They should probably be moved.
-
-
 # RQ infrastructure
 Zoltar uses an asynchronous messaging queue to support executing long-running tasks outside the web dyno, which keeps
 the latter responsive and prevents Heroku's 30 second timeouts. We use [RQ](https://python-rq.org/) for this, which
@@ -156,6 +156,8 @@ python3 manage.py runserver --settings=forecast_repo.settings.local_sqlite3
 
 
 # Running the tests
+Note that testing or running Zoltar on sqlite requires version 3.25.0 or higher. 
+
 ```bash
 $ cd <readme.md's dir>/forecast-repository
 $ pipenv shell
