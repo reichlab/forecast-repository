@@ -3,6 +3,7 @@ import json
 import logging
 from collections import defaultdict
 
+import django
 import django_rq
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
@@ -11,7 +12,7 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
-from django.db import connection, transaction
+from django.db import connection, transaction, IntegrityError
 from django.db.models import Count
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
@@ -37,7 +38,6 @@ from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, get_num_truth_rows, delete_truth_data, \
     first_truth_data_forecast, oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 logger = logging.getLogger(__name__)
 
@@ -307,7 +307,6 @@ def query_project(request, project_pk, query_type):
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
 
-
     project = get_object_or_404(Project, pk=project_pk)
     if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
         return HttpResponseForbidden(render(request, '403.html').content)
@@ -544,7 +543,6 @@ def delete_project(request, project_pk):
     # imported here so that tests can patch via mock:
     from utils.project import delete_project_iteratively
 
-
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
@@ -677,15 +675,12 @@ def delete_model(request, model_pk):
 class UserListView(UserPassesTestMixin, ListView):
     model = User
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         return is_user_ok_admin(self.request.user)
-
 
     def get_context_data(self, **kwargs):
         # collect user info
@@ -710,16 +705,13 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     model = Project
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return is_user_ok_view_project(self.request.user, project)
-
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
@@ -743,14 +735,13 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['project_summary_info'] = project_summary_info(project)
         return context
 
-
     @staticmethod
     def timezeros_num_forecasts(project):
         """
         :return: a list of 2-tuples that relates project's TimeZeros to # Forecasts: (time_zero, num_forecasts)
         """
         # annotate() is a GROUP BY. Count() arg doesn't matter. datatable does order by
-        rows = Forecast.objects.filter(forecast_model__project=project) \
+        rows = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
             .values('time_zero__id') \
             .annotate(tz_count=Count('id'))
 
@@ -793,16 +784,13 @@ class UserDetailView(UserPassesTestMixin, DetailView):
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return is_user_ok_edit_user(self.request.user, detail_user)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -824,16 +812,13 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast_model.project)
-
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -865,16 +850,13 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
-
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
-
 
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
@@ -927,7 +909,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_sample'] = data_rows_sample
         return context
 
-
     def forecast_metadata_cached(self):
         """
         ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
@@ -949,7 +930,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
         return pred_type_count_pairs, found_units, found_targets
-
 
     def forecast_metadata_dynamic(self):
         """
@@ -991,7 +971,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # done
         return pred_type_count_pairs, found_units, found_targets
-
 
     def search_forecast(self):
         """
@@ -1043,20 +1022,16 @@ class JobDetailView(UserPassesTestMixin, DetailView):
 
     context_object_name = 'job'
 
-
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
-
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
 
-
     def get_context_data(self, **kwargs):
         from utils.cloud_file import is_file_exists
-
 
         job = self.get_object()
         context = super().get_context_data(**kwargs)
@@ -1083,7 +1058,6 @@ def download_forecast(request, forecast_pk):
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
-
     return json_response_for_forecast(forecast, request)
 
 
@@ -1093,7 +1067,6 @@ def download_job_data_file(request, pk):
     """
     from forecast_app.api_views import _download_job_data_request  # avoid circular imports
     from utils.cloud_file import is_file_exists
-
 
     job = get_object_or_404(Job, pk=pk)
     if not (request.user.is_superuser or (job.user == request.user)):
@@ -1193,7 +1166,6 @@ def _upload_truth_worker(job_pk):
     from forecast_app.models.job import job_cloud_file
     from utils.project_truth import load_truth_data
 
-
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
             if 'project_pk' not in job.input_json:
@@ -1255,22 +1227,23 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
         return is_error
 
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    existing_forecast_for_tz = forecast_model.forecast_for_time_zero(time_zero)
-    if existing_forecast_for_tz and (existing_forecast_for_tz.source == data_file.name):
+
+    # see note in `api_views.ForecastModelForecastList.post()` re: "check for existing forecast" ...
+    # "by creating the new Forecast"
+    try:
+        new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, notes='')
+    except IntegrityError as ie:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
-                               'message': f"A forecast already exists for "
-                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}. "
+                               'message': f"new forecast was not a unique version. "
+                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}, "
+                                          f"issue_date=~{django.utils.timezone.now().date()}, "
                                           f"file_name='{data_file.name}', "
-                                          f"existing_forecast={existing_forecast_for_tz}, "
-                                          f"forecast_model={forecast_model}. Please delete existing data and then "
-                                          f"upload again. You may need to refresh the page to see the delete button."})
+                                          f"forecast_model={forecast_model}. error={ie}"})
 
     # upload to cloud and enqueue a job to process a new Job
-    is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
-                                 type=JOB_TYPE_UPLOAD_FORECAST,
-                                 forecast_model_pk=forecast_model_pk,
-                                 timezero_pk=timezero_pk)
+    is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker, type=JOB_TYPE_UPLOAD_FORECAST,
+                                 forecast_pk=new_forecast.pk)
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
@@ -1283,10 +1256,11 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
 
 def _upload_forecast_worker(job_pk):
     """
-    An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast().
+    An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast(). It is passed an
+    empty Forecast's id to load into. Deletes that forecast if there were errors loading the data.
 
-    - Expected Job.input_json key(s): 'forecast_model_pk', 'timezero_pk' - passed to _upload_file()
-    - Saves Job.output_json key(s): 'forecast_pk'
+    - Expected Job.input_json key(s): 'forecast_pk', 'filename' - passed to _upload_file()
+    - Saves Job.output_json key(s): 'forecast_pk' (passed through from input_json for API caller convenience)
 
     :param job_pk: the Job's pk
     """
@@ -1294,17 +1268,10 @@ def _upload_forecast_worker(job_pk):
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
-
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
-        if 'forecast_model_pk' not in job.input_json:
+        if 'forecast_pk' not in job.input_json:
             job.status = Job.FAILED
-            job.failure_message = f"_upload_forecast_worker(): error: missing 'forecast_model_pk'"
-            job.save()
-            logger.error(job.failure_message + f". job={job}")
-            return
-        elif 'timezero_pk' not in job.input_json:
-            job.status = Job.FAILED
-            job.failure_message = f"_upload_forecast_worker(): error: missing 'timezero_pk'"
+            job.failure_message = f"_upload_forecast_worker(): error: missing 'forecast_pk'"
             job.save()
             logger.error(job.failure_message + f". job={job}")
             return
@@ -1315,45 +1282,39 @@ def _upload_forecast_worker(job_pk):
             logger.error(job.failure_message + f". job={job}")
             return
 
-        forecast_model_pk = job.input_json['forecast_model_pk']
-        timezero_pk = job.input_json['timezero_pk']
-        filename = job.input_json['filename']
-
-        forecast_model = ForecastModel.objects.filter(pk=forecast_model_pk).first()  # None if doesn't exist
-        time_zero = TimeZero.objects.filter(pk=timezero_pk).first()  # ""
-        if not forecast_model:
-            logger.error(f"_upload_forecast_worker(): error: no ForecastModel found for "
-                         f"forecast_model_pk={forecast_model_pk}. job={job}")
-            return
-        elif not time_zero:
-            logger.error(f"_upload_forecast_worker(): error: no TimeZero found for timezero_pk={timezero_pk}. "
+        forecast_pk = job.input_json['forecast_pk']
+        forecast = Forecast.objects.filter(pk=forecast_pk).first()  # None if doesn't exist
+        if not forecast:
+            logger.error(f"_upload_forecast_worker(): error: no Forecast found for forecast_pk={forecast_pk}. "
                          f"job={job}")
             return
 
+        # set source here rather than in caller b/c we now have filename via `_upload_file()`
+        forecast.source = job.input_json['filename']
+        forecast.save()
         try:
             with transaction.atomic():
-                logger.debug(f"_upload_forecast_worker(): 1/4 creating Forecast. job={job}, "
-                             f"forecast_model={forecast_model}, time_zero={time_zero}. job={job}")
+                logger.debug(f"_upload_forecast_worker(): 1/4 loading json_io_dict. forecast={forecast}. job={job}")
                 notes = job.input_json.get('notes', '')
-                new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero,
-                                                       source=filename, notes=notes)
                 json_io_dict = json.load(cloud_file_fp)
 
                 logger.debug(f"_upload_forecast_worker(): 2/4 loading predictions. job={job}")
-                load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)  # transaction.atomic
+                load_predictions_from_json_io_dict(forecast, json_io_dict, False)  # transaction.atomic
 
                 logger.debug(f"_upload_forecast_worker(): 3/4 caching metadata. job={job}")
-                cache_forecast_metadata(new_forecast)  # transaction.atomic
-                job.output_json = {'forecast_pk': new_forecast.pk}
+                cache_forecast_metadata(forecast)  # transaction.atomic
+                job.output_json = {'forecast_pk': forecast_pk}
                 job.status = Job.SUCCESS
                 job.save()
                 logger.debug(f"_upload_forecast_worker(): 4/4 done. job={job}")
         except JobTimeoutException as jte:
+            forecast.delete()
             job.status = Job.TIMEOUT
             job.save()
             logger.error(f"_upload_forecast_worker(): error: {jte!r}. job={job}")
             raise jte
         except Exception as ex:
+            forecast.delete()
             job.status = Job.FAILED
             job.failure_message = f"_upload_forecast_worker(): error: {ex!r}"
             job.save()
@@ -1452,7 +1413,6 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     from utils.cloud_file import delete_file, upload_file
-
 
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "

@@ -3,11 +3,13 @@ import logging
 import tempfile
 from wsgiref.util import FileWrapper
 
+import django
 import django_rq
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, HttpResponseBadRequest, \
     HttpResponseNotFound
 from django.utils.text import get_valid_filename
@@ -466,22 +468,25 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
                                           f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        # check for existing forecast
-        existing_forecast_for_tz = forecast_model.forecast_for_time_zero(time_zero)
-        if existing_forecast_for_tz:
-            return JsonResponse({'error': f"A forecast already exists for "
-                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}. "
+        # check for existing forecast for time_zero and the about-to-be-set issue_date by creating the new Forecast.
+        # this will fail if there's already a version that matches the 'unique_version' constraint ('forecast_model',
+        # 'time_zero', 'issue_date'). we pass the new Forecast's id through `_upload_file()` to
+        # `_upload_forecast_worker()`, which will delete the forecast if the file is invalid. note: source is set to
+        # filename via `_upload_file()`
+        notes = request.data.get('notes', '')
+        try:
+            new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, notes=notes)
+        except IntegrityError as ie:
+            return JsonResponse({'error': f"new forecast was not a unique version. "
+                                          f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}, "
+                                          f"issue_date=~{django.utils.timezone.now().date()}, "
                                           f"file_name='{data_file.name}', "
-                                          f"existing_forecast={existing_forecast_for_tz}, "
-                                          f"forecast_model={forecast_model}"},
+                                          f"forecast_model={forecast_model}. error={ie}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
         # upload to cloud and enqueue a job to process a new Job
-        notes = request.data.get('notes', '')
-        is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker,
-                                     type=JOB_TYPE_UPLOAD_FORECAST,
-                                     forecast_model_pk=forecast_model.pk,
-                                     timezero_pk=time_zero.pk, notes=notes)
+        is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker, type=JOB_TYPE_UPLOAD_FORECAST,
+                                     forecast_pk=new_forecast.pk)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'. "
                                           f"forecast_model={forecast_model}"},

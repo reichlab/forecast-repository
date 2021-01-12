@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
+from rq.timeouts import JobTimeoutException
 
 from forecast_app.models import Project, TimeZero, Job
 from forecast_app.models.forecast import Forecast
@@ -18,7 +19,6 @@ from utils.forecast import json_io_dict_from_forecast, load_predictions_from_jso
 from utils.make_minimal_projects import _make_docs_project
 from utils.make_thai_moph_project import load_cdc_csv_forecasts_from_dir
 from utils.project import create_project_from_json
-from utils.project_truth import load_truth_data, delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -426,43 +426,58 @@ class ForecastTestCase(TestCase):
                 patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
                 patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock:
             job = Job.objects.create()
-            job.input_json = {}  # no 'forecast_model_pk'
+            job.input_json = {}  # no 'forecast_pk'
             job.save()
             job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
             load_preds_mock.assert_not_called()
 
-            # test no 'timezero_pk'
-            job.input_json = {'forecast_model_pk': None}  # no 'timezero_pk'
-            job.save()
-            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
-            job.refresh_from_db()
-            load_preds_mock.assert_not_called()
-            self.assertEqual(Job.FAILED, job.status)
-
             # test no 'filename'
-            job.input_json = {'forecast_model_pk': None, 'timezero_pk': None}  # no 'filename'
+            job.input_json = {'forecast_pk': None}  # no 'filename'
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
             job.refresh_from_db()
             load_preds_mock.assert_not_called()
             self.assertEqual(Job.FAILED, job.status)
 
-            # test bad 'forecast_model_pk'
-            job.input_json = {'forecast_model_pk': -1, 'timezero_pk': None, 'filename': None}
+            # test bad 'forecast_pk'
+            job.input_json = {'forecast_pk': -1, 'filename': None}
             job.save()
             _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
             job.refresh_from_db()
             load_preds_mock.assert_not_called()
             self.assertEqual(Job.FAILED, job.status)
 
-            # test bad 'timezero_pk'
-            job.input_json = {'forecast_model_pk': self.forecast_model.pk, 'timezero_pk': -1, 'filename': None}
-            job.save()
-            _upload_forecast_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
-            job.refresh_from_db()
-            load_preds_mock.assert_not_called()
-            self.assertEqual(Job.FAILED, job.status)
+
+    def test__upload_forecast_worker_deletes_forecast(self):
+        # verifies that _upload_forecast_worker() deletes the (presumably empty) Forecast that's passed to it by
+        # upload functions if the file is invalid. here we mock load_predictions_from_json_io_dict() to throw the two
+        # exceptions that cause deletes: JobTimeoutException and Exception
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.save()
+
+        for exception, exp_job_status in [(Exception('load_preds_mock Exception'), Job.FAILED),
+                                          (JobTimeoutException('load_preds_mock JobTimeoutException'), Job.TIMEOUT)]:
+            with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                    patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
+                    patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
+                    open('forecast_app/tests/predictions/docs-predictions.json') as cloud_file_fp:
+                load_preds_mock.side_effect = exception
+                forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
+                job = Job.objects.create()
+                job.input_json = {'forecast_pk': forecast2.pk, 'filename': 'a name!'}
+                job.save()
+
+                job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
+                try:
+                    _upload_forecast_worker(job.pk)
+                except JobTimeoutException as jte:
+                    pass  # expected re-raise of this exception
+                job.refresh_from_db()
+                self.assertEqual(exp_job_status, job.status)
+                self.assertIsNone(Forecast.objects.filter(id=forecast2.id).first())  # deleted
 
 
     def test__upload_forecast_worker_atomic(self):
@@ -476,20 +491,20 @@ class ForecastTestCase(TestCase):
 
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
                 patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
-                patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
-                patch('json.load') as json_load_mock:
+                patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock:
+            forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
             job = Job.objects.create()
-            job.input_json = {'forecast_model_pk': forecast_model.pk, 'timezero_pk': time_zero.pk,
-                              'filename': 'a name!'}
+            job.input_json = {'forecast_pk': forecast2.pk, 'filename': 'a name!'}
             job.save()
 
-            # test that no Forecast is created when load_predictions_from_json_io_dict() fails
             job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
+
+            # test that no Forecast is created when load_predictions_from_json_io_dict() fails
             load_preds_mock.side_effect = Exception('load_preds_mock Exception')
             num_forecasts_before = forecast_model.forecasts.count()
             _upload_forecast_worker(job.pk)
             job.refresh_from_db()
-            self.assertEqual(num_forecasts_before, forecast_model.forecasts.count())
+            self.assertEqual(num_forecasts_before - 1, forecast_model.forecasts.count())  # -1 b/c forecast2 deleted
             self.assertEqual(Job.FAILED, job.status)
 
             # test when cache_forecast_metadata() fails
@@ -503,9 +518,9 @@ class ForecastTestCase(TestCase):
 
 
     def test__upload_forecast_worker_blue_sky(self):
-        # blue sky to verify load_predictions_from_json_io_dict() and cache_forecast_metadata() are called.
-        # this test is complicated by that function's use of the `job_cloud_file` context manager. solution is per
-        # https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
+        # blue sky to verify load_predictions_from_json_io_dict() and cache_forecast_metadata() are called. also tests
+        # that _upload_forecast_worker() correctly sets job.output_json. this test is complicated by that function's use
+        # of the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
         forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
@@ -516,8 +531,7 @@ class ForecastTestCase(TestCase):
                 patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
                 open('forecast_app/tests/predictions/docs-predictions.json') as cloud_file_fp:
             job = Job.objects.create()
-            job.input_json = {'forecast_model_pk': forecast_model.pk, 'timezero_pk': time_zero.pk,
-                              'filename': 'a name!'}
+            job.input_json = {'forecast_pk': forecast.pk, 'filename': 'a name!'}
             job.save()
             job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
             _upload_forecast_worker(job.pk)
@@ -525,3 +539,4 @@ class ForecastTestCase(TestCase):
             load_preds_mock.assert_called_once()
             cache_metatdata_mock.assert_called_once()
             self.assertEqual(Job.SUCCESS, job.status)
+            self.assertEqual(job.input_json['forecast_pk'], job.output_json['forecast_pk'])

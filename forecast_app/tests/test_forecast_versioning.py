@@ -1,15 +1,16 @@
 import datetime
-import json
-import unittest
+from unittest.mock import patch
 
 import django
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APIClient
 
-from forecast_app.models import Forecast, TimeZero
-from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
+from forecast_app.models import Forecast
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project
-from utils.project_truth import delete_truth_data
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -33,8 +34,9 @@ class ForecastVersionsTestCase(TestCase):
 
 
     def setUp(self):  # runs before every test. done here instead of setUpTestData(cls) b/c below tests modify the db
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        self.project, self.time_zero, self.forecast_model, self.forecast = _make_docs_project(po_user)
+        self.client = APIClient()
+        _, _, self.po_user, self.po_user_password, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        self.project, self.time_zero, self.forecast_model, self.forecast = _make_docs_project(self.po_user)
         self.tz1 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
         self.tz2 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
         self.tz3 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 16)).first()
@@ -73,6 +75,27 @@ class ForecastVersionsTestCase(TestCase):
         Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with self.assertRaises(django.db.utils.IntegrityError) as context:
             Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
+
+
+    def test_multiple_forecasts_per_timezero_api_upload(self):
+        # similar to test_api_upload_forecast(). to avoid the requirement of RQ, redis, and S3, we patch _upload_file()
+        # to return (is_error, job) with desired return args. NB: this test is vulnerable to an edge case where
+        # midnight is spanned between when setUp() creates its forecast and post() creates the second one to test
+        # integrity constraints. in that case the two forecasts will have different issue_dates and therefore not
+        # conflict, and this test will fail
+        with patch('forecast_app.views._upload_file') as upload_file_mock:
+            upload_forecast_url = reverse('api-forecast-list', args=[str(self.forecast_model.pk)])
+            data_file = SimpleUploadedFile('file.csv', b'file_content', content_type='text/csv')
+
+            # case: existing_forecast_for_time_zero
+            jwt_token = self._authenticate_jwt_user(self.po_user, self.po_user_password)
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': f'JWT {jwt_token}',
+                'timezero_date': '2011-10-02',  # self.tz1
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertIn("new forecast was not a unique version", json_response.json()['error'])
 
 
     def test_models_summary_table_rows_for_project_case_1(self):
@@ -190,3 +213,12 @@ class ForecastVersionsTestCase(TestCase):
                                  (self.forecast_model.id, self.tz2.id): f2.id,
                                  (self.forecast_model.id, self.tz3.id): f4.id}
         self.assertEqual(exp_fm_tz_ids_to_f_id, act_fm_tz_ids_to_f_id)
+
+
+    # copied from test_views_and_rest_api.ViewsTestCase._authenticate_jwt_user
+    def _authenticate_jwt_user(self, user, password):
+        jwt_auth_url = reverse('auth-jwt-get')
+        jwt_auth_resp = self.client.post(jwt_auth_url, {'username': user.username, 'password': password}, format='json')
+        jwt_token = jwt_auth_resp.data['token']
+        self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
+        return jwt_token

@@ -1238,15 +1238,6 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
             self.assertIn("TimeZero not found for 'timezero_date' form field", json_response.json()['error'])
 
-            # case: existing_forecast_for_time_zero
-            json_response = self.client.post(upload_forecast_url, {
-                'data_file': data_file,
-                'Authorization': f'JWT {jwt_token}',
-                'timezero_date': '2017-12-01',  # public_tz1
-            }, format='multipart')
-            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertIn("A forecast already exists", json_response.json()['error'])
-
             # case: blue sky: _upload_file() -> NOT is_error
             upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
             json_response = self.client.post(upload_forecast_url, {
@@ -1260,15 +1251,12 @@ class ViewsTestCase(TestCase):
                               'input_json', 'output_json'}, set(response_dict.keys()))
 
             call_dict = upload_file_mock.call_args[1]
-            self.assertIn('forecast_model_pk', call_dict)
-            self.assertIn('timezero_pk', call_dict)
-            self.assertEqual(self.public_model.pk, call_dict['forecast_model_pk'])
-            self.assertEqual(self.public_tz2.pk, call_dict['timezero_pk'])
+            self.assertIn('forecast_pk', call_dict)
+            self.assertEqual(self.public_model.forecast_for_time_zero(self.public_tz2).pk, call_dict['forecast_pk'])
 
-            act_time_zero = TimeZero.objects.get(pk=call_dict['timezero_pk'])
-            self.assertEqual(self.public_tz2.timezero_date, act_time_zero.timezero_date)
-
-            # case: _upload_file() -> is_error
+            # case: _upload_file() -> is_error. delete the just-created forecast to avoid
+            # "new forecast was not a unique version"
+            self.public_model.forecast_for_time_zero(self.public_tz2).delete()
             upload_file_mock.return_value = True, None  # is_error, job
             json_response = self.client.post(upload_forecast_url, {
                 'data_file': data_file,
