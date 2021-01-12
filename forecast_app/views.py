@@ -741,7 +741,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         :return: a list of 2-tuples that relates project's TimeZeros to # Forecasts: (time_zero, num_forecasts)
         """
         # annotate() is a GROUP BY. Count() arg doesn't matter. datatable does order by
-        rows = Forecast.objects.filter(forecast_model__project=project) \
+        rows = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
             .values('time_zero__id') \
             .annotate(tz_count=Count('id'))
 
