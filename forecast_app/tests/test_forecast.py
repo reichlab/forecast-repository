@@ -165,7 +165,7 @@ class ForecastTestCase(TestCase):
             self.fail(f"unexpected exception: {ex}")
 
 
-    @unittest.skip
+    @unittest.skip("todo")
     def test_forecast_data_validation_additional(self):
         # test points lie within the range of point values in the template. see Nick's comment
         # ( https://github.com/reichlab/forecast-repository/issues/18#issuecomment-335654340 ):

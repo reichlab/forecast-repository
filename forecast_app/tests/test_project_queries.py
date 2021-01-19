@@ -8,16 +8,16 @@ from unittest.mock import patch
 from botocore.exceptions import BotoCoreError
 from django.test import TestCase
 
-from forecast_app.models import TimeZero, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, QuantileDistribution, Forecast, Job, Unit, Target, Project
+from forecast_app.models import TimeZero, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
+    QuantileDistribution, Forecast, Job, Unit, Target
 from forecast_app.models.forecast_model import ForecastModel
-from utils.cdc_io import make_cdc_units_and_targets, load_cdc_csv_forecast_file
 from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_truth_query, _truth_query_worker, query_truth_for_project
 from utils.project_queries import validate_forecasts_query
-from utils.project_truth import TRUTH_CSV_HEADER, load_truth_data
+from utils.project_truth import TRUTH_CSV_HEADER
 from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
 
 
@@ -106,7 +106,7 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(0, len(error_messages))
 
 
-    def test_query_forecasts_for_project(self):
+    def test_query_forecasts_for_project_no_versions(self):
         model = self.forecast_model.abbreviation
         tz = self.time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
         timezero_to_season_name = self.project.timezero_to_season_name()
@@ -143,10 +143,9 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.POIS_DIST], 1.1, None,
-                           None),
+                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.POIS_DIST], 1.1, '', ''),
                           (model, tz, seas, 'location1', 'pct next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.NORM_DIST], 1.1, 2.2, None)
+                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.NORM_DIST], 1.1, 2.2, '')
                           ]  # sorted
         # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[11], row[12], row[13], row[14])
@@ -278,186 +277,6 @@ class ProjectQueriesTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             list(query_forecasts_for_project(self.project, {}, max_num_rows=61))
         self.assertIn("number of rows exceeded maximum", str(context.exception))
-
-
-    def test_as_of_versions_partial_updates(self):
-        # tests the case where users have updated only parts of a former forecast, which breaks `as_of` functionality as
-        # initially written (it was operating at the forecast/timezero/issue_date level, not factoring in the
-        # unit/target level). this example is from [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0).
-        # NB: for convenience we adapt this example to use docs-project.json timezeros, units, and targets.
-        #
-        # forecasts:
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # |    key      |           forecast table           |    prediction table   |
-        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |  tzd = TimeZero.timezero_date
-        # | f1          | modelA   | tz1.tzd    | tz1        | u2   | t1     | 6     |
-        # |xf2xxxxxxxxxx|xmodelAxxx|xtz2.tzdxxxx|xtz1xxxxxxxx|xu1xxx|xt1xxxxx|x4xxxxx| <- row not present (strikeout): current practice is that teams submit duplicates of old forecasts
-        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        #
-        # desired as_of query {all units, all targets, all timezeroes, all models, as_of = tz2.tzd} returns:
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |
-        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        #
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
-        forecast_model = ForecastModel.objects.create(project=project, name='modelA', abbreviation='modelA')
-        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        u1 = 'location1'
-        u2 = 'location2'
-        t1 = 'cases next week'
-        json_io_dict = {"predictions": [{"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},
-                                        {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 6}}]}
-        load_predictions_from_json_io_dict(f1, json_io_dict, False)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        json_io_dict = {"predictions": [{"unit": u2, "target": t1, "class": "point", "prediction": {"value": 7}}]}
-        load_predictions_from_json_io_dict(f2, json_io_dict, False)
-        f2.issue_date = tz2.timezero_date
-        f2.save()
-
-        # case: {all units, all targets, all timezeroes, all models, as_of = tz2.tzd}
-        exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
-                    [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 7]]
-        act_rows = list(query_forecasts_for_project(project,
-                                                    {'as_of': tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
-
-        # case: same except as_of = tz1.tzd
-        exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
-                    [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 6]]
-        act_rows = list(query_forecasts_for_project(project,
-                                                    {'as_of': tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
-
-
-    def test_as_of_versions(self):
-        # tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
-        #
-        # Here's an example database with versions (header is timezeros, rows are forecast `issue_date`s). Each forecast
-        # only has one point prediction:
-        #
-        # +-----+-----+-----+
-        # |10/2 |10/9 |10/16|
-        # |tz1  |tz2  |tz3  |
-        # +=====+=====+=====+
-        # |10/2 |     |     |
-        # |f1   | -   | -   |  2.1
-        # +-----+-----+-----+
-        # |     |     |10/17|
-        # |-    | -   |f2   |  2.0
-        # +-----+-----+-----+
-        # |10/20|10/20|     |
-        # |f3   | f4  | -   |  3.567 | 10
-        # +-----+-----+-----+
-        #
-        # Here are some `as_of` examples (which forecast version would be used as of that date):
-        #
-        # +-----+----+----+----+
-        # |as_of|tz1 |tz2 |tz3 |
-        # +-----+----+----+----+
-        # |10/1 | -  | -  | -  |
-        # |10/3 | f1 | -  | -  |
-        # |10/18| f1 | -  | f2 |
-        # |10/20| f3 | f4 | f2 |
-        # |10/21| f3 | f4 | f2 |
-        # +-----+----+----+----+
-
-        # set up database
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
-        forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model',
-                                                      abbreviation='docs_mod')
-        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-        tz3 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 16)).first()
-
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        json_io_dict = {"predictions": [{"unit": "location1",
-                                         "target": "pct next week",
-                                         "class": "point",
-                                         "prediction": {"value": 2.1}}]}
-        load_predictions_from_json_io_dict(f1, json_io_dict, False)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz3)
-        json_io_dict = {"predictions": [{"unit": "location2",
-                                         "target": "pct next week",
-                                         "class": "point",
-                                         "prediction": {"value": 2.0}}]}
-        load_predictions_from_json_io_dict(f2, json_io_dict, False)
-        f2.issue_date = tz3.timezero_date + datetime.timedelta(days=1)
-        f2.save()
-
-        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
-        json_io_dict = {"predictions": [{"unit": "location3",
-                                         "target": "pct next week",
-                                         "class": "point",
-                                         "prediction": {"value": 3.567}}]}
-        load_predictions_from_json_io_dict(f3, json_io_dict, False)
-        f3.issue_date = tz1.timezero_date + datetime.timedelta(days=18)
-        f3.save()
-
-        f4 = Forecast.objects.create(forecast_model=forecast_model, source='f4', time_zero=tz2)
-        json_io_dict = {"predictions": [{"unit": "location3",
-                                         "target": "cases next week",
-                                         "class": "point",
-                                         "prediction": {"value": 10}}]}
-        load_predictions_from_json_io_dict(f4, json_io_dict, False)
-        f4.issue_date = f3.issue_date
-        f4.save()
-
-        # case: default (no `as_of`): all rows (no values are "shadowed")
-        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
-                    ['2011-10-02', 'location3', 'pct next week', 'point', 3.567],
-                    ['2011-10-09', 'location3', 'cases next week', 'point', 10],
-                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]  # sorted
-        act_rows = list(query_forecasts_for_project(project, {}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, sorted(act_rows))
-
-        # case: 10/20: same as default
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-20'}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
-
-        # case: 10/21: same as default
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-21'}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
-
-        # case: 10/1: none
-        exp_rows = []
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-01'}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
-
-        # case: 10/3: just f1
-        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1]]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-03'}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
-
-        # case: 10/18: f1 and f2
-        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
-                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-18'}))
-        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
 
 
     def test__forecasts_query_worker(self):
@@ -664,3 +483,514 @@ class ProjectQueriesTestCase(TestCase):
         # _truth_query_worker(job.pk)
         # job.refresh_from_db()
         # self.assertEqual(Job.SUCCESS, job.status)
+
+
+    #
+    # test as_of queries
+    #
+
+    def test_as_of_versions_issue_273(self):
+        # tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
+        #
+        # Here's an example database with versions (header is timezeros, rows are forecast `issue_date`s). Each forecast
+        # only has one point prediction:
+        #
+        # +-----+-----+-----+
+        # |10/2 |10/9 |10/16|
+        # |tz1  |tz2  |tz3  |
+        # +=====+=====+=====+
+        # |10/2 |     |     |
+        # |f1   | -   | -   |  2.1
+        # +-----+-----+-----+
+        # |     |     |10/17|
+        # |-    | -   |f2   |  2.0
+        # +-----+-----+-----+
+        # |10/20|10/20|     |
+        # |f3   | f4  | -   |  3.567 | 10
+        # +-----+-----+-----+
+        #
+        # Here are some `as_of` examples (which forecast version would be used as of that date):
+        #
+        # +-----+----+----+----+
+        # |as_of|tz1 |tz2 |tz3 |
+        # +-----+----+----+----+
+        # |10/1 | -  | -  | -  |
+        # |10/3 | f1 | -  | -  |
+        # |10/18| f1 | -  | f2 |
+        # |10/20| f3 | f4 | f2 |
+        # |10/21| f3 | f4 | f2 |
+        # +-----+----+----+----+
+
+        # set up database
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model',
+                                                      abbreviation='docs_mod')
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+        tz3 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 16)).first()
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        json_io_dict = {"predictions": [{"unit": "location1",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 2.1}}]}
+        load_predictions_from_json_io_dict(f1, json_io_dict, False)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz3)
+        json_io_dict = {"predictions": [{"unit": "location2",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 2.0}}]}
+        load_predictions_from_json_io_dict(f2, json_io_dict, False)
+        f2.issue_date = tz3.timezero_date + datetime.timedelta(days=1)
+        f2.save()
+
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
+        json_io_dict = {"predictions": [{"unit": "location3",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 3.567}}]}
+        load_predictions_from_json_io_dict(f3, json_io_dict, False)
+        f3.issue_date = tz1.timezero_date + datetime.timedelta(days=18)
+        f3.save()
+
+        f4 = Forecast.objects.create(forecast_model=forecast_model, source='f4', time_zero=tz2)
+        json_io_dict = {"predictions": [{"unit": "location3",
+                                         "target": "cases next week",
+                                         "class": "point",
+                                         "prediction": {"value": 10}}]}
+        load_predictions_from_json_io_dict(f4, json_io_dict, False)
+        f4.issue_date = f3.issue_date
+        f4.save()
+
+        # case: default (no `as_of`): all rows (no values are "shadowed")
+        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
+                    ['2011-10-02', 'location3', 'pct next week', 'point', 3.567],
+                    ['2011-10-09', 'location3', 'cases next week', 'point', 10],
+                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]  # sorted
+        act_rows = list(query_forecasts_for_project(project, {}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, sorted(act_rows))
+
+        # case: 10/20: same as default
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-20'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/21: same as default
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-21'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/1: none
+        exp_rows = []
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-01'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/3: just f1
+        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1]]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-03'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: 10/18: f1 and f2
+        exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
+                    ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-18'}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+
+    def test_as_of_versions_setting_0(self):
+        # tests the case where users have updated only parts of a former forecast, which breaks `as_of` functionality as
+        # initially written (it was operating at the forecast/timezero/issue_date level, not factoring in the
+        # unit/target level). this example is from [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0).
+        # NB: for convenience we adapt this example to use docs-project.json timezeros, units, and targets.
+        #
+        # forecasts:
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # |    key      |           forecast table           |    prediction table   |
+        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |  'tzd' = TimeZero.timezero_date
+        # | f1          | modelA   | tz1.tzd    | tz1        | u2   | t1     | 6     |
+        # |xf2xxxxxxxxxx|xmodelAxxx|xtz2.tzdxxxx|xtz1xxxxxxxx|xu1xxx|xt1xxxxx|x4xxxxx| <- row not present (strikeout): current practice is that teams submit duplicates of old forecasts
+        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        #
+        # desired as_of query {all units, all targets, all timezeroes, all models, as_of = tz2.tzd} returns:
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |
+        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
+        # +-------------+----------+------------+------------+------+--------+-------+
+        #
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        forecast_model = ForecastModel.objects.create(project=project, name='modelA', abbreviation='modelA')
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        u1, u2 = 'location1', 'location2'
+        t1 = 'cases next week'
+        json_io_dict = {"predictions": [{"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},
+                                        {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 6}}]}
+        load_predictions_from_json_io_dict(f1, json_io_dict, False)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        json_io_dict = {"predictions": [{"unit": u2, "target": t1, "class": "point", "prediction": {"value": 7}}]}
+        load_predictions_from_json_io_dict(f2, json_io_dict, False)
+        f2.issue_date = tz2.timezero_date
+        f2.save()
+
+        # case: {all units, all targets, all timezeroes, all models, as_of = tz2.tzd}
+        exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
+                    [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 7]]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: same except as_of = tz1.tzd
+        exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
+                    [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 6]]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, act_rows)
+
+
+    @staticmethod
+    def _set_up_as_of_case():
+        # test_as_of_case_*() helper
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
+
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+        u1 = Unit.objects.filter(name='location1').first()
+        u2 = Unit.objects.filter(name='location2').first()
+        u3 = Unit.objects.filter(name='location3').first()
+        t1 = Target.objects.filter(name='cases next week').first()
+
+        # load f1 (all "cases next week" dicts from docs-predictions.json)
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 5}},
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": {"sample": [0, 2, 5]}},
+            {"unit": u3.name, "target": t1.name, "class": "bin",
+             "prediction": {"cat": [0, 2, 50], "prob": [0.0, 0.1, 0.9]}},
+            {"unit": u3.name, "target": t1.name, "class": "quantile",
+             "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
+        ]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, False)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+        return project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1
+
+
+    def test_as_of_case_a(self):
+        """
+        Tests inspired by [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0)
+        However, we include all five prediction types ("cases next week" target) instead of just points so we are
+        confident that multi-row prediction types are correct. This test documents four cases - a through d - and then
+        tests a. The other three tests are in separate methods, but refer to documentation in this one.
+
+        Forecast data: f1 = all "cases next week" dicts from docs-predictions.json
+        - all forecasts are for the same model
+        - joined tables are shown
+        - only param1 is shown
+        - "*" = changed or retracted (via NULL)
+        - only "*_i" columns are shown ("cases next week" is a discrete target)
+        - 'tzd' = TimeZero.timezero_date
+
+        In all cases we have two tests with two forecasts: f1: top (baseline) table, f2: specific case's table.
+
+        baseline table:
+        +--+----------+---------+----+------+----------+-----+--------+-----+-----+-----------+--------+-----+
+        |    forecast table     |pred common|point pred|  named dist  | bin dist  |sample dist|quantile dist |
+        |id|issue_date| timezero|unit|target|value     |family| param1|cat  |prob |sample     |quantile|value|
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        |f1|tz1.tzd   | tz1     |u1  |t1    | -        |pois  | 1.1   | -   | -   | -         | -      | -   |   named
+        |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point
+        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample
+        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |2          | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |5          | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.0  | -         | -      | -   |   bin
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.1  | -         | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+
+        case a)
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        |f2|tz2.tzd   | tz1     |u1  |t1    | -        |NULL* | NULL* | -   | -   | -         | -      | -   |   named (retracted)
+        |f2|tz2.tzd   | tz1     |u2  |t1    |NULL*     | -    |  -    | -   | -   | -         | -      | -   |   point ""
+        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |NULL*      | -      | -   |   sample ""
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |NULL*|NULL*| -         | -      | -   |   bin ""
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |NULL*   |NULL*|   quantile ""
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        as_of = tz1 -> all rows from top (baseline) table
+        as_of = tz2 -> no rows (all are retracted)
+        """
+        project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
+        tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        tz2str = tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        model = forecast_model.abbreviation
+        season = project.timezero_to_season_name()[tz1]
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": None},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": None},
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},
+            {"unit": u3.name, "target": t1.name, "class": "bin", "prediction": None},
+            {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": None}
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        f2.issue_date = tz2.timezero_date
+        f2.save()
+
+        # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
+        exp_rows = [  # all rows from top (baseline) table
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 5, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        exp_rows = []  # no rows (all are retracted)
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+
+    def test_as_of_case_b(self):
+        """
+        case b)
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        |f2|tz2.tzd   | tz1     |u1  |t1    | -        |pois  | 1.2*  | -   | -   | -         | -      | -   |   named (updated)
+        |f2|tz2.tzd   | tz1     |u2  |t1    |6*        | -    |  -    | -   | -   | -         | -      | -   |   point (updated)
+        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample (some updated, i.e., some dup rows)
+        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |3*         | -      | -   |   ''
+        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |6*         | -      | -   |   ''
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.1* | -         | -      | -   |   bin (some updated)
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.0* | -         | -      | -   |   ''
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |2*   |   quantile (some updated)
+        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        as_of = tz1 -> all rows from top (baseline) table
+        as_of = tz2 -> all rows from case table (all are updated)
+        """
+        project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
+        tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        tz2str = tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        model = forecast_model.abbreviation
+        season = project.timezero_to_season_name()[tz1]
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.2}},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 6}},
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": {"sample": [0, 3, 6]}},
+            {"unit": u3.name, "target": t1.name, "class": "bin",
+             "prediction": {"cat": [0, 2, 50], "prob": [0.1, 0.0, 0.9]}},
+            {"unit": u3.name, "target": t1.name, "class": "quantile",
+             "prediction": {"quantile": [0.25, 0.75], "value": [2, 50]}}
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        f2.issue_date = tz2.timezero_date
+        f2.save()
+
+        # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
+        exp_rows = [  # all rows from top (baseline) table
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 5, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        exp_rows = [  # all rows from case table
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.2, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 6, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 3, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 6, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.1, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 2, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+
+    def test_as_of_case_c(self):
+        """
+        case c)
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+      . |f2|tz2.tzd   | tz1     |u2  |t1    |7*        | -    |  -    | -   | -   | -         | -      | -   |   point (updated)
+      . |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.5* | -         | -      | -   |   bin (all updated, i.e., no dup rows)
+      . |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.3* | -         | -      | -   |   ''
+      . |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.2* | -         | -      | -   |   ''
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        as_of = tz1 -> all rows from top (baseline) table
+        as_of = tz2 -> dotted rows:
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+      . |f1|tz1.tzd   | tz1     |u1  |t1    | -        |pois  | 1.1   | -   | -   | -         | -      | -   |   named
+        |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point
+      . |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample
+      . |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |2          | -      | -   |   ''
+      . |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |5          | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.0  | -         | -      | -   |   bin
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.1  | -         | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        """
+        project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
+        tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        tz2str = tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        model = forecast_model.abbreviation
+        season = project.timezero_to_season_name()[tz1]
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        predictions = [
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 7}},
+            {"unit": u3.name, "target": t1.name, "class": "bin",
+             "prediction": {"cat": [0, 2, 50], "prob": [0.5, 0.3, 0.2]}}
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        f2.issue_date = tz2.timezero_date
+        f2.save()
+
+        # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
+        exp_rows = [  # all rows from top (baseline) table
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 5, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        exp_rows = [  # dotted rows
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 7, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.5, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.3, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.2, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+
+    def test_as_of_case_d(self):
+        """
+        case d)
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+      x |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point (not updated, i.e., duplicate row)
+      . |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |NULL*      | -      | -   |   sample (retracted)
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.5* | -         | -      | -   |   bin (all updated)
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.3* | -         | -      | -   |   ''
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.2* | -         | -      | -   |   ''
+      x |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile (none updated, i.e., all dup rows)
+      x |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----|
+        as_of = tz1 -> all rows from top (baseline) table
+        as_of = tz2 -> dotted rows ('x' marks rows skipped by loader; retracted sample rows are not returned):
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+      . |f1|tz1.tzd   | tz1     |u1  |t1    | -        |pois  | 1.1   | -   | -   | -         | -      | -   |   named
+      . |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point
+        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample
+        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |2          | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |5          | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.0  | -         | -      | -   |   bin
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.1  | -         | -      | -   |   ''
+        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile
+      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
+        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        """
+        project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
+        tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        tz2str = tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+        model = forecast_model.abbreviation
+        season = project.timezero_to_season_name()[tz1]
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        predictions = [
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 5}},
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},
+            {"unit": u3.name, "target": t1.name, "class": "bin",
+             "prediction": {"cat": [0, 2, 50], "prob": [0.5, 0.3, 0.2]}},
+            {"unit": u3.name, "target": t1.name, "class": "quantile",
+             "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        f2.issue_date = tz2.timezero_date
+        f2.save()
+
+        # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
+        exp_rows = [  # all rows from top (baseline) table
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 5, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        exp_rows = [  # dotted rows
+            [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
+            [model, tz1str, season, u2.name, t1.name, 'point', 5, '', '', '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.5, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.3, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.2, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
+        ]
+        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))

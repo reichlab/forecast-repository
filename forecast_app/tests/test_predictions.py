@@ -8,8 +8,12 @@ from django.test import TestCase
 from forecast_app.models import Forecast
 from forecast_app.models import ForecastModel, TimeZero
 from forecast_app.models.prediction import calc_named_distribution
+from forecast_app.tests.test_project_queries import ProjectQueriesTestCase
 from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows
+from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
+from utils.project_queries import query_truth_for_project
+from utils.project_truth import load_truth_data, truth_data_qs
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -211,3 +215,123 @@ class PredictionsTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             calc_named_distribution(None, None, None, None)
         self.assertIn("invalid abbreviation", str(context.exception))
+
+
+    #
+    # test "retracted" and skipped predictions for forecasts
+    #
+
+    def test_load_predictions_from_json_io_dict_none_prediction(self):
+        # tests load_predictions_from_json_io_dict() where `"prediction": None`
+        project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": None},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": None},
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},
+            {"unit": u3.name, "target": t1.name, "class": "bin", "prediction": None},
+            {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": None}
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        self.assertEqual(5, f2.get_num_rows())
+        self.assertEqual(1, f2.bin_distribution_qs().count())
+        self.assertEqual(1, f2.named_distribution_qs().count())
+        self.assertEqual(1, f2.point_prediction_qs().count())
+        self.assertEqual(1, f2.sample_distribution_qs().count())
+        self.assertEqual(1, f2.quantile_prediction_qs().count())
+
+
+    def test_load_predictions_from_json_io_dict_dups(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        self.assertEqual(62, project.get_num_forecast_rows_all_models(is_oracle=False))
+
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
+        self.assertEqual(62, project.get_num_forecast_rows_all_models(is_oracle=False))  # s/b no change
+
+
+    #
+    # test "retracted" and skipped predictions for truth
+    #
+
+    @unittest.skip("todo")
+    def test_load_truth_data_null_rows(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
+                        is_convert_na_none=True)
+        exp_rows = [
+            (datetime.date(2011, 10, 2), 'location1', 'Season peak week', None, None, None, datetime.date(2019, 12, 15),
+             None),
+            (datetime.date(2011, 10, 2), 'location1', 'above baseline', None, None, None, None, True),
+            (datetime.date(2011, 10, 2), 'location1', 'season severity', None, None, 'moderate', None, None),
+            (datetime.date(2011, 10, 2), 'location1', 'cases next week', None, None, None, None, None),  # all None
+            (datetime.date(2011, 10, 2), 'location1', 'pct next week', None, None, None, None, None),  # all None
+            (datetime.date(2011, 10, 9), 'location2', 'Season peak week', None, None, None, datetime.date(2019, 12, 29),
+             None),
+            (datetime.date(2011, 10, 9), 'location2', 'above baseline', None, None, None, None, True),
+            (datetime.date(2011, 10, 9), 'location2', 'season severity', None, None, 'severe', None, None),
+            (datetime.date(2011, 10, 9), 'location2', 'cases next week', 3, None, None, None, None),
+            (datetime.date(2011, 10, 9), 'location2', 'pct next week', None, 99.9, None, None, None),
+            (
+                datetime.date(2011, 10, 16), 'location1', 'Season peak week', None, None, None,
+                datetime.date(2019, 12, 22),
+                None),
+            (datetime.date(2011, 10, 16), 'location1', 'above baseline', None, None, None, None, False),
+            (datetime.date(2011, 10, 16), 'location1', 'cases next week', 0, None, None, None, None),
+            (datetime.date(2011, 10, 16), 'location1', 'pct next week', None, 0.0, None, None, None)
+        ]
+        act_rows = truth_data_qs(project) \
+            .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name', 'value_i', 'value_f',
+                         'value_t', 'value_d', 'value_b')
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+
+    @unittest.skip("todo")
+    def test_query_truth_for_project_null_rows(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
+                        is_convert_na_none=True)
+
+        exp_rows = [-1]  # todo xx
+        act_rows = list(query_truth_for_project(project, {}))
+        # print('xx', act_rows)
+        # [['timezero', 'unit', 'target', 'value'],
+        #  ['2011-10-02', 'location1', 'pct next week', None],
+        #  ['2011-10-02', 'location1', 'cases next week', None],
+        #  ['2011-10-02', 'location1', 'season severity', 'moderate'],
+        #  ['2011-10-02', 'location1', 'above baseline', True],
+        #  ['2011-10-02', 'location1', 'Season peak week', '2019-12-15'],
+        #  ['2011-10-09', 'location2', 'pct next week', 99.9],
+        #  ['2011-10-09', 'location2', 'cases next week', 3],
+        #  ['2011-10-09', 'location2', 'season severity', 'severe'],
+        #  ['2011-10-09', 'location2', 'above baseline', True],
+        #  ['2011-10-09', 'location2', 'Season peak week', '2019-12-29'],
+        #  ['2011-10-16', 'location1', 'pct next week', 0.0],
+        #  ['2011-10-16', 'location1', 'cases next week', 0],
+        #  ['2011-10-16', 'location1', 'above baseline', False],
+        #  ['2011-10-16', 'location1', 'Season peak week', '2019-12-22']]
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+
+    @unittest.skip("todo")
+    def test__upload_truth_worker(self):
+        # todo xx _upload_truth_worker(): is_convert_na_none=True: load_truth_data(project, cloud_file_fp, file_name=filename)
+        self.fail()  # todo xx
+
+
+    @unittest.skip("todo")
+    def test_load_truth_data_dups(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
+                        is_convert_na_none=True)
+        self.assertEqual(-1, truth_data_qs(project).count())
+
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
+                        is_convert_na_none=True)
+        self.assertEqual(-1, truth_data_qs(project).count())  # s/b no change

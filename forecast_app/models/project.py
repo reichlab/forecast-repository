@@ -263,7 +263,7 @@ class Project(models.Model):
                self.get_num_forecast_rows_all_models_estimated()
 
 
-    def get_num_forecast_rows_all_models(self):
+    def get_num_forecast_rows_all_models(self, is_oracle=True):
         """
         :return: the total number of data rows across all my models' forecasts, for all types of Predictions. can be
             slow for large databases
@@ -271,7 +271,9 @@ class Project(models.Model):
         from forecast_app.models import Prediction  # avoid circular imports
 
 
-        return sum(concrete_prediction_class.objects.filter(forecast__forecast_model__project=self).count()
+        return sum(concrete_prediction_class.objects
+                   .filter(forecast__forecast_model__project=self, forecast__forecast_model__is_oracle=is_oracle)
+                   .count()
                    for concrete_prediction_class in Prediction.concrete_subclasses())
 
 

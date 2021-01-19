@@ -251,7 +251,7 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
         unit_name = prediction_dict['unit']
         target_name = prediction_dict['target']
         prediction_class = prediction_dict['class']
-        prediction_data = prediction_dict['prediction']
+        prediction_data = prediction_dict['prediction']  # None if a "retracted" prediction -> insert a single NULL row
         loc_targ_to_pred_classes[(unit_name, target_name)].append(prediction_class)
 
         # validate unit and target names (applies to all prediction classes)
@@ -265,29 +265,44 @@ def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_valida
         # do class-specific validation and row collection
         target = target_name_to_obj[target_name]
         if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            _validate_bin_predictions(is_validate_cats, prediction_dict, target)  # raises o/w
-            for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
-                if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
-                    bin_rows.append([unit_name, target_name, cat, prob])
+            if prediction_data is None:
+                bin_rows.append([unit_name, target_name, None, None])
+            else:
+                _validate_bin_predictions(is_validate_cats, prediction_dict, target)  # raises o/w
+                for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
+                    if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
+                        bin_rows.append([unit_name, target_name, cat, prob])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
-            family_abbrev = prediction_data['family']
-            _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_dict, target)  # raises o/w
-            named_rows.append([unit_name, target_name, family_abbrev,
-                               prediction_data.get('param1', None),
-                               prediction_data.get('param2', None),
-                               prediction_data.get('param3', None)])
+            if prediction_data is None:
+                named_rows.append([unit_name, target_name, None, None, None, None])
+            else:
+                family_abbrev = prediction_data['family']
+                _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_dict, target)  # raises o/w
+                named_rows.append([unit_name, target_name, family_abbrev,
+                                   prediction_data.get('param1', None),
+                                   prediction_data.get('param2', None),
+                                   prediction_data.get('param3', None)])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
-            value = prediction_data['value']
-            _validate_point_predictions(prediction_dict, target, value)  # raises o/w
-            point_rows.append([unit_name, target_name, value])
+            if prediction_data is None:
+                point_rows.append([unit_name, target_name, None])
+            else:
+                value = prediction_data['value']
+                _validate_point_predictions(prediction_dict, target, value)  # raises o/w
+                point_rows.append([unit_name, target_name, value])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
-            _validate_sample_predictions(prediction_dict, target)  # raises o/w
-            for sample in prediction_data['sample']:
-                sample_rows.append([unit_name, target_name, sample])
+            if prediction_data is None:
+                sample_rows.append([unit_name, target_name, None])
+            else:
+                _validate_sample_predictions(prediction_dict, target)  # raises o/w
+                for sample in prediction_data['sample']:
+                    sample_rows.append([unit_name, target_name, sample])
         elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]:
-            _validate_quantile_predictions(prediction_dict, target)  # raises o/w
-            for quantile, value in zip(prediction_data['quantile'], prediction_data['value']):
-                quantile_rows.append([unit_name, target_name, quantile, value])
+            if prediction_data is None:
+                quantile_rows.append([unit_name, target_name, None, None])
+            else:
+                _validate_quantile_predictions(prediction_dict, target)  # raises o/w
+                for quantile, value in zip(prediction_data['quantile'], prediction_data['value']):
+                    quantile_rows.append([unit_name, target_name, quantile, value])
         else:
             raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
                                f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}. "
@@ -637,7 +652,7 @@ def _load_point_rows(forecast, rows, target_pk_to_object):
     #         raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, "
     #                            f"unit={unit_id_to_obj[unit_id]}, target={target}")
 
-    # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t]:
+    # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t, value_d, value_b]:
     _replace_value_with_five_types(rows, 2, target_pk_to_object)
 
     # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t, self_pk]:
@@ -668,7 +683,7 @@ def _load_sample_rows(forecast, rows, target_pk_to_object):
     # after this, rows will be: [unit_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b]:
     _replace_value_with_five_types(rows, 2, target_pk_to_object)
 
-    # after this, rows will be: [unit_id, target_id, sample, self_pk]:
+    # after this, rows will be: [unit_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b, self_pk]:
     _add_forecast_pks(forecast, rows)
 
     # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
@@ -777,7 +792,7 @@ def _replace_family_abbrev_with_id(rows):
         if abbreviation in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values():
             row[2] = [choice for choice, abbrev in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()
                       if abbrev == abbreviation][0]
-        else:
+        elif abbreviation is not None:  # not a retracted prediction
             raise RuntimeError(f"invalid family. abbreviation={abbreviation!r}, "
                                f"abbreviations={NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()}")
 

@@ -129,7 +129,7 @@ class ProjectTestCase(TestCase):
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, time_zero2)
-        self.assertEqual(self.project.get_num_forecast_rows_all_models(), 8019 * 2)
+        self.assertEqual(self.project.get_num_forecast_rows_all_models(is_oracle=False), 8019 * 2)
         self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
                          8019 * 2)  # exact b/c uniform forecasts
 

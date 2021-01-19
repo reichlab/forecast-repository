@@ -2,8 +2,6 @@ import csv
 import datetime
 import io
 import string
-from collections import defaultdict
-from itertools import groupby
 
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
@@ -15,7 +13,7 @@ from forecast_app.models import BinDistribution, NamedDistribution, PointPredict
     QuantileDistribution, Job, Project, Forecast, ForecastModel
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
 from utils.forecast import coalesce_values
-from utils.project import logger, latest_forecast_ids_for_project
+from utils.project import logger
 from utils.project_truth import TRUTH_CSV_HEADER, truth_data_qs
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
@@ -123,6 +121,9 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                         _model_tz_season_class_strs(forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id],
                                                     timezero_to_season_name, NamedDistribution)
                     family = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
+                    param1 = param1 if param1 is not None else ''
+                    param2 = param2 if param2 is not None else ''
+                    param3 = param3 if param3 is not None else ''
                     yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
                            target_id_to_obj[target_id].name, class_str,
                            value, cat, prob, sample, quantile, family, param1, param2, param3]
@@ -185,21 +186,31 @@ def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, t
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
 
-    # set pred_select
+    # set pred_select and pred_is_all_null
     if prediction_class == BinDistribution:  # BinDistribution
         pred_select = f"pred.prob AS prob, pred.cat_i AS cat_i, pred.cat_f AS cat_f, pred.cat_t AS cat_t, " \
                       f"pred.cat_d AS cat_d, pred.cat_b AS cat_b"
+        pred_is_all_null = f"pred.prob IS NULL AND pred.cat_i IS NULL AND pred.cat_f IS NULL " \
+                           f"AND pred.cat_t IS NULL AND pred.cat_d IS NULL AND pred.cat_b IS NULL"
     elif prediction_class == NamedDistribution:  # NamedDistribution
         pred_select = f"pred.family AS family, pred.param1 AS param1, pred.param2 AS param2, pred.param3 AS param3"
+        pred_is_all_null = f"pred.family IS NULL AND pred.param1 IS NULL AND pred.param2 IS NULL " \
+                           f"AND pred.param3 IS NULL"
     elif prediction_class == PointPrediction:  # PointPrediction
         pred_select = f"pred.value_i AS value_i, pred.value_f AS value_f, pred.value_t AS value_t, " \
                       f"pred.value_d AS value_d, pred.value_b AS value_b"
+        pred_is_all_null = f"pred.value_i IS NULL AND pred.value_f IS NULL AND pred.value_t IS NULL " \
+                           f"AND pred.value_d IS NULL AND pred.value_b IS NULL"
     elif prediction_class == SampleDistribution:  # SampleDistribution
         pred_select = f"pred.sample_i AS sample_i, pred.sample_f AS sample_f, pred.sample_t AS sample_t, " \
                       f"pred.sample_d AS sample_d, pred.sample_b AS sample_b"
+        pred_is_all_null = f"pred.sample_i IS NULL AND pred.sample_f IS NULL AND pred.sample_t IS NULL " \
+                           f"AND pred.sample_d IS NULL AND pred.sample_b IS NULL"
     else:  # QuantileDistribution
         pred_select = f"pred.quantile AS quantile, pred.value_i AS value_i, pred.value_f as value_f, " \
                       f"pred.value_d AS value_d"
+        pred_is_all_null = f"pred.quantile IS NULL AND pred.value_i IS NULL AND pred.value_f IS NULL " \
+                           f"AND pred.value_d IS NULL"
 
     sql = f"""
         WITH ranked_rows AS (
@@ -214,7 +225,8 @@ def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, t
             FROM {prediction_class._meta.db_table} AS pred
                      JOIN {Forecast._meta.db_table} f ON pred.forecast_id = f.id
                      JOIN {ForecastModel._meta.db_table} fm on f.forecast_model_id = fm.id
-            WHERE fm.project_id = %s AND NOT fm.is_oracle {and_model_ids} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
+            WHERE fm.project_id = %s AND NOT fm.is_oracle
+              {and_model_ids} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
         )
         SELECT pred.fm_id      AS fm_id,
                pred.tz_id      AS tz_id,
@@ -222,7 +234,7 @@ def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, t
                pred.target_id  AS target_id,
                {pred_select}
         FROM ranked_rows AS pred
-        WHERE pred.rownum = 1;
+        WHERE pred.rownum = 1 AND NOT ({pred_is_all_null});
     """
     return sql
 
