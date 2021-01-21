@@ -926,13 +926,13 @@ class ProjectQueriesTestCase(TestCase):
         """
         case d)
         +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-      x |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point (not updated, i.e., duplicate row)
+      x |f2|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point (not updated, i.e., duplicate row)
       . |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |NULL*      | -      | -   |   sample (retracted)
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.5* | -         | -      | -   |   bin (all updated)
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.3* | -         | -      | -   |   ''
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.2* | -         | -      | -   |   ''
-      x |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile (none updated, i.e., all dup rows)
-      x |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
+      . |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.5* | -         | -      | -   |   bin (all updated)
+      . |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.3* | -         | -      | -   |   ''
+      . |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.2* | -         | -      | -   |   ''
+      x |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile (none updated, i.e., all dup rows)
+      x |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
         +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----|
         as_of = tz1 -> all rows from top (baseline) table
         as_of = tz2 -> dotted rows ('x' marks rows skipped by loader; retracted sample rows are not returned):

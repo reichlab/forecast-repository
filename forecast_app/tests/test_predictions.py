@@ -247,10 +247,22 @@ class PredictionsTestCase(TestCase):
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
         self.assertEqual(62, project.get_num_forecast_rows_all_models(is_oracle=False))
 
+        # case: load the same file that was loaded originally -> should load no new rows (all are dups)
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
         self.assertEqual(62, project.get_num_forecast_rows_all_models(is_oracle=False))  # s/b no change
+
+        # case: load the same file, but change one multi-row prediction (a sample) to have partial duplication
+        quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_in['predictions']
+                              if (pred_dict['unit'] == 'location2')
+                              and (pred_dict['target'] == 'pct next week')
+                              and (pred_dict['class'] == 'quantile')][0]
+        # original: {"quantile": [0.025, 0.25, 0.5, 0.75,  0.975 ],
+        #            "value":    [1.0,   2.2,  2.2,  5.0, 50.0  ]}
+        quantile_pred_dict['prediction']['value'][0] = 2.2  # was 1.0
+        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
+        self.assertEqual(-1, project.get_num_forecast_rows_all_models(is_oracle=False))  # s/b no change
 
 
     #
