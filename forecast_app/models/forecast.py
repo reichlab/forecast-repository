@@ -1,6 +1,4 @@
 from django.db import models
-from django.db.models.signals import pre_delete, post_save
-from django.dispatch import receiver
 from django.urls import reverse
 
 from forecast_app.models.forecast_model import ForecastModel
@@ -78,58 +76,3 @@ class Forecast(models.Model):
         confirm deleting a Forecast. All other deletable models have 'name' fields (Project and ForecastModel).
         """
         return self.source
-
-
-    #
-    # prediction-specific accessors
-    #
-
-    def get_num_rows(self):
-        """
-        :return: the total of number of data rows in me, for all types of Predictions. can be slow for large databases
-        """
-        from forecast_app.models import Prediction  # avoid circular imports
-
-
-        return sum(concrete_prediction_class.objects.filter(forecast=self).count()
-                   for concrete_prediction_class in Prediction.concrete_subclasses())
-
-
-    def bin_distribution_qs(self):
-        from forecast_app.models import BinDistribution
-
-
-        return self._predictions_qs(BinDistribution)
-
-
-    def named_distribution_qs(self):
-        from forecast_app.models import NamedDistribution
-
-
-        return self._predictions_qs(NamedDistribution)
-
-
-    def point_prediction_qs(self):
-        from forecast_app.models import PointPrediction
-
-
-        return self._predictions_qs(PointPrediction)
-
-
-    def sample_distribution_qs(self):
-        from forecast_app.models import SampleDistribution
-
-
-        return self._predictions_qs(SampleDistribution)
-
-
-    def quantile_prediction_qs(self):
-        from forecast_app.models import QuantileDistribution
-
-
-        return self._predictions_qs(QuantileDistribution)
-
-
-    def _predictions_qs(self, prediction_subclass):
-        # *_prediction_qs() helper that returns a QuerySet for all of my Predictions of type prediction_subclass
-        return prediction_subclass.objects.filter(forecast=self)

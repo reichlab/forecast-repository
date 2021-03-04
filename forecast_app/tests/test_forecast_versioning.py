@@ -1,4 +1,6 @@
 import datetime
+import json
+from pathlib import Path
 from unittest.mock import patch
 
 import django
@@ -8,9 +10,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.models import Forecast
+from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement
+from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
-from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project
+from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project, \
+    create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -222,3 +226,82 @@ class ForecastVersionsTestCase(TestCase):
         jwt_token = jwt_auth_resp.data['token']
         self.client.credentials(HTTP_AUTHORIZATION='JWT ' + jwt_token)
         return jwt_token
+
+
+    def test_implicit_retractions(self):
+        """
+        Tests this forecast version rule: "An uploaded forecast version cannot imply any retracted prediction elements
+        in existing versions." We test the four cases (including out-of-order upload ones): Consider uploading a
+        version ("fn" - f new) when there are two existing ones (f1 and f2):
+
+            forecast_id | issue_date | case
+            ------------+------------+-----
+            -            10/3         a) uploaded version has oldest issue_date
+            f1           10/4
+            -            10/5         b) uploaded version is between two issue_dates
+            f2           10/6
+            -            10/7         c) uploaded version has newest issue_date
+
+        For these cases, uploading fn violates this rule if ("PE" = "prediction element"s "):
+        - a)   fn's PEs  are a superset of  f1's PEs   [nnn][11]       [2222]        # } "visual" order
+        - b1)  ""        are a subset of    f1's PEs        [11]  [n]  [2222]        # }   - left-to-right issue_date
+        - b2)  ""        are a superset of  f2's PEs        [11][nnnnn][2222]        # }   - f1: 2 PEs, f2: 4 PEs
+        - c)   ""        are a subset of    f2's PEs        [11]       [2222][nnn]   # }   - fn: various # PEs
+
+        (Cases a and b2 are examples of nick's "Case B" out-of-order situations where the existing forecast with the
+        later issue date and same timezero is missing prediction elements that are present in the new forecast with an
+        earlier issue date.)
+        """
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict = json.load(fp)
+            pred_dicts = json_io_dict['predictions']  # get some prediction elements to work with (29)
+
+        # load progressively more data into f1 and f2. NB: it is OK to create f2 before we've loaded f1 b/c
+        # _is_pred_eles_subset() handles the special case of. o/w it would be invalid (version validation will fail b/c
+        # f2 will be empty and therefore f1 will be a superset of it)
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        f2.issue_date = f1.issue_date + datetime.timedelta(days=2)  # leave that one day gap between f1 and f2
+        f2.save()
+
+        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
+        load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
+
+        # case a)
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_a', time_zero=tz1)
+        f3.issue_date = f1.issue_date - datetime.timedelta(days=1)
+        f3.save()
+        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. next version is a subset of forecast'):
+            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
+        f3.delete()
+
+        # case b1)
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b2', time_zero=tz1)
+        f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f3.save()
+        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. forecast is a subset of previous version'):
+            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:1]})
+        f3.delete()
+
+        # case b2)
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b1', time_zero=tz1)
+        f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f3.save()
+        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. next version is a subset of forecast'):
+            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:5]})
+        f3.delete()
+
+        # case c)
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_c', time_zero=tz1)
+        f3.issue_date = f2.issue_date + datetime.timedelta(days=1)
+        f3.save()
+        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. forecast is a subset of previous version'):
+            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})

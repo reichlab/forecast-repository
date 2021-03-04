@@ -7,6 +7,8 @@ from .forecast_model import ForecastModel
 from .job import Job
 from .prediction import Prediction, PointPrediction, NamedDistribution, EmpiricalDistribution, \
     BinDistribution, SampleDistribution, QuantileDistribution
+from .prediction_data import PredictionData
+from .prediction_element import PredictionElement
 from .project import Project, Unit, TimeZero
 from .target import Target, TargetCat, TargetLwr, TargetRange
 

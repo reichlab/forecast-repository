@@ -7,10 +7,10 @@ from pathlib import Path
 import pymmwr
 from django.db import transaction
 
-from forecast_app.models import PointPrediction, BinDistribution
+from forecast_app.models import PredictionElement
 from forecast_app.models.forecast import Forecast
-from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, \
-    cache_forecast_metadata
+from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
+from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.project import _validate_and_create_units, _validate_and_create_targets
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -60,14 +60,14 @@ def load_cdc_csv_forecast_file(season_start_year, forecast_model, cdc_csv_file_p
     new_forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero, source=file_name)
     with open(cdc_csv_file_path) as cdc_csv_file_fp:
         json_io_dict = json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp)
-        load_predictions_from_json_io_dict(new_forecast, json_io_dict, False)  # atomic
+        load_predictions_from_json_io_dict(new_forecast, json_io_dict, is_validate_cats=False)  # atomic
         cache_forecast_metadata(new_forecast)  # atomic
     return new_forecast
 
 
 def json_io_dict_from_cdc_csv_file(season_start_year, cdc_csv_file_fp):
     """
-    Utility that extracts the two types of predictions found in CDC CSV files (PointPredictions and BinDistributions),
+    Utility that extracts the two types of predictions found in CDC CSV files (PointData and BinData),
     returning them as a "JSON IO dict" suitable for loading into the database (see
     `load_predictions_from_json_io_dict()`). Note that the returned dict's "meta" section is empty.
 
@@ -140,7 +140,7 @@ def _cleaned_rows_from_cdc_csv_file(cdc_csv_file_fp):
 def _prediction_dicts_for_csv_rows(season_start_year, rows):
     """
     json_io_dict_from_cdc_csv_file() helper that returns a list of prediction dicts for the 'predictions' section of the
-    exported json. Each dict corresponds to either a PointPrediction or BinDistribution depending on each row in rows.
+    exported json. Each dict corresponds to either a PointData or BinData depending on each row in rows.
     Uses season_start_year to convert EWs to YYYY_MM_DD_DATE_FORMAT dates.
 
     Recall the seven cdc-project.json targets and their types:
@@ -167,7 +167,7 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     :param season_start_year
     :param rows: as returned by _cleaned_rows_from_cdc_csv_file():
         location_name, target_name, is_point_row, bin_start_incl, bin_end_notincl, value
-    :return: a list of PointPrediction or BinDistribution prediction dicts
+    :return: a list of PointData or BinData prediction dicts
     """
     prediction_dicts = []  # return value
     rows.sort(key=lambda _: (_[0], _[1], _[2]))  # sorted for groupby()
@@ -200,13 +200,13 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
             point_value = point_values[0]
             prediction_dicts.append({"unit": location_name,
                                      "target": target_name,
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
+                                     'class': PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS],
                                      'prediction': {
                                          'value': point_value}})
         if bin_cats:
             prediction_dicts.append({"unit": location_name,
                                      "target": target_name,
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
+                                     'class': PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS],
                                      'prediction': {
                                          "cat": bin_cats,
                                          "prob": bin_probs}})

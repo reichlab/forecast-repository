@@ -8,10 +8,10 @@ from unittest.mock import patch
 from botocore.exceptions import BotoCoreError
 from django.test import TestCase
 
-from forecast_app.models import TimeZero, BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution, Forecast, Job, Unit, Target
+from forecast_app.models import TimeZero, Forecast, Job, Unit, Target, PredictionElement
 from forecast_app.models.forecast_model import ForecastModel
-from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, load_predictions_from_json_io_dict
+from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
+from utils.forecast import load_predictions_from_json_io_dict, NamedData
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
@@ -101,7 +101,7 @@ class ProjectQueriesTestCase(TestCase):
                  'units': list(self.project.units.all().values_list('id', flat=True)),
                  'targets': list(self.project.targets.all().values_list('id', flat=True)),
                  'timezeros': list(self.project.timezeros.all().values_list('id', flat=True)),
-                 'types': list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}
+                 'types': list(PRED_CLASS_INT_TO_NAME.values())}
         error_messages, _ = validate_forecasts_query(self.project, query)
         self.assertEqual(0, len(error_messages))
 
@@ -112,14 +112,15 @@ class ProjectQueriesTestCase(TestCase):
         timezero_to_season_name = self.project.timezero_to_season_name()
         seas = timezero_to_season_name[self.time_zero]
 
-        # ---- case: all BinDistributions in project. check cat and prob columns ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]]}))  # list for generator
+        # ---- case: all BinData in project. check cat and prob columns ----
+        rows = list(query_forecasts_for_project(  # list for generator
+            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS]]}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
                         (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-22', 0.1),
                         (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-29', 0.89),
+                        (model, tz, seas, 'location1', 'season severity', 'bin', 'mild', 0.0),
                         (model, tz, seas, 'location1', 'season severity', 'bin', 'moderate', 0.1),
                         (model, tz, seas, 'location1', 'season severity', 'bin', 'severe', 0.9),
                         (model, tz, seas, 'location2', 'Season peak week', 'bin', '2019-12-15', 0.01),
@@ -131,30 +132,29 @@ class ProjectQueriesTestCase(TestCase):
                         (model, tz, seas, 'location2', 'pct next week', 'bin', 1.1, 0.3),
                         (model, tz, seas, 'location2', 'pct next week', 'bin', 2.2, 0.2),
                         (model, tz, seas, 'location2', 'pct next week', 'bin', 3.3, 0.5),
+                        (model, tz, seas, 'location3', 'cases next week', 'bin', 0, 0.0),
                         (model, tz, seas, 'location3', 'cases next week', 'bin', 2, 0.1),
                         (model, tz, seas, 'location3', 'cases next week', 'bin', 50, 0.9)]  # sorted
         # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[7], row[8]) for row in rows]
         self.assertEqual(exp_rows_bin, sorted(act_rows))
 
-        # ----  case: all NamedDistributions in project. check family, and param1, 2, and 3 columns ----
+        # ----  case: all named data in project. check family, and param1, 2, and 3 columns ----
         rows = list(query_forecasts_for_project(
-            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]]}))
+            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS]]}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
-        exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.POIS_DIST], 1.1, '', ''),
-                          (model, tz, seas, 'location1', 'pct next week', 'named',
-                           NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[NamedDistribution.NORM_DIST], 1.1, 2.2, '')
+        exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named', NamedData.POIS_DIST, 1.1, '', ''),
+                          (model, tz, seas, 'location1', 'pct next week', 'named', NamedData.NORM_DIST, 1.1, 2.2, '')
                           ]  # sorted
         # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[11], row[12], row[13], row[14])
                     for row in rows]
         self.assertEqual(exp_rows_named, sorted(act_rows))
 
-        # ---- case: all PointPredictions in project. check value column ----
+        # ---- case: all PointData in project. check value column ----
         rows = list(query_forecasts_for_project(
-            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]}))
+            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]]}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_point = [
@@ -173,9 +173,9 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
         self.assertEqual(exp_rows_point, sorted(act_rows))
 
-        # ---- case: all SampleDistributions in project. check sample column ----
+        # ---- case: all SampleData in project. check sample column ----
         rows = list(query_forecasts_for_project(
-            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]]}))
+            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS]]}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
@@ -205,9 +205,9 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[9]) for row in rows]
         self.assertEqual(exp_rows_sample, sorted(act_rows))
 
-        # ---- case: all QuantileDistributions in project. check quantile and value columns ----
+        # ---- case: all QuantileData in project. check quantile and value columns ----
         rows = list(query_forecasts_for_project(
-            self.project, {'types': [PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]]}))
+            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]]}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
@@ -233,7 +233,7 @@ class ProjectQueriesTestCase(TestCase):
         # ---- case: only one unit ----
         rows = list(query_forecasts_for_project(self.project, {'units': ['location3']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(17, len(rows))
+        self.assertEqual(18, len(rows))
 
         # ---- case: only one target ----
         rows = list(query_forecasts_for_project(self.project, {'targets': ['above baseline']}))
@@ -243,39 +243,43 @@ class ProjectQueriesTestCase(TestCase):
         # following two tests require a second model, timezero, and forecast
         forecast_model2 = ForecastModel.objects.create(project=self.project, name=model, abbreviation='abbrev')
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2011, 10, 22))
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions-non-dup.json',
                                             time_zero=time_zero2, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
 
-        # ---- case: empty query -> all forecasts in project. s/be twice as many now ----
+        # ---- case: empty query -> all forecasts in project. s/be twice as many now, modulo non-dup having 4 fewer ----
+        # "location2", "cases next week", "sample": non-dup has 2 not 3
+        # "location3", "cases next week", "bin": 2 not 3
+        # "location2", "season severity", "sample": 4 not 5
+        # "location2", "Season peak week", "quantile": 2 not 3
         rows = list(query_forecasts_for_project(self.project, {}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2,
-                         len(rows))
+        self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2)
+                         - 4, len(rows))
 
         # ---- case: only one timezero ----
         rows = list(query_forecasts_for_project(self.project, {'timezeros': ['2011-10-22']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
                          len(rows))
 
         # ---- case: only one model ----
         rows = list(query_forecasts_for_project(self.project, {'models': ['abbrev']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
                          len(rows))
 
 
     def test_query_forecasts_for_project_max_num_rows(self):
         try:
-            list(query_forecasts_for_project(self.project, {}, max_num_rows=62))  # actual number of rows = 62
+            list(query_forecasts_for_project(self.project, {}, max_num_rows=29))  # actual number of rows = 29
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
         with self.assertRaises(RuntimeError) as context:
-            list(query_forecasts_for_project(self.project, {}, max_num_rows=61))
+            list(query_forecasts_for_project(self.project, {}, max_num_rows=28))
         self.assertIn("number of rows exceeded maximum", str(context.exception))
 
 
@@ -523,7 +527,7 @@ class ProjectQueriesTestCase(TestCase):
 
         # set up database
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model',
                                                       abbreviation='docs_mod')
         tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
@@ -535,7 +539,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "pct next week",
                                          "class": "point",
                                          "prediction": {"value": 2.1}}]}
-        load_predictions_from_json_io_dict(f1, json_io_dict, False)
+        load_predictions_from_json_io_dict(f1, json_io_dict, is_validate_cats=False)
         f1.issue_date = tz1.timezero_date
         f1.save()
 
@@ -544,16 +548,16 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "pct next week",
                                          "class": "point",
                                          "prediction": {"value": 2.0}}]}
-        load_predictions_from_json_io_dict(f2, json_io_dict, False)
+        load_predictions_from_json_io_dict(f2, json_io_dict, is_validate_cats=False)
         f2.issue_date = tz3.timezero_date + datetime.timedelta(days=1)
         f2.save()
 
         f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
-        json_io_dict = {"predictions": [{"unit": "location3",
-                                         "target": "pct next week",
-                                         "class": "point",
-                                         "prediction": {"value": 3.567}}]}
-        load_predictions_from_json_io_dict(f3, json_io_dict, False)
+        json_io_dict = {"predictions": [
+            {"unit": "location1", "target": "pct next week", "class": "point", "prediction": {"value": 2.1}},  # dup
+            {"unit": "location3", "target": "pct next week", "class": "point", "prediction": {"value": 3.567}}]  # new
+        }
+        load_predictions_from_json_io_dict(f3, json_io_dict, is_validate_cats=False)
         f3.issue_date = tz1.timezero_date + datetime.timedelta(days=18)
         f3.save()
 
@@ -562,7 +566,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "target": "cases next week",
                                          "class": "point",
                                          "prediction": {"value": 10}}]}
-        load_predictions_from_json_io_dict(f4, json_io_dict, False)
+        load_predictions_from_json_io_dict(f4, json_io_dict, is_validate_cats=False)
         f4.issue_date = f3.issue_date
         f4.save()
 
@@ -578,31 +582,31 @@ class ProjectQueriesTestCase(TestCase):
         # case: 10/20: same as default
         act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-20'}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/21: same as default
         act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-21'}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/1: none
         exp_rows = []
         act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-01'}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/3: just f1
         exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1]]
         act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-03'}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/18: f1 and f2
         exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
                     ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
         act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-18'}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
     def test_as_of_versions_setting_0(self):
@@ -631,7 +635,7 @@ class ProjectQueriesTestCase(TestCase):
         # +-------------+----------+------------+------------+------+--------+-------+
         #
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='modelA', abbreviation='modelA')
         tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
         tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
@@ -641,13 +645,15 @@ class ProjectQueriesTestCase(TestCase):
         t1 = 'cases next week'
         json_io_dict = {"predictions": [{"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},
                                         {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 6}}]}
-        load_predictions_from_json_io_dict(f1, json_io_dict, False)
+        load_predictions_from_json_io_dict(f1, json_io_dict, is_validate_cats=False)
         f1.issue_date = tz1.timezero_date
         f1.save()
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        json_io_dict = {"predictions": [{"unit": u2, "target": t1, "class": "point", "prediction": {"value": 7}}]}
-        load_predictions_from_json_io_dict(f2, json_io_dict, False)
+        json_io_dict = {"predictions": [
+            {"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},  # dup
+            {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 7}}]}  # new
+        load_predictions_from_json_io_dict(f2, json_io_dict, is_validate_cats=False)
         f2.issue_date = tz2.timezero_date
         f2.save()
 
@@ -657,7 +663,7 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = list(query_forecasts_for_project(project,
                                                     {'as_of': tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: same except as_of = tz1.tzd
         exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
@@ -665,14 +671,14 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = list(query_forecasts_for_project(project,
                                                     {'as_of': tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
-        self.assertEqual(exp_rows, act_rows)
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
     @staticmethod
     def _set_up_as_of_case():
         # test_as_of_case_*() helper
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
 
         tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
@@ -693,7 +699,7 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": u3.name, "target": t1.name, "class": "quantile",
              "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
         ]
-        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, False)
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
         f1.issue_date = tz1.timezero_date
         f1.save()
         return project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1
@@ -717,31 +723,29 @@ class ProjectQueriesTestCase(TestCase):
         In all cases we have two tests with two forecasts: f1: top (baseline) table, f2: specific case's table.
 
         baseline table:
-        +--+----------+---------+----+------+----------+-----+--------+-----+-----+-----------+--------+-----+
-        |    forecast table     |pred common|point pred|  named dist  | bin dist  |sample dist|quantile dist |
-        |id|issue_date| timezero|unit|target|value     |family| param1|cat  |prob |sample     |quantile|value|
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-        |f1|tz1.tzd   | tz1     |u1  |t1    | -        |pois  | 1.1   | -   | -   | -         | -      | -   |   named
-        |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point
-        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample
-        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |2          | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |5          | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.0  | -         | -      | -   |   bin
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.1  | -         | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+        |       forecast       |     pred ele       |                 pred data                    |
+        |id|issue_date|timezero|unit|target| class  |                   data                       |
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+        |f1|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.1}            |
+        |f1|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 5}                                 |
+        |f1|tz1.tzd   |tz1     |u2  |t1    |sample  | {"sample": [0, 2, 5]}                        |
+        |f1|tz1.tzd   |tz1     |u3  |t1    |bin     | {"cat": [0, 2, 50], "prob": [0.0, 0.1, 0.9]} |
+        |f1|tz1.tzd   |tz1     |u3  |t1    |quantile| {"quantile": [0.25, 0.75], "value": [0, 50]} |
+        +--+----------+--------+----+------+--------+----------------------------------------------+
 
         case a)
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-        |f2|tz2.tzd   | tz1     |u1  |t1    | -        |NULL* | NULL* | -   | -   | -         | -      | -   |   named (retracted)
-        |f2|tz2.tzd   | tz1     |u2  |t1    |NULL*     | -    |  -    | -   | -   | -         | -      | -   |   point ""
-        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |NULL*      | -      | -   |   sample ""
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |NULL*|NULL*| -         | -      | -   |   bin ""
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |NULL*   |NULL*|   quantile ""
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-        as_of = tz1 -> all rows from top (baseline) table
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+        |       forecast       |     pred ele       |                 pred data                    |
+        |id|issue_date|timezero|unit|target| class  |                   data                       |
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+        |f1|tz1.tzd   |tz1     |u1  |t1    |named   | None (retracted)                             |
+        |f1|tz1.tzd   |tz1     |u2  |t1    |point   | None ""                                      |
+        |f1|tz1.tzd   |tz1     |u2  |t1    |sample  | None ""                                      |
+        |f1|tz1.tzd   |tz1     |u3  |t1    |bin     | None ""                                      |
+        |f1|tz1.tzd   |tz1     |u3  |t1    |quantile| None ""                                      |
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+        as_of = tz1 -> all rows from baseline table
         as_of = tz2 -> no rows (all are retracted)
         """
         project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
@@ -758,7 +762,7 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": u3.name, "target": t1.name, "class": "bin", "prediction": None},
             {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": None}
         ]
-        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
         f2.issue_date = tz2.timezero_date
         f2.save()
 
@@ -769,13 +773,13 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.0, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
         act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
-
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         exp_rows = []  # no rows (all are retracted)
@@ -786,19 +790,14 @@ class ProjectQueriesTestCase(TestCase):
     def test_as_of_case_b(self):
         """
         case b)
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-        |f2|tz2.tzd   | tz1     |u1  |t1    | -        |pois  | 1.2*  | -   | -   | -         | -      | -   |   named (updated)
-        |f2|tz2.tzd   | tz1     |u2  |t1    |6*        | -    |  -    | -   | -   | -         | -      | -   |   point (updated)
-        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample (some updated, i.e., some dup rows)
-        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |3*         | -      | -   |   ''
-        |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |6*         | -      | -   |   ''
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.1* | -         | -      | -   |   bin (some updated)
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.0* | -         | -      | -   |   ''
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |2*   |   quantile (some updated)
-        |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-        as_of = tz1 -> all rows from top (baseline) table
+        +--+----------+--------+----+------+--------+------------------------------------------------+
+        |f2|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.2*}             |  updated (*)
+        |f2|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 6*}                                  |  updated
+        |f2|tz1.tzd   |tz1     |u2  |t1    |sample  | {"sample": [0, 3*, 6*]}                        |  some updated, i.e., some dup rows
+        |f2|tz1.tzd   |tz1     |u3  |t1    |bin     | {"cat": [0, 2, 50], "prob": [0.1*, 0.0*, 0.9]} |  some updated
+        |f2|tz1.tzd   |tz1     |u3  |t1    |quantile| {"quantile": [0.25, 0.75], "value": [2*, 50]}  |  some updated
+        +--+----------+--------+----+------+--------+------------------------------------------------+
+        as_of = tz1 -> all rows from baseline
         as_of = tz2 -> all rows from case table (all are updated)
         """
         project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
@@ -817,7 +816,7 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": u3.name, "target": t1.name, "class": "quantile",
              "prediction": {"quantile": [0.25, 0.75], "value": [2, 50]}}
         ]
-        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
         f2.issue_date = tz2.timezero_date
         f2.save()
 
@@ -828,6 +827,7 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.0, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
@@ -843,6 +843,7 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 3, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 6, '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.1, '', '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.0, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 2, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
@@ -854,26 +855,22 @@ class ProjectQueriesTestCase(TestCase):
     def test_as_of_case_c(self):
         """
         case c)
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-      . |f2|tz2.tzd   | tz1     |u2  |t1    |7*        | -    |  -    | -   | -   | -         | -      | -   |   point (updated)
-      . |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.5* | -         | -      | -   |   bin (all updated, i.e., no dup rows)
-      . |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.3* | -         | -      | -   |   ''
-      . |f2|tz2.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.2* | -         | -      | -   |   ''
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-        as_of = tz1 -> all rows from top (baseline) table
-        as_of = tz2 -> dotted rows:
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-      . |f1|tz1.tzd   | tz1     |u1  |t1    | -        |pois  | 1.1   | -   | -   | -         | -      | -   |   named
-        |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point
-      . |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample
-      . |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |2          | -      | -   |   ''
-      . |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |5          | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.0  | -         | -      | -   |   bin
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.1  | -         | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        +--+----------+--------+----+------+--------+-------------------------------------------------+
+        |f2|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.1}               |
+      . |f2|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 7*}                                   |  updated (*)
+        |f2|tz1.tzd   |tz1     |u2  |t1    |sample  | {"sample": [0, 2, 5]}                           |
+      . |f2|tz1.tzd   |tz1     |u3  |t1    |bin     | {"cat": [0, 2, 50], "prob": [0.5*, 0.3*, 0.2*]} |  all updated, i.e., no dup rows
+        |f2|tz1.tzd   |tz1     |u3  |t1    |quantile| {"quantile": [0.25, 0.75], "value": [0, 50]}    |
+        +--+----------+--------+----+------+--------+-------------------------------------------------+
+        as_of = tz1 -> all rows from baseline table
+        as_of = tz2 -> dotted rows
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+      . |f1|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.1}            |
+        |f1|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 5}                                 |
+      . |f1|tz1.tzd   |tz1     |u2  |t1    |sample  | {"sample": [0, 2, 5]}                        |
+        |f1|tz1.tzd   |tz1     |u3  |t1    |bin     | {"cat": [0, 2, 50], "prob": [0.0, 0.1, 0.9]} |
+      . |f1|tz1.tzd   |tz1     |u3  |t1    |quantile| {"quantile": [0.25, 0.75], "value": [0, 50]} |
+        +--+----------+--------+----+------+--------+----------------------------------------------+
         """
         project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
         tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
@@ -883,11 +880,15 @@ class ProjectQueriesTestCase(TestCase):
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
         predictions = [
-            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 7}},
-            {"unit": u3.name, "target": t1.name, "class": "bin",
-             "prediction": {"cat": [0, 2, 50], "prob": [0.5, 0.3, 0.2]}}
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 7}},  # updated
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": {"sample": [0, 2, 5]}},
+            {"unit": u3.name, "target": t1.name, "class": "bin",  # updated
+             "prediction": {"cat": [0, 2, 50], "prob": [0.5, 0.3, 0.2]}},
+            {"unit": u3.name, "target": t1.name, "class": "quantile",
+             "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
         ]
-        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
         f2.issue_date = tz2.timezero_date
         f2.save()
 
@@ -898,6 +899,7 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.0, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
@@ -925,29 +927,22 @@ class ProjectQueriesTestCase(TestCase):
     def test_as_of_case_d(self):
         """
         case d)
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-      x |f2|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point (not updated, i.e., duplicate row)
-      . |f2|tz2.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |NULL*      | -      | -   |   sample (retracted)
-      . |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.5* | -         | -      | -   |   bin (all updated)
-      . |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.3* | -         | -      | -   |   ''
-      . |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.2* | -         | -      | -   |   ''
-      x |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile (none updated, i.e., all dup rows)
-      x |f2|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----|
-        as_of = tz1 -> all rows from top (baseline) table
+        +--+----------+--------+----+------+--------+-------------------------------------------------+
+      x |f1|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.1}               |  not updated, i.e., duplicate row
+      x |f1|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 5}                                    |  ""
+      . |f1|tz1.tzd   |tz1     |u2  |t1    |sample  | None (retracted)                                |
+      . |f1|tz1.tzd   |tz1     |u3  |t1    |bin     | {"cat": [0, 2, 50], "prob": [0.5*, 0.3*, 0.2*]} |  all updated
+      x |f1|tz1.tzd   |tz1     |u3  |t1    |quantile| {"quantile": [0.25, 0.75], "value": [0, 50]}    |  not updated, i.e., duplicate row
+        +--+----------+--------+----+------+--------+-------------------------------------------------+
+        as_of = tz1 -> all rows from baseline table
         as_of = tz2 -> dotted rows ('x' marks rows skipped by loader; retracted sample rows are not returned):
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
-      . |f1|tz1.tzd   | tz1     |u1  |t1    | -        |pois  | 1.1   | -   | -   | -         | -      | -   |   named
-      . |f1|tz1.tzd   | tz1     |u2  |t1    |5         | -    |  -    | -   | -   | -         | -      | -   |   point
-        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |0          | -      | -   |   sample
-        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |2          | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u2  |t1    | -        | -    |  -    | -   | -   |5          | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |0    |0.0  | -         | -      | -   |   bin
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |2    |0.1  | -         | -      | -   |   ''
-        |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    |50   |0.9  | -         | -      | -   |   ''
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.25    |0    |   quantile
-      . |f1|tz1.tzd   | tz1     |u3  |t1    | -        | -    |  -    | -   | -   | -         |0.75    |50   |   ''
-        +--+----------+---------+----+------+----------+------+-------+-----+-----+-----------+--------+-----+
+        +--+----------+--------+----+------+--------+----------------------------------------------+
+      . |f1|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.1}            |
+      . |f1|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 5}                                 |
+        |f1|tz1.tzd   |tz1     |u2  |t1    |sample  | {"sample": [0, 2, 5]}                        |
+        |f1|tz1.tzd   |tz1     |u3  |t1    |bin     | {"cat": [0, 2, 50], "prob": [0.0, 0.1, 0.9]} |
+      . |f1|tz1.tzd   |tz1     |u3  |t1    |quantile| {"quantile": [0.25, 0.75], "value": [0, 50]} |
+        +--+----------+--------+----+------+--------+----------------------------------------------+
         """
         project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
         tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
@@ -957,14 +952,14 @@ class ProjectQueriesTestCase(TestCase):
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
         predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
             {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 5}},
-            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},
-            {"unit": u3.name, "target": t1.name, "class": "bin",
+            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},  # retracted
+            {"unit": u3.name, "target": t1.name, "class": "bin",  # all updated
              "prediction": {"cat": [0, 2, 50], "prob": [0.5, 0.3, 0.2]}},
-            {"unit": u3.name, "target": t1.name, "class": "quantile",
-             "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
+            {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
         ]
-        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
         f2.issue_date = tz2.timezero_date
         f2.save()
 
@@ -975,6 +970,7 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 0, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 2, '', '', '', '', ''],
             [model, tz1str, season, u2.name, t1.name, 'sample', '', '', '', 5, '', '', '', '', ''],
+            [model, tz1str, season, u3.name, t1.name, 'bin', '', 0, 0.0, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 2, 0.1, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'bin', '', 50, 0.9, '', '', '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],

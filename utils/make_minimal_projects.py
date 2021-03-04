@@ -5,8 +5,6 @@ from pathlib import Path
 
 import click
 import django
-
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 from django.db import transaction
 
@@ -91,7 +89,8 @@ def fill_cdc_project(project, mo_user, is_public):
                             data_version_date=None)
 
     # load ground truth
-    load_truth_data(project, Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'), is_convert_na_none=True)
+    load_truth_data(project, Path('forecast_app/tests/truth_data/2017-01-17-truths.csv'), is_convert_na_none=True,
+                    file_name='2017-01-17-truths.csv')
 
     # create the two models
     click.echo("creating ForecastModel")
@@ -140,7 +139,8 @@ def _make_docs_project(user):
     project.name = DOCS_PROJECT_NAME
     project.save()
 
-    load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))
+    load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'),
+                    file_name='docs-ground-truth.csv')
 
     forecast_model = ForecastModel.objects.create(project=project, name='docs forecast model', abbreviation='docs_mod')
     time_zero = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
@@ -148,7 +148,7 @@ def _make_docs_project(user):
                                        time_zero=time_zero, notes="a small prediction file")
     with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
         json_io_dict_in = json.load(fp)
-        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
+        load_predictions_from_json_io_dict(forecast, json_io_dict_in, is_validate_cats=False)  # atomic
         cache_forecast_metadata(forecast)  # atomic
 
     return project, time_zero, forecast_model, forecast

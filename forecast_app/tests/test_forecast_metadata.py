@@ -35,11 +35,12 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(1, forecast_meta_prediction_qs.count())
 
         meta_cache_prediction = forecast_meta_prediction_qs.first()  # only one row
+        self.assertIsNotNone(meta_cache_prediction)
         self.assertEqual(11, meta_cache_prediction.point_count)
         self.assertEqual(2, meta_cache_prediction.named_count)
-        self.assertEqual(16, meta_cache_prediction.bin_count)
-        self.assertEqual(23, meta_cache_prediction.sample_count)
-        self.assertEqual(10, meta_cache_prediction.quantile_count)
+        self.assertEqual(6, meta_cache_prediction.bin_count)
+        self.assertEqual(7, meta_cache_prediction.sample_count)
+        self.assertEqual(3, meta_cache_prediction.quantile_count)
 
         # second run first deletes existing rows, resulting in the same number as before
         cache_forecast_metadata(self.forecast)
@@ -92,11 +93,11 @@ class ForecastMetadataTestCase(TestCase):
 
     def test_cache_forecast_metadata_second_forecast(self):
         # make sure only the passed forecast is cached
-        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json',
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions-non-dup.json',
                                             time_zero=self.time_zero, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
 
         self.assertEqual(0, ForecastMetaPrediction.objects.filter(forecast=self.forecast).count())
         self.assertEqual(0, ForecastMetaUnit.objects.filter(forecast=self.forecast).count())
@@ -123,9 +124,9 @@ class ForecastMetadataTestCase(TestCase):
         self.assertIsInstance(forecast_meta_prediction, ForecastMetaPrediction)
         self.assertEqual(11, forecast_meta_prediction.point_count)
         self.assertEqual(2, forecast_meta_prediction.named_count)
-        self.assertEqual(16, forecast_meta_prediction.bin_count)
-        self.assertEqual(23, forecast_meta_prediction.sample_count)
-        self.assertEqual(10, forecast_meta_prediction.quantile_count)
+        self.assertEqual(6, forecast_meta_prediction.bin_count)
+        self.assertEqual(7, forecast_meta_prediction.sample_count)
+        self.assertEqual(3, forecast_meta_prediction.quantile_count)
 
         self.assertIsInstance(forecast_meta_unit_qs, QuerySet)
         self.assertEqual(3, len(forecast_meta_unit_qs))
@@ -144,17 +145,17 @@ class ForecastMetadataTestCase(TestCase):
 
 
     def tests_forecast_metadata_counts_for_project(self):
-        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions.json',
+        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions-non-dup.json',
                                             time_zero=self.time_zero, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
         cache_forecast_metadata(self.forecast)
         cache_forecast_metadata(forecast2)
         forecast_id_to_counts = forecast_metadata_counts_for_project(self.project)
         #  f_id:  [(point_count, named_count, bin_count, sample_count, quantile_count), num_names, num_targets]
-        # {   1:  [(11,          2,           16,        23,           10),             3,         5          ],
-        #     2:  [(11,          2,           16,        23,           10),             3,         5          ]}
+        # {   1:  [(11,          2,           6,        7,           3),             3,         5          ],
+        #     2:  [(11,          2,           6,        7,           3),             3,         5          ]}
         self.assertEqual(sorted([self.forecast.id, forecast2.id]), sorted(forecast_id_to_counts.keys()))
-        self.assertEqual([(11, 2, 16, 23, 10), 3, 5], forecast_id_to_counts[self.forecast.id])
-        self.assertEqual([(11, 2, 16, 23, 10), 3, 5], forecast_id_to_counts[forecast2.id])
+        self.assertEqual([(11, 2, 6, 7, 3), 3, 5], forecast_id_to_counts[self.forecast.id])
+        self.assertEqual([(11, 2, 6, 7, 3), 3, 5], forecast_id_to_counts[forecast2.id])

@@ -24,7 +24,7 @@ class ForecastMetadataCache(models.Model):
 
 class ForecastMetaPrediction(ForecastMetadataCache):
     """
-    Caches this metadata for Forecasts: prediction type counts.
+    Caches this metadata for Forecasts: prediction type counts from my forecast's PredictionElements.
     """
 
     point_count = IntegerField(default=None, null=True)  # number of PointPredictions in this forecast

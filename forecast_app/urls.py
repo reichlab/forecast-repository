@@ -18,7 +18,6 @@ urlpatterns = [
     url(r'^users$', views.UserListView.as_view(), name='user-list'),
 
     url(r'^project/(?P<pk>\d+)$', views.ProjectDetailView.as_view(), name='project-detail'),
-    url(r'^project/(?P<project_pk>\d+)/visualizations$', views.project_visualizations, name='project-visualizations'),
     url(r'^project/(?P<project_pk>\d+)/forecasts', views.project_forecasts, name='project-forecasts'),
     url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_project,
         {'query_type': views.QueryType.FORECASTS}, name='query-forecasts'),

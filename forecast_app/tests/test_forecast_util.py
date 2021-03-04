@@ -41,26 +41,27 @@ class ForecastUtilTestCase(TestCase):
             (unit_loc1, target_cases_next_week): ([],
                                                   [('location1', 'cases next week', 'pois', 1.1, None, None)],  # named
                                                   [], [], []),
-            (unit_loc1, target_season_severity): ([('location1', 'season severity', 0.1, 'moderate'),  # bin
-                                                   ('location1', 'season severity', 0.9, 'severe')],
+            (unit_loc1, target_season_severity): ([('location1', 'season severity', 'mild', 0.0),  # bin
+                                                   ('location1', 'season severity', 'moderate', 0.1),
+                                                   ('location1', 'season severity', 'severe', 0.9)],
                                                   [],
                                                   [('location1', 'season severity', 'mild')],  # point
                                                   [], []),
             (unit_loc1, target_above_baseline): ([], [],
                                                  [('location1', 'above baseline', True)],  # point
                                                  [], []),
-            (unit_loc1, target_season_peak_week): ([('location1', 'Season peak week', 0.01, '2019-12-15'),  # bin
-                                                    ('location1', 'Season peak week', 0.1, '2019-12-22'),
-                                                    ('location1', 'Season peak week', 0.89, '2019-12-29')],
+            (unit_loc1, target_season_peak_week): ([('location1', 'Season peak week', '2019-12-15', 0.01),  # bin
+                                                    ('location1', 'Season peak week', '2019-12-22', 0.1),
+                                                    ('location1', 'Season peak week', '2019-12-29', 0.89)],
                                                    [],
                                                    [('location1', 'Season peak week', '2019-12-22')],  # point
                                                    [],
                                                    [('location1', 'Season peak week', '2020-01-05'),  # sample
                                                     ('location1', 'Season peak week', '2019-12-15')]),
 
-            (unit_loc2, target_pct_next_week): ([('location2', 'pct next week', 0.3, 1.1),  # bin
-                                                 ('location2', 'pct next week', 0.2, 2.2),
-                                                 ('location2', 'pct next week', 0.5, 3.3)],
+            (unit_loc2, target_pct_next_week): ([('location2', 'pct next week', 1.1, 0.3),  # bin
+                                                 ('location2', 'pct next week', 2.2, 0.2),
+                                                 ('location2', 'pct next week', 3.3, 0.5)],
                                                 [],
                                                 [('location2', 'pct next week', 2.0)],  # point
                                                 [('location2', 'pct next week', 0.025, 1.0),  # quantile
@@ -83,16 +84,16 @@ class ForecastUtilTestCase(TestCase):
                                                    ('location2', 'season severity', 'high'),
                                                    ('location2', 'season severity', 'moderate'),
                                                    ('location2', 'season severity', 'mild')]),
-            (unit_loc2, target_above_baseline): ([('location2', 'above baseline', 0.9, True),
-                                                  ('location2', 'above baseline', 0.1, False)],  # bin
+            (unit_loc2, target_above_baseline): ([('location2', 'above baseline', True, 0.9),
+                                                  ('location2', 'above baseline', False, 0.1)],  # bin
                                                  [], [], [],
                                                  [('location2', 'above baseline', True),  # sample
                                                   ('location2', 'above baseline', False),
                                                   ('location2', 'above baseline', True)]),
-            (unit_loc2, target_season_peak_week): ([('location2', 'Season peak week', 0.01, '2019-12-15'),  # bin
-                                                    ('location2', 'Season peak week', 0.05, '2019-12-22'),
-                                                    ('location2', 'Season peak week', 0.05, '2019-12-29'),
-                                                    ('location2', 'Season peak week', 0.89, '2020-01-05')],
+            (unit_loc2, target_season_peak_week): ([('location2', 'Season peak week', '2019-12-15', 0.01),  # bin
+                                                    ('location2', 'Season peak week', '2019-12-22', 0.05),
+                                                    ('location2', 'Season peak week', '2019-12-29', 0.05),
+                                                    ('location2', 'Season peak week', '2020-01-05', 0.89)],
                                                    [],
                                                    [('location2', 'Season peak week', '2020-01-05')],  # point
                                                    [('location2', 'Season peak week', 0.5, '2019-12-22'),  # quantile
@@ -108,8 +109,9 @@ class ForecastUtilTestCase(TestCase):
                                                  ('location3', 'pct next week', 0.0),
                                                  ('location3', 'pct next week', 10.0234),
                                                  ('location3', 'pct next week', 0.0001)]),
-            (unit_loc3, target_cases_next_week): ([('location3', 'cases next week', 0.1, 2),  # bin
-                                                   ('location3', 'cases next week', 0.9, 50)],
+            (unit_loc3, target_cases_next_week): ([('location3', 'cases next week', 0, 0.0),  # bin
+                                                   ('location3', 'cases next week', 2, 0.1),
+                                                   ('location3', 'cases next week', 50, 0.9)],
                                                   [],
                                                   [('location3', 'cases next week', 10)],  # point
                                                   [('location3', 'cases next week', 0.25, 0),  # quantile

@@ -74,7 +74,7 @@ class ViewsTestCase(TestCase):
 
         cls.public_project2 = Project.objects.create(name='public project 2', is_public=True, owner=cls.po_user)
         # cls.public_project2.model_owners.add(cls.mo_user)
-        cls.public_project2.save()
+        # cls.public_project2.save()
 
         # public_model
         cls.csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')  # EW01 2017
@@ -177,8 +177,6 @@ class ViewsTestCase(TestCase):
 
             (reverse('project-detail', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-detail', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('project-visualizations', args=[str(self.public_project.pk)]), self.OK_ALL),
-            (reverse('project-visualizations', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-forecasts', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-explorer', args=[str(self.public_project.pk)]), self.OK_ALL),
@@ -689,8 +687,6 @@ class ViewsTestCase(TestCase):
         self._authenticate_jwt_user(self.po_user, self.po_user_password)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), self.po_user)
 
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         # test serializing multiple timezeros via direct instantiation
         timezero_serializer_multi = TimeZeroSerializer(project.timezeros, many=True,
                                                        context={'request': (APIRequestFactory().request())})
@@ -760,8 +756,6 @@ class ViewsTestCase(TestCase):
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), self.po_user)
 
         # test TargetSerializer being passed one vs. many instances - this drives complicated DRF functionality.
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         request = APIRequestFactory().request()
 
         # test serializing a few single Targets ('pct next week' and 'Season peak week')

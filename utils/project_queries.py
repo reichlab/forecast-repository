@@ -1,7 +1,7 @@
 import csv
 import datetime
 import io
-import string
+import json
 
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
@@ -9,12 +9,11 @@ from django.db import connection, transaction
 from rest_framework.generics import get_object_or_404
 from rq.timeouts import JobTimeoutException
 
-from forecast_app.models import BinDistribution, NamedDistribution, PointPrediction, SampleDistribution, \
-    QuantileDistribution, Job, Project, Forecast, ForecastModel
+from forecast_app.models import Job, Project, Forecast, ForecastModel, PredictionElement, PredictionData
+from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT
 from forecast_repo.settings.base import MAX_NUM_QUERY_ROWS
-from utils.forecast import coalesce_values
 from utils.project import logger
-from utils.project_truth import TRUTH_CSV_HEADER, truth_data_qs
+from utils.project_truth import TRUTH_CSV_HEADER, oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
 
@@ -34,7 +33,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     that the csv is 'sparse': not every row uses all columns, and unused ones are empty (''). However, the first four
     columns are always non-empty, i.e., every prediction has them.
 
-    The 'class' of each row is named to be the same as Zoltar's utils.forecast.PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+    The 'class' of each row is named to be the same as Zoltar's utils.forecast.PRED_CLASS_INT_TO_NAME
     variable. Column ordering is FORECAST_CSV_HEADER.
 
     `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to six keys, five of which
@@ -44,7 +43,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     - 'units': "" Unit.name strings
     - 'targets': "" Target.name strings
     - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
-    - 'types': optional list of type strings as defined in PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values()
+    - 'types': optional list of type strings as defined in PRED_CLASS_INT_TO_NAME.values()
 
     The sixth key allows searching based on `Forecast.issue_date`:
     - 'as_of': optional inclusive issue_date in YYYY_MM_DD_DATE_FORMAT to limit the search to. the default behavior if
@@ -60,19 +59,10 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     :param max_num_rows: the number of rows at which this function raises a RuntimeError
     :return: a list of CSV rows including the header
     """
-    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
-
+    logger.debug(f"query_forecasts_for_project(): 1/3 validating query. query={query}, project={project}")
 
     # validate query
-    logger.debug(f"query_forecasts_for_project(): 1/3 validating query. query={query}, project={project}")
-    error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types) = validate_forecasts_query(project, query)
-
-    # get which types to include
-    is_include_bin = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in types)
-    is_include_named = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in types)
-    is_include_point = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction] in types)
-    is_include_sample = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution] in types)
-    is_include_quantile = (not types) or (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution] in types)
+    _, (model_ids, unit_ids, target_ids, timezero_ids, type_ints) = validate_forecasts_query(project, query)
 
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
@@ -82,78 +72,50 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     yield FORECAST_CSV_HEADER
 
-    # output rows for each Prediction subclass
+    # get the SQL then execute and iterate over resulting data
+    as_of = query.get('as_of', None)
+    sql = _query_forecasts_sql_for_pred_class(type_ints, model_ids, unit_ids, target_ids, timezero_ids, as_of)
+    logger.debug(f"query_forecasts_for_project(): 2/3 executing sql. type_ints, model_ids, unit_ids, target_ids, "
+                 f"timezero_ids, as_of= {type_ints}, {model_ids}, {unit_ids}, {target_ids}, {timezero_ids}, "
+                 f"{as_of}")
     num_rows = 0
-    for idx, (is_include, prediction_class) in enumerate([(is_include_bin, BinDistribution),
-                                                          (is_include_named, NamedDistribution),
-                                                          (is_include_point, PointPrediction),
-                                                          (is_include_sample, SampleDistribution),
-                                                          (is_include_quantile, QuantileDistribution)]):
-        if not is_include:
-            continue
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        for fm_id, tz_id, pred_class, unit_id, target_id, pred_data in batched_rows(cursor):
+            num_rows += 1
+            if num_rows > max_num_rows:
+                raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, "
+                                   f"max_num_rows={max_num_rows}")
 
-        sql = _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, target_ids, timezero_ids,
-                                                  query.get('as_of', None))
-        logger.debug(f"query_forecasts_for_project(): 2{string.ascii_letters[idx]}/3 getting "
-                     f"{prediction_class.__name__}s")
-        with connection.cursor() as cursor:
-            cursor.execute(sql, (project.pk,))
-            for row in batched_rows(cursor):
-                num_rows += 1
-                if num_rows > max_num_rows:
-                    raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, "
-                                       f"max_num_rows={max_num_rows}")
-
-                value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-                if prediction_class == BinDistribution:  # ---- BinDistribution ----
-                    fm_id, tz_id, unit_id, target_id, prob, cat_i, cat_f, cat_t, cat_d, cat_b = row
-                    model_str, timezero_str, season, class_str = \
-                        _model_tz_season_class_strs(forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id],
-                                                    timezero_to_season_name, BinDistribution)
-                    cat = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
-                    cat = cat.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(cat, datetime.date) else cat
+            pred_data = json.loads(pred_data)  # todo xx why isn't this coming out parsed as a python dict!?
+            model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
+                forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id], timezero_to_season_name, pred_class)
+            value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
+            if pred_class == PredictionElement.BIN_CLASS:
+                for cat, prob in zip(pred_data['cat'], pred_data['prob']):
                     yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
                            target_id_to_obj[target_id].name, class_str,
                            value, cat, prob, sample, quantile, family, param1, param2, param3]
-                elif prediction_class == NamedDistribution:  # ---- NamedDistribution ----
-                    fm_id, tz_id, unit_id, target_id, family, param1, param2, param3 = row
-                    model_str, timezero_str, season, class_str = \
-                        _model_tz_season_class_strs(forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id],
-                                                    timezero_to_season_name, NamedDistribution)
-                    family = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
-                    param1 = param1 if param1 is not None else ''
-                    param2 = param2 if param2 is not None else ''
-                    param3 = param3 if param3 is not None else ''
+            elif pred_class == PredictionElement.NAMED_CLASS:
+                family = pred_data['family']
+                param1 = pred_data.get('param1', '')
+                param2 = pred_data.get('param2', '')
+                param3 = pred_data.get('param3', '')
+                yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
+                       target_id_to_obj[target_id].name, class_str,
+                       value, cat, prob, sample, quantile, family, param1, param2, param3]
+            elif pred_class == PredictionElement.POINT_CLASS:
+                value = pred_data['value']
+                yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
+                       target_id_to_obj[target_id].name, class_str,
+                       value, cat, prob, sample, quantile, family, param1, param2, param3]
+            elif pred_class == PredictionElement.QUANTILE_CLASS:
+                for quantile, value in zip(pred_data['quantile'], pred_data['value']):
                     yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
                            target_id_to_obj[target_id].name, class_str,
                            value, cat, prob, sample, quantile, family, param1, param2, param3]
-                elif prediction_class == PointPrediction:  # ---- PointPrediction ----
-                    fm_id, tz_id, unit_id, target_id, value_i, value_f, value_t, value_d, value_b = row
-                    model_str, timezero_str, season, class_str = \
-                        _model_tz_season_class_strs(forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id],
-                                                    timezero_to_season_name, PointPrediction)
-                    value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-                    value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-                    yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
-                           target_id_to_obj[target_id].name, class_str,
-                           value, cat, prob, sample, quantile, family, param1, param2, param3]
-                elif prediction_class == SampleDistribution:  # ---- SampleDistribution ----
-                    fm_id, tz_id, unit_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b = row
-                    model_str, timezero_str, season, class_str = \
-                        _model_tz_season_class_strs(forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id],
-                                                    timezero_to_season_name, SampleDistribution)
-                    sample = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
-                    sample = sample.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(sample, datetime.date) else sample
-                    yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
-                           target_id_to_obj[target_id].name, class_str,
-                           value, cat, prob, sample, quantile, family, param1, param2, param3]
-                else:  # ---- QuantileDistribution ----
-                    fm_id, tz_id, unit_id, target_id, quantile, value_i, value_f, value_d = row
-                    model_str, timezero_str, season, class_str = \
-                        _model_tz_season_class_strs(forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id],
-                                                    timezero_to_season_name, QuantileDistribution)
-                    value = PointPrediction.first_non_none_value(value_i, value_f, None, value_d, None)
-                    value = value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
+            elif pred_class == PredictionElement.SAMPLE_CLASS:
+                for sample in pred_data['sample']:
                     yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].name,
                            target_id_to_obj[target_id].name, class_str,
                            value, cat, prob, sample, quantile, family, param1, param2, param3]
@@ -162,91 +124,66 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     logger.debug(f"query_forecasts_for_project(): 3/3 done. num_rows={num_rows}, query={query}, project={project}")
 
 
-def _query_forecasts_sql_for_pred_class(prediction_class, model_ids, unit_ids, target_ids, timezero_ids, as_of):
+def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of):
     """
-    A `query_forecasts_for_project()` helper that returns an SQL string based on my args that, when executed, returns
-    these columns, depending on prediction_class. note that the first four columns are always present regardless of
-    prediction_class.
+    A `query_forecasts_for_project()` helper that returns an SQL query string based on my args that, when executed,
+    returns a list of 6-tuples: (forecast_model_id, timezero_id, pred_class, unit_id, target_id, pred_data), where:
+    - pred_class: PRED_CLASS_CHOICES itn
+    - data: the stored json
 
-    - BinDistribution:      fm_id, tz_id, unit_id, target_id,  prob, cat_i, cat_f, cat_t, cat_d, cat_b
-    - NamedDistribution:    "",    "",    "",      "",         family, param1, param2, param3
-    - PointPrediction:      "",    "",    "",      "",         value_i, value_f, value_t, value_d, value_b
-    - SampleDistribution:   "",    "",    "",      "",         sample_i, sample_f, sample_t, sample_d, sample_b
-    - QuantileDistribution: "",    "",    "",      "",         quantile, value_i, value_f, value_d
-
-    [forecast_model_id, timezero_id, unit_id, target_id, value_str]. NB: value_str is the result of COALESCE and
-    CAST calls to handle the sparse values in each prediction class ()
-
-    :param prediction_class: a concrete Prediction subclass
-    :return: an SQL string to execute. columns returned as documented above
+    :param pred_classes: list of PredictionElement.PRED_CLASS_CHOICES to include or [] (includes all)
+    :param model_ids: list of ForecastsModel IDs to include or None (includes all)
+    :param unit_ids: "" Unit ""
+    :param target_ids: "" Target ""
+    :param timezero_ids: "" TimeZero ""
+    :param as_of: optional as_of date
+    :return SQL to execute. returns columns as described above
     """
     and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
-    and_unit_ids = f"AND pred.unit_id IN ({', '.join(map(str, unit_ids))})" if unit_ids else ""
-    and_target_ids = f"AND pred.target_id IN ({', '.join(map(str, target_ids))})" if target_ids else ""
+    and_pred_classes = f"AND pred_ele.pred_class IN ({', '.join(map(str, pred_classes))})" if pred_classes else ""
+    and_unit_ids = f"AND pred_ele.unit_id IN ({', '.join(map(str, unit_ids))})" if unit_ids else ""
+    and_target_ids = f"AND pred_ele.target_id IN ({', '.join(map(str, target_ids))})" if target_ids else ""
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
-
-    # set pred_select and pred_is_all_null
-    if prediction_class == BinDistribution:  # BinDistribution
-        pred_select = f"pred.prob AS prob, pred.cat_i AS cat_i, pred.cat_f AS cat_f, pred.cat_t AS cat_t, " \
-                      f"pred.cat_d AS cat_d, pred.cat_b AS cat_b"
-        pred_is_all_null = f"pred.prob IS NULL AND pred.cat_i IS NULL AND pred.cat_f IS NULL " \
-                           f"AND pred.cat_t IS NULL AND pred.cat_d IS NULL AND pred.cat_b IS NULL"
-    elif prediction_class == NamedDistribution:  # NamedDistribution
-        pred_select = f"pred.family AS family, pred.param1 AS param1, pred.param2 AS param2, pred.param3 AS param3"
-        pred_is_all_null = f"pred.family IS NULL AND pred.param1 IS NULL AND pred.param2 IS NULL " \
-                           f"AND pred.param3 IS NULL"
-    elif prediction_class == PointPrediction:  # PointPrediction
-        pred_select = f"pred.value_i AS value_i, pred.value_f AS value_f, pred.value_t AS value_t, " \
-                      f"pred.value_d AS value_d, pred.value_b AS value_b"
-        pred_is_all_null = f"pred.value_i IS NULL AND pred.value_f IS NULL AND pred.value_t IS NULL " \
-                           f"AND pred.value_d IS NULL AND pred.value_b IS NULL"
-    elif prediction_class == SampleDistribution:  # SampleDistribution
-        pred_select = f"pred.sample_i AS sample_i, pred.sample_f AS sample_f, pred.sample_t AS sample_t, " \
-                      f"pred.sample_d AS sample_d, pred.sample_b AS sample_b"
-        pred_is_all_null = f"pred.sample_i IS NULL AND pred.sample_f IS NULL AND pred.sample_t IS NULL " \
-                           f"AND pred.sample_d IS NULL AND pred.sample_b IS NULL"
-    else:  # QuantileDistribution
-        pred_select = f"pred.quantile AS quantile, pred.value_i AS value_i, pred.value_f as value_f, " \
-                      f"pred.value_d AS value_d"
-        pred_is_all_null = f"pred.quantile IS NULL AND pred.value_i IS NULL AND pred.value_f IS NULL " \
-                           f"AND pred.value_d IS NULL"
-
     sql = f"""
         WITH ranked_rows AS (
-            SELECT f.forecast_model_id  AS fm_id,
-                   f.time_zero_id       AS tz_id,
-                   pred.unit_id         AS unit_id,
-                   pred.target_id       AS target_id,
-                   {pred_select},
+            SELECT f.forecast_model_id        AS fm_id,
+                   f.time_zero_id             AS tz_id,
+                   pred_ele.id                AS pred_ele_id,
+                   pred_ele.pred_class  AS pred_class,
+                   pred_ele.unit_id           AS unit_id,
+                   pred_ele.target_id         AS target_id,
+                   pred_ele.is_retract        AS is_retract,
                    RANK() OVER (
-                       PARTITION BY fm.id, f.time_zero_id, pred.unit_id, pred.target_id
+                       PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
                        ORDER BY f.issue_date DESC) AS rownum
-            FROM {prediction_class._meta.db_table} AS pred
-                     JOIN {Forecast._meta.db_table} f ON pred.forecast_id = f.id
-                     JOIN {ForecastModel._meta.db_table} fm on f.forecast_model_id = fm.id
+            FROM {PredictionElement._meta.db_table} AS pred_ele
+                     JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
+                     JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
             WHERE fm.project_id = %s AND NOT fm.is_oracle
-              {and_model_ids} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
+              {and_model_ids} {and_pred_classes} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
         )
-        SELECT pred.fm_id      AS fm_id,
-               pred.tz_id      AS tz_id,
-               pred.unit_id    AS unit_id,
-               pred.target_id  AS target_id,
-               {pred_select}
-        FROM ranked_rows AS pred
-        WHERE pred.rownum = 1 AND NOT ({pred_is_all_null});
+        SELECT ranked_rows.fm_id       AS fm_id,
+               ranked_rows.tz_id       AS tz_id,
+               ranked_rows.pred_class  AS pred_class,
+               ranked_rows.unit_id     AS unit_id,
+               ranked_rows.target_id   AS target_id,
+               pred_data.data          AS pred_data
+        FROM ranked_rows
+                 JOIN {PredictionData._meta.db_table} AS pred_data ON ranked_rows.pred_ele_id = pred_data.pred_ele_id
+        WHERE ranked_rows.rownum = 1 AND NOT is_retract;
     """
     return sql
 
 
-def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, prediction_class):
-    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+def _model_tz_season_class_strs(forecast_model, time_zero, timezero_to_season_name, class_int):
+    from utils.forecast import PRED_CLASS_INT_TO_NAME  # avoid circular imports
 
 
     model_str = forecast_model.abbreviation if forecast_model.abbreviation else forecast_model.name
     timezero_str = time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
     season = timezero_to_season_name[time_zero]
-    class_str = PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[prediction_class]
+    class_str = PRED_CLASS_INT_TO_NAME[class_int]
     return model_str, timezero_str, season, class_str
 
 
@@ -259,9 +196,10 @@ def validate_forecasts_query(project, query):
     :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)) . notice the second
         element is itself a 5-tuple of validated object IDs. there are two cases, which determine the return values:
         1) valid query: error_messages is [], and ID lists are valid integers. 2) invalid query: error_messages is a
-        list of strings, and the ID lists are all [].
+        list of strings, and the ID lists are all []. Note that types is converted to ints via
+        PRED_CLASS_NAME_TO_INT.
     """
-    from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS  # avoid circular imports
+    from utils.forecast import PRED_CLASS_INT_TO_NAME  # avoid circular imports
 
 
     # return value. filled next
@@ -300,11 +238,13 @@ def validate_forecasts_query(project, query):
     # validate Prediction types
     if 'types' in query:
         types = query['types']
-        valid_prediction_types = set(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())
+        valid_prediction_types = set(PRED_CLASS_INT_TO_NAME.values())
         if not (set(types) <= valid_prediction_types):
             error_messages.append(f"one or more types were invalid prediction types. types={set(types)}, "
                                   f"valid_prediction_types={valid_prediction_types}, query={query}")
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+
+        types = [PRED_CLASS_NAME_TO_INT[class_name] for class_name in types]
 
     # done (may or may not be valid)
     return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
@@ -542,31 +482,34 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     """
     # validate query
     logger.debug(f"query_truth_for_project(): 1/2 validating query. query={query}, project={project}")
-    error_messages, (unit_ids, target_ids, timezero_ids) = validate_truth_query(project, query)
+    _, (unit_ids, target_ids, timezero_ids) = validate_truth_query(project, query)
+
+    oracle_model = oracle_model_for_project(project)
+    if not oracle_model:
+        return []
 
     # get the rows, building up a QuerySet in steps
-    the_truth_data_qs = truth_data_qs(project)
+    pred_data_qs = PredictionData.objects.filter(pred_ele__forecast__forecast_model=oracle_model)
     if unit_ids:
-        the_truth_data_qs = the_truth_data_qs.filter(unit__id__in=unit_ids)
+        pred_data_qs = pred_data_qs.filter(pred_ele__unit__id__in=unit_ids)
     if target_ids:
-        the_truth_data_qs = the_truth_data_qs.filter(target__id__in=target_ids)
+        pred_data_qs = pred_data_qs.filter(pred_ele__target__id__in=target_ids)
     if timezero_ids:
-        the_truth_data_qs = the_truth_data_qs.filter(forecast__time_zero__id__in=timezero_ids)
+        pred_data_qs = pred_data_qs.filter(pred_ele__forecast__time_zero__id__in=timezero_ids)
 
-    # get and check the number of rows
-    num_rows = the_truth_data_qs.count()
+    # get and check the number of rows. todo xx requires a separate query - see query_forecasts_for_project() for better
+    num_rows = pred_data_qs.count()
     if num_rows > max_num_rows:
         raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
 
-    # done
-    the_truth_data_qs = the_truth_data_qs.order_by('id') \
-        .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
-                     'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
+    # done. note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field
+    # instead of using 'data__value'
+    pred_data_qs = pred_data_qs.order_by('pred_ele__id') \
+        .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name', 'pred_ele__target__name',
+                     'data')
     logger.debug(f"query_truth_for_project(): 2/2 done. query={query}, project={project}")
-    return [TRUTH_CSV_HEADER] + [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name,
-                                  coalesce_values(value_i, value_f, value_t, value_d, value_b)]
-                                 for timezero_date, unit_name, target_name, value_i, value_f, value_t, value_d, value_b
-                                 in the_truth_data_qs]
+    return [TRUTH_CSV_HEADER] + [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name, data['value']]
+                                 for timezero_date, unit_name, target_name, data in pred_data_qs]
 
 
 def validate_truth_query(project, query):

@@ -1,6 +1,5 @@
-import csv
 import datetime
-import io
+import datetime
 import json
 import logging
 import re
@@ -10,12 +9,10 @@ from pathlib import Path
 
 from django.db import connection
 from django.db import transaction
-from django.utils import timezone
 
 from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, ForecastMetaUnit, ForecastMetaTarget
 from forecast_app.models.project import TimeZero
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +69,6 @@ def config_dict_from_project(project, request):
     """
     from forecast_app.serializers import UnitSerializer, TimeZeroSerializer  # avoid circular imports
 
-
     unit_serializer_multi = UnitSerializer(project.units, many=True, context={'request': request})
     tz_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
@@ -87,7 +83,6 @@ def config_dict_from_project(project, request):
 def _target_dict_for_target(target, request):
     # request is required for TargetSerializer's 'id' field
     from forecast_app.serializers import TargetSerializer  # avoid circular imports
-
 
     if target.type is None:
         raise RuntimeError(f"target has no type: {target}")
@@ -183,7 +178,6 @@ def _validate_and_create_units(project, project_dict, is_validate_only=False):
 
 def _validate_and_create_timezeros(project, project_dict, is_validate_only=False):
     from forecast_app.api_views import validate_and_create_timezero  # avoid circular imports
-
 
     timezeros = [validate_and_create_timezero(project, timezero_config, is_validate_only)
                  for timezero_config in project_dict['timezeros']]
@@ -469,8 +463,8 @@ def models_summary_table_rows_for_project(project):
                        MIN(tz.timezero_date) AS min_time_zero_date,
                        MAX(tz.timezero_date) AS max_time_zero_date
                 FROM {Forecast._meta.db_table} AS f
-                         JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
-                         JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
+                         JOIN {TimeZero._meta.db_table} AS tz ON f.time_zero_id = tz.id
+                         JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
                 WHERE fm.project_id = %s AND NOT fm.is_oracle
                 GROUP BY f.forecast_model_id),
             fm_max_issue_dates AS (
@@ -480,7 +474,7 @@ def models_summary_table_rows_for_project(project):
                        fm_min_max_tzs.max_time_zero_date AS max_time_zero_date,
                        MAX(f.issue_date)                 AS max_issue_date
                 FROM fm_min_max_tzs
-                         JOIN {TimeZero._meta.db_table} tz ON tz.timezero_date = fm_min_max_tzs.max_time_zero_date
+                         JOIN {TimeZero._meta.db_table} AS tz ON tz.timezero_date = fm_min_max_tzs.max_time_zero_date
                          JOIN {Forecast._meta.db_table} AS f
                               ON f.forecast_model_id = fm_min_max_tzs.fm_id
                                   AND f.time_zero_id = tz.id
@@ -495,7 +489,7 @@ def models_summary_table_rows_for_project(project):
                f.id                                  AS f_id,
                f.created_at                          AS f_created_at
         FROM fm_max_issue_dates
-                 JOIN {TimeZero._meta.db_table} tz ON tz.timezero_date = fm_max_issue_dates.max_time_zero_date
+                 JOIN {TimeZero._meta.db_table} AS tz ON tz.timezero_date = fm_max_issue_dates.max_time_zero_date
                  JOIN {Forecast._meta.db_table} AS f
                       ON f.forecast_model_id = fm_max_issue_dates.fm_id
                           AND f.time_zero_id = tz.id
@@ -713,8 +707,8 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
                    f.time_zero_id      AS tz_id,
                    MAX(f.issue_date)   AS max_issue_date
             FROM {Forecast._meta.db_table} AS f
-                     JOIN {TimeZero._meta.db_table} tz ON f.time_zero_id = tz.id
-                     JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
+                     JOIN {TimeZero._meta.db_table} AS tz ON f.time_zero_id = tz.id
+                     JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
             WHERE fm.project_id = %s AND NOT fm.is_oracle  {and_model_ids}  {and_timezero_ids}
             GROUP BY f.forecast_model_id, f.time_zero_id
         )

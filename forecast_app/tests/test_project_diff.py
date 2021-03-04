@@ -25,8 +25,6 @@ class ProjectDiffTestCase(TestCase):
     def test_project_config_diff(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         # first we remove 'id' and 'url' fields from serializers to ease testing
         current_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         for the_dict_list in [current_config_dict['units'], current_config_dict['targets'],
@@ -171,8 +169,6 @@ class ProjectDiffTestCase(TestCase):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
 
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
@@ -188,17 +184,14 @@ class ProjectDiffTestCase(TestCase):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
 
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
 
-        changes = project_config_diff(out_config_dict, edit_config_dict)
-        exp_changes = [  # change, num_points, num_named, num_bins, num_samples, num_quantiles, num_truth
-            (Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None), 3, 0, 2, 10, 2, 0),
-            (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 3, 1, 3, 5, 5, 3),
-            (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 11, 2, 16, 23, 10, 5)]
+        changes = project_config_diff(out_config_dict, edit_config_dict)  # change, num_pred_eles, num_truth
+        exp_changes = [(Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None), 8, 0),
+                       (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 7, 3),
+                       (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 29, 5)]
         act_changes = database_changes_for_project_config_diff(project, changes)
         self.assertEqual(exp_changes, act_changes)
 
@@ -208,8 +201,6 @@ class ProjectDiffTestCase(TestCase):
         project, _, _, _ = _make_docs_project(po_user)
 
         # make some changes
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)
@@ -222,8 +213,6 @@ class ProjectDiffTestCase(TestCase):
     def test_diff_from_file(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
 
         # this json file makes the same changes as _make_some_changes():
@@ -251,8 +240,6 @@ class ProjectDiffTestCase(TestCase):
     def test_diff_from_file_empty_data_version_date_string(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edited_config_dict = copy.deepcopy(out_config_dict)
 
@@ -268,8 +255,6 @@ class ProjectDiffTestCase(TestCase):
         project, _, _, _ = _make_docs_project(po_user)
 
         # make some changes
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         edit_config_dict = copy.deepcopy(out_config_dict)
         _make_some_changes(edit_config_dict)

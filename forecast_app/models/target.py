@@ -6,8 +6,7 @@ from django.db import models
 from django.db.models import BooleanField, IntegerField
 from rest_framework.test import APIRequestFactory
 
-from forecast_app.models import Project, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, \
-    QuantileDistribution
+from forecast_app.models import Project
 from utils.utilities import basic_str, YYYY_MM_DD_DATE_FORMAT
 
 
@@ -270,6 +269,16 @@ class Target(models.Model):
                                    value_f=upper if (data_types[0] == Target.FLOAT_DATA_TYPE) else None)
 
 
+    @staticmethod  # todo xx move!?
+    def first_non_none_value(value_i, value_f, value_t, value_d, value_b):
+        """
+        Simple utility that returns the first of the passed value_* args that is not None. NB: you cannot simply use
+        'or' b/c 0 values fail. Returns None if all are None.
+        """
+        non_non_values = [_ for _ in [value_i, value_f, value_t, value_d, value_b] if _ is not None]
+        return non_non_values[0] if non_non_values else None
+
+
     def range_tuple(self):
         """
         :return: either a 2-tuple () if I have a ranges, or None o/w. ordered by min, max
@@ -281,15 +290,15 @@ class Target(models.Model):
         ranges_list = list(ranges_qs)
         ranges0 = ranges_list[0]
         ranges1 = ranges_list[1]
-        ranges0_val = PointPrediction.first_non_none_value(ranges0.value_i, ranges0.value_f, None, None, None)
-        ranges1_val = PointPrediction.first_non_none_value(ranges1.value_i, ranges1.value_f, None, None, None)
+        ranges0_val = Target.first_non_none_value(ranges0.value_i, ranges0.value_f, None, None, None)
+        ranges1_val = Target.first_non_none_value(ranges1.value_i, ranges1.value_f, None, None, None)
         return min(ranges0_val, ranges1_val), max(ranges0_val, ranges1_val)
 
 
     def cats_values(self):
         """
         A utility function used for validation. Returns a list of my cat values based on my data_types(), similar to
-        what PointPrediction.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get
+        what PointData.first_non_none_value() might do, except instead of retrieving all cat_* fields we only get
         the field corresponding to my type.
         """
         data_type = self.data_types()[0]  # the first is the preferred one
@@ -307,38 +316,26 @@ class Target(models.Model):
 
 
     @classmethod
-    def valid_named_families(cls, target_type):
+    def is_valid_named_family_for_target_type(cls, family_abbrev, target_type):
         """
-        :param target_type: one of my *_TARGET_TYPE values
-        :return: a list of valid NamedDistribution families for target_type
+        Implements the named portion of the table at https://docs.zoltardata.com/targets/#valid-prediction-types-by-target-type
+
+        :param family_int: one of NamedData.FAMILY_CHOICES
+        :param target_type: one of Target.TARGET_TYPE_CHOICES
+        :return: True if family_int is a valid one for target_type
         """
-        return {
-            Target.CONTINUOUS_TARGET_TYPE: [NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST],
-            Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
-                                          NamedDistribution.NBINOM2_DIST],
-            Target.NOMINAL_TARGET_TYPE: [],  # n/a
-            Target.BINARY_TARGET_TYPE: [],  # n/a
-            Target.DATE_TARGET_TYPE: [],  # n/a
-        }[target_type]
+        from utils.forecast import NamedData  # avoid circular imports
 
 
-    @classmethod
-    def valid_prediction_types(cls, target_type):
-        """
-        :param target_type: one of my *_TARGET_TYPE values
-        :return: a list of valid concrete Prediction subclasses for target_type
-        """
-        return {
-            Target.CONTINUOUS_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
-                                            NamedDistribution, QuantileDistribution],
-            Target.DISCRETE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
-                                          NamedDistribution, QuantileDistribution],
-            Target.NOMINAL_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.BINARY_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
-                                      QuantileDistribution]
-        }[target_type]
+        return ((target_type == Target.CONTINUOUS_TARGET_TYPE) and
+                (family_abbrev in (NamedData.NORM_DIST,
+                                   NamedData.LNORM_DIST,
+                                   NamedData.GAMMA_DIST,
+                                   NamedData.BETA_DIST))) or \
+               ((target_type == Target.DISCRETE_TARGET_TYPE) and
+                (family_abbrev in (NamedData.POIS_DIST,
+                                   NamedData.NBINOM_DIST,
+                                   NamedData.NBINOM2_DIST)))
 
 
 #
@@ -400,9 +397,10 @@ class TargetLwr(models.Model):
 
 class TargetRange(models.Model):
     """
-    Associates a 'list' of range values with Targets of type Target.CONTINUOUS_TARGET_TYPE or Target.DISCRETE_TARGET_TYPE. Note that
-    unlike other 'list' Models relating to Target, this one should have exactly two rows per target, where the first
-    one's value is the lower range number, and the second row's value is the upper range number.
+    Associates a 'list' of range values with Targets of type Target.CONTINUOUS_TARGET_TYPE or
+    Target.DISCRETE_TARGET_TYPE. Note that unlike other 'list' Models relating to Target, this one should have exactly
+    two rows per target, where the first one's value is the lower range number, and the second row's value is the upper
+    range number. Is "sparse" in that exactly one of value_i or value_if is non-NULL.
     """
     target = models.ForeignKey('Target', blank=True, null=True, related_name='ranges', on_delete=models.CASCADE)
     value_i = models.IntegerField(null=True)  # NULL if value_f is non-NULL

@@ -124,9 +124,13 @@
                     <td>
                         {% if is_truth_data_loaded %}
                             {# show a link to the truth detail #}
-                            <a href="{% url 'truth-data-detail' project.pk %}">{{ first_truth_forecast.source }}</a>
+                            <a href="{% url 'truth-data-detail' project.pk %}">
+                                {% if first_truth_forecast.source %}
+                                    {{ first_truth_forecast.source }}
+                                {% else %}(no source){% endif %}</a>
                             <small class="text-muted">({{ num_truth_rows|intword|intcomma }} rows)</small>
-                            <small class="text-muted">{{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}</small>.
+                            <small class="text-muted">{{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}</small>
+                            .
                             <a href="{% url 'query-truth' project.pk %}">Download</a>
                         {% else %}
                             {# show that there's no truth data, optionally with upload button #}

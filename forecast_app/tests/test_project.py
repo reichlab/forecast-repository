@@ -7,7 +7,7 @@ from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
-from forecast_app.models import Project, TimeZero, Job, Forecast
+from forecast_app.models import Project, TimeZero, Job, Forecast, PredictionData
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import ProjectDetailView, _upload_truth_worker
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
@@ -15,7 +15,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth_data_preview, truth_data_qs, \
-    delete_truth_data
+    delete_truth_data, oracle_model_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -69,11 +69,11 @@ class ProjectTestCase(TestCase):
 
         # test get_truth_data_preview()
         exp_truth_preview = [
-            [datetime.date(2017, 1, 1), 'US National', '1 wk ahead', 0.73102],
-            [datetime.date(2017, 1, 1), 'US National', '2 wk ahead', 0.688338],
-            [datetime.date(2017, 1, 1), 'US National', '3 wk ahead', 0.732049],
-            [datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641],
-            [datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20']]
+            (datetime.date(2017, 1, 1), 'US National', '1 wk ahead', 0.73102),
+            (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', 0.688338),
+            (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', 0.732049),
+            (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641),
+            (datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20')]
         self.assertEqual(sorted(exp_truth_preview), sorted(get_truth_data_preview(project2)))
 
 
@@ -81,16 +81,21 @@ class ProjectTestCase(TestCase):
         # test truth files that used to be in yyyymmdd or yyyyww (EW) formats
         # truths-ok.csv (2017-01-17-truths.csv would basically test the same)
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-ok.csv'), is_convert_na_none=True)
-        exp_rows = [(datetime.date(2017, 1, 1), 'US National', '1 wk ahead', None, 0.73102, None, None, None),
-                    (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', None, 0.688338, None, None, None),
-                    (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', None, 0.732049, None, None, None),
-                    (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', None, 0.911641, None, None, None),
-                    (datetime.date(2017, 1, 1), 'US National', 'Season onset', None, None, '2017-11-20', None, None)]
-        act_rows = truth_data_qs(self.project) \
-            .order_by('unit__name', 'target__name') \
-            .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
-                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(exp_rows, list(act_rows))
+        exp_rows = [(datetime.date(2017, 1, 1), 'US National', '1 wk ahead', 0.73102),
+                    (datetime.date(2017, 1, 1), 'US National', '2 wk ahead', 0.688338),
+                    (datetime.date(2017, 1, 1), 'US National', '3 wk ahead', 0.732049),
+                    (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641),
+                    (datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20')]
+
+        # note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field instead
+        # of using 'data__value'
+        pred_data_qs = PredictionData.objects \
+            .filter(pred_ele__forecast__forecast_model=oracle_model_for_project(self.project)) \
+            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+                         'pred_ele__target__name', 'data')
+        act_rows = [(tz_date, unit__name, target__name, data['value'])
+                    for tz_date, unit__name, target__name, data in pred_data_qs]
+        self.assertEqual(sorted(exp_rows), sorted(list(act_rows)))
 
         # truths-2016-2017-reichlab-small.csv
         project2 = Project.objects.create()
@@ -98,21 +103,22 @@ class ProjectTestCase(TestCase):
         make_cdc_units_and_targets(project2)
         load_truth_data(project2, Path('forecast_app/tests/truth_data/truths-2016-2017-reichlab-small.csv'),
                         is_convert_na_none=True)
-        exp_rows = [(datetime.date(2016, 10, 30), 'US National', '1 wk ahead', None, 1.55838, None, None, None),
-                    (datetime.date(2016, 10, 30), 'US National', '2 wk ahead', None, 1.64639, None, None, None),
-                    (datetime.date(2016, 10, 30), 'US National', '3 wk ahead', None, 1.91196, None, None, None),
-                    (datetime.date(2016, 10, 30), 'US National', '4 wk ahead', None, 1.81129, None, None, None),
-                    (datetime.date(2016, 10, 30), 'US National', 'Season onset', None, None, '2016-12-11', None, None),
-                    (datetime.date(2016, 10, 30), 'US National', 'Season peak percentage',
-                     None, 5.06094, None, None, None),
-                    (datetime.date(2016, 10, 30), 'US National', 'Season peak week',
-                     None, None, None, datetime.date(2017, 2, 5), None)]
-
-        act_rows = truth_data_qs(project2) \
-            .order_by('unit__name', 'target__name') \
-            .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
-                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(exp_rows, list(act_rows))
+        exp_rows = [(datetime.date(2016, 10, 30), 'US National', '1 wk ahead', 1.55838),
+                    (datetime.date(2016, 10, 30), 'US National', '2 wk ahead', 1.64639),
+                    (datetime.date(2016, 10, 30), 'US National', '3 wk ahead', 1.91196),
+                    (datetime.date(2016, 10, 30), 'US National', '4 wk ahead', 1.81129),
+                    (datetime.date(2016, 10, 30), 'US National', 'Season onset', '2016-12-11'),
+                    (datetime.date(2016, 10, 30), 'US National', 'Season peak percentage', 5.06094),
+                    (datetime.date(2016, 10, 30), 'US National', 'Season peak week', '2017-02-05')]
+        # note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field instead
+        # of using 'data__value'
+        pred_data_qs = PredictionData.objects \
+            .filter(pred_ele__forecast__forecast_model=oracle_model_for_project(project2)) \
+            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+                         'pred_ele__target__name', 'data')
+        act_rows = [(tz_date, unit__name, target__name, data['value'])
+                    for tz_date, unit__name, target__name, data in pred_data_qs]
+        self.assertEqual(sorted(exp_rows), sorted(list(act_rows)))
 
 
     def test_timezeros_unique(self):
@@ -125,17 +131,21 @@ class ProjectTestCase(TestCase):
         self.assertIn("found duplicate TimeZero.timezero_date", str(context.exception))
 
 
-    def test_get_num_rows(self):
+    def test_num_pred_ele_rows_all_models(self):
+        # 154 initial (11 * 7 * 2 = locations * targets * points/bins)
+        self.assertEqual(11 * 7 * 2, self.project.num_pred_ele_rows_all_models(is_oracle=False))
+
         time_zero2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
-        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
+
+        # EW01 2017. 165 rows, 6 zero bins. same number of unique prediction elements, though
+        csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')
         load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, time_zero2)
-        self.assertEqual(self.project.get_num_forecast_rows_all_models(is_oracle=False), 8019 * 2)
-        self.assertEqual(self.project.get_num_forecast_rows_all_models_estimated(),
-                         8019 * 2)  # exact b/c uniform forecasts
+        self.assertEqual((11 * 7 * 2) * 2, self.project.num_pred_ele_rows_all_models(is_oracle=False))
 
 
     def test_summary_counts(self):
-        self.assertEqual((1, 1, 8019), self.project.get_summary_counts())  # num_models, num_forecasts, num_rows
+        # num_models, num_forecasts, num_rows (locations * targets * points/bins)
+        self.assertEqual((1, 1, 11 * 7 * 2), self.project.get_summary_counts())
 
 
     def test_timezero_seasons(self):
@@ -215,19 +225,6 @@ class ProjectTestCase(TestCase):
         # test start_end_dates_for_season()
         self.assertEqual((time_zero7.timezero_date, time_zero7.timezero_date),
                          project3.start_end_dates_for_season(None))
-
-        # test unit_to_max_val()
-        forecast_model = ForecastModel.objects.create(project=project2, name='name', abbreviation='abbrev')
-        csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
-        load_cdc_csv_forecast_file(2016, forecast_model, csv_file_path, time_zero3)
-        exp_unit_to_max_val = {'HHS Region 1': 2.06145600601835, 'HHS Region 10': 2.89940153907353,
-                               'HHS Region 2': 4.99776594895244, 'HHS Region 3': 2.99944727598047,
-                               'HHS Region 4': 2.62168214634388, 'HHS Region 5': 2.19233072084465,
-                               'HHS Region 6': 4.41926018901693, 'HHS Region 7': 2.79371802884364,
-                               'HHS Region 8': 1.69920709944699, 'HHS Region 9': 3.10232205135854,
-                               'US National': 3.00101461253164}
-        act_unit_to_max_val = project2.unit_to_max_val('season1', project2.step_ahead_targets())
-        self.assertEqual(exp_unit_to_max_val, act_unit_to_max_val)
 
         # test timezero_to_season_name()
         exp_timezero_to_season_name = {
@@ -320,11 +317,11 @@ class ProjectTestCase(TestCase):
 
         # add a second forecast for a newer timezero (yes truth, yes forecasts)
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions-non-dup.json',
                                             time_zero=time_zero2, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
         self.assertEqual(forecast2.created_at, project.last_update())
 
 

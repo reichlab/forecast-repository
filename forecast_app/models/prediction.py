@@ -59,8 +59,6 @@ class PointPrediction(Prediction):
     Concrete class representing point predictions. Note that point values can be integers, floats, or text, depending on
     the Target.point_value_type associated with the prediction. We chose to implement this as a sparse table where two
     of the three columns is NULL in every row.
-
-    NB: "retracted" predictions are represented as a row with all NULLs.
     """
 
     value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
@@ -108,8 +106,6 @@ class NamedDistribution(Prediction):
     Each family has a definition that describes parameter semantics, parameter types, abbreviations, and `calculate()`
     implementations - see FAMILY_DEFINITIONS. FAMILY_CHOICES below defines the family_id for each family, which is
     referenced in FAMILY_DEFINITIONS.
-
-    NB: "retracted" predictions are represented as a row with all NULLs, which is why `null=True` in `family` below.
     """
 
     NORM_DIST = 0
@@ -128,9 +124,9 @@ class NamedDistribution(Prediction):
         (NBINOM_DIST, 'Negative Binomial'),
         (NBINOM2_DIST, 'Negative Binomial 2'),
     )
-    family = models.IntegerField(choices=FAMILY_CHOICES, null=True)  # NULL only if a retracted prediction
+    family = models.IntegerField(choices=FAMILY_CHOICES)
 
-    param1 = models.FloatField(null=True)  # the first parameter. NULL only if a retracted prediction
+    param1 = models.FloatField(null=True)  # the first parameter
     param2 = models.FloatField(null=True)  # second
     param3 = models.FloatField(null=True)  # third
 
@@ -148,8 +144,8 @@ class NamedDistribution(Prediction):
 
 
     def __repr__(self):
-        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
-                    self.family, self.param1, self.param2, self.param3))
+        return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk,
+                    self.family, '.', self.param1, self.param2, self.param3))
 
 
     def __str__(self):  # todo
@@ -205,8 +201,6 @@ class BinDistribution(EmpiricalDistribution):
     Concrete class representing binned distribution with a category for each bin. Like PointPrediction, we trade off
     database design by having multiple fields/columns for required data/field types. For a particular object/record, all
     but one are NULL.
-
-    NB: "retracted" predictions are represented as a row with all NULLs, which is why `null=True` in `prob` below.
     """
 
     cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
@@ -214,7 +208,7 @@ class BinDistribution(EmpiricalDistribution):
     cat_t = models.TextField(null=True)  # ""
     cat_d = models.DateField(null=True)  # ""
     cat_b = models.NullBooleanField(null=True)  # ""
-    prob = models.FloatField(null=True)  # NULL only if a retracted prediction
+    prob = models.FloatField()
 
 
     def __repr__(self):
@@ -231,8 +225,6 @@ class SampleDistribution(EmpiricalDistribution):
     Concrete class representing character string samples from categories. Like PointPrediction, we trade off database
     design by having multiple fields/columns for required data/field types. For a particular object/record, all but one
     are NULL.
-
-    NB: "retracted" predictions are represented as a row with all NULLs.
     """
 
     sample_i = models.IntegerField(null=True)  # NULL if any others non-NULL
@@ -255,11 +247,9 @@ class QuantileDistribution(EmpiricalDistribution):
     """
     Concrete class representing quantile distributions. Like PointPrediction, we trade off database design by having
     multiple fields/columns for required data/field types. For a particular object/record, all but one are NULL.
-
-    NB: "retracted" predictions are represented as a row with all NULLs, which is why `null=True` in `quantile` below.
     """
 
-    quantile = models.FloatField(null=True)  # NULL only if a retracted prediction
+    quantile = models.FloatField()
     value_i = models.IntegerField(null=True)  # NULL if any others non-NULL
     value_f = models.FloatField(null=True)  # ""
     value_d = models.DateField(null=True)  # ""
@@ -267,4 +257,4 @@ class QuantileDistribution(EmpiricalDistribution):
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.unit.pk, self.target.pk, '.',
-                    self.quantile, self.value_i, self.value_f, self.value_d))
+                    self.quantile, '.', self.value_i, self.value_f, self.value_d))

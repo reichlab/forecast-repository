@@ -10,7 +10,7 @@ from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 from rq.timeouts import JobTimeoutException
 
-from forecast_app.models import Project, TimeZero, Job
+from forecast_app.models import Project, TimeZero, Job, PredictionElement
 from forecast_app.models.forecast import Forecast
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.views import _upload_forecast_worker
@@ -53,21 +53,12 @@ class ForecastTestCase(TestCase):
         self.assertEqual(1, len(self.forecast_model.forecasts.all()))
         self.assertIsInstance(self.forecast, Forecast)
         self.assertEqual('EW1-KoTstable-2017-01-17.csv', self.forecast.source)
-        self.assertEqual(8019, self.forecast.get_num_rows())  # excluding header
+        self.assertEqual(11 * 7 * 2, self.forecast.pred_eles.count())  # locations * targets * points/bins
 
         # check 'US National' targets: spot-check a few point rows
-        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None, None, None),  # _i, _f, _t, _d, _b
-                      ('US National', '2 wk ahead', None, 2.72809349594878, None, None, None),
-                      ('US National', '3 wk ahead', None, 2.5332588357381, None, None, None),
-                      ('US National', '4 wk ahead', None, 2.42985946508278, None, None, None),
-                      ('US National', 'Season onset', None, None, '2016-12-12', None, None),
-                      ('US National', 'Season peak percentage', None, 3.30854920241938, None, None, None),
-                      ('US National', 'Season peak week', None, None, None, datetime.date(2017, 1, 30), None)]
-        act_points_qs = self.forecast.point_prediction_qs() \
-            .filter(unit__name='US National') \
-            .order_by('unit__name', 'target__name') \
-            .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(exp_points, list(act_points_qs))
+        act_points_qs = self.forecast.pred_eles.filter(unit__name='US National',
+                                                       pred_class=PredictionElement.POINT_CLASS)
+        self.assertEqual(7, act_points_qs.count())
 
         # test empty file
         with self.assertRaises(RuntimeError) as context:
@@ -90,27 +81,6 @@ class ForecastTestCase(TestCase):
             csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
             load_cdc_csv_forecast_file(2016, forecast_model2, csv_file_path, self.time_zero)
         self.assertIn("time_zero was not in project", str(context.exception))
-
-
-    def test_load_forecast_skips_zero_values(self):
-        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-        with open('forecast_app/tests/predictions/cdc_zero_probabilities.json') as fp:
-            json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict, False)
-
-        # test points: both should be there (points are not skipped)
-        self.assertEqual(2, forecast2.point_prediction_qs().count())
-
-        # test bins: 2 out of 6 have zero probabilities and should be skipped
-        exp_bins = [('HHS Region 1', '1 wk ahead', 0.2, None, 0.1, None, None, None),  # _i, _f, _t, _d, _b
-                    ('HHS Region 1', '1 wk ahead', 0.8, None, 0.2, None, None, None),
-                    ('US National', 'Season onset', 0.1, None, None, 'cat2', None, None),
-                    ('US National', 'Season onset', 0.9, None, None, 'cat3', None, None)]
-        bin_distribution_qs = forecast2.bin_distribution_qs() \
-            .order_by('unit__name', 'target__name', 'prob') \
-            .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-        self.assertEqual(4, bin_distribution_qs.count())
-        self.assertEqual(exp_bins, list(bin_distribution_qs))
 
 
     def test_load_forecasts_from_dir(self):
@@ -183,149 +153,42 @@ class ForecastTestCase(TestCase):
         self.fail()  # todo
 
 
-    def test_forecast_data_and_accessors(self):
-        # test points
-        point_prediction_qs = self.forecast.point_prediction_qs() \
-            .order_by('unit__name', 'target__name') \
-            .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(77, point_prediction_qs.count())  # 11 units x 7 targets x 1 point/unit-target pair
-
-        # spot-check a unit
-        exp_points = [('US National', '1 wk ahead', None, 3.00101461253164, None, None, None),  # _i, _f, _t, _d, _b
-                      ('US National', '2 wk ahead', None, 2.72809349594878, None, None, None),
-                      ('US National', '3 wk ahead', None, 2.5332588357381, None, None, None),
-                      ('US National', '4 wk ahead', None, 2.42985946508278, None, None, None),
-                      ('US National', 'Season onset', None, None, '2016-12-12', None, None),
-                      ('US National', 'Season peak percentage', None, 3.30854920241938, None, None, None),
-                      ('US National', 'Season peak week', None, None, None, datetime.date(2017, 1, 30), None)]
-        # re: EW translations to absolute dates:
-        # - self.forecast's season_start_year is 2016
-        # - EW '50.0012056690978' within that file rounds down to EW50
-        # - EW50 in season_start_year is 2016 -> EW50 2016 (50 >= SEASON_START_EW_NUMBER -> is in season_start_year)
-        # - EW50 2016 is the week ending Saturday 12/17/2016. that week's Monday is 12/12/2016, formatted as
-        #   '2016-12-12'. it says a string b/c the target is nominal
-        # similarly:
-        # - EW '4.96302456525203' within that file rounds up to EW05
-        # - EW05 in season_start_year is 2016 -> EW05 2017 (5 < SEASON_START_EW_NUMBER -> is in season_start_year + 1)
-        # - EW05 2017 is the week ending Saturday 2/4/2017. that week's Monday is 1/30/2017, formatted as '2017-01-30'.
-        #   it is a datetime.date b/c the target is date
-        self.assertEqual(exp_points, list(point_prediction_qs.filter(unit__name='US National')))
-
-        # test bins
-        bin_distribution_qs = self.forecast.bin_distribution_qs() \
-            .order_by('unit__name', 'target__name') \
-            .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-        self.assertEqual(7942, bin_distribution_qs.count())
-
-        # spot-check a unit and date-based target ('Season onset') which is actually nominal (text), but contains
-        # date strings (due to 'none' values not being date objects)
-        exp_bins = [
-            # EW40 2016. Sat end: 10/8/2016 -> Mon: 10/3/2016:
-            ('US National', 'Season onset', 1.95984004521967e-05, '2016-10-03'),
-            ('US National', 'Season onset', 1.46988003391476e-05, '2016-10-10'),
-            ('US National', 'Season onset', 6.98193016109509e-06, '2016-10-17'),
-            ('US National', 'Season onset', 3.79719008761312e-06, '2016-10-24'),
-            ('US National', 'Season onset', 4.28715009891804e-06, '2016-10-31'),
-            ('US National', 'Season onset', 1.59237003674098e-05, '2016-11-07'),
-            ('US National', 'Season onset', 3.0989970715036e-05, '2016-11-14'),
-            ('US National', 'Season onset', 5.3895601243541e-05, '2016-11-21'),
-            ('US National', 'Season onset', 7.49638817296525e-05, '2016-11-28'),
-            ('US National', 'Season onset', 0.000110241002543607, '2016-12-05'),
-            ('US National', 'Season onset', 0.998941808865584, '2016-12-12'),
-            ('US National', 'Season onset', 0.000165973953829541, '2016-12-19'),
-            # EW52 2016. Sat end: 12/31/2016 -> Mon: 12/26/2016:
-            ('US National', 'Season onset', 0.000147110493394302, '2016-12-26'),
-            # EW01 2017. Sat end: 1/7/2017 -> Mon: 1/2/2017:
-            ('US National', 'Season onset', 9.7624532252505e-05, '2017-01-02'),
-            ('US National', 'Season onset', 5.41405812491935e-05, '2017-01-09'),
-            ('US National', 'Season onset', 3.8951820898741e-05, '2017-01-16'),
-            ('US National', 'Season onset', 4.99759211531016e-05, '2017-01-23'),
-            ('US National', 'Season onset', 4.09116609439607e-05, '2017-01-30'),
-            ('US National', 'Season onset', 3.60120608309115e-05, '2017-02-06'),
-            ('US National', 'Season onset', 2.51104505793771e-05, '2017-02-13'),
-            ('US National', 'Season onset', 2.09457904832853e-05, '2017-02-20'),
-            ('US National', 'Season onset', 1.99658704606754e-05, '2017-02-27'),
-            ('US National', 'Season onset', 1.6536150381541e-05, '2017-03-06'),
-            ('US National', 'Season onset', 6.00201013848525e-06, '2017-03-13'),
-            ('US National', 'Season onset', 2.20482005087213e-06, '2017-03-20'),
-            ('US National', 'Season onset', 3.6747000847869e-07, '2017-03-27'),
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-03'),
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-10'),
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-17'),
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-04-24'),
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-01'),
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-08'),
-            # EW20 2017. Sat end: 5/20/2017 -> Mon: 5/15/2017:
-            ('US National', 'Season onset', 1.22490002826229e-07, '2017-05-15'),
-            ('US National', 'Season onset', 1.22490002826229e-07, 'none')]
-        bin_distribution_qs = self.forecast.bin_distribution_qs() \
-            .filter(unit__name='US National', target__name='Season onset') \
-            .order_by('unit__name', 'target__name', 'cat_t') \
-            .values_list('unit__name', 'target__name', 'prob', 'cat_t')
-        self.assertEqual(34, bin_distribution_qs.count())
-        self.assertEqual(exp_bins, list(bin_distribution_qs))
-
-        # spot-check a unit an an actual date-based target ('Season peak week')
-        exp_bins = [
-            # EW40 2016. Sat end: 10/8/2016 -> Mon: 10/3/2016:
-            ('US National', 'Season peak week', 3.88312283001796e-05, datetime.date(2016, 10, 3)),
-            ('US National', 'Season peak week', 4.32690829630572e-05, datetime.date(2016, 10, 10)),
-            ('US National', 'Season peak week', 4.27143511301975e-05, datetime.date(2016, 10, 17)),
-            ('US National', 'Season peak week', 4.82616694587946e-05, datetime.date(2016, 10, 24)),
-            ('US National', 'Season peak week', 3.66123009687408e-05, datetime.date(2016, 10, 31)),
-            ('US National', 'Season peak week', 3.16197144730033e-05, datetime.date(2016, 11, 7)),
-            ('US National', 'Season peak week', 2.49629324786868e-05, datetime.date(2016, 11, 14)),
-            ('US National', 'Season peak week', 4.99258649573737e-05, datetime.date(2016, 11, 21)),
-            ('US National', 'Season peak week', 8.48739704275352e-05, datetime.date(2016, 11, 28)),
-            ('US National', 'Season peak week', 0.000148113399373542, datetime.date(2016, 12, 5)),
-            ('US National', 'Season peak week', 0.000217454878481005, datetime.date(2016, 12, 12)),
-            ('US National', 'Season peak week', 0.000290124748585627, datetime.date(2016, 12, 19)),
-            # EW52 2016. Sat end: 12/31/2016 -> Mon: 12/26/2016:
-            ('US National', 'Season peak week', 0.183889955515593, datetime.date(2016, 12, 26)),
-            # EW01 2017. Sat end: 1/7/2017 -> Mon: 1/2/2071:
-            ('US National', 'Season peak week', 0.000328955976885807, datetime.date(2017, 1, 2)),
-            ('US National', 'Season peak week', 0.0813603183066327, datetime.date(2017, 1, 9)),
-            ('US National', 'Season peak week', 0.113514362560564, datetime.date(2017, 1, 16)),
-            ('US National', 'Season peak week', 0.0918622520724573, datetime.date(2017, 1, 23)),
-            ('US National', 'Season peak week', 0.0636838880421198, datetime.date(2017, 1, 30)),
-            ('US National', 'Season peak week', 0.0985233865781112, datetime.date(2017, 2, 6)),
-            ('US National', 'Season peak week', 0.104099128806362, datetime.date(2017, 2, 13)),
-            ('US National', 'Season peak week', 0.0403122043568698, datetime.date(2017, 2, 20)),
-            ('US National', 'Season peak week', 0.0641961804893339, datetime.date(2017, 2, 27)),
-            ('US National', 'Season peak week', 0.0951013531890285, datetime.date(2017, 3, 6)),
-            ('US National', 'Season peak week', 0.025085879433318, datetime.date(2017, 3, 13)),
-            ('US National', 'Season peak week', 0.0182445605042546, datetime.date(2017, 3, 20)),
-            ('US National', 'Season peak week', 0.0103074209280581, datetime.date(2017, 3, 27)),
-            ('US National', 'Season peak week', 0.00205822405270794, datetime.date(2017, 4, 3)),
-            ('US National', 'Season peak week', 0.0018802440369379, datetime.date(2017, 4, 10)),
-            ('US National', 'Season peak week', 0.00102908781284421, datetime.date(2017, 4, 17)),
-            ('US National', 'Season peak week', 0.000848733083646314, datetime.date(2017, 4, 24)),
-            ('US National', 'Season peak week', 0.00133599391065648, datetime.date(2017, 5, 1)),
-            ('US National', 'Season peak week', 0.000699739274163662, datetime.date(2017, 5, 8)),
-            # EW20 2017. Sat end: 5/20/2017 -> Mon: 5/15/2017:
-            ('US National', 'Season peak week', 0.000581366927856728, datetime.date(2017, 5, 15))]
-        bin_distribution_qs = self.forecast.bin_distribution_qs() \
-            .filter(unit__name='US National', target__name='Season peak week') \
-            .order_by('unit__name', 'target__name', 'cat_d') \
-            .values_list('unit__name', 'target__name', 'prob', 'cat_d')
-        self.assertEqual(33, bin_distribution_qs.count())
-        self.assertEqual(exp_bins, list(bin_distribution_qs))
-
-
     def test_delete_forecast(self):
-        # add a second forecast, check its rows were added, delete it, and test that the data was deleted (via CASCADE)
+        # add a second forecast version, check its rows were added, delete it, and test that the data was deleted (via
+        # CASCADE)
         self.assertEqual(1, self.forecast_model.forecasts.count())  # from setUpTestData()
-        self.assertEqual(8019, self.forecast.get_num_rows())  # ""
+        self.assertEqual(11 * 7 * 2, self.forecast.pred_eles.count())  # locations * targets * points/bins
 
         csv_file_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv')  # EW01 2017
         forecast2 = load_cdc_csv_forecast_file(2016, self.forecast_model, csv_file_path, self.time_zero)
-        self.assertEqual(2, self.forecast_model.forecasts.count())  # includes new
-        self.assertEqual(5237, forecast2.get_num_rows())  # 8019 total rows - 2782 zero-valued bin rows = 5237 non-zero
-        self.assertEqual(8019, self.forecast.get_num_rows())  # didn't change
+        self.assertEqual(2, self.forecast_model.forecasts.count())  # now two
+        self.assertEqual(11 * 7 * 2, self.forecast.pred_eles.count())
+
+        # turns out there are the 17 duplicates that are not loaded. MUS: from an sqlite3 run:
+        #   f  cls  u    t   is_r   hash
+        # [(2,  2,   1,  1,   0,    'af49e5f6850e59638eb322a2293bd6c4'),  # {'value': '2016-12-26'}  'HHS Region 1', 'Season onset'
+        #  (2,  2,   1,  2,   0,    'edb5fbaf20fbba5d1d1455d864f2bc95'),  # {'value': '2017-02-06'}  'HHS Region 1', 'Season peak week'
+        #  (2,  2,  10,  1,   0,    '73c3608a9829c5fe4103d1fd2b26c369'),  # {'value': '2016-12-12'}  'HHS Region 10', 'Season onset'
+        #  (2,  2,  10,  2,   0,    '5959bec40e3eb79763a6cd78e150e145'),  # {'value': '2017-01-09'}  'HHS Region 10', 'Season peak week'
+        #  (2,  2,   2,  1,   0,    'f0cc965a8f901a09412f4a8e87c5aa3e'),  # {'value': '2016-11-21'}
+        #  (2,  2,   3,  1,   0,    '0f6791070c029b74186f03f98e487b59'),  # {'value': '2016-12-19'}
+        #  (2,  2,   4,  1,   0,    '3b2bdabc810ce299f0e35a55b107c374'),  # {'value': '2016-11-14'}
+        #  (2,  2,   4,  2,   0,    '177183a5a9c19cedca454389aa796aee'),  # {'value': '2017-02-13'}
+        #  (2,  2,   5,  1,   0,    'af49e5f6850e59638eb322a2293bd6c4'),  # {'value': '2016-12-26'}
+        #  (2,  2,   6,  1,   0,    'af49e5f6850e59638eb322a2293bd6c4'),  # {'value': '2016-12-26'}  ...
+        #  (2,  2,   6,  2,   0,    '177183a5a9c19cedca454389aa796aee'),  # {'value': '2017-02-13'}
+        #  (2,  2,   7,  1,   0,    'af49e5f6850e59638eb322a2293bd6c4'),  # {'value': '2016-12-26'}
+        #  (2,  2,   8,  1,   0,    '0f6791070c029b74186f03f98e487b59'),  # {'value': '2016-12-19'}
+        #  (2,  2,   9,  1,   0,    '0f6791070c029b74186f03f98e487b59'),  # {'value': '2016-12-19'}
+        #  (2,  2,   9,  2,   0,    'edb5fbaf20fbba5d1d1455d864f2bc95'),  # {'value': '2017-02-06'}
+        #  (2,  2,  11,  1,   0,    '73c3608a9829c5fe4103d1fd2b26c369'),  # {'value': '2016-12-12'}  'US National', 'Season onset'
+        #  (2,  2,  11,  2,   0,    '86bf4bd34d86b349754bcc7412857faa')   # {'value': '2017-01-30'}  'US National', 'Season peak week'
+        # ]
+        self.assertEqual((11 * 7 * 2 - 17), forecast2.pred_eles.count())  # 154 - 17 duplicates = 137
 
         forecast2.delete()
         self.assertEqual(1, self.forecast_model.forecasts.count())  # back to one
-        self.assertEqual(0, forecast2.get_num_rows())  # cascaded DELETE
+        self.assertEqual(0, forecast2.pred_eles.count())
 
 
     def test_forecast_for_time_zero(self):
@@ -352,9 +215,7 @@ class ForecastTestCase(TestCase):
 
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)
-            # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-            #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
+            load_predictions_from_json_io_dict(forecast, json_io_dict_in, is_validate_cats=False)
             json_io_dict_out = json_io_dict_from_forecast(forecast, APIRequestFactory().request())
 
         # test round trip. ignore meta, but spot-check it first
@@ -371,18 +232,10 @@ class ForecastTestCase(TestCase):
         del (json_io_dict_in['meta'])
         del (json_io_dict_out['meta'])
 
-        # delete the two zero probability bins in the input (they are discarded when loading predictions)
-        # - [11] "unit": "location3", "target": "cases next week", "class": "bin"
-        # - [14] "unit": "location1", "target": "season severity", "class": "bin"
-        del (json_io_dict_in['predictions'][11]['prediction']['cat'][0])  # 0
-        del (json_io_dict_in['predictions'][11]['prediction']['prob'][0])  # 0.0
-        del (json_io_dict_in['predictions'][14]['prediction']['cat'][0])  # 'mild'
-        del (json_io_dict_in['predictions'][14]['prediction']['prob'][0])  # 0.0
-
         json_io_dict_in['predictions'].sort(key=lambda _: (_['unit'], _['target'], _['class']))
         json_io_dict_out['predictions'].sort(key=lambda _: (_['unit'], _['target'], _['class']))
 
-        self.assertEqual(json_io_dict_out, json_io_dict_in)
+        self.assertEqual(json_io_dict_in, json_io_dict_out)
 
         # spot-check some sample predictions
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']

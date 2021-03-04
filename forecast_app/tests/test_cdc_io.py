@@ -4,10 +4,10 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import PointPrediction, Project, ForecastModel, TimeZero, Forecast
+from forecast_app.models import Project, ForecastModel, TimeZero, Forecast, PredictionElement
 from utils.cdc_io import json_io_dict_from_cdc_csv_file, make_cdc_units_and_targets, \
     _monday_date_from_ew_and_season_start_year
-from utils.forecast import load_predictions_from_json_io_dict, PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS
+from utils.forecast import load_predictions_from_json_io_dict, PRED_CLASS_INT_TO_NAME
 
 
 class CdcIOTestCase(TestCase):
@@ -42,7 +42,7 @@ class CdcIOTestCase(TestCase):
                 open(exp_json_path) as exp_json_fp:
             exp_json_io_dict = json.load(exp_json_fp)
             exp_predictions = [prediction_dict for prediction_dict in exp_json_io_dict['predictions']
-                               if prediction_dict['class'] == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]]
+                               if prediction_dict['class'] == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]]
             act_json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             self.assertEqual(7, len(act_json_io_dict['predictions']))
             self.assertEqual(exp_predictions, act_json_io_dict['predictions'])
@@ -72,15 +72,10 @@ class CdcIOTestCase(TestCase):
 
         forecast_model = ForecastModel.objects.create(project=project, name='model', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
-        cdc_csv_path = Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv')  # EW01 2017
-        forecast = Forecast.objects.create(forecast_model=forecast_model, source=cdc_csv_path.name, time_zero=time_zero)
+        forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
 
         with open(self.cdc_csv_path) as cdc_csv_fp:
             json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict, False)
-        self.assertEqual(729, forecast.get_num_rows())
-        self.assertEqual(722, forecast.bin_distribution_qs().count())  # 729 - 7
-        self.assertEqual(0, forecast.named_distribution_qs().count())
-        self.assertEqual(7, forecast.point_prediction_qs().count())
-        self.assertEqual(0, forecast.sample_distribution_qs().count())
-        self.assertEqual(0, forecast.quantile_prediction_qs().count())
+            load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)
+
+        self.assertEqual(1 * 7 * 2, forecast.pred_eles.count())  # locations * targets * points/bins

@@ -8,9 +8,10 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.test import TestCase
 
-from forecast_app.models import Target, PointPrediction, BinDistribution, SampleDistribution, NamedDistribution, \
-    Project, QuantileDistribution
+from forecast_app.models import Target, Project, Forecast
 from forecast_app.models.target import TargetRange, TargetCat, TargetLwr
+from utils.forecast import load_predictions_from_json_io_dict, NamedData
+from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.utilities import get_or_create_super_po_mo_users
 
@@ -199,33 +200,61 @@ class TargetTestCase(TestCase):
             self.assertEqual(is_compatible_tuple, Target.is_value_compatible_with_target_type(target_type, value))
 
 
-    def test_target_type_to_valid_named_families(self):
-        target_type_to_exp_valid_named_families = {
-            Target.CONTINUOUS_TARGET_TYPE: [NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                            NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST],
-            Target.DISCRETE_TARGET_TYPE: [NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
-                                          NamedDistribution.NBINOM2_DIST],
-            Target.NOMINAL_TARGET_TYPE: [],  # n/a
-            Target.BINARY_TARGET_TYPE: [],  # n/a
-            Target.DATE_TARGET_TYPE: [],  # n/a
-        }
-        for target_type, exp_valid_named_families in target_type_to_exp_valid_named_families.items():
-            self.assertEqual(exp_valid_named_families, Target.valid_named_families(target_type))
+    def test_valid_prediction_types_by_target_type(self):
+        # test invalid combinations of prediction types by target type (valid combos are tested elsewhere). see table at
+        # https://docs.zoltardata.com/targets/#valid-prediction-types-by-target-type . -> invalid combos:
+        #
+        # PredictionElement.NAMED_CLASS    + Target.CONTINUOUS_TARGET_TYPE + (pois, nbinom, nbinom2)
+        # PredictionElement.NAMED_CLASS    + Target.DISCRETE_TARGET_TYPE   + (norm, lnorm, gamma, beta)
+        # PredictionElement.NAMED_CLASS    + Target.NOMINAL_TARGET_TYPE    + any family (norm, lnorm, gamma, beta, pois, nbinom, nbinom2)
+        # PredictionElement.NAMED_CLASS    + Target.BINARY_TARGET_TYPE     + any family
+        # PredictionElement.NAMED_CLASS    + Target.DATE_TARGET_TYPE       + any family
+        # PredictionElement.QUANTILE_CLASS + Target.NOMINAL_TARGET_TYPE
+        # PredictionElement.QUANTILE_CLASS + Target.BINARY_TARGET_TYPE
 
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.save()
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
 
-    def test_target_type_to_valid_prediction_types(self):
-        target_type_to_exp_pred_types = {  # simply a duplicate of valid_prediction_types()
-            Target.CONTINUOUS_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
-                                            NamedDistribution, QuantileDistribution],
-            Target.DISCRETE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
-                                          NamedDistribution, QuantileDistribution],
-            Target.NOMINAL_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.BINARY_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution],
-            Target.DATE_TARGET_TYPE: [PointPrediction, BinDistribution, SampleDistribution,
-                                      QuantileDistribution]
-        }
-        for target_type, exp_prediction_types in target_type_to_exp_pred_types.items():
-            self.assertEqual(exp_prediction_types, Target.valid_prediction_types(target_type))
+        # test PredictionElement.NAMED_CLASS
+        all_families = (NamedData.NORM_DIST, NamedData.LNORM_DIST, NamedData.GAMMA_DIST,
+                        NamedData.BETA_DIST, NamedData.POIS_DIST, NamedData.NBINOM_DIST,
+                        NamedData.NBINOM2_DIST)
+        bad_target_families = [('pct next week', (NamedData.POIS_DIST,  # Target.CONTINUOUS_TARGET_TYPE
+                                                  NamedData.NBINOM_DIST,
+                                                  NamedData.NBINOM2_DIST)),
+                               ('cases next week', (NamedData.NORM_DIST,  # Target.DISCRETE_TARGET_TYPE
+                                                    NamedData.LNORM_DIST,
+                                                    NamedData.GAMMA_DIST,
+                                                    NamedData.BETA_DIST)),
+                               ('season severity', all_families),  # Target.NOMINAL_TARGET_TYPE
+                               ('above baseline', all_families),  # Target.BINARY_TARGET_TYPE
+                               ('Season peak week', all_families)]  # Target.DATE_TARGET_TYPE
+        for target, families in bad_target_families:
+            for family_abbrev in families:
+                prediction_dict = {'unit': 'location1',
+                                   'target': target,
+                                   'class': 'named',
+                                   'prediction': {'family': family_abbrev, 'param1': 1.1, 'param2': 2.2, 'param3': 3.3}}
+                with self.assertRaises(RuntimeError) as context:
+                    load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})
+                self.assertIn('is not valid for', str(context.exception))
+
+        # test PredictionElement.QUANTILE_CLASS
+        bad_target_pred_data = [('season severity', {"quantile": [0.25, 0.75],  # Target.NOMINAL_TARGET_TYPE
+                                                     "value": ["mild", "moderate"]}),
+                                ('above baseline', {"quantile": [0.25, 0.75],  # Target.BINARY_TARGET_TYPE
+                                                    "value": [True, False]})]
+        for target, pred_data in bad_target_pred_data:
+            prediction_dict = {'unit': 'location1',
+                               'target': target,
+                               'class': 'quantile',
+                               'prediction': pred_data}
+            with self.assertRaises(RuntimeError) as context:
+                load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})
+            self.assertIn('is not valid for', str(context.exception))
 
 
     def test_target_set_range(self):

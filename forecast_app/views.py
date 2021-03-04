@@ -22,22 +22,24 @@ from django.views.generic import DetailView, ListView
 from rq.timeouts import JobTimeoutException
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm, QueryForm
-from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Prediction, Unit, Target, BinDistribution, \
-    NamedDistribution, PointPrediction, SampleDistribution, QuantileDistribution, ForecastMetaPrediction
+from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Unit, Target, ForecastMetaPrediction, \
+    PredictionData, PredictionElement
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_TRUTH
+from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
-from utils.forecast import PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, data_rows_from_forecast, \
-    is_forecast_metadata_available, forecast_metadata, forecast_metadata_counts_for_project
+from utils.forecast import data_rows_from_forecast, is_forecast_metadata_available, forecast_metadata, \
+    forecast_metadata_counts_for_project
 from utils.project import config_dict_from_project, create_project_from_json, group_targets, unit_rows_for_project, \
     models_summary_table_rows_for_project, target_rows_for_project, latest_forecast_ids_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
-from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, get_num_truth_rows, delete_truth_data, \
-    first_truth_data_forecast, oracle_model_for_project
+from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, delete_truth_data, \
+    first_truth_data_forecast, oracle_model_for_project, truth_data_qs
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+
 
 logger = logging.getLogger(__name__)
 
@@ -142,19 +144,6 @@ def delete_jobs(request):
 # ---- visualization-related view functions ----
 #
 
-def project_visualizations(request, project_pk):
-    """
-    View function to render various visualizations for a particular project.
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    return render(request, 'message.html',
-                  context={'title': f"Project visualizations for '{project.name}'",
-                           'message': "Zoltar visualization is under construction."})
-
-
 def project_explorer(request, project_pk):
     """
     View function to render various exploration tabs for a particular project.
@@ -209,9 +198,8 @@ def project_forecasts(request, project_pk):
                      'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
     for f_id, f_issue_date, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
         counts = forecast_id_to_counts[f_id]  # [None, None, None] if forecast_id is None (via defauldict)
-        num_rows = sum(counts[0]) if counts[0] is not None else 0
         forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issue_date, f_created_at,
-                              reverse('model-detail', args=[fm_id]), fm_abbrev, num_rows))
+                              reverse('model-detail', args=[fm_id]), fm_abbrev, (counts[0])))
 
     return render(request, 'project_forecasts.html',
                   context={'project': project,
@@ -306,6 +294,7 @@ def query_project(request, project_pk, query_type):
     :param query_type: a QueryType enum value indicating the type of query to run
     """
     from forecast_app.api_views import _create_query_job  # avoid circular imports
+
 
     project = get_object_or_404(Project, pk=project_pk)
     if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
@@ -543,6 +532,7 @@ def delete_project(request, project_pk):
     # imported here so that tests can patch via mock:
     from utils.project import delete_project_iteratively
 
+
     project_name = project.name
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
@@ -675,12 +665,15 @@ def delete_model(request, model_pk):
 class UserListView(UserPassesTestMixin, ListView):
     model = User
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         return is_user_ok_admin(self.request.user)
+
 
     def get_context_data(self, **kwargs):
         # collect user info
@@ -705,13 +698,16 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
     """
     model = Project
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         project = self.get_object()
         return is_user_ok_view_project(self.request.user, project)
+
 
     def get_context_data(self, **kwargs):
         project = self.get_object()
@@ -729,11 +725,12 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
-        context['num_truth_rows'] = get_num_truth_rows(project)
+        context['num_truth_rows'] = truth_data_qs(project).count()
         context['is_truth_data_loaded'] = is_truth_data_loaded(project)
         context['first_truth_forecast'] = first_truth_data_forecast(project)
         context['project_summary_info'] = project_summary_info(project)
         return context
+
 
     @staticmethod
     def timezeros_num_forecasts(project):
@@ -784,13 +781,16 @@ class UserDetailView(UserPassesTestMixin, DetailView):
     # rename from the default 'user', which shadows the context var of that name that's always passed to templates:
     context_object_name = 'detail_user'
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         detail_user = self.get_object()
         return is_user_ok_edit_user(self.request.user, detail_user)
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -812,13 +812,16 @@ class UserDetailView(UserPassesTestMixin, DetailView):
 class ForecastModelDetailView(UserPassesTestMixin, DetailView):
     model = ForecastModel
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         forecast_model = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast_model.project)
+
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -850,13 +853,16 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
 class ForecastDetailView(UserPassesTestMixin, DetailView):
     model = Forecast
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
 
+
     def test_func(self):  # return True if the current user can access the view
         forecast = self.get_object()
         return is_user_ok_view_project(self.request.user, forecast.forecast_model.project)
+
 
     def get_context_data(self, **kwargs):
         forecast = self.get_object()
@@ -896,6 +902,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['is_metadata_available'] = is_metadata_available
         context['version_str'] = version_str
+        context['num_pred_eles'] = sum(map(lambda _: _[1], pred_type_count_pairs))
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
         context['found_units'] = sorted(found_units, key=lambda _: _.name)
         context['found_targets'] = found_targets
@@ -909,27 +916,29 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_sample'] = data_rows_sample
         return context
 
+
     def forecast_metadata_cached(self):
         """
         ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
         `is_forecast_metadata_available(forecast)` is True, i.e., does not check whether metadata is present.
 
         :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets for forecast), where pred_type_count_pairs
-            is a 2-tuple: (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, count)
+            is a 2-tuple: (PRED_CLASS_INT_TO_NAME, count)
         """
         forecast = self.get_object()
         forecast_meta_prediction, forecast_meta_unit_qs, forecast_meta_target_qs = forecast_metadata(forecast)
         pred_type_count_pairs = [
-            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution], forecast_meta_prediction.bin_count),
-            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution], forecast_meta_prediction.named_count),
-            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction], forecast_meta_prediction.point_count),
-            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution], forecast_meta_prediction.sample_count),
-            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution], forecast_meta_prediction.quantile_count)]
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS], forecast_meta_prediction.bin_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS], forecast_meta_prediction.named_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS], forecast_meta_prediction.point_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS], forecast_meta_prediction.sample_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS], forecast_meta_prediction.quantile_count)]
         found_units = [forecast_meta_unit.unit for forecast_meta_unit
                        in forecast_meta_unit_qs.select_related('unit')]
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
         return pred_type_count_pairs, found_units, found_targets
+
 
     def forecast_metadata_dynamic(self):
         """
@@ -937,40 +946,36 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         `forecast_metadata()`.
 
         :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets for forecast), where pred_type_count_pairs
-            is a 2-tuple: (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS, count)
+            is a 2-tuple: (PRED_CLASS_INT_TO_NAME, count)
         """
         forecast = self.get_object()
 
-        # set pred_type_count_pairs
-        pred_type_count_pairs = [
-            (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[concrete_prediction_class],
-             concrete_prediction_class.objects.filter(forecast=forecast).count())
-            for concrete_prediction_class in Prediction.concrete_subclasses()]
+        # set pred_type_count_pairs. copied from _cache_forecast_metadata_predictions():
+        rows = PredictionElement.objects.filter(forecast=forecast).values('pred_class').annotate(total=Count('id'))
+        pred_class_to_counts = {pred_class_total_dict['pred_class']: pred_class_total_dict['total']
+                                for pred_class_total_dict in rows}
+        pred_type_count_pairs = [(PRED_CLASS_INT_TO_NAME[pred_class_int], total)
+                                 for pred_class_int, total in pred_class_to_counts.items()]
 
-        # set found_units
+        # set found_units. copied from _cache_forecast_metadata_units()
         unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
-        found_unit_ids = set()
-        for concrete_prediction_class in Prediction.concrete_subclasses():
-            pred_class_units = concrete_prediction_class.objects \
-                .filter(forecast=forecast) \
-                .values_list('unit', flat=True) \
-                .distinct()
-            found_unit_ids.update(pred_class_units)
-        found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
+        pred_class_units_qs = PredictionElement.objects \
+            .filter(forecast=forecast) \
+            .values_list('unit', flat=True) \
+            .distinct()
+        found_units = [unit_id_to_obj[unit_id] for unit_id in pred_class_units_qs]
 
-        # set found_targets
+        # set found_targets. copied from _cache_forecast_metadata_targets()
         target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
-        found_target_ids = set()
-        for concrete_prediction_class in Prediction.concrete_subclasses():
-            pred_class_targets = concrete_prediction_class.objects \
-                .filter(forecast=forecast) \
-                .values_list('target', flat=True) \
-                .distinct()
-            found_target_ids.update(pred_class_targets)
-        found_targets = [target_id_to_object[target_id] for target_id in found_target_ids]
+        pred_class_targets_qs = PredictionElement.objects \
+            .filter(forecast=forecast) \
+            .values_list('target', flat=True) \
+            .distinct()
+        found_targets = [target_id_to_object[target_id] for target_id in pred_class_targets_qs]
 
         # done
         return pred_type_count_pairs, found_units, found_targets
+
 
     def search_forecast(self):
         """
@@ -1022,16 +1027,20 @@ class JobDetailView(UserPassesTestMixin, DetailView):
 
     context_object_name = 'job'
 
+
     def handle_no_permission(self):  # called by UserPassesTestMixin.dispatch()
         # replaces: AccessMixin.handle_no_permission() raises PermissionDenied
         return HttpResponseForbidden(render(self.request, '403.html').content)
+
 
     def test_func(self):  # return True if the current user can access the view
         job = self.get_object()
         return self.request.user.is_superuser or (job.user == self.request.user)
 
+
     def get_context_data(self, **kwargs):
         from utils.cloud_file import is_file_exists
+
 
         job = self.get_object()
         context = super().get_context_data(**kwargs)
@@ -1058,6 +1067,7 @@ def download_forecast(request, forecast_pk):
 
     from forecast_app.api_views import json_response_for_forecast  # avoid circular imports:
 
+
     return json_response_for_forecast(forecast, request)
 
 
@@ -1067,6 +1077,7 @@ def download_job_data_file(request, pk):
     """
     from forecast_app.api_views import _download_job_data_request  # avoid circular imports
     from utils.cloud_file import is_file_exists
+
 
     job = get_object_or_404(Job, pk=pk)
     if not (request.user.is_superuser or (job.user == request.user)):
@@ -1097,7 +1108,7 @@ def truth_detail(request, project_pk):
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 'num_truth_rows': get_num_truth_rows(project),
+                 'num_truth_rows': truth_data_qs(project).count(),
                  'truth_data_preview': get_truth_data_preview(project),
                  'first_truth_forecast': first_truth_data_forecast(project),
                  'is_truth_data_loaded': is_truth_data_loaded(project),
@@ -1165,6 +1176,7 @@ def _upload_truth_worker(job_pk):
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
     from utils.project_truth import load_truth_data
+
 
     try:
         with job_cloud_file(job_pk) as (job, cloud_file_fp):
@@ -1268,6 +1280,7 @@ def _upload_forecast_worker(job_pk):
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
+
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
         if 'forecast_pk' not in job.input_json:
             job.status = Job.FAILED
@@ -1299,7 +1312,7 @@ def _upload_forecast_worker(job_pk):
                 json_io_dict = json.load(cloud_file_fp)
 
                 logger.debug(f"_upload_forecast_worker(): 2/4 loading predictions. job={job}")
-                load_predictions_from_json_io_dict(forecast, json_io_dict, False)  # transaction.atomic
+                load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)  # transaction.atomic
 
                 logger.debug(f"_upload_forecast_worker(): 3/4 caching metadata. job={job}")
                 cache_forecast_metadata(forecast)  # transaction.atomic
@@ -1413,6 +1426,7 @@ def _upload_file(user, data_file, process_job_fcn, **kwargs):
         - job the new Job instance if not is_error. None o/w
     """
     from utils.cloud_file import delete_file, upload_file
+
 
     # create the Job
     logger.debug(f"_upload_file(): Got data_file: name={data_file.name!r}, size={data_file.size}, "

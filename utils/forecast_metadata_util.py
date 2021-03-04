@@ -63,7 +63,6 @@ def clear(project_pk):
     blocks.
 
     :param project_pk: if a valid Project pk then only that project's metadata is cleared. o/w clears all
-    :param no_enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
     projects = [get_object_or_404(Project, pk=project_pk)] if project_pk else Project.objects.all()
     print("clearing metadata")
@@ -96,11 +95,16 @@ def update(project_pk, no_enqueue):
     for project in projects:
         print(f"* {project}")
         for forecast_model in project.models.all():
+            if forecast_model.is_oracle:
+                # by convention we do not compute metadata for oracle forecasts. o/w they show up in project summary
+                # counts
+                continue
+
             print(f"- {forecast_model}")
             for forecast in forecast_model.forecasts.all():
                 if no_enqueue:
                     print(f"  = caching metadata (no enqueue): {forecast}")
-                    cache_forecast_metadata(forecast)
+                    cache_forecast_metadata(forecast)  # todo xx BUG: do not do if forecast_model.is_oracle!
                 else:
                     print(f"  = enqueuing caching metadata: {forecast}")
                     queue.enqueue(_cache_forecast_metadata_worker, forecast.pk)

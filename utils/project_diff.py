@@ -4,8 +4,7 @@ from itertools import groupby
 
 from django.db import transaction
 
-from forecast_app.models import Unit, Target, PointPrediction, NamedDistribution, BinDistribution, \
-    SampleDistribution, QuantileDistribution
+from forecast_app.models import Unit, Target, PredictionElement
 from forecast_app.models.project import TimeZero
 from utils.project import create_project_from_json, _validate_and_create_units, _validate_and_create_targets, \
     _validate_and_create_timezeros
@@ -326,26 +325,14 @@ def database_changes_for_project_config_diff(project, changes):
     Analyzes impact of `changes` on project with respect to deleted rows. The only impactful one is
     ChangeType.OBJ_REMOVED.
 
-    Types of possibly-deleted data:
-    - Prediction.unit (PointPrediction.unit, NamedDistribution.unit, BinDistribution.unit,
-                           SampleDistribution.unit)
-    - truth data (PointPrediction).unit
-
     :param project: a Project whose data is being analyzed for changes
     :param changes: list of Changes as returned by project_config_diff()
-    :return: a list of 7-tuples: (change, num_points, num_named, num_bins, num_samples, num_quantiles, num_truth)
+    :return: a list of 3-tuples: (change, num_pred_eles, num_truth)
     """
-    points_qs = PointPrediction.objects.filter(forecast__forecast_model__project=project,
-                                               forecast__forecast_model__is_oracle=False)
-    named_qs = NamedDistribution.objects.filter(forecast__forecast_model__project=project,
-                                                forecast__forecast_model__is_oracle=False)
-    bins_qs = BinDistribution.objects.filter(forecast__forecast_model__project=project,
-                                             forecast__forecast_model__is_oracle=False)
-    samples_qs = SampleDistribution.objects.filter(forecast__forecast_model__project=project,
-                                                   forecast__forecast_model__is_oracle=False)
-    quantiles_qs = QuantileDistribution.objects.filter(forecast__forecast_model__project=project,
-                                                       forecast__forecast_model__is_oracle=False)
-    the_truth_data_qs = truth_data_qs(project)
+    pred_ele_qs = PredictionElement.objects \
+        .filter(forecast__forecast_model__project=project,
+                forecast__forecast_model__is_oracle=False)
+    pred_ele_truth_qs = truth_data_qs(project)
     database_changes = []  # return value. filled next
     for change in order_project_config_diff(changes):
         if (change.object_type == ObjectType.PROJECT) or (change.change_type != ChangeType.OBJ_REMOVED):
@@ -353,30 +340,18 @@ def database_changes_for_project_config_diff(project, changes):
 
         if change.object_type == ObjectType.UNIT:  # removing a Unit
             unit = object_for_change(project, change, [])  # raises
-            num_points = points_qs.filter(unit=unit).count()
-            num_named = named_qs.filter(unit=unit).count()
-            num_bins = bins_qs.filter(unit=unit).count()
-            num_samples = samples_qs.filter(unit=unit).count()
-            num_quantiles = quantiles_qs.filter(unit=unit).count()
-            num_truth = the_truth_data_qs.filter(unit=unit).count()
+            num_points = pred_ele_qs.filter(unit=unit).count()
+            num_truth = pred_ele_truth_qs.filter(unit=unit).count()
         elif change.object_type == ObjectType.TARGET:  # removing a Target
             target = object_for_change(project, change, [])  # raises
-            num_points = points_qs.filter(target=target).count()
-            num_named = named_qs.filter(target=target).count()
-            num_bins = bins_qs.filter(target=target).count()
-            num_samples = samples_qs.filter(target=target).count()
-            num_quantiles = quantiles_qs.filter(target=target).count()
-            num_truth = the_truth_data_qs.filter(target=target).count()
+            num_points = pred_ele_qs.filter(target=target).count()
+            num_truth = pred_ele_truth_qs.filter(target=target).count()
         else:  # change.object_type == ObjectType.TIMEZERO:  # removing a TimeZero
             timezero = object_for_change(project, change, [])  # raises
-            num_points = points_qs.filter(forecast__time_zero=timezero).count()
-            num_named = named_qs.filter(forecast__time_zero=timezero).count()
-            num_bins = bins_qs.filter(forecast__time_zero=timezero).count()
-            num_samples = samples_qs.filter(forecast__time_zero=timezero).count()
-            num_quantiles = quantiles_qs.filter(forecast__time_zero=timezero).count()
-            num_truth = the_truth_data_qs.filter(forecast__time_zero=timezero).count()
-        if any([num_points, num_named, num_bins, num_samples, num_truth]):
-            database_changes.append((change, num_points, num_named, num_bins, num_samples, num_quantiles, num_truth))
+            num_points = pred_ele_qs.filter(forecast__time_zero=timezero).count()
+            num_truth = pred_ele_truth_qs.filter(forecast__time_zero=timezero).count()
+        if num_points:
+            database_changes.append((change, num_points, num_truth))
     return database_changes
 
 

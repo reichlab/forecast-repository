@@ -65,7 +65,7 @@
             </tr>
             </thead>
             <tbody>
-            {% for forecast_url, timezero_date, issue_date, created_at, model_url, model_abbrev, num_rows in forecast_rows %}
+            {% for forecast_url, timezero_date, issue_date, created_at, model_url, model_abbrev, num_pred_eles in forecast_rows %}
                 <tr>
                     <td><a href="{{ model_url }}">{{ model_abbrev }}</a></td>
                     <td><a href="{{ forecast_url }}">{{ timezero_date|date:"Y-m-d" }}</a></td>
@@ -85,7 +85,7 @@
                             {{ created_at }}
                         {% endif %}
                     </td>
-                    <td>{{ num_rows }}</td>
+                    <td>{{ num_pred_eles }}</td>
                 </tr>
             {% endfor %}
             </tbody>

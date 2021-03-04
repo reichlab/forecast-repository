@@ -3,7 +3,7 @@ import logging
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import ManyToManyField, Max
+from django.db.models import ManyToManyField
 from django.urls import reverse
 
 from utils.utilities import basic_str
@@ -252,71 +252,27 @@ class Project(models.Model):
 
     def get_summary_counts(self):
         """
-        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_rows). The latter is
-            estimated.
+        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_pred_eles). latter is
+            computed dynamically and does not use ForecastMetaPrediction, so might be slow
         """
         from .forecast import Forecast  # avoid circular imports
 
 
         return self.models.filter(project=self, is_oracle=False).count(), \
                Forecast.objects.filter(forecast_model__project=self, forecast_model__is_oracle=False).count(), \
-               self.get_num_forecast_rows_all_models_estimated()
+               self.num_pred_ele_rows_all_models(is_oracle=False)
 
 
-    def get_num_forecast_rows_all_models(self, is_oracle=True):
+    def num_pred_ele_rows_all_models(self, is_oracle=True):
         """
-        :return: the total number of data rows across all my models' forecasts, for all types of Predictions. can be
-            slow for large databases
+        :return: the total number of PredictionElements across all my models' forecasts, for all types of Predictions.
+            can be slow for large databases
         """
-        from forecast_app.models import Prediction  # avoid circular imports
+        from forecast_app.models import PredictionElement  # avoid circular imports
 
 
-        return sum(concrete_prediction_class.objects
-                   .filter(forecast__forecast_model__project=self, forecast__forecast_model__is_oracle=is_oracle)
-                   .count()
-                   for concrete_prediction_class in Prediction.concrete_subclasses())
-
-
-    def get_num_forecast_rows_all_models_estimated(self):
-        """
-        :return: like get_num_forecast_rows_all_models(), but returns an estimate that is much faster to calculate. the
-            estimate is based on getting the number of rows for an arbitrary Forecast and then multiplying by the number
-            of forecasts times the number of models in me. it will be exact for projects whose models all have the same
-            number of rows
-        """
-        first_model = self.models.first()
-        first_forecast = first_model.forecasts.first() if first_model else None
-        first_forecast_num_rows = first_forecast.get_num_rows() if first_forecast else None
-        return (self.models.count() * first_model.forecasts.count() * first_forecast_num_rows) \
-            if first_forecast_num_rows else 0
-
-
-    def unit_to_max_val(self, season_name, targets):
-        """
-        :return: a dict mapping each unit_name to the maximum point value across all my forecasts for season_name
-            and targets
-        """
-        from forecast_app.models import PointPrediction  # avoid circular imports
-
-
-        # NB: we retrieve and max() only the two numeric value fields (value_i and value_f), excluding value_t (which
-        # has no meaningful max() semantics). a concern is that some targets in the results might have a
-        # point_value_type of POINT_INTEGER while others are POINT_FLOAT, but this shouldn't matter to our callers, who
-        # are simply trying to get the maximum across /all/ targets. I think.
-        season_start_date, season_end_date = self.start_end_dates_for_season(season_name)
-        loc_max_val_qs = PointPrediction.objects \
-            .filter(forecast__forecast_model__project=self,
-                    target__in=targets,
-                    forecast__time_zero__timezero_date__gte=season_start_date,
-                    forecast__time_zero__timezero_date__lte=season_end_date) \
-            .values('unit__name') \
-            .annotate(Max('value_i'), Max('value_f'))  # values() -> annotate() is a GROUP BY
-        # [{'unit__name': 'HHS Region 1', 'value_i__max': None, 'value_f__max': 2.06145600601835}, ...]
-
-        # per https://stackoverflow.com/questions/12229902/sum-a-list-which-contains-none-using-python :
-        return {loc_max_val_dict['unit__name']: max(filter(None, [loc_max_val_dict['value_i__max'],
-                                                                  loc_max_val_dict['value_f__max']]))
-                for loc_max_val_dict in loc_max_val_qs}
+        return PredictionElement.objects.filter(forecast__forecast_model__project=self,
+                                                forecast__forecast_model__is_oracle=is_oracle).count()
 
 
     #

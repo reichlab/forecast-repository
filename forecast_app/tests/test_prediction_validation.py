@@ -4,11 +4,12 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import ForecastModel, TimeZero, Forecast, NamedDistribution, Target
+from forecast_app.models import ForecastModel, TimeZero, Forecast, Target
+from forecast_app.models.prediction_data import PredictionData
 from forecast_app.models.target import TargetRange
-from utils.forecast import load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, NamedData
 from utils.project import create_project_from_json
-from utils.project_truth import load_truth_data, truth_data_qs
+from utils.project_truth import load_truth_data, truth_data_qs, oracle_model_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -19,7 +20,7 @@ from utils.utilities import get_or_create_super_po_mo_users
 # the following variable helps test named distributions by associating applicable docs-project.json targets that have
 # valid types for each family with a tuple of ok_params (the correct count and valid values), plus a list of bad_params
 # that have correct counts but one or more out-of-range values. we have one tuple of bad params for each combination of
-# variables. the two targets we use are the only two that NamedDistributions are valid for: 'pct next week' (continuous)
+# variables. the two targets we use are the only two that NamedDatas are valid for: 'pct next week' (continuous)
 # and 'cases next week' (discrete). comments before each family/key indicate params ('-' means no paramN)
 
 FAMILY_TO_TARGET_OK_BAD_PARAMS = {
@@ -42,9 +43,9 @@ class PredictionValidationTestCase(TestCase):
     def setUpTestData(cls):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         cls.project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        forecast_model = ForecastModel.objects.create(project=cls.project, name='name', abbreviation='abbrev')
+        cls.forecast_model = ForecastModel.objects.create(project=cls.project, name='name', abbreviation='abbrev')
         time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
-        cls.forecast = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
+        cls.forecast = Forecast.objects.create(forecast_model=cls.forecast_model, time_zero=time_zero)
 
 
     # ----
@@ -53,7 +54,7 @@ class PredictionValidationTestCase(TestCase):
 
     def test_the_predictions_class_must_be_valid_for_its_targets_type(self):
         # note: we do not test docs-predictions.json here (it's tested elsewhere), which takes care of testing all
-        # target_type/prediction_class combinations. here we just test the valid NamedDistribution family/target_type
+        # target_type/pred_class combinations. here we just test the valid named data family/target_type
         # combinations, which are the only ones that are constrained
 
         #   target type   | docs-project.json target | valid named distributions
@@ -71,12 +72,11 @@ class PredictionValidationTestCase(TestCase):
             "above baseline": (False, False, False, False, False, False, False),
             "Season peak week": (False, False, False, False, False, False, False)}
         for target_name, is_valid_family_tuple in target_name_to_is_valid_family_tuple.items():
-            for family_int, is_valid in zip([NamedDistribution.NORM_DIST, NamedDistribution.LNORM_DIST,
-                                             NamedDistribution.GAMMA_DIST, NamedDistribution.BETA_DIST,
-                                             NamedDistribution.POIS_DIST, NamedDistribution.NBINOM_DIST,
-                                             NamedDistribution.NBINOM2_DIST],
+            for family_abbrev, is_valid in zip([NamedData.NORM_DIST, NamedData.LNORM_DIST,
+                                             NamedData.GAMMA_DIST, NamedData.BETA_DIST,
+                                             NamedData.POIS_DIST, NamedData.NBINOM_DIST,
+                                             NamedData.NBINOM2_DIST],
                                             is_valid_family_tuple):
-                family_abbrev = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family_int]
                 prediction_dict = {"unit": "location1", "target": target_name, "class": "named",
                                    "prediction": {"family": family_abbrev}}  # add paramN next based on ok_params:
                 ok_params = FAMILY_TO_TARGET_OK_BAD_PARAMS[family_abbrev][1]
@@ -87,7 +87,9 @@ class PredictionValidationTestCase(TestCase):
                     prediction_dict['prediction']["param3"] = ok_params[2]
                 if is_valid:  # valid: should not raise
                     try:
-                        load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+                        tz2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
+                        forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=tz2)
+                        load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})
                     except Exception as ex:
                         self.fail(f"unexpected exception: {ex}")
                 else:  # invalid: should raise
@@ -343,7 +345,9 @@ class PredictionValidationTestCase(TestCase):
                     prediction_dict['prediction']["param2"] = ok_params[1]
                 if len(ok_params) > 2:
                     prediction_dict['prediction']["param3"] = ok_params[2]
-                load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
+                tz2 = TimeZero.objects.create(project=self.project, timezero_date=datetime.date(2017, 1, 2))
+                forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=tz2)
+                load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})
             except Exception as ex:
                 self.fail(f"unexpected exception: {ex}")
 
@@ -958,27 +962,29 @@ class PredictionValidationTestCase(TestCase):
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))  # 14 rows
         self.assertEqual(14, truth_data_qs(self.project).count())
 
-        exp_rows = [(datetime.date(2011, 10, 2), 'location1', 'pct next week', None, 4.5432, None, None, None),
-                    (datetime.date(2011, 10, 2), 'location1', 'cases next week', 10, None, None, None, None),
-                    (datetime.date(2011, 10, 2), 'location1', 'season severity', None, None, 'moderate', None, None),
-                    (datetime.date(2011, 10, 2), 'location1', 'above baseline', None, None, None, None, True),
-                    (datetime.date(2011, 10, 2), 'location1', 'Season peak week', None, None, None,
-                     datetime.date(2019, 12, 15), None),
-                    (datetime.date(2011, 10, 9), 'location2', 'pct next week', None, 99.9, None, None, None),
-                    (datetime.date(2011, 10, 9), 'location2', 'cases next week', 3, None, None, None, None),
-                    (datetime.date(2011, 10, 9), 'location2', 'season severity', None, None, 'severe', None, None),
-                    (datetime.date(2011, 10, 9), 'location2', 'above baseline', None, None, None, None, True),
-                    (datetime.date(2011, 10, 9), 'location2', 'Season peak week', None, None, None,
-                     datetime.date(2019, 12, 29), None),
-                    (datetime.date(2011, 10, 16), 'location1', 'pct next week', None, 0.0, None, None, None),
-                    (datetime.date(2011, 10, 16), 'location1', 'cases next week', 0, None, None, None, None),
-                    (datetime.date(2011, 10, 16), 'location1', 'above baseline', None, None, None, None, False),
-                    (datetime.date(2011, 10, 16), 'location1', 'Season peak week', None, None, None,
-                     datetime.date(2019, 12, 22), None)]
-        act_rows_qs = truth_data_qs(self.project) \
-            .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name',
-                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-        self.assertEqual(sorted(exp_rows), sorted(act_rows_qs))
+        exp_rows = [(datetime.date(2011, 10, 2), 'location1', 'Season peak week', '2019-12-15'),
+                    (datetime.date(2011, 10, 2), 'location1', 'above baseline', True),
+                    (datetime.date(2011, 10, 2), 'location1', 'cases next week', 10),
+                    (datetime.date(2011, 10, 2), 'location1', 'pct next week', 4.5432),
+                    (datetime.date(2011, 10, 2), 'location1', 'season severity', 'moderate'),
+                    (datetime.date(2011, 10, 9), 'location2', 'Season peak week', '2019-12-29'),
+                    (datetime.date(2011, 10, 9), 'location2', 'above baseline', True),
+                    (datetime.date(2011, 10, 9), 'location2', 'cases next week', 3),
+                    (datetime.date(2011, 10, 9), 'location2', 'pct next week', 99.9),
+                    (datetime.date(2011, 10, 9), 'location2', 'season severity', 'severe'),
+                    (datetime.date(2011, 10, 16), 'location1', 'Season peak week', '2019-12-22'),
+                    (datetime.date(2011, 10, 16), 'location1', 'above baseline', False),
+                    (datetime.date(2011, 10, 16), 'location1', 'cases next week', 0),
+                    (datetime.date(2011, 10, 16), 'location1', 'pct next week', 0.0)]
+        # note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field instead
+        # of using 'data__value'
+        pred_data_qs = PredictionData.objects \
+            .filter(pred_ele__forecast__forecast_model=oracle_model_for_project(self.project)) \
+            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+                         'pred_ele__target__name', 'data')
+        act_rows = [(tz_date, unit__name, target__name, data['value'])
+                    for tz_date, unit__name, target__name, data in pred_data_qs]
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
     def test_truth_value_not_compatible_with_target_data_type(self):

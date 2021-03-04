@@ -151,7 +151,9 @@
                     <td>{{ timezero.timezero_date|date:"Y-m-d" }}</td>
                     <td>
                         {% if forecast %}
-                            <a href="{{ forecast.get_absolute_url }}">{{ forecast.source }}</a>
+                            <a href="{{ forecast.get_absolute_url }}">{% if forecast.source %}
+                                {{ forecast.source }}
+                            {% else %}(no source){% endif %}</a>
                         {% else %}
                             <small class="text-muted">(No data)</small>
                         {% endif %}

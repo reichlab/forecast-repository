@@ -1,32 +1,23 @@
 import csv
 import datetime
 import io
+import json
 import logging
 import math
 from collections import defaultdict
-from itertools import groupby
 
 from django.db import connection, transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
-from forecast_app.models import NamedDistribution, PointPrediction, Forecast, Target, BinDistribution, \
-    SampleDistribution, QuantileDistribution, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Prediction, \
-    ForecastModel
-from forecast_app.models.project import Unit
+from forecast_app.models import Forecast, Target, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, \
+    ForecastModel, PredictionElement, PredictionData
+from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT, PRED_CLASS_INT_TO_NAME
 from utils.project import _target_dict_for_target
 from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
-
 logger = logging.getLogger(__name__)
-
-PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
-    BinDistribution: 'bin',
-    NamedDistribution: 'named',
-    PointPrediction: 'point',
-    SampleDistribution: 'sample',
-    QuantileDistribution: 'quantile',
-}
 
 
 #
@@ -35,159 +26,41 @@ PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS = {
 
 def json_io_dict_from_forecast(forecast, request):
     """
-    The database equivalent of json_io_dict_from_cdc_csv_file(), returns a "JSON IO dict" for exporting json (for
-    example). See EW01-2011-ReichLab_kde_US_National.json for an example. Does not reuse that function's helper methods
-    b/c the latter is limited to 1) reading rows from CSV (not the db), and 2) only handling the three types of
-    predictions in CDC CSV files. Does include the 'meta' section in the returned dict.
+    Returns a "JSON IO dict" for exporting json a forecast from the database in the format that
+    oad_predictions_from_json_io_dict() accepts. Does include the 'meta' section in the returned dict if `request` is
+    not None.
 
     :param forecast: a Forecast whose predictions are to be outputted
-    :param request: required for TargetSerializer's 'id' field
+    :param request: used for TargetSerializer's 'id' field. pass None to skip creating the 'meta' section
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by unit
         and target for visibility. see docs for details
     """
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
 
+    # set prediction_dicts
+    pred_data_qs = PredictionData.objects \
+        .filter(pred_ele__forecast=forecast) \
+        .values_list('pred_ele__pred_class', 'pred_ele__unit__name', 'pred_ele__target__name', 'data')
+    prediction_dicts = [{'unit': unit_name,
+                         'target': target_name,
+                         'class': PRED_CLASS_INT_TO_NAME[pred_class],
+                         'prediction': pred_data} for pred_class, unit_name, target_name, pred_data in pred_data_qs]
 
-    unit_serializer_multi = UnitSerializer(forecast.forecast_model.project.units, many=True,
-                                           context={'request': request})
-    forecast_serializer = ForecastSerializer(forecast, context={'request': request})
-    unit_names, target_names, prediction_dicts = _units_targets_pred_dicts_from_forecast(forecast)
-    return {
-        'meta': {
-            'forecast': forecast_serializer.data,
-            'units': sorted([dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
-                            key=lambda _: (_['name'])),
-            'targets': sorted(
-                [_target_dict_for_target(target, request) for target in forecast.forecast_model.project.targets.all()],
-                key=lambda _: (_['name'])),
-        },
-        'predictions': sorted(prediction_dicts, key=lambda _: (_['unit'], _['target']))}
-
-
-def _units_targets_pred_dicts_from_forecast(forecast):
-    """
-    json_io_dict_from_forecast() helper
-
-    :param forecast: the Forecast to read predictions from
-    :return: a 3-tuple: (unit_names, target_names, prediction_dicts) where the first two are sets of the Unit
-        names and Target names in forecast's Predictions, and the last is list of "prediction dicts" as documented
-        elsewhere
-    """
-    # recall Django's limitations in handling abstract classes and polymorphic models - asking for all of a Forecast's
-    # Predictions returns base Prediction instances (forecast, unit, and target) without subclass fields (e.g.,
-    # PointPrediction.value). so we have to handle each Prediction subclass individually. this implementation loads
-    # all instances of each concrete subclass into memory, ordered by (unit, target) for groupby(). note: b/c the
-    # code for each class is so similar, I had implemented an abstraction, but it turned out to be longer and more
-    # complicated, and IMHO didn't warrant eliminating the duplication
-    target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
-
-    unit_names = set()
-    target_names = set()
-    prediction_dicts = []  # filled next for each Prediction subclass
-
-    # PointPrediction
-    point_qs = forecast.point_prediction_qs() \
-        .order_by('pk') \
-        .values_list('unit__name', 'target__name', 'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
-    for unit_name, target_values_grouper in groupby(point_qs, key=lambda _: _[0]):
-        unit_names.add(unit_name)
-        for target_name, values_grouper in groupby(target_values_grouper, key=lambda _: _[1]):
-            is_date_target = (Target.DATE_DATA_TYPE in target_name_to_obj[target_name].data_types())
-            target_names.add(target_name)
-            for _, _, value_i, value_f, value_t, value_d, value_b in values_grouper:  # recall that exactly one will be non-NULL
-                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 PointPredictions
-                # per Forecast. validation should take care of enforcing this, but this code here is general
-                point_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-                if is_date_target:
-                    point_value = point_value.strftime(YYYY_MM_DD_DATE_FORMAT)
-                prediction_dicts.append({"unit": unit_name, "target": target_name,
-                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
-                                         "prediction": {"value": point_value}})
-
-    # NamedDistribution
-    named_qs = forecast.named_distribution_qs() \
-        .order_by('pk') \
-        .values_list('unit__name', 'target__name', 'family', 'param1', 'param2', 'param3')
-    for unit_name, target_family_params_grouper in groupby(named_qs, key=lambda _: _[0]):
-        unit_names.add(unit_name)
-        for target_name, family_params_grouper in groupby(target_family_params_grouper, key=lambda _: _[1]):
-            target_names.add(target_name)
-            for _, _, family, param1, param2, param3 in family_params_grouper:
-                # note that we create a separate dict for each row b/c there is supposed to be 0 or 1 NamedDistributions
-                # per Forecast. validation should take care of enforcing this, but this code here is general
-                family_abbrev = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[family]
-                pred_dict_pred = {"family": family_abbrev}  # add non-null param* values next
-                if param1 is not None:
-                    pred_dict_pred["param1"] = param1
-                if param2 is not None:
-                    pred_dict_pred["param2"] = param2
-                if param3 is not None:
-                    pred_dict_pred["param3"] = param3
-                prediction_dicts.append({"unit": unit_name, "target": target_name,
-                                         "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution],
-                                         "prediction": pred_dict_pred})
-
-    # BinDistribution. ordering by 'cat_*' for testing, but it's a slower query:
-    bin_qs = forecast.bin_distribution_qs() \
-        .order_by('pk') \
-        .values_list('unit__name', 'target__name', 'prob', 'cat_i', 'cat_f', 'cat_t', 'cat_d', 'cat_b')
-    for unit_name, target_prob_cat_grouper in groupby(bin_qs, key=lambda _: _[0]):
-        unit_names.add(unit_name)
-        for target_name, prob_cat_grouper in groupby(target_prob_cat_grouper, key=lambda _: _[1]):
-            is_date_target = target_name_to_obj[target_name].type == Target.DATE_TARGET_TYPE
-            target_names.add(target_name)
-            bin_cats, bin_probs = [], []
-            for _, _, prob, cat_i, cat_f, cat_t, cat_d, cat_b in prob_cat_grouper:
-                cat_value = PointPrediction.first_non_none_value(cat_i, cat_f, cat_t, cat_d, cat_b)
-                if is_date_target:
-                    cat_value = cat_value.strftime(YYYY_MM_DD_DATE_FORMAT)
-                bin_cats.append(cat_value)
-                bin_probs.append(prob)
-            prediction_dicts.append({'unit': unit_name, 'target': target_name,
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution],
-                                     'prediction': {'cat': bin_cats, 'prob': bin_probs}})
-
-    # SampleDistribution
-    sample_qs = forecast.sample_distribution_qs() \
-        .order_by('pk') \
-        .values_list('unit__name', 'target__name', 'sample_i', 'sample_f', 'sample_t', 'sample_d', 'sample_b')
-    for unit_name, target_sample_grouper in groupby(sample_qs, key=lambda _: _[0]):
-        unit_names.add(unit_name)
-        for target_name, sample_grouper in groupby(target_sample_grouper, key=lambda _: _[1]):
-            is_date_target = target_name_to_obj[target_name].type == Target.DATE_TARGET_TYPE
-            target_names.add(target_name)
-            sample_cats, sample_probs = [], []
-            for _, _, sample_i, sample_f, sample_t, sample_d, sample_b in sample_grouper:
-                sample_value = PointPrediction.first_non_none_value(sample_i, sample_f, sample_t, sample_d, sample_b)
-                if is_date_target:
-                    sample_value = sample_value.strftime(YYYY_MM_DD_DATE_FORMAT)
-                sample_cats.append(sample_value)
-            prediction_dicts.append({'unit': unit_name, 'target': target_name,
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution],
-                                     'prediction': {'sample': sample_cats}})
-
-    # QuantileDistribution
-    quantile_qs = forecast.quantile_prediction_qs() \
-        .order_by('pk') \
-        .values_list('unit__name', 'target__name', 'quantile', 'value_i', 'value_f', 'value_d')
-    for unit_name, target_quant_val_grouper in groupby(quantile_qs, key=lambda _: _[0]):
-        unit_names.add(unit_name)
-        for target_name, quant_val_grouper in groupby(target_quant_val_grouper, key=lambda _: _[1]):
-            is_date_target = target_name_to_obj[target_name].type == Target.DATE_TARGET_TYPE
-            target_names.add(target_name)
-            quant_quantiles, quant_values = [], []
-            for _, _, quantile, value_i, value_f, value_d in quant_val_grouper:
-                quantile_value = PointPrediction.first_non_none_value(value_i, value_f, value_d, None, None)
-                if is_date_target:
-                    quantile_value = quantile_value.strftime(YYYY_MM_DD_DATE_FORMAT)
-                quant_quantiles.append(quantile)
-                quant_values.append(quantile_value)
-            prediction_dicts.append({'unit': unit_name, 'target': target_name,
-                                     'class': PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution],
-                                     'prediction': {'quantile': quant_quantiles, 'value': quant_values}})
+    # set meta
+    meta = {}
+    if request:
+        unit_serializer_multi = UnitSerializer(forecast.forecast_model.project.units, many=True,
+                                               context={'request': request})
+        forecast_serializer = ForecastSerializer(forecast, context={'request': request})
+        meta['forecast'] = forecast_serializer.data
+        meta['units'] = sorted([dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
+                               key=lambda _: (_['name']))
+        meta['targets'] = sorted(
+            [_target_dict_for_target(target, request) for target in forecast.forecast_model.project.targets.all()],
+            key=lambda _: (_['name']))
 
     # done
-    return unit_names, target_names, prediction_dicts
+    return {'meta': meta, 'predictions': sorted(prediction_dicts, key=lambda _: (_['unit'], _['target']))}
 
 
 #
@@ -198,143 +71,356 @@ BIN_SUM_REL_TOL = 0.001  # hard-coded magic number for prediction probability su
 
 
 @transaction.atomic
-def load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=True):
+def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=False, is_validate_cats=True):
     """
     Top-level function that loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note
     that we ignore the 'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in
-    forecast's Project.
+    forecast's Project. Requires that `forecast` is empty of data.
 
-    :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
     :param forecast: a Forecast to load json_io_dict's predictions into
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details
+    :param is_skip_validation: bypasses all validation of `json_io_dict`, including `is_validate_cats`. used for truth
+        loading
+    :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
     """
-    # validate predictions, convert them to class-specific quickly-loadable rows, and then load them by class
-    if not isinstance(json_io_dict, dict):
+    if forecast.pred_eles.count() != 0:
+        raise RuntimeError(f"forecast already has data: {forecast}")
+    elif not isinstance(json_io_dict, dict):
         raise RuntimeError(f"json_io_dict was not a dict: {json_io_dict!r}, type={type(json_io_dict)}")
     elif 'predictions' not in json_io_dict:
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
 
-    prediction_dicts = json_io_dict['predictions']
-    bin_rows, named_rows, point_rows, sample_rows, quantile_rows = \
-        _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_validate_cats)
-    target_pk_to_object = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
+    # NB: version validation is done by _insert_pred_ele_rows() b/c it creates a temp table of the incoming forecast's
+    # prediction elements
 
-    _load_bin_rows(forecast, bin_rows, target_pk_to_object)
-    _load_named_rows(forecast, named_rows)
-    _load_point_rows(forecast, point_rows, target_pk_to_object)
-    _load_sample_rows(forecast, sample_rows, target_pk_to_object)
-    _load_quantile_rows(forecast, quantile_rows, target_pk_to_object)
+    # we have two types of tables to insert into (PredictionElement and PredictionData subclasses), which requires
+    # loading via two passes:
+    # 1) iterate over incoming prediction dicts, validating them and generating rows to insert into the
+    #    PredictionElement table
+    # 2) load those just-inserted rows from the database so we can get their PRIMARY KEY (autoincrement) ids, and then
+    #    re-iterate over prediction dict data (cached in memory) to generate rows to insert into class-specific
+    #    PredictionData subclass tables
+    # pass 1/2
+    data_hash_to_pred_data, pred_ele_rows = \
+        _validated_pred_ele_rows_for_pred_dicts(forecast, json_io_dict['predictions'], is_skip_validation,
+                                                is_validate_cats)
+    del json_io_dict  # hopefully frees up memory
+    _insert_pred_ele_rows(forecast, pred_ele_rows)  # tests version rule then inserts
+
+    # pass 2/2. target_id is needed to look up target datatype to decide which sparse column to use for each singleton
+    # value
+    pred_data_rows = []  # appended-to next
+    pred_ele_qs = PredictionElement.objects \
+        .filter(forecast=forecast, is_retract=False) \
+        .values_list('id', 'data_hash')
+    for pred_ele_id, data_hash in pred_ele_qs.iterator():
+        prediction_data = data_hash_to_pred_data[data_hash]
+        pred_data_rows.append((pred_ele_id, prediction_data))
+    if pred_data_rows:
+        _insert_pred_data_rows(pred_data_rows)  # pred_ele_id, prediction_data
 
 
-def _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, is_validate_cats):
+def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_validation, is_validate_cats):
     """
-    Validates prediction_dicts and returns a 5-tuple of rows suitable for bulk-loading into a database:
-        bin_rows, named_rows, point_rows, sample_rows, quantile_rows
-    Each row is Prediction class-specific. Skips zero-prob BinDistribution rows.
+    Validates prediction_dicts and returns a list of rows suitable for bulk-loading into the PredictionElement table.
 
-    :param is_validate_cats: same as load_predictions_from_json_io_dict()
     :param forecast: a Forecast that's used to validate against
     :param prediction_dicts: the 'predictions' portion of a "JSON IO dict" as returned by
         json_io_dict_from_cdc_csv_file()
-    :return 5-tuple of rows suitable for bulk-loading into a database:
-        bin_rows, named_rows, point_rows, sample_rows, quantile_rows
+    :param is_skip_validation: same as load_predictions_from_json_io_dict()
+    :param is_validate_cats: ""
+    :return: a 2-tuple: (data_hash_to_pred_data, pred_ele_rows):
+        data_hash_to_pred_data: a dict that maps data_hash -> prediction_data. does not include if is_retract (None)
+        pred_ele_rows: a list of 6-tuples: (forecast_id, pred_class_int, unit_id, target_id, is_retract, data_hash)
     """
     unit_name_to_obj = {unit.name: unit for unit in forecast.forecast_model.project.units.all()}
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
-    family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
-                            in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
+
     # this variable helps to do "prediction"-level validations at the end of this function. it maps 2-tuples to a list
-    # of prediction classes (strs)
+    # of prediction classes (strs):
     loc_targ_to_pred_classes = defaultdict(list)  # (unit_name, target_name) -> [prediction_class1, ...]
-    bin_rows, named_rows, point_rows, sample_rows, quantile_rows = [], [], [], [], []  # return values. set next
+
+    data_hash_to_pred_data = {}  # return value. filled next
+    pred_ele_rows = []  # ""
     for prediction_dict in prediction_dicts:
         unit_name = prediction_dict['unit']
         target_name = prediction_dict['target']
-        prediction_class = prediction_dict['class']
+        pred_class = prediction_dict['class']
         prediction_data = prediction_dict['prediction']  # None if a "retracted" prediction -> insert a single NULL row
-        loc_targ_to_pred_classes[(unit_name, target_name)].append(prediction_class)
+        is_retract = prediction_data is None
+        loc_targ_to_pred_classes[(unit_name, target_name)].append(pred_class)
+        if not is_skip_validation:
+            # validate prediction class, and unit and target names (applies to all prediction classes)
+            if unit_name not in unit_name_to_obj:
+                raise RuntimeError(f"prediction_dict referred to an undefined Unit. unit_name={unit_name!r}. "
+                                   f"existing_unit_names={unit_name_to_obj.keys()}")
+            elif target_name not in target_name_to_obj:
+                raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name!r}. "
+                                   f"existing_target_names={target_name_to_obj.keys()}")
 
-        # validate unit and target names (applies to all prediction classes)
-        if unit_name not in unit_name_to_obj:
-            raise RuntimeError(f"prediction_dict referred to an undefined Unit. unit_name={unit_name!r}. "
-                               f"existing_unit_names={unit_name_to_obj.keys()}")
-        elif target_name not in target_name_to_obj:
-            raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name!r}. "
-                               f"existing_target_names={target_name_to_obj.keys()}")
+            if pred_class not in PRED_CLASS_NAME_TO_INT:
+                raise RuntimeError(f"invalid pred_class: {pred_class!r}. must be one of: "
+                                   f"{list(PRED_CLASS_INT_TO_NAME.values())}. "
+                                   f"prediction_dict={prediction_dict}")
 
-        # do class-specific validation and row collection
-        target = target_name_to_obj[target_name]
-        if prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution]:
-            if prediction_data is None:
-                bin_rows.append([unit_name, target_name, None, None])
-            else:
-                _validate_bin_predictions(is_validate_cats, prediction_dict, target)  # raises o/w
-                for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
-                    if prob != 0:  # skip cat values with zero probability (saves database space and doesn't affect scoring)
-                        bin_rows.append([unit_name, target_name, cat, prob])
-        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution]:
-            if prediction_data is None:
-                named_rows.append([unit_name, target_name, None, None, None, None])
-            else:
+            # do class-specific validation
+            target = target_name_to_obj[target_name]
+            if (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS]) \
+                    and not is_retract:
+                _validate_bin_prediction_dict(is_validate_cats, prediction_dict, target)  # raises o/w
+            elif (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS]) \
+                    and not is_retract:
                 family_abbrev = prediction_data['family']
-                _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_dict, target)  # raises o/w
-                named_rows.append([unit_name, target_name, family_abbrev,
-                                   prediction_data.get('param1', None),
-                                   prediction_data.get('param2', None),
-                                   prediction_data.get('param3', None)])
-        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction]:
-            if prediction_data is None:
-                point_rows.append([unit_name, target_name, None])
-            else:
-                value = prediction_data['value']
-                _validate_point_predictions(prediction_dict, target, value)  # raises o/w
-                point_rows.append([unit_name, target_name, value])
-        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[SampleDistribution]:
-            if prediction_data is None:
-                sample_rows.append([unit_name, target_name, None])
-            else:
-                _validate_sample_predictions(prediction_dict, target)  # raises o/w
-                for sample in prediction_data['sample']:
-                    sample_rows.append([unit_name, target_name, sample])
-        elif prediction_class == PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution]:
-            if prediction_data is None:
-                quantile_rows.append([unit_name, target_name, None, None])
-            else:
-                _validate_quantile_predictions(prediction_dict, target)  # raises o/w
-                for quantile, value in zip(prediction_data['quantile'], prediction_data['value']):
-                    quantile_rows.append([unit_name, target_name, quantile, value])
-        else:
-            raise RuntimeError(f"invalid prediction_class: {prediction_class!r}. must be one of: "
-                               f"{list(PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS.values())}. "
-                               f"prediction_dict={prediction_dict}")
+                _validate_named_prediction_dict(family_abbrev, prediction_dict, target)  # raises o/w
+            elif (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]) \
+                    and not is_retract:
+                _validate_point_prediction_dict(prediction_dict, target, prediction_data['value'])  # raises o/w
+            elif (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS]) \
+                    and not is_retract:
+                _validate_sample_prediction_dict(prediction_dict, target)  # raises o/w
+            elif not is_retract:  # pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]:
+                _validate_quantile_prediction_dict(prediction_dict, target)  # raises o/w
+
+        # valid, so update data_hash_to_pred_data and append the row
+        data_hash = PredictionElement.hash_for_prediction_data_dict(prediction_data)
+        if not is_retract:
+            data_hash_to_pred_data[data_hash] = prediction_data
+        pred_ele_rows.append((forecast.pk, PRED_CLASS_NAME_TO_INT[pred_class],
+                              unit_name_to_obj[unit_name].pk, target_name_to_obj[target_name].pk,
+                              is_retract, data_hash))
 
     # finally, do "prediction"-level validation. recall that "prediction" is defined as "a group of a prediction
     # elements(s) specific to a unit and target"
+    if not is_skip_validation:
+        # validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type".
+        duplicate_unit_target_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
+                                        in loc_targ_to_pred_classes.items()
+                                        if len(pred_classes) != len(set(pred_classes))]
+        if duplicate_unit_target_tuples:
+            raise RuntimeError(
+                f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
+                f"Found these duplicate unit/target tuples: {duplicate_unit_target_tuples}")
 
-    # validate: "Within a Prediction, there cannot be more than 1 Prediction Element of the same type".
-    duplicate_unit_target_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
-                                    in loc_targ_to_pred_classes.items()
-                                    if len(pred_classes) != len(set(pred_classes))]
-    if duplicate_unit_target_tuples:
-        raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                           f"Found these duplicate unit/target tuples: {duplicate_unit_target_tuples}")
-
-    # validate: (for both continuous and discrete target types): Within one prediction, there can be at most one of the
-    # following prediction elements, but not both: {`Named`, `Bin`}.
-    named_bin_conflict_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
-                                 in loc_targ_to_pred_classes.items()
-                                 if (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[BinDistribution] in pred_classes)
-                                 and (PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[NamedDistribution] in pred_classes)]
-    if named_bin_conflict_tuples:
-        raise RuntimeError(f"Within one prediction, there can be at most one of the following prediction elements, "
-                           f"but not both: `Named`, `Bin`. Found these conflicting unit/target tuples: "
-                           f"{named_bin_conflict_tuples}")
+        # validate: (for both continuous and discrete target types): Within one prediction, there can be at most one of
+        # the following prediction elements, but not both: {`Named`, `Bin`}.
+        named_bin_conflict_tuples = [(unit, target, pred_classes) for (unit, target), pred_classes
+                                     in loc_targ_to_pred_classes.items()
+                                     if (PRED_CLASS_INT_TO_NAME[
+                                             PredictionElement.BIN_CLASS] in pred_classes)
+                                     and (PRED_CLASS_INT_TO_NAME[
+                                              PredictionElement.NAMED_CLASS] in pred_classes)]
+        if named_bin_conflict_tuples:
+            raise RuntimeError(f"Within one prediction, there can be at most one of the following prediction elements, "
+                               f"but not both: `Named`, `Bin`. Found these conflicting unit/target tuples: "
+                               f"{named_bin_conflict_tuples}")
 
     # done!
-    return bin_rows, named_rows, point_rows, sample_rows, quantile_rows
+    return data_hash_to_pred_data, pred_ele_rows
 
 
-def _validate_bin_predictions(is_validate_cats, prediction_dict, target):
+def _insert_pred_ele_rows(forecast, pred_ele_rows):
+    """
+    Validates forecast against prev_version and next_version, then loads pred_ele_rows into the PredictionElement table.
+    Skips duplicate prediction elements in `forecast`'s model. See note in _insert_pred_data_rows() re: postgres vs.
+    sqlite.
+
+    :param forecast: the new, empty Forecast being inserted into
+    :param pred_ele_rows: as returned by _validated_pred_ele_rows_for_pred_dicts():
+        list of 6-tuples: (forecast_id, pred_class_int, unit_id, target_id, is_retract, data_hash)
+    :raises RuntimeError: if forecast version is invalid
+    """
+    # in order to skip inserting duplicate rows, we insert in these steps:
+    # 1) create a temp table
+    # 2) insert `pred_ele_rows` into the temp table (some might be duplicates)
+    # 3) validate forecast against prev_version and next_version
+    # 4) delete duplicates from the temp table
+    # 5) insert the temp table into PredictionElement
+    # 6) drop the temp table
+    temp_table_name = 'pred_ele_temp'
+    pred_ele_table_name = PredictionElement._meta.db_table
+
+    # step 1/6: create temp table
+    with connection.cursor() as cursor:
+        cursor.execute(f"DROP TABLE IF EXISTS {temp_table_name};")
+
+    sql = f"""
+        CREATE TEMP TABLE {temp_table_name} AS
+        SELECT pred_ele.forecast_id,
+               pred_ele.pred_class,
+               pred_ele.unit_id,
+               pred_ele.target_id,
+               pred_ele.is_retract,
+               pred_ele.data_hash
+        FROM {pred_ele_table_name} AS pred_ele
+        LIMIT 0;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+
+    # step 2/6: insert rows into temp table
+    columns_names = [PredictionElement._meta.get_field('forecast').column,
+                     PredictionElement._meta.get_field('pred_class').column,
+                     PredictionElement._meta.get_field('unit').column,
+                     PredictionElement._meta.get_field('target').column,
+                     PredictionElement._meta.get_field('is_retract').column,
+                     PredictionElement._meta.get_field('data_hash').column]
+    with connection.cursor() as cursor:
+        if connection.vendor == 'postgresql':
+            string_io = io.StringIO()
+            csv_writer = csv.writer(string_io, delimiter=',')
+            for row in pred_ele_rows:
+                csv_writer.writerow(row)
+            string_io.seek(0)
+            cursor.copy_from(string_io, temp_table_name, columns=columns_names, sep=',', null=POSTGRES_NULL_VALUE)
+        else:  # 'sqlite', etc.
+            column_names = (', '.join(columns_names))
+            values_percent_s = ', '.join(['%s'] * len(columns_names))
+            sql = f"""
+                    INSERT INTO {temp_table_name} ({column_names})
+                    VALUES ({values_percent_s});
+                    """
+            cursor.executemany(sql, pred_ele_rows)
+
+    # step 3/6: validate forecast against prev_version and next_version
+    _validate_forecast_version(forecast, temp_table_name)  # raises RuntimeError if invalid
+
+    # step 4/6: delete duplicates from temp table
+    sql = f"""
+        DELETE
+        FROM {temp_table_name}
+        WHERE EXISTS(SELECT *
+                     FROM {pred_ele_table_name} AS pred_ele
+                              JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
+                     WHERE f.forecast_model_id = %s
+                       AND f.time_zero_id = %s
+                       AND {temp_table_name}.pred_class = pred_ele.pred_class
+                       AND {temp_table_name}.unit_id = pred_ele.unit_id
+                       AND {temp_table_name}.target_id = pred_ele.target_id
+                       AND {temp_table_name}.is_retract = pred_ele.is_retract
+                       AND {temp_table_name}.data_hash = pred_ele.data_hash);
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk))
+
+    # step 5/6: insert temp table into PredictionElement
+    sql = f"""
+        INSERT INTO {pred_ele_table_name} AS pred_ele (forecast_id, pred_class, unit_id, target_id,
+                                                       is_retract, data_hash)
+        SELECT %s, pred_class, unit_id, target_id, is_retract, data_hash
+        FROM {temp_table_name};
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.pk,))
+
+    # step 6/6: drop temp table
+    with connection.cursor() as cursor:
+        cursor.execute(f"DROP TABLE IF EXISTS {temp_table_name};")
+
+
+def _validate_forecast_version(forecast, temp_table_name):
+    """
+    Validates forecast against any existing versions of it. Currently the only rule is:
+
+        "An uploaded forecast version cannot imply any retracted prediction elements in existing versions."
+
+    :param forecast: new forecast to validate
+    :param temp_table_name: contains `forecast`'s candidate prediction elements
+    :raises RuntimeError: if forecast version is invalid
+    """
+    prev_version, next_version = _forecast_versions(forecast)  # either or both can be None
+    if prev_version and _is_pred_eles_subset(temp_table_name, prev_version, True):
+        raise RuntimeError(f"invalid forecast. forecast is a subset of previous version. forecast={forecast}, "
+                           f"prev_version={prev_version}")
+    elif next_version and _is_pred_eles_subset(temp_table_name, next_version, False):
+        raise RuntimeError(f"invalid forecast. next version is a subset of forecast. forecast={forecast}, "
+                           f"next_version={next_version}")
+
+
+def _forecast_versions(forecast):
+    """
+    :param forecast: a Forecast
+    :return: a 2-tuple: (previous_version, next_version) where:
+    - previous_version: the forecast version immediately earlier than `forecast` based on issue_date, or None if
+        `forecast` has the oldest issue_date
+    - next_version: similar, except next newest forecast
+
+    Recall a forecast version is defined by the 3-tuple: (forecast_model, time_zero, issue_date). Forecast's
+    'unique_version' constraint validates uniqueness at the database level before this function can ever be called.
+    """
+    # NB: this does two queries. alternatively we could get all versions into memory and then figure out prev and next
+    versions_qs = Forecast.objects.filter(forecast_model=forecast.forecast_model, time_zero=forecast.time_zero)
+    prev_version = versions_qs.filter(issue_date__lt=forecast.issue_date).order_by('-issue_date').first()
+    next_version = versions_qs.filter(issue_date__gt=forecast.issue_date).order_by('issue_date').first()
+    return prev_version, next_version
+
+
+def _is_pred_eles_subset(temp_table_name, prev_or_next_version, is_previous):
+    """
+    :param temp_table_name: contains a new forecast's candidate prediction elements
+    :param prev_or_next_version: a Forecast to compare to temp_table_name
+    :param is_previous: True if prev_or_next_version is prev_version, and False if it is next_version. controls set
+        comparison order
+    :return: True if temp_table_name's PredictionElements are a subset of those of prev_or_next_version, i.e., if there
+        are implicit retractions
+    """
+
+    def is_empty_table(table_name_or_forecast):
+        # use EXISTS instead of COUNT for performance
+        if isinstance(table_name_or_forecast, Forecast):
+            sql = f"SELECT EXISTS (SELECT * FROM {PredictionElement._meta.db_table} WHERE forecast_id = %s);"
+            args = (table_name_or_forecast.pk,)
+        else:
+            sql = f"SELECT EXISTS (SELECT * FROM {table_name_or_forecast});"
+            args = ()
+        with connection.cursor() as cursor:
+            cursor.execute(sql, args)
+            is_any_rows = cursor.fetchone()[0]
+            return not is_any_rows
+
+    # first we test the special case where a table is empty. otherwise, the below queries would always return True,
+    # which is meaningless when there's no rows. this case only occurs in two situations: 1) unit tests where we want to
+    # set up by creating all Forecasts before loading data into them (specifically `test_implicit_retractions()`) and
+    # 2) when migrating old data to new, where the Forecasts already exist and we want to preserve them. adding this
+    # special case seemed a better trade-off than requiring users to never have newer Forecasts. this does not come up
+    # in normal operation b/c a Forecast is created only for an upload
+    if (is_previous and is_empty_table(temp_table_name)) or \
+            ((not is_previous) and is_empty_table(prev_or_next_version)):
+        return False  # valid (not a subset)
+
+    # set CTE
+    if is_previous:  # error if any in prev_or_next_version that are not in temp_table_name
+        with_sql = f"""
+            WITH except_rows AS (
+                SELECT unit_id, target_id, pred_class
+                FROM {PredictionElement._meta.db_table}
+                WHERE forecast_id = %s
+                    EXCEPT
+                SELECT unit_id, target_id, pred_class
+                FROM {temp_table_name}
+            )
+        """
+    else:  # error if any in temp_table_name that are not in prev_or_next_version
+        with_sql = f"""
+            WITH except_rows AS (
+                SELECT unit_id, target_id, pred_class
+                FROM {temp_table_name}
+                    EXCEPT
+                SELECT unit_id, target_id, pred_class
+                FROM {PredictionElement._meta.db_table}
+                WHERE forecast_id = %s
+            )
+        """
+    sql = f"""
+        {with_sql}
+        SELECT EXISTS (SELECT * FROM except_rows);
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (prev_or_next_version.pk,))
+        is_subset = cursor.fetchone()[0]
+        return is_subset
+
+
+def _validate_bin_prediction_dict(is_validate_cats, prediction_dict, target):
     prediction_data = prediction_dict['prediction']
 
     # validate: "The number of elements in the `cat` and `prob` vectors should be identical"
@@ -396,24 +482,23 @@ def _validate_bin_predictions(is_validate_cats, prediction_dict, target):
                            f"prediction_dict={prediction_dict}")
 
 
-def _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_dict, target):
+def _validate_named_prediction_dict(family_abbrev, prediction_dict, target):
     prediction_data = prediction_dict['prediction']
 
     # validate: "`family`: must be one of the abbreviations shown in the table below"
-    family_abbrevs = NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()
+    family_abbrevs = NamedData.FAMILY_CHOICES
     if family_abbrev not in family_abbrevs:
         raise RuntimeError(f"family must be one of the abbreviations shown in the table below. "
                            f"family_abbrev={family_abbrev!r}, family_abbrevs={family_abbrevs}, "
                            f"prediction_dict={prediction_dict}")
 
-    # validate: "The Prediction's class must be valid for its target's type". note that only NamedDistributions
-    # are constrained; all other target_type/prediction_class combinations are valid
-    if family_abbrev_to_int[family_abbrev] not in Target.valid_named_families(target.type):
+    # validate: "The Prediction's class must be valid for its target's type". note that only named and quantile
+    # predictions are constrained; all other target_type/prediction_class combinations are valid
+    if not Target.is_valid_named_family_for_target_type(family_abbrev, target.type):
         raise RuntimeError(f"family {family_abbrev!r} is not valid for {target.type_as_str()!r} "
                            f"target types. prediction_dict={prediction_dict}")
 
     # validate: "The number of param columns with non-NULL entries count must match family definition"
-    param_to_exp_count = {'norm': 2, 'lnorm': 2, 'gamma': 2, 'beta': 2, 'pois': 1, 'nbinom': 2, 'nbinom2': 2}
     num_params = 0
     if 'param1' in prediction_data:
         num_params += 1
@@ -421,22 +506,22 @@ def _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_
         num_params += 1
     if 'param3' in prediction_data:
         num_params += 1
-    if num_params != param_to_exp_count[family_abbrev]:
+    if num_params != NamedData.PARAM_TO_EXP_COUNT[family_abbrev]:
         raise RuntimeError(f"The number of param columns with non-NULL entries count must match family "
                            f"definition. family_abbrev={family_abbrev!r}, num_params={num_params}, "
-                           f"expected count={param_to_exp_count[family_abbrev]}, "
+                           f"expected count={NamedData.PARAM_TO_EXP_COUNT[family_abbrev]}, "
                            f"prediction_dict={prediction_dict}")
     # validate: Parameters for each distribution must be within valid ranges, which, if constraints exist, are
     # specified in the table below
     ge_0, gt_0, bw_0_1 = '>=0', '>0', '0<=&>=0'
     family_abbrev_to_param1_2_constraint_type = {
-        'norm': (None, ge_0),  # | mean | sd>=0 | - |
-        'lnorm': (None, ge_0),  # | mean | sd>=0 | - |
-        'gamma': (gt_0, gt_0),  # | shape>0 |rate>0 | - |
-        'beta': (gt_0, gt_0),  # | a>0 | b>0 | - |
-        'pois': (gt_0, None),  # | rate>0 |  - | - |
-        'nbinom': (gt_0, bw_0_1),  # | r>0 | 0<=p<=1 | - |
-        'nbinom2': (gt_0, gt_0)  # | mean>0 | disp>0 | - |
+        NamedData.NORM_DIST: (None, ge_0),  # | mean | sd>=0 | - |
+        NamedData.LNORM_DIST: (None, ge_0),  # | mean | sd>=0 | - |
+        NamedData.GAMMA_DIST: (gt_0, gt_0),  # | shape>0 |rate>0 | - |
+        NamedData.BETA_DIST: (gt_0, gt_0),  # | a>0 | b>0 | - |
+        NamedData.POIS_DIST: (gt_0, None),  # | rate>0 |  - | - |
+        NamedData.NBINOM_DIST: (gt_0, bw_0_1),  # | r>0 | 0<=p<=1 | - |
+        NamedData.NBINOM2_DIST: (gt_0, gt_0)  # | mean>0 | disp>0 | - |
     }
     p1_constr, p2_constr = family_abbrev_to_param1_2_constraint_type[family_abbrev]
     if ((p1_constr == gt_0) and not (prediction_data['param1'] > 0)) or \
@@ -447,7 +532,7 @@ def _validate_named_predictions(family_abbrev, family_abbrev_to_int, prediction_
                            f"prediction_dict={prediction_dict}")
 
 
-def _validate_point_predictions(prediction_dict, target, value):
+def _validate_point_prediction_dict(prediction_dict, target, value):
     prediction_data = prediction_dict['prediction']
 
     # validate: "Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL` (case does
@@ -473,7 +558,7 @@ def _validate_point_predictions(prediction_dict, target, value):
                            f"prediction_dict={prediction_dict}")
 
 
-def _validate_sample_predictions(prediction_dict, target):
+def _validate_sample_prediction_dict(prediction_dict, target):
     prediction_data = prediction_dict['prediction']
 
     # validate: "Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL` (case does
@@ -506,15 +591,21 @@ def _validate_sample_predictions(prediction_dict, target):
 
 
 def _le_with_tolerance(a, b):  # a <= b ?
-    # `_validate_quantile_predictions()` helper
+    # `_validate_quantile_prediction_dict()` helper
     if type(a) in {int, float}:
         return True if math.isclose(a, b, rel_tol=1e-05) else a <= b  # default: rel_tol=1e-09
     else:  # date
         return a <= b
 
 
-def _validate_quantile_predictions(prediction_dict, target):
+def _validate_quantile_prediction_dict(prediction_dict, target):
     prediction_data = prediction_dict['prediction']
+
+    # validate: "The Prediction's class must be valid for its target's type". note that only named and quantile
+    # predictions are constrained; all other target_type/prediction_class combinations are valid
+    if (target.type == Target.NOMINAL_TARGET_TYPE) or (target.type == Target.BINARY_TARGET_TYPE):
+        raise RuntimeError(f"quantile data is not valid for target type={target.type}. "
+                           f"prediction_dict={prediction_dict}")
 
     # validate: "The number of elements in the `quantile` and `value` vectors should be identical."
     pred_data_quantiles = prediction_data['quantile']
@@ -574,272 +665,33 @@ def _validate_quantile_predictions(prediction_dict, target):
                                f"pred_data_values={pred_data_values}, prediction_dict={prediction_dict}")
 
 
-def _load_bin_rows(forecast, rows, target_pk_to_object):
+def _insert_pred_data_rows(rows):
     """
-    Loads rows into the database as BinDistributions.
-    """
-    # incoming rows: [unit_name, target_name, cat, prob]. value_idx=2
-
-    # after this, rows will be: [unit_id, target_id, cat, prob]:
-    _replace_unit_target_names_with_pks(forecast, rows)
-
-    # after this, rows will be: [unit_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob]:
-    _replace_value_with_five_types(rows, 2, target_pk_to_object, is_exclude_last=True)
-
-    # after this, rows will be: [unit_id, target_id, cat_i, cat_f, cat_t, cat_d, cat_b, prob, self_pk]:
-    _add_forecast_pks(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = BinDistribution
-    columns_names = [prediction_class._meta.get_field('unit').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('cat_i').column,
-                     prediction_class._meta.get_field('cat_f').column,
-                     prediction_class._meta.get_field('cat_t').column,
-                     prediction_class._meta.get_field('cat_d').column,
-                     prediction_class._meta.get_field('cat_b').column,
-                     prediction_class._meta.get_field('prob').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _load_named_rows(forecast, rows):
-    """
-    Loads rows into the database as NamedDistribution concrete subclasses. Recall that each subclass has different IVs,
-    so we use a hard-coded mapping to decide the subclass based on the `family` column.
-    """
-    # incoming rows: [unit_name, target_name, family, param1, param2, param3]
-
-    # after this, rows will be: [unit_id, target_id, family, param1, param2, param3]:
-    _replace_unit_target_names_with_pks(forecast, rows)
-
-    # after this, rows will be: [unit_id, target_id, family_id, param1, param2, param3]:
-    _replace_family_abbrev_with_id(rows)
-
-    # after this, rows will be: [unit_id, target_id, family_id, param1_or_0, param2_or_0, param3_or_0]:
-    # _replace_null_params_with_zeros(rows)  # todo xx temp!
-
-    # after this, rows will be: [unit_id, target_id, family_id, param1, param2, param3, self_pk]:
-    _add_forecast_pks(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = NamedDistribution
-    columns_names = [prediction_class._meta.get_field('unit').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('family').column,
-                     prediction_class._meta.get_field('param1').column,
-                     prediction_class._meta.get_field('param2').column,
-                     prediction_class._meta.get_field('param3').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _load_point_rows(forecast, rows, target_pk_to_object):
-    """
-    Loads rows into the database as PointPredictions.
-    """
-    # incoming rows: [unit_name, target_name, value]. value_idx=2
-
-    # after this, rows will be: [unit_id, target_id, value]:
-    _replace_unit_target_names_with_pks(forecast, rows)
-
-    # # validate rows. todo xx why is this commented out?
-    # unit_id_to_obj = {unit.pk: unit for unit in forecast.forecast_model.project.units.all()}
-    # target_id_to_obj = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
-    # for unit_id, target_id, value in rows:
-    #     target = target_id_to_obj[target_id]
-    #     if (not target.is_date) and (value is None):
-    #         raise RuntimeError(f"Point value was non-numeric. forecast={forecast}, "
-    #                            f"unit={unit_id_to_obj[unit_id]}, target={target}")
-
-    # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t, value_d, value_b]:
-    _replace_value_with_five_types(rows, 2, target_pk_to_object)
-
-    # after this, rows will be: [unit_id, target_id, value_i, value_f, value_t, self_pk]:
-    _add_forecast_pks(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = PointPrediction
-    columns_names = [prediction_class._meta.get_field('unit').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('value_i').column,
-                     prediction_class._meta.get_field('value_f').column,
-                     prediction_class._meta.get_field('value_t').column,
-                     prediction_class._meta.get_field('value_d').column,
-                     prediction_class._meta.get_field('value_b').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _load_sample_rows(forecast, rows, target_pk_to_object):
-    """
-    Loads rows into the database as SampleDistribution. See SAMPLE_DISTRIBUTION_HEADER.
-    """
-    # incoming rows: [unit_name, target_name, sample]. value_idx=2
-
-    # after this, rows will be: [unit_id, target_id, sample]:
-    _replace_unit_target_names_with_pks(forecast, rows)
-
-    # after this, rows will be: [unit_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b]:
-    _replace_value_with_five_types(rows, 2, target_pk_to_object)
-
-    # after this, rows will be: [unit_id, target_id, sample_i, sample_f, sample_t, sample_d, sample_b, self_pk]:
-    _add_forecast_pks(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = SampleDistribution
-    columns_names = [prediction_class._meta.get_field('unit').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('sample_i').column,
-                     prediction_class._meta.get_field('sample_f').column,
-                     prediction_class._meta.get_field('sample_t').column,
-                     prediction_class._meta.get_field('sample_d').column,
-                     prediction_class._meta.get_field('sample_b').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _load_quantile_rows(forecast, rows, target_pk_to_object):
-    """
-    Loads rows into the database as QuantileDistributions.
-    """
-    # incoming rows: [unit_name, target_name, quantile, value]. value_idx=3
-
-    # after this, rows will be: [unit_id, target_id, quantile, value]:
-    _replace_unit_target_names_with_pks(forecast, rows)
-
-    # after this, rows will be: [unit_id, target_id, quantile, value_i, value_f, value_t, value_d, value_b]:
-    _replace_value_with_five_types(rows, 3, target_pk_to_object)
-
-    # remove unneeded value_t and value_b value.
-    # after this, rows will be: [unit_id, target_id, quantile, value_i, value_f, value_d]:
-    for row in rows:
-        del row[5]  # value_t
-        del row[6]  # value_b (index -1 b/c previous delete)
-
-    # after this, rows will be: [unit_id, target_id, quantile, value_i, value_f, value_d, self_pk]:
-    _add_forecast_pks(forecast, rows)
-
-    # todo better way to get FK name? - Forecast._meta.model_name + '_id' . also, maybe use ForecastData._meta.fields ?
-    prediction_class = QuantileDistribution
-    columns_names = [prediction_class._meta.get_field('unit').column,
-                     prediction_class._meta.get_field('target').column,
-                     prediction_class._meta.get_field('quantile').column,
-                     prediction_class._meta.get_field('value_i').column,
-                     prediction_class._meta.get_field('value_f').column,
-                     prediction_class._meta.get_field('value_d').column,
-                     Forecast._meta.model_name + '_id']
-    _insert_prediction_rows(prediction_class, columns_names, rows)
-
-
-def _replace_unit_target_names_with_pks(forecast, rows):
-    """
-    Does an in-place rows replacement of target and unit names with PKs.
-    """
-    project = forecast.forecast_model.project
-
-    # todo xx pass in:
-    unit_name_to_pk = {unit.name: unit.id for unit in project.units.all()}
-
-    target_name_to_pk = {target.name: target.id for target in project.targets.all()}
-    for row in rows:  # unit_name, target_name, value, self_pk
-        row[0] = unit_name_to_pk[row[0]]
-        row[1] = target_name_to_pk[row[1]]
-
-
-def _replace_value_with_five_types(rows, value_idx, target_pk_to_object, is_exclude_last=False):
-    """
-    Does an in-place row replacement of values with the five type-specific values based on each row's Target's
-    data_type. The values: value_i, value_f, value_t, value_d, value_b. Recall that exactly one will be non-NULL (i.e.,
-    not None). This function is a little general in that it can handle rows that contain `value`, `cat`, `sample`, or
-    `quantile`.
-
-    Example rows:                           value_idx   is_exclude_last
-    - [unit_id, target_id, cat, prob]           2           True
-    - [unit_id, target_id, value]               2           False
-    - [unit_id, target_id, sample]              2           False
-    - [unit_id, target_id, quantile, value]     3           False
-
-    :param rows: a list of lists of the form: [unit_id, target_id, value, [last_item]], where last_item is optional
-        and is indicated by is_exclude_last
-    :param value_idx: where in the row the value is located
-    :param target_pk_to_object: as set in load_predictions_from_json_io_dict()
-    :param is_exclude_last: True if the last item should be preserved, and False o/w
-    :return: rows, but with the value_idx replaced with the above five type-specific values, i.e.,
-        [unit_id, target_id, value_i, value_f, value_t, value_d, value_b, [last_item]]
-    """
-    for row in rows:
-        target_pk = row[1]
-        data_type = target_pk_to_object[target_pk].data_types()[0]  # the first is the preferred one
-        value = row[value_idx]
-        value_i = value if data_type == Target.INTEGER_DATA_TYPE else None
-        value_f = value if data_type == Target.FLOAT_DATA_TYPE else None
-        value_t = value if data_type == Target.TEXT_DATA_TYPE else None
-        value_d = value if data_type == Target.DATE_DATA_TYPE else None
-        value_b = value if data_type == Target.BOOLEAN_DATA_TYPE else None
-        if is_exclude_last:
-            row[value_idx:-1] = [value_i, value_f, value_t, value_d, value_b]
-        else:
-            row[value_idx:] = [value_i, value_f, value_t, value_d, value_b]
-
-
-def _replace_family_abbrev_with_id(rows):
-    """
-    Does an in-place rows replacement of family abbreviations with ids in NamedDistribution.FAMILY_CHOICES (ints).
-    """
-    for row in rows:
-        abbreviation = row[2]
-        if abbreviation in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values():
-            row[2] = [choice for choice, abbrev in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()
-                      if abbrev == abbreviation][0]
-        elif abbreviation is not None:  # not a retracted prediction
-            raise RuntimeError(f"invalid family. abbreviation={abbreviation!r}, "
-                               f"abbreviations={NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.values()}")
-
-
-def _replace_null_params_with_zeros(rows):
-    """
-    Does an in-place rows replacement of empty params with zeros."
-    """
-    for row in rows:
-        row[3] = row[3] or 0  # param1
-        row[4] = row[4] or 0  # param2
-        row[5] = row[5] or 0  # param3
-
-
-def _add_forecast_pks(forecast, rows):
-    """
-    Does an in-place rows addition of my pk to the end.
-    """
-    for row in rows:
-        row.append(forecast.pk)
-
-
-def _insert_prediction_rows(prediction_class, columns_names, rows):
-    """
-    Does the actual INSERT of rows into the database table corresponding to prediction_class. For speed, we directly
+    Does the actual INSERT of rows into the database table corresponding to pred_data_class. For speed, we directly
     insert via SQL rather than the ORM. We use psycopg2 extensions to the DB API if we're connected to a Postgres
     server. Otherwise we use execute_many() as a fallback. The reason we don't simply use the latter for Postgres
     is because its implementation is slow ( http://initd.org/psycopg/docs/extras.html#fast-execution-helpers ).
+
+    :param rows: list of 2-tuples: (pred_ele_id, prediction_data), where pred_ele_id is a PredictionElement.pk, and
+        prediction_data is the "raw" prediction_data dict, i.e., the prediction_element dict's "prediction" dict.
     """
-    table_name = prediction_class._meta.db_table
+    # serialize to json. NB: assumes no CR or LFs in dicts!
+    rows = [(idx, json.dumps(pred_data)) for idx, pred_data in rows]
+    table_name = PredictionData._meta.db_table
+    columns_names = PredictionData._meta.get_field('pred_ele').column, PredictionData._meta.get_field('data').column
     with connection.cursor() as cursor:
         if connection.vendor == 'postgresql':
+            # bulk insert via COPY FROM. to avoid possible problems with CSV quoting and delimiters, we follow this
+            # advice: http://adpgtech.blogspot.com/2014/09/importing-json-data.html :
+            #   There is a small set of single-byte characters that happen to be illegal in JSON: e'\x01' and e'\x02'
             string_io = io.StringIO()
-            csv_writer = csv.writer(string_io, delimiter=',')
-            for row in rows:
-                unit_id, target_id = row[0], row[1]
-                prediction_items = row[2:-1]
-                self_pk = row[-1]
-
-                for idx in range(len(prediction_items)):
-                    # value_i if value_i is not None else POSTGRES_NULL_VALUE
-                    prediction_item = prediction_items[idx]
-                    prediction_items[idx] = prediction_item if prediction_item is not None else POSTGRES_NULL_VALUE
-
-                csv_writer.writerow([unit_id, target_id] + prediction_items + [self_pk])
+            csv_writer = csv.writer(string_io, quotechar=chr(1), delimiter=chr(2))
+            csv_writer.writerows(rows)
             string_io.seek(0)
-            cursor.copy_from(string_io, table_name, columns=columns_names, sep=',', null=POSTGRES_NULL_VALUE)
+            sql = f"""
+                COPY {table_name}({', '.join(columns_names)}) FROM STDIN WITH CSV QUOTE e'\x01' DELIMITER e'\x02';
+            """
+            cursor.copy_expert(sql, string_io)
         else:  # 'sqlite', etc.
             column_names = (', '.join(columns_names))
             values_percent_s = ', '.join(['%s'] * len(columns_names))
@@ -854,94 +706,40 @@ def _insert_prediction_rows(prediction_class, columns_names, rows):
 # data_rows_from_forecast()
 #
 
-def coalesce_values(value_i, value_f, value_t, value_d, value_b):
-    """
-    Utility that returns the first value that's non-None, formatting in YYYY_MM_DD_DATE_FORMAT if a date.
-    """
-    value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-    return value.strftime(YYYY_MM_DD_DATE_FORMAT) if isinstance(value, datetime.date) else value
-
-
 def data_rows_from_forecast(forecast, unit, target):
     """
-    Returns rows for each concrete prediction type that are suitable tabular display.
+    Returns rows for each concrete prediction type that are suitable for tabular display.
 
     :param forecast: a Forecast to constrain to
     :param unit: a Unit ""
     :param target: a Target ""
-    :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
+    :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample) where
+        data_rows_bin:      unit_name, target_name,  cat, prob
+        data_rows_named:    unit_name, target_name,  family, param1, param2, param3
+        data_rows_point:    unit_name, target_name,  value
+        data_rows_quantile: unit_name, target_name,  quantile, value
+        data_rows_sample:   unit_name, target_name,  sample
     """
-    # NB: for simplicity we use five separate queries. one big UNION got messy due to many NULLs (sparse)
-    # bin
-    sql = f"""
-        SELECT u.name, t.name, pred.prob, pred.cat_b, pred.cat_d, pred.cat_f, pred.cat_i, pred.cat_t
-        FROM {BinDistribution._meta.db_table} AS pred
-                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
-                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
-        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
-        ORDER BY unit_id, target_id, pred.id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
-        data_rows_bin = [(row[0], row[1], row[2], coalesce_values(row[3], row[4], row[5], row[6], row[7]))
-                         for row in cursor.fetchall()]
-
-    # named
-    sql = f"""
-        SELECT u.name, t.name, pred.family, pred.param1, pred.param2, pred.param3
-        FROM {NamedDistribution._meta.db_table} AS pred
-                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
-                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
-        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
-        ORDER BY unit_id, target_id, pred.id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
-        data_rows_named = [(row[0], row[1], NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION[row[2]],
-                            row[3], row[4], row[5])
-                           for row in cursor.fetchall()]
-
-    # point
-    sql = f"""
-        SELECT u.name, t.name, pred.value_b, pred.value_d, pred.value_f, pred.value_i, pred.value_t
-        FROM {PointPrediction._meta.db_table} AS pred
-                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
-                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
-        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
-        ORDER BY unit_id, target_id, pred.id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
-        data_rows_point = [(row[0], row[1], coalesce_values(row[2], row[3], row[4], row[5], row[6]))
-                           for row in cursor.fetchall()]
-
-    # quantile
-    sql = f"""
-        SELECT u.name, t.name, pred.quantile, pred.value_d, pred.value_f, pred.value_i
-        FROM {QuantileDistribution._meta.db_table} AS pred
-                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
-                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
-        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
-        ORDER BY unit_id, target_id, pred.id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
-        data_rows_quantile = [(row[0], row[1], row[2], coalesce_values(row[3], row[4], None, row[5], None))
-                              for row in cursor.fetchall()]
-
-    # sample
-    sql = f"""
-        SELECT u.name, t.name, pred.sample_b, pred.sample_d, pred.sample_f, pred.sample_i, pred.sample_t
-        FROM {SampleDistribution._meta.db_table} AS pred
-                 JOIN {Unit._meta.db_table} u on pred.unit_id = u.id
-                 JOIN {Target._meta.db_table} t on pred.target_id = t.id
-        WHERE pred.forecast_id = %s AND u.id = %s AND t.id = %s
-        ORDER BY unit_id, target_id, pred.id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.pk, unit.id, target.id,))
-        data_rows_sample = [(row[0], row[1], coalesce_values(row[2], row[3], row[4], row[5], row[6]))
-                            for row in cursor.fetchall()]
+    data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
+        [], [], [], [], []  # return value. filled next
+    pred_data_qs = PredictionData.objects.filter(pred_ele__forecast=forecast, pred_ele__is_retract=False,
+                                                 pred_ele__unit=unit, pred_ele__target=target) \
+        .values_list('pred_ele__pred_class', 'data')
+    for pred_class, pred_data in pred_data_qs:
+        if pred_class == PredictionElement.BIN_CLASS:
+            for cat, prob in zip(pred_data['cat'], pred_data['prob']):
+                data_rows_bin.append((unit.name, target.name, cat, prob))
+        elif pred_class == PredictionElement.NAMED_CLASS:
+            data_rows_named.append((unit.name, target.name, pred_data['family'],
+                                    pred_data.get('param1'), pred_data.get('param2'), pred_data.get('param3')))
+        elif pred_class == PredictionElement.POINT_CLASS:
+            data_rows_point.append((unit.name, target.name, pred_data['value']))
+        elif pred_class == PredictionElement.QUANTILE_CLASS:
+            for quantile, value in zip(pred_data['quantile'], pred_data['value']):
+                data_rows_quantile.append((unit.name, target.name, quantile, value))
+        elif pred_class == PredictionElement.SAMPLE_CLASS:
+            for sample in pred_data['sample']:
+                data_rows_sample.append((unit.name, target.name, sample))
 
     # done
     return data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample
@@ -966,27 +764,28 @@ def cache_forecast_metadata(forecast):
 def _cache_forecast_metadata_predictions(forecast):
     clear_forecast_metadata(forecast)
 
-    # cache one ForecastMetaPrediction row for forecast
-    point_count = PointPrediction.objects.filter(forecast=forecast).count()
-    named_count = NamedDistribution.objects.filter(forecast=forecast).count()
-    bin_count = BinDistribution.objects.filter(forecast=forecast).count()
-    sample_count = SampleDistribution.objects.filter(forecast=forecast).count()
-    quantile_count = QuantileDistribution.objects.filter(forecast=forecast).count()
-    ForecastMetaPrediction.objects.create(forecast=forecast, point_count=point_count, named_count=named_count,
-                                          bin_count=bin_count, sample_count=sample_count, quantile_count=quantile_count)
+    # cache one ForecastMetaPrediction row for forecast. annotate() is a GROUP BY -> QuerySet of dicts like:
+    # {'pred_class': 1, 'total': 2}
+    rows = PredictionElement.objects.filter(forecast=forecast).values('pred_class').annotate(total=Count('id'))
+    pred_class_to_counts = defaultdict(int)
+    for pred_class_total_dict in rows:
+        pred_class_to_counts[pred_class_total_dict['pred_class']] = pred_class_total_dict['total']
+    ForecastMetaPrediction.objects.create(forecast=forecast,
+                                          bin_count=pred_class_to_counts[PredictionElement.BIN_CLASS],
+                                          named_count=pred_class_to_counts[PredictionElement.NAMED_CLASS],
+                                          point_count=pred_class_to_counts[PredictionElement.POINT_CLASS],
+                                          sample_count=pred_class_to_counts[PredictionElement.SAMPLE_CLASS],
+                                          quantile_count=pred_class_to_counts[PredictionElement.QUANTILE_CLASS])
 
 
 def _cache_forecast_metadata_units(forecast):
     # cache ForecastMetaUnit rows for forecast
     unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
-    found_unit_ids = set()
-    for concrete_prediction_class in Prediction.concrete_subclasses():
-        pred_class_units = concrete_prediction_class.objects \
-            .filter(forecast=forecast) \
-            .values_list('unit', flat=True) \
-            .distinct()
-        found_unit_ids.update(pred_class_units)
-    found_units = [unit_id_to_obj[unit_id] for unit_id in found_unit_ids]
+    pred_class_units_qs = PredictionElement.objects \
+        .filter(forecast=forecast) \
+        .values_list('unit', flat=True) \
+        .distinct()
+    found_units = [unit_id_to_obj[unit_id] for unit_id in pred_class_units_qs]
     for unit in found_units:
         ForecastMetaUnit.objects.create(forecast=forecast, unit=unit)
 
@@ -994,14 +793,11 @@ def _cache_forecast_metadata_units(forecast):
 def _cache_forecast_metadata_targets(forecast):
     # cache ForecastMetaTarget rows for forecast
     target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
-    found_target_ids = set()
-    for concrete_prediction_class in Prediction.concrete_subclasses():
-        pred_class_targets = concrete_prediction_class.objects \
-            .filter(forecast=forecast) \
-            .values_list('target', flat=True) \
-            .distinct()
-        found_target_ids.update(pred_class_targets)
-    found_targets = [target_id_to_object[target_id] for target_id in found_target_ids]
+    pred_class_targets_qs = PredictionElement.objects \
+        .filter(forecast=forecast) \
+        .values_list('target', flat=True) \
+        .distinct()
+    found_targets = [target_id_to_object[target_id] for target_id in pred_class_targets_qs]
     for target in found_targets:
         ForecastMetaTarget.objects.create(forecast=forecast, target=target)
 
@@ -1010,7 +806,7 @@ def clear_forecast_metadata(forecast):
     """
     Top-level function that clears all metadata information for forecast.
 
-    :param forecast: a Forecast whose metata is to be cached
+    :param forecast: a Forecast whose metadata is to be cached
     """
     ForecastMetaPrediction.objects.filter(forecast=forecast).delete()
     ForecastMetaUnit.objects.filter(forecast=forecast).delete()
@@ -1107,3 +903,32 @@ def forecast_metadata_counts_for_project(project):
 
     # done
     return forecast_id_to_counts
+
+
+#
+# ---- NamedData ----
+#
+
+class NamedData:
+    """
+    Helper class that stores named data-related constants representing named distributions like normal, log normal,
+    gamma, etc. These are essentially named functions (the function's `family`) with up to general-purpose three
+    parameter fields - `param1`, `param2`, etc. Each parameter's semantics and calculation are defined by the family.
+    """
+
+    # family abbreviations. long name is shown but unused in code
+    NORM_DIST = 'norm'  # Normal
+    LNORM_DIST = 'lnorm'  # Log Normal
+    GAMMA_DIST = 'gamma'  # Gamma
+    BETA_DIST = 'beta'  # Beta
+    POIS_DIST = 'pois'  # Poisson
+    NBINOM_DIST = 'nbinom'  # Negative Binomial
+    NBINOM2_DIST = 'nbinom2'  # Negative Binomial 2
+
+    # a list of all of them for validation
+    FAMILY_CHOICES = (NORM_DIST, LNORM_DIST, GAMMA_DIST, BETA_DIST, POIS_DIST, NBINOM_DIST, NBINOM2_DIST)
+
+    # implements this table: https://docs.zoltardata.com/validation/#named-prediction-elements and helps validate:
+    # "The number of param columns with non-NULL entries count must match family definition"
+    PARAM_TO_EXP_COUNT = {NORM_DIST: 2, LNORM_DIST: 2, GAMMA_DIST: 2, BETA_DIST: 2, POIS_DIST: 1, NBINOM_DIST: 2,
+                          NBINOM2_DIST: 2}

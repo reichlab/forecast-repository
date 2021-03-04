@@ -28,11 +28,10 @@ class ProjectUtilTestCase(TestCase):
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             input_project_dict = json.load(fp)
         project = create_project_from_json(input_project_dict, po_user)
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         output_project_config = config_dict_from_project(project, APIRequestFactory().request())
-        for target_dict in output_project_config[
-            'targets']:  # remove 'id' and 'url' fields from TargetSerializer to ease testing
+
+        # remove 'id' and 'url' fields from TargetSerializer to ease testing:
+        for target_dict in output_project_config['targets']:
             del target_dict['id']
             del target_dict['url']
         for target_dict in output_project_config['timezeros']:  # "" TimeZeroSerializer
@@ -41,6 +40,15 @@ class ProjectUtilTestCase(TestCase):
         for target_dict in output_project_config['units']:  # "" UnitSerializer
             del target_dict['id']
             del target_dict['url']
+
+        # account for non-determinism of output
+        input_project_dict['units'].sort(key=lambda _: _['name'])
+        input_project_dict['targets'].sort(key=lambda _: _['name'])
+        input_project_dict['timezeros'].sort(key=lambda _: _['timezero_date'])
+        output_project_config['units'].sort(key=lambda _: _['name'])
+        output_project_config['targets'].sort(key=lambda _: _['name'])
+        output_project_config['timezeros'].sort(key=lambda _: _['timezero_date'])
+
         self.assertEqual(input_project_dict, output_project_config)
 
 
@@ -510,8 +518,6 @@ class ProjectUtilTestCase(TestCase):
 
         # 2. Target -> target_dict
         # does target_dict() = {...}  # required keys:
-        # note: using APIRequestFactory was the only way I could find to pass a request object. o/w you get:
-        #   AssertionError: `HyperlinkedIdentityField` requires the request in the serializer context.
         output_target_dicts = [_target_dict_for_target(target, APIRequestFactory().request()) for target in
                                project.targets.all()]
 
@@ -666,11 +672,11 @@ class ProjectUtilTestCase(TestCase):
 
         # case: add a second forecast for a newer timezero
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions-non-dup.json',
                                             time_zero=time_zero2, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
             cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3, '(all)', '')]
@@ -689,7 +695,7 @@ class ProjectUtilTestCase(TestCase):
                              "target": "pct next week",
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
-        load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
+        load_predictions_from_json_io_dict(forecast3, json_io_dict, is_validate_cats=False)
         cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 3,
@@ -735,11 +741,11 @@ class ProjectUtilTestCase(TestCase):
 
         # case: add a second forecast for a newer timezero
         time_zero2 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 3))
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions-non-dup.json',
                                             time_zero=time_zero2, notes="a small prediction file")
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+        with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, False)
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
             cache_forecast_metadata(forecast2)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 'Season peak week', 1),
@@ -762,7 +768,7 @@ class ProjectUtilTestCase(TestCase):
                              "target": "pct next week",
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
-        load_predictions_from_json_io_dict(forecast3, json_io_dict, False)
+        load_predictions_from_json_io_dict(forecast3, json_io_dict, is_validate_cats=False)
         cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
         exp_rows = exp_rows + [(forecast_model2, str(time_zero3.timezero_date), forecast3.id, 'pct next week', 1)]

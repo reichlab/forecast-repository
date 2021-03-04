@@ -5,11 +5,11 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Forecast
+from forecast_app.models import Forecast, PredictionElement, PredictionData
 from forecast_app.models import ForecastModel, TimeZero
-from forecast_app.models.prediction import calc_named_distribution
+from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT
 from forecast_app.tests.test_project_queries import ProjectQueriesTestCase
-from utils.forecast import load_predictions_from_json_io_dict, _prediction_dicts_to_validated_db_rows
+from utils.forecast import load_predictions_from_json_io_dict, _validated_pred_ele_rows_for_pred_dicts
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_queries import query_truth_for_project
@@ -26,19 +26,88 @@ class PredictionsTestCase(TestCase):
     """
 
 
-    def test_concrete_subclasses(self):
-        """
-        this test makes sure the current set of concrete Prediction subclasses hasn't changed since the last time this
-        test was updated. it's here as a kind of sanity check to catch the case where the Prediction class hierarchy has
-        changed, but not code that depends on the seven (as of this writing) specific subclasses
-        """
-        from forecast_app.models import Prediction
+    def test_hash_for_prediction_dict(self):
+        for exp_hash, prediction_dict in [
+            ('845e3d041b6be23a381b6afd263fb113', {"family": "pois", "param1": 1.1}),
+            ('2ed5d7d59eb10044644ab28a1b292efb', {"value": 5}),
+            ('74135c30ddfd5427c8b1e86b2989a642', {"sample": [0, 2, 5]}),
+            ('a74ea3f2472e0aec511eb1f604282220', {"cat": [0, 2, 50], "prob": [0.0, 0.1, 0.9]}),
+            ('838e6e3f77075f69eef3bb3d7bcdffdc', {"quantile": [0.25, 0.75], "value": [0, 50]}),
+            ('bc55989f596fd157ccc6e3279b1f694a', {"value": "mild"}),
+            ('ac263a19694da72f65e903c2ec2000d1', {"cat": ["mild", "moderate", "severe"], "prob": [0.0, 0.1, 0.9]}),
+            ('19d0e94bc24114abfa0d07ca41b8b3bf', {"value": True}),
+            ('1b98c3c7b5b09d3ba0ea43566d5e9d03', {"cat": [True, False], "prob": [0.9, 0.1]}),
+            ('c74e3f626224eeb482368d9fb7a387da',
+             {"cat": ["2019-12-15", "2019-12-22", "2019-12-29"], "prob": [0.01, 0.1, 0.89]}),
+        ]:
+            self.assertEqual(exp_hash, PredictionElement.hash_for_prediction_data_dict(prediction_dict))
 
 
-        concrete_subclasses = Prediction.concrete_subclasses()
-        exp_subclasses = {'BinDistribution', 'NamedDistribution', 'PointPrediction', 'SampleDistribution',
-                          'QuantileDistribution'}
-        self.assertEqual(exp_subclasses, {concrete_subclass.__name__ for concrete_subclass in concrete_subclasses})
+    def test_load_predictions_from_json_io_dict_existing_pred_eles(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        json_io_dict = {"predictions": [{"unit": "location1",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 2.1}}]}
+        with self.assertRaises(RuntimeError) as context:
+            load_predictions_from_json_io_dict(forecast, json_io_dict)
+        self.assertIn("forecast already has data", str(context.exception))
+
+
+    def test_load_predictions_from_json_io_dict_phase_1(self):
+        # tests pass 1/2 of load_predictions_from_json_io_dict(). NB: implicitly covers test_hash_for_prediction_dict()
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
+                                           time_zero=time_zero)
+
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict = json.load(fp)
+            load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)
+
+        # test PredictionElement.forecast and is_retract
+        self.assertEqual(29, forecast.pred_eles.count())
+        self.assertEqual(0, PredictionElement.objects.filter(is_retract=True).count())
+
+        exp_rows = [('point', 'location1', 'pct next week', '2c343e1ea37e8b493c219066a8664276'),
+                    ('named', 'location1', 'pct next week', '58a7f8487958446d57333b262aaa8271'),
+                    ('point', 'location2', 'pct next week', '2b9db448ae1a3b7065ffee67d4857268'),
+                    ('bin', 'location2', 'pct next week', '7d1485af48de540dbcd954ee5cba51cb'),
+                    ('quantile', 'location2', 'pct next week', '0d3698e4e39456b8e36c750d73bb6870'),
+                    ('point', 'location3', 'pct next week', '5d321ea39f0af08cb3f40a58fa7c54d4'),
+                    ('sample', 'location3', 'pct next week', '0b431a76d5ad343981944c4b0792d738'),
+                    ('named', 'location1', 'cases next week', '845e3d041b6be23a381b6afd263fb113'),
+                    ('point', 'location2', 'cases next week', '2ed5d7d59eb10044644ab28a1b292efb'),
+                    ('sample', 'location2', 'cases next week', '74135c30ddfd5427c8b1e86b2989a642'),
+                    ('point', 'location3', 'cases next week', 'a6ff82cc0637f67254df41352e1c00f9'),
+                    ('bin', 'location3', 'cases next week', 'a74ea3f2472e0aec511eb1f604282220'),
+                    ('quantile', 'location3', 'cases next week', '838e6e3f77075f69eef3bb3d7bcdffdc'),
+                    ('point', 'location1', 'season severity', 'bc55989f596fd157ccc6e3279b1f694a'),
+                    ('bin', 'location1', 'season severity', 'ac263a19694da72f65e903c2ec2000d1'),
+                    ('point', 'location2', 'season severity', 'ec5add7ea7a8abf3e68e9570d0b73898'),
+                    ('sample', 'location2', 'season severity', '51d07bda3e8a39da714f5767d93704ff'),
+                    ('point', 'location1', 'above baseline', '19d0e94bc24114abfa0d07ca41b8b3bf'),
+                    ('bin', 'location2', 'above baseline', '1b98c3c7b5b09d3ba0ea43566d5e9d03'),
+                    ('sample', 'location2', 'above baseline', 'ae168d5bfdad1463672120d51787fed2'),
+                    ('sample', 'location3', 'above baseline', '380b79bea27bfa66e8864cfec9e3403a'),
+                    ('point', 'location1', 'Season peak week', 'fad04bc4cd443ca7cd7cd53f5de4fa99'),
+                    ('bin', 'location1', 'Season peak week', 'c74e3f626224eeb482368d9fb7a387da'),
+                    ('sample', 'location1', 'Season peak week', '2f0fdc8a293046d38eb912601cf0a5cf'),
+                    ('point', 'location2', 'Season peak week', '39c511635eb21cfde3657ab144521b94'),
+                    ('bin', 'location2', 'Season peak week', '4fa62ed754c3fc9b9ede90926efe8f7f'),
+                    ('quantile', 'location2', 'Season peak week', 'd06cb30665b099e471c6dd9d50ba2c30'),
+                    ('point', 'location3', 'Season peak week', 'f15fab078daf9adb53f464272b31dbf6'),
+                    ('sample', 'location3', 'Season peak week', '213d829834bceaaa4376a79b989161c3'), ]
+        pred_data_qs = PredictionElement.objects \
+            .filter(forecast=forecast) \
+            .values_list('pred_class', 'unit__name', 'target__name', 'data_hash') \
+            .order_by('id')
+        act_rows = [(PredictionElement.prediction_class_int_as_str(row[0]), row[1], row[2], row[3])
+                    for row in pred_data_qs]
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
     def test_load_predictions_from_json_io_dict(self):
@@ -51,118 +120,32 @@ class PredictionsTestCase(TestCase):
 
         # test json with no 'predictions'
         with self.assertRaises(RuntimeError) as context:
-            load_predictions_from_json_io_dict(forecast, {}, False)
+            load_predictions_from_json_io_dict(forecast, {}, is_validate_cats=False)
         self.assertIn("json_io_dict had no 'predictions' key", str(context.exception))
 
-        # load all four types of Predictions, call Forecast.*_qs() functions. see docs-predictionsexp-rows.xlsx.
-
-        # counts from docs-predictionsexp-rows.xlsx: point: 11, named: 3, bin: 30 (3 zero prob), sample: 23
-        # = total rows: 67
-        #
-        # counts based on .json file:
-        # - 'pct next week':    point: 3, named: 1 , bin: 3, sample: 5, quantile: 5 = 17
-        # - 'cases next week':  point: 2, named: 1 , bin: 3, sample: 3, quantile: 2 = 12
-        # - 'season severity':  point: 2, named: 0 , bin: 3, sample: 5, quantile: 0 = 10
-        # - 'above baseline':   point: 1, named: 0 , bin: 2, sample: 6, quantile: 0 =  9
-        # - 'Season peak week': point: 3, named: 0 , bin: 7, sample: 4, quantile: 3 = 16
-        # = total rows: 64 - 2 zero prob = 62
-
+        # test loading all five types of Predictions
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict = json.load(fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict, False)
-        self.assertEqual(62, forecast.get_num_rows())
-        self.assertEqual(16, forecast.bin_distribution_qs().count())  # 18 - 2 zero prob
-        self.assertEqual(2, forecast.named_distribution_qs().count())
-        self.assertEqual(11, forecast.point_prediction_qs().count())
-        self.assertEqual(23, forecast.sample_distribution_qs().count())
-        self.assertEqual(10, forecast.quantile_prediction_qs().count())
+            load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)
 
+        # test prediction element counts match number in .json file
+        pred_ele_qs = forecast.pred_eles.all()
+        pred_data_qs = PredictionData.objects.filter(pred_ele__forecast=forecast)
+        self.assertEqual(29, len(pred_ele_qs))
+        self.assertEqual(29, len(pred_data_qs))
 
-    def test_prediction_dicts_to_db_rows(self):
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
-        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
-        forecast = Forecast.objects.create(forecast_model=forecast_model, source='docs-predictions.json',
-                                           time_zero=time_zero)
-
-        # see above: counts from docs-predictionsexp-rows.xlsx
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
-            prediction_dicts = json.load(fp)['predictions']  # ignore 'forecast', 'units', and 'targets'
-            bin_rows, named_rows, point_rows, sample_rows, quantile_rows = \
-                _prediction_dicts_to_validated_db_rows(forecast, prediction_dicts, False)
-        self.assertEqual(16, len(bin_rows))  # 18 - 2 zero prob
-        self.assertEqual(2, len(named_rows))
-        self.assertEqual(11, len(point_rows))
-        self.assertEqual(23, len(sample_rows))
-        self.assertEqual(10, len(quantile_rows))
-        self.assertEqual([['location2', 'pct next week', 1.1, 0.3],
-                          ['location2', 'pct next week', 2.2, 0.2],
-                          ['location2', 'pct next week', 3.3, 0.5],
-                          ['location3', 'cases next week', 2, 0.1],
-                          ['location3', 'cases next week', 50, 0.9],
-                          ['location1', 'season severity', 'moderate', 0.1],
-                          ['location1', 'season severity', 'severe', 0.9],
-                          ['location2', 'above baseline', True, 0.9],
-                          ['location2', 'above baseline', False, 0.1],
-                          ['location1', 'Season peak week', '2019-12-15', 0.01],
-                          ['location1', 'Season peak week', '2019-12-22', 0.1],
-                          ['location1', 'Season peak week', '2019-12-29', 0.89],
-                          ['location2', 'Season peak week', '2019-12-15', 0.01],
-                          ['location2', 'Season peak week', '2019-12-22', 0.05],
-                          ['location2', 'Season peak week', '2019-12-29', 0.05],
-                          ['location2', 'Season peak week', '2020-01-05', 0.89]],
-                         bin_rows)
-        self.assertEqual([['location1', 'pct next week', 'norm', 1.1, 2.2, None],
-                          ['location1', 'cases next week', 'pois', 1.1, None, None]],
-                         named_rows)
-        self.assertEqual([['location1', 'pct next week', 2.1],
-                          ['location2', 'pct next week', 2.0],
-                          ['location3', 'pct next week', 3.567],
-                          ['location2', 'cases next week', 5],
-                          ['location3', 'cases next week', 10],
-                          ['location1', 'season severity', 'mild'],
-                          ['location2', 'season severity', 'moderate'],
-                          ['location1', 'above baseline', True],
-                          ['location1', 'Season peak week', '2019-12-22'],
-                          ['location2', 'Season peak week', '2020-01-05'],
-                          ['location3', 'Season peak week', '2019-12-29']],
-                         point_rows)
-        self.assertEqual([['location3', 'pct next week', 2.3],
-                          ['location3', 'pct next week', 6.5],
-                          ['location3', 'pct next week', 0.0],
-                          ['location3', 'pct next week', 10.0234],
-                          ['location3', 'pct next week', 0.0001],
-                          ['location2', 'cases next week', 0],
-                          ['location2', 'cases next week', 2],
-                          ['location2', 'cases next week', 5],
-                          ['location2', 'season severity', 'moderate'],
-                          ['location2', 'season severity', 'severe'],
-                          ['location2', 'season severity', 'high'],
-                          ['location2', 'season severity', 'moderate'],
-                          ['location2', 'season severity', 'mild'],
-                          ['location2', 'above baseline', True],
-                          ['location2', 'above baseline', False],
-                          ['location2', 'above baseline', True],
-                          ['location3', 'above baseline', False],
-                          ['location3', 'above baseline', True],
-                          ['location3', 'above baseline', True],
-                          ['location1', 'Season peak week', '2020-01-05'],
-                          ['location1', 'Season peak week', '2019-12-15'],
-                          ['location3', 'Season peak week', '2020-01-06'],
-                          ['location3', 'Season peak week', '2019-12-16']],
-                         sample_rows)
-        self.assertEqual([['location2', 'pct next week', 0.025, 1.0],
-                          ['location2', 'pct next week', 0.25, 2.2],
-                          ['location2', 'pct next week', 0.5, 2.2],
-                          ['location2', 'pct next week', 0.75, 5.0],
-                          ['location2', 'pct next week', 0.975, 50.0],
-                          ['location3', 'cases next week', 0.25, 0],
-                          ['location3', 'cases next week', 0.75, 50],
-                          ['location2', 'Season peak week', 0.5, '2019-12-22'],
-                          ['location2', 'Season peak week', 0.75, '2019-12-29'],
-                          ['location2', 'Season peak week', 0.975, '2020-01-05']],
-                         quantile_rows)
+        # test there's a prediction element for every .json item
+        unit_name_to_obj = {unit.name: unit for unit in project.units.all()}
+        target_name_to_obj = {target.name: target for target in project.targets.all()}
+        for pred_ele_dict in json_io_dict['predictions']:
+            unit = unit_name_to_obj[pred_ele_dict['unit']]
+            target = target_name_to_obj[pred_ele_dict['target']]
+            pred_class_int = PRED_CLASS_NAME_TO_INT[pred_ele_dict['class']]
+            data_hash = PredictionElement.hash_for_prediction_data_dict(pred_ele_dict['prediction'])
+            pred_ele = pred_ele_qs.filter(pred_class=pred_class_int, unit=unit, target=target, is_retract=False,
+                                          data_hash=data_hash).first()
+            self.assertIsNotNone(pred_ele)
+            self.assertIsNotNone(pred_data_qs.filter(pred_ele=pred_ele).first())
 
 
     def test_prediction_dicts_to_db_rows_invalid(self):
@@ -178,7 +161,7 @@ class PredictionsTestCase(TestCase):
             bad_prediction_dicts = [
                 {"unit": "bad unit", "target": "1 wk ahead", "class": "BinCat", "prediction": {}}
             ]
-            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
+            _validated_pred_ele_rows_for_pred_dicts(forecast, bad_prediction_dicts, False, False)
         self.assertIn('prediction_dict referred to an undefined Unit', str(context.exception))
 
         # test for invalid target
@@ -186,35 +169,16 @@ class PredictionsTestCase(TestCase):
             bad_prediction_dicts = [
                 {"unit": "location1", "target": "bad target", "class": "bad class", "prediction": {}}
             ]
-            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
+            _validated_pred_ele_rows_for_pred_dicts(forecast, bad_prediction_dicts, False, False)
         self.assertIn('prediction_dict referred to an undefined Target', str(context.exception))
 
-        # test for invalid prediction_class
+        # test for invalid pred_class
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
                 {"unit": "location1", "target": "pct next week", "class": "bad class", "prediction": {}}
             ]
-            _prediction_dicts_to_validated_db_rows(forecast, bad_prediction_dicts, False)
-        self.assertIn('invalid prediction_class', str(context.exception))
-
-
-    @unittest.skip("todo")
-    def test_calc_named_distribution(self):
-        abbrev_parms_exp_value = [
-            ('norm', None, None, None, None),  # todo xx
-            ('lnorm', None, None, None, None),
-            ('gamma', None, None, None, None),
-            ('beta', None, None, None, None),
-            ('pois', None, None, None, None),
-            ('nbinom', None, None, None, None),
-            ('nbinom2', None, None, None, None),
-        ]
-        for named_dist_abbrev, param1, param2, param3, exp_val in abbrev_parms_exp_value:
-            self.assertEqual(exp_val, calc_named_distribution(named_dist_abbrev, param1, param2, param3))
-
-        with self.assertRaises(RuntimeError) as context:
-            calc_named_distribution(None, None, None, None)
-        self.assertIn("invalid abbreviation", str(context.exception))
+            _validated_pred_ele_rows_for_pred_dicts(forecast, bad_prediction_dicts, False, False)
+        self.assertIn('invalid pred_class', str(context.exception))
 
 
     #
@@ -233,27 +197,41 @@ class PredictionsTestCase(TestCase):
             {"unit": u3.name, "target": t1.name, "class": "bin", "prediction": None},
             {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": None}
         ]
-        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, False)
-        self.assertEqual(5, f2.get_num_rows())
-        self.assertEqual(1, f2.bin_distribution_qs().count())
-        self.assertEqual(1, f2.named_distribution_qs().count())
-        self.assertEqual(1, f2.point_prediction_qs().count())
-        self.assertEqual(1, f2.sample_distribution_qs().count())
-        self.assertEqual(1, f2.quantile_prediction_qs().count())
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
+        self.assertEqual(5, f2.pred_eles.count())
 
 
     def test_load_predictions_from_json_io_dict_dups(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        self.assertEqual(62, project.get_num_forecast_rows_all_models(is_oracle=False))
+        self.assertEqual(29, project.num_pred_ele_rows_all_models(is_oracle=False))
 
-        # case: load the same file that was loaded originally -> should load no new rows (all are dups)
+        # case: load the just-loaded file into a separate timezero -> should load all rows (duplicates are only within
+        # the same timezero)
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+        forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz2)
         with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
             json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
-        self.assertEqual(62, project.get_num_forecast_rows_all_models(is_oracle=False))  # s/b no change
+            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
+        self.assertEqual(29, forecast.pred_eles.count())
+        self.assertEqual(29, forecast2.pred_eles.count())
+        self.assertEqual(29 * 2, project.num_pred_ele_rows_all_models(is_oracle=False))
+
+        # case: load the same predictions into a different version -> none should load (they're all duplicates)
+        forecast.issue_date -= datetime.timedelta(days=1)
+        forecast.save()
+        forecast3 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast3, json_io_dict_in, is_validate_cats=False)
+        self.assertEqual(29, forecast.pred_eles.count())
+        self.assertEqual(29, forecast2.pred_eles.count())
+        self.assertEqual(0, forecast3.pred_eles.count())
+        self.assertEqual(29 * 2, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same file, but change one multi-row prediction (a sample) to have partial duplication
+        forecast3.issue_date -= datetime.timedelta(days=2)
+        forecast3.save()
         quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_in['predictions']
                               if (pred_dict['unit'] == 'location2')
                               and (pred_dict['target'] == 'pct next week')
@@ -261,8 +239,10 @@ class PredictionsTestCase(TestCase):
         # original: {"quantile": [0.025, 0.25, 0.5, 0.75,  0.975 ],
         #            "value":    [1.0,   2.2,  2.2,  5.0, 50.0  ]}
         quantile_pred_dict['prediction']['value'][0] = 2.2  # was 1.0
-        load_predictions_from_json_io_dict(forecast, json_io_dict_in, False)  # atomic
-        self.assertEqual(-1, project.get_num_forecast_rows_all_models(is_oracle=False))  # s/b no change
+        forecast4 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
+        load_predictions_from_json_io_dict(forecast4, json_io_dict_in, is_validate_cats=False)
+        self.assertEqual(1, forecast4.pred_eles.count())
+        self.assertEqual((29 * 2) + 1, project.num_pred_ele_rows_all_models(is_oracle=False))
 
 
     #
@@ -272,7 +252,7 @@ class PredictionsTestCase(TestCase):
     @unittest.skip("todo")
     def test_load_truth_data_null_rows(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
                         is_convert_na_none=True)
         exp_rows = [
@@ -297,36 +277,21 @@ class PredictionsTestCase(TestCase):
             (datetime.date(2011, 10, 16), 'location1', 'pct next week', None, 0.0, None, None, None)
         ]
         act_rows = truth_data_qs(project) \
-            .values_list('forecast__time_zero__timezero_date', 'unit__name', 'target__name', 'value_i', 'value_f',
-                         'value_t', 'value_d', 'value_b')
+            .values_list('pred_ele__forecast__time_zero__timezero_date',
+                         'pred_ele__unit__name', 'pred_ele__target__name',
+                         'value_i', 'value_f', 'value_t', 'value_d', 'value_b')
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
     @unittest.skip("todo")
     def test_query_truth_for_project_null_rows(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
                         is_convert_na_none=True)
 
         exp_rows = [-1]  # todo xx
         act_rows = list(query_truth_for_project(project, {}))
-        # print('xx', act_rows)
-        # [['timezero', 'unit', 'target', 'value'],
-        #  ['2011-10-02', 'location1', 'pct next week', None],
-        #  ['2011-10-02', 'location1', 'cases next week', None],
-        #  ['2011-10-02', 'location1', 'season severity', 'moderate'],
-        #  ['2011-10-02', 'location1', 'above baseline', True],
-        #  ['2011-10-02', 'location1', 'Season peak week', '2019-12-15'],
-        #  ['2011-10-09', 'location2', 'pct next week', 99.9],
-        #  ['2011-10-09', 'location2', 'cases next week', 3],
-        #  ['2011-10-09', 'location2', 'season severity', 'severe'],
-        #  ['2011-10-09', 'location2', 'above baseline', True],
-        #  ['2011-10-09', 'location2', 'Season peak week', '2019-12-29'],
-        #  ['2011-10-16', 'location1', 'pct next week', 0.0],
-        #  ['2011-10-16', 'location1', 'cases next week', 0],
-        #  ['2011-10-16', 'location1', 'above baseline', False],
-        #  ['2011-10-16', 'location1', 'Season peak week', '2019-12-22']]
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -339,11 +304,11 @@ class PredictionsTestCase(TestCase):
     @unittest.skip("todo")
     def test_load_truth_data_dups(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
                         is_convert_na_none=True)
         self.assertEqual(-1, truth_data_qs(project).count())
 
         load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-null-value.csv'),
                         is_convert_na_none=True)
-        self.assertEqual(-1, truth_data_qs(project).count())  # s/b no change
+        self.assertEqual(-1, truth_data_qs(project).count())
