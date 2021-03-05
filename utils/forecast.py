@@ -17,6 +17,7 @@ from utils.project import _target_dict_for_target
 from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +37,7 @@ def json_io_dict_from_forecast(forecast, request):
         and target for visibility. see docs for details
     """
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
+
 
     # set prediction_dicts
     pred_data_qs = PredictionData.objects \
@@ -90,8 +92,15 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     elif 'predictions' not in json_io_dict:
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
 
-    # NB: version validation is done by _insert_pred_ele_rows() b/c it creates a temp table of the incoming forecast's
-    # prediction elements
+    # validate this forecast version rule: "An uploaded forecast version's issue_date cannot be prior to any non-empty
+    # versions." NB: additional version validation is done by _insert_pred_ele_rows() b/c it creates a temp table of the
+    # incoming forecast's prediction elements
+
+    # get max issue_date of the existing non-empty forecasts:
+    newest_non_empty_version = _newest_non_empty_version(forecast.forecast_model, forecast.time_zero)
+    if newest_non_empty_version and (forecast.issue_date < newest_non_empty_version.issue_date):
+        raise RuntimeError(f"invalid forecast: found an earlier non-empty version. forecast={forecast}, "
+                           f"earlier_version={newest_non_empty_version}")
 
     # we have two types of tables to insert into (PredictionElement and PredictionData subclasses), which requires
     # loading via two passes:
@@ -327,7 +336,7 @@ def _validate_forecast_version(forecast, temp_table_name):
     :param temp_table_name: contains `forecast`'s candidate prediction elements
     :raises RuntimeError: if forecast version is invalid
     """
-    prev_version, next_version = _forecast_versions(forecast)  # either or both can be None
+    prev_version, next_version = _prev_next_forecast_versions(forecast)  # either or both can be None
     if prev_version and _is_pred_eles_subset(temp_table_name, prev_version, True):
         raise RuntimeError(f"invalid forecast. forecast is a subset of previous version. forecast={forecast}, "
                            f"prev_version={prev_version}")
@@ -336,7 +345,7 @@ def _validate_forecast_version(forecast, temp_table_name):
                            f"next_version={next_version}")
 
 
-def _forecast_versions(forecast):
+def _prev_next_forecast_versions(forecast):
     """
     :param forecast: a Forecast
     :return: a 2-tuple: (previous_version, next_version) where:
@@ -354,6 +363,34 @@ def _forecast_versions(forecast):
     return prev_version, next_version
 
 
+def _newest_non_empty_version(forecast_model, time_zero):
+    """
+    :param forecast_model: a ForecastModel
+    :param time_zero: a TimeZero
+    :return: the newest non-empty Forecast for the version indicated by (forecast_model, time_zero), based on
+        issue_date, or None if there were no non-empty versions
+    """
+    sql = f"""
+        WITH ranked_issue_dates AS (
+            SELECT f.id AS f_id, f.issue_date AS issue_date, RANK() OVER (ORDER BY f.issue_date DESC) AS rank
+            FROM forecast_app_forecast AS f
+            WHERE f.forecast_model_id = %s
+              AND f.time_zero_id = %s
+              AND EXISTS(SELECT * FROM forecast_app_predictionelement AS pe WHERE f.id = pe.forecast_id))
+        SELECT cte.f_id
+        FROM ranked_issue_dates AS cte
+        WHERE cte.rank = 1;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast_model.pk, time_zero.pk,))
+        f_id_max_issue_date = cursor.fetchone()
+        if f_id_max_issue_date is None:
+            return None
+
+        f_id_max_issue_date = f_id_max_issue_date[0]
+        return Forecast.objects.get(pk=f_id_max_issue_date) if f_id_max_issue_date is not None else None
+
+
 def _is_pred_eles_subset(temp_table_name, prev_or_next_version, is_previous):
     """
     :param temp_table_name: contains a new forecast's candidate prediction elements
@@ -363,6 +400,7 @@ def _is_pred_eles_subset(temp_table_name, prev_or_next_version, is_previous):
     :return: True if temp_table_name's PredictionElements are a subset of those of prev_or_next_version, i.e., if there
         are implicit retractions
     """
+
 
     def is_empty_table(table_name_or_forecast):
         # use EXISTS instead of COUNT for performance
@@ -376,6 +414,7 @@ def _is_pred_eles_subset(temp_table_name, prev_or_next_version, is_previous):
             cursor.execute(sql, args)
             is_any_rows = cursor.fetchone()[0]
             return not is_any_rows
+
 
     # first we test the special case where a table is empty. otherwise, the below queries would always return True,
     # which is meaningless when there's no rows. this case only occurs in two situations: 1) unit tests where we want to

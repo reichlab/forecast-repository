@@ -275,29 +275,30 @@ class ForecastVersionsTestCase(TestCase):
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
         load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
 
-        # case a)
-        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_a', time_zero=tz1)
-        f3.issue_date = f1.issue_date - datetime.timedelta(days=1)
-        f3.save()
-        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. next version is a subset of forecast'):
-            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
-        f3.delete()
+        # case a). NB: we cannot test this case b/c we added a second forecast version rule that supersedes it
+        # ("invalid forecast: found an earlier non-empty version")
+        # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_a', time_zero=tz1)
+        # f3.issue_date = f1.issue_date - datetime.timedelta(days=1)
+        # f3.save()
+        # with self.assertRaisesRegex(RuntimeError, 'invalid forecast. next version is a subset of forecast'):
+        #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
+        # f3.delete()
 
-        # case b1)
-        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b2', time_zero=tz1)
-        f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f3.save()
-        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. forecast is a subset of previous version'):
-            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:1]})
-        f3.delete()
+        # case b1). NB: cannot test for the same reason ("invalid forecast: found an earlier non-empty version")
+        # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b2', time_zero=tz1)
+        # f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        # f3.save()
+        # with self.assertRaisesRegex(RuntimeError, 'invalid forecast. forecast is a subset of previous version'):
+        #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:1]})
+        # f3.delete()
 
-        # case b2)
-        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b1', time_zero=tz1)
-        f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f3.save()
-        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. next version is a subset of forecast'):
-            load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:5]})
-        f3.delete()
+        # case b2). NB: cannot test for the same reason ("invalid forecast: found an earlier non-empty version")
+        # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b1', time_zero=tz1)
+        # f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        # f3.save()
+        # with self.assertRaisesRegex(RuntimeError, 'invalid forecast. next version is a subset of forecast'):
+        #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:5]})
+        # f3.delete()
 
         # case c)
         f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_c', time_zero=tz1)
@@ -305,3 +306,68 @@ class ForecastVersionsTestCase(TestCase):
         f3.save()
         with self.assertRaisesRegex(RuntimeError, 'invalid forecast. forecast is a subset of previous version'):
             load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
+
+
+    def test_no_later_non_empty_issue_dates(self):
+        """
+        Tests this forecast version rule: "An uploaded forecast version's issue_date cannot be prior to any non-empty
+        versions." In other words, the uploaded forecast's issue_date must be the newest of all the non-empty versions.
+        Cases:
+
+                                         f1 empty?
+            forecast_id | issue_date |  0      1    | v=valid, x=invalid
+            ------------+------------+--------------+--------------------
+            -            10/3          a1) x  a2) v
+            f1           10/4
+            -            10/5          b1) v  b2) v
+        """
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict = json.load(fp)  # get some prediction elements to work with (29)
+            json_io_dict['predictions'] = json_io_dict['predictions'][0:1]
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        # case a2: older issue_date, f1 is empty
+        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
+        f_new.issue_date = f1.issue_date - datetime.timedelta(days=1)
+        f_new.save()
+        try:
+            load_predictions_from_json_io_dict(f_new, json_io_dict)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+        f_new.delete()
+
+        # case b2: newer issue_date, f1 is empty
+        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
+        f_new.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f_new.save()
+        try:
+            load_predictions_from_json_io_dict(f_new, json_io_dict)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+        f_new.delete()
+
+        # case b1: newer issue_date, f1 not empty
+        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
+        f_new.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f_new.save()
+        load_predictions_from_json_io_dict(f1, json_io_dict)
+        try:
+            load_predictions_from_json_io_dict(f_new, json_io_dict)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+        f_new.delete()
+
+        # case a1: older issue_date, f1 not empty
+        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
+        f_new.issue_date = f1.issue_date - datetime.timedelta(days=1)
+        f_new.save()
+        with self.assertRaisesRegex(RuntimeError, 'invalid forecast: found an earlier non-empty version'):
+            load_predictions_from_json_io_dict(f_new, json_io_dict)
+        f_new.delete()
