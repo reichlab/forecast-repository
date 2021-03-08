@@ -74,18 +74,16 @@ def enqueue_migrate_worker():
     from forecast_repo.settings.base import DEFAULT_QUEUE_NAME  # avoid circular imports
 
 
-    # forecasts = Forecast.objects.all().order_by('created_at')
-    logger.info(f"enqueuing {Forecast.objects.count()} forecasts")  # somewhat expensive
+    logger.info(f"enqueuing {Forecast.objects.count()} forecasts")  # COUNT is somewhat expensive
     queue = django_rq.get_queue(DEFAULT_QUEUE_NAME)
     for project in Project.objects.all():  # iterate over projects b/c _grouped_version_rows() is by project
         logger.info(f"* {project}")
-        # fm_id, tz_id, issue_date, f_id, f_source, f_created_at, rank:
+        # process forecast versions in issue_date order (created_at) to avoid out-of-sequence problems.
+        # each row (ordered by issue_date): [fm_id, tz_id, issue_date, f_id, f_source, f_created_at, rank]:
         grouped_version_rows = _grouped_version_rows(project, False)  # is_versions_only
         for (fm_id, tz_id), grouper in groupby(grouped_version_rows, key=lambda _: (_[0], _[1])):
             logger.info(f"  {fm_id}, {tz_id}")
-            # process forecast versions in created_at order (not the returned issue_date order) to simulate the original
-            # upload order
-            versions = sorted(grouper, key=lambda row: row[5])  # f_created_at
+            versions = list(grouper)
             queue.enqueue(_migrate_forecast_worker, [version[3] for version in versions])  # f_id
             for _, _, issue_date, f_id, source, created_at, rank in versions:
                 logger.info(f"    {issue_date}, {f_id}, {source}, {created_at}, {rank}")
