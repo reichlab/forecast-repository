@@ -23,16 +23,6 @@ class Migration(migrations.Migration):
                 ('unit', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='forecast_app.unit')),
             ],
         ),
-        migrations.AlterField(
-            model_name='job',
-            name='input_json',
-            field=models.JSONField(blank=True, null=True),
-        ),
-        migrations.AlterField(
-            model_name='job',
-            name='output_json',
-            field=models.JSONField(blank=True, null=True),
-        ),
         migrations.CreateModel(
             name='PredictionData',
             fields=[
