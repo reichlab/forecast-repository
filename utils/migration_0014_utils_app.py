@@ -74,8 +74,9 @@ def enqueue_migrate_worker():
     from forecast_repo.settings.base import DEFAULT_QUEUE_NAME  # avoid circular imports
 
 
-    logger.info(f"enqueuing {Forecast.objects.count()} forecasts")  # COUNT is somewhat expensive
+    logger.info(f"enqueuing ~{Forecast.objects.count()} forecasts")  # COUNT is somewhat expensive
     queue = django_rq.get_queue(DEFAULT_QUEUE_NAME)
+    num_jobs = 0
     for project in Project.objects.all():  # iterate over projects b/c _grouped_version_rows() is by project
         logger.info(f"* {project}")
         # process forecast versions in issue_date order (created_at) to avoid out-of-sequence problems.
@@ -85,9 +86,10 @@ def enqueue_migrate_worker():
             logger.info(f"  {fm_id}, {tz_id}")
             versions = list(grouper)
             queue.enqueue(_migrate_forecast_worker, [version[3] for version in versions])  # f_id
+            num_jobs += 1
             for _, _, issue_date, f_id, source, created_at, rank in versions:
                 logger.info(f"    {issue_date}, {f_id}, {source}, {created_at}, {rank}")
-    logger.info(f"enqueuing done")
+    logger.info(f"enqueuing done. num_jobs={num_jobs}")
 
 
 #

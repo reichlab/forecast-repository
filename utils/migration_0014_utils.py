@@ -1,4 +1,5 @@
 import logging
+import timeit
 from itertools import groupby
 
 import django
@@ -126,11 +127,12 @@ def copy_old_data_to_new_tables(forecast):
         logger.info(f"copy_old_data_to_new_tables(): {forecast}: skipping (has data)")
         return  # already loaded
 
+    start_time = timeit.default_timer()
     logger.info(f"copy_old_data_to_new_tables(): {forecast}: started")
     json_io_dict = {'meta': {}, 'predictions': _pred_dicts_from_forecast_old(forecast)}
     load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=True,
                                        is_validate_cats=False)  # atomic
-    logger.info(f"copy_old_data_to_new_tables(): {forecast}: done")
+    logger.info(f"copy_old_data_to_new_tables(): {forecast}: done. time: {timeit.default_timer() - start_time}")
 
 
 def delete_old_data(forecast):
