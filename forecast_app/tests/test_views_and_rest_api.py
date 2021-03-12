@@ -100,7 +100,10 @@ class ViewsTestCase(TestCase):
         cls.private_model = ForecastModel.objects.create(project=cls.private_project, name='private model',
                                                          abbreviation='abbrev', description='',
                                                          home_url='http://example.com', owner=cls.mo_user)
-        cls.private_forecast = load_cdc_csv_forecast_file(2016, cls.private_model, cls.csv_file_path, cls.private_tz1)
+        # load tiny version so the next one is not 100% duplicate data (against the rules)
+        cls.private_forecast = load_cdc_csv_forecast_file(2016, cls.private_model,
+                                                          Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-tiny.csv'),
+                                                          cls.private_tz1)
         cls.private_forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         cls.private_forecast.save()
 
@@ -803,8 +806,12 @@ class ViewsTestCase(TestCase):
 
         # note: b/c ForecastDetail.delete enqueues the deletion, there could be a possible race condition in this test.
         # so we just test that delete() calls enqueue_delete_forecast(), and trust that enqueue_delete_forecast()
-        # enqueues a _delete_forecast_worker() call (to simple to fail)
-        private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
+        # enqueues a _delete_forecast_worker() call (too simple to fail). recall self.private_forecast loads
+        # 'forecast_app/tests/EW1-KoTsarima-2017-01-17-tiny.csv' so that we can avoid 100% duplicate data in second and
+        # third forecasts here
+        private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model,
+                                                       Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
+                                                       self.private_tz1)
         private_forecast2.issue_date -= datetime.timedelta(days=2)  # older version avoids unique constraint errors
         private_forecast2.save()
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
@@ -820,7 +827,9 @@ class ViewsTestCase(TestCase):
             self.assertEqual(private_forecast2.pk, response_json['input_json']['forecast_pk'])
 
         # test _delete_forecast_worker() itself (which is called by workers)
-        private_forecast3 = load_cdc_csv_forecast_file(2016, self.private_model, self.csv_file_path, self.private_tz1)
+        private_forecast3 = load_cdc_csv_forecast_file(2016, self.private_model,
+                                                       Path('forecast_app/tests/EW1-KoTsarima-2017-01-17.csv'),
+                                                       self.private_tz1)
         job = Job.objects.create(user=self.mo_user)  # status = PENDING
         job.input_json = {'forecast_pk': private_forecast3.pk}
         job.save()

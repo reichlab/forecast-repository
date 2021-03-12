@@ -52,7 +52,7 @@ class PredictionsTestCase(TestCase):
                                          "prediction": {"value": 2.1}}]}
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(forecast, json_io_dict)
-        self.assertIn("forecast already has data", str(context.exception))
+        self.assertIn("cannot load data into a non-empty forecast", str(context.exception))
 
 
     def test_load_predictions_from_json_io_dict_phase_1(self):
@@ -203,46 +203,53 @@ class PredictionsTestCase(TestCase):
 
     def test_load_predictions_from_json_io_dict_dups(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        self.assertEqual(29, project.num_pred_ele_rows_all_models(is_oracle=False))
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
+            json_io_dict = json.load(fp)
+            pred_dicts = json_io_dict['predictions']  # get some prediction elements to work with (29)
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:-2]})  # all but last 2 PEs
 
         # case: load the just-loaded file into a separate timezero -> should load all rows (duplicates are only within
         # the same timezero)
         tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-        forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz2)
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
-            json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
-        self.assertEqual(29, forecast.pred_eles.count())
-        self.assertEqual(29, forecast2.pred_eles.count())
-        self.assertEqual(29 * 2, project.num_pred_ele_rows_all_models(is_oracle=False))
+        f2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz2)
+        load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:-1]},  # all but last PE
+                                           is_validate_cats=False)
+        self.assertEqual(27, f1.pred_eles.count())
+        self.assertEqual(28, f2.pred_eles.count())
+        self.assertEqual(27 + 28, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same predictions into a different version -> none should load (they're all duplicates)
-        forecast.issue_date -= datetime.timedelta(days=1)
-        forecast.save()
-        forecast3 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
-            json_io_dict_in = json.load(fp)
-            load_predictions_from_json_io_dict(forecast3, json_io_dict_in, is_validate_cats=False)
-        self.assertEqual(29, forecast.pred_eles.count())
-        self.assertEqual(29, forecast2.pred_eles.count())
-        self.assertEqual(0, forecast3.pred_eles.count())
-        self.assertEqual(29 * 2, project.num_pred_ele_rows_all_models(is_oracle=False))
+        f1.issue_date -= datetime.timedelta(days=1)
+        f1.save()
+        f3 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1)
+        load_predictions_from_json_io_dict(f3, json_io_dict, is_validate_cats=False)
+        self.assertEqual(27, f1.pred_eles.count())
+        self.assertEqual(28, f2.pred_eles.count())
+        self.assertEqual(2, f3.pred_eles.count())  # 2 were new (non-dup)
+        self.assertEqual(27 + 28 + 2, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same file, but change one multi-row prediction (a sample) to have partial duplication
-        forecast3.issue_date -= datetime.timedelta(days=2)
-        forecast3.save()
-        quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_in['predictions']
+        f3.issue_date -= datetime.timedelta(days=2)
+        f3.save()
+        quantile_pred_dict = [pred_dict for pred_dict in json_io_dict['predictions']
                               if (pred_dict['unit'] == 'location2')
                               and (pred_dict['target'] == 'pct next week')
                               and (pred_dict['class'] == 'quantile')][0]
         # original: {"quantile": [0.025, 0.25, 0.5, 0.75,  0.975 ],
         #            "value":    [1.0,   2.2,  2.2,  5.0, 50.0  ]}
         quantile_pred_dict['prediction']['value'][0] = 2.2  # was 1.0
-        forecast4 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
-        load_predictions_from_json_io_dict(forecast4, json_io_dict_in, is_validate_cats=False)
-        self.assertEqual(1, forecast4.pred_eles.count())
-        self.assertEqual((29 * 2) + 1, project.num_pred_ele_rows_all_models(is_oracle=False))
+        f4 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1)
+        load_predictions_from_json_io_dict(f4, json_io_dict, is_validate_cats=False)
+        self.assertEqual(1, f4.pred_eles.count())
+        self.assertEqual(27 + 28 + 2 + 1, project.num_pred_ele_rows_all_models(is_oracle=False))
 
 
     #

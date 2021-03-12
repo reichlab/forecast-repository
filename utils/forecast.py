@@ -79,6 +79,20 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     that we ignore the 'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in
     forecast's Project. Requires that `forecast` is empty of data.
 
+
+    Enforces these FORECAST VERSION RULES (grouped by type):
+
+    - implicit retractions:
+        1. An uploaded forecast version cannot imply any retracted prediction elements in existing versions, i.e.,
+            cannot load data that's a subset of previous data.
+
+    - empty forecasts and sequencing:
+        2. An uploaded forecast version's issue_date cannot be prior to any non-empty versions, i.e., cannot load data
+            before any non-empty forecasts.
+        3. Cannot load 100% duplicate data.
+        4. Cannot load data into a non-empty forecast.
+        5. Cannot load empty data.
+
     :param forecast: a Forecast to load json_io_dict's predictions into
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details
     :param is_skip_validation: bypasses all validation of `json_io_dict`, including `is_validate_cats`. used for truth
@@ -86,20 +100,19 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
     """
     if forecast.pred_eles.count() != 0:
-        raise RuntimeError(f"forecast already has data: {forecast}")
+        raise RuntimeError(f"cannot load data into a non-empty forecast: {forecast}")
     elif not isinstance(json_io_dict, dict):
         raise RuntimeError(f"json_io_dict was not a dict: {json_io_dict!r}, type={type(json_io_dict)}")
     elif 'predictions' not in json_io_dict:
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
+    elif not json_io_dict['predictions']:      # validate the rule: "cannot load empty data"
+        raise RuntimeError(f"cannot load empty data")
 
-    # validate this forecast version rule: "An uploaded forecast version's issue_date cannot be prior to any non-empty
-    # versions." NB: additional version validation is done by _insert_pred_ele_rows() b/c it creates a temp table of the
-    # incoming forecast's prediction elements
-
-    # get max issue_date of the existing non-empty forecasts:
+    # validate the rule: "cannot load data before any non-empty forecasts". NB: additional version validation is done by
+    # _insert_pred_ele_rows() b/c it creates a temp table of the incoming forecast's prediction elements to work with
     newest_non_empty_version = _newest_non_empty_version(forecast.forecast_model, forecast.time_zero)
     if newest_non_empty_version and (forecast.issue_date < newest_non_empty_version.issue_date):
-        raise RuntimeError(f"invalid forecast: found an earlier non-empty version. forecast={forecast}, "
+        raise RuntimeError(f"invalid forecast: cannot load data before any non-empty forecasts. forecast={forecast}, "
                            f"earlier_version={newest_non_empty_version}")
 
     # we have two types of tables to insert into (PredictionElement and PredictionData subclasses), which requires
@@ -114,7 +127,7 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
         _validated_pred_ele_rows_for_pred_dicts(forecast, json_io_dict['predictions'], is_skip_validation,
                                                 is_validate_cats)
     del json_io_dict  # hopefully frees up memory
-    _insert_pred_ele_rows(forecast, pred_ele_rows)  # tests version rule then inserts
+    _insert_pred_ele_rows(forecast, pred_ele_rows)  # raises. tests version rules then inserts, deleting any dups first
 
     # pass 2/2. target_id is needed to look up target datatype to decide which sparse column to use for each singleton
     # value
@@ -206,9 +219,8 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
                                         in loc_targ_to_pred_classes.items()
                                         if len(pred_classes) != len(set(pred_classes))]
         if duplicate_unit_target_tuples:
-            raise RuntimeError(
-                f"Within a Prediction, there cannot be more than 1 Prediction Element of the same class. "
-                f"Found these duplicate unit/target tuples: {duplicate_unit_target_tuples}")
+            raise RuntimeError(f"Within a Prediction, there cannot be more than 1 Prediction Element of the same "
+                               f"class. Found these duplicate unit/target tuples: {duplicate_unit_target_tuples}")
 
         # validate: (for both continuous and discrete target types): Within one prediction, there can be at most one of
         # the following prediction elements, but not both: {`Named`, `Bin`}.
@@ -229,26 +241,25 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
 
 def _insert_pred_ele_rows(forecast, pred_ele_rows):
     """
-    Validates forecast against prev_version and next_version, then loads pred_ele_rows into the PredictionElement table.
-    Skips duplicate prediction elements in `forecast`'s model. See note in _insert_pred_data_rows() re: postgres vs.
-    sqlite.
+    Validates forecast against previous data and then loads pred_ele_rows into the PredictionElement table. Skips
+    duplicate prediction elements in `forecast`'s model. See note in _insert_pred_data_rows() re: postgres vs. sqlite.
 
     :param forecast: the new, empty Forecast being inserted into
     :param pred_ele_rows: as returned by _validated_pred_ele_rows_for_pred_dicts():
         list of 6-tuples: (forecast_id, pred_class_int, unit_id, target_id, is_retract, data_hash)
     :raises RuntimeError: if forecast version is invalid
     """
-    # in order to skip inserting duplicate rows, we insert in these steps:
-    # 1) create a temp table
-    # 2) insert `pred_ele_rows` into the temp table (some might be duplicates)
-    # 3) validate forecast against prev_version and next_version
-    # 4) delete duplicates from the temp table
-    # 5) insert the temp table into PredictionElement
-    # 6) drop the temp table
+    # in order to validate and to skip inserting duplicate rows, we insert in these steps:
+    # - create a temp table
+    # - insert `pred_ele_rows` into the temp table (some might be duplicates)
+    # - validate forecast against previous data
+    # - delete duplicates from the temp table
+    # - insert the temp table into PredictionElement
+    # - drop the temp table
     temp_table_name = 'pred_ele_temp'
     pred_ele_table_name = PredictionElement._meta.db_table
 
-    # step 1/6: create temp table
+    # create temp table
     with connection.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS {temp_table_name};")
 
@@ -266,7 +277,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     with connection.cursor() as cursor:
         cursor.execute(sql)
 
-    # step 2/6: insert rows into temp table
+    # insert rows into temp table
     columns_names = [PredictionElement._meta.get_field('forecast').column,
                      PredictionElement._meta.get_field('pred_class').column,
                      PredictionElement._meta.get_field('unit').column,
@@ -277,8 +288,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
         if connection.vendor == 'postgresql':
             string_io = io.StringIO()
             csv_writer = csv.writer(string_io, delimiter=',')
-            for row in pred_ele_rows:
-                csv_writer.writerow(row)
+            csv_writer.writerows(pred_ele_rows)
             string_io.seek(0)
             cursor.copy_from(string_io, temp_table_name, columns=columns_names, sep=',', null=POSTGRES_NULL_VALUE)
         else:  # 'sqlite', etc.
@@ -290,10 +300,12 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
                     """
             cursor.executemany(sql, pred_ele_rows)
 
-    # step 3/6: validate forecast against prev_version and next_version
-    _validate_forecast_version(forecast, temp_table_name)  # raises RuntimeError if invalid
+    # validate the rule: "cannot load data that's a subset of previous data"
+    if _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
+        raise RuntimeError(f"invalid forecast. new data is a subset of previous. forecast={forecast}")
 
-    # step 4/6: delete duplicates from temp table
+    # delete duplicates from temp table. note that we are not testing against issue_date, which would be wrong b/c
+    # duplicates should be skipped if they exist in /any/ version
     sql = f"""
         DELETE
         FROM {temp_table_name}
@@ -311,6 +323,16 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk))
 
+    # validate the rule: "cannot load 100% duplicate data"
+    sql = f"""
+        SELECT NOT EXISTS(SELECT * FROM {temp_table_name});
+     """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        is_empty = cursor.fetchone()[0]
+        if is_empty:
+            raise RuntimeError(f"invalid forecast. cannot load 100% duplicate data. forecast={forecast}")
+
     # step 5/6: insert temp table into PredictionElement
     sql = f"""
         INSERT INTO {pred_ele_table_name} AS pred_ele (forecast_id, pred_class, unit_id, target_id,
@@ -321,46 +343,9 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.pk,))
 
-    # step 6/6: drop temp table
+    # drop temp table
     with connection.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS {temp_table_name};")
-
-
-def _validate_forecast_version(forecast, temp_table_name):
-    """
-    Validates forecast against any existing versions of it. Currently the only rule is:
-
-        "An uploaded forecast version cannot imply any retracted prediction elements in existing versions."
-
-    :param forecast: new forecast to validate
-    :param temp_table_name: contains `forecast`'s candidate prediction elements
-    :raises RuntimeError: if forecast version is invalid
-    """
-    prev_version, next_version = _prev_next_forecast_versions(forecast)  # either or both can be None
-    if prev_version and _is_pred_eles_subset(temp_table_name, prev_version, True):
-        raise RuntimeError(f"invalid forecast. forecast is a subset of previous version. forecast={forecast}, "
-                           f"prev_version={prev_version}")
-    elif next_version and _is_pred_eles_subset(temp_table_name, next_version, False):
-        raise RuntimeError(f"invalid forecast. next version is a subset of forecast. forecast={forecast}, "
-                           f"next_version={next_version}")
-
-
-def _prev_next_forecast_versions(forecast):
-    """
-    :param forecast: a Forecast
-    :return: a 2-tuple: (previous_version, next_version) where:
-    - previous_version: the forecast version immediately earlier than `forecast` based on issue_date, or None if
-        `forecast` has the oldest issue_date
-    - next_version: similar, except next newest forecast
-
-    Recall a forecast version is defined by the 3-tuple: (forecast_model, time_zero, issue_date). Forecast's
-    'unique_version' constraint validates uniqueness at the database level before this function can ever be called.
-    """
-    # NB: this does two queries. alternatively we could get all versions into memory and then figure out prev and next
-    versions_qs = Forecast.objects.filter(forecast_model=forecast.forecast_model, time_zero=forecast.time_zero)
-    prev_version = versions_qs.filter(issue_date__lt=forecast.issue_date).order_by('-issue_date').first()
-    next_version = versions_qs.filter(issue_date__gt=forecast.issue_date).order_by('issue_date').first()
-    return prev_version, next_version
 
 
 def _newest_non_empty_version(forecast_model, time_zero):
@@ -391,70 +376,30 @@ def _newest_non_empty_version(forecast_model, time_zero):
         return Forecast.objects.get(pk=f_id_max_issue_date) if f_id_max_issue_date is not None else None
 
 
-def _is_pred_eles_subset(temp_table_name, prev_or_next_version, is_previous):
+def _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
     """
-    :param temp_table_name: contains a new forecast's candidate prediction elements
-    :param prev_or_next_version: a Forecast to compare to temp_table_name
-    :param is_previous: True if prev_or_next_version is prev_version, and False if it is next_version. controls set
-        comparison order
+    :param forecast: the new, empty Forecast being inserted into
+    :param temp_table_name: contains `forecast`'s candidate prediction elements
     :return: True if temp_table_name's PredictionElements are a subset of those of prev_or_next_version, i.e., if there
         are implicit retractions
     """
-
-
-    def is_empty_table(table_name_or_forecast):
-        # use EXISTS instead of COUNT for performance
-        if isinstance(table_name_or_forecast, Forecast):
-            sql = f"SELECT EXISTS (SELECT * FROM {PredictionElement._meta.db_table} WHERE forecast_id = %s);"
-            args = (table_name_or_forecast.pk,)
-        else:
-            sql = f"SELECT EXISTS (SELECT * FROM {table_name_or_forecast});"
-            args = ()
-        with connection.cursor() as cursor:
-            cursor.execute(sql, args)
-            is_any_rows = cursor.fetchone()[0]
-            return not is_any_rows
-
-
-    # first we test the special case where a table is empty. otherwise, the below queries would always return True,
-    # which is meaningless when there's no rows. this case only occurs in two situations: 1) unit tests where we want to
-    # set up by creating all Forecasts before loading data into them (specifically `test_implicit_retractions()`) and
-    # 2) when migrating old data to new, where the Forecasts already exist and we want to preserve them. adding this
-    # special case seemed a better trade-off than requiring users to never have newer Forecasts. this does not come up
-    # in normal operation b/c a Forecast is created only for an upload
-    if (is_previous and is_empty_table(temp_table_name)) or \
-            ((not is_previous) and is_empty_table(prev_or_next_version)):
-        return False  # valid (not a subset)
-
-    # set CTE
-    if is_previous:  # error if any in prev_or_next_version that are not in temp_table_name
-        with_sql = f"""
-            WITH except_rows AS (
-                SELECT unit_id, target_id, pred_class
-                FROM {PredictionElement._meta.db_table}
-                WHERE forecast_id = %s
-                    EXCEPT
-                SELECT unit_id, target_id, pred_class
-                FROM {temp_table_name}
-            )
-        """
-    else:  # error if any in temp_table_name that are not in prev_or_next_version
-        with_sql = f"""
-            WITH except_rows AS (
-                SELECT unit_id, target_id, pred_class
-                FROM {temp_table_name}
-                    EXCEPT
-                SELECT unit_id, target_id, pred_class
-                FROM {PredictionElement._meta.db_table}
-                WHERE forecast_id = %s
-            )
-        """
     sql = f"""
-        {with_sql}
-        SELECT EXISTS (SELECT * FROM except_rows);
+        WITH except_rows AS (
+            SELECT unit_id, target_id, pred_class
+            FROM {PredictionElement._meta.db_table} AS pred_ele
+                        JOIN {Forecast._meta.db_table} AS f
+            ON pred_ele.forecast_id = f.id
+            WHERE f.forecast_model_id = %s
+              AND f.time_zero_id = %s
+              AND f.issue_date < %s
+                EXCEPT
+            SELECT unit_id, target_id, pred_class
+            FROM {temp_table_name}
+        )
+        SELECT EXISTS(SELECT * FROM except_rows);
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (prev_or_next_version.pk,))
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
         is_subset = cursor.fetchone()[0]
         return is_subset
 

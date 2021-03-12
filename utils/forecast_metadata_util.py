@@ -10,7 +10,7 @@ django.setup()
 from utils.forecast import _cache_forecast_metadata_worker, cache_forecast_metadata, clear_forecast_metadata, \
     forecast_metadata
 
-from forecast_app.models import Project
+from forecast_app.models import Project, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget
 
 
 # https://stackoverflow.com/questions/44051647/get-params-sent-to-a-subcommand-of-a-click-group
@@ -68,11 +68,9 @@ def clear(project_pk):
     print("clearing metadata")
     for project in projects:
         print(f"* {project}")
-        for forecast_model in project.models.all():
-            print(f"- {forecast_model}")
-            for forecast in forecast_model.forecasts.all():
-                print(f"  = {forecast}")
-                clear_forecast_metadata(forecast)
+        ForecastMetaPrediction.objects.filter(forecast__forecast_model__project=project).delete()
+        ForecastMetaUnit.objects.filter(forecast__forecast_model__project=project).delete()
+        ForecastMetaTarget.objects.filter(forecast__forecast_model__project=project).delete()
     print("clear done")
 
 
