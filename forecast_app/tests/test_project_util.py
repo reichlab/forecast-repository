@@ -352,6 +352,40 @@ class ProjectUtilTestCase(TestCase):
         self.assertIn("found existing Unit for name", str(context.exception))
 
 
+    def test_create_project_from_json_illegal_unit_target_name(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            project_dict = json.load(fp)
+            orig_unit_name = project_dict['units'][0]['name']
+            orig_target_name = project_dict['targets'][0]['name']
+
+        bad_names = ('bad\nname', 'bad\tname', 'bad\u00072name')   # last: Bell :-)
+        for bad_name in bad_names:
+            project_dict['units'][0]['name'] = bad_name
+            with self.assertRaisesRegex(RuntimeError, 'illegal unit name'):
+                create_project_from_json(project_dict, po_user)
+        project_dict['units'][0]['name'] = orig_unit_name
+
+        for bad_name in bad_names:
+            project_dict['targets'][0]['name'] = bad_name
+            with self.assertRaisesRegex(RuntimeError, 'illegal target name'):
+                create_project_from_json(project_dict, po_user)
+        project_dict['targets'][0]['name'] = orig_target_name
+
+
+    def test_create_project_from_json_illegal_cat(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
+            project_dict = json.load(fp)
+            baseline_target_dict = project_dict['targets'][2]  # "above baseline"
+
+        bad_names = ('bad\nname', 'bad\tname', 'bad\u00072name')   # last: Bell :-)
+        for bad_name in bad_names:
+            baseline_target_dict['cats'] = bad_name
+            with self.assertRaisesRegex(RuntimeError, 'illegal cat value'):
+                create_project_from_json(project_dict, po_user)
+
+
     def test_create_project_from_json_duplicate_target(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:

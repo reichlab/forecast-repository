@@ -1,11 +1,11 @@
 import datetime
-import datetime
 import json
 import logging
 import re
 from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
+from string import digits, ascii_letters, punctuation
 
 from django.db import connection
 from django.db import transaction
@@ -158,16 +158,25 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
     return project
 
 
+def _is_valid_unit_target_name_or_cat(name):
+    # https://stackoverflow.com/questions/57062794/how-to-check-if-a-string-has-any-special-characters/57062899
+    valid_chars = digits + ascii_letters + punctuation + ' '
+    return not set(name).difference(valid_chars)
+
+
 def _validate_and_create_units(project, project_dict, is_validate_only=False):
     units = []  # returned instances
     for unit_dict in project_dict['units']:
         if 'name' not in unit_dict:
             raise RuntimeError(f"one of the unit_dicts had no 'name' field. units={project_dict['units']}")
 
+        unit_name = unit_dict['name']
+        if not _is_valid_unit_target_name_or_cat(unit_name):
+            raise RuntimeError(f"illegal unit name: {unit_name!r}")
+
         # valid
         if not is_validate_only:
             # create the Unit, first checking for an existing one
-            unit_name = unit_dict['name']
             existing_unit = project.units.filter(name=unit_name).first()
             if existing_unit:
                 raise RuntimeError(f"found existing Unit for name={unit_name}")
@@ -241,6 +250,13 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
     if tested_keys != expected_keys:
         raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "
                            f"expected_keys={expected_keys}, tested_keys={tested_keys}. target_dict={target_dict}")
+
+    # validate name
+    target_name = target_dict['name']
+    if not _is_valid_unit_target_name_or_cat(target_name):
+        raise RuntimeError(f"illegal target name: {target_name!r}")
+
+
     # validate type
     type_name = target_dict['type']
     valid_target_types = [type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES]
@@ -325,7 +341,9 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
                 if type_int == Target.DATE_TARGET_TYPE:
                     datetime.datetime.strptime(cat_str, YYYY_MM_DD_DATE_FORMAT).date()  # try parsing as a date
                 else:
-                    data_types[0](cat_str)  # try parsing as a string, int, or float
+                    parsed_cat = data_types[0](cat_str)  # try parsing as a string, int, or float
+                    if isinstance(parsed_cat, str) and not _is_valid_unit_target_name_or_cat(parsed_cat):
+                        raise RuntimeError(f"illegal cat value: {parsed_cat!r}")
             except ValueError as ve:
                 raise RuntimeError(f"could not convert cat to data_type. cat_str={cat_str!r}, "
                                    f"data_type={data_types[0]}, error: {ve}")
