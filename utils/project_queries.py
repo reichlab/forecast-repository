@@ -74,7 +74,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
     # get the SQL then execute and iterate over resulting data
     as_of = query.get('as_of', None)
-    sql = _query_forecasts_sql_for_pred_class(type_ints, model_ids, unit_ids, target_ids, timezero_ids, as_of)
+    sql = _query_forecasts_sql_for_pred_class(type_ints, model_ids, unit_ids, target_ids, timezero_ids, as_of, True)
     logger.debug(f"query_forecasts_for_project(): 2/3 executing sql. type_ints, model_ids, unit_ids, target_ids, "
                  f"timezero_ids, as_of= {type_ints}, {model_ids}, {unit_ids}, {target_ids}, {timezero_ids}, "
                  f"{as_of}")
@@ -87,7 +87,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
                 raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, "
                                    f"max_num_rows={max_num_rows}")
 
-            pred_data = json.loads(pred_data)  # todo xx why isn't this coming out parsed as a python dict!?
+            # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
+            pred_data = json.loads(pred_data)
             model_str, timezero_str, season, class_str = _model_tz_season_class_strs(
                 forecast_model_id_to_obj[fm_id], timezero_id_to_obj[tz_id], timezero_to_season_name, pred_class)
             value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
@@ -124,11 +125,12 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     logger.debug(f"query_forecasts_for_project(): 3/3 done. num_rows={num_rows}, query={query}, project={project}")
 
 
-def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of):
+def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of,
+                                        is_exclude_oracle):
     """
     A `query_forecasts_for_project()` helper that returns an SQL query string based on my args that, when executed,
     returns a list of 6-tuples: (forecast_model_id, timezero_id, pred_class, unit_id, target_id, pred_data), where:
-    - pred_class: PRED_CLASS_CHOICES itn
+    - pred_class: PRED_CLASS_CHOICES int
     - data: the stored json
 
     :param pred_classes: list of PredictionElement.PRED_CLASS_CHOICES to include or [] (includes all)
@@ -137,6 +139,7 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     :param target_ids: "" Target ""
     :param timezero_ids: "" TimeZero ""
     :param as_of: optional as_of date
+    :param is_exclude_oracle: True if oracle forecasts should be excluded from results
     :return SQL to execute. returns columns as described above
     """
     and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
@@ -145,6 +148,7 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     and_target_ids = f"AND pred_ele.target_id IN ({', '.join(map(str, target_ids))})" if target_ids else ""
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
+    and_oracle = f"AND NOT fm.is_oracle" if is_exclude_oracle else ""
     sql = f"""
         WITH ranked_rows AS (
             SELECT f.forecast_model_id        AS fm_id,
@@ -160,8 +164,8 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
             FROM {PredictionElement._meta.db_table} AS pred_ele
                      JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
                      JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
-            WHERE fm.project_id = %s AND NOT fm.is_oracle
-              {and_model_ids} {and_pred_classes} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
+            WHERE fm.project_id = %s 
+                {and_oracle} {and_model_ids} {and_pred_classes} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
         )
         SELECT ranked_rows.fm_id       AS fm_id,
                ranked_rows.tz_id       AS tz_id,

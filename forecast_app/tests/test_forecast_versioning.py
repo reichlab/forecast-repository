@@ -11,7 +11,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement
-from utils.forecast import load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project, \
     create_project_from_json
@@ -494,3 +494,51 @@ class ForecastVersionsTestCase(TestCase):
         PredictionElement.objects.filter(forecast__in=(f1, f2)).delete()
         with self.assertRaisesRegex(RuntimeError, "cannot load empty data"):
             load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': []})  # no data
+
+
+    def test_json_io_dict_from_forecast_on_versions(self):
+        def sort_key(pred_dict):
+            return pred_dict['unit'], pred_dict['target'], pred_dict['class']
+
+
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        # create and load f1
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        predictions_1 = [  # docs-predictions.json: 0 and 1
+            {"unit": "location1", "target": "pct next week", "class": "point",
+             "prediction": {"value": 2.1}},  # [0]
+            {"unit": "location1", "target": "pct next week", "class": "named",
+             "prediction": {"family": "norm", "param1": 1.1, "param2": 2.2}},  # [1]
+        ]
+        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': predictions_1})
+
+        # create and load f2
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f2.save()
+
+        predictions_2 = [  # docs-predictions.json: 0 through 2
+            {"unit": "location1", "target": "pct next week", "class": "point",
+             "prediction": {"value": 2.1}},  # [0] dup
+            {"unit": "location1", "target": "pct next week", "class": "named",
+             "prediction": {"family": "norm", "param1": 3.3, "param2": 2.2}},  # [1] param1 changed
+            {"unit": "location2", "target": "pct next week", "class": "point",
+             "prediction": {"value": 2.0}},  # [2] new
+        ]
+        load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': predictions_2})
+
+        # test
+        exp_predictions = sorted(predictions_1, key=sort_key)
+        act_predictions = sorted(json_io_dict_from_forecast(f1, None)['predictions'], key=sort_key)  # ignore meta
+        self.assertEqual(exp_predictions, act_predictions)
+
+        exp_predictions = sorted(predictions_2, key=sort_key)
+        act_predictions = sorted(json_io_dict_from_forecast(f2, None)['predictions'], key=sort_key)  # ignore meta
+        self.assertEqual(exp_predictions, act_predictions)

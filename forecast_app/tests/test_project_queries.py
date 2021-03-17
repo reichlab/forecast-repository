@@ -494,37 +494,38 @@ class ProjectQueriesTestCase(TestCase):
     #
 
     def test_as_of_versions_issue_273(self):
-        # tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
-        #
-        # Here's an example database with versions (header is timezeros, rows are forecast `issue_date`s). Each forecast
-        # only has one point prediction:
-        #
-        # +-----+-----+-----+
-        # |10/2 |10/9 |10/16|
-        # |tz1  |tz2  |tz3  |
-        # +=====+=====+=====+
-        # |10/2 |     |     |
-        # |f1   | -   | -   |  2.1
-        # +-----+-----+-----+
-        # |     |     |10/17|
-        # |-    | -   |f2   |  2.0
-        # +-----+-----+-----+
-        # |10/20|10/20|     |
-        # |f3   | f4  | -   |  3.567 | 10
-        # +-----+-----+-----+
-        #
-        # Here are some `as_of` examples (which forecast version would be used as of that date):
-        #
-        # +-----+----+----+----+
-        # |as_of|tz1 |tz2 |tz3 |
-        # +-----+----+----+----+
-        # |10/1 | -  | -  | -  |
-        # |10/3 | f1 | -  | -  |
-        # |10/18| f1 | -  | f2 |
-        # |10/20| f3 | f4 | f2 |
-        # |10/21| f3 | f4 | f2 |
-        # +-----+----+----+----+
+        """
+        tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
 
+        Here's an example database with versions (header is timezeros, rows are forecast `issue_date`s). Each forecast
+        only has one point prediction:
+
+        +-----+-----+-----+
+        |10/2 |10/9 |10/16|
+        |tz1  |tz2  |tz3  |
+        +=====+=====+=====+
+        |10/2 |     |     |
+        |f1   | -   | -   |  2.1
+        +-----+-----+-----+
+        |     |     |10/17|
+        |-    | -   |f2   |  2.0
+        +-----+-----+-----+
+        |10/20|10/20|     |
+        |f3   | f4  | -   |  3.567 | 10
+        +-----+-----+-----+
+
+        Here are some `as_of` examples (which forecast version would be used as of that date):
+
+        +-----+----+----+----+
+        |as_of|tz1 |tz2 |tz3 |
+        +-----+----+----+----+
+        |10/1 | -  | -  | -  |
+        |10/3 | f1 | -  | -  |
+        |10/18| f1 | -  | f2 |
+        |10/20| f3 | f4 | f2 |
+        |10/21| f3 | f4 | f2 |
+        +-----+----+----+----+
+        """
         # set up database
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
@@ -610,30 +611,31 @@ class ProjectQueriesTestCase(TestCase):
 
 
     def test_as_of_versions_setting_0(self):
-        # tests the case where users have updated only parts of a former forecast, which breaks `as_of` functionality as
-        # initially written (it was operating at the forecast/timezero/issue_date level, not factoring in the
-        # unit/target level). this example is from [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0).
-        # NB: for convenience we adapt this example to use docs-project.json timezeros, units, and targets.
-        #
-        # forecasts:
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # |    key      |           forecast table           |    prediction table   |
-        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |  'tzd' = TimeZero.timezero_date
-        # | f1          | modelA   | tz1.tzd    | tz1        | u2   | t1     | 6     |
-        # |xf2xxxxxxxxxx|xmodelAxxx|xtz2.tzdxxxx|xtz1xxxxxxxx|xu1xxx|xt1xxxxx|x4xxxxx| <- row not present (strikeout): current practice is that teams submit duplicates of old forecasts
-        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        #
-        # desired as_of query {all units, all targets, all timezeroes, all models, as_of = tz2.tzd} returns:
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # | forecast_id | model_id | issue_date | timezero   | unit | target | value |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        # | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |
-        # | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
-        # +-------------+----------+------------+------------+------+--------+-------+
-        #
+        """
+        tests the case where users have updated only parts of a former forecast, which breaks `as_of` functionality as
+        initially written (it was operating at the forecast/timezero/issue_date level, not factoring in the
+        unit/target level). this example is from [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0).
+        NB: for convenience we adapt this example to use docs-project.json timezeros, units, and targets.
+
+        forecasts:
+        +-------------+----------+------------+------------+------+--------+-------+
+        |    key      |           forecast table           |    prediction table   |
+        | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        +-------------+----------+------------+------------+------+--------+-------+
+        | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |  'tzd' = TimeZero.timezero_date
+        | f1          | modelA   | tz1.tzd    | tz1        | u2   | t1     | 6     |
+        |xf2xxxxxxxxxx|xmodelAxxx|xtz2.tzdxxxx|xtz1xxxxxxxx|xu1xxx|xt1xxxxx|x4xxxxx| <- row not present (strikeout): current practice is that teams submit duplicates of old forecasts
+        | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
+        +-------------+----------+------------+------------+------+--------+-------+
+
+        desired as_of query {all units, all targets, all timezeroes, all models, as_of = tz2.tzd} returns:
+        +-------------+----------+------------+------------+------+--------+-------+
+        | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        +-------------+----------+------------+------------+------+--------+-------+
+        | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |
+        | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
+        +-------------+----------+------------+------------+------+--------+-------+
+        """
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='modelA', abbreviation='modelA')

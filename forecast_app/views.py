@@ -23,7 +23,7 @@ from rq.timeouts import JobTimeoutException
 
 from forecast_app.forms import ProjectForm, ForecastModelForm, UserModelForm, UserPasswordChangeForm, QueryForm
 from forecast_app.models import Project, ForecastModel, Forecast, TimeZero, Unit, Target, ForecastMetaPrediction, \
-    PredictionData, PredictionElement
+    PredictionElement
 from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLOAD_TRUTH, \
     JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_TRUTH
 from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME

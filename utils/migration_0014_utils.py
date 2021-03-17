@@ -14,6 +14,7 @@ from forecast_app.models import PredictionData, Prediction, BinDistribution, Nam
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -318,8 +319,10 @@ def _migrate_correctness_worker(forecast_pk):
 def is_different_old_new_json(forecast):
     """
     Acts as a boolean by returning an error string if the json exported from old and new versions of `forecast` are
-    equal, or None not.
+    equal, or None not. NB: Does not take into account the subtleties of forecast versions, so output needs to be
+    studied with that in mind.
     """
+
 
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']

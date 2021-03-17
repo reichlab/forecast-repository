@@ -14,6 +14,7 @@ from forecast_app.models import Forecast, Target, ForecastMetaPrediction, Foreca
     ForecastModel, PredictionElement, PredictionData
 from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT, PRED_CLASS_INT_TO_NAME
 from utils.project import _target_dict_for_target
+from utils.project_queries import _query_forecasts_sql_for_pred_class
 from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
@@ -39,15 +40,6 @@ def json_io_dict_from_forecast(forecast, request):
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
 
 
-    # set prediction_dicts
-    pred_data_qs = PredictionData.objects \
-        .filter(pred_ele__forecast=forecast) \
-        .values_list('pred_ele__pred_class', 'pred_ele__unit__name', 'pred_ele__target__name', 'data')
-    prediction_dicts = [{'unit': unit_name,
-                         'target': target_name,
-                         'class': PRED_CLASS_INT_TO_NAME[pred_class],
-                         'prediction': pred_data} for pred_class, unit_name, target_name, pred_data in pred_data_qs]
-
     # set meta
     meta = {}
     if request:
@@ -60,6 +52,22 @@ def json_io_dict_from_forecast(forecast, request):
         meta['targets'] = sorted(
             [_target_dict_for_target(target, request) for target in forecast.forecast_model.project.targets.all()],
             key=lambda _: (_['name']))
+
+    # set prediction_dicts by leveraging `query_forecasts_for_project()`'s `_query_forecasts_sql_for_pred_class()`,
+    # which does the necessary work of merging versions and picking latest issue_date data.
+    #   pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of, is_exclude_oracle:
+    unit_id_to_obj = {unit.pk: unit for unit in forecast.forecast_model.project.units.all()}
+    target_id_to_obj = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
+    sql = _query_forecasts_sql_for_pred_class([], [forecast.forecast_model.pk], [], [], [forecast.time_zero.pk],
+                                              forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT), False)
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.forecast_model.project.pk,))
+        # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
+        prediction_dicts = [{'unit': unit_id_to_obj[unit_id].name,
+                             'target': target_id_to_obj[target_id].name,
+                             'class': PRED_CLASS_INT_TO_NAME[pred_class],
+                             'prediction': json.loads(pred_data)}
+                            for fm_id, tz_id, pred_class, unit_id, target_id, pred_data in batched_rows(cursor)]
 
     # done
     return {'meta': meta, 'predictions': sorted(prediction_dicts, key=lambda _: (_['unit'], _['target']))}
@@ -115,13 +123,13 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
         raise RuntimeError(f"invalid forecast: cannot load data before any non-empty forecasts. forecast={forecast}, "
                            f"earlier_version={newest_non_empty_version}")
 
-    # we have two types of tables to insert into (PredictionElement and PredictionData subclasses), which requires
-    # loading via two passes:
+    # we have two types of tables to insert into (PredictionElement and PredictionData), which requires loading via two
+    # passes:
     # 1) iterate over incoming prediction dicts, validating them and generating rows to insert into the
     #    PredictionElement table
     # 2) load those just-inserted rows from the database so we can get their PRIMARY KEY (autoincrement) ids, and then
-    #    re-iterate over prediction dict data (cached in memory) to generate rows to insert into class-specific
-    #    PredictionData subclass tables
+    #    re-iterate over prediction dict data (cached in memory) to generate rows to insert into the PredictionData
+    #    table
     # pass 1/2
     data_hash_to_pred_data, pred_ele_rows = \
         _validated_pred_ele_rows_for_pred_dicts(forecast, json_io_dict['predictions'], is_skip_validation,
@@ -250,7 +258,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     :raises RuntimeError: if forecast version is invalid
     """
     # in order to validate and to skip inserting duplicate rows, we insert in these steps:
-    # - create a temp table
+    # - create a temp table with the same structure as PredictionElement
     # - insert `pred_ele_rows` into the temp table (some might be duplicates)
     # - validate forecast against previous data
     # - delete duplicates from the temp table
