@@ -313,7 +313,7 @@ def _migrate_correctness_worker(forecast_pk):
     forecast = get_object_or_404(Forecast, pk=forecast_pk)
     is_different = is_different_old_new_json(forecast)
     if is_different:
-        logger.error(f"forecast={forecast}. old != new: {is_different}")
+        logger.error(f"forecast={forecast}. {is_different}")
 
 
 def is_different_old_new_json(forecast):
@@ -327,17 +327,16 @@ def is_different_old_new_json(forecast):
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
 
-    prediction_dicts_new = json_io_dict_from_forecast(forecast, None)['predictions']
+    prediction_dicts_new = sorted(json_io_dict_from_forecast(forecast, None)['predictions'], key=sort_key)
     prediction_dicts_old = sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)
-    prediction_dicts_new.sort(key=sort_key)
     if prediction_dicts_new == prediction_dicts_old:
         return None
 
-    set_old = {(pred_dict['unit'], pred_dict['target']) for pred_dict in prediction_dicts_old}
-    set_new = {(pred_dict['unit'], pred_dict['target']) for pred_dict in prediction_dicts_new}
-    return f"total_old={_num_rows_old_data(forecast)}, total_new={_num_rows_new_data(forecast)}. " \
-           f"set_old={len(set_old)}, set_new={len(set_new)}. old-new={len(set_old - set_new)}, " \
-           f"old>new={set_old > set_new}, old<new={set_old < set_new}"
+    set_old = {(pred_dict['unit'], pred_dict['target'], pred_dict['class']) for pred_dict in prediction_dicts_old}
+    set_new = {(pred_dict['unit'], pred_dict['target'], pred_dict['class']) for pred_dict in prediction_dicts_new}
+    # total_old, total_new, set_old, set_new, old-new, old>new, old<new
+    return f"{_num_rows_old_data(forecast)}, {_num_rows_new_data(forecast)}, {len(set_old)}, {len(set_new)}, " \
+           f"{len(set_old - set_new)}, {set_old > set_new}, {set_old < set_new}"
 
 
 #
