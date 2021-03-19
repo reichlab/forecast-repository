@@ -10,8 +10,9 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement
-from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
+from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement, Target, Unit
+from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast, cache_forecast_metadata, \
+    forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project, \
     create_project_from_json
@@ -542,3 +543,79 @@ class ForecastVersionsTestCase(TestCase):
         exp_predictions = sorted(predictions_2, key=sort_key)
         act_predictions = sorted(json_io_dict_from_forecast(f2, None)['predictions'], key=sort_key)  # ignore meta
         self.assertEqual(exp_predictions, act_predictions)
+
+
+    def test_cache_forecast_metadata_on_versions(self):
+        """
+        Tests that metadata is correctly calculated when there are forecast versions.
+        """
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
+
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
+        u1 = Unit.objects.filter(name='location1').first()
+        u2 = Unit.objects.filter(name='location2').first()
+        u3 = Unit.objects.filter(name='location3').first()
+        t1 = Target.objects.filter(name='cases next week').first()
+        t2 = Target.objects.filter(name='pct next week').first()
+        t3 = Target.objects.filter(name='Season peak week').first()
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f2.save()
+
+        # load f1
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 5}},
+        ]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+
+        # load f2
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": None},  # retract
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": None},  # retract
+            {"unit": u3.name, "target": t3.name, "class": "sample",  # new
+             "prediction": {"sample": ["2020-01-05", "2019-12-15"]}},
+            {"unit": u1.name, "target": t2.name, "class": "bin",  # new
+             "prediction": {"cat": [1.1, 2.2, 3.3],
+                            "prob": [0.3, 0.2, 0.5]}},
+            {"unit": u1.name, "target": t3.name, "class": "quantile",  # new
+             "prediction": {"quantile": [0.5, 0.75, 0.975],
+                            "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}},
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
+
+        # cache both
+        cache_forecast_metadata(f1)
+        cache_forecast_metadata(f2)
+
+        # test f1
+        # forecast_meta_prediction (pnbsq), forecast_meta_unit_qs, forecast_meta_target_qs:
+        exp_meta = ((1, 1, 0, 0, 0), {u1.name, u2.name}, {t1.name})
+        act_meta = forecast_metadata(f1)
+        act_fmp_counts = act_meta[0].point_count, act_meta[0].named_count, act_meta[0].bin_count, \
+                         act_meta[0].sample_count, act_meta[0].quantile_count
+        act_fm_units = set([fmu.unit.name for fmu in act_meta[1]])
+        act_fm_targets = set([fmu.target.name for fmu in act_meta[2]])
+        self.assertEqual(exp_meta[0], act_fmp_counts)
+        self.assertEqual(exp_meta[1], act_fm_units)
+        self.assertEqual(exp_meta[2], act_fm_targets)
+
+        # test f2
+        # forecast_meta_prediction (pnbsq), forecast_meta_unit_qs, forecast_meta_target_qs:
+        exp_meta = ((0, 0, 1, 1, 1), {u1.name, u3.name}, {t2.name, t3.name})
+        act_meta = forecast_metadata(f2)
+        act_fmp_counts = act_meta[0].point_count, act_meta[0].named_count, act_meta[0].bin_count, \
+                         act_meta[0].sample_count, act_meta[0].quantile_count
+        act_fm_units = set([fmu.unit.name for fmu in act_meta[1]])
+        act_fm_targets = set([fmu.target.name for fmu in act_meta[2]])
+        self.assertEqual(exp_meta[0], act_fmp_counts)
+        self.assertEqual(exp_meta[1], act_fm_units)
+        self.assertEqual(exp_meta[2], act_fm_targets)

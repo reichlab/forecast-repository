@@ -142,13 +142,18 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     :param is_exclude_oracle: True if oracle forecasts should be excluded from results
     :return SQL to execute. returns columns as described above
     """
+    # about the query: the ranked_rows CTE groups prediction elements and then ranks then in issue_date order, which
+    # implements our masking (newer issue_dates mask older ones) and merging (discarded duplicates are merged back in
+    # via previous versions) search semantics. It's crucial that the CTE /not/ include is_retract b/c that's how
+    # retractions are implemented: they are ranked higher than the prediction elements they mask if they're newer.
+    # retracted ones are removed in the outer query
+    and_oracle = f"AND NOT fm.is_oracle" if is_exclude_oracle else ""
     and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
     and_pred_classes = f"AND pred_ele.pred_class IN ({', '.join(map(str, pred_classes))})" if pred_classes else ""
     and_unit_ids = f"AND pred_ele.unit_id IN ({', '.join(map(str, unit_ids))})" if unit_ids else ""
     and_target_ids = f"AND pred_ele.target_id IN ({', '.join(map(str, target_ids))})" if target_ids else ""
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
-    and_oracle = f"AND NOT fm.is_oracle" if is_exclude_oracle else ""
     sql = f"""
         WITH ranked_rows AS (
             SELECT f.forecast_model_id        AS fm_id,

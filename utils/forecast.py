@@ -7,7 +7,6 @@ import math
 from collections import defaultdict
 
 from django.db import connection, transaction
-from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Forecast, Target, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, \
@@ -113,7 +112,7 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
         raise RuntimeError(f"json_io_dict was not a dict: {json_io_dict!r}, type={type(json_io_dict)}")
     elif 'predictions' not in json_io_dict:
         raise RuntimeError(f"json_io_dict had no 'predictions' key: {json_io_dict}")
-    elif not json_io_dict['predictions']:      # validate the rule: "cannot load empty data"
+    elif not json_io_dict['predictions']:  # validate the rule: "cannot load empty data"
         raise RuntimeError(f"cannot load empty data")
 
     # validate the rule: "cannot load data before any non-empty forecasts". NB: additional version validation is done by
@@ -748,50 +747,105 @@ def cache_forecast_metadata(forecast):
 
     :param forecast: a Forecast whose metata is to be cached
     """
+    clear_forecast_metadata(forecast)
     _cache_forecast_metadata_predictions(forecast)
     _cache_forecast_metadata_units(forecast)
     _cache_forecast_metadata_targets(forecast)
 
 
 def _cache_forecast_metadata_predictions(forecast):
-    clear_forecast_metadata(forecast)
-
-    # cache one ForecastMetaPrediction row for forecast. annotate() is a GROUP BY -> QuerySet of dicts like:
-    # {'pred_class': 1, 'total': 2}
-    rows = PredictionElement.objects.filter(forecast=forecast).values('pred_class').annotate(total=Count('id'))
-    pred_class_to_counts = defaultdict(int)
-    for pred_class_total_dict in rows:
-        pred_class_to_counts[pred_class_total_dict['pred_class']] = pred_class_total_dict['total']
-    ForecastMetaPrediction.objects.create(forecast=forecast,
-                                          bin_count=pred_class_to_counts[PredictionElement.BIN_CLASS],
-                                          named_count=pred_class_to_counts[PredictionElement.NAMED_CLASS],
-                                          point_count=pred_class_to_counts[PredictionElement.POINT_CLASS],
-                                          sample_count=pred_class_to_counts[PredictionElement.SAMPLE_CLASS],
-                                          quantile_count=pred_class_to_counts[PredictionElement.QUANTILE_CLASS])
+    # cache one ForecastMetaPrediction row for forecast.
+    # see _query_forecasts_sql_for_pred_class() for a description of a similar query
+    sql = f"""
+        WITH ranked_rows AS (
+            SELECT pred_ele.pred_class             AS pred_class,
+                   pred_ele.is_retract             AS is_retract,
+                   RANK() OVER (
+                       PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
+                       ORDER BY f.issue_date DESC) AS rownum
+            FROM forecast_app_predictionelement AS pred_ele
+                     JOIN forecast_app_forecast AS f ON pred_ele.forecast_id = f.id
+                     JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+            WHERE fm.id = %s
+              AND f.time_zero_id = %s
+              AND f.issue_date <= %s
+        )
+        SELECT ranked_rows.pred_class, COUNT(*)
+        FROM ranked_rows
+        WHERE ranked_rows.rownum = 1
+          AND NOT is_retract
+        GROUP BY ranked_rows.pred_class;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        pred_class_to_counts = defaultdict(int)
+        for pred_class, count in batched_rows(cursor):
+            pred_class_to_counts[pred_class] = count
+        ForecastMetaPrediction.objects.create(forecast=forecast,
+                                              bin_count=pred_class_to_counts[PredictionElement.BIN_CLASS],
+                                              named_count=pred_class_to_counts[PredictionElement.NAMED_CLASS],
+                                              point_count=pred_class_to_counts[PredictionElement.POINT_CLASS],
+                                              sample_count=pred_class_to_counts[PredictionElement.SAMPLE_CLASS],
+                                              quantile_count=pred_class_to_counts[PredictionElement.QUANTILE_CLASS])
 
 
 def _cache_forecast_metadata_units(forecast):
-    # cache ForecastMetaUnit rows for forecast
+    # cache ForecastMetaUnit rows for forecast.
     unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
-    pred_class_units_qs = PredictionElement.objects \
-        .filter(forecast=forecast) \
-        .values_list('unit', flat=True) \
-        .distinct()
-    found_units = [unit_id_to_obj[unit_id] for unit_id in pred_class_units_qs]
-    for unit in found_units:
-        ForecastMetaUnit.objects.create(forecast=forecast, unit=unit)
+
+    # about the query: see _query_forecasts_sql_for_pred_class() for a description of a similar query
+    sql = f"""
+        WITH ranked_rows AS (
+            SELECT pred_ele.unit_id                AS unit_id,
+                   pred_ele.is_retract             AS is_retract,
+                   RANK() OVER (
+                       PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.unit_id, pred_ele.pred_class
+                       ORDER BY f.issue_date DESC) AS rownum
+            FROM forecast_app_predictionelement AS pred_ele
+                     JOIN forecast_app_forecast AS f ON pred_ele.forecast_id = f.id
+                     JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+            WHERE fm.id = %s
+              AND f.time_zero_id = %s
+              AND f.issue_date <= %s
+        )
+        SELECT DISTINCT ranked_rows.unit_id
+        FROM ranked_rows
+        WHERE ranked_rows.rownum = 1
+          AND NOT is_retract;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        for unit_id in batched_rows(cursor):
+            ForecastMetaUnit.objects.create(forecast=forecast, unit=unit_id_to_obj[unit_id[0]])
 
 
 def _cache_forecast_metadata_targets(forecast):
-    # cache ForecastMetaTarget rows for forecast
     target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
-    pred_class_targets_qs = PredictionElement.objects \
-        .filter(forecast=forecast) \
-        .values_list('target', flat=True) \
-        .distinct()
-    found_targets = [target_id_to_object[target_id] for target_id in pred_class_targets_qs]
-    for target in found_targets:
-        ForecastMetaTarget.objects.create(forecast=forecast, target=target)
+
+    # about the query: see _query_forecasts_sql_for_pred_class() for a description of a similar query
+    sql = f"""
+        WITH ranked_rows AS (
+            SELECT pred_ele.target_id              AS target_id,
+                   pred_ele.is_retract             AS is_retract,
+                   RANK() OVER (
+                       PARTITION BY fm.id, f.time_zero_id, pred_ele.target_id, pred_ele.target_id, pred_ele.pred_class
+                       ORDER BY f.issue_date DESC) AS rownum
+            FROM forecast_app_predictionelement AS pred_ele
+                     JOIN forecast_app_forecast AS f ON pred_ele.forecast_id = f.id
+                     JOIN forecast_app_forecastmodel AS fm ON f.forecast_model_id = fm.id
+            WHERE fm.id = %s
+              AND f.time_zero_id = %s
+              AND f.issue_date <= %s
+        )
+        SELECT DISTINCT ranked_rows.target_id
+        FROM ranked_rows
+        WHERE ranked_rows.rownum = 1
+          AND NOT is_retract;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        for target_id in batched_rows(cursor):
+            ForecastMetaTarget.objects.create(forecast=forecast, target=target_id_to_object[target_id[0]])
 
 
 def clear_forecast_metadata(forecast):

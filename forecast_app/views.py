@@ -869,8 +869,9 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # collect computed metadata
         is_metadata_available = is_forecast_metadata_available(forecast)
+        # (pred_type_count_pairs, found_units, found_targets) where first is: 2-tuple: (PRED_CLASS_INT_TO_NAME, count)
         pred_type_count_pairs, found_units, found_targets = self.forecast_metadata_cached() \
-            if is_metadata_available else self.forecast_metadata_dynamic()
+            if is_metadata_available else ([], [], [])
 
         # set target_groups: change from dict to 2-tuples
         target_groups = group_targets(found_targets)  # group_name -> group_targets
@@ -902,7 +903,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['is_metadata_available'] = is_metadata_available
         context['version_str'] = version_str
-        context['num_pred_eles'] = sum(map(lambda _: _[1], pred_type_count_pairs))
+        context['num_pred_eles'] = sum(map(lambda _: _[1], pred_type_count_pairs)) if pred_type_count_pairs else 0
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
         context['found_units'] = sorted(found_units, key=lambda _: _.name)
         context['found_targets'] = found_targets
@@ -919,10 +920,10 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
     def forecast_metadata_cached(self):
         """
-        ForecastDetailView helper that returns cached forecast metadata, i.e., DOES use `forecast_metadata()`. Assumes
+        ForecastDetailView helper that returns cached forecast metadata using`forecast_metadata()`. Assumes
         `is_forecast_metadata_available(forecast)` is True, i.e., does not check whether metadata is present.
 
-        :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets for forecast), where pred_type_count_pairs
+        :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets) for forecast, where pred_type_count_pairs
             is a 2-tuple: (PRED_CLASS_INT_TO_NAME, count)
         """
         forecast = self.get_object()
@@ -937,43 +938,6 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
                        in forecast_meta_unit_qs.select_related('unit')]
         found_targets = [forecast_meta_target.target for forecast_meta_target
                          in forecast_meta_target_qs.select_related('target')]
-        return pred_type_count_pairs, found_units, found_targets
-
-
-    def forecast_metadata_dynamic(self):
-        """
-        ForecastDetailView helper that dynamically calculates forecast metadata, i.e., does NOT use
-        `forecast_metadata()`.
-
-        :return: 3-tuple: (pred_type_count_pairs, found_units, found_targets for forecast), where pred_type_count_pairs
-            is a 2-tuple: (PRED_CLASS_INT_TO_NAME, count)
-        """
-        forecast = self.get_object()
-
-        # set pred_type_count_pairs. copied from _cache_forecast_metadata_predictions():
-        rows = PredictionElement.objects.filter(forecast=forecast).values('pred_class').annotate(total=Count('id'))
-        pred_class_to_counts = {pred_class_total_dict['pred_class']: pred_class_total_dict['total']
-                                for pred_class_total_dict in rows}
-        pred_type_count_pairs = [(PRED_CLASS_INT_TO_NAME[pred_class_int], total)
-                                 for pred_class_int, total in pred_class_to_counts.items()]
-
-        # set found_units. copied from _cache_forecast_metadata_units()
-        unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
-        pred_class_units_qs = PredictionElement.objects \
-            .filter(forecast=forecast) \
-            .values_list('unit', flat=True) \
-            .distinct()
-        found_units = [unit_id_to_obj[unit_id] for unit_id in pred_class_units_qs]
-
-        # set found_targets. copied from _cache_forecast_metadata_targets()
-        target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
-        pred_class_targets_qs = PredictionElement.objects \
-            .filter(forecast=forecast) \
-            .values_list('target', flat=True) \
-            .distinct()
-        found_targets = [target_id_to_object[target_id] for target_id in pred_class_targets_qs]
-
-        # done
         return pred_type_count_pairs, found_units, found_targets
 
 
