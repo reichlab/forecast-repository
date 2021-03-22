@@ -9,12 +9,12 @@
     {% else %}
         {{ num_rows_exact|intcomma }}
     {% endif %}
-    row{{ num_rows_exact|pluralize }}
+    prediction{{ num_rows_exact|pluralize }}
 {% else %}
     {% if use_intword %}
         {{ num_rows_est|intword|intcomma }}
     {% else %}
         {{ num_rows_est|intcomma }}
     {% endif %}
-    row{{ num_rows_est|pluralize }} (est)
+    prediction{{ num_rows_est|pluralize }} (est)
 {% endif %}

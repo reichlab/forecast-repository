@@ -44,7 +44,11 @@
     unique)</small></h2>
 {% for pred_type, count in pred_type_count_pairs %}
     <ul>
-        <li><code>{{ pred_type }}</code>: {{ count|intword|intcomma }} row{{ count|pluralize }}</li>
+        <li><code>{{ pred_type }}</code>:
+            {% if count == 0 %}<small class="text-muted">(None)</small>
+                {% else %}{{ count|intword|intcomma }}
+            {% endif %}
+        </li>
     </ul>
 {% endfor %}
 
@@ -124,7 +128,7 @@
 {% if data_rows_bin %}
     {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
     <h4 id="bin_data" style="display: inline-block;">Bin data <small>({{ data_rows_bin|length }}
-        row{{ data_rows_bin|length|pluralize }})</small></h4>
+        prediction{{ data_rows_bin|length|pluralize }})</small></h4>
     <a href="#bin_data">&para;</a>
 
     <table id="data_rows_bin_table" class="table table-striped table-bordered">
@@ -153,7 +157,7 @@
 {% if data_rows_named %}
     {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
     <h4 id="named_data" style="display: inline-block;">Named data <small>({{ data_rows_named|length }}
-        row{{ data_rows_named|pluralize }})</small></h4>
+        prediction{{ data_rows_named|pluralize }})</small></h4>
     <a href="#named_data">&para;</a>
 
     <table id="data_rows_named_table" class="table table-striped table-bordered">
@@ -187,7 +191,7 @@
 {% if data_rows_point %}
     {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
     <h4 id="point_data" style="display: inline-block;">Point data <small>({{ data_rows_point|length }}
-        row{{ data_rows_point|pluralize }})</small></h4>
+        prediction{{ data_rows_point|pluralize }})</small></h4>
     <a href="#point_data">&para;</a>
 
     <table id="data_rows_point_table" class="table table-striped table-bordered">
@@ -215,7 +219,7 @@
 {% if data_rows_quantile %}
     {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
     <h4 id="quantile_data" style="display: inline-block;">Quantile data <small>({{ data_rows_quantile|length }}
-        row{{ data_rows_quantile|pluralize }})</small></h4>
+        prediction{{ data_rows_quantile|pluralize }})</small></h4>
     <a href="#quantile_data">&para;</a>
 
     <table id="data_rows_quantile_table" class="table table-striped table-bordered">
@@ -245,7 +249,7 @@
 {% if data_rows_sample %}
     {# https://stackoverflow.com/questions/29030260/inline-checkbox-next-to-a-h3-header #}
     <h4 id="sample_data" style="display: inline-block;">Sample data <small>({{ data_rows_sample|length }}
-        row{{ data_rows_sample|pluralize }})</small></h4>
+        prediction{{ data_rows_sample|pluralize }})</small></h4>
     <a href="#sample_data">&para;</a>
 
     <table id="data_rows_sample_table" class="table table-striped table-bordered">

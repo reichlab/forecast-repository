@@ -33,7 +33,7 @@ def main(verbosity, project_pk):
 def print_project_info(project, verbosity):
     # verbosity == 1
     first_truth_forecast = first_truth_data_forecast(project)
-    click.echo(f"\n\n* {project}. truth: # rows={truth_data_qs(project).count()}, "
+    click.echo(f"\n\n* {project}. truth: # predictions={truth_data_qs(project).count()}, "
                f"source={repr(first_truth_forecast.source) if first_truth_forecast else '<no truth>'}, "
                f"created_at={first_truth_forecast.created_at if first_truth_forecast else '<no truth>'}. "
                f"owner={project.owner}, model_owners={project.model_owners.all()}, (num_models, num_forecasts, "

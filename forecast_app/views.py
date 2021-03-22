@@ -198,8 +198,9 @@ def project_forecasts(request, project_pk):
                      'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
     for f_id, f_issue_date, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
         counts = forecast_id_to_counts[f_id]  # [None, None, None] if forecast_id is None (via defauldict)
+        num_rows = sum(counts[0]) if counts[0] is not None else 0
         forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issue_date, f_created_at,
-                              reverse('model-detail', args=[fm_id]), fm_abbrev, (counts[0])))
+                              reverse('model-detail', args=[fm_id]), fm_abbrev, num_rows))
 
     return render(request, 'project_forecasts.html',
                   context={'project': project,
@@ -1070,11 +1071,12 @@ def truth_detail(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    num_truth_rows = truth_data_qs(project).count()  # NB: can be slow
     return render(
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 'num_truth_rows': truth_data_qs(project).count(),
+                 'num_truth_rows': num_truth_rows,
                  'truth_data_preview': get_truth_data_preview(project),
                  'first_truth_forecast': first_truth_data_forecast(project),
                  'is_truth_data_loaded': is_truth_data_loaded(project),

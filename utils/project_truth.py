@@ -113,7 +113,7 @@ def get_truth_data_preview(project):
     pred_data_qs = PredictionData.objects \
         .filter(pred_ele__forecast__forecast_model=oracle_model) \
         .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name', 'pred_ele__target__name',
-                     'data')
+                     'data')[:10]
     return [(tz_date, unit__name, target__name, data['value'])
             for tz_date, unit__name, target__name, data in pred_data_qs]
 
