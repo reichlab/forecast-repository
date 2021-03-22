@@ -185,7 +185,7 @@ def project_forecasts(request, project_pk):
 
     # create heatmap data
     encoding_color_field = {None: '# targets',  # default
-                            'rows': '# rows',
+                            'predictions': '# predictions',
                             'units': '# units',
                             'targets': '# targets'}[request.GET.get('colorby')]
     forecast_id_to_counts = forecast_metadata_counts_for_project(project)
@@ -224,7 +224,7 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
                 values.append({'model': fm_abbrev,
                                'timezero': tz_tzdate.strftime(YYYY_MM_DD_DATE_FORMAT) + 'T00:00:00',
                                'forecast_url': reverse('forecast-detail', args=[str(forecast_id)]),  # relative URL
-                               '# rows': sum(counts[0]) if counts[0] is not None else 0,
+                               '# predictions': sum(counts[0]) if counts[0] is not None else 0,
                                '# units': counts[1],
                                '# targets': counts[2]})
 
@@ -258,11 +258,11 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
             'tooltip': [{'field': 'model'},
                         {'field': 'timezero', 'type': 'temporal', 'format': '%Y-%m-%d'},
                         {'field': 'forecast_url'},
-                        {'field': '# rows'},
+                        {'field': '# predictions'},
                         {'field': '# units'},
                         {'field': '# targets'}],
             'color': {
-                'field': encoding_color_field,  # '# rows', '# units', or '# targets'
+                'field': encoding_color_field,  # '# predictions', '# units', or '# targets'
                 'type': 'quantitative',
                 # note: cannot combine the tooltip encoding with scale due to bug:
                 # https://observablehq.com/@ijlyttle/vega-lite-tooltip-formatting-issues . o/w get Error: Invalid

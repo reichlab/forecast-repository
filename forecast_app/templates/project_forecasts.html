@@ -23,8 +23,8 @@
                 Color by
             </button>
             <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=rows"
-                   id="color_num_rows"># rows</a>
+                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=predictions"
+                   id="color_num_rows"># predictions</a>
                 <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=units"
                    id="color_num_units"># units</a>
                 <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=targets"
