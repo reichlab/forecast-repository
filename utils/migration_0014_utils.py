@@ -6,11 +6,12 @@ import django
 from django.db import transaction, connection
 from django.shortcuts import get_object_or_404
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
 from forecast_app.models import PredictionData, Prediction, BinDistribution, NamedDistribution, PointPrediction, \
-    SampleDistribution, QuantileDistribution, PredictionElement, Target, Forecast
+    SampleDistribution, QuantileDistribution, PredictionElement, Target, Forecast, ForecastModel
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -327,6 +328,7 @@ def is_different_old_new_json(forecast):
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
 
+
     prediction_dicts_new = sorted(json_io_dict_from_forecast(forecast, None)['predictions'], key=sort_key)
     prediction_dicts_old = sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)
     if prediction_dicts_new == prediction_dicts_old:
@@ -364,8 +366,8 @@ def _grouped_version_rows(project, is_versions_only):
                        f.time_zero_id ORDER BY f.issue_date) AS rank,
                    COUNT(*) OVER (PARTITION BY f.forecast_model_id,
                        f.time_zero_id)                       AS count
-            FROM forecast_app_forecast AS f
-                     JOIN forecast_app_forecastmodel fm ON f.forecast_model_id = fm.id
+            FROM {Forecast._meta.db_table} AS f
+                     JOIN {ForecastModel._meta.db_table} fm ON f.forecast_model_id = fm.id
             WHERE fm.project_id = %s
         )
         SELECT fm_id, tz_id, issue_date, f_id, f_source, f_created_at, rank

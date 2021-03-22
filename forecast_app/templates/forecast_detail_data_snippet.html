@@ -40,7 +40,8 @@
 <hr> {# hack to add space before next #}
 
 
-<h2>Predictions <small>({{ num_pred_eles|intword|intcomma }})</small></h2>
+<h2>Predictions <small>({{ num_pred_eles|intword|intcomma }} total; {{ num_unique_pes|intword|intcomma }}
+    unique)</small></h2>
 {% for pred_type, count in pred_type_count_pairs %}
     <ul>
         <li><code>{{ pred_type }}</code>: {{ count|intword|intcomma }} row{{ count|pluralize }}</li>

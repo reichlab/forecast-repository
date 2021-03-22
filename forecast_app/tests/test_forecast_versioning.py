@@ -12,7 +12,7 @@ from rest_framework.test import APIClient
 
 from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement, Target, Unit
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast, cache_forecast_metadata, \
-    forecast_metadata
+    forecast_metadata, data_rows_from_forecast
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project, \
     create_project_from_json
@@ -42,9 +42,9 @@ class ForecastVersionsTestCase(TestCase):
         self.client = APIClient()
         _, _, self.po_user, self.po_user_password, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         self.project, self.time_zero, self.forecast_model, self.forecast = _make_docs_project(self.po_user)
-        self.tz1 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-        self.tz2 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-        self.tz3 = self.project.timezeros.filter(timezero_date=datetime.date(2011, 10, 16)).first()
+        self.tz1 = self.project.timezeros.get(timezero_date=datetime.date(2011, 10, 2))
+        self.tz2 = self.project.timezeros.get(timezero_date=datetime.date(2011, 10, 9))
+        self.tz3 = self.project.timezeros.get(timezero_date=datetime.date(2011, 10, 16))
 
 
     def test_multiple_forecasts_per_timezero(self):
@@ -553,14 +553,14 @@ class ForecastVersionsTestCase(TestCase):
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
 
-        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-        tz2 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 9)).first()
-        u1 = Unit.objects.filter(name='location1').first()
-        u2 = Unit.objects.filter(name='location2').first()
-        u3 = Unit.objects.filter(name='location3').first()
-        t1 = Target.objects.filter(name='cases next week').first()
-        t2 = Target.objects.filter(name='pct next week').first()
-        t3 = Target.objects.filter(name='Season peak week').first()
+        tz1 = project.timezeros.get(timezero_date=datetime.date(2011, 10, 2))
+        tz2 = project.timezeros.get(timezero_date=datetime.date(2011, 10, 9))
+        u1 = project.units.get(name='location1')
+        u2 = project.units.get(name='location2')
+        u3 = project.units.get(name='location3')
+        t1 = project.targets.get(name='cases next week')
+        t2 = project.targets.get(name='pct next week')
+        t3 = project.targets.get(name='Season peak week')
 
         f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
         f1.issue_date = tz1.timezero_date
@@ -619,3 +619,90 @@ class ForecastVersionsTestCase(TestCase):
         self.assertEqual(exp_meta[0], act_fmp_counts)
         self.assertEqual(exp_meta[1], act_fm_units)
         self.assertEqual(exp_meta[2], act_fm_targets)
+
+
+    def test_data_rows_from_forecast_on_versions(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
+
+        tz1 = project.timezeros.get(timezero_date=datetime.date(2011, 10, 2))
+        tz2 = project.timezeros.get(timezero_date=datetime.date(2011, 10, 9))
+        u1 = project.units.get(name='location1')
+        u2 = project.units.get(name='location2')
+        u3 = project.units.get(name='location3')
+        t1 = project.targets.get(name='cases next week')
+        t2 = project.targets.get(name='pct next week')
+        t3 = project.targets.get(name='Season peak week')
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f2.save()
+
+        # load f1
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": {"value": 5}},
+            {"unit": u1.name, "target": t2.name, "class": "bin",
+             "prediction": {"cat": [1.1, 2.2, 3.3], "prob": [0.3, 0.2, 0.5]}},
+        ]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+
+        # load f2
+        predictions = [
+            {"unit": u1.name, "target": t1.name, "class": "named", "prediction":
+                {"family": "pois", "param1": 2.2}},  # changed
+            {"unit": u1.name, "target": t1.name, "class": "point", "prediction": {"value": 6}},  # new
+            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": None},  # retract
+            {"unit": u3.name, "target": t3.name, "class": "sample",  # new
+             "prediction": {"sample": ["2020-01-05", "2019-12-15"]}},
+            {"unit": u1.name, "target": t2.name, "class": "bin",  # dup
+             "prediction": {"cat": [1.1, 2.2, 3.3], "prob": [0.3, 0.2, 0.5]}},
+            {"unit": u1.name, "target": t3.name, "class": "quantile",  # new
+             "prediction": {"quantile": [0.5, 0.75, 0.975], "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}},
+        ]
+        load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
+
+        # test. rows: bnpqs
+        f_loc_targ_to_exp_rows = {
+            (f1, u1, t1): ([], [('location1', 'cases next week', 'pois', 1.1, None, None)], [], [], []),
+            (f1, u1, t2): ([('location1', 'pct next week', 1.1, 0.3),
+                            ('location1', 'pct next week', 2.2, 0.2),
+                            ('location1', 'pct next week', 3.3, 0.5)],
+                           [], [], [], []),
+            (f1, u1, t3): ([], [], [], [], []),
+            (f1, u2, t1): ([], [], [('location2', 'cases next week', 5)], [], []),
+            (f1, u2, t2): ([], [], [], [], []),
+            (f1, u2, t3): ([], [], [], [], []),
+            (f1, u3, t1): ([], [], [], [], []),
+            (f1, u3, t2): ([], [], [], [], []),
+            (f1, u3, t3): ([], [], [], [], []),
+            (f2, u1, t1): ([],
+                           [('location1', 'cases next week', 'pois', 2.2, None, None)],
+                           [('location1', 'cases next week', 6)],
+                           [], []),
+            (f2, u1, t2): ([('location1', 'pct next week', 1.1, 0.3),
+                            ('location1', 'pct next week', 2.2, 0.2),
+                            ('location1', 'pct next week', 3.3, 0.5)],
+                           [], [], [], []),  # will fail if doesn't merge w/older version
+            (f2, u1, t3): ([], [], [],
+                           [('location1', 'Season peak week', 0.5, '2019-12-22'),
+                            ('location1', 'Season peak week', 0.75, '2019-12-29'),
+                            ('location1', 'Season peak week', 0.975, '2020-01-05')],
+                           []),
+            (f2, u2, t1): ([], [], [], [], []),
+            (f2, u2, t2): ([], [], [], [], []),
+            (f2, u2, t3): ([], [], [], [], []),
+            (f2, u3, t1): ([], [], [], [], []),
+            (f2, u3, t2): ([], [], [], [], []),
+            (f2, u3, t3): ([], [], [], [],
+                           [('location3', 'Season peak week', '2020-01-05'),
+                            ('location3', 'Season peak week', '2019-12-15')]),
+        }
+        for (forecast, unit, target), exp_rows in f_loc_targ_to_exp_rows.items():
+            act_rows = data_rows_from_forecast(forecast, unit, target)
+            self.assertEqual(exp_rows, act_rows)
