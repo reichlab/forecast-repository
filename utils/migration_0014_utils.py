@@ -6,8 +6,9 @@ import django
 from django.db import transaction, connection
 from django.shortcuts import get_object_or_404
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT
+
 django.setup()
 
 from forecast_app.models import PredictionData, Prediction, BinDistribution, NamedDistribution, PointPrediction, \
@@ -15,13 +16,39 @@ from forecast_app.models import PredictionData, Prediction, BinDistribution, Nam
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
-
 logger = logging.getLogger(__name__)
 
 
 #
 # This file defines (dangerous!) functions that are used to assist the migration 0014_predictionelement_1_of_2.py.
 #
+
+
+#
+# copy_old_data_to_new_tables() and helpers
+#
+
+def copy_old_data_to_new_tables(forecast):
+    """
+    Top-level migration function that copies data from all of function's concrete Prediction tables to its concrete
+    PredictionData tables. For convenience (it's a little complicated - see load_predictions_from_json_io_dict()'s docs
+    about the two passes required) we use existing json_io_dict-orientedfunctions instead of using SQL. (We will see if
+    this is a performance issue.) This function operates at the forecast level, and can be re-started to pick up at the
+    last forecast where it left off, in case of failures.
+
+    :param forecast: a Forecast
+    """
+    if _num_rows_new_data(forecast) != 0:
+        logger.info(f"copy_old_data_to_new_tables(): {forecast}: skipping (has data)")
+        return  # already loaded
+
+    start_time = timeit.default_timer()
+    logger.info(f"copy_old_data_to_new_tables(): {forecast}: started")
+    json_io_dict = {'meta': {}, 'predictions': _pred_dicts_from_forecast_old(forecast)}
+    load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=True,
+                                       is_validate_cats=False)  # atomic
+    logger.info(f"copy_old_data_to_new_tables(): {forecast}: done. time: {timeit.default_timer() - start_time}")
+
 
 def _num_rows_old_data(forecast):
     """
@@ -56,87 +83,6 @@ def _num_rows_new_data(forecast):
     return num_rows
 
 
-def _copy_new_data_to_old_tables(project):
-    """
-    Test helper function that copies data from all of project's concrete PredictionData tables to its concrete
-    Prediction tables. Inefficient!
-
-    :param project: a Project
-    """
-    target_id_to_obj = {target.pk: target for target in project.targets.all()}
-    family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
-                            in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
-    pred_data_qs = PredictionData.objects \
-        .filter(pred_ele__forecast__forecast_model__project=project) \
-        .values_list('pred_ele__forecast', 'pred_ele__pred_class', 'pred_ele__unit', 'pred_ele__target', 'data')
-    for forecast_id, pred_class, unit_id, target_id, pred_data in pred_data_qs:
-        target = target_id_to_obj[target_id]
-        if pred_class == PredictionElement.BIN_CLASS:
-            for cat, prob in zip(pred_data['cat'], pred_data['prob']):
-                cat_i = cat if target.type == Target.DISCRETE_TARGET_TYPE else None
-                cat_f = cat if target.type == Target.CONTINUOUS_TARGET_TYPE else None
-                cat_t = cat if target.type == Target.NOMINAL_TARGET_TYPE else None
-                cat_d = cat if target.type == Target.DATE_TARGET_TYPE else None
-                cat_b = cat if target.type == Target.BINARY_TARGET_TYPE else None
-                BinDistribution.objects.create(forecast_id=forecast_id, unit_id=unit_id, target_id=target_id,
-                                               prob=prob, cat_i=cat_i, cat_f=cat_f, cat_t=cat_t, cat_d=cat_d,
-                                               cat_b=cat_b)
-        elif pred_class == PredictionElement.NAMED_CLASS:
-            NamedDistribution.objects.create(forecast_id=forecast_id, unit_id=unit_id, target_id=target_id,
-                                             family=family_abbrev_to_int[pred_data['family']],
-                                             param1=pred_data.get('param1'), param2=pred_data.get('param2'),
-                                             param3=pred_data.get('param3'))
-        elif pred_class == PredictionElement.POINT_CLASS:
-            value_i = pred_data['value'] if target.type == Target.DISCRETE_TARGET_TYPE else None
-            value_f = pred_data['value'] if target.type == Target.CONTINUOUS_TARGET_TYPE else None
-            value_t = pred_data['value'] if target.type == Target.NOMINAL_TARGET_TYPE else None
-            value_d = pred_data['value'] if target.type == Target.DATE_TARGET_TYPE else None
-            value_b = pred_data['value'] if target.type == Target.BINARY_TARGET_TYPE else None
-            PointPrediction.objects.create(forecast_id=forecast_id, unit_id=unit_id, target_id=target_id,
-                                           value_i=value_i, value_f=value_f, value_t=value_t, value_d=value_d,
-                                           value_b=value_b)
-        elif pred_class == PredictionElement.QUANTILE_CLASS:
-            for quantile, value in zip(pred_data['quantile'], pred_data['value']):
-                value_i = value if target.type == Target.DISCRETE_TARGET_TYPE else None
-                value_f = value if target.type == Target.CONTINUOUS_TARGET_TYPE else None
-                value_d = value if target.type == Target.DATE_TARGET_TYPE else None
-                QuantileDistribution.objects.create(forecast_id=forecast_id, unit_id=unit_id, target_id=target_id,
-                                                    quantile=quantile, value_i=value_i, value_f=value_f,
-                                                    value_d=value_d)
-        elif pred_class == PredictionElement.SAMPLE_CLASS:
-            for sample in pred_data['sample']:
-                sample_i = sample if target.type == Target.DISCRETE_TARGET_TYPE else None
-                sample_f = sample if target.type == Target.CONTINUOUS_TARGET_TYPE else None
-                sample_t = sample if target.type == Target.NOMINAL_TARGET_TYPE else None
-                sample_d = sample if target.type == Target.DATE_TARGET_TYPE else None
-                sample_b = sample if target.type == Target.BINARY_TARGET_TYPE else None
-                SampleDistribution.objects.create(forecast_id=forecast_id, unit_id=unit_id, target_id=target_id,
-                                                  sample_i=sample_i, sample_f=sample_f, sample_t=sample_t,
-                                                  sample_d=sample_d, sample_b=sample_b)
-
-
-def copy_old_data_to_new_tables(forecast):
-    """
-    Top-level migration function that copies data from all of function's concrete Prediction tables to its concrete
-    PredictionData tables. For convenience (it's a little complicated - see load_predictions_from_json_io_dict()'s docs
-    about the two passes required) we use existing json_io_dict-orientedfunctions instead of using SQL. (We will see if
-    this is a performance issue.) This function operates at the forecast level, and can be re-started to pick up at the
-    last forecast where it left off, in case of failures.
-
-    :param forecast: a Forecast
-    """
-    if _num_rows_new_data(forecast) != 0:
-        logger.info(f"copy_old_data_to_new_tables(): {forecast}: skipping (has data)")
-        return  # already loaded
-
-    start_time = timeit.default_timer()
-    logger.info(f"copy_old_data_to_new_tables(): {forecast}: started")
-    json_io_dict = {'meta': {}, 'predictions': _pred_dicts_from_forecast_old(forecast)}
-    load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=True,
-                                       is_validate_cats=False)  # atomic
-    logger.info(f"copy_old_data_to_new_tables(): {forecast}: done. time: {timeit.default_timer() - start_time}")
-
-
 def delete_old_data(forecast):
     """
     Deletes all rows from all of forecast's concrete Prediction tables.
@@ -157,6 +103,72 @@ def _delete_new_data(project):
     """
     # cascade deletes PredictionData subclass tables' data
     PredictionElement.objects.filter(forecast__forecast_model__project=project).delete()
+
+
+#
+# _copy_new_data_to_old_tables()
+#
+
+def _copy_new_data_to_old_tables(project):
+    """
+    Test helper function that copies data from all of project's concrete PredictionData tables to its concrete
+    Prediction tables.
+
+    :param project: a Project
+    """
+    unit_name_to_obj = {unit.name: unit for unit in project.units.all()}
+    target_name_to_obj = {target.name: target for target in project.targets.all()}
+    family_abbrev_to_int = {abbreviation: family_int for family_int, abbreviation
+                            in NamedDistribution.FAMILY_CHOICE_TO_ABBREVIATION.items()}
+    for forecast in Forecast.objects.filter(forecast_model__project=project):
+        json_io_dict_new = json_io_dict_from_forecast(forecast, None)
+        for pred_ele in json_io_dict_new['predictions']:
+            unit = unit_name_to_obj[pred_ele['unit']]
+            target = target_name_to_obj[pred_ele['target']]
+            pred_class = PRED_CLASS_NAME_TO_INT[pred_ele['class']]
+            pred_data = pred_ele['prediction']
+            if pred_class == PredictionElement.BIN_CLASS:
+                for cat, prob in zip(pred_data['cat'], pred_data['prob']):
+                    cat_i = cat if target.type == Target.DISCRETE_TARGET_TYPE else None
+                    cat_f = cat if target.type == Target.CONTINUOUS_TARGET_TYPE else None
+                    cat_t = cat if target.type == Target.NOMINAL_TARGET_TYPE else None
+                    cat_d = cat if target.type == Target.DATE_TARGET_TYPE else None
+                    cat_b = cat if target.type == Target.BINARY_TARGET_TYPE else None
+                    BinDistribution.objects.create(forecast=forecast, unit=unit, target=target,
+                                                   prob=prob, cat_i=cat_i, cat_f=cat_f, cat_t=cat_t, cat_d=cat_d,
+                                                   cat_b=cat_b)
+            elif pred_class == PredictionElement.NAMED_CLASS:
+                NamedDistribution.objects.create(forecast=forecast, unit=unit, target=target,
+                                                 family=family_abbrev_to_int[pred_data['family']],
+                                                 param1=pred_data.get('param1'), param2=pred_data.get('param2'),
+                                                 param3=pred_data.get('param3'))
+            elif pred_class == PredictionElement.POINT_CLASS:
+                value_i = pred_data['value'] if target.type == Target.DISCRETE_TARGET_TYPE else None
+                value_f = pred_data['value'] if target.type == Target.CONTINUOUS_TARGET_TYPE else None
+                value_t = pred_data['value'] if target.type == Target.NOMINAL_TARGET_TYPE else None
+                value_d = pred_data['value'] if target.type == Target.DATE_TARGET_TYPE else None
+                value_b = pred_data['value'] if target.type == Target.BINARY_TARGET_TYPE else None
+                PointPrediction.objects.create(forecast=forecast, unit=unit, target=target,
+                                               value_i=value_i, value_f=value_f, value_t=value_t, value_d=value_d,
+                                               value_b=value_b)
+            elif pred_class == PredictionElement.QUANTILE_CLASS:
+                for quantile, value in zip(pred_data['quantile'], pred_data['value']):
+                    value_i = value if target.type == Target.DISCRETE_TARGET_TYPE else None
+                    value_f = value if target.type == Target.CONTINUOUS_TARGET_TYPE else None
+                    value_d = value if target.type == Target.DATE_TARGET_TYPE else None
+                    QuantileDistribution.objects.create(forecast=forecast, unit=unit, target=target,
+                                                        quantile=quantile, value_i=value_i, value_f=value_f,
+                                                        value_d=value_d)
+            elif pred_class == PredictionElement.SAMPLE_CLASS:
+                for sample in pred_data['sample']:
+                    sample_i = sample if target.type == Target.DISCRETE_TARGET_TYPE else None
+                    sample_f = sample if target.type == Target.CONTINUOUS_TARGET_TYPE else None
+                    sample_t = sample if target.type == Target.NOMINAL_TARGET_TYPE else None
+                    sample_d = sample if target.type == Target.DATE_TARGET_TYPE else None
+                    sample_b = sample if target.type == Target.BINARY_TARGET_TYPE else None
+                    SampleDistribution.objects.create(forecast=forecast, unit=unit, target=target,
+                                                      sample_i=sample_i, sample_f=sample_f, sample_t=sample_t,
+                                                      sample_d=sample_d, sample_b=sample_b)
 
 
 #
@@ -324,10 +336,8 @@ def is_different_old_new_json(forecast):
     studied with that in mind.
     """
 
-
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
-
 
     prediction_dicts_new = sorted(json_io_dict_from_forecast(forecast, None)['predictions'], key=sort_key)
     prediction_dicts_old = sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)
@@ -378,3 +388,52 @@ def _grouped_version_rows(project, is_versions_only):
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
         return cursor.fetchall()
+
+
+#
+# pred_dicts_with_implicit_retractions_old() and friends
+#
+
+def pred_dicts_with_implicit_retractions_old(f1, f2):
+    """
+    :param f1: a Forecast with old data
+    :param f2: "" that is a subset of f1
+    :return: a json_io_dict constructed from f1 and f2 that contains implicit retractions in f2. NB: limited to points
+        and quantiles only
+    """
+    from utils.version_info_app import _forecast_diff_old  # avoid circular imports
+
+    unit_id_to_obj = {unit.pk: unit for unit in f1.forecast_model.project.units.all()}
+    target_id_to_obj = {target.pk: target for target in f1.forecast_model.project.targets.all()}
+
+    # is_point, is_intersect, is_pred_eles, is_count
+    pred_eles_f1_not_in_f2_p = _forecast_diff_old(f1.pk, f2.pk, True, False, True, False)
+    pred_eles_f1_not_in_f2_q = _forecast_diff_old(f1.pk, f2.pk, False, False, True, False)
+    f2_predictions = _pred_dicts_from_forecast_old(f2)
+    for unit_id, target_id in pred_eles_f1_not_in_f2_p:
+        f2_predictions.append({"unit": unit_id_to_obj[unit_id].name,
+                               "target": target_id_to_obj[target_id].name,
+                               "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
+                               "prediction": None})
+
+    for unit_id, target_id in pred_eles_f1_not_in_f2_q:
+        f2_predictions.append({"unit": unit_id_to_obj[unit_id].name,
+                               "target": target_id_to_obj[target_id].name,
+                               "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution],
+                               "prediction": None})
+
+    return f2_predictions
+
+
+def _forecast_previous_version(forecast):
+    """
+    :param forecast:
+    :return: the forecast immediately preceding `forecast`, or None if `forecast` is the first version
+    """
+    # recall forecast version tuples: (forecast_model_id, timezero_id, issue_date)
+    forecast_versions = Forecast.objects \
+        .filter(forecast_model=forecast.forecast_model,
+                time_zero=forecast.time_zero,
+                issue_date__lt=forecast.issue_date) \
+        .order_by('-issue_date')
+    return forecast_versions[0] if forecast_versions else None

@@ -88,7 +88,7 @@ def _compare_forecasts_old(f_id_1, f_id_2):
             num_pes_both_p + num_pes_both_q]
 
 
-def _forecast_diff_old(f_id_1, f_id_2, is_point, is_intersect, is_pred_eles):
+def _forecast_diff_old(f_id_1, f_id_2, is_point, is_intersect, is_pred_eles, is_count):
     """
     Returns the number of point or quantile old data prediction elements (i.e., `unit_id, target_id` key) rows in first
     forecast that are not in the second one.
@@ -101,6 +101,7 @@ def _forecast_diff_old(f_id_1, f_id_2, is_point, is_intersect, is_pred_eles):
         columns += ', value_i, value_f, value_t, value_d, value_b'
     elif not is_pred_eles:  # add QuantileDistribution columns
         columns += ', value_i, value_f, value_d'
+    select = "SELECT COUNT(*)" if is_count else "SELECT *"
     sql = f"""
         WITH except_rows AS (
             SELECT {columns}
@@ -111,12 +112,12 @@ def _forecast_diff_old(f_id_1, f_id_2, is_point, is_intersect, is_pred_eles):
             FROM {table_name}
             WHERE forecast_id = %s
         )
-        SELECT COUNT(*)
+        {select}
         FROM except_rows;
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (f_id_1, f_id_2,))
-        return cursor.fetchone()[0]
+        return cursor.fetchone()[0] if is_count else cursor.fetchall()
 
 
 if __name__ == '__main__':

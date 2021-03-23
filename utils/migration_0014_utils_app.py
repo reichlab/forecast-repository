@@ -5,15 +5,16 @@ import click
 import django
 import django_rq
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
+from utils.forecast import load_predictions_from_json_io_dict
+
 from utils.migration_0014_utils import _migrate_correctness_worker, is_different_old_new_json, \
-    _grouped_version_rows, _migrate_forecast_worker
+    _grouped_version_rows, _migrate_forecast_worker, pred_dicts_with_implicit_retractions_old, \
+    _forecast_previous_version
 
 from forecast_app.models import Forecast, Project
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ def check_correctness(enqueue):
     :param enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
     from forecast_repo.settings.base import DEFAULT_QUEUE_NAME  # avoid circular imports
-
 
     forecasts = Forecast.objects.all().order_by('created_at')
     if not enqueue:
@@ -73,7 +73,6 @@ def enqueue_migrate_worker():
     """
     from forecast_repo.settings.base import DEFAULT_QUEUE_NAME  # avoid circular imports
 
-
     logger.info(f"enqueuing ~{Forecast.objects.count()} forecasts")  # COUNT is somewhat expensive
     queue = django_rq.get_queue(DEFAULT_QUEUE_NAME)
     num_jobs = 0
@@ -90,6 +89,46 @@ def enqueue_migrate_worker():
             for _, _, issue_date, f_id, source, created_at, rank in versions:
                 logger.info(f"    {issue_date}, {f_id}, {source}, {created_at}, {rank}")
     logger.info(f"enqueuing done. num_jobs={num_jobs}")
+
+
+#
+# load_forecasts_with_implicit_retractions()
+#
+
+@cli.command(name="load_implicit")
+@click.argument('forecast_ids', type=click.STRING, required=True)
+def load_forecasts_with_implicit_retractions(forecast_ids):
+    """
+    CLI that takes a comma-separated list of forecast IDs that failed migration due to:
+    "invalid forecast. new data is a subset of previous". It passes each one of these to
+    pred_dicts_with_implicit_retractions_old() along with that forecast's immediate previous one and then loads the
+    returned new data, which should not fail since it has the missing retractions.
+    """
+    logger.info(f"load_forecasts_with_implicit_retractions(): starting. forecast_ids={forecast_ids!r}")
+
+    # validate forecast_ids
+    forecast_ids = forecast_ids.split(',')
+    for forecast_id_str in forecast_ids:
+        try:
+            int(forecast_id_str)
+        except ValueError as ve:
+            logger.error(f"forecast_id was not in int: {forecast_id_str!r}")
+            return
+
+    # all ints, so fill implicit retractions and the load
+    forecast_ids = list(map(int, forecast_ids))
+    for forecast_id in forecast_ids:
+        f2 = Forecast.objects.get(pk=forecast_id)
+        f1 = _forecast_previous_version(f2)
+        logger.info(f"loading f2={f2.pk}, f1={f1.pk}")
+        pred_dicts_with_retractions = pred_dicts_with_implicit_retractions_old(f1, f2)
+        try:
+            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts_with_retractions})
+        except Exception as ex:
+            logger.error(f"error loading updated predictions: forecast_id={forecast_id}, ex={ex!r}")
+
+    # done
+    logger.info(f"load_forecasts_with_implicit_retractions(): done")
 
 
 #
