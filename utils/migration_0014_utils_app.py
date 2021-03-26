@@ -11,10 +11,10 @@ django.setup()
 from utils.forecast import load_predictions_from_json_io_dict
 
 from utils.migration_0014_utils import _migrate_correctness_worker, is_different_old_new_json, \
-    _grouped_version_rows, _migrate_forecast_worker, pred_dicts_with_implicit_retractions_old, \
+    _grouped_version_rows, _migrate_forecast_worker, pred_dicts_with_implicit_retractions, \
     _forecast_previous_version
 
-from forecast_app.models import Forecast, Project
+from forecast_app.models import Forecast, Project, PredictionElement
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,7 @@ def load_forecasts_with_implicit_retractions(forecast_ids):
     """
     CLI that takes a comma-separated list of forecast IDs that failed migration due to:
     "invalid forecast. new data is a subset of previous". It passes each one of these to
-    pred_dicts_with_implicit_retractions_old() along with that forecast's immediate previous one and then loads the
+    pred_dicts_with_implicit_retractions() along with that forecast's immediate previous one and then loads the
     returned new data, which should not fail since it has the missing retractions.
     """
     logger.info(f"load_forecasts_with_implicit_retractions(): starting. forecast_ids={forecast_ids!r}")
@@ -120,8 +120,11 @@ def load_forecasts_with_implicit_retractions(forecast_ids):
     for forecast_id in forecast_ids:
         f2 = Forecast.objects.get(pk=forecast_id)
         f1 = _forecast_previous_version(f2)
-        logger.info(f"loading f2={f2.pk}, f1={f1.pk}")
-        pred_dicts_with_retractions = pred_dicts_with_implicit_retractions_old(f1, f2)
+        logger.info(f"deleting new data: f2 (forecast_id)={f2.pk}")
+        PredictionElement.objects.filter(forecast=f2).delete()
+
+        logger.info(f"loading modified f2 (forecast_id)={f2.pk}, f1 (previous)={f1.pk}")
+        pred_dicts_with_retractions = pred_dicts_with_implicit_retractions(f1, f2)
         try:
             load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts_with_retractions})
         except Exception as ex:

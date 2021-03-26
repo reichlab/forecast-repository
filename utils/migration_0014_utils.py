@@ -9,12 +9,14 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT
 
+
 django.setup()
 
 from forecast_app.models import PredictionData, Prediction, BinDistribution, NamedDistribution, PointPrediction, \
     SampleDistribution, QuantileDistribution, PredictionElement, Target, Forecast, ForecastModel
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+
 
 logger = logging.getLogger(__name__)
 
@@ -336,8 +338,10 @@ def is_different_old_new_json(forecast):
     studied with that in mind.
     """
 
+
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
+
 
     prediction_dicts_new = sorted(json_io_dict_from_forecast(forecast, None)['predictions'], key=sort_key)
     prediction_dicts_old = sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)
@@ -391,38 +395,36 @@ def _grouped_version_rows(project, is_versions_only):
 
 
 #
-# pred_dicts_with_implicit_retractions_old() and friends
+# pred_dicts_with_implicit_retractions() and friends
 #
 
-def pred_dicts_with_implicit_retractions_old(f1, f2):
+def pred_dicts_with_implicit_retractions(f1, f2):
     """
-    :param f1: a Forecast with old data
-    :param f2: "" that is a subset of f1
-    :return: a json_io_dict constructed from f1 and f2 that contains implicit retractions in f2. NB: limited to points
-        and quantiles only
+    :param f1: a Forecast with new data
+    :param f2: a Forecast with old data that's going to be migrated to new
+    :return: a json_io_dict constructed from f1 and f2 that contains implicit retractions in f2 compared to f1
     """
-    from utils.version_info_app import _forecast_diff_old  # avoid circular imports
 
-    unit_id_to_obj = {unit.pk: unit for unit in f1.forecast_model.project.units.all()}
-    target_id_to_obj = {target.pk: target for target in f1.forecast_model.project.targets.all()}
 
-    # is_point, is_intersect, is_pred_eles, is_count
-    pred_eles_f1_not_in_f2_p = _forecast_diff_old(f1.pk, f2.pk, True, False, True, False)
-    pred_eles_f1_not_in_f2_q = _forecast_diff_old(f1.pk, f2.pk, False, False, True, False)
-    f2_predictions = _pred_dicts_from_forecast_old(f2)
-    for unit_id, target_id in pred_eles_f1_not_in_f2_p:
-        f2_predictions.append({"unit": unit_id_to_obj[unit_id].name,
-                               "target": target_id_to_obj[target_id].name,
-                               "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[PointPrediction],
-                               "prediction": None})
+    # from is_different_old_new_json():
+    def sort_key(pred_dict):
+        return pred_dict['unit'], pred_dict['target'], pred_dict['class']
 
-    for unit_id, target_id in pred_eles_f1_not_in_f2_q:
-        f2_predictions.append({"unit": unit_id_to_obj[unit_id].name,
-                               "target": target_id_to_obj[target_id].name,
-                               "class": PREDICTION_CLASS_TO_JSON_IO_DICT_CLASS[QuantileDistribution],
-                               "prediction": None})
 
-    return f2_predictions
+    # NB: is_include_retract=True so that retracted PredictionElements show up
+    f1_pred_dicts_new = sorted(json_io_dict_from_forecast(f1, None, True)['predictions'], key=sort_key)
+    f1_set_new = {(pred_dict['unit'], pred_dict['target'], pred_dict['class']) for pred_dict in f1_pred_dicts_new}
+    f2_pred_dicts_old = sorted(_pred_dicts_from_forecast_old(f2), key=sort_key)
+    f2_set_old = {(pred_dict['unit'], pred_dict['target'], pred_dict['class']) for pred_dict in f2_pred_dicts_old}
+    pred_eles_f1_not_in_f2 = f1_set_new - f2_set_old
+
+    # add implicit retractions to f2_pred_dicts_old then return it
+    for unit_name, target_name, pred_class_str in pred_eles_f1_not_in_f2:
+        f2_pred_dicts_old.append({"unit": unit_name,
+                                  "target": target_name,
+                                  "class": pred_class_str,
+                                  "prediction": None})
+    return f2_pred_dicts_old
 
 
 def _forecast_previous_version(forecast):

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # json_io_dict_from_forecast
 #
 
-def json_io_dict_from_forecast(forecast, request):
+def json_io_dict_from_forecast(forecast, request, is_include_retract=False):
     """
     Returns a "JSON IO dict" for exporting json a forecast from the database in the format that
     oad_predictions_from_json_io_dict() accepts. Does include the 'meta' section in the returned dict if `request` is
@@ -33,6 +33,9 @@ def json_io_dict_from_forecast(forecast, request):
 
     :param forecast: a Forecast whose predictions are to be outputted
     :param request: used for TargetSerializer's 'id' field. pass None to skip creating the 'meta' section
+    :param is_include_retract: controls whether retractions are included in the result. the default (False) is what
+        end users expect: retractions "erase". True is useful to the internal function
+        pred_dicts_with_implicit_retractions()
     :return a "JSON IO dict" (aka 'json_io_dict' by callers) that contains forecast's predictions. sorted by unit
         and target for visibility. see docs for details
     """
@@ -53,20 +56,23 @@ def json_io_dict_from_forecast(forecast, request):
             key=lambda _: (_['name']))
 
     # set prediction_dicts by leveraging `query_forecasts_for_project()`'s `_query_forecasts_sql_for_pred_class()`,
-    # which does the necessary work of merging versions and picking latest issue_date data.
+    # which does the necessary work of merging previous versions and picking latest issue_date data.
     # args: pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of, is_exclude_oracle:
     unit_id_to_obj = {unit.pk: unit for unit in forecast.forecast_model.project.units.all()}
     target_id_to_obj = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
     sql = _query_forecasts_sql_for_pred_class([], [forecast.forecast_model.pk], [], [], [forecast.time_zero.pk],
-                                              forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT), False)
+                                              forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT), False,
+                                              is_include_retract)
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.project.pk,))
         # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
-        prediction_dicts = [{'unit': unit_id_to_obj[unit_id].name,
-                             'target': target_id_to_obj[target_id].name,
-                             'class': PRED_CLASS_INT_TO_NAME[pred_class],
-                             'prediction': json.loads(pred_data)}
-                            for fm_id, tz_id, pred_class, unit_id, target_id, pred_data in batched_rows(cursor)]
+        prediction_dicts = [
+            {'unit': unit_id_to_obj[unit_id].name,
+             'target': target_id_to_obj[target_id].name,
+             'class': PRED_CLASS_INT_TO_NAME[pred_class],
+             'prediction': json.loads(pred_data) if not is_retract else None}
+             # 'prediction': json.loads(pred_data) if pred_data is not None else None}
+            for fm_id, tz_id, pred_class, unit_id, target_id, is_retract, pred_data in batched_rows(cursor)]
 
     # done
     return {'meta': meta, 'predictions': sorted(prediction_dicts, key=lambda _: (_['unit'], _['target']))}
@@ -136,8 +142,7 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     del json_io_dict  # hopefully frees up memory
     _insert_pred_ele_rows(forecast, pred_ele_rows)  # raises. tests version rules then inserts, deleting any dups first
 
-    # pass 2/2. target_id is needed to look up target datatype to decide which sparse column to use for each singleton
-    # value
+    # pass 2/2
     pred_data_rows = []  # appended-to next
     pred_ele_qs = PredictionElement.objects \
         .filter(forecast=forecast, is_retract=False) \
@@ -718,12 +723,13 @@ def data_rows_from_forecast(forecast, unit, target):
     # which does the necessary work of merging versions and picking latest issue_date data.
     # args: pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of, is_exclude_oracle:
     sql = _query_forecasts_sql_for_pred_class([], [forecast.forecast_model.pk], [unit.pk], [target.pk],
-                                              [forecast.time_zero.pk], forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                                              [forecast.time_zero.pk],
+                                              forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT),
                                               False)
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.project.pk,))
-        for fm_id, tz_id, pred_class, unit_id, target_id, pred_data in batched_rows(cursor):
-            print('yy', fm_id, tz_id, pred_class, unit_id, target_id, pred_data)
+        for fm_id, tz_id, pred_class, unit_id, target_id, is_retract, pred_data in batched_rows(cursor):
+            # we do not have to check is_retract b/c we pass `is_include_retract=False`, which skips retractions.
             # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
             pred_data = json.loads(pred_data)
             if pred_class == PredictionElement.BIN_CLASS:
@@ -801,7 +807,7 @@ def _cache_forecast_metadata_predictions(forecast):
 def _cache_forecast_metadata_units(forecast):
     # cache ForecastMetaUnit rows for forecast
     unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
-    sql = _cache_forecast_metadata_sql_for_forecast(forecast, True)
+    sql = _cache_forecast_metadata_sql_for_forecast(True)
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
         for unit_id in batched_rows(cursor):
@@ -811,14 +817,14 @@ def _cache_forecast_metadata_units(forecast):
 def _cache_forecast_metadata_targets(forecast):
     # cache ForecastMetaTarget rows for forecast
     target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
-    sql = _cache_forecast_metadata_sql_for_forecast(forecast, False)
+    sql = _cache_forecast_metadata_sql_for_forecast(False)
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
         for target_id in batched_rows(cursor):
             ForecastMetaTarget.objects.create(forecast=forecast, target=target_id_to_object[target_id[0]])
 
 
-def _cache_forecast_metadata_sql_for_forecast(forecast, is_units):
+def _cache_forecast_metadata_sql_for_forecast(is_units):
     """
     _cache_forecast_metadata_units() and _cache_forecast_metadata_targets() helper that returns a common SQL query
     string based on my args. The query returns DISTINCT unit or target IDs for the latest version of `forecast`.

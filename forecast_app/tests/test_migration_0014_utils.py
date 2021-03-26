@@ -2,15 +2,16 @@ import datetime
 import json
 from pathlib import Path
 
+from django.db import connection
 from django.db.models import Q
 from django.test import TestCase
 
-from forecast_app.models import Forecast, ForecastModel, PredictionElement, PointPrediction, QuantileDistribution
+from forecast_app.models import Forecast, ForecastModel, PredictionElement, TimeZero, PredictionData
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.make_minimal_projects import _make_docs_project
 from utils.migration_0014_utils import _copy_new_data_to_old_tables, _delete_new_data, copy_old_data_to_new_tables, \
     delete_old_data, _num_rows_new_data, _num_rows_old_data, _pred_dicts_from_forecast_old, _grouped_version_rows, \
-    is_different_old_new_json, pred_dicts_with_implicit_retractions_old, _forecast_previous_version
+    is_different_old_new_json, pred_dicts_with_implicit_retractions, _forecast_previous_version
 from utils.project import create_project_from_json
 from utils.project_truth import oracle_model_for_project
 from utils.utilities import get_or_create_super_po_mo_users
@@ -44,7 +45,6 @@ class Migration0014TestCase(TestCase):
     #     with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
     #         json_io_dict_in = json.load(fp)
     #         load_predictions_from_json_io_dict(self.forecast2, json_io_dict_in, is_validate_cats=False)
-
 
     def test_copy(self):
         # starts with new data, but no old data. point_count, named_count, bin_count, sample_count, quantile_count:
@@ -196,9 +196,13 @@ class Migration0014TestCase(TestCase):
         # - delete new f1 and f2 data (puts us into a pre-migrate state)
         # - migrate f1 (old -> new). should NOT error
         # - migrate f2 (old -> new). SHOULD error (subset)
-        # - get pred_dicts_with_implicit_retractions_old(f1, f2)  # uses old data to calc diffs f1->f2, adds diffs to f2
-        # - test "": ??
+        # - get pred_dicts_with_implicit_retractions(f1, f2)  # uses new data to calc diffs f1->f2, adds diffs to f2
+        # - test ""
         # - load diff f2 into f2 new. should NOT error
+
+        def sort_key(pred_dict):
+            return pred_dict['unit'], pred_dict['target'], pred_dict['class']
+
 
         # setup from test_data_rows_from_forecast_on_versions()
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -221,21 +225,22 @@ class Migration0014TestCase(TestCase):
             {"unit": 'location2', "target": 'cases next week', "class": "point",
              "prediction": {"value": 5}},
             {"unit": 'location1', "target": 'pct next week', "class": "bin",
-             "prediction": {"cat": [1.1, 2.2, 3.3], "prob": [0.3, 0.2, 0.5]}},
+             "prediction": {"cat": [1.1, 2.2, 3.3],
+                            "prob": [0.3, 0.2, 0.5]}},
             {"unit": "location2", "target": "pct next week", "class": "quantile",
-             "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975], "value": [1.0, 2.2, 2.2, 5.0, 50.0]}
-             },
+             "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
+                            "value": [1.0, 2.2, 2.2, 5.0, 50.0]}},
         ]
         load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
 
         # load f2
         predictions = [
-            {"unit": 'location1', "target": 'cases next week', "class": "named",
-             "prediction": {"family": "pois", "param1": 2.2}},  # changed
-            {"unit": 'location1', "target": 'cases next week', "class": "point",
-             "prediction": {"value": 6}},  # new
-            {"unit": 'location2', "target": 'cases next week', "class": "point",
-             "prediction": None},  # retract
+            {"unit": 'location1', "target": 'cases next week', "class": "named",  # changed
+             "prediction": {"family": "pois", "param1": 2.2}},
+            {"unit": 'location1', "target": 'cases next week', "class": "point",  # new
+             "prediction": {"value": 6}},
+            {"unit": 'location2', "target": 'cases next week', "class": "point",  # retract
+             "prediction": None},
             {"unit": 'location3', "target": 'Season peak week', "class": "sample",  # new
              "prediction": {"sample": ["2020-01-05", "2019-12-15"]}},
             {"unit": 'location1', "target": 'pct next week', "class": "bin",  # dup
@@ -243,11 +248,10 @@ class Migration0014TestCase(TestCase):
             {"unit": 'location1', "target": 'Season peak week', "class": "quantile",  # new
              "prediction": {"quantile": [0.5, 0.75, 0.975], "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}},
             {"unit": "location2", "target": "pct next week", "class": "quantile",  # retract
-             "prediction": None}
-        ]
+             "prediction": None}]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
 
-        # test
+        # copy new to old, first deleting to make f2 invalid (keeping only points and quantiles), and then delete new
         pred_eles_to_keep = PredictionElement.objects \
             .filter(Q(forecast=f2) &
                     (Q(pred_class=PredictionElement.POINT_CLASS) | Q(pred_class=PredictionElement.QUANTILE_CLASS))) \
@@ -255,22 +259,111 @@ class Migration0014TestCase(TestCase):
         PredictionElement.objects.filter(forecast=f2).exclude(pk__in=pred_eles_to_keep).delete()
 
         _copy_new_data_to_old_tables(project)
-
         PredictionElement.objects.filter(forecast=f1).delete()
         PredictionElement.objects.filter(forecast=f2).delete()
-        try:
-            copy_old_data_to_new_tables(f1)
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
 
+        # migrate f1 to set up state where f1 old has been migrated to f1 new, and f2 old is invalid (subset) and needs
+        # fixing by pred_dicts_with_implicit_retractions(). first we test to ensure it's invalid
+        copy_old_data_to_new_tables(f1)  # f1 migrates as expected. trust copy_old_data_to_new_tables() b/c tested above
         with self.assertRaisesRegex(RuntimeError, 'invalid forecast. new data is a subset of previous'):
-            copy_old_data_to_new_tables(f2)
+            copy_old_data_to_new_tables(f2)  # f2 fails to migrate as expected
 
-        pred_dicts_with_retractions = pred_dicts_with_implicit_retractions_old(f1, f2)
+        # now we have f1 migrated but f2 failed due to its being a subset of f1. get corrected f2 with implicit
+        # retractions, test that the retractions were added, and verify they load w/o subset error
         try:
-            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts_with_retractions})
+            act_f2_pred_dicts_with_retractions = sorted(pred_dicts_with_implicit_retractions(f1, f2), key=sort_key)
+            exp_f2_pred_dicts_with_retractions = [
+                {'unit': 'location1', 'target': 'Season peak week', 'class': 'quantile',
+                 'prediction': {'quantile': [0.5, 0.75, 0.975], 'value': ['2019-12-22', '2019-12-29', '2020-01-05']}},
+                {'unit': 'location1', 'target': 'cases next week', 'class': 'named',
+                 'prediction': {'family': 'pois', 'param1': 1.1}},
+                {'unit': 'location1', 'target': 'cases next week', 'class': 'point',
+                 'prediction': {'value': 6}},
+                {'unit': 'location1', 'target': 'pct next week', 'class': 'bin',
+                 'prediction': {'cat': [1.1, 2.2, 3.3], 'prob': [0.3, 0.2, 0.5]}},
+                {'unit': 'location2', 'target': 'cases next week', 'class': 'point', 'prediction': None},  # new
+                {'unit': 'location2', 'target': 'pct next week', 'class': 'quantile', 'prediction': None},  # new
+            ]
+            self.assertEqual(exp_f2_pred_dicts_with_retractions, act_f2_pred_dicts_with_retractions)
+
+            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': act_f2_pred_dicts_with_retractions})
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
+
+
+    def test_json_io_dict_from_forecast_is_include_retract(self):
+        # setup from test_implicit_retractions_dups_interaction()
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        predictions = [{"unit": 'location1', "target": 'pct next week', "class": "point", "prediction": None},
+                       {"unit": 'location2', "target": 'pct next week', "class": "point", "prediction": {"value": 2.0}}]
+        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': predictions})
+
+        exp_json_io_dict = [
+            {"unit": 'location1', "target": 'pct next week', "class": "point", "prediction": None},
+            {'unit': 'location2', 'target': 'pct next week', 'class': 'point', 'prediction': {'value': 2.0}}]
+        act_json_io_dict = json_io_dict_from_forecast(f1, None, True)['predictions']
+        self.assertEqual(exp_json_io_dict, act_json_io_dict)
+
+
+    def test_add_implicit_retractions_json_3_versions(self):
+        """
+        Exposes a bug in `pred_dicts_with_implicit_retractions()` where retracted prediction elements were not factored
+        in.
+        """
+
+
+        def sort_key(pred_dict):
+            return pred_dict['unit'], pred_dict['target'], pred_dict['class']
+
+
+        # setup from test_implicit_retractions_dups_interaction()
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
+        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f2.save()
+
+        predictions = [  # f1
+            {"unit": 'location1', "target": 'pct next week', "class": "point", "prediction": None}
+        ]
+        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': predictions})
+
+        predictions = [  # f2
+            # this one deleted after loading to become an implict retraction in old data:
+            {"unit": 'location1', "target": 'pct next week', "class": "point", "prediction": {"value": 1.0}},  # mod
+        ]
+        load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': predictions})
+
+        # create the implicit retraction in new data
+        PredictionElement.objects.filter(forecast=f2, unit__name='location1', target__name='pct next week',
+                                         pred_class=PredictionElement.POINT_CLASS) \
+            .delete()
+
+        # copy new -> old and then delete f2 new to set up for pred_dicts_with_implicit_retractions() call
+        _copy_new_data_to_old_tables(project)
+        PredictionElement.objects.filter(forecast=f2).delete()
+
+        # test pred_dicts_with_implicit_retractions()
+        exp_pred_dicts_with_retractions = [
+            {"unit": 'location1', "target": 'pct next week', "class": "point", "prediction": None},
+        ]
+        act_pred_dicts_with_retractions = sorted(pred_dicts_with_implicit_retractions(f1, f2), key=sort_key)
+        self.assertEqual(exp_pred_dicts_with_retractions, act_pred_dicts_with_retractions)
 
 
     def test__forecast_previous_version(self):

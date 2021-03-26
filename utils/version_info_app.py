@@ -70,17 +70,17 @@ def _compare_forecasts_old(f_id_1, f_id_2):
     :param f_id_2: ""
     :return: a 4-tuple: (num_pes_removed, num_pes_added, num_pes_both, num_rows_both)
     """
-    num_f1_not_in_f2_p = _forecast_diff_old(f_id_1, f_id_2, True, False, True)
-    num_f2_not_in_f1_p = _forecast_diff_old(f_id_2, f_id_1, True, False, True)
+    num_f1_not_in_f2_p = _forecast_diff_old(f_id_1, f_id_2, True, False, True, True)
+    num_f2_not_in_f1_p = _forecast_diff_old(f_id_2, f_id_1, True, False, True, True)
 
-    num_f1_not_in_f2_q = _forecast_diff_old(f_id_1, f_id_2, False, False, True)
-    num_f2_not_in_f1_q = _forecast_diff_old(f_id_2, f_id_1, False, False, True)
+    num_f1_not_in_f2_q = _forecast_diff_old(f_id_1, f_id_2, False, False, True, True)
+    num_f2_not_in_f1_q = _forecast_diff_old(f_id_2, f_id_1, False, False, True, True)
 
-    num_both_f1_f2_p = _forecast_diff_old(f_id_1, f_id_2, True, True, True)
-    num_both_f1_f2_q = _forecast_diff_old(f_id_1, f_id_2, False, True, True)
+    num_both_f1_f2_p = _forecast_diff_old(f_id_1, f_id_2, True, True, True, True)
+    num_both_f1_f2_q = _forecast_diff_old(f_id_1, f_id_2, False, True, True, True)
 
-    num_pes_both_p = _forecast_diff_old(f_id_1, f_id_2, True, True, False)
-    num_pes_both_q = _forecast_diff_old(f_id_1, f_id_2, False, True, False)
+    num_pes_both_p = _forecast_diff_old(f_id_1, f_id_2, True, True, False, True)
+    num_pes_both_q = _forecast_diff_old(f_id_1, f_id_2, False, True, False, True)
 
     return [num_f1_not_in_f2_p + num_f1_not_in_f2_q,
             num_f2_not_in_f1_p + num_f2_not_in_f1_q,

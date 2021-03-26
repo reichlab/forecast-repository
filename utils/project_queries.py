@@ -81,7 +81,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     num_rows = 0
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
-        for fm_id, tz_id, pred_class, unit_id, target_id, pred_data in batched_rows(cursor):
+        for fm_id, tz_id, pred_class, unit_id, target_id, is_retract, pred_data in batched_rows(cursor):
+            # we do not have to check is_retract b/c we pass `is_include_retract=False`, which skips retractions
             num_rows += 1
             if num_rows > max_num_rows:
                 raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, "
@@ -126,10 +127,11 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
 
 
 def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of,
-                                        is_exclude_oracle):
+                                        is_exclude_oracle, is_include_retract=False):
     """
     A `query_forecasts_for_project()` helper that returns an SQL query string based on my args that, when executed,
-    returns a list of 6-tuples: (forecast_model_id, timezero_id, pred_class, unit_id, target_id, pred_data), where:
+    returns a list of 7-tuples: (forecast_model_id, timezero_id, pred_class, unit_id, target_id, is_retract, pred_data),
+    where:
     - pred_class: PRED_CLASS_CHOICES int
     - data: the stored json
 
@@ -140,13 +142,15 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     :param timezero_ids: "" TimeZero ""
     :param as_of: optional as_of date
     :param is_exclude_oracle: True if oracle forecasts should be excluded from results
+    :param is_include_retract: as passed to query_forecasts_for_project()
     :return SQL to execute. returns columns as described above
     """
     # about the query: the ranked_rows CTE groups prediction elements and then ranks then in issue_date order, which
     # implements our masking (newer issue_dates mask older ones) and merging (discarded duplicates are merged back in
-    # via previous versions) search semantics. It's crucial that the CTE /not/ include is_retract b/c that's how
+    # via previous versions) search semantics. it is crucial that the CTE /not/ include is_retract b/c that's how
     # retractions are implemented: they are ranked higher than the prediction elements they mask if they're newer.
-    # retracted ones are removed in the outer query
+    # retracted ones are optionally removed in the outer query. the outer query's LEFT JOIN is to cover retractions,
+    # which do not have prediction data.
     and_oracle = f"AND NOT fm.is_oracle" if is_exclude_oracle else ""
     and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
     and_pred_classes = f"AND pred_ele.pred_class IN ({', '.join(map(str, pred_classes))})" if pred_classes else ""
@@ -154,22 +158,24 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     and_target_ids = f"AND pred_ele.target_id IN ({', '.join(map(str, target_ids))})" if target_ids else ""
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
+    and_is_retract = "" if is_include_retract else "AND NOT is_retract"
     sql = f"""
         WITH ranked_rows AS (
-            SELECT f.forecast_model_id        AS fm_id,
-                   f.time_zero_id             AS tz_id,
-                   pred_ele.id                AS pred_ele_id,
-                   pred_ele.pred_class  AS pred_class,
-                   pred_ele.unit_id           AS unit_id,
-                   pred_ele.target_id         AS target_id,
-                   pred_ele.is_retract        AS is_retract,
+            SELECT f.forecast_model_id             AS fm_id,
+                   f.time_zero_id                  AS tz_id,
+                   pred_ele.id                     AS pred_ele_id,
+                   pred_ele.pred_class             AS pred_class,
+                   pred_ele.unit_id                AS unit_id,
+                   pred_ele.target_id              AS target_id,
+                   pred_ele.is_retract             AS is_retract,
                    RANK() OVER (
                        PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
                        ORDER BY f.issue_date DESC) AS rownum
             FROM {PredictionElement._meta.db_table} AS pred_ele
-                     JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
-                     JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
-            WHERE fm.project_id = %s 
+                             JOIN {Forecast._meta.db_table} AS f
+            ON pred_ele.forecast_id = f.id
+                JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
+            WHERE fm.project_id = %s
                 {and_oracle} {and_model_ids} {and_pred_classes} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
         )
         SELECT ranked_rows.fm_id       AS fm_id,
@@ -177,10 +183,12 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
                ranked_rows.pred_class  AS pred_class,
                ranked_rows.unit_id     AS unit_id,
                ranked_rows.target_id   AS target_id,
+               ranked_rows.is_retract  AS is_retract,
                pred_data.data          AS pred_data
         FROM ranked_rows
-                 JOIN {PredictionData._meta.db_table} AS pred_data ON ranked_rows.pred_ele_id = pred_data.pred_ele_id
-        WHERE ranked_rows.rownum = 1 AND NOT is_retract;
+                 LEFT JOIN {PredictionData._meta.db_table} AS pred_data
+        ON ranked_rows.pred_ele_id = pred_data.pred_ele_id
+        WHERE ranked_rows.rownum = 1 {and_is_retract};
     """
     return sql
 
