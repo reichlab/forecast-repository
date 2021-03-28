@@ -2,11 +2,10 @@ import datetime
 import json
 from pathlib import Path
 
-from django.db import connection
 from django.db.models import Q
 from django.test import TestCase
 
-from forecast_app.models import Forecast, ForecastModel, PredictionElement, TimeZero, PredictionData
+from forecast_app.models import Forecast, ForecastModel, PredictionElement, TimeZero
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
 from utils.make_minimal_projects import _make_docs_project
 from utils.migration_0014_utils import _copy_new_data_to_old_tables, _delete_new_data, copy_old_data_to_new_tables, \
@@ -21,7 +20,6 @@ class Migration0014TestCase(TestCase):
     """
     """
 
-
     @classmethod
     def setUpTestData(cls):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -33,7 +31,6 @@ class Migration0014TestCase(TestCase):
         with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
             json_io_dict_in = json.load(fp)
             load_predictions_from_json_io_dict(cls.forecast2, json_io_dict_in, is_validate_cats=False)
-
 
     # def setUp(self):
     #     _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -95,11 +92,9 @@ class Migration0014TestCase(TestCase):
         self.assertEqual(29, self.forecast.pred_eles.count())
         self.assertEqual(29, self.forecast2.pred_eles.count())
 
-
     def test__pred_dicts_from_forecast_old(self):
         def sort_key(pred_dict):
             return pred_dict['unit'], pred_dict['target'], pred_dict['class']
-
 
         _copy_new_data_to_old_tables(self.project)  # copy itself is tested above
         for forecast in Forecast.objects.filter(forecast_model__project=self.project):
@@ -108,7 +103,6 @@ class Migration0014TestCase(TestCase):
                                 'predictions': sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)}
             json_io_dict_new['predictions'].sort(key=sort_key)
             self.assertEqual(json_io_dict_new, json_io_dict_old)
-
 
     def test__grouped_version_rows(self):
         self.forecast.issue_date = self.time_zero.timezero_date  # v1
@@ -134,7 +128,6 @@ class Migration0014TestCase(TestCase):
         act_rows = sorted([(row[0], row[1], row[2], row[3], row[6])
                            for row in _grouped_version_rows(self.project, False)])
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
-
 
     def test__copy_new_data_to_old_tables_versions(self):
         """
@@ -187,7 +180,6 @@ class Migration0014TestCase(TestCase):
         self.assertIsNone(is_different_old_new_json(f1))
         self.assertIsNone(is_different_old_new_json(f2))
 
-
     def test_add_implicit_retractions_json(self):
         # test starts with new data, but no old data. steps:
         # - load new f1 and f2 data
@@ -202,7 +194,6 @@ class Migration0014TestCase(TestCase):
 
         def sort_key(pred_dict):
             return pred_dict['unit'], pred_dict['target'], pred_dict['class']
-
 
         # setup from test_data_rows_from_forecast_on_versions()
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -271,7 +262,8 @@ class Migration0014TestCase(TestCase):
         # now we have f1 migrated but f2 failed due to its being a subset of f1. get corrected f2 with implicit
         # retractions, test that the retractions were added, and verify they load w/o subset error
         try:
-            act_f2_pred_dicts_with_retractions = sorted(pred_dicts_with_implicit_retractions(f1, f2), key=sort_key)
+            pred_eles_f1_not_in_f2, act_f2_pred_dicts_with_retractions = pred_dicts_with_implicit_retractions(f1, f2)
+            act_f2_pred_dicts_with_retractions = sorted(act_f2_pred_dicts_with_retractions, key=sort_key)
             exp_f2_pred_dicts_with_retractions = [
                 {'unit': 'location1', 'target': 'Season peak week', 'class': 'quantile',
                  'prediction': {'quantile': [0.5, 0.75, 0.975], 'value': ['2019-12-22', '2019-12-29', '2020-01-05']}},
@@ -289,7 +281,6 @@ class Migration0014TestCase(TestCase):
             load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': act_f2_pred_dicts_with_retractions})
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
-
 
     def test_json_io_dict_from_forecast_is_include_retract(self):
         # setup from test_implicit_retractions_dups_interaction()
@@ -312,17 +303,14 @@ class Migration0014TestCase(TestCase):
         act_json_io_dict = json_io_dict_from_forecast(f1, None, True)['predictions']
         self.assertEqual(exp_json_io_dict, act_json_io_dict)
 
-
     def test_add_implicit_retractions_json_3_versions(self):
         """
         Exposes a bug in `pred_dicts_with_implicit_retractions()` where retracted prediction elements were not factored
         in.
         """
 
-
         def sort_key(pred_dict):
             return pred_dict['unit'], pred_dict['target'], pred_dict['class']
-
 
         # setup from test_implicit_retractions_dups_interaction()
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
@@ -362,9 +350,9 @@ class Migration0014TestCase(TestCase):
         exp_pred_dicts_with_retractions = [
             {"unit": 'location1', "target": 'pct next week', "class": "point", "prediction": None},
         ]
-        act_pred_dicts_with_retractions = sorted(pred_dicts_with_implicit_retractions(f1, f2), key=sort_key)
+        pred_eles_f1_not_in_f2, act_pred_dicts_with_retractions = pred_dicts_with_implicit_retractions(f1, f2)
+        sorted(act_pred_dicts_with_retractions, key=sort_key)
         self.assertEqual(exp_pred_dicts_with_retractions, act_pred_dicts_with_retractions)
-
 
     def test__forecast_previous_version(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)

@@ -715,7 +715,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
         # set target_groups: change from dict to 2-tuples
         target_groups = group_targets(project.targets.all())  # group_name -> group_targets
-        target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
+        target_groups = sorted([(group_name, sorted(target_list, key=lambda target: target.name))
+                                for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
 
         context = super().get_context_data(**kwargs)
@@ -877,7 +878,8 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # set target_groups: change from dict to 2-tuples
         target_groups = group_targets(found_targets)  # group_name -> group_targets
-        target_groups = sorted([(group_name, target_list) for group_name, target_list in target_groups.items()],
+        target_groups = sorted([(group_name, sorted(target_list, key=lambda target: target.name))
+                                for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
 
         # create sorted found_targets by: 1) group_name, then by: 2) step_ahead_increment if is_step_ahead. o/w by name

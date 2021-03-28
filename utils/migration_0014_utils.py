@@ -9,14 +9,12 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT
 
-
 django.setup()
 
 from forecast_app.models import PredictionData, Prediction, BinDistribution, NamedDistribution, PointPrediction, \
     SampleDistribution, QuantileDistribution, PredictionElement, Target, Forecast, ForecastModel
-from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast
+from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast, cache_forecast_metadata
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +34,7 @@ def copy_old_data_to_new_tables(forecast):
     PredictionData tables. For convenience (it's a little complicated - see load_predictions_from_json_io_dict()'s docs
     about the two passes required) we use existing json_io_dict-orientedfunctions instead of using SQL. (We will see if
     this is a performance issue.) This function operates at the forecast level, and can be re-started to pick up at the
-    last forecast where it left off, in case of failures.
+    last forecast where it left off, in case of failures. Caches metadata after loading.
 
     :param forecast: a Forecast
     """
@@ -49,6 +47,7 @@ def copy_old_data_to_new_tables(forecast):
     json_io_dict = {'meta': {}, 'predictions': _pred_dicts_from_forecast_old(forecast)}
     load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=True,
                                        is_validate_cats=False)  # atomic
+    cache_forecast_metadata(forecast)  # atomic
     logger.info(f"copy_old_data_to_new_tables(): {forecast}: done. time: {timeit.default_timer() - start_time}")
 
 
@@ -338,10 +337,8 @@ def is_different_old_new_json(forecast):
     studied with that in mind.
     """
 
-
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
-
 
     prediction_dicts_new = sorted(json_io_dict_from_forecast(forecast, None)['predictions'], key=sort_key)
     prediction_dicts_old = sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)
@@ -398,23 +395,22 @@ def _grouped_version_rows(project, is_versions_only):
 # pred_dicts_with_implicit_retractions() and friends
 #
 
-def pred_dicts_with_implicit_retractions(f1, f2):
+def pred_dicts_with_implicit_retractions(f1_new, f2_old):
     """
-    :param f1: a Forecast with new data
-    :param f2: a Forecast with old data that's going to be migrated to new
-    :return: a json_io_dict constructed from f1 and f2 that contains implicit retractions in f2 compared to f1
+    :param f1_new: a Forecast with new data. issue_date is previous version of f2_old
+    :param f2_old: a Forecast with old data that's going to be migrated to new. issue_date is next version after f1_new
+    :return: a 2-tuple: (pred_eles_f1_not_in_f2, json_io_dict_with_retractions) where json_io_dict_with_retractions
+        is constructed from f1_new and f2_old that contains implicit retractions in f2_old compared to f1_new
     """
-
 
     # from is_different_old_new_json():
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
 
-
     # NB: is_include_retract=True so that retracted PredictionElements show up
-    f1_pred_dicts_new = sorted(json_io_dict_from_forecast(f1, None, True)['predictions'], key=sort_key)
+    f1_pred_dicts_new = sorted(json_io_dict_from_forecast(f1_new, None, True)['predictions'], key=sort_key)
     f1_set_new = {(pred_dict['unit'], pred_dict['target'], pred_dict['class']) for pred_dict in f1_pred_dicts_new}
-    f2_pred_dicts_old = sorted(_pred_dicts_from_forecast_old(f2), key=sort_key)
+    f2_pred_dicts_old = sorted(_pred_dicts_from_forecast_old(f2_old), key=sort_key)
     f2_set_old = {(pred_dict['unit'], pred_dict['target'], pred_dict['class']) for pred_dict in f2_pred_dicts_old}
     pred_eles_f1_not_in_f2 = f1_set_new - f2_set_old
 
@@ -424,7 +420,7 @@ def pred_dicts_with_implicit_retractions(f1, f2):
                                   "target": target_name,
                                   "class": pred_class_str,
                                   "prediction": None})
-    return f2_pred_dicts_old
+    return pred_eles_f1_not_in_f2, f2_pred_dicts_old
 
 
 def _forecast_previous_version(forecast):

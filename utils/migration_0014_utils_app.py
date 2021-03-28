@@ -8,7 +8,7 @@ import django_rq
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.forecast import load_predictions_from_json_io_dict
+from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
 from utils.migration_0014_utils import _migrate_correctness_worker, is_different_old_new_json, \
     _grouped_version_rows, _migrate_forecast_worker, pred_dicts_with_implicit_retractions, \
@@ -124,9 +124,10 @@ def load_forecasts_with_implicit_retractions(forecast_ids):
         PredictionElement.objects.filter(forecast=f2).delete()
 
         logger.info(f"loading modified f2 (forecast_id)={f2.pk}, f1 (previous)={f1.pk}")
-        pred_dicts_with_retractions = pred_dicts_with_implicit_retractions(f1, f2)
+        pred_eles_f1_not_in_f2, pred_dicts_with_retractions = pred_dicts_with_implicit_retractions(f1, f2)
         try:
-            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts_with_retractions})
+            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts_with_retractions})  # atomic
+            cache_forecast_metadata(f2)  # atomic
         except Exception as ex:
             logger.error(f"error loading updated predictions: forecast_id={forecast_id}, ex={ex!r}")
 

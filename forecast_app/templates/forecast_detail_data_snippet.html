@@ -49,11 +49,7 @@
 </h2>
 {% for pred_type, count in pred_type_count_pairs %}
     <ul>
-        <li><code>{{ pred_type }}</code>:
-            {% if count == 0 %}<small class="text-muted">(None)</small>
-                {% else %}{{ count|intword|intcomma }}
-            {% endif %}
-        </li>
+        <li><code>{{ pred_type }}</code>: {{ count|intword|intcomma }}</li>
     </ul>
 {% endfor %}
 
