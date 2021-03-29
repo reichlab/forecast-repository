@@ -45,7 +45,7 @@ class PredictionElement(models.Model):
     #
     # This hash is used by `load_predictions_from_json_io_dict()` to compare prediction elements for equality so that
     # duplicate data can be skipped. The algorithm we use to calculate this hash is as implemented in
-    # `hash_for_prediction_data_dict()`.
+    # `hash_for_prediction_data_dict()`. we store '' if is_retract b/c there is no PredictionData and therefore no hash
     data_hash = models.CharField(max_length=32)  # length based on output from hashlib.md5(s).hexdigest()
 
 

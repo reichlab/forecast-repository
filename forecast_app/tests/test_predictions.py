@@ -199,6 +199,7 @@ class PredictionsTestCase(TestCase):
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
         self.assertEqual(5, f2.pred_eles.count())
+        self.assertEqual('', f2.pred_eles.first().data_hash)
 
 
     def test_load_predictions_from_json_io_dict_dups(self):

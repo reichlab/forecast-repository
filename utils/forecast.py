@@ -215,8 +215,9 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
             elif not is_retract:  # pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]:
                 _validate_quantile_prediction_dict(prediction_dict, target)  # raises o/w
 
-        # valid, so update data_hash_to_pred_data and append the row
-        data_hash = PredictionElement.hash_for_prediction_data_dict(prediction_data)
+        # valid, so update data_hash_to_pred_data and append the row. we store '' if is_retract b/c there is no
+        # PredictionData and therefore no hash
+        data_hash = PredictionElement.hash_for_prediction_data_dict(prediction_data) if not is_retract else ''
         if not is_retract:
             data_hash_to_pred_data[data_hash] = prediction_data
         pred_ele_rows.append((forecast.pk, PRED_CLASS_NAME_TO_INT[pred_class],
