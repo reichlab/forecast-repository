@@ -115,16 +115,18 @@ def load_forecasts_with_implicit_retractions(forecast_ids):
             logger.error(f"forecast_id was not in int: {forecast_id_str!r}")
             return
 
-    # all ints, so fill implicit retractions and the load
+    # all ints, so fill implicit retractions and the load, first deleting
     forecast_ids = list(map(int, forecast_ids))
+
+    logger.info(f"deleting new data")
+    PredictionElement.objects.filter(forecast__in=forecast_ids).delete()
+
     for forecast_id in forecast_ids:
         f2 = Forecast.objects.get(pk=forecast_id)
         f1 = _forecast_previous_version(f2)
-        logger.info(f"deleting new data: f2 (forecast_id)={f2.pk}")
-        PredictionElement.objects.filter(forecast=f2).delete()
-
-        logger.info(f"loading modified f2 (forecast_id)={f2.pk}, f1 (previous)={f1.pk}")
         pred_eles_f1_not_in_f2, pred_dicts_with_retractions = pred_dicts_with_implicit_retractions(f1, f2)
+        logger.info(f"loading modified f2 (forecast_id)={f2.pk}, f1 (previous)={f1.pk}, #pred_eles_f1_not_in_f2="
+                    f"{len(pred_eles_f1_not_in_f2)}")
         try:
             load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts_with_retractions})  # atomic
             cache_forecast_metadata(f2)  # atomic
