@@ -887,7 +887,8 @@ def json_response_for_forecast(forecast, request):
     # but when I tried this, returned a delimited string instead of JSON:
     #   return Response(JSONRenderer().render(unit_dicts))
     # https://stackoverflow.com/questions/23195210/how-to-get-pretty-output-from-rest-framework-serializer
-    response = JsonResponse(json_io_dict_from_forecast(forecast, request))  # default 'content_type': 'application/json'
+    # default 'content_type': 'application/json':
+    response = JsonResponse(json_io_dict_from_forecast(forecast, request, True))  # is_include_retract
     response['Content-Disposition'] = 'attachment; filename="{}.json"'.format(get_valid_filename(forecast.source))
     return response
 
