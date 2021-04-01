@@ -9,12 +9,14 @@ from django.shortcuts import get_object_or_404
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT
 
+
 django.setup()
 
 from forecast_app.models import PredictionData, Prediction, BinDistribution, NamedDistribution, PointPrediction, \
     SampleDistribution, QuantileDistribution, PredictionElement, Target, Forecast, ForecastModel
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast, cache_forecast_metadata
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+
 
 logger = logging.getLogger(__name__)
 
@@ -337,8 +339,10 @@ def is_different_old_new_json(forecast):
     studied with that in mind.
     """
 
+
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
+
 
     prediction_dicts_new = sorted(json_io_dict_from_forecast(forecast, None)['predictions'], key=sort_key)
     prediction_dicts_old = sorted(_pred_dicts_from_forecast_old(forecast), key=sort_key)
@@ -403,9 +407,11 @@ def pred_dicts_with_implicit_retractions(f1_new, f2_old):
         is constructed from f1_new and f2_old that contains implicit retractions in f2_old compared to f1_new
     """
 
+
     # from is_different_old_new_json():
     def sort_key(pred_dict):
         return pred_dict['unit'], pred_dict['target'], pred_dict['class']
+
 
     # NB: is_include_retract=True so that retracted PredictionElements show up
     f1_pred_dicts_new = sorted(json_io_dict_from_forecast(f1_new, None, True)['predictions'], key=sort_key)
@@ -435,3 +441,26 @@ def _forecast_previous_version(forecast):
                 issue_date__lt=forecast.issue_date) \
         .order_by('-issue_date')
     return forecast_versions[0] if forecast_versions else None
+
+
+#
+# forecast_ids_with_no_data_new()
+#
+
+def forecast_ids_with_no_data_new():
+    """
+    :return: list of IDs of forecast in any project that have no data, i.e., ones that have no PredictionElements
+    """
+    sql = f"""
+        SELECT f.id
+        FROM {Forecast._meta.db_table} AS f
+        WHERE NOT EXISTS(
+                SELECT *
+                FROM {PredictionElement._meta.db_table} AS pred_ele
+                WHERE f.id = pred_ele.forecast_id
+            )
+        ORDER BY f.id;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        return [row[0] for row in cursor.fetchall()]

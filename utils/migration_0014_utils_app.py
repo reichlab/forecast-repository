@@ -5,6 +5,7 @@ import click
 import django
 import django_rq
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
@@ -12,9 +13,10 @@ from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_me
 
 from utils.migration_0014_utils import _migrate_correctness_worker, is_different_old_new_json, \
     _grouped_version_rows, _migrate_forecast_worker, pred_dicts_with_implicit_retractions, \
-    _forecast_previous_version
+    _forecast_previous_version, forecast_ids_with_no_data_new
 
 from forecast_app.models import Forecast, Project, PredictionElement
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ def check_correctness(enqueue):
     :param enqueue: controls whether the update will be immediate in the calling thread (blocks), or enqueued for RQ
     """
     from forecast_repo.settings.base import DEFAULT_QUEUE_NAME  # avoid circular imports
+
 
     forecasts = Forecast.objects.all().order_by('created_at')
     if not enqueue:
@@ -72,6 +75,7 @@ def enqueue_migrate_worker():
     parallel, we cannot guarantee order, though. But this is the best we came up with.
     """
     from forecast_repo.settings.base import DEFAULT_QUEUE_NAME  # avoid circular imports
+
 
     logger.info(f"enqueuing ~{Forecast.objects.count()} forecasts")  # COUNT is somewhat expensive
     queue = django_rq.get_queue(DEFAULT_QUEUE_NAME)
@@ -135,6 +139,29 @@ def load_forecasts_with_implicit_retractions(forecast_ids):
 
     # done
     logger.info(f"load_forecasts_with_implicit_retractions(): done")
+
+
+#
+# delete_empty_forecasts_new()
+#
+
+@cli.command(name="delete_empty_forecasts")
+@click.option('--dry-run/--no-dry-run', default=False)
+def delete_empty_forecasts_new(dry_run):
+    """
+    CLI that deletes forecasts from all projects that contain no new data.
+    """
+    empty_forecast_ids = forecast_ids_with_no_data_new()
+    logger.info(f"delete_empty_forecasts_new(): starting. dry_run={dry_run}, #empty_forecast_ids="
+                f"{len(empty_forecast_ids)}")
+    for forecast in Forecast.objects.filter(pk__in=empty_forecast_ids):
+        if dry_run:
+            logger.info(f"found empty forecast={forecast}")
+        else:
+            logger.info(f"deleting empty forecast={forecast}")
+            forecast.delete()
+    logger.info(f"delete_empty_forecasts_new(): done. {'found' if dry_run else 'deleted'} {len(empty_forecast_ids)} "
+                f"forecasts")
 
 
 #
