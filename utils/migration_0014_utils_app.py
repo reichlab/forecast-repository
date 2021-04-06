@@ -153,15 +153,28 @@ def delete_empty_forecasts_new(dry_run):
     allows us to delete in descending issue_date order, i.e., to delete newer then older versions. This is important
     b/c o/w we would break the forecast version rule: "you cannot delete a forecast that has any newer versions".
     """
+    from django.db.models.signals import pre_delete  # avoid circular imports
+    from forecast_app.models.forecast import pre_validate_deleted_forecast  # ""
+
+
     empty_forecast_ids = forecast_ids_with_no_data_new()
     logger.info(f"delete_empty_forecasts_new(): starting. dry_run={dry_run}, #empty_forecast_ids="
                 f"{len(empty_forecast_ids)}")
+
+    # disconnect the signal that validates the rule: "you cannot delete a forecast that has any newer versions". we do
+    # this to avoid the "you cannot delete a forecast that has any newer versions" error, which does not apply in this
+    # case b/c the deleting forecast is empty and therefore did not contribute to any duplicates being removed
+    pre_delete.disconnect(receiver=pre_validate_deleted_forecast, sender=Forecast)
+
     for forecast in Forecast.objects.filter(pk__in=empty_forecast_ids).order_by('-issue_date'):
         if dry_run:
             logger.info(f"found empty forecast={forecast}")
         else:
             logger.info(f"deleting empty forecast={forecast}")
-            forecast.delete()
+            try:
+                forecast.delete()
+            except Exception as ex:
+                logger.error(f"error deleting empty forecast: forecast={forecast}, ex={ex!r}")
     logger.info(f"delete_empty_forecasts_new(): done. {'found' if dry_run else 'deleted'} {len(empty_forecast_ids)} "
                 f"forecasts")
 
