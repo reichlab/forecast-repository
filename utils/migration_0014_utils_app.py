@@ -104,7 +104,7 @@ def enqueue_migrate_worker():
 def load_forecasts_with_implicit_retractions(forecast_ids):
     """
     CLI that takes a comma-separated list of forecast IDs that failed migration due to:
-    "invalid forecast. new data is a subset of previous". It passes each one of these to
+    "new data is a subset of previous". It passes each one of these to
     pred_dicts_with_implicit_retractions() along with that forecast's immediate previous one and then loads the
     returned new data, which should not fail since it has the missing retractions.
     """
@@ -149,12 +149,14 @@ def load_forecasts_with_implicit_retractions(forecast_ids):
 @click.option('--dry-run/--no-dry-run', default=False)
 def delete_empty_forecasts_new(dry_run):
     """
-    CLI that deletes forecasts from all projects that contain no new data.
+    CLI that deletes forecasts from all projects that contain no new data. NB: We process in a single thread, which
+    allows us to delete in descending issue_date order, i.e., to delete newer then older versions. This is important
+    b/c o/w we would break the forecast version rule: "you cannot delete a forecast that has any newer versions".
     """
     empty_forecast_ids = forecast_ids_with_no_data_new()
     logger.info(f"delete_empty_forecasts_new(): starting. dry_run={dry_run}, #empty_forecast_ids="
                 f"{len(empty_forecast_ids)}")
-    for forecast in Forecast.objects.filter(pk__in=empty_forecast_ids):
+    for forecast in Forecast.objects.filter(pk__in=empty_forecast_ids).order_by('-issue_date'):
         if dry_run:
             logger.info(f"found empty forecast={forecast}")
         else:

@@ -812,7 +812,7 @@ class ViewsTestCase(TestCase):
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model,
                                                        Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
                                                        self.private_tz1)
-        private_forecast2.issue_date -= datetime.timedelta(days=2)  # older version avoids unique constraint errors
+        private_forecast2.issue_date += datetime.timedelta(days=2)
         private_forecast2.save()
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             json_response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues

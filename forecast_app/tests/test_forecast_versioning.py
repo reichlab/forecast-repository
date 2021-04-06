@@ -10,7 +10,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement, Target, Unit
+from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast, cache_forecast_metadata, \
     forecast_metadata, data_rows_from_forecast
 from utils.make_minimal_projects import _make_docs_project
@@ -229,7 +229,7 @@ class ForecastVersionsTestCase(TestCase):
         return jwt_token
 
 
-    def test_implicit_retractions(self):
+    def test_implicit_retractions(self):  # todo xx make sure subset rules are tested - uncomment special cases
         """
         Tests this forecast version rule: "An uploaded forecast version cannot imply any retracted prediction elements
         in existing versions." We test the four cases (including out-of-order upload ones): Consider uploading a
@@ -281,7 +281,7 @@ class ForecastVersionsTestCase(TestCase):
         # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_a', time_zero=tz1)
         # f3.issue_date = f1.issue_date - datetime.timedelta(days=1)
         # f3.save()
-        # with self.assertRaisesRegex(RuntimeError, 'invalid forecast. forecast is a subset of next version'):
+        # with self.assertRaisesRegex(RuntimeError, 'forecast is a subset of next version'):
         #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
         # f3.delete()
 
@@ -305,7 +305,7 @@ class ForecastVersionsTestCase(TestCase):
         f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_c', time_zero=tz1)
         f3.issue_date = f2.issue_date + datetime.timedelta(days=1)
         f3.save()
-        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. new data is a subset of previous'):
+        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
             load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
 
 
@@ -345,92 +345,19 @@ class ForecastVersionsTestCase(TestCase):
 
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})  # 1st upload. no dups
         load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})  # 0 & 1 are dups
-        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. new data is a subset of previous'):
+        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
             load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[2:4]})  # 0 & 1 missing
 
 
-    def test_no_later_non_empty_issue_dates(self):
+    def test_non_subset_forecast_version_rules(self):
         """
-        Tests this forecast version rule: "cannot load data before any non-empty forecasts" In other words, the uploaded
-        forecast's issue_date must be the newest of all the non-empty versions. Cases:
-
-                                     f1 empty?
-        forecast_id | issue_date |  0      1    | v=valid, x=invalid
-        ------------+------------+--------------+--------------------
-        -            10/3          a1) x  a2) v
-        f1           10/4
-        -            10/5          b1) v  b2) v
-        """
-        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
-        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
-        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
-
-        with open('forecast_app/tests/predictions/docs-predictions.json') as fp:
-            json_io_dict = json.load(fp)
-            pred_dicts = json_io_dict['predictions']  # get some prediction elements to work with (29)
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        # case a2: older issue_date, f1 is empty
-        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
-        f_new.issue_date = f1.issue_date - datetime.timedelta(days=1)
-        f_new.save()
-        try:
-            load_predictions_from_json_io_dict(f_new, {'meta': {}, 'predictions': pred_dicts[:2]})
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
-        f_new.delete()
-
-        # case b2: newer issue_date, f1 is empty
-        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
-        f_new.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f_new.save()
-        try:
-            load_predictions_from_json_io_dict(f_new, {'meta': {}, 'predictions': pred_dicts[:2]})
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
-        f_new.delete()
-
-        # case b1: newer issue_date, f1 not empty
-        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
-        f_new.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f_new.save()
-        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
-        try:
-            load_predictions_from_json_io_dict(f_new, {'meta': {}, 'predictions': pred_dicts[:4]})
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
-        f_new.delete()
-
-        # case a1: older issue_date, f1 not empty
-        f_new = Forecast.objects.create(forecast_model=forecast_model, source='f_new', time_zero=tz1)
-        f_new.issue_date = f1.issue_date - datetime.timedelta(days=1)
-        f_new.save()
-        with self.assertRaisesRegex(RuntimeError, 'cannot load data before any non-empty forecasts'):
-            load_predictions_from_json_io_dict(f_new, {'meta': {}, 'predictions': pred_dicts[:2]})
-        f_new.delete()
-
-
-    def test_empty_forecast_rules(self):
-        """
-        Tests the "empty forecasts and sequencing" rules listed in `load_predictions_from_json_io_dict()`.
-
-        Case a) rule 3: loading 100% duplicate data
-
-        Case b): rules 2 and 4
-        - issue_dates: f1: 10/4, f2: 10/5
-        - legend: 0=forecast is empty, 1=forecast has data, v=ok to load, x=invalid (violated rule # given)
-
-        f1 | f2 | f1 ok to load? | f2 ok to load?
-        ---+----+----------------+---------------
-         0 | 0  | v (normal seq) | v
-         0 | 1  | x (2)          | x (4)
-         1 | 0  | x (4)          | v (normal seq)
-         1 | 1  | x (4)          | x (4)  # n/a (tested in other three combinations)
-
-        Case c) rule 4: empty data
+        Tests these forecast rules:
+        - cannot load empty data
+        - cannot load 100% duplicate data
+        - cannot position a new forecast before any existing versions
+        - editing a version's issue_date cannot reposition it before any existing forecasts
+        - cannot load data into a non-empty forecast
+        - cannot delete a forecast that has any newer versions
         """
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
@@ -449,52 +376,33 @@ class ForecastVersionsTestCase(TestCase):
         f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
         f2.save()
 
-        # case a)
-        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
-        with self.assertRaisesRegex(RuntimeError, "cannot load 100% duplicate data"):
-            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:2]})  # 100% duplicate data
-
-        # case b1)
-        # f1 | f2 | f1 ok to load? | f2 ok to load?
-        # ---+----+----------------+---------------
-        #  0 | 0  | v (normal seq) | v
-        PredictionElement.objects.filter(forecast__in=(f1, f2)).delete()
-        try:
-            load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
-            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
-
-        # case b2)
-        # f1 | f2 | f1 ok to load? | f2 ok to load?
-        # ---+----+----------------+---------------
-        #  0 | 1  | x (2)          | x (4)
-        PredictionElement.objects.filter(forecast__in=(f1, f2)).delete()
-        load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
-        with self.assertRaisesRegex(RuntimeError, "cannot load data before any non-empty forecasts"):
-            load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
-
-        with self.assertRaisesRegex(RuntimeError, "cannot load data into a non-empty forecast"):
-            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
-
-        # case b3)
-        # f1 | f2 | f1 ok to load? | f2 ok to load?
-        # ---+----+----------------+---------------
-        #  1 | 0  | x (4)          | v (normal seq)
-        PredictionElement.objects.filter(forecast__in=(f1, f2)).delete()
-        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
-        with self.assertRaisesRegex(RuntimeError, "cannot load data into a non-empty forecast"):
-            load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
-
-        try:
-            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
-
-        # case c)
-        PredictionElement.objects.filter(forecast__in=(f1, f2)).delete()
+        # test "cannot load empty data"
         with self.assertRaisesRegex(RuntimeError, "cannot load empty data"):
             load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': []})  # no data
+
+        # test "cannot load 100% duplicate data"
+        load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
+        with self.assertRaisesRegex(RuntimeError, "cannot load 100% duplicate data"):
+            load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:2]})
+
+        # test "cannot position a new forecast before any existing versions"
+        with self.assertRaisesRegex(RuntimeError, "you cannot position a new forecast before any existing versions"):
+            Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1, issue_date=tz1.timezero_date)
+
+        # test "editing a version's issue_date cannot reposition it before any existing forecasts"
+        with self.assertRaisesRegex(RuntimeError, "editing a version's issue_date cannot reposition it before any "
+                                                  "existing forecasts"):
+            f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
+            f3.issue_date = f1.issue_date + datetime.timedelta(days=-1)  # before an existing one
+            f3.save()
+
+        # test "cannot load data into a non-empty forecast"
+        with self.assertRaisesRegex(RuntimeError, "cannot load data into a non-empty forecast"):
+            load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
+
+        # test "cannot delete a forecast that has any newer versions"
+        with self.assertRaisesRegex(RuntimeError, "you cannot delete a forecast that has any newer versions"):
+            f1.delete()
 
 
     def test_json_io_dict_from_forecast_on_versions(self):
@@ -564,7 +472,8 @@ class ForecastVersionsTestCase(TestCase):
 
         # load f1
         predictions = [
-            {"unit": 'location1', "target": 'cases next week', "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": 'location1', "target": 'cases next week', "class": "named",
+             "prediction": {"family": "pois", "param1": 1.1}},
             {"unit": 'location2', "target": 'cases next week', "class": "point", "prediction": {"value": 5}},
         ]
         load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)

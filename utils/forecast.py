@@ -17,7 +17,6 @@ from utils.project_queries import _query_forecasts_sql_for_pred_class
 from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -40,7 +39,6 @@ def json_io_dict_from_forecast(forecast, request, is_include_retract=False):
         and target for visibility. see docs for details
     """
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
-
 
     # set meta
     meta = {}
@@ -71,7 +69,7 @@ def json_io_dict_from_forecast(forecast, request, is_include_retract=False):
              'target': target_id_to_obj[target_id].name,
              'class': PRED_CLASS_INT_TO_NAME[pred_class],
              'prediction': json.loads(pred_data) if not is_retract else None}
-             # 'prediction': json.loads(pred_data) if pred_data is not None else None}
+            # 'prediction': json.loads(pred_data) if pred_data is not None else None}
             for fm_id, tz_id, pred_class, unit_id, target_id, is_retract, pred_data in batched_rows(cursor)]
 
     # done
@@ -92,19 +90,19 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     that we ignore the 'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in
     forecast's Project. Requires that `forecast` is empty of data.
 
+    Recall the FORECAST VERSION RULES:
 
-    Enforces these FORECAST VERSION RULES (grouped by type):
+        1. Cannot load empty data.
+        2. Cannot load 100% duplicate data.
+        3. New forecast versions cannot imply any retracted prediction elements in existing versions, i.e., you cannot
+            load data that's a subset of the previous forecast's data.
+        4. New forecast versions cannot change order dependencies, i.e., you cannot position a new forecast before any
+            existing versions.
+        5. Editing a version's issue_date cannot reposition it before any existing forecasts.
+        6. Deleted forecasts cannot change order dependencies, i.e., you cannot delete a forecast that has any newer
+            versions.
 
-    - implicit retractions:
-        1. An uploaded forecast version cannot imply any retracted prediction elements in existing versions, i.e.,
-            cannot load data that's a subset of previous data.
-
-    - empty forecasts and sequencing:
-        2. An uploaded forecast version's issue_date cannot be prior to any non-empty versions, i.e., cannot load data
-            before any non-empty forecasts.
-        3. Cannot load 100% duplicate data.
-        4. Cannot load data into a non-empty forecast.
-        5. Cannot load empty data.
+    Rules 1 through 3 are enforced in this function, but rules 4 through 6 are enforced elsewhere using signals.
 
     :param forecast: a Forecast to load json_io_dict's predictions into
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details
@@ -121,13 +119,6 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     elif not json_io_dict['predictions']:  # validate the rule: "cannot load empty data"
         raise RuntimeError(f"cannot load empty data")
 
-    # validate the rule: "cannot load data before any non-empty forecasts". NB: additional version validation is done by
-    # _insert_pred_ele_rows() b/c it creates a temp table of the incoming forecast's prediction elements to work with
-    newest_non_empty_version = _newest_non_empty_version(forecast.forecast_model, forecast.time_zero)
-    if newest_non_empty_version and (forecast.issue_date < newest_non_empty_version.issue_date):
-        raise RuntimeError(f"invalid forecast: cannot load data before any non-empty forecasts. forecast={forecast}, "
-                           f"earlier_version={newest_non_empty_version}")
-
     # we have two types of tables to insert into (PredictionElement and PredictionData), which requires loading via two
     # passes:
     # 1) iterate over incoming prediction dicts, validating them and generating rows to insert into the
@@ -135,7 +126,9 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     # 2) load those just-inserted rows from the database so we can get their PRIMARY KEY (autoincrement) ids, and then
     #    re-iterate over prediction dict data (cached in memory) to generate rows to insert into the PredictionData
     #    table
-    # pass 1/2
+
+    # pass 1/2. NB: `_insert_pred_ele_rows()` does some rule validation b/c it creates a temp table of the incoming
+    # forecast's prediction elements to work with
     data_hash_to_pred_data, pred_ele_rows = \
         _validated_pred_ele_rows_for_pred_dicts(forecast, json_io_dict['predictions'], is_skip_validation,
                                                 is_validate_cats)
@@ -315,7 +308,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
 
     # validate the rule: "cannot load data that's a subset of previous data"
     if _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
-        raise RuntimeError(f"invalid forecast. new data is a subset of previous. forecast={forecast}")
+        raise RuntimeError(f"new data is a subset of previous. forecast={forecast}")
 
     # delete duplicates from temp table. note that we are not testing against issue_date, which would be wrong b/c
     # duplicates should be skipped if they exist in /any/ version
@@ -344,7 +337,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
         cursor.execute(sql)
         is_empty = cursor.fetchone()[0]
         if is_empty:
-            raise RuntimeError(f"invalid forecast. cannot load 100% duplicate data. forecast={forecast}")
+            raise RuntimeError(f"cannot load 100% duplicate data. forecast={forecast}")
 
     # step 5/6: insert temp table into PredictionElement
     sql = f"""
@@ -359,34 +352,6 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     # drop temp table
     with connection.cursor() as cursor:
         cursor.execute(f"DROP TABLE IF EXISTS {temp_table_name};")
-
-
-def _newest_non_empty_version(forecast_model, time_zero):
-    """
-    :param forecast_model: a ForecastModel
-    :param time_zero: a TimeZero
-    :return: the newest non-empty Forecast for the version indicated by (forecast_model, time_zero), based on
-        issue_date, or None if there were no non-empty versions
-    """
-    sql = f"""
-        WITH ranked_issue_dates AS (
-            SELECT f.id AS f_id, f.issue_date AS issue_date, RANK() OVER (ORDER BY f.issue_date DESC) AS rank
-            FROM {Forecast._meta.db_table} AS f
-            WHERE f.forecast_model_id = %s
-              AND f.time_zero_id = %s
-              AND EXISTS(SELECT * FROM {PredictionElement._meta.db_table} AS pe WHERE f.id = pe.forecast_id))
-        SELECT cte.f_id
-        FROM ranked_issue_dates AS cte
-        WHERE cte.rank = 1;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast_model.pk, time_zero.pk,))
-        f_id_max_issue_date = cursor.fetchone()
-        if f_id_max_issue_date is None:
-            return None
-
-        f_id_max_issue_date = f_id_max_issue_date[0]
-        return Forecast.objects.get(pk=f_id_max_issue_date) if f_id_max_issue_date is not None else None
 
 
 def _is_pred_eles_subset_prev_versions(forecast, temp_table_name):

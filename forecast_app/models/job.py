@@ -213,6 +213,9 @@ def job_cloud_file(job_pk):
 #
 # set up a signal to try notifying the user of SUCCESS or FAILURE
 #
+# todo should probably move signals to a new signals.py file. see "Where should this code live?":
+#  https://docs.djangoproject.com/en/3.1/topics/signals/
+#
 
 @receiver(post_save, sender=Job)
 def send_notification_for_job(sender, instance, using, **kwargs):

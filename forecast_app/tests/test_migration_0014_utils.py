@@ -264,7 +264,7 @@ class Migration0014TestCase(TestCase):
         # migrate f1 to set up state where f1 old has been migrated to f1 new, and f2 old is invalid (subset) and needs
         # fixing by pred_dicts_with_implicit_retractions(). first we test to ensure it's invalid
         copy_old_data_to_new_tables(f1)  # f1 migrates as expected. trust copy_old_data_to_new_tables() b/c tested above
-        with self.assertRaisesRegex(RuntimeError, 'invalid forecast. new data is a subset of previous'):
+        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
             copy_old_data_to_new_tables(f2)  # f2 fails to migrate as expected
 
         # now we have f1 migrated but f2 failed due to its being a subset of f1. get corrected f2 with implicit
