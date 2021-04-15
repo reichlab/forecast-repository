@@ -12,7 +12,7 @@ from forecast_app.tests.test_project_queries import ProjectQueriesTestCase
 from utils.forecast import load_predictions_from_json_io_dict, _validated_pred_ele_rows_for_pred_dicts
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
-from utils.project_queries import query_truth_for_project
+from utils.project_queries import query_truth_for_project, query_forecasts_for_project
 from utils.project_truth import load_truth_data, truth_data_qs
 from utils.utilities import get_or_create_super_po_mo_users
 
@@ -207,6 +207,13 @@ class PredictionsTestCase(TestCase):
         load_predictions_from_json_io_dict(f3, {'predictions': predictions}, is_validate_cats=False)
         self.assertEqual(5, f3.pred_eles.count())
         self.assertEqual('', f3.pred_eles.first().data_hash)
+
+        # test querying same
+        try:
+            rows = list(query_forecasts_for_project(project, {}))  # list for generator
+            self.assertEqual(1, len(rows))  # header
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
 
     def test_load_predictions_from_json_io_dict_dups(self):
