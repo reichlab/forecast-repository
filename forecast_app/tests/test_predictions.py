@@ -201,6 +201,13 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(5, f2.pred_eles.count())
         self.assertEqual('', f2.pred_eles.first().data_hash)
 
+        # test loading an initial version that includes retractions (we are sure what this means, but it is valid and
+        # should not fail :-)
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz2)
+        load_predictions_from_json_io_dict(f3, {'predictions': predictions}, is_validate_cats=False)
+        self.assertEqual(5, f3.pred_eles.count())
+        self.assertEqual('', f3.pred_eles.first().data_hash)
+
 
     def test_load_predictions_from_json_io_dict_dups(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
