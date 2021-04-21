@@ -57,7 +57,7 @@
                 <th>Description</th>
                 <th>Summary</th>
             </tr>
-            {% for project, num_models, num_forecasts, num_rows_est, num_rows_exact in projects_info %}
+            {% for project, num_models, num_forecasts, num_rows_exact in projects_info %}
                 <tr>
                     <td>
                         <a href="{% url 'project-detail' project.pk %}">{{ project.name }}</a>
@@ -84,7 +84,7 @@
                     <td title="Est. row counts" class="text-muted">
                         {% include 'visibility_snippet.html' with project=project %}
                         <br>
-                        {% include "project_count_snippet.html" with project=project num_models=num_models num_forecasts=num_forecasts num_rows_est=num_rows_est num_rows_exact=num_rows_exact use_intword=True %}
+                        {% include "project_count_snippet.html" with project=project num_models=num_models num_forecasts=num_forecasts num_rows_exact=num_rows_exact use_intword=True %}
                     </td>
                 </tr>
             {% endfor %}

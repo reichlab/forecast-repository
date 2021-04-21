@@ -65,7 +65,7 @@
                     <th>Summary:</th>
                     <td>
                             <span class="text-muted">
-                            {% include "project_count_snippet.html" with project=project num_models=project_summary_info.0 num_forecasts=project_summary_info.1 num_rows_est=project_summary_info.2 num_rows_exact=project_summary_info.3 use_intword=False %}
+                            {% include "project_count_snippet.html" with project=project num_models=project_summary_info.0 num_forecasts=project_summary_info.1 num_rows_exact=project_summary_info.2 use_intword=False %}
                         </span>
                     </td>
                 </tr>
@@ -128,8 +128,10 @@
                                 {% if first_truth_forecast.source %}
                                     {{ first_truth_forecast.source }}
                                 {% else %}(no source){% endif %}</a>
+                            {% comment %}
                             <small class="text-muted">({{ num_truth_rows|intword|intcomma }}
                                 prediction{{ num_truth_rows|pluralize }})</small>
+                            {% endcomment %}
                             <small class="text-muted">{{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}</small>
                             .
                             <a href="{% url 'query-truth' project.pk %}">Download</a>

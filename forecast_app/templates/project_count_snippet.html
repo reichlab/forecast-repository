@@ -3,18 +3,9 @@
 {{ num_models|apnumber|capfirst }} model{{ num_models|pluralize }},
 {{ num_forecasts|apnumber }} forecast{{ num_forecasts|pluralize }},
 
-{% if num_rows_exact != 0 %}
-    {% if use_intword %}
-        {{ num_rows_exact|intword|intcomma }}
-    {% else %}
-        {{ num_rows_exact|intcomma }}
-    {% endif %}
-    prediction{{ num_rows_exact|pluralize }}
+{% if use_intword %}
+    {{ num_rows_exact|intword|intcomma }}
 {% else %}
-    {% if use_intword %}
-        {{ num_rows_est|intword|intcomma }}
-    {% else %}
-        {{ num_rows_est|intcomma }}
-    {% endif %}
-    prediction{{ num_rows_est|pluralize }} (est)
+    {{ num_rows_exact|intcomma }}
 {% endif %}
+prediction{{ num_rows_exact|pluralize }}

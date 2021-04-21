@@ -71,7 +71,7 @@ def projects(request):
                                     if is_user_ok_view_project(request.user, project)],
                                    reverse=True, key=lambda _: (_[1] is not None, _[1]))
 
-    # list of 5-tuples: (project, num_models, num_forecasts, num_rows_est, num_rows_exact):
+    # list of 4-tuples: (project, num_models, num_forecasts, num_rows_exact):
     projects_info = [(project_last_update[0], *project_summary_info(project_last_update[0]))
                      for project_last_update in projects_last_updates]
     return render(
@@ -88,8 +88,8 @@ def project_summary_info(project):
     Helper for views showing project summary information like # models, # forecasts, and # rows.
 
     :param project: a Project
-    :return a 4-tuple: (num_models, num_forecasts, num_rows_est, num_rows_exact). num_rows_exact is None if no exact
-        count is available
+    :return a 3-tuple: (num_models, num_forecasts, num_rows_exact). num_rows_exact is None if no exact count is
+        available
     """
     # set num_rows_exact. note that ideally we would verify that every Forecast in all of project's models has a
     # ForecastMetaPrediction, but for simplicity we simply sum them all, which will be zero if none are present. this
@@ -97,7 +97,7 @@ def project_summary_info(project):
     # but that seems unlikely
     num_rows_exact = sum([sum([fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count])
                           for fmp in ForecastMetaPrediction.objects.filter(forecast__forecast_model__project=project)])
-    return (*project.get_summary_counts(), num_rows_exact)
+    return (*project.num_models_forecasts(), num_rows_exact)
 
 
 #
@@ -718,7 +718,6 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         target_groups = sorted([(group_name, sorted(target_list, key=lambda target: target.name))
                                 for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
-
         context = super().get_context_data(**kwargs)
         context['models_rows'] = models_summary_table_rows_for_project(project)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
@@ -727,10 +726,10 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
-        context['num_truth_rows'] = truth_data_qs(project).count()
+        # context['num_truth_rows'] = truth_data_qs(project).count()  # todo xx slow!
         context['is_truth_data_loaded'] = is_truth_data_loaded(project)
         context['first_truth_forecast'] = first_truth_data_forecast(project)
-        context['project_summary_info'] = project_summary_info(project)
+        context['project_summary_info'] = project_summary_info(project)  # num_models, num_forecasts, num_rows_exact
         return context
 
 
@@ -1073,12 +1072,12 @@ def truth_detail(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    num_truth_rows = truth_data_qs(project).count()  # NB: can be slow
+    # num_truth_rows = truth_data_qs(project).count()  # todo xx slow!
     return render(
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 'num_truth_rows': num_truth_rows,
+                 # 'num_truth_rows': num_truth_rows,
                  'truth_data_preview': get_truth_data_preview(project),
                  'first_truth_forecast': first_truth_data_forecast(project),
                  'is_truth_data_loaded': is_truth_data_loaded(project),

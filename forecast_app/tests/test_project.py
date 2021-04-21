@@ -144,8 +144,8 @@ class ProjectTestCase(TestCase):
 
 
     def test_summary_counts(self):
-        # num_models, num_forecasts, num_rows (locations * targets * points/bins)
-        self.assertEqual((1, 1, 11 * 7 * 2), self.project.get_summary_counts())
+        # num_models, num_forecasts
+        self.assertEqual((1, 1), self.project.num_models_forecasts())
 
 
     def test_timezero_seasons(self):

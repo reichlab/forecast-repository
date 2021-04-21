@@ -36,8 +36,8 @@ def print_project_info(project, verbosity):
     click.echo(f"\n\n* {project}. truth: # predictions={truth_data_qs(project).count()}, "
                f"source={repr(first_truth_forecast.source) if first_truth_forecast else '<no truth>'}, "
                f"created_at={first_truth_forecast.created_at if first_truth_forecast else '<no truth>'}. "
-               f"owner={project.owner}, model_owners={project.model_owners.all()}, (num_models, num_forecasts, "
-               f"num_rows): {project.get_summary_counts()}")
+               f"owner={project.owner}, model_owners={project.model_owners.all()}, (num_models, num_forecasts): "
+               f"{project.num_models_forecasts()}")
     if verbosity == 1:
         return
 

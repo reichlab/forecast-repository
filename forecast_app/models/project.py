@@ -250,23 +250,22 @@ class Project(models.Model):
     # count-related functions
     #
 
-    def get_summary_counts(self):
+    def num_models_forecasts(self):
         """
-        :return: a 3-tuple summarizing total counts in me: (num_models, num_forecasts, num_pred_eles). latter is
-            computed dynamically and does not use ForecastMetaPrediction, so might be slow
+        :return: a 2-tuple: (num_models, num_forecasts)
         """
         from .forecast import Forecast  # avoid circular imports
 
 
-        return self.models.filter(project=self, is_oracle=False).count(), \
-               Forecast.objects.filter(forecast_model__project=self, forecast_model__is_oracle=False).count(), \
-               self.num_pred_ele_rows_all_models(is_oracle=False)
+        num_models = self.models.filter(project=self, is_oracle=False).count()
+        num_forecasts = Forecast.objects.filter(forecast_model__project=self, forecast_model__is_oracle=False).count()
+        return num_models, num_forecasts
 
 
     def num_pred_ele_rows_all_models(self, is_oracle=True):
         """
         :return: the total number of PredictionElements across all my models' forecasts, for all types of Predictions.
-            can be slow for large databases
+            can be very slow for large databases
         """
         from forecast_app.models import PredictionElement  # avoid circular imports
 

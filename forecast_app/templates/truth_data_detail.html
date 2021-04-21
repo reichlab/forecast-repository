@@ -77,7 +77,10 @@
     </div>
 
 
+    {% comment %}
     <h4>Preview of {{ num_truth_rows|intword|intcomma }} prediction{{ num_truth_rows|pluralize }}</h4>
+    {% endcomment %}
+    <h4>Preview of rows</h4>
     {% if is_truth_data_loaded %}
         <table class="table table-striped">
             <thead>
