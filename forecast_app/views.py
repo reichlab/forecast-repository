@@ -55,7 +55,7 @@ def robots_txt(request):
     # frequently by different bots
     disallow_urls = []  # relative URLs
     for project_id in Project.objects.all().values_list('id', flat=True):
-        for project_url_name in ['project-explorer', 'project-config', 'truth-data-detail', 'project-visualizations']:
+        for project_url_name in ['project-explorer', 'project-config', 'truth-data-detail']:
             disallow_urls.append(reverse(project_url_name, args=[str(project_id)]))  # relative URLs
     return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
 
