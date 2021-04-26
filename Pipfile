@@ -27,6 +27,7 @@ django-anymail = {version = "*",extras = ["sendinblue", "sendgrid"]}
 django-compressor = "*"
 django-libsass = "*"
 brotlipy = "*"
+jsonfield = "*"
 
 [dev-packages]
 
