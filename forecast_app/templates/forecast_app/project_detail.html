@@ -128,10 +128,6 @@
                                 {% if first_truth_forecast.source %}
                                     {{ first_truth_forecast.source }}
                                 {% else %}(no source){% endif %}</a>
-                            {% comment %}
-                            <small class="text-muted">({{ num_truth_rows|intword|intcomma }}
-                                prediction{{ num_truth_rows|pluralize }})</small>
-                            {% endcomment %}
                             <small class="text-muted">{{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}</small>
                             .
                             <a href="{% url 'query-truth' project.pk %}">Download</a>

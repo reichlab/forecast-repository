@@ -269,7 +269,7 @@ class Target(models.Model):
                                    value_f=upper if (data_types[0] == Target.FLOAT_DATA_TYPE) else None)
 
 
-    @staticmethod  # todo xx move!?
+    @staticmethod
     def first_non_none_value(value_i, value_f, value_t, value_d, value_b):
         """
         Simple utility that returns the first of the passed value_* args that is not None. NB: you cannot simply use

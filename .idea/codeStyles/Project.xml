@@ -1,0 +1,14 @@
+<component name="ProjectCodeStyleConfiguration">
+  <code_scheme name="Project" version="173">
+    <Python>
+      <option name="BLANK_LINES_AFTER_LOCAL_IMPORTS" value="2" />
+    </Python>
+    <codeStyleSettings language="Python">
+      <option name="KEEP_BLANK_LINES_IN_DECLARATIONS" value="2" />
+      <option name="KEEP_BLANK_LINES_IN_CODE" value="2" />
+      <option name="BLANK_LINES_AFTER_IMPORTS" value="2" />
+      <option name="BLANK_LINES_AROUND_CLASS" value="2" />
+      <option name="BLANK_LINES_AROUND_METHOD" value="2" />
+    </codeStyleSettings>
+  </code_scheme>
+</component>

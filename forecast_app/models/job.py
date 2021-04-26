@@ -12,7 +12,6 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.shortcuts import get_object_or_404
 from django.template import Template, Context
-from jsonfield import JSONField
 from rq.timeouts import JobTimeoutException
 
 from forecast_repo.settings.base import UPLOAD_FILE_QUEUE_NAME
@@ -75,10 +74,10 @@ class Job(models.Model):
     failure_message = models.TextField()  # non-empty message if status == FAILED
 
     # app-specific data passed to the Job from the request. ex: 'model_pk':
-    input_json = JSONField(null=True, blank=True)
+    input_json = models.JSONField(null=True, blank=True)
 
     # app-specific results from a successful completion of the upload. ex: 'forecast_pk':
-    output_json = JSONField(null=True, blank=True)
+    output_json = models.JSONField(null=True, blank=True)
 
 
     def __repr__(self):

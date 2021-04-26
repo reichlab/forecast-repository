@@ -46,7 +46,7 @@ class PredictionData(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, list(self.data.keys())))  # todo xx len(self.data)?
+        return str((self.pk, list(self.data.keys())))
 
 
     def __str__(self):  # todo

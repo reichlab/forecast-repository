@@ -726,7 +726,6 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
-        # context['num_truth_rows'] = truth_data_qs(project).count()  # todo xx slow!
         context['is_truth_data_loaded'] = is_truth_data_loaded(project)
         context['first_truth_forecast'] = first_truth_data_forecast(project)
         context['project_summary_info'] = project_summary_info(project)  # num_models, num_forecasts, num_rows_exact
@@ -1072,12 +1071,10 @@ def truth_detail(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    # num_truth_rows = truth_data_qs(project).count()  # todo xx slow!
     return render(
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 # 'num_truth_rows': num_truth_rows,
                  'truth_data_preview': get_truth_data_preview(project),
                  'first_truth_forecast': first_truth_data_forecast(project),
                  'is_truth_data_loaded': is_truth_data_loaded(project),
