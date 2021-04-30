@@ -90,12 +90,11 @@
     </div>
 
 
-    {% if is_metadata_available %}
-        {% include 'forecast_detail_data_snippet.html' %}
-    {% else %}
+    {% if not is_metadata_available %}
+        <p class="text-danger">No forecast metadata was found.</p>
         <hr> {# hack to add space before next #}
-        <p class="text-danger">Forecast detail information requires metadata to be available.</p>
     {% endif %}
+    {% include 'forecast_detail_data_snippet.html' %}
 
 
 {% endblock %}
