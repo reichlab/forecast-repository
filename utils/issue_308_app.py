@@ -390,7 +390,7 @@ def add_deleted_file_retractions(project_pk, file_names_commit_dates, target_gro
         new_forecast.issue_date = new_issue_date
         new_forecast.save()  # fails if not unique, i.e., if issue_date already has a forecast
         new_forecasts.append(new_forecast)
-        # logger.info(f"new_forecast={new_forecast}")
+        logger.info(f"new_forecast={new_forecast}")
         load_predictions_from_json_io_dict(new_forecast, {'meta': {}, 'predictions': new_pred_dicts},
                                            is_validate_cats=False)  # atomic
         # NB: caching should not be necessary b/c we retract all prediction elements, or they are all duplicates. we
