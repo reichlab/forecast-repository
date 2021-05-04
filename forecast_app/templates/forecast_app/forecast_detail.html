@@ -59,9 +59,19 @@
                     <th>Issue date:</th>
                     <td>
                         {{ forecast.issue_date|date:"Y-m-d" }}
-                        {% if version_str %}
-                            <small class="text-muted">(Version {{ version_str }})</small>
-                        {% endif %}
+                        <div class="dropdown show d-inline-block">
+                            <button class="btn btn-light btn-sm dropdown-toggle" id="dropdownMenuLink"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Version {{ this_version_str_id.0 }}
+                            </button>
+                            <div class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                                {% for version_str, version_id in version_str_ids %}
+                                    <a class="dropdown-item" href="{% url 'forecast-detail' version_id %}">
+                                        {{ version_str }}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        </div>
                     </td>
                 </tr>
                 <tr>

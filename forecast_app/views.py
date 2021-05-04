@@ -899,14 +899,16 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             .order_by('issue_date') \
             .values_list('id', flat=True)
         forecast_version_ids = list(forecast_version_ids)
-        version_str = "" if len(forecast_version_ids) == 1 else \
-            f"{forecast_version_ids.index(forecast.id) + 1} of {len(forecast_version_ids)}"
+        version_str_ids = [(f"{forecast_version_ids.index(version_id) + 1} of {len(forecast_version_ids)}",
+                            version_id) for version_id in forecast_version_ids]
+        this_version_str_id = version_str_ids[forecast_version_ids.index(forecast.id)]
 
         # done
         context = super().get_context_data(**kwargs)
         context['is_metadata_available'] = is_metadata_available
         context['is_all_pred_type_counts_zero'] = is_all_pred_type_counts_zero
-        context['version_str'] = version_str
+        context['version_str_ids'] = version_str_ids
+        context['this_version_str_id'] = this_version_str_id
         context['num_pred_eles'] = sum(map(lambda _: _[1], pred_type_count_pairs)) if pred_type_count_pairs else 0
         context['num_unique_pes'] = num_unique_pes
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
