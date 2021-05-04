@@ -100,9 +100,12 @@ class Issue308TestCase(TestCase):
 
         # test case: cache_forecast_metadata() called for each new forecast
         with patch('utils.forecast.cache_forecast_metadata') as cache_metadata_mock:
-            add_deleted_file_retractions(project.pk, [('f1', '10/03/11-01:43:28', True)],
-                                         ['cases next week', 'pct next week'])
-            cache_metadata_mock.assert_called_once()
+            act_new_forecasts = add_deleted_file_retractions(project.pk, [('f1', '10/03/11-01:43:28', True)],
+                                                             ['cases next week', 'pct next week'])
+            self.assertEqual(1, len(act_new_forecasts))
+
+            new_forecast = act_new_forecasts[0]
+            cache_metadata_mock.assert_called_once_with(new_forecast)
 
         # test case: previous forecasts with DELETE_NOTE are deleted
         delete_note_forecasts_qs = Forecast.objects.filter(notes=DELETE_NOTE)
