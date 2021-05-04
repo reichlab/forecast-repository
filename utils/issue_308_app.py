@@ -393,9 +393,7 @@ def add_deleted_file_retractions(project_pk, file_names_commit_dates, target_gro
         logger.info(f"new_forecast={new_forecast}")
         load_predictions_from_json_io_dict(new_forecast, {'meta': {}, 'predictions': new_pred_dicts},
                                            is_validate_cats=False)  # atomic
-        # NB: caching should not be necessary b/c we retract all prediction elements, or they are all duplicates. we
-        # do it anyway just in case :-O
-        cache_forecast_metadata(forecast)  # transaction.atomic
+        cache_forecast_metadata(new_forecast)  # atomic
 
     # done!
     logger.info(f"* done. new_forecasts={[f.pk for f in new_forecasts]}")
