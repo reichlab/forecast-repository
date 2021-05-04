@@ -37,7 +37,7 @@ from utils.project_diff import project_config_diff, database_changes_for_project
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, delete_truth_data, \
-    first_truth_data_forecast, oracle_model_for_project, truth_data_qs
+    first_truth_data_forecast, oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
