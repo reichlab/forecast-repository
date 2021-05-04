@@ -872,6 +872,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         # (pred_type_count_pairs, found_units, found_targets) where first is: 2-tuple: (PRED_CLASS_INT_TO_NAME, count)
         pred_type_count_pairs, found_units, found_targets = self.forecast_metadata_cached() \
             if is_metadata_available else ([], [], [])
+        is_all_pred_type_counts_zero = all([count == 0 for pred_class, count in pred_type_count_pairs])
         num_unique_pes = PredictionElement.objects.filter(forecast=forecast).count()  # no merging of previous versions
 
         # set target_groups: change from dict to 2-tuples
@@ -904,6 +905,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         # done
         context = super().get_context_data(**kwargs)
         context['is_metadata_available'] = is_metadata_available
+        context['is_all_pred_type_counts_zero'] = is_all_pred_type_counts_zero
         context['version_str'] = version_str
         context['num_pred_eles'] = sum(map(lambda _: _[1], pred_type_count_pairs)) if pred_type_count_pairs else 0
         context['num_unique_pes'] = num_unique_pes
