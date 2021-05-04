@@ -742,12 +742,11 @@ def _cache_forecast_metadata_predictions(forecast):
             SELECT pred_ele.pred_class             AS pred_class,
                    pred_ele.is_retract             AS is_retract,
                    RANK() OVER (
-                       PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
+                       PARTITION BY f.forecast_model_id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
                        ORDER BY f.issue_date DESC) AS rownum
             FROM {PredictionElement._meta.db_table} AS pred_ele
                      JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
-                     JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-            WHERE fm.id = %s
+            WHERE f.forecast_model_id = %s
               AND f.time_zero_id = %s
               AND f.issue_date <= %s
         )
@@ -802,12 +801,11 @@ def _cache_forecast_metadata_sql_for_forecast(is_units):
             SELECT {select_column}                 AS unit_or_target_id,
                    pred_ele.is_retract             AS is_retract,
                    RANK() OVER (
-                       PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
+                       PARTITION BY f.forecast_model_id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
                        ORDER BY f.issue_date DESC) AS rownum
             FROM {PredictionElement._meta.db_table} AS pred_ele
                      JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
-                     JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-            WHERE fm.id = %s
+            WHERE f.forecast_model_id = %s
               AND f.time_zero_id = %s
               AND f.issue_date <= %s
         )
