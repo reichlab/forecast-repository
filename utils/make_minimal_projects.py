@@ -12,7 +12,7 @@ from django.db import transaction
 django.setup()
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 
-from utils.project import create_project_from_json
+from utils.project import create_project_from_json, delete_project_iteratively
 from utils.project_truth import load_truth_data
 
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
@@ -133,7 +133,7 @@ def _make_docs_project(user):
     found_project = Project.objects.filter(name=DOCS_PROJECT_NAME).first()
     if found_project:
         click.echo("* deleting previous project: {}".format(found_project))
-        found_project.delete()
+        delete_project_iteratively(found_project)
 
     project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), user)  # atomic
     project.name = DOCS_PROJECT_NAME

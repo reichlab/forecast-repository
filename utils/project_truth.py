@@ -211,7 +211,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     # group rows by timezero and then create and load oracle Forecasts for each group, passing them as
     # json_io_dicts. we leverage _load_truth_data_rows_for_forecast() by creating a json_io_dict for the truth data
     # where each truth row becomes its own 'point' prediction element. NB: these forecasts are identified as coming from
-    # the same truth file via all forecasts having the same source and issue_date
+    # the same truth file via all forecasts having the same source and issued_at
     timezero_groups = defaultdict(list)
     for timezero, unit, target, parsed_value in rows:
         timezero_groups[timezero].append([unit, target, parsed_value])
@@ -233,13 +233,13 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
                                            is_skip_validation=True)
         forecasts.append(forecast)
 
-    # set all issue_dates to be the same - this avoids an edge case where midnight is spanned and some are a day later.
-    # arbitrarily use the first forecast's issue_date
+    # set all issued_ats to be the same - this avoids an edge case where midnight is spanned and some are a day later.
+    # arbitrarily use the first forecast's issued_at
     if forecasts:
-        issue_date = forecasts[0].issue_date
-        logger.debug(f"_load_truth_data(): setting issue_dates to {issue_date}, # forecasts={len(forecasts)}")
+        issued_at = forecasts[0].issued_at
+        logger.debug(f"_load_truth_data(): setting issued_ats to {issued_at}, # forecasts={len(forecasts)}")
         for forecast in forecasts:
-            forecast.issue_date = issue_date
+            forecast.issued_at = issued_at
             forecast.save()
 
     logger.debug(f"_load_truth_data(): done")

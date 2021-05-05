@@ -17,6 +17,7 @@ from utils.project_queries import _query_forecasts_sql_for_pred_class
 from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,6 +41,7 @@ def json_io_dict_from_forecast(forecast, request, is_include_retract=False):
     """
     from forecast_app.serializers import UnitSerializer, ForecastSerializer  # avoid circular imports
 
+
     # set meta
     meta = {}
     if request:
@@ -54,13 +56,12 @@ def json_io_dict_from_forecast(forecast, request, is_include_retract=False):
             key=lambda _: (_['name']))
 
     # set prediction_dicts by leveraging `query_forecasts_for_project()`'s `_query_forecasts_sql_for_pred_class()`,
-    # which does the necessary work of merging previous versions and picking latest issue_date data.
+    # which does the necessary work of merging previous versions and picking latest issued_at data.
     # args: pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of, is_exclude_oracle:
     unit_id_to_obj = {unit.pk: unit for unit in forecast.forecast_model.project.units.all()}
     target_id_to_obj = {target.pk: target for target in forecast.forecast_model.project.targets.all()}
     sql = _query_forecasts_sql_for_pred_class([], [forecast.forecast_model.pk], [], [], [forecast.time_zero.pk],
-                                              forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT), False,
-                                              is_include_retract)
+                                              forecast.issued_at, False, is_include_retract)
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.project.pk,))
         # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
@@ -98,7 +99,7 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
             load data that's a subset of the previous forecast's data.
         4. New forecast versions cannot change order dependencies, i.e., you cannot position a new forecast before any
             existing versions.
-        5. Editing a version's issue_date cannot reposition it before any existing forecasts.
+        5. Editing a version's issued_at cannot reposition it before any existing forecasts.
         6. Deleted forecasts cannot change order dependencies, i.e., you cannot delete a forecast that has any newer
             versions.
 
@@ -310,7 +311,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     if _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
         raise RuntimeError(f"new data is a subset of previous. forecast={forecast}")
 
-    # delete duplicates from temp table. note that we are not testing against issue_date, which would be wrong b/c
+    # delete duplicates from temp table. note that we are not testing against issued_at, which would be wrong b/c
     # duplicates should be skipped if they exist in /any/ version
     sql = f"""
         DELETE
@@ -369,7 +370,7 @@ def _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
             ON pred_ele.forecast_id = f.id
             WHERE f.forecast_model_id = %s
               AND f.time_zero_id = %s
-              AND f.issue_date < %s
+              AND f.issued_at < %s
                 EXCEPT
             SELECT unit_id, target_id, pred_class
             FROM {temp_table_name}
@@ -377,7 +378,7 @@ def _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
         SELECT EXISTS(SELECT * FROM except_rows);
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issued_at,))
         is_subset = cursor.fetchone()[0]
         return is_subset
 
@@ -686,12 +687,10 @@ def data_rows_from_forecast(forecast, unit, target):
         [], [], [], [], []  # return value. filled next
 
     # fill rows by leveraging `query_forecasts_for_project()`'s `_query_forecasts_sql_for_pred_class()`,
-    # which does the necessary work of merging versions and picking latest issue_date data.
+    # which does the necessary work of merging versions and picking latest issued_at data.
     # args: pred_classes, model_ids, unit_ids, target_ids, timezero_ids, as_of, is_exclude_oracle:
     sql = _query_forecasts_sql_for_pred_class([], [forecast.forecast_model.pk], [unit.pk], [target.pk],
-                                              [forecast.time_zero.pk],
-                                              forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT),
-                                              False)
+                                              [forecast.time_zero.pk], forecast.issued_at, False)
     with connection.cursor() as cursor:
         cursor.execute(sql, (forecast.forecast_model.project.pk,))
         for fm_id, tz_id, pred_class, unit_id, target_id, is_retract, pred_data in batched_rows(cursor):
@@ -743,12 +742,12 @@ def _cache_forecast_metadata_predictions(forecast):
                    pred_ele.is_retract             AS is_retract,
                    RANK() OVER (
                        PARTITION BY f.forecast_model_id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
-                       ORDER BY f.issue_date DESC) AS rownum
+                       ORDER BY f.issued_at DESC) AS rownum
             FROM {PredictionElement._meta.db_table} AS pred_ele
                      JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
             WHERE f.forecast_model_id = %s
               AND f.time_zero_id = %s
-              AND f.issue_date <= %s
+              AND f.issued_at <= %s
         )
         SELECT ranked_rows.pred_class, COUNT(*)
         FROM ranked_rows
@@ -757,7 +756,7 @@ def _cache_forecast_metadata_predictions(forecast):
         GROUP BY ranked_rows.pred_class;
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issued_at,))
         pred_class_to_counts = defaultdict(int)
         for pred_class, count in batched_rows(cursor):
             pred_class_to_counts[pred_class] = count
@@ -774,7 +773,7 @@ def _cache_forecast_metadata_units(forecast):
     unit_id_to_obj = {unit.id: unit for unit in forecast.forecast_model.project.units.all()}
     sql = _cache_forecast_metadata_sql_for_forecast(True)
     with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issued_at,))
         for unit_id in batched_rows(cursor):
             ForecastMetaUnit.objects.create(forecast=forecast, unit=unit_id_to_obj[unit_id[0]])
 
@@ -784,7 +783,7 @@ def _cache_forecast_metadata_targets(forecast):
     target_id_to_object = {target.id: target for target in forecast.forecast_model.project.targets.all()}
     sql = _cache_forecast_metadata_sql_for_forecast(False)
     with connection.cursor() as cursor:
-        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issue_date,))
+        cursor.execute(sql, (forecast.forecast_model.pk, forecast.time_zero.pk, forecast.issued_at,))
         for target_id in batched_rows(cursor):
             ForecastMetaTarget.objects.create(forecast=forecast, target=target_id_to_object[target_id[0]])
 
@@ -802,12 +801,12 @@ def _cache_forecast_metadata_sql_for_forecast(is_units):
                    pred_ele.is_retract             AS is_retract,
                    RANK() OVER (
                        PARTITION BY f.forecast_model_id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
-                       ORDER BY f.issue_date DESC) AS rownum
+                       ORDER BY f.issued_at DESC) AS rownum
             FROM {PredictionElement._meta.db_table} AS pred_ele
                      JOIN {Forecast._meta.db_table} AS f ON pred_ele.forecast_id = f.id
             WHERE f.forecast_model_id = %s
               AND f.time_zero_id = %s
-              AND f.issue_date <= %s
+              AND f.issued_at <= %s
         )
         SELECT DISTINCT ranked_rows.unit_or_target_id
         FROM ranked_rows

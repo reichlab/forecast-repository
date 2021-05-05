@@ -194,12 +194,12 @@ def project_forecasts(request, project_pk):
     # create forecasts table data
     forecast_rows = []  # filled next
     rows_qs = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
-        .values_list('id', 'issue_date', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
+        .values_list('id', 'issued_at', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
                      'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
-    for f_id, f_issue_date, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
+    for f_id, f_issued_at, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
         counts = forecast_id_to_counts[f_id]  # [None, None, None] if forecast_id is None (via defauldict)
         num_rows = sum(counts[0]) if counts[0] is not None else 0
-        forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issue_date, f_created_at,
+        forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issued_at, f_created_at,
                               reverse('model-detail', args=[fm_id]), fm_abbrev, num_rows))
 
     return render(request, 'project_forecasts.html',
@@ -212,7 +212,7 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
     """
     A `project_forecasts()` helper that returns a Vega-Lite spec dict for a heatmap of all forecasts in project.
     """
-    fm_tz_ids_to_f_id = latest_forecast_ids_for_project(project, False)  # ones with latest issue_date
+    fm_tz_ids_to_f_id = latest_forecast_ids_for_project(project, False)  # ones with latest issued_at
     tz_id_dates = project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date')
     values = []
     for fm_id, fm_abbrev in project.models.all().order_by('abbreviation').values_list('id', 'abbreviation'):
@@ -342,7 +342,7 @@ def query_project(request, project_pk, query_type):
             default_query['types'] = ['point']
             first_forecast = Forecast.objects.filter(forecast_model__project=project).first()
             if first_forecast:
-                default_query['as_of'] = first_forecast.issue_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+                default_query['as_of'] = first_forecast.issued_at.strftime(YYYY_MM_DD_DATE_FORMAT)
         form = QueryForm(project, query_type, initial={'query': json.dumps(default_query)})
 
     # render
@@ -831,8 +831,8 @@ class ForecastModelDetailView(UserPassesTestMixin, DetailView):
         # project, with forecast=None for any that are missing. first we get all of the model's projects TimeZeros,
         # then get all of the model's forecasts, then do an in-memory "join" to get the missing ones
         tz_to_forecasts = defaultdict(list)  # TimeZero -> list of its Forecasts ("versions")
-        for forecast in forecast_model.forecasts.select_related('time_zero').order_by('issue_date'):
-            # order_by('issue_date') allows us to deterministically name versions by index
+        for forecast in forecast_model.forecasts.select_related('time_zero').order_by('issued_at'):
+            # order_by('issued_at') allows us to deterministically name versions by index
             tz_to_forecasts[forecast.time_zero].append(forecast)
 
         timezero_forecast_pairs = []  # TimeZero, Forecast, version_str
@@ -893,10 +893,10 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # determine my version_str - must examine all forecasts for my timezero, similar to
         # `views.ForecastModelDetailView.get_context_data()`.
-        # order_by('issue_date') allows us to deterministically name versions by index
+        # order_by('issued_at') allows us to deterministically name versions by index
         forecast_version_ids = Forecast.objects \
             .filter(forecast_model=forecast.forecast_model, time_zero=forecast.time_zero) \
-            .order_by('issue_date') \
+            .order_by('issued_at') \
             .values_list('id', flat=True)
         forecast_version_ids = list(forecast_version_ids)
         version_str_ids = [(f"{forecast_version_ids.index(version_id) + 1} of {len(forecast_version_ids)}",
@@ -1219,7 +1219,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                       context={'title': "Error uploading file.",
                                'message': f"new forecast was not a unique version. "
                                           f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}, "
-                                          f"issue_date=~{django.utils.timezone.now().date()}, "
+                                          f"issued_at=~{django.utils.timezone.now()}, "
                                           f"file_name='{data_file.name}', "
                                           f"forecast_model={forecast_model}. error={ie}"})
 

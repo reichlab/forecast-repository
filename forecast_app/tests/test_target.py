@@ -214,7 +214,7 @@ class TargetTestCase(TestCase):
 
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         forecast.save()
         forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
 

@@ -3,6 +3,7 @@ import datetime
 import io
 import json
 
+import dateutil
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.db import connection, transaction
@@ -45,8 +46,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
     - 'types': optional list of type strings as defined in PRED_CLASS_INT_TO_NAME.values()
 
-    The sixth key allows searching based on `Forecast.issue_date`:
-    - 'as_of': optional inclusive issue_date in YYYY_MM_DD_DATE_FORMAT to limit the search to. the default behavior if
+    The sixth key allows searching based on `Forecast.issued_at`:
+    - 'as_of': optional inclusive issued_at in YYYY_MM_DD_DATE_FORMAT to limit the search to. the default behavior if
                not passed is to use the newest forecast for each TimeZero.
 
     Note that _strings_ are passed to refer to object *contents*, not database IDs, which means validation will fail if
@@ -62,7 +63,10 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     logger.debug(f"query_forecasts_for_project(): 1/3 validating query. query={query}, project={project}")
 
     # validate query
-    _, (model_ids, unit_ids, target_ids, timezero_ids, type_ints) = validate_forecasts_query(project, query)
+    error_messages, (model_ids, unit_ids, target_ids, timezero_ids, type_ints, as_of) = \
+        validate_forecasts_query(project, query)
+    if error_messages:
+        raise RuntimeError(f"invalid query. query={query}, errors={error_messages}")
 
     forecast_model_id_to_obj = {forecast_model.pk: forecast_model for forecast_model in project.models.all()}
     timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
@@ -73,7 +77,6 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     yield FORECAST_CSV_HEADER
 
     # get the SQL then execute and iterate over resulting data
-    as_of = query.get('as_of', None)
     sql = _query_forecasts_sql_for_pred_class(type_ints, model_ids, unit_ids, target_ids, timezero_ids, as_of, True)
     logger.debug(f"query_forecasts_for_project(): 2/3 executing sql. type_ints, model_ids, unit_ids, target_ids, "
                  f"timezero_ids, as_of= {type_ints}, {model_ids}, {unit_ids}, {target_ids}, {timezero_ids}, "
@@ -140,13 +143,13 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     :param unit_ids: "" Unit ""
     :param target_ids: "" Target ""
     :param timezero_ids: "" TimeZero ""
-    :param as_of: optional as_of date
+    :param as_of: optional as_of timezone-aware datetime object, or None if not passed in query
     :param is_exclude_oracle: True if oracle forecasts should be excluded from results
     :param is_include_retract: as passed to query_forecasts_for_project()
     :return SQL to execute. returns columns as described above
     """
-    # about the query: the ranked_rows CTE groups prediction elements and then ranks then in issue_date order, which
-    # implements our masking (newer issue_dates mask older ones) and merging (discarded duplicates are merged back in
+    # about the query: the ranked_rows CTE groups prediction elements and then ranks then in issued_at order, which
+    # implements our masking (newer issued_ats mask older ones) and merging (discarded duplicates are merged back in
     # via previous versions) search semantics. it is crucial that the CTE /not/ include is_retract b/c that's how
     # retractions are implemented: they are ranked higher than the prediction elements they mask if they're newer.
     # retracted ones are optionally removed in the outer query. the outer query's LEFT JOIN is to cover retractions,
@@ -157,7 +160,11 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
     and_unit_ids = f"AND pred_ele.unit_id IN ({', '.join(map(str, unit_ids))})" if unit_ids else ""
     and_target_ids = f"AND pred_ele.target_id IN ({', '.join(map(str, target_ids))})" if target_ids else ""
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
-    and_issue_date = f"AND f.issue_date <= '{as_of}'" if as_of else ""
+
+    # NB: `as_of.isoformat()` (e.g., '2021-05-05T16:11:47.302099+00:00') works with postgres but not sqlite. however,
+    # the default str ('2021-05-05 16:11:47.302099+00:00') works with both:
+    and_issued_at = f"AND f.issued_at <= '{as_of}'" if as_of else ""
+
     and_is_retract = "" if is_include_retract else "AND NOT is_retract"
     sql = f"""
         WITH ranked_rows AS (
@@ -170,13 +177,13 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
                    pred_ele.is_retract             AS is_retract,
                    RANK() OVER (
                        PARTITION BY fm.id, f.time_zero_id, pred_ele.unit_id, pred_ele.target_id, pred_ele.pred_class
-                       ORDER BY f.issue_date DESC) AS rownum
+                       ORDER BY f.issued_at DESC) AS rownum
             FROM {PredictionElement._meta.db_table} AS pred_ele
                              JOIN {Forecast._meta.db_table} AS f
             ON pred_ele.forecast_id = f.id
                 JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
             WHERE fm.project_id = %s
-                {and_oracle} {and_model_ids} {and_pred_classes} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issue_date}
+                {and_oracle} {and_model_ids} {and_pred_classes} {and_unit_ids} {and_target_ids} {and_timezero_ids} {and_issued_at}
         )
         SELECT ranked_rows.fm_id       AS fm_id,
                ranked_rows.tz_id       AS tz_id,
@@ -210,17 +217,17 @@ def validate_forecasts_query(project, query):
 
     :param project: as passed from `query_forecasts_for_project()`
     :param query: ""
-    :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)) . notice the second
-        element is itself a 5-tuple of validated object IDs. there are two cases, which determine the return values:
-        1) valid query: error_messages is [], and ID lists are valid integers. 2) invalid query: error_messages is a
-        list of strings, and the ID lists are all []. Note that types is converted to ints via
-        PRED_CLASS_NAME_TO_INT.
+    :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)) . notice the
+        second element is itself a 6-tuple of validated object IDs. there are two cases, which determine the return
+        values: 1) valid query: error_messages is [], and ID lists are valid integers. as_of is either None (if not
+        passed) or a timezone-aware datetime object. 2) invalid query: error_messages is a list of strings, and the ID
+        lists are all []. Note that types is converted to ints via PRED_CLASS_NAME_TO_INT.
     """
     from utils.forecast import PRED_CLASS_INT_TO_NAME  # avoid circular imports
 
 
     # return value. filled next
-    error_messages, model_ids, unit_ids, target_ids, timezero_ids, types = [], [], [], [], [], []
+    error_messages, model_ids, unit_ids, target_ids, timezero_ids, types, as_of = [], [], [], [], [], [], None
 
     # validate query type
     if not isinstance(query, dict):
@@ -234,20 +241,25 @@ def validate_forecasts_query(project, query):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
-        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
-    # validate as_of
-    as_of = query.get('as_of', None)
-    if as_of is not None:
-        if type(as_of) != str:
-            error_messages.append(f"'as_of' was not a string: '{type(as_of)}'")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+    # validate as_of if passed. must be parsable as a timezone-aware datetime
+    as_of_str = query.get('as_of', None)
+    if as_of_str is not None:
+        if type(as_of_str) != str:
+            error_messages.append(f"'as_of' was not a string: '{type(as_of_str)}'")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
+        # parse as_of using dateutil's flexible parser and then check for timezone info. error if none found
         try:
-            datetime.datetime.strptime(as_of, YYYY_MM_DD_DATE_FORMAT).date()
-        except ValueError:
-            error_messages.append(f"'as_of' was not in YYYY-MM-DD format: {type(as_of)}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+            as_of = dateutil.parser.parse(as_of_str)
+            if as_of.tzinfo is None:
+                error_messages.append(f"'as_of' did not contain timezone info: {as_of_str!r}. parsed as: '{as_of}'")
+                as_of = None
+                return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+        except dateutil.parser._parser.ParserError as pe:
+            error_messages.append(f"error parsing 'as_of' datetime format: {as_of_str!r}: {pe}")
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
@@ -259,12 +271,12 @@ def validate_forecasts_query(project, query):
         if not (set(types) <= valid_prediction_types):
             error_messages.append(f"one or more types were invalid prediction types. types={set(types)}, "
                                   f"valid_prediction_types={valid_prediction_types}, query={query}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
         types = [PRED_CLASS_NAME_TO_INT[class_name] for class_name in types]
 
     # done (may or may not be valid)
-    return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types)]
+    return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
 
 #

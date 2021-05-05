@@ -28,6 +28,7 @@ django-compressor = "*"
 django-libsass = "*"
 brotlipy = "*"
 jsonfield = "*"
+python-dateutil = "*"
 
 [dev-packages]
 

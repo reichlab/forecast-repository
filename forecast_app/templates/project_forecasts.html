@@ -59,22 +59,22 @@
             <tr>
                 <th>Model</th>
                 <th>Timezero</th>
-                <th>Issue Date</th>
+                <th>Issued at</th>
                 <th>Upload Time</th>
                 <th># Predictions</th>
             </tr>
             </thead>
             <tbody>
-            {% for forecast_url, timezero_date, issue_date, created_at, model_url, model_abbrev, num_pred_eles in forecast_rows %}
+            {% for forecast_url, timezero_date, issued_at, created_at, model_url, model_abbrev, num_pred_eles in forecast_rows %}
                 <tr>
                     <td><a href="{{ model_url }}">{{ model_abbrev }}</a></td>
                     <td><a href="{{ forecast_url }}">{{ timezero_date|date:"Y-m-d" }}</a></td>
                     <td>
                         {# handle whether datetimes came from db as objects or strings #}
-                        {% if issue_date|get_class == 'date' %}
-                            {{ issue_date|date:"Y-m-d" }}
+                        {% if issued_at|get_class == 'datetime' %}
+                            {{ issued_at|date:"Y-m-d H:i:s T" }}
                         {% else %}
-                            {{ issue_date }}
+                            {{ issued_at }}
                         {% endif %}
                     </td>
                     <td>

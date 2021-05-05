@@ -468,9 +468,9 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
                                           f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-        # check for existing forecast for time_zero and the about-to-be-set issue_date by creating the new Forecast.
+        # check for existing forecast for time_zero and the about-to-be-set issued_at by creating the new Forecast.
         # this will fail if there's already a version that matches the 'unique_version' constraint ('forecast_model',
-        # 'time_zero', 'issue_date'). we pass the new Forecast's id through `_upload_file()` to
+        # 'time_zero', 'issued_at'). we pass the new Forecast's id through `_upload_file()` to
         # `_upload_forecast_worker()`, which will delete the forecast if the file is invalid. note: source is set to
         # filename via `_upload_file()`
         notes = request.data.get('notes', '')
@@ -479,7 +479,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
         except IntegrityError as ie:
             return JsonResponse({'error': f"new forecast was not a unique version. "
                                           f"time_zero={time_zero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}, "
-                                          f"issue_date=~{django.utils.timezone.now().date()}, "
+                                          f"issued_at=~{django.utils.timezone.now()}, "
                                           f"file_name='{data_file.name}', "
                                           f"forecast_model={forecast_model}. error={ie}"},
                                 status=status.HTTP_400_BAD_REQUEST)
@@ -607,7 +607,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
         Allows setting a single Forecast field. Currently supported fields are:
         - source: a string
         - notes: a string
-        - issue_date: a date in YYYY_MM_DD_DATE_FORMAT
+        - issued_at: a date in https://docs.python.org/3/library/datetime.html#datetime.datetime.fromisoformat
         """
         forecast = self.get_object()
         if not is_user_ok_delete_forecast(request.user, forecast):
@@ -621,19 +621,18 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
             forecast.notes = request.data['notes']
             forecast.save()
             return Response(status=status.HTTP_200_OK)
-        elif 'issue_date' in request.data:
-            issue_date_str = request.data['issue_date']
+        elif 'issued_at' in request.data:
+            issued_at_str = request.data['issued_at']
             try:
-                issue_date = datetime.datetime.strptime(issue_date_str, YYYY_MM_DD_DATE_FORMAT).date()
-                forecast.issue_date = issue_date
+                forecast.issued_at = datetime.datetime.fromisoformat(issued_at_str)
                 forecast.save()
                 return Response(status=status.HTTP_200_OK)
             except ValueError:
-                return JsonResponse({'error': f"'issue_date' was not in YYYY-MM-DD format: {issue_date_str!r}"},
+                return JsonResponse({'error': f"'issued_at' was not in YYYY-MM-DD format: {issued_at_str!r}"},
                                     status=status.HTTP_400_BAD_REQUEST)
         else:
             return JsonResponse({'error': f"Could not find supported field in data: {list(request.data.keys())}. "
-                                          f"Supported fields: 'source', 'issue_date'"},
+                                          f"Supported fields: 'source', 'issued_at'"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
 

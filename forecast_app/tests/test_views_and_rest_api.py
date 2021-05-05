@@ -93,7 +93,7 @@ class ViewsTestCase(TestCase):
                                                         abbreviation='abbrev5', description='',
                                                         home_url='http://example.com', owner=cls.mo_user)
         cls.public_forecast = load_cdc_csv_forecast_file(2016, cls.public_model, cls.csv_file_path, cls.public_tz1)
-        cls.public_forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.public_forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         cls.public_forecast.save()
 
         # private_model
@@ -104,7 +104,7 @@ class ViewsTestCase(TestCase):
         cls.private_forecast = load_cdc_csv_forecast_file(2016, cls.private_model,
                                                           Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-tiny.csv'),
                                                           cls.private_tz1)
-        cls.private_forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.private_forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         cls.private_forecast.save()
 
         # user/response pairs for testing authorization
@@ -650,13 +650,13 @@ class ViewsTestCase(TestCase):
 
         response = self.client.get(reverse('api-forecast-list', args=[self.public_model.pk]), format='json')
         response_dicts = json.loads(response.content)
-        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issue_date', 'notes',
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issued_at', 'notes',
                     'forecast_data']
         self.assertEqual(1, len(response_dicts))
         self.assertEqual(exp_keys, list(response_dicts[0]))
 
         response = self.client.get(reverse('api-forecast-detail', args=[self.public_forecast.pk]), format='json')
-        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issue_date', 'notes',
+        exp_keys = ['id', 'url', 'forecast_model', 'source', 'time_zero', 'created_at', 'issued_at', 'notes',
                     'forecast_data']
         self.assertEqual(exp_keys, list(response.data))
 
@@ -812,8 +812,6 @@ class ViewsTestCase(TestCase):
         private_forecast2 = load_cdc_csv_forecast_file(2016, self.private_model,
                                                        Path('forecast_app/tests/EW1-KoTsarima-2017-01-17-small.csv'),
                                                        self.private_tz1)
-        private_forecast2.issue_date += datetime.timedelta(days=2)
-        private_forecast2.save()
         with patch('rq.queue.Queue.enqueue') as enqueue_mock:
             json_response = self.client.delete(reverse('api-forecast-detail', args=[private_forecast2.pk]))  # enqueues
             response_json = json_response.json()  # JobSerializer
@@ -1445,12 +1443,12 @@ class ViewsTestCase(TestCase):
 
         # case: unsupported field
         json_response = self.client.patch(forecast_url, {
-            # no 'source' or 'issue_date' in payload
+            # no 'source' or 'issued_at' in payload
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
         self.assertEqual({'error': "Could not find supported field in data: ['Authorization']. Supported fields: "
-                                   "'source', 'issue_date'"},
+                                   "'source', 'issued_at'"},
                          json_response.json())
 
         # case: set source: blue sky
@@ -1477,27 +1475,26 @@ class ViewsTestCase(TestCase):
         self.assertNotEqual(old_notes, forecast.notes)
         self.assertEqual(new_notes_str, forecast.notes)
 
-        # case: set issue_date: bad date format
+        # case: set issued_at: bad date format
         json_response = self.client.patch(forecast_url, {
-            'issue_date': '20201110',
+            'issued_at': '20201110',
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-        self.assertEqual({'error': "'issue_date' was not in YYYY-MM-DD format: '20201110'"},
+        self.assertEqual({'error': "'issued_at' was not in YYYY-MM-DD format: '20201110'"},
                          json_response.json())
 
-        # case: set issue_date: blue sky
-        old_issue_date = forecast.issue_date
-        new_issue_date_str = '2020-10-11'
+        # case: set issued_at: blue sky
+        old_issued_at = forecast.issued_at
+        new_issued_at_str = '2011-11-04T00:05:23+04:00'  # includes timezone
         json_response = self.client.patch(forecast_url, {
-            'issue_date': new_issue_date_str,
+            'issued_at': new_issued_at_str,
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         forecast.refresh_from_db()
         self.assertEqual(status.HTTP_200_OK, json_response.status_code)
-        self.assertNotEqual(old_issue_date, forecast.issue_date)
-        self.assertEqual(datetime.datetime.strptime(new_issue_date_str, YYYY_MM_DD_DATE_FORMAT).date(),
-                         forecast.issue_date)
+        self.assertNotEqual(old_issued_at, forecast.issued_at)
+        self.assertEqual(datetime.datetime.fromisoformat(new_issued_at_str), forecast.issued_at)
 
 
     def _authenticate_jwt_user(self, user, password):

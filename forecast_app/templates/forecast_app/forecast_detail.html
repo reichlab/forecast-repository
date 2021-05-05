@@ -56,9 +56,9 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Issue date:</th>
+                    <th>Issued at:</th>
                     <td>
-                        {{ forecast.issue_date|date:"Y-m-d" }}
+                        {{ forecast.issued_at|date:"Y-m-d H:i:s T" }}
                         <div class="dropdown show d-inline-block">
                             <button class="btn btn-light btn-sm dropdown-toggle" id="dropdownMenuLink"
                                     data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

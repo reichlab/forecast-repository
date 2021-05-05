@@ -56,19 +56,18 @@ class ProjectQueriesTestCase(TestCase):
             self.assertEqual(1, len(error_messages))
             self.assertIn(f"'{key_name}' was not a list", error_messages[0])
 
-        # case: as_of is not a string, or is not a date in YYYY_MM_DD_DATE_FORMAT
+        # case: as_of is not a string, is not a datetime, or does not have timezone info
         error_messages, _ = validate_forecasts_query(self.project, {'as_of': -1})
         self.assertEqual(1, len(error_messages))
         self.assertIn(f"'as_of' was not a string", error_messages[0])
 
-        error_messages, _ = validate_forecasts_query(self.project, {'as_of': '20201011'})
+        error_messages, _ = validate_forecasts_query(self.project, {'as_of': '202010119'})
         self.assertEqual(1, len(error_messages))
-        self.assertIn(f"'as_of' was not in YYYY-MM-DD format", error_messages[0])
+        self.assertIn(f"error parsing 'as_of' datetime format", error_messages[0])
 
-        try:
-            validate_forecasts_query(self.project, {'as_of': '2020-10-11'})
-        except Exception as ex:
-            self.fail(f"unexpected exception: {ex}")
+        error_messages, _ = validate_forecasts_query(self.project, {'as_of': '2020-10-11'})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn(f"'as_of' did not contain timezone info", error_messages[0])
 
         # case: bad object reference
         for key_name, exp_error_msg in [('models', 'model with abbreviation not found'),
@@ -497,7 +496,7 @@ class ProjectQueriesTestCase(TestCase):
         """
         tests the case in [Add forecast versioning](https://github.com/reichlab/forecast-repository/issues/273):
 
-        Here's an example database with versions (header is timezeros, rows are forecast `issue_date`s). Each forecast
+        Here's an example database with versions (header is timezeros, rows are forecast `issued_at`s). Each forecast
         only has one point prediction:
 
         +-----+-----+-----+
@@ -541,7 +540,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "class": "point",
                                          "prediction": {"value": 2.1}}]}
         load_predictions_from_json_io_dict(f1, json_io_dict, is_validate_cats=False)
-        f1.issue_date = tz1.timezero_date
+        f1.issued_at = datetime.datetime.combine(tz1.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f1.save()
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz3)
@@ -550,7 +549,8 @@ class ProjectQueriesTestCase(TestCase):
                                          "class": "point",
                                          "prediction": {"value": 2.0}}]}
         load_predictions_from_json_io_dict(f2, json_io_dict, is_validate_cats=False)
-        f2.issue_date = tz3.timezero_date + datetime.timedelta(days=1)
+        f2.issued_at = datetime.datetime.combine(tz3.timezero_date, datetime.time(),
+                                                 tzinfo=datetime.timezone.utc) + datetime.timedelta(days=1)
         f2.save()
 
         f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
@@ -559,7 +559,8 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": "location3", "target": "pct next week", "class": "point", "prediction": {"value": 3.567}}]  # new
         }
         load_predictions_from_json_io_dict(f3, json_io_dict, is_validate_cats=False)
-        f3.issue_date = tz1.timezero_date + datetime.timedelta(days=18)
+        f3.issued_at = datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                 tzinfo=datetime.timezone.utc) + datetime.timedelta(days=18)
         f3.save()
 
         f4 = Forecast.objects.create(forecast_model=forecast_model, source='f4', time_zero=tz2)
@@ -568,7 +569,7 @@ class ProjectQueriesTestCase(TestCase):
                                          "class": "point",
                                          "prediction": {"value": 10}}]}
         load_predictions_from_json_io_dict(f4, json_io_dict, is_validate_cats=False)
-        f4.issue_date = f3.issue_date
+        f4.issued_at = f3.issued_at
         f4.save()
 
         # case: default (no `as_of`): all rows (no values are "shadowed")
@@ -581,31 +582,36 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows, sorted(act_rows))
 
         # case: 10/20: same as default
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-20'}))
+        as_of = datetime.datetime.combine(datetime.date(2011, 10, 20), datetime.time(), tzinfo=datetime.timezone.utc)
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/21: same as default
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-21'}))
+        as_of = datetime.datetime.combine(datetime.date(2011, 10, 21), datetime.time(), tzinfo=datetime.timezone.utc)
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/1: none
         exp_rows = []
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-01'}))
+        as_of = datetime.datetime.combine(datetime.date(2011, 10, 1), datetime.time(), tzinfo=datetime.timezone.utc)
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/3: just f1
         exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1]]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-03'}))
+        as_of = datetime.datetime.combine(datetime.date(2011, 10, 2), datetime.time(), tzinfo=datetime.timezone.utc)
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         # case: 10/18: f1 and f2
         exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1],
                     ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': '2011-10-18'}))
+        as_of = datetime.datetime.combine(datetime.date(2011, 10, 18), datetime.time(), tzinfo=datetime.timezone.utc)
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -613,14 +619,14 @@ class ProjectQueriesTestCase(TestCase):
     def test_as_of_versions_setting_0(self):
         """
         tests the case where users have updated only parts of a former forecast, which breaks `as_of` functionality as
-        initially written (it was operating at the forecast/timezero/issue_date level, not factoring in the
+        initially written (it was operating at the forecast/timezero/issued_at level, not factoring in the
         unit/target level). this example is from [Zoltar as_of query examples](https://docs.google.com/spreadsheets/d/1lT-WhgUG5vgonqjO_AvUDfXpNMC-alC7VHUzP4EJz7E/edit?ts=5fce8828#gid=0).
         NB: for convenience we adapt this example to use docs-project.json timezeros, units, and targets.
 
         forecasts:
         +-------------+----------+------------+------------+------+--------+-------+
         |    key      |           forecast table           |    prediction table   |
-        | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        | forecast_id | model_id | issued_at | timezero   | unit | target | value |
         +-------------+----------+------------+------------+------+--------+-------+
         | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |  'tzd' = TimeZero.timezero_date
         | f1          | modelA   | tz1.tzd    | tz1        | u2   | t1     | 6     |
@@ -630,7 +636,7 @@ class ProjectQueriesTestCase(TestCase):
 
         desired as_of query {all units, all targets, all timezeroes, all models, as_of = tz2.tzd} returns:
         +-------------+----------+------------+------------+------+--------+-------+
-        | forecast_id | model_id | issue_date | timezero   | unit | target | value |
+        | forecast_id | model_id | issued_at | timezero   | unit | target | value |
         +-------------+----------+------------+------------+------+--------+-------+
         | f1          | modelA   | tz1.tzd    | tz1        | u1   | t1     | 4     |
         | f2          | modelA   | tz2.tzd    | tz1        | u2   | t1     | 7     |
@@ -648,7 +654,8 @@ class ProjectQueriesTestCase(TestCase):
         json_io_dict = {"predictions": [{"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},
                                         {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 6}}]}
         load_predictions_from_json_io_dict(f1, json_io_dict, is_validate_cats=False)
-        f1.issue_date = tz1.timezero_date
+        f1.issued_at = datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                 tzinfo=datetime.timezone.utc) + datetime.timedelta(days=1)
         f1.save()
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
@@ -656,14 +663,15 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": u1, "target": t1, "class": "point", "prediction": {"value": 4}},  # dup
             {"unit": u2, "target": t1, "class": "point", "prediction": {"value": 7}}]}  # new
         load_predictions_from_json_io_dict(f2, json_io_dict, is_validate_cats=False)
-        f2.issue_date = tz2.timezero_date
+        f2.issued_at = datetime.datetime.combine(tz2.timezero_date, datetime.time(),
+                                                 tzinfo=datetime.timezone.utc) + datetime.timedelta(days=1)
         f2.save()
 
         # case: {all units, all targets, all timezeroes, all models, as_of = tz2.tzd}
         exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
                     [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 7]]
         act_rows = list(query_forecasts_for_project(project,
-                                                    {'as_of': tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
+                                                    {'as_of': f2.issued_at.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -671,7 +679,7 @@ class ProjectQueriesTestCase(TestCase):
         exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
                     [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 6]]
         act_rows = list(query_forecasts_for_project(project,
-                                                    {'as_of': tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)}))
+                                                    {'as_of': f1.issued_at.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -702,7 +710,7 @@ class ProjectQueriesTestCase(TestCase):
              "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
         ]
         load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
-        f1.issue_date = tz1.timezero_date
+        f1.issued_at = datetime.datetime.combine(tz1.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f1.save()
         return project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1
 
@@ -727,7 +735,7 @@ class ProjectQueriesTestCase(TestCase):
         baseline table:
         +--+----------+--------+----+------+--------+----------------------------------------------+
         |       forecast       |     pred ele       |                 pred data                    |
-        |id|issue_date|timezero|unit|target| class  |                   data                       |
+        |id|issued_at|timezero|unit|target| class  |                   data                       |
         +--+----------+--------+----+------+--------+----------------------------------------------+
         |f1|tz1.tzd   |tz1     |u1  |t1    |named   | {"family": "pois", "param1": 1.1}            |
         |f1|tz1.tzd   |tz1     |u2  |t1    |point   | {"value": 5}                                 |
@@ -739,7 +747,7 @@ class ProjectQueriesTestCase(TestCase):
         case a)
         +--+----------+--------+----+------+--------+----------------------------------------------+
         |       forecast       |     pred ele       |                 pred data                    |
-        |id|issue_date|timezero|unit|target| class  |                   data                       |
+        |id|issued_at|timezero|unit|target| class  |                   data                       |
         +--+----------+--------+----+------+--------+----------------------------------------------+
         |f1|tz1.tzd   |tz1     |u1  |t1    |named   | None (retracted)                             |
         |f1|tz1.tzd   |tz1     |u2  |t1    |point   | None ""                                      |
@@ -765,7 +773,7 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": None}
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
-        f2.issue_date = tz2.timezero_date
+        f2.issued_at = datetime.datetime.combine(tz2.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f2.save()
 
         # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
@@ -781,11 +789,11 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         exp_rows = []  # no rows (all are retracted)
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -819,7 +827,7 @@ class ProjectQueriesTestCase(TestCase):
              "prediction": {"quantile": [0.25, 0.75], "value": [2, 50]}}
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
-        f2.issue_date = tz2.timezero_date
+        f2.issued_at = datetime.datetime.combine(tz2.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f2.save()
 
         # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
@@ -835,7 +843,8 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         exp_rows = [  # all rows from case table
@@ -850,7 +859,8 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 2, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -891,7 +901,7 @@ class ProjectQueriesTestCase(TestCase):
              "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
-        f2.issue_date = tz2.timezero_date
+        f2.issued_at = datetime.datetime.combine(tz2.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f2.save()
 
         # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
@@ -907,7 +917,7 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         exp_rows = [  # dotted rows
@@ -922,7 +932,7 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -959,10 +969,11 @@ class ProjectQueriesTestCase(TestCase):
             {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},  # retracted
             {"unit": u3.name, "target": t1.name, "class": "bin",  # all updated
              "prediction": {"cat": [0, 2, 50], "prob": [0.5, 0.3, 0.2]}},
-            {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
+            {"unit": u3.name, "target": t1.name, "class": "quantile",
+             "prediction": {"quantile": [0.25, 0.75], "value": [0, 50]}}
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
-        f2.issue_date = tz2.timezero_date
+        f2.issued_at = datetime.datetime.combine(tz2.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f2.save()
 
         # model,timezero,season,unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
@@ -978,7 +989,8 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz1str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         exp_rows = [  # dotted rows
@@ -990,5 +1002,6 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project, {'as_of': tz2str}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))

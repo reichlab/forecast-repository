@@ -31,7 +31,8 @@ def delete_project_iteratively(project):
     logger.info(f"* delete_project_iteratively(): deleting models and forecasts")
     for forecast_model in project.models.iterator():
         logger.info(f"- {forecast_model.pk}")
-        for forecast in forecast_model.forecasts.iterator():
+        # order by to avoid RuntimeError: you cannot delete a forecast that has any newer versions
+        for forecast in forecast_model.forecasts.order_by('-issued_at').iterator():
             logger.info(f"  = {forecast.pk}")
             forecast.delete()
         forecast_model.delete()
@@ -462,9 +463,9 @@ def models_summary_table_rows_for_project(project):
     """
     # this query has three steps: 1) a CTE that groups forecast by model, calculating for each: number of forecasts, and
     # min and max timezero_dates. 2) a CTE that joins that with forecasts and then groups to get forecasts corresponding
-    # to max timezero_dates, resulting in separate rows per forecast version (i.e., per issue_date), from which we group
-    # to get max issue_date. 3) a join on that with forecasts to get the actual forecast ids corresponding to the max
-    # issue_dates. note that this query does not return forecast ids (with max issue_dates) for min timezero_dates,
+    # to max timezero_dates, resulting in separate rows per forecast version (i.e., per issued_at), from which we group
+    # to get max issued_at. 3) a join on that with forecasts to get the actual forecast ids corresponding to the max
+    # issued_ats. note that this query does not return forecast ids (with max issued_ats) for min timezero_dates,
     # which means we cannot link to them, only to the newest forecasts.
     #
     # final columns (one row/forecast model):
@@ -472,7 +473,7 @@ def models_summary_table_rows_for_project(project):
     # - f_count: total number of forecasts in the model
     # - min_time_zero_date, max_time_zero_date: min and max TimeZero.timezero_date in the model
     # - f_id, f_created_at: Forecast.id and created_at for the forecast matching max_time_zero_date and the max
-    #                       issue_date for that
+    #                       issued_at for that
     sql = f"""
         WITH
             fm_min_max_tzs AS (
@@ -485,12 +486,12 @@ def models_summary_table_rows_for_project(project):
                          JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
                 WHERE fm.project_id = %s AND NOT fm.is_oracle
                 GROUP BY f.forecast_model_id),
-            fm_max_issue_dates AS (
+            fm_max_issued_ats AS (
                 SELECT fm_min_max_tzs.fm_id              AS fm_id,
                        fm_min_max_tzs.f_count            AS f_count,
                        fm_min_max_tzs.min_time_zero_date AS min_time_zero_date,
                        fm_min_max_tzs.max_time_zero_date AS max_time_zero_date,
-                       MAX(f.issue_date)                 AS max_issue_date
+                       MAX(f.issued_at)                  AS max_issued_at
                 FROM fm_min_max_tzs
                          JOIN {TimeZero._meta.db_table} AS tz ON tz.timezero_date = fm_min_max_tzs.max_time_zero_date
                          JOIN {Forecast._meta.db_table} AS f
@@ -500,18 +501,18 @@ def models_summary_table_rows_for_project(project):
                          fm_min_max_tzs.f_count,
                          fm_min_max_tzs.min_time_zero_date,
                          fm_min_max_tzs.max_time_zero_date)
-        SELECT fm_max_issue_dates.fm_id              AS fm_id,
-               fm_max_issue_dates.f_count            AS f_count,
-               fm_max_issue_dates.min_time_zero_date AS min_time_zero_date,
-               fm_max_issue_dates.max_time_zero_date AS max_time_zero_date,
+        SELECT fm_max_issued_ats.fm_id               AS fm_id,
+               fm_max_issued_ats.f_count             AS f_count,
+               fm_max_issued_ats.min_time_zero_date  AS min_time_zero_date,
+               fm_max_issued_ats.max_time_zero_date  AS max_time_zero_date,
                f.id                                  AS f_id,
                f.created_at                          AS f_created_at
-        FROM fm_max_issue_dates
-                 JOIN {TimeZero._meta.db_table} AS tz ON tz.timezero_date = fm_max_issue_dates.max_time_zero_date
+        FROM fm_max_issued_ats
+                 JOIN {TimeZero._meta.db_table} AS tz ON tz.timezero_date = fm_max_issued_ats.max_time_zero_date
                  JOIN {Forecast._meta.db_table} AS f
-                      ON f.forecast_model_id = fm_max_issue_dates.fm_id
+                      ON f.forecast_model_id = fm_max_issued_ats.fm_id
                           AND f.time_zero_id = tz.id
-                          AND f.issue_date = fm_max_issue_dates.max_issue_date;
+                          AND f.issued_at = fm_max_issued_ats.max_issued_at;
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
@@ -705,25 +706,25 @@ def target_rows_for_project(project):
 def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timezero_ids=None):
     """
     A multi-purpose utility that returns the latest forecast IDs for all forecasts in project by honoring
-    `Forecast.issue_date`. Args customize filtering and return value.
+    `Forecast.issued_at`. Args customize filtering and return value.
 
     :param project: a Project
     :param is_only_f_id: boolean that controls the return value: True: return a list of the latest forecast IDs.
         False: Return a a dict that maps (forecast_model_id, timezero_id) 2-tuples to the latest forecast's forecast_id
     :param model_ids: optional list of ForecastModel.ids to filter by. None means include all models
     :param timezero_ids: "" Timezero.ids "". None means include all TimeZeros
-    :param as_of: optional date string in YYYY_MM_DD_DATE_FORMAT used for filter based on `Forecast.issue_date`. (note
+    :param as_of: optional date string in YYYY_MM_DD_DATE_FORMAT used for filter based on `Forecast.issued_at`. (note
         that both postgres and sqlite3 support that literal format)
     """
     # build up the query based on args
-    select_ids = "f.id AS f_id" if is_only_f_id else "fm_tz_max_issue_dates.fm_id AS fm_id, fm_tz_max_issue_dates.tz_id AS tz_id, f.id AS f_id"
+    select_ids = "f.id AS f_id" if is_only_f_id else "fm_tz_max_issued_ats.fm_id AS fm_id, fm_tz_max_issued_ats.tz_id AS tz_id, f.id AS f_id"
     and_model_ids = f"AND fm.id IN ({', '.join(map(str, model_ids))})" if model_ids else ""
     and_timezero_ids = f"AND f.time_zero_id IN ({', '.join(map(str, timezero_ids))})" if timezero_ids else ""
     sql = f"""
-        WITH fm_tz_max_issue_dates AS (
+        WITH fm_tz_max_issued_ats AS (
             SELECT f.forecast_model_id AS fm_id,
                    f.time_zero_id      AS tz_id,
-                   MAX(f.issue_date)   AS max_issue_date
+                   MAX(f.issued_at)    AS max_issued_at
             FROM {Forecast._meta.db_table} AS f
                      JOIN {TimeZero._meta.db_table} AS tz ON f.time_zero_id = tz.id
                      JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
@@ -731,11 +732,11 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
             GROUP BY f.forecast_model_id, f.time_zero_id
         )
         SELECT {select_ids}
-        FROM fm_tz_max_issue_dates
+        FROM fm_tz_max_issued_ats
                  JOIN {Forecast._meta.db_table} AS f
-                      ON f.forecast_model_id = fm_tz_max_issue_dates.fm_id
-                          AND f.time_zero_id = fm_tz_max_issue_dates.tz_id
-                          AND f.issue_date = fm_tz_max_issue_dates.max_issue_date;
+                      ON f.forecast_model_id = fm_tz_max_issued_ats.fm_id
+                          AND f.time_zero_id = fm_tz_max_issued_ats.tz_id
+                          AND f.issued_at = fm_tz_max_issued_ats.max_issued_at;
     """
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))

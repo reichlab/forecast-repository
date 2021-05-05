@@ -35,7 +35,7 @@ class ForecastTestCase(TestCase):
         cls.time_zero = TimeZero.objects.create(project=cls.project, timezero_date=datetime.date(2017, 1, 1))
         csv_file_path = Path('forecast_app/tests/model_error/ensemble/EW1-KoTstable-2017-01-17.csv')  # EW01 2017
         cls.forecast = load_cdc_csv_forecast_file(2016, cls.forecast_model, csv_file_path, cls.time_zero)
-        cls.forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         cls.forecast.save()
 
 
@@ -223,7 +223,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual({'targets', 'forecast', 'units'}, set(out_meta.keys()))
         self.assertEqual({'cats', 'unit', 'name', 'is_step_ahead', 'type', 'description', 'id', 'url'},
                          set(out_meta['targets'][0].keys()))
-        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'issue_date', 'notes', 'forecast_data', 'source',
+        self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'issued_at', 'notes', 'forecast_data', 'source',
                           'id', 'url'},
                          set(out_meta['forecast'].keys()))
         self.assertEqual({'id', 'name', 'url'}, set(out_meta['units'][0].keys()))
@@ -308,7 +308,7 @@ class ForecastTestCase(TestCase):
         # exceptions that cause deletes: JobTimeoutException and Exception
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         forecast.save()
 
         for exception, exp_job_status in [(Exception('load_preds_mock Exception'), Job.FAILED),
@@ -339,7 +339,7 @@ class ForecastTestCase(TestCase):
         # function's use of the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         forecast.save()
 
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
@@ -376,7 +376,7 @@ class ForecastTestCase(TestCase):
         # of the `job_cloud_file` context manager. solution is per https://stackoverflow.com/questions/60198229/python-patch-context-manager-to-return-object
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         forecast.save()
 
         with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \

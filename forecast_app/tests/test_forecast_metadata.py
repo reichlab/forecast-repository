@@ -23,7 +23,7 @@ class ForecastMetadataTestCase(TestCase):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         cls.project, cls.time_zero, cls.forecast_model, cls.forecast = _make_docs_project(po_user)
         clear_forecast_metadata(cls.forecast)
-        cls.forecast.issue_date -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        cls.forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
         cls.forecast.save()
 
 

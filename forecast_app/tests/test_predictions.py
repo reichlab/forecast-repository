@@ -226,9 +226,10 @@ class PredictionsTestCase(TestCase):
             json_io_dict = json.load(fp)
             pred_dicts = json_io_dict['predictions']  # get some prediction elements to work with (29)
 
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
+        # per https://stackoverflow.com/questions/1937622/convert-date-to-datetime-in-python/1937636 :
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                          tzinfo=datetime.timezone.utc))
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:-2]})  # all but last 2 PEs
 
         # case: load the just-loaded file into a separate timezero -> should load all rows (duplicates are only within
@@ -242,8 +243,9 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(27 + 28, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same predictions into a different version -> none should load (they're all duplicates)
-        f1.issue_date -= datetime.timedelta(days=1)
+        f1.issued_at -= datetime.timedelta(days=1)
         f1.save()
+
         f3 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1)
         load_predictions_from_json_io_dict(f3, json_io_dict, is_validate_cats=False)
         self.assertEqual(27, f1.pred_eles.count())
@@ -252,7 +254,7 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(27 + 28 + 2, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same file, but change one multi-row prediction (a sample) to have partial duplication
-        f3.issue_date -= datetime.timedelta(days=2)
+        f3.issued_at -= datetime.timedelta(days=2)
         f3.save()
         quantile_pred_dict = [pred_dict for pred_dict in json_io_dict['predictions']
                               if (pred_dict['unit'] == 'location2')

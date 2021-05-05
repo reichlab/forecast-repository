@@ -1,16 +1,14 @@
 import datetime
 import json
+import time
 from pathlib import Path
-from unittest.mock import patch
 
 import django
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework import status
 from rest_framework.test import APIClient
 
-from forecast_app.models import Forecast, TimeZero, ForecastModel, PredictionElement
+from forecast_app.models import Forecast, TimeZero, ForecastModel
 from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from_forecast, cache_forecast_metadata, \
     forecast_metadata, data_rows_from_forecast
 from utils.make_minimal_projects import _make_docs_project
@@ -31,9 +29,9 @@ class ForecastVersionsTestCase(TestCase):
     - TBC
 
     API:
-    - serializers: include `issue_date`
+    - serializers: include `issued_at`
     - model detail: include all versions
-    - forecast queries: optional `issue_date`
+    - forecast queries: optional `issued_at`
     - TBC
     """
 
@@ -48,17 +46,17 @@ class ForecastVersionsTestCase(TestCase):
 
 
     def test_multiple_forecasts_per_timezero(self):
-        # note: we do not test forecast.issue_date b/c: 1) we can trust Forecast.created_at and Forecast.issue_date are
+        # note: we do not test forecast.issued_at b/c: 1) we can trust Forecast.created_at and Forecast.issued_at are
         # correct via auto_now_add, and 2) these are not always equal due to timezone differences:
-        # self.forecast.created_at.date(), self.forecast.issue_date
+        # self.forecast.created_at.date(), self.forecast.issued_at
 
         # test starting version counts
         self.assertEqual(1, len(Forecast.objects.filter(time_zero=self.time_zero, forecast_model__is_oracle=False)))
         self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2, forecast_model__is_oracle=False)))
 
-        # add a second forecast to tz1, test count. first change issue_date so that we don't have an integrity error
+        # add a second forecast to tz1, test count. first change issued_at so that we don't have an integrity error
         # (i.e., that it looks like the same version)
-        self.forecast.issue_date -= datetime.timedelta(days=1)  # make it an older version
+        self.forecast.issued_at -= datetime.timedelta(days=1)  # make it an older version
         self.forecast.save()
 
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
@@ -71,50 +69,29 @@ class ForecastVersionsTestCase(TestCase):
         self.assertEqual(0, len(Forecast.objects.filter(time_zero=self.tz2, forecast_model__is_oracle=False)))
 
         # test that there is only one "version" of every forecast: exactly 0 or 1 forecasts are allowed with the same
-        # (timezero_id, issue_date) 2-tuple per model. do so by trying to add a second forecast for that combination.
-        # note that this could technically fail if the date changes between the two Forecast.objects.create() calls
-        # because Forecast.issue_date is auto_now_add. note that we do not test the exact message in context b/c it
-        # varies depending on the database/vendor:
+        # (timezero_id, issued_at) 2-tuple per model. do so by trying to add a second forecast for that combination.
+        # note that we do not test the exact message in context b/c it varies depending on the database/vendor:
         # - sqlite3: "UNIQUE constraint failed"
         # - postgres: "duplicate key value violates unique constraint"
-        Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
+        f1 = Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
         with self.assertRaises(django.db.utils.IntegrityError) as context:
-            Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero)
-
-
-    def test_multiple_forecasts_per_timezero_api_upload(self):
-        # similar to test_api_upload_forecast(). to avoid the requirement of RQ, redis, and S3, we patch _upload_file()
-        # to return (is_error, job) with desired return args. NB: this test is vulnerable to an edge case where
-        # midnight is spanned between when setUp() creates its forecast and post() creates the second one to test
-        # integrity constraints. in that case the two forecasts will have different issue_dates and therefore not
-        # conflict, and this test will fail
-        with patch('forecast_app.views._upload_file') as upload_file_mock:
-            upload_forecast_url = reverse('api-forecast-list', args=[str(self.forecast_model.pk)])
-            data_file = SimpleUploadedFile('file.csv', b'file_content', content_type='text/csv')
-
-            # case: existing_forecast_for_time_zero
-            jwt_token = self._authenticate_jwt_user(self.po_user, self.po_user_password)
-            json_response = self.client.post(upload_forecast_url, {
-                'data_file': data_file,
-                'Authorization': f'JWT {jwt_token}',
-                'timezero_date': '2011-10-02',  # self.tz1
-            }, format='multipart')
-            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-            self.assertIn("new forecast was not a unique version", json_response.json()['error'])
+            Forecast.objects.create(forecast_model=self.forecast_model, time_zero=self.time_zero,
+                                    issued_at=f1.issued_at)
 
 
     def test_models_summary_table_rows_for_project_case_1(self):
         # case 1/3: three timezeros, two forecasts, no versions:
-        # tz1 -- f1 - tz1.date (issue_date)
+        # tz1 -- f1 - tz1.date (issued_at)
         # tz2 -- f2 - tz2.date
         # tz3 -- x  - x
         f1 = self.forecast
-        f1.issue_date = self.tz1.timezero_date
+        # per https://stackoverflow.com/questions/1937622/convert-date-to-datetime-in-python/1937636 :
+        f1.issued_at = datetime.datetime.combine(self.tz1.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f1.save()
 
-        f2 = Forecast.objects.create(forecast_model=self.forecast_model, source='f2', time_zero=self.tz2)
-        f2.issue_date = self.tz2.timezero_date
-        f2.save()
+        f2 = Forecast.objects.create(forecast_model=self.forecast_model, source='f2', time_zero=self.tz2,
+                                     issued_at=datetime.datetime.combine(self.tz2.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
 
         # NB: we have to work around a Django bug where DateField and DateTimeField come out of the database as either
         # datetime.date/datetime.datetime objects (postgres) or strings (sqlite3). also have to convert datetime to
@@ -141,21 +118,20 @@ class ForecastVersionsTestCase(TestCase):
 
     def test_models_summary_table_rows_for_project_case_2(self):
         # case 2/3: three timezeros, three forecasts, oldest tz has two versions:
-        # tz1 -- f1 - tz1.date (issue_date)  v.1/2
+        # tz1 -- f1 - tz1.date (issued_at)  v.1/2
         #     \- f2 - tz1.date + 1           v.2/2
         # tz2 -- f3 - tz2.date
         # tz3 -- x
         f1 = self.forecast
-        f1.issue_date = self.tz1.timezero_date
+        f1.issued_at = datetime.datetime.combine(self.tz1.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f1.save()
 
-        f2 = Forecast.objects.create(forecast_model=self.forecast_model, source='f2', time_zero=self.tz1)
-        f2.issue_date = self.tz1.timezero_date + datetime.timedelta(days=1)
-        f2.save()
+        f2 = Forecast.objects.create(forecast_model=self.forecast_model, source='f2', time_zero=self.tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=1))
 
-        f3 = Forecast.objects.create(forecast_model=self.forecast_model, source='f3', time_zero=self.tz2)
-        f3.issue_date = self.tz2.timezero_date
-        f3.save()
+        f3 = Forecast.objects.create(forecast_model=self.forecast_model, source='f3', time_zero=self.tz2,
+                                     issued_at=datetime.datetime.combine(self.tz3.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
 
         exp_row = (self.forecast_model, 3,
                    str(f1.time_zero.timezero_date),  # oldest_forecast_tz_date
@@ -179,25 +155,22 @@ class ForecastVersionsTestCase(TestCase):
 
     def test_models_summary_table_rows_for_project_case_3(self):
         # case 3/3: three timezeros, four forecasts, newest tz has two versions:
-        # tz1 -- f1 - tz1.date (issue_date)
+        # tz1 -- f1 - tz1.date (issued_at)
         # tz2 -- f2 - tz2.date
         # tz3 -- f3 - tz3.date       v.1/2
         #     \- f4 - tz3.date + 1   v.2/2
         f1 = self.forecast
-        f1.issue_date = self.tz1.timezero_date
+        f1.issued_at = datetime.datetime.combine(self.tz1.timezero_date, datetime.time(), tzinfo=datetime.timezone.utc)
         f1.save()
 
-        f2 = Forecast.objects.create(forecast_model=self.forecast_model, source='f2', time_zero=self.tz2)
-        f2.issue_date = self.tz2.timezero_date
-        f2.save()
-
-        f3 = Forecast.objects.create(forecast_model=self.forecast_model, source='f3', time_zero=self.tz3)
-        f3.issue_date = self.tz3.timezero_date
-        f3.save()
-
-        f4 = Forecast.objects.create(forecast_model=self.forecast_model, source='f4', time_zero=self.tz3)
-        f4.issue_date = self.tz3.timezero_date + datetime.timedelta(days=1)
-        f4.save()
+        f2 = Forecast.objects.create(forecast_model=self.forecast_model, source='f2', time_zero=self.tz2,
+                                     issued_at=datetime.datetime.combine(self.tz2.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        f3 = Forecast.objects.create(forecast_model=self.forecast_model, source='f3', time_zero=self.tz3,
+                                     issued_at=datetime.datetime.combine(self.tz3.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        f4 = Forecast.objects.create(forecast_model=self.forecast_model, source='f4', time_zero=self.tz3,
+                                     issued_at=f3.issued_at + datetime.timedelta(days=1))
 
         exp_row = (self.forecast_model, 4,
                    str(f1.time_zero.timezero_date),  # oldest_forecast_tz_date
@@ -235,17 +208,17 @@ class ForecastVersionsTestCase(TestCase):
         in existing versions." We test the four cases (including out-of-order upload ones): Consider uploading a
         version ("fn" - f new) when there are two existing ones (f1 and f2):
 
-        forecast_id | issue_date | case
+        forecast_id | issued_at | case
         ------------+------------+-----
-        -            10/3         a) uploaded version has oldest issue_date
+        -            10/3         a) uploaded version has oldest issued_at
         f1           10/4
-        -            10/5         b) uploaded version is between two issue_dates
+        -            10/5         b) uploaded version is between two issued_ats
         f2           10/6
-        -            10/7         c) uploaded version has newest issue_date
+        -            10/7         c) uploaded version has newest issued_at
 
         For these cases, uploading fn violates this rule if ("PE" = "prediction element"s "):
         - a)   fn's PEs  are a superset of  f1's PEs   [nnn][11]       [2222]        # } "visual" order
-        - b1)  ""        are a subset of    f1's PEs        [11]  [n]  [2222]        # }   - left-to-right issue_date
+        - b1)  ""        are a subset of    f1's PEs        [11]  [n]  [2222]        # }   - left-to-right issued_at
         - b2)  ""        are a superset of  f2's PEs        [11][nnnnn][2222]        # }   - f1: 2 PEs, f2: 4 PEs
         - c)   ""        are a subset of    f2's PEs        [11]       [2222][nnn]   # }   - fn: various # PEs
 
@@ -265,13 +238,12 @@ class ForecastVersionsTestCase(TestCase):
         # load progressively more data into f1 and f2. NB: it is OK to create f2 before we've loaded f1 b/c
         # _is_pred_eles_subset_prev_versions() handles the special case of. o/w it would be invalid (version validation will fail b/c
         # f2 will be empty and therefore f1 will be a superset of it)
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        f2.issue_date = f1.issue_date + datetime.timedelta(days=2)  # leave that one day gap between f1 and f2
-        f2.save()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        # leave that one day gap between f1 and f2:
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=2))
 
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
         load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})
@@ -279,7 +251,7 @@ class ForecastVersionsTestCase(TestCase):
         # case a). NB: we cannot test this case b/c we added a second forecast version rule that supersedes it
         # ("found an earlier non-empty version")
         # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_a', time_zero=tz1)
-        # f3.issue_date = f1.issue_date - datetime.timedelta(days=1)
+        # f3.issued_at = f1.issued_at - datetime.timedelta(days=1)
         # f3.save()
         # with self.assertRaisesRegex(RuntimeError, 'forecast is a subset of next version'):
         #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
@@ -287,7 +259,7 @@ class ForecastVersionsTestCase(TestCase):
 
         # case b1). NB: cannot test for the same reason ("found an earlier non-empty version")
         # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b2', time_zero=tz1)
-        # f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        # f3.issued_at = f1.issued_at + datetime.timedelta(days=1)
         # f3.save()
         # with self.assertRaisesRegex(RuntimeError, 'previous version is a subset of forecast'):
         #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:1]})
@@ -295,16 +267,15 @@ class ForecastVersionsTestCase(TestCase):
 
         # case b2). NB: cannot test for the same reason ("found an earlier non-empty version")
         # f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_b1', time_zero=tz1)
-        # f3.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        # f3.issued_at = f1.issued_at + datetime.timedelta(days=1)
         # f3.save()
         # with self.assertRaisesRegex(RuntimeError, 'forecast is a subset of next version'):
         #     load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:5]})
         # f3.delete()
 
         # case c)
-        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_c', time_zero=tz1)
-        f3.issue_date = f2.issue_date + datetime.timedelta(days=1)
-        f3.save()
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3_case_c', time_zero=tz1,
+                                     issued_at=f2.issued_at + datetime.timedelta(days=1))
         with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
             load_predictions_from_json_io_dict(f3, {'meta': {}, 'predictions': pred_dicts[:3]})
 
@@ -316,7 +287,7 @@ class ForecastVersionsTestCase(TestCase):
         removed duplicates. This test therefore ensures that the code that detects implicit retractions is joining all
         previous versions' data to essentially reassemble the original data.
 
-        forecast_id | issue_date | case
+        forecast_id | issued_at | case
         ------------+------------+-----
         f1           10/4          1st upload, no previous, so no duplicates to remove. all data is kept
         f2           10/5          2nd upload, some duplicates of f1, so only non-duplicates are kept
@@ -331,17 +302,13 @@ class ForecastVersionsTestCase(TestCase):
             json_io_dict = json.load(fp)
             pred_dicts = json_io_dict['predictions']  # get some prediction elements to work with (29)
 
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f2.save()
-
-        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
-        f3.issue_date = f1.issue_date + datetime.timedelta(days=2)
-        f3.save()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=1))
+        f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=2))
 
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})  # 1st upload. no dups
         load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:4]})  # 0 & 1 are dups
@@ -355,7 +322,7 @@ class ForecastVersionsTestCase(TestCase):
         - cannot load empty data
         - cannot load 100% duplicate data
         - cannot position a new forecast before any existing versions
-        - editing a version's issue_date cannot reposition it before any existing forecasts
+        - editing a version's issued_at cannot reposition it before any existing forecasts
         - cannot load data into a non-empty forecast
         - cannot delete a forecast that has any newer versions
         """
@@ -368,13 +335,11 @@ class ForecastVersionsTestCase(TestCase):
             json_io_dict = json.load(fp)
             pred_dicts = json_io_dict['predictions']  # get some prediction elements to work with (29)
 
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f2.save()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=1))
 
         # test "cannot load empty data"
         with self.assertRaisesRegex(RuntimeError, "cannot load empty data"):
@@ -387,16 +352,19 @@ class ForecastVersionsTestCase(TestCase):
 
         # test "cannot position a new forecast before any existing versions"
         with self.assertRaisesRegex(RuntimeError, "you cannot position a new forecast before any existing versions"):
-            Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1, issue_date=tz1.timezero_date)
+            Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1,
+                                    issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                        tzinfo=datetime.timezone.utc))
 
-        # test "editing a version's issue_date cannot reposition it before any existing forecasts"
-        with self.assertRaisesRegex(RuntimeError, "editing a version's issue_date cannot reposition it before any "
+        # test "editing a version's issued_at cannot reposition it before any existing forecasts"
+        with self.assertRaisesRegex(RuntimeError, "editing a version's issued_at cannot reposition it before any "
                                                   "existing forecasts"):
+            # before an existing one:
             f3 = Forecast.objects.create(forecast_model=forecast_model, source='f3', time_zero=tz1)
-            f3.issue_date = f1.issue_date + datetime.timedelta(days=-1)  # before an existing one
+            f3.issued_at = f1.issued_at + datetime.timedelta(days=-1)
             f3.save()
 
-        # test "cannot load data into a non-empty forecast"
+            # test "cannot load data into a non-empty forecast"
         with self.assertRaisesRegex(RuntimeError, "cannot load data into a non-empty forecast"):
             load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': pred_dicts[:2]})
 
@@ -416,9 +384,9 @@ class ForecastVersionsTestCase(TestCase):
         forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
 
         # create and load f1
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
 
         predictions_1 = [  # docs-predictions.json: 0 and 1
             {"unit": "location1", "target": "pct next week", "class": "point",
@@ -429,9 +397,8 @@ class ForecastVersionsTestCase(TestCase):
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': predictions_1})
 
         # create and load f2
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f2.save()
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=1))
 
         predictions_2 = [  # docs-predictions.json: 0 through 2
             {"unit": "location1", "target": "pct next week", "class": "point",
@@ -453,6 +420,35 @@ class ForecastVersionsTestCase(TestCase):
         self.assertEqual(exp_predictions, act_predictions)
 
 
+    def test_json_io_dict_from_forecast_on_versions_as_of(self):
+        """
+        exposes a bug when running against sqlite where _query_forecasts_sql_for_pred_class() was using
+        `as_of.isoformat()`, which sqlite does not like
+        """
+        forecasts = []
+        # order is important:
+        for json_preds_file in ['forecast_app/tests/predictions/docs-predictions-mix-retract-dup-edit.json',
+                                'forecast_app/tests/predictions/docs-predictions-all-retracted.json']:
+            json_file_path = Path(json_preds_file)
+            with open(json_file_path) as json_fp:
+                json_io_dict = json.load(json_fp)
+                forecast = Forecast.objects.create(forecast_model=self.forecast_model, source=json_file_path.name,
+                                                   time_zero=self.tz1)
+                load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=False)  # atomic
+                forecasts.append(forecast)
+                time.sleep(1)  # give issued_at a second
+
+        f0_json = json_io_dict_from_forecast(self.forecast, None, True)  # is_include_retract
+        f1_json = json_io_dict_from_forecast(forecasts[0], None, True)
+        f2_json = json_io_dict_from_forecast(forecasts[1], None, True)
+        with open('forecast_app/tests/predictions/exp-json-io-dict-from-forecast-as-of.json') as fp:
+            json_io_dicts = json.load(fp)
+            for exp_pred_dict, act_pred_dict in [(json_io_dicts[0], f0_json),
+                                                 (json_io_dicts[1], f1_json),
+                                                 (json_io_dicts[2], f2_json)]:
+                self.assertEqual(exp_pred_dict, act_pred_dict)
+
+
     def test_cache_forecast_metadata_on_versions(self):
         """
         Tests that metadata is correctly calculated when there are forecast versions.
@@ -462,13 +458,11 @@ class ForecastVersionsTestCase(TestCase):
         forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
         tz1 = project.timezeros.get(timezero_date=datetime.date(2011, 10, 2))
 
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f2.save()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=1))
 
         # load f1
         predictions = [
@@ -535,13 +529,11 @@ class ForecastVersionsTestCase(TestCase):
         t2 = project.targets.get(name='pct next week')
         t3 = project.targets.get(name='Season peak week')
 
-        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        f1.issue_date = tz1.timezero_date
-        f1.save()
-
-        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
-        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
-        f2.save()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1,
+                                     issued_at=datetime.datetime.combine(tz1.timezero_date, datetime.time(),
+                                                                         tzinfo=datetime.timezone.utc))
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1,
+                                     issued_at=f1.issued_at + datetime.timedelta(days=1))
 
         # load f1
         predictions = [

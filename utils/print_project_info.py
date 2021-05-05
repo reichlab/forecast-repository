@@ -65,7 +65,7 @@ def print_project_info(project, verbosity):
         else:
             click.echo(f"*** {forecast_model} ({forecast_model.forecasts.count()} forecasts)")
         if verbosity == 4:
-            for forecast in forecast_model.forecasts.order_by('time_zero', 'issue_date'):
+            for forecast in forecast_model.forecasts.order_by('time_zero', 'issued_at'):
                 click.echo(f"- {forecast}: {forecast.pred_eles.count()} rows")
 
 
