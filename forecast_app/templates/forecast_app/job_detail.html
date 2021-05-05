@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% load tz %}
+
 {% block title %}Job: {{ job.id }}{% endblock %}
 
 {% block content %}
@@ -37,11 +39,11 @@
                 </tr>
                 <tr>
                     <th>Created:</th>
-                    <td>{{ job.created_at|date:"Y-m-d H:i:s T" }}</td>
+                    <td>{% localtime off %} {{ job.created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</td>
                 </tr>
                 <tr>
                     <th>Updated:</th>
-                    <td>{{ job.updated_at|date:"Y-m-d H:i:s T" }}</td>
+                    <td>{% localtime off %} {{ job.updated_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</td>
                 </tr>
                 <tr>
                     <th>JSON In:</th>

@@ -58,7 +58,7 @@
                 <tr>
                     <th>Issued at:</th>
                     <td>
-                        {{ forecast.issued_at|date:"Y-m-d H:i:s T" }}
+                        {% localtime off %} {{ forecast.issued_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         <div class="dropdown show d-inline-block">
                             <button class="btn btn-light btn-sm dropdown-toggle" id="dropdownMenuLink"
                                     data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

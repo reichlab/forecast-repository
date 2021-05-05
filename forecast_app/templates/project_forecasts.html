@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% load humanize %}
+{% load tz %}
 {% load custom_tags %}
 
 {% block title %}Project Forecasts: {{ project.name }}{% endblock %}
@@ -72,17 +73,17 @@
                     <td>
                         {# handle whether datetimes came from db as objects or strings #}
                         {% if issued_at|get_class == 'datetime' %}
-                            {{ issued_at|date:"Y-m-d H:i:s T" }}
+                            {% localtime off %} {{ issued_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         {% else %}
-                            {{ issued_at }}
+                            {% localtime off %} {{ issued_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         {% endif %}
                     </td>
                     <td>
                         {# handle whether datetimes came from db as objects or strings #}
                         {% if created_at|get_class == 'datetime' %}
-                            {{ created_at|date:"Y-m-d H:i:s T" }}
+                            {% localtime off %} {{ created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         {% else %}
-                            {{ created_at }}
+                            {% localtime off %} {{ created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         {% endif %}
                     </td>
                     <td>{{ num_pred_eles }}</td>

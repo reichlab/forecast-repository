@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% load humanize %}
+{% load tz %}
 
 {% load custom_tags %}
 
@@ -128,7 +129,8 @@
                                 {% if first_truth_forecast.source %}
                                     {{ first_truth_forecast.source }}
                                 {% else %}(no source){% endif %}</a>
-                            <small class="text-muted">{{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}</small>
+                            <small class="text-muted">{% localtime off %}
+                                {{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</small>
                             .
                             <a href="{% url 'query-truth' project.pk %}">Download</a>
                         {% else %}
@@ -223,9 +225,9 @@
                     <td>
                         {# handle whether datetimes came from db as objects or strings #}
                         {% if newest_forecast_created_at|get_class == 'datetime' %}
-                            {{ newest_forecast_created_at|date:"Y-m-d H:i:s T" }}
+                            {% localtime off %} {{ newest_forecast_created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         {% else %}
-                            {{ newest_forecast_created_at }}
+                            {% localtime off %} {{ newest_forecast_created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}
                         {% endif %}
                     </td>
                 </tr>
