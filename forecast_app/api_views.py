@@ -1,3 +1,4 @@
+import csv
 import datetime
 import logging
 import tempfile
@@ -32,7 +33,7 @@ from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, i
     is_user_ok_view_project
 from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json, config_dict_from_project
+from utils.project import create_project_from_json, config_dict_from_project, latest_forecast_cols_for_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
@@ -944,3 +945,68 @@ def _download_job_data_request(job):
         except Exception as ex:
             logger.debug(f"download_job_data(): error: {ex!r}. job={job}")
             return HttpResponseNotFound(f"error downloading job data. ex={ex!r}, job={job}")
+
+
+#
+# download_latest_forecasts()
+#
+
+# def csv_response_for_project_truth_data(project):
+#     """
+#     Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
+#     CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
+#     to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
+#     filename to hopefully hint at what's going on.
+#     """
+#     response = HttpResponse(content_type='text/csv')
+#
+#     # two cases for deciding the filename to put in download response:
+#     # 1) original ends with .csv -> orig-name.csv -> orig-name-validated.csv
+#     # 2) "" does not end "" -> orig-name.csv.foo -> orig-name.csv.foo-validated.csv
+#     csv_filename_path = Path(project.truth_csv_filename)
+#     if csv_filename_path.suffix.lower() == '.csv':
+#         csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
+#     else:
+#         csv_filename = csv_filename_path.name + '-validated.csv'
+#     response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+#
+#     writer = csv.writer(response)
+#     writer.writerow(TRUTH_CSV_HEADER)
+#     for timezero_date, unit_name, target_name, \
+#         value_i, value_f, value_t, value_d, value_b in project.get_truth_data_rows():
+#         timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+#         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
+#         writer.writerow([timezero_date, unit_name, target_name, truth_value])
+#
+#     return response
+
+
+@api_view(['GET'])
+@renderer_classes((CSVRenderer,))
+def download_latest_forecasts(request, pk):
+    """
+    :return: `latest_forecast_cols_for_project()` output as CSV. for now just does returns a list of the 2-tuples:
+        (Forecast.id, Forecast.source), but later may generalize to allow passing specific columns in `request`
+    """
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    response = HttpResponse(content_type='text/csv')
+    csv_filename = get_valid_filename(f"project-{project.name}-latest-forecasts.csv")
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+
+    # for now just does returns a list of the 2-tuples: (Forecast.id, Forecast.source)
+    rows = latest_forecast_cols_for_project(project, is_incl_fm_id=False, is_incl_tz_id=False,
+                                            is_incl_issue_date=False, is_incl_created_at=False,
+                                            is_incl_source=True, is_incl_notes=False)
+    writer = csv.writer(response)
+    writer.writerow(['forecast_id', 'source'])  # header
+
+    # process rows, cleaning up for csv:
+    # - [maybe later] render date and datetime objects as strings: 'issue_date', 'created_at'
+    # - remove \n from free form text: 'source', [maybe later] 'notes'
+    for f_id, source in rows:
+        writer.writerow([f_id, source.replace('\n', '_')])
+
+    return response
