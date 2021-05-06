@@ -951,36 +951,6 @@ def _download_job_data_request(job):
 # download_latest_forecasts()
 #
 
-# def csv_response_for_project_truth_data(project):
-#     """
-#     Similar to json_response_for_forecast(), but returns a response with project's truth data formatted as
-#     CSV. NB: The returned response will contain only those rows that actually loaded from the original CSV file passed
-#     to Project.load_truth_data(), which will contain fewer rows if some were invalid. For that reason we change the
-#     filename to hopefully hint at what's going on.
-#     """
-#     response = HttpResponse(content_type='text/csv')
-#
-#     # two cases for deciding the filename to put in download response:
-#     # 1) original ends with .csv -> orig-name.csv -> orig-name-validated.csv
-#     # 2) "" does not end "" -> orig-name.csv.foo -> orig-name.csv.foo-validated.csv
-#     csv_filename_path = Path(project.truth_csv_filename)
-#     if csv_filename_path.suffix.lower() == '.csv':
-#         csv_filename = csv_filename_path.stem + '-validated' + csv_filename_path.suffix
-#     else:
-#         csv_filename = csv_filename_path.name + '-validated.csv'
-#     response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
-#
-#     writer = csv.writer(response)
-#     writer.writerow(TRUTH_CSV_HEADER)
-#     for timezero_date, unit_name, target_name, \
-#         value_i, value_f, value_t, value_d, value_b in project.get_truth_data_rows():
-#         timezero_date = timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-#         truth_value = PointPrediction.first_non_none_value(value_i, value_f, value_t, value_d, value_b)
-#         writer.writerow([timezero_date, unit_name, target_name, truth_value])
-#
-#     return response
-
-
 @api_view(['GET'])
 @renderer_classes((CSVRenderer,))
 def download_latest_forecasts(request, pk):
