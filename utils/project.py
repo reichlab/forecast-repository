@@ -14,6 +14,7 @@ from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, 
 from forecast_app.models.project import TimeZero
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,6 +71,7 @@ def config_dict_from_project(project, request):
     """
     from forecast_app.serializers import UnitSerializer, TimeZeroSerializer  # avoid circular imports
 
+
     unit_serializer_multi = UnitSerializer(project.units, many=True, context={'request': request})
     tz_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
@@ -84,6 +86,7 @@ def config_dict_from_project(project, request):
 def _target_dict_for_target(target, request):
     # request is required for TargetSerializer's 'id' field
     from forecast_app.serializers import TargetSerializer  # avoid circular imports
+
 
     if target.type is None:
         raise RuntimeError(f"target has no type: {target}")
@@ -189,6 +192,7 @@ def _validate_and_create_units(project, project_dict, is_validate_only=False):
 def _validate_and_create_timezeros(project, project_dict, is_validate_only=False):
     from forecast_app.api_views import validate_and_create_timezero  # avoid circular imports
 
+
     timezeros = [validate_and_create_timezero(project, timezero_config, is_validate_only)
                  for timezero_config in project_dict['timezeros']]
     return timezeros if not is_validate_only else []
@@ -256,7 +260,6 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
     target_name = target_dict['name']
     if not _is_valid_unit_target_name_or_cat(target_name):
         raise RuntimeError(f"illegal target name: {target_name!r}")
-
 
     # validate type
     type_name = target_dict['type']
@@ -700,7 +703,7 @@ def target_rows_for_project(project):
 
 
 #
-# latest_forecast_ids_for_project()
+# latest_forecast_ids_for_project() - currently only used by _vega_lite_spec_for_project()
 #
 
 def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timezero_ids=None):
@@ -710,7 +713,7 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
 
     :param project: a Project
     :param is_only_f_id: boolean that controls the return value: True: return a list of the latest forecast IDs.
-        False: Return a a dict that maps (forecast_model_id, timezero_id) 2-tuples to the latest forecast's forecast_id
+        False: Return a dict that maps (forecast_model_id, timezero_id) 2-tuples to the latest forecast's forecast_id
     :param model_ids: optional list of ForecastModel.ids to filter by. None means include all models
     :param timezero_ids: "" Timezero.ids "". None means include all TimeZeros
     :param as_of: optional date string in YYYY_MM_DD_DATE_FORMAT used for filter based on `Forecast.issued_at`. (note
@@ -743,3 +746,53 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
         rows = cursor.fetchall()
 
     return [row[0] for row in rows] if is_only_f_id else {(fm_id, tz_id): f_id for fm_id, tz_id, f_id, in rows}
+
+
+#
+# latest_forecast_cols_for_project()
+#
+
+def latest_forecast_cols_for_project(project, is_incl_fm_id=True, is_incl_tz_id=True, is_incl_issue_date=True,
+                                     is_incl_created_at=True, is_incl_source=True, is_incl_notes=True):
+    """
+    Simpler variation of `latest_forecast_ids_for_project()` that uses window functions and returns a list of requested
+    fields. Returns information about all of the latest forecasts in `project`.
+
+    :param is_incl_*: booleans indicating which Forecast columns to include: 'forecast_model_id', 'time_zero_id',
+        'issue_date', 'created_at', 'source', and 'notes'. NB: 'forecast_id' is always included
+    :param project: a Project
+    :return: a list of N+1-tuples (depends on is_incl_*):
+        (forecast_id, [forecast_model_id], [time_zero_id], [issue_date], [created_at], [source], [notes])
+    """
+    col_name_to_is_include = {
+        'id': True,
+        'forecast_model_id': is_incl_fm_id,
+        'time_zero_id': is_incl_tz_id,
+        'issue_date': is_incl_issue_date,
+        'created_at': is_incl_created_at,
+        'source': is_incl_source,
+        'notes': is_incl_notes,
+    }
+    with_select_cols = [f"f.{col_name} AS f_{col_name}"
+                        for col_name, is_incl_col in col_name_to_is_include.items()
+                        if is_incl_col]
+    outer_select_cols = [f"f_{col_name}" for col_name, is_incl_col in col_name_to_is_include.items() if is_incl_col]
+    sql = f"""
+        WITH ranked_rows AS (
+            SELECT {', '.join(with_select_cols)},
+                   RANK() OVER (
+                       PARTITION BY fm.id, f.time_zero_id
+                       ORDER BY f.issue_date DESC) AS rownum
+            FROM {Forecast._meta.db_table} AS f
+                     JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
+            WHERE fm.project_id = %s
+              AND NOT fm.is_oracle
+        )
+        SELECT {', '.join(outer_select_cols)}
+        FROM ranked_rows
+        WHERE rownum = 1;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        # return batched_rows(cursor)  # todo xx cursor closed error
+        return cursor.fetchall()

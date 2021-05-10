@@ -1,3 +1,4 @@
+import csv
 import datetime
 import logging
 import tempfile
@@ -32,7 +33,7 @@ from forecast_app.views import is_user_ok_edit_project, is_user_ok_edit_model, i
     is_user_ok_view_project
 from forecast_repo.settings.base import QUERY_FORECAST_QUEUE_NAME
 from utils.forecast import json_io_dict_from_forecast
-from utils.project import create_project_from_json, config_dict_from_project
+from utils.project import create_project_from_json, config_dict_from_project, latest_forecast_cols_for_project
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
@@ -943,3 +944,38 @@ def _download_job_data_request(job):
         except Exception as ex:
             logger.debug(f"download_job_data(): error: {ex!r}. job={job}")
             return HttpResponseNotFound(f"error downloading job data. ex={ex!r}, job={job}")
+
+
+#
+# download_latest_forecasts()
+#
+
+@api_view(['GET'])
+@renderer_classes((CSVRenderer,))
+def download_latest_forecasts(request, pk):
+    """
+    :return: `latest_forecast_cols_for_project()` output as CSV. for now just does returns a list of the 2-tuples:
+        (Forecast.id, Forecast.source), but later may generalize to allow passing specific columns in `request`
+    """
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    response = HttpResponse(content_type='text/csv')
+    csv_filename = get_valid_filename(f"project-{project.name}-latest-forecasts.csv")
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+
+    # for now just does returns a list of the 2-tuples: (Forecast.id, Forecast.source)
+    rows = latest_forecast_cols_for_project(project, is_incl_fm_id=False, is_incl_tz_id=False,
+                                            is_incl_issue_date=False, is_incl_created_at=False,
+                                            is_incl_source=True, is_incl_notes=False)
+    writer = csv.writer(response)
+    writer.writerow(['forecast_id', 'source'])  # header
+
+    # process rows, cleaning up for csv:
+    # - [maybe later] render date and datetime objects as strings: 'issue_date', 'created_at'
+    # - remove \n from free form text: 'source', [maybe later] 'notes'
+    for f_id, source in rows:
+        writer.writerow([f_id, source.replace('\n', '_')])
+
+    return response

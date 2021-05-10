@@ -17,6 +17,7 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)/truth/$', api_views.TruthDetail.as_view(), name='api-truth-detail'),
     url(r'^project/(?P<pk>\d+)/forecast_queries/$', api_views.query_forecasts_endpoint, name='api-forecast-queries'),
     url(r'^project/(?P<pk>\d+)/truth_queries/$', api_views.query_truth_endpoint, name='api-truth-queries'),
+    url(r'^project/(?P<pk>\d+)/forecasts/$', api_views.download_latest_forecasts, name='api-project-latest-forecasts'),
 
     # other object detail
     url(r'^user/(?P<pk>\d+)/$', api_views.UserDetail.as_view(), name='api-user-detail'),

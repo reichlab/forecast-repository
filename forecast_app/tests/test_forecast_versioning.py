@@ -13,7 +13,7 @@ from utils.forecast import load_predictions_from_json_io_dict, json_io_dict_from
     forecast_metadata, data_rows_from_forecast
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import models_summary_table_rows_for_project, latest_forecast_ids_for_project, \
-    create_project_from_json
+    create_project_from_json, latest_forecast_cols_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -602,3 +602,40 @@ class ForecastVersionsTestCase(TestCase):
         for (forecast, unit, target), exp_rows in f_loc_targ_to_exp_rows.items():
             act_rows = data_rows_from_forecast(forecast, unit, target)
             self.assertEqual(exp_rows, act_rows)
+
+
+    def test_latest_forecast_cols_for_project(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        tz1 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2020, 10, 4))
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1, notes='f1 notes')
+        f1.issue_date = tz1.timezero_date
+        f1.save()
+
+        f2 = Forecast.objects.create(forecast_model=forecast_model, source='f\n2', time_zero=tz1, notes='f2\nnotes')
+        f2.issue_date = f1.issue_date + datetime.timedelta(days=1)
+        f2.save()
+
+        # case: no columns (just 'id')
+        exp_forecast_cols = [(f2.pk,)]
+        act_forecast_cols = list(latest_forecast_cols_for_project(project, is_incl_fm_id=False, is_incl_tz_id=False,
+                                                                  is_incl_issue_date=False, is_incl_created_at=False,
+                                                                  is_incl_source=False, is_incl_notes=False))
+        self.assertEqual(exp_forecast_cols, act_forecast_cols)
+
+        # case: just source column
+        exp_forecast_cols = [(f2.pk, f2.source)]
+        act_forecast_cols = list(latest_forecast_cols_for_project(project, is_incl_fm_id=False, is_incl_tz_id=False,
+                                                                  is_incl_issue_date=False, is_incl_created_at=False,
+                                                                  is_incl_source=True, is_incl_notes=False))
+        self.assertEqual(exp_forecast_cols, act_forecast_cols)
+
+        # case: all columns. utctimetuple() makes sqlite comparisons work
+        exp_forecast_cols = [[f2.pk, f2.forecast_model.pk, f2.time_zero.pk, f2.issue_date, f2.created_at.utctimetuple(),
+                              f2.source, f2.notes]]  # list, not tuple
+        act_forecast_cols = list(latest_forecast_cols_for_project(project))  # list for generator
+        act_forecast_cols[0] = list(act_forecast_cols[0])  # tuple -> list so I can assign:
+        act_forecast_cols[0][4] = act_forecast_cols[0][4].utctimetuple()
+        self.assertEqual(exp_forecast_cols, act_forecast_cols)

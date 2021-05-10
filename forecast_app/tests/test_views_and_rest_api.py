@@ -1,4 +1,6 @@
+import csv
 import datetime
+import io
 import json
 import logging
 from pathlib import Path
@@ -1496,6 +1498,50 @@ class ViewsTestCase(TestCase):
         self.assertNotEqual(old_issued_at, forecast.issued_at)
         self.assertEqual(datetime.datetime.fromisoformat(new_issued_at_str), forecast.issued_at)
 
+
+    def test_api_project_latest_forecasts(self):
+        superuser, superuser_password, po_user, po_user_password, mo_user, mo_user_password, \
+        non_staff_user, non_staff_user_password = get_or_create_super_po_mo_users(is_create_super=True)
+
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        project.is_public = False
+        project.save()
+
+        forecast_model = ForecastModel.objects.create(project=project, name='name', abbreviation='abbrev')
+        time_zero = TimeZero.objects.create(project=project, timezero_date=datetime.date(2017, 1, 1))
+        forecast = Forecast.objects.create(forecast_model=forecast_model, source='split\nsource', time_zero=time_zero)
+
+        job_latest_forecasts_url = reverse('api-project-latest-forecasts', args=[project.pk])  # owner po_user
+
+        # case: unauthorized: anonymous
+        self.client.logout()  # AnonymousUser
+        response = self.client.get(job_latest_forecasts_url)
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # case: unauthorized: mo_user
+        self._authenticate_jwt_user(self.mo_user, self.mo_user_password)
+        response = self.client.get(job_latest_forecasts_url)
+        self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+        # case: blue sky
+        self._authenticate_jwt_user(po_user, self.po_user_password)
+        response = self.client.get(job_latest_forecasts_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual("text/csv", response['Content-Type'])
+        self.assertEqual('attachment; filename="project-My_project-latest-forecasts.csv"',
+                         response['Content-Disposition'])
+
+        string_io = io.StringIO(response.content.decode('utf-8'))
+        csv_reader = csv.reader(string_io, delimiter=',')
+        exp_rows = [['forecast_id', 'source'], [str(forecast.pk), 'split_source']]
+        act_rows = [row for row in csv_reader]
+        self.assertEqual(exp_rows, act_rows)  # also checks '\n' -> '_'
+
+
+    #
+    # _authenticate_jwt_user()
+    #
 
     def _authenticate_jwt_user(self, user, password):
         jwt_auth_url = reverse('auth-jwt-get')
