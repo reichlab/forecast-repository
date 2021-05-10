@@ -63,7 +63,7 @@ class ProjectQueriesTestCase(TestCase):
 
         error_messages, _ = validate_forecasts_query(self.project, {'as_of': '202010119'})
         self.assertEqual(1, len(error_messages))
-        self.assertIn(f"error parsing 'as_of' datetime format", error_messages[0])
+        self.assertIn(f"'as_of' was not a recognizable datetime format", error_messages[0])
 
         error_messages, _ = validate_forecasts_query(self.project, {'as_of': '2020-10-11'})
         self.assertEqual(1, len(error_messages))

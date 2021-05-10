@@ -36,10 +36,15 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='forecast',
             name='issued_at',
-            field=models.DateTimeField(db_index=True, default=None),
+            field=models.DateTimeField(db_index=True, default=None, null=True),
             preserve_default=False,
         ),
         migrations.RunPython(forwards_func, reverse_code=migrations.RunPython.noop),
+        migrations.AlterField(
+            model_name='forecast',
+            name='issued_at',
+            field=models.DateTimeField(db_index=True, default=None, null=False),
+        ),
         migrations.RemoveField(
             model_name='forecast',
             name='issue_date',

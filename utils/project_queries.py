@@ -258,7 +258,7 @@ def validate_forecasts_query(project, query):
                 as_of = None
                 return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
         except dateutil.parser._parser.ParserError as pe:
-            error_messages.append(f"error parsing 'as_of' datetime format: {as_of_str!r}: {pe}")
+            error_messages.append(f"'as_of' was not a recognizable datetime format: {as_of_str!r}: {pe}")
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
     # validate object IDs that strings refer to

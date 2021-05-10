@@ -38,7 +38,7 @@ class Forecast(models.Model):
     # this Forecast's version - Forecast versions are named/identified by `issued_at`. defaults to the datetime at time
     # of creation via save() below (so user can override) vs. auto_now_add=True. in theory only special users can edit
     # this due wanting to implement some scientific integrity controls
-    issued_at = models.DateTimeField(db_index=True)
+    issued_at = models.DateTimeField(db_index=True, null=False)
 
     # arbitrary information about this forecast
     notes = models.TextField(null=True, blank=True,
