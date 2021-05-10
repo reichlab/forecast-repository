@@ -752,23 +752,23 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
 # latest_forecast_cols_for_project()
 #
 
-def latest_forecast_cols_for_project(project, is_incl_fm_id=True, is_incl_tz_id=True, is_incl_issue_date=True,
+def latest_forecast_cols_for_project(project, is_incl_fm_id=True, is_incl_tz_id=True, is_incl_issued_at=True,
                                      is_incl_created_at=True, is_incl_source=True, is_incl_notes=True):
     """
     Simpler variation of `latest_forecast_ids_for_project()` that uses window functions and returns a list of requested
     fields. Returns information about all of the latest forecasts in `project`.
 
     :param is_incl_*: booleans indicating which Forecast columns to include: 'forecast_model_id', 'time_zero_id',
-        'issue_date', 'created_at', 'source', and 'notes'. NB: 'forecast_id' is always included
+        'issued_at', 'created_at', 'source', and 'notes'. NB: 'forecast_id' is always included
     :param project: a Project
     :return: a list of N+1-tuples (depends on is_incl_*):
-        (forecast_id, [forecast_model_id], [time_zero_id], [issue_date], [created_at], [source], [notes])
+        (forecast_id, [forecast_model_id], [time_zero_id], [issued_at], [created_at], [source], [notes])
     """
     col_name_to_is_include = {
         'id': True,
         'forecast_model_id': is_incl_fm_id,
         'time_zero_id': is_incl_tz_id,
-        'issue_date': is_incl_issue_date,
+        'issued_at': is_incl_issued_at,
         'created_at': is_incl_created_at,
         'source': is_incl_source,
         'notes': is_incl_notes,
@@ -782,7 +782,7 @@ def latest_forecast_cols_for_project(project, is_incl_fm_id=True, is_incl_tz_id=
             SELECT {', '.join(with_select_cols)},
                    RANK() OVER (
                        PARTITION BY fm.id, f.time_zero_id
-                       ORDER BY f.issue_date DESC) AS rownum
+                       ORDER BY f.issued_at DESC) AS rownum
             FROM {Forecast._meta.db_table} AS f
                      JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
             WHERE fm.project_id = %s

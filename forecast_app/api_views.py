@@ -967,13 +967,13 @@ def download_latest_forecasts(request, pk):
 
     # for now just does returns a list of the 2-tuples: (Forecast.id, Forecast.source)
     rows = latest_forecast_cols_for_project(project, is_incl_fm_id=False, is_incl_tz_id=False,
-                                            is_incl_issue_date=False, is_incl_created_at=False,
+                                            is_incl_issued_at=False, is_incl_created_at=False,
                                             is_incl_source=True, is_incl_notes=False)
     writer = csv.writer(response)
     writer.writerow(['forecast_id', 'source'])  # header
 
     # process rows, cleaning up for csv:
-    # - [maybe later] render date and datetime objects as strings: 'issue_date', 'created_at'
+    # - [maybe later] render date and datetime objects as strings: 'issued_at', 'created_at'
     # - remove \n from free form text: 'source', [maybe later] 'notes'
     for f_id, source in rows:
         writer.writerow([f_id, source.replace('\n', '_')])
