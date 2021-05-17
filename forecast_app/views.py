@@ -184,14 +184,18 @@ def project_forecasts(request, project_pk):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     # create heatmap data
+    logger.debug(f"project_forecasts(): entered. getting metadata counts. project_pk={project_pk}")
     encoding_color_field = {None: '# targets',  # default
                             'predictions': '# predictions',
                             'units': '# units',
                             'targets': '# targets'}[request.GET.get('colorby')]
     forecast_id_to_counts = forecast_metadata_counts_for_project(project)
+
+    logger.debug(f"project_forecasts(): getting vegalite spec")
     vega_lite_spec = _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field)
 
     # create forecasts table data
+    logger.debug(f"project_forecasts(): making rows")
     forecast_rows = []  # filled next
     rows_qs = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
         .values_list('id', 'issued_at', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
@@ -202,10 +206,14 @@ def project_forecasts(request, project_pk):
         forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issued_at, f_created_at,
                               reverse('model-detail', args=[fm_id]), fm_abbrev, num_rows))
 
+    logger.debug(f"project_forecasts(): dumping json. data values len={len(vega_lite_spec['data']['values'])}")
+    dumps = json.dumps(vega_lite_spec, indent=4)
+
+    logger.debug(f"project_forecasts(): rendering. len dumps={len(dumps)}")
     return render(request, 'project_forecasts.html',
                   context={'project': project,
                            'forecast_rows': forecast_rows,
-                           'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
+                           'vega_lite_spec': dumps})
 
 
 def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field):
