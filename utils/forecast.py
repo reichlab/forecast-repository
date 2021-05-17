@@ -881,6 +881,7 @@ def forecast_metadata_counts_for_project(project):
     forecast_id_to_counts = defaultdict(lambda: [None, None, None])  # return value. filled next
 
     # query 1/2: get ForecastMetaPrediction counts
+    logger.debug(f"forecast_metadata_counts_for_project(): getting prediction counts")
     sql = f"""
         SELECT fmp.forecast_id AS forecast_id, fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count
         FROM {ForecastMetaPrediction._meta.db_table} AS fmp
@@ -894,6 +895,7 @@ def forecast_metadata_counts_for_project(project):
             forecast_id_to_counts[forecast_id][0] = (point_count, named_count, bin_count, sample_count, quantile_count)
 
     # query 2/2: get ForecastMetaUnit and ForecastMetaTarget counts
+    logger.debug(f"forecast_metadata_counts_for_project(): getting unit and target counts")
     sql = f"""
         SELECT fmt.forecast_id AS forecast_id, count(*) AS num_targets, 1 AS is_target_count
         FROM {ForecastMetaTarget._meta.db_table} AS fmt
