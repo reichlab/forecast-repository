@@ -209,7 +209,7 @@ def project_forecasts(request, project_pk):
     logger.debug(f"project_forecasts(): dumping json. data values len={len(vega_lite_spec['data']['values'])}")
     dumps = json.dumps(vega_lite_spec, indent=4)
 
-    logger.debug(f"project_forecasts(): rendering")
+    logger.debug(f"project_forecasts(): rendering. len dumps={len(dumps)}")
     return render(request, 'project_forecasts.html',
                   context={'project': project,
                            'forecast_rows': forecast_rows,
