@@ -43,7 +43,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='forecast',
             name='issued_at',
-            field=models.DateTimeField(db_index=True, default=None, null=False),
+            field=models.DateTimeField(db_index=True),
         ),
         migrations.RemoveField(
             model_name='forecast',
