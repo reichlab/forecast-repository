@@ -118,15 +118,6 @@ def get_truth_data_preview(project):
             for tz_date, unit__name, target__name, data in pred_data_qs]
 
 
-@transaction.atomic
-def delete_truth_data(project):
-    oracle_model = oracle_model_for_project(project)
-    if not oracle_model:
-        return
-
-    oracle_model.forecasts.all().delete()
-
-
 #
 # load_truth_data()
 #
@@ -173,10 +164,6 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
                  f"file_name={file_name}")
     if not project.pk:
         raise RuntimeError("instance is not saved the the database, so can't insert data: {!r}".format(project))
-
-    # delete existing truth data
-    logger.debug(f"load_truth_data(): calling delete_truth_data()")
-    delete_truth_data(project)
 
     # create the (single) oracle model if necessary
     oracle_model = oracle_model_for_project(project) or create_oracle_model_for_project(project)

@@ -25,7 +25,6 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),
-    url(r'^project/(?P<project_pk>\d+)/truth/delete$', views.delete_truth, name='delete-truth'),
     url(r'^project/(?P<project_pk>\d+)/truth/upload/$', views.upload_truth, name='upload-truth'),
     url(r'^project/(?P<project_pk>\d+)/query_truth$', views.query_project,
         {'query_type': views.QueryType.TRUTH}, name='query-truth'),

@@ -36,8 +36,8 @@ from utils.project import config_dict_from_project, create_project_from_json, gr
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
-from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, delete_truth_data, \
-    first_truth_data_forecast, oracle_model_for_project
+from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, first_truth_data_forecast, \
+    oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -96,7 +96,8 @@ def project_summary_info(project):
     # case cannot be differentiated from the one where there are ForecastMetaPredictions but their counts are all zero,
     # but that seems unlikely
     num_rows_exact = sum([sum([fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count])
-                          for fmp in ForecastMetaPrediction.objects.filter(forecast__forecast_model__project=project)])
+                          for fmp in ForecastMetaPrediction.objects.filter(forecast__forecast_model__project=project,
+                                                                           forecast__forecast_model__is_oracle=False)])
     return (*project.num_models_forecasts(), num_rows_exact)
 
 
@@ -1093,21 +1094,6 @@ def truth_detail(request, project_pk):
                  'is_truth_data_loaded': is_truth_data_loaded(project),
                  'oracle_model': oracle_model_for_project(project),
                  'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
-
-
-def delete_truth(request, project_pk):
-    """
-    Does the actual deletion of truth data. Assumes that confirmation has already been given by the caller.
-    Authorization: The logged-in user must be a superuser or the Project's owner.
-
-    :return: redirect to the forecast's forecast_model detail page
-    """
-    project = get_object_or_404(Project, pk=project_pk)
-    if not is_user_ok_edit_project(request.user, project):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    delete_truth_data(project)
-    return redirect('project-detail', pk=project_pk)
 
 
 def upload_truth(request, project_pk):

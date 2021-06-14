@@ -1,5 +1,4 @@
 import csv
-import datetime
 import io
 import json
 
@@ -38,17 +37,17 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     variable. Column ordering is FORECAST_CSV_HEADER.
 
     `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to six keys, five of which
-    are lists of strings:
+    are lists of strings. all are optional:
 
-    - 'models': optional list of ForecastModel.abbreviation strings
-    - 'units': "" Unit.name strings
-    - 'targets': "" Target.name strings
-    - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
-    - 'types': optional list of type strings as defined in PRED_CLASS_INT_TO_NAME.values()
+    - 'models': Pass zero or more model abbreviations in the models field.
+    - 'units': Pass zero or more unit names in the units field.
+    - 'targets': Pass zero or more target names in the targets field.
+    - 'timezeros': Pass zero or more timezero dates in YYYY_MM_DD_DATE_FORMAT format in the timezeros field.
+    - 'types': Pass a list of string types in the types field. Choices are PRED_CLASS_INT_TO_NAME.values().
 
     The sixth key allows searching based on `Forecast.issued_at`:
-    - 'as_of': optional inclusive issued_at in YYYY_MM_DD_DATE_FORMAT to limit the search to. the default behavior if
-               not passed is to use the newest forecast for each TimeZero.
+    - 'as_of': Passing a datetime string in the optional as_of field causes the query to return only those forecast
+        versions whose issued_at is <= the as_of datetime (AKA timestamp).
 
     Note that _strings_ are passed to refer to object *contents*, not database IDs, which means validation will fail if
     the referred-to objects are not found. NB: If multiple objects are found with the same name then the program will
@@ -244,22 +243,10 @@ def validate_forecasts_query(project, query):
         return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
     # validate as_of if passed. must be parsable as a timezone-aware datetime
-    as_of_str = query.get('as_of', None)
-    if as_of_str is not None:
-        if type(as_of_str) != str:
-            error_messages.append(f"'as_of' was not a string: '{type(as_of_str)}'")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
-
-        # parse as_of using dateutil's flexible parser and then check for timezone info. error if none found
-        try:
-            as_of = dateutil.parser.parse(as_of_str)
-            if as_of.tzinfo is None:
-                error_messages.append(f"'as_of' did not contain timezone info: {as_of_str!r}. parsed as: '{as_of}'")
-                as_of = None
-                return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
-        except dateutil.parser._parser.ParserError as pe:
-            error_messages.append(f"'as_of' was not a recognizable datetime format: {as_of_str!r}: {pe}")
-            return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+    error_message, as_of = _validate_as_of(query)
+    if error_message:
+        error_messages.append(error_message)
+        return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
@@ -277,6 +264,30 @@ def validate_forecasts_query(project, query):
 
     # done (may or may not be valid)
     return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+
+
+def _validate_as_of(query):
+    """
+    :param query: as passed to `validate_forecasts_query()` or `validate_truth_query()`
+    :return: a 2-tuple: (error_message, as_of) where error_message is either None (if valid) or a string. as_of is
+        either None (if invalid) or a datetime
+    """
+    as_of_str = query.get('as_of', None)
+    if as_of_str is None:
+        return None, None
+
+    if type(as_of_str) != str:
+        return f"'as_of' was not a string: '{type(as_of_str)}'", None
+
+    # parse as_of using dateutil's flexible parser and then check for timezone info. error if none found
+    try:
+        as_of = dateutil.parser.parse(as_of_str)
+        if as_of.tzinfo is None:
+            return f"'as_of' did not contain timezone info: {as_of_str!r}. parsed as: '{as_of}'", None
+
+        return None, as_of
+    except dateutil.parser._parser.ParserError as pe:
+        return f"'as_of' was not a recognizable datetime format: {as_of_str!r}: {pe}", None
 
 
 #
@@ -488,12 +499,16 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     Returns a list of rows in a Zoltar-specific CSV row format. The columns are defined in TRUTH_CSV_HEADER, as detailed
     at https://docs.zoltardata.com/fileformats/#truth-data-format-csv .
 
-    `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to three keys, all of which
+    `query` is documented at https://docs.zoltardata.com/, but briefly, it is a dict of up to four keys, three of which
     are lists of strings:
 
     - 'units': "" Unit.name strings
     - 'targets': "" Target.name strings
     - 'timezeros': "" TimeZero.timezero_date strings in YYYY_MM_DD_DATE_FORMAT
+
+    The fourth key allows searching based on `Forecast.issued_at`:
+    - 'as_of': Passing a datetime string in the optional as_of field causes the query to return only those forecast
+        versions whose issued_at is <= the as_of datetime (AKA timestamp).
 
     Note that _strings_ are passed to refer to object *contents*, not database IDs, which means validation will fail if
     the referred-to objects are not found. NB: If multiple objects are found with the same name then the program will
@@ -510,68 +525,82 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     :return: a list of CSV rows including the header
     """
     # validate query
-    logger.debug(f"query_truth_for_project(): 1/2 validating query. query={query}, project={project}")
-    _, (unit_ids, target_ids, timezero_ids) = validate_truth_query(project, query)
+    logger.debug(f"query_truth_for_project(): 1/3 validating query. query={query}, project={project}")
+    error_messages, (unit_ids, target_ids, timezero_ids, as_of) = validate_truth_query(project, query)
+    if error_messages:
+        raise RuntimeError(f"invalid query. query={query}, errors={error_messages}")
+
+    timezero_id_to_obj = {timezero.pk: timezero for timezero in project.timezeros.all()}
+    unit_id_to_obj = {unit.pk: unit for unit in project.units.all()}
+    target_id_to_obj = {target.pk: target for target in project.targets.all()}
+
+    yield TRUTH_CSV_HEADER
 
     oracle_model = oracle_model_for_project(project)
     if not oracle_model:
-        return []
+        return
 
-    # get the rows, building up a QuerySet in steps
-    pred_data_qs = PredictionData.objects.filter(pred_ele__forecast__forecast_model=oracle_model)
-    if unit_ids:
-        pred_data_qs = pred_data_qs.filter(pred_ele__unit__id__in=unit_ids)
-    if target_ids:
-        pred_data_qs = pred_data_qs.filter(pred_ele__target__id__in=target_ids)
-    if timezero_ids:
-        pred_data_qs = pred_data_qs.filter(pred_ele__forecast__time_zero__id__in=timezero_ids)
+    # get the SQL then execute and iterate over resulting data
+    model_ids = [oracle_model.pk]
+    sql = _query_forecasts_sql_for_pred_class(None, model_ids, unit_ids, target_ids, timezero_ids, as_of, False)
+    logger.debug(f"query_truth_for_project(): 2/3 executing sql. model_ids, unit_ids, target_ids, timezero_ids, "
+                 f"as_of= {model_ids}, {unit_ids}, {target_ids}, {timezero_ids}, {as_of}")
+    num_rows = 0
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (project.pk,))
+        for fm_id, tz_id, pred_class, unit_id, target_id, is_retract, pred_data in batched_rows(cursor):
+            # we do not have to check is_retract b/c we pass `is_include_retract=False`, which skips retractions
+            num_rows += 1
+            if num_rows > max_num_rows:
+                raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, "
+                                   f"max_num_rows={max_num_rows}")
 
-    # get and check the number of rows. todo xx requires a separate query - see query_forecasts_for_project() for better
-    num_rows = pred_data_qs.count()
-    if num_rows > max_num_rows:
-        raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, max_num_rows={max_num_rows}")
+            # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
+            pred_data = json.loads(pred_data)
+            tz_date = timezero_id_to_obj[tz_id].timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
+            yield [tz_date, unit_id_to_obj[unit_id].name, target_id_to_obj[target_id].name, pred_data['value']]
 
-    # done. note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field
-    # instead of using 'data__value'
-    pred_data_qs = pred_data_qs.order_by('pred_ele__id') \
-        .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name', 'pred_ele__target__name',
-                     'data')
-    logger.debug(f"query_truth_for_project(): 2/2 done. query={query}, project={project}")
-    return [TRUTH_CSV_HEADER] + [[timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), unit_name, target_name, data['value']]
-                                 for timezero_date, unit_name, target_name, data in pred_data_qs]
+    # done
+    logger.debug(f"query_truth_for_project(): 3/3 done. num_rows={num_rows}, query={query}, project={project}")
 
 
 def validate_truth_query(project, query):
     """
     Validates `query` according to the parameters documented at https://docs.zoltardata.com/ . Nearly identical to
-    validate_forecasts_query() except only validates "units", "targets", and "timezeros".
+    validate_forecasts_query() except only validates "units", "targets", "timezeros", and "as_of".
 
     :param project: as passed from `query_forecasts_for_project()`
     :param query: ""
-    :return: a 2-tuple: (error_messages, (unit_ids, target_ids, timezero_ids))
+    :return: a 2-tuple: (error_messages, (unit_ids, target_ids, timezero_ids, as_of))
     """
     # return value. filled next
-    error_messages, unit_ids, target_ids, timezero_ids = [], [], [], []
+    error_messages, unit_ids, target_ids, timezero_ids, as_of = [], [], [], [], None
 
     # validate query type
     if not isinstance(query, dict):
         error_messages.append(f"query was not a dict: {query}, query type={type(query)}")
-        return [error_messages, (unit_ids, target_ids, timezero_ids)]
+        return [error_messages, (unit_ids, target_ids, timezero_ids, as_of)]
 
     # validate keys
     actual_keys = set(query.keys())
-    expected_keys = {'units', 'targets', 'timezeros'}
+    expected_keys = {'units', 'targets', 'timezeros', 'as_of'}
     if not (actual_keys <= expected_keys):
         error_messages.append(f"one or more query keys were invalid. query={query}, actual_keys={actual_keys}, "
                               f"expected_keys={expected_keys}")
         # return even though we could technically continue
-        return [error_messages, (unit_ids, target_ids, timezero_ids)]
+        return [error_messages, (unit_ids, target_ids, timezero_ids, as_of)]
+
+    # validate as_of if passed. must be parsable as a timezone-aware datetime
+    error_message, as_of = _validate_as_of(query)
+    if error_message:
+        error_messages.append(error_message)
+        return [error_messages, (unit_ids, target_ids, timezero_ids, as_of)]
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
 
     # done (may or may not be valid)
-    return [error_messages, (unit_ids, target_ids, timezero_ids)]
+    return [error_messages, (unit_ids, target_ids, timezero_ids, as_of)]
 
 
 def _truth_query_worker(job_pk):

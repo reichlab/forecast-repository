@@ -204,8 +204,6 @@ class ViewsTestCase(TestCase):
 
             (reverse('truth-data-detail', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('truth-data-detail', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('delete-truth', args=[str(self.public_project.pk)]), self.ONLY_PO_302),
-            (reverse('delete-truth', args=[str(self.private_project.pk)]), self.ONLY_PO_302),
             (reverse('upload-truth', args=[str(self.public_project.pk)]), self.ONLY_PO),
             (reverse('upload-truth', args=[str(self.private_project.pk)]), self.ONLY_PO),
 
@@ -376,13 +374,6 @@ class ViewsTestCase(TestCase):
             # project detail - public_project2 (no truth)
             reverse('project-detail', args=[str(self.public_project2.pk)]): {
                 reverse('upload-truth', args=[str(self.public_project2.pk)]):  # no truth -> upload link
-                    [(self.po_user, True),
-                     (self.mo_user, False),
-                     (self.superuser, True),
-                     (self.non_staff_user, False)],
-            },
-            reverse('truth-data-detail', args=[str(self.public_project.pk)]): {
-                reverse('delete-truth', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True),

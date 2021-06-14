@@ -15,7 +15,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth_data_preview, truth_data_qs, \
-    delete_truth_data, oracle_model_for_project
+    oracle_model_for_project
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -43,20 +43,22 @@ class ProjectTestCase(TestCase):
         self.assertEqual(5, truth_data_qs(self.project).count())
         self.assertTrue(is_truth_data_loaded(self.project))
 
-        delete_truth_data(self.project)
-        self.assertFalse(is_truth_data_loaded(self.project))
+        # csv references non-existent TimeZero in Project: the bad timezero 2017-01-02 is skipped by
+        # _read_truth_data_rows(), but the remaining data that's loaded (three 2017-01-01 rows) is therefore a subset,
+        # which is invalid. so we check for that
+        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
+                            'truths-bad-timezero.csv', is_convert_na_none=True)
 
-        # csv references non-existent TimeZero in Project: should not raise error
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
-                        'truths-bad-timezero.csv', is_convert_na_none=True)
+        # csv references non-existent unit in Project: the bad unit is skipped, again resulting in a subset
+        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
+                            'truths-bad-location.csv', is_convert_na_none=True)
 
-        # csv references non-existent unit in Project: should not raise error
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
-                        'truths-bad-location.csv', is_convert_na_none=True)
-
-        # csv references non-existent target in Project: should not raise error
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
-                        'truths-bad-target.csv', is_convert_na_none=True)
+        # csv references non-existent target in Project: the bad target is skipped
+        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
+                            'truths-bad-target.csv', is_convert_na_none=True)
 
         project2 = Project.objects.create()
         make_cdc_units_and_targets(project2)
@@ -75,6 +77,25 @@ class ProjectTestCase(TestCase):
             (datetime.date(2017, 1, 1), 'US National', '4 wk ahead', 0.911641),
             (datetime.date(2017, 1, 1), 'US National', 'Season onset', '2017-11-20')]
         self.assertEqual(sorted(exp_truth_preview), sorted(get_truth_data_preview(project2)))
+
+
+    def test_load_truth_data_versions(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads docs-ground-truth.csv
+
+        oracle_model = oracle_model_for_project(project)
+        self.assertEqual(3, oracle_model.forecasts.count())  # for 3 timezeros: 2011-10-02, 2011-10-09, 2011-10-16
+        self.assertEqual(14, truth_data_qs(project).count())
+        self.assertTrue(is_truth_data_loaded(project))
+
+        with self.assertRaisesRegex(RuntimeError, 'cannot load 100% duplicate data'):
+            load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'),
+                            file_name='docs-ground-truth.csv')
+
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-non-dup.csv'),
+                        file_name='docs-ground-truth-non-dup.csv')
+        self.assertEqual(3 * 2, oracle_model.forecasts.count())
+        self.assertEqual(14 * 2, truth_data_qs(project).count())
 
 
     def test_load_truth_data_other_files(self):

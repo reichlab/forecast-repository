@@ -17,7 +17,7 @@ from utils.project import create_project_from_json
 from utils.project_queries import FORECAST_CSV_HEADER, query_forecasts_for_project, _forecasts_query_worker, \
     validate_truth_query, _truth_query_worker, query_truth_for_project
 from utils.project_queries import validate_forecasts_query
-from utils.project_truth import TRUTH_CSV_HEADER
+from utils.project_truth import TRUTH_CSV_HEADER, oracle_model_for_project, load_truth_data
 from utils.utilities import get_or_create_super_po_mo_users, YYYY_MM_DD_DATE_FORMAT
 
 
@@ -351,12 +351,26 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(1, len(error_messages))
         self.assertIn("one or more query keys were invalid", error_messages[0])
 
+        # case: query keys are not correct type (lists)
         for key_name in ['units', 'targets', 'timezeros']:
             error_messages, _ = validate_truth_query(self.project, {key_name: -1})
             self.assertEqual(1, len(error_messages))
             self.assertIn(f"'{key_name}' was not a list", error_messages[0])
 
-        # case: bad object id
+        # case: as_of is not a string, is not a datetime, or does not have timezone info
+        error_messages, _ = validate_truth_query(self.project, {'as_of': -1})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn(f"'as_of' was not a string", error_messages[0])
+
+        error_messages, _ = validate_truth_query(self.project, {'as_of': '202010119'})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn(f"'as_of' was not a recognizable datetime format", error_messages[0])
+
+        error_messages, _ = validate_truth_query(self.project, {'as_of': '2020-10-11'})
+        self.assertEqual(1, len(error_messages))
+        self.assertIn(f"'as_of' did not contain timezone info", error_messages[0])
+
+        # case: bad object reference
         for key_name, exp_error_msg in [('units', 'unit with name not found'),
                                         ('targets', 'target with name not found'),
                                         ('timezeros', 'timezero with date not found')]:
@@ -400,7 +414,7 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-16', 'location1', 'above baseline', False],
                     ['2011-10-16', 'location1', 'cases next week', 0],
                     ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
-        act_rows = query_truth_for_project(self.project, {})
+        act_rows = list(query_truth_for_project(self.project, {}))
         self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
@@ -414,7 +428,7 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-16', 'location1', 'above baseline', False],
                     ['2011-10-16', 'location1', 'cases next week', 0],
                     ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
-        act_rows = query_truth_for_project(self.project, {'units': ['location1']})
+        act_rows = list(query_truth_for_project(self.project, {'units': ['location1']}))
         self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
@@ -422,7 +436,7 @@ class ProjectQueriesTestCase(TestCase):
         exp_rows = [['2011-10-02', 'location1', 'cases next week', 10],
                     ['2011-10-09', 'location2', 'cases next week', 3],
                     ['2011-10-16', 'location1', 'cases next week', 0]]  # sorted
-        act_rows = query_truth_for_project(self.project, {'targets': ['cases next week']})
+        act_rows = list(query_truth_for_project(self.project, {'targets': ['cases next week']}))
         self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
@@ -432,7 +446,7 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-02', 'location1', 'cases next week', 10],
                     ['2011-10-02', 'location1', 'pct next week', 4.5432],
                     ['2011-10-02', 'location1', 'season severity', 'moderate']]  # sorted
-        act_rows = query_truth_for_project(self.project, {'timezeros': ['2011-10-02']})
+        act_rows = list(query_truth_for_project(self.project, {'timezeros': ['2011-10-02']}))
         self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
         self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
@@ -446,6 +460,80 @@ class ProjectQueriesTestCase(TestCase):
         with self.assertRaises(RuntimeError) as context:
             list(query_truth_for_project(self.project, {}, max_num_rows=13))
         self.assertIn("number of rows exceeded maximum", str(context.exception))
+
+
+    def test_query_truth_for_project_as_of(self):
+        # self.project has already loaded docs-ground-truth.csv
+        last_forecast = Forecast.objects.filter(forecast_model=oracle_model_for_project(self.project)).last()
+
+        # case a: no as_of -> latest version (only one version so far)
+        exp_rows = [['2011-10-02', 'location1', 'Season peak week', '2019-12-15'],
+                    ['2011-10-02', 'location1', 'above baseline', True],
+                    ['2011-10-02', 'location1', 'cases next week', 10],
+                    ['2011-10-02', 'location1', 'pct next week', 4.5432],
+                    ['2011-10-02', 'location1', 'season severity', 'moderate'],
+                    ['2011-10-09', 'location2', 'Season peak week', '2019-12-29'],
+                    ['2011-10-09', 'location2', 'above baseline', True],
+                    ['2011-10-09', 'location2', 'cases next week', 3],
+                    ['2011-10-09', 'location2', 'pct next week', 99.9],
+                    ['2011-10-09', 'location2', 'season severity', 'severe'],
+                    ['2011-10-16', 'location1', 'Season peak week', '2019-12-22'],
+                    ['2011-10-16', 'location1', 'above baseline', False],
+                    ['2011-10-16', 'location1', 'cases next week', 0],
+                    ['2011-10-16', 'location1', 'pct next week', 0.0]]  # sorted
+        act_rows = list(query_truth_for_project(self.project, {}))  # list for generator
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+        # case b: as_of < latest version's issue_date -> no rows. we use the newest oracle forecast, which is
+        # ok to do b/c all forecasts that were uploaded from a single file are a "batch" that all has the same
+        # source and issued_at, as set by `_load_truth_data()`
+        as_of = (last_forecast.issued_at - datetime.timedelta(days=1)).isoformat()
+        act_rows = list(query_truth_for_project(self.project, {'as_of': as_of}))
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
+        self.assertEqual([], act_rows)
+
+        # case c: as_of = latest version's issue_date -> latest version (same as case a)
+        as_of = last_forecast.issued_at.isoformat()
+        act_rows = list(query_truth_for_project(self.project, {'as_of': as_of}))
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+        # load a second batch of forecasts (new versions)
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth-non-dup.csv'),
+                        file_name='docs-ground-truth-non-dup.csv')
+        last_forecast = Forecast.objects.filter(forecast_model=oracle_model_for_project(self.project)).last()
+
+        # case d: no as_of -> latest version (second version)
+        exp_rows = [['2011-10-02', 'location1', 'Season peak week', '2019-12-29'],
+                    ['2011-10-02', 'location1', 'above baseline', False],
+                    ['2011-10-02', 'location1', 'cases next week', 11],
+                    ['2011-10-02', 'location1', 'pct next week', 5.5432],
+                    ['2011-10-02', 'location1', 'season severity', 'mild'],
+                    ['2011-10-09', 'location2', 'Season peak week', '2019-12-22'],
+                    ['2011-10-09', 'location2', 'above baseline', False],
+                    ['2011-10-09', 'location2', 'cases next week', 4],
+                    ['2011-10-09', 'location2', 'pct next week', 99.8],
+                    ['2011-10-09', 'location2', 'season severity', 'moderate'],
+                    ['2011-10-16', 'location1', 'Season peak week', '2019-12-15'],
+                    ['2011-10-16', 'location1', 'above baseline', True],
+                    ['2011-10-16', 'location1', 'cases next week', 1],
+                    ['2011-10-16', 'location1', 'pct next week', 1.0]]  # sorted
+        act_rows = list(query_truth_for_project(self.project, {}))  # list for generator
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
+
+        # case e: as_of < latest version's issue_date -> previous version (same as case a/c)
+        as_of = (last_forecast.issued_at - datetime.timedelta(days=1)).isoformat()
+        act_rows = list(query_truth_for_project(self.project, {'as_of': as_of}))
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
+        self.assertEqual([], act_rows)
+
+        # case f: as_of = latest version's issue_date -> latest version (same as case d)
+        as_of = last_forecast.issued_at.isoformat()
+        act_rows = list(query_truth_for_project(self.project, {'as_of': as_of}))
+        self.assertEqual(TRUTH_CSV_HEADER, act_rows.pop(0))
+        self._assert_list_of_lists_almost_equal(exp_rows, sorted(act_rows))
 
 
     def test__truth_query_worker(self):
