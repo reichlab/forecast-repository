@@ -47,24 +47,24 @@
                             {% endif %}
                         </td>
                     </tr>
-                    <tr>
-                        <th>Upload:</th>
-                        <td>
-                            {% if is_user_ok_edit_project %}
-                                {# show a button for uploading a file #}
-                                <form class="form-inline" method="POST" enctype="multipart/form-data"
-                                      action="{% url 'upload-truth' project.pk %}">
-                                    {% csrf_token %}
-                                    <div class="form-group">
-                                        <input type="file" name="data_file"> &nbsp;
-                                        <button class="btn-sm btn-success" type="submit">
-                                            <i class="fas fa-cloud-upload-alt"></i>Upload
-                                        </button>
-                                    </div>
-                                </form>
-                            {% endif %}
-                    </tr>
                 {% endif %}
+                <tr>
+                    <th>Upload:</th>
+                    <td>
+                        {% if is_user_ok_edit_project %}
+                            {# show a button for uploading a file #}
+                            <form class="form-inline" method="POST" enctype="multipart/form-data"
+                                  action="{% url 'upload-truth' project.pk %}">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <input type="file" name="data_file"> &nbsp;
+                                    <button class="btn-sm btn-success" type="submit">
+                                        <i class="fas fa-cloud-upload-alt"></i>Upload
+                                    </button>
+                                </div>
+                            </form>
+                        {% endif %}
+                </tr>
                 </tbody>
             </table>
         </div>
@@ -76,7 +76,7 @@
         <table class="table table-striped">
             <thead>
             <tr>
-                <th title="batch number">Batch #</th>
+                <th title="batch number">Batch</th>
                 <th title="source">Source</th>
                 <th title="issued at">Issued at</th>
             </tr>

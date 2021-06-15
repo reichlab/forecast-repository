@@ -353,7 +353,7 @@ class ViewsTestCase(TestCase):
                      (self.superuser, True),
                      (self.non_staff_user, False)],
             },
-            # project detail - public_project (has truth)
+            # project detail - public_project
             reverse('project-detail', args=[str(self.public_project.pk)]): {
                 reverse('edit-project-from-form', args=[str(self.public_project.pk)]):
                     [(self.po_user, True),
@@ -371,9 +371,17 @@ class ViewsTestCase(TestCase):
                      (self.superuser, True),
                      (self.non_staff_user, False)],
             },
-            # project detail - public_project2 (no truth)
-            reverse('project-detail', args=[str(self.public_project2.pk)]): {
-                reverse('upload-truth', args=[str(self.public_project2.pk)]):  # no truth -> upload link
+            # truth detail - public_project (has truth)
+            reverse('truth-data-detail', args=[str(self.public_project.pk)]): {
+                reverse('upload-truth', args=[str(self.public_project.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
+            },
+            # truth detail - public_project2 (no truth)
+            reverse('truth-data-detail', args=[str(self.public_project2.pk)]): {
+                reverse('upload-truth', args=[str(self.public_project2.pk)]):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True),
