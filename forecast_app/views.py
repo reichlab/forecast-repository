@@ -335,7 +335,7 @@ def query_project(request, project_pk, query_type):
         # timezeros: v          v
         # models:    v          x
         # types:     v          x
-        # as_of:     v          x
+        # as_of:     v          v
         first_unit = project.units.first()
         first_target = project.targets.first()
         first_timezero = project.timezeros.first()
@@ -343,6 +343,11 @@ def query_project(request, project_pk, query_type):
                          'targets': [first_target.name] if first_target else [],
                          'timezeros': [first_timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]
                          if first_timezero else []}
+        if query_type == QueryType.TRUTH:
+            last_forecast = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=True) \
+                .last()
+            if last_forecast:
+                default_query['as_of'] = str(last_forecast.issued_at.isoformat())
         if query_type == QueryType.FORECASTS:
             first_model = project.models.filter(is_oracle=False).first()
             default_query['models'] = [first_model.abbreviation] if first_model else []
@@ -351,7 +356,7 @@ def query_project(request, project_pk, query_type):
             first_forecast = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
                 .first()
             if first_forecast:
-                default_query['as_of'] = str(first_forecast.issued_at)
+                default_query['as_of'] = str(first_forecast.issued_at.isoformat())
         form = QueryForm(project, query_type, initial={'query': json.dumps(default_query)})
 
     # render
