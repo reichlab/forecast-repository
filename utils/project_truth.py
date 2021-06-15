@@ -87,15 +87,6 @@ def is_truth_data_loaded(project):
     return truth_data_qs(project).exists()
 
 
-def first_truth_data_forecast(project):
-    """
-    :param project: a Project
-    :return: the first Forecast in project's oracle ForecastModel, or None if no truth is loaded
-    """
-    oracle_model = oracle_model_for_project(project)
-    return None if not oracle_model else oracle_model.forecasts.first()
-
-
 def get_truth_data_preview(project):
     """
     :return: view helper function that returns a preview of my truth data in the form of a table that's

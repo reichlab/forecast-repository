@@ -7,7 +7,7 @@ from forecast_app.models import Project, Target, TimeZero, ForecastModel, Foreca
 from forecast_app.models.job import Job
 from forecast_app.models.project import Unit
 from forecast_app.views import forecast_models_owned_by_user, projects_and_roles_for_user
-from utils.project_truth import first_truth_data_forecast
+from utils.project_truth import oracle_model_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -210,13 +210,15 @@ class TruthSerializer(serializers.ModelSerializer):
 
 
     def get_source(self, project):
-        first_truth_forecast = first_truth_data_forecast(project)
-        return first_truth_forecast.source if first_truth_forecast else None
+        oracle_model = oracle_model_for_project(project)
+        last_truth_forecast = oracle_model.forecasts.last() if oracle_model else None
+        return last_truth_forecast.source if last_truth_forecast else None
 
 
     def get_created_at(self, project):
-        first_truth_forecast = first_truth_data_forecast(project)
-        return first_truth_forecast.created_at if first_truth_forecast else None
+        oracle_model = oracle_model_for_project(project)
+        last_truth_forecast = oracle_model.forecasts.last() if oracle_model else None
+        return last_truth_forecast.created_at if last_truth_forecast else None
 
 
 class UserSerializer(serializers.ModelSerializer):

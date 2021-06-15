@@ -2,10 +2,11 @@ import click
 import django
 from django.shortcuts import get_object_or_404
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
-from utils.project_truth import truth_data_qs, first_truth_data_forecast
+from utils.project_truth import truth_data_qs, oracle_model_for_project
 from django.contrib.auth.models import User
 from forecast_app.models import Project
 
@@ -32,7 +33,8 @@ def main(verbosity, project_pk):
 
 def print_project_info(project, verbosity):
     # verbosity == 1
-    first_truth_forecast = first_truth_data_forecast(project)
+    oracle_model = oracle_model_for_project(project)
+    first_truth_forecast = oracle_model.forecasts.first() if oracle_model else None
     click.echo(f"\n\n* {project}. truth: # predictions={truth_data_qs(project).count()}, "
                f"source={repr(first_truth_forecast.source) if first_truth_forecast else '<no truth>'}, "
                f"created_at={first_truth_forecast.created_at if first_truth_forecast else '<no truth>'}. "

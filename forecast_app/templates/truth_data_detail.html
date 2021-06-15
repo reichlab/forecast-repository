@@ -22,13 +22,12 @@
         {% endif %}
     </h2>
 
-
     <div class="row">
         <div class="col-md-8">
             <table class="table table-bordered">
                 <tbody>
                 <tr>
-                    <th>Batches:</th>
+                    <th># Batches:</th>
                     <td>
                         {% if is_truth_data_loaded %}
                             {{ batches|length }}
@@ -47,6 +46,23 @@
                                 <small class="text-muted">(No truth data)</small>
                             {% endif %}
                         </td>
+                    </tr>
+                    <tr>
+                        <th>Upload:</th>
+                        <td>
+                            {% if is_user_ok_edit_project %}
+                                {# show a button for uploading a file #}
+                                <form class="form-inline" method="POST" enctype="multipart/form-data"
+                                      action="{% url 'upload-truth' project.pk %}">
+                                    {% csrf_token %}
+                                    <div class="form-group">
+                                        <input type="file" name="data_file"> &nbsp;
+                                        <button class="btn-sm btn-success" type="submit">
+                                            <i class="fas fa-cloud-upload-alt"></i>Upload
+                                        </button>
+                                    </div>
+                                </form>
+                            {% endif %}
                     </tr>
                 {% endif %}
                 </tbody>

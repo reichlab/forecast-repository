@@ -36,8 +36,7 @@ from utils.project import config_dict_from_project, create_project_from_json, gr
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
-from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, first_truth_data_forecast, \
-    oracle_model_for_project, truth_batches
+from utils.project_truth import is_truth_data_loaded, oracle_model_for_project, truth_batches
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -740,7 +739,8 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['is_truth_data_loaded'] = is_truth_data_loaded(project)
 
         # num_batches, latest_batch_source, latest_batch_timezero:
-        context['truth_batch_info'] = len(batches), batches[-1][0], batches[-1][1]
+        context['truth_batch_info'] = len(batches), batches[-1][0] if batches else None, \
+                                      batches[-1][1] if batches else None
 
         context['project_summary_info'] = project_summary_info(project)  # num_models, num_forecasts, num_rows_exact
         return context
@@ -1108,11 +1108,6 @@ def upload_truth(request, project_pk):
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
-
-    if is_truth_data_loaded(project):
-        return render(request, 'message.html',
-                      context={'title': "Truth data already loaded.",
-                               'message': "The project already has truth data. Please delete it and then upload again."})
 
     is_error = validate_data_file(request)  # 'data_file' in request.FILES, data_file.size <= MAX_UPLOAD_FILE_SIZE
     if is_error:
