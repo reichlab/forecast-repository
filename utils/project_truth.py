@@ -369,7 +369,7 @@ def truth_batches(project):
     batch_qs = Forecast.objects.filter(forecast_model=oracle_model_for_project(project)) \
         .values('source', 'issued_at') \
         .distinct() \
-        .order_by('-source', '-issued_at') \
+        .order_by('issued_at') \
         .values_list('source', 'issued_at')
     return list(batch_qs)
 
