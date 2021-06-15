@@ -124,13 +124,14 @@
                     <th>Truth Data:</th>
                     <td>
                         {% if is_truth_data_loaded %}
-                            {# show a link to the truth detail #}
+                            {# show a link to the truth detail plus batch count and latest batch info #}
                             <a href="{% url 'truth-data-detail' project.pk %}">
-                                {% if first_truth_forecast.source %}
-                                    {{ first_truth_forecast.source }}
-                                {% else %}(no source){% endif %}</a>
+                                {% if truth_batch_info.1 %} {{ truth_batch_info.1 }} {% else %}(no source){% endif %}
+                            </a>
                             <small class="text-muted">{% localtime off %}
-                                {{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</small>
+                                (batch {{ truth_batch_info.0 }} of {{ truth_batch_info.0 }} issued at
+                                {{ truth_batch_info.2|date:"Y-m-d H:i:s T" }})
+                            {% endlocaltime %}</small>
                             .
                             <a href="{% url 'query-truth' project.pk %}">Download</a>
                         {% else %}

@@ -37,7 +37,7 @@ from utils.project_diff import project_config_diff, database_changes_for_project
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.project_truth import is_truth_data_loaded, get_truth_data_preview, first_truth_data_forecast, \
-    oracle_model_for_project
+    oracle_model_for_project, truth_batches
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -728,6 +728,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         target_groups = sorted([(group_name, sorted(target_list, key=lambda target: target.name))
                                 for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
+        batches = truth_batches(project)
         context = super().get_context_data(**kwargs)
         context['models_rows'] = models_summary_table_rows_for_project(project)
         context['is_user_ok_edit_project'] = is_user_ok_edit_project(self.request.user, project)
@@ -737,7 +738,10 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
         context['is_truth_data_loaded'] = is_truth_data_loaded(project)
-        context['first_truth_forecast'] = first_truth_data_forecast(project)
+
+        # num_batches, latest_batch_source, latest_batch_timezero:
+        context['truth_batch_info'] = len(batches), batches[-1][0], batches[-1][1]
+
         context['project_summary_info'] = project_summary_info(project)  # num_models, num_forecasts, num_rows_exact
         return context
 
@@ -1085,14 +1089,14 @@ def truth_detail(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    batches = truth_batches(project)
     return render(
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 'truth_data_preview': get_truth_data_preview(project),
-                 'first_truth_forecast': first_truth_data_forecast(project),
                  'is_truth_data_loaded': is_truth_data_loaded(project),
                  'oracle_model': oracle_model_for_project(project),
+                 'batches': batches,
                  'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 

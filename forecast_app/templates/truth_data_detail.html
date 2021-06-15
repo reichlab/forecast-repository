@@ -28,23 +28,12 @@
             <table class="table table-bordered">
                 <tbody>
                 <tr>
-                    <th>Upload filename:</th>
+                    <th>Batches:</th>
                     <td>
                         {% if is_truth_data_loaded %}
-                            {{ first_truth_forecast.source }}
+                            {{ batches|length }}
                         {% else %}
                             <small class="text-muted">(No truth data)</small>
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>Updated at:</th>
-                    <td>
-                        {% if is_truth_data_loaded %}
-                            {% localtime off %} {{ first_truth_forecast.created_at|date:"Y-m-d H:i:s T" }}
-                            {% endlocaltime %}
-                        {% else %}
-                            <small class="text-muted">(No update date found)</small>
                         {% endif %}
                     </td>
                 </tr>
@@ -66,29 +55,24 @@
     </div>
 
 
-    <h4>Preview of rows</h4>
+    <h4>Batches</h4>
     {% if is_truth_data_loaded %}
         <table class="table table-striped">
             <thead>
             <tr>
-                <th title="Time zero the truth value is for">timezero</th>
-                <th title="Unit of forecast - either entire country or a particular region">unit</th>
-                <th title="Forecast target">target</th>
-                <th title="Forecasted point value or probability assigned">value</th>
+                <th title="batch number">Batch #</th>
+                <th title="source">Source</th>
+                <th title="issued at">Issued at</th>
             </tr>
             </thead>
             <tbody>
-            {% for timezero_date, unit, target_name, value in truth_data_preview %}
+            {% for source, issued_at in batches %}
                 <tr>
-                    <td>{{ timezero_date }}</td>
-                    <td>{{ unit }}</td>
-                    <td>{{ target_name }}</td>
-                    <td>{{ value }}</td>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{% if source %} {{ source }} {% else %}(no source){% endif %}</td>
+                    <td>{% localtime off %} {{ issued_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</td>
                 </tr>
             {% endfor %}
-            <tr>
-                <td>...</td>
-            </tr>
             </tbody>
         </table>
     {% else %}
