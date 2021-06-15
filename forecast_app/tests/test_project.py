@@ -15,7 +15,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth_data_preview, truth_data_qs, \
-    oracle_model_for_project
+    oracle_model_for_project, truth_batches, truth_batch_forecasts
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -140,6 +140,30 @@ class ProjectTestCase(TestCase):
         act_rows = [(tz_date, unit__name, target__name, data['value'])
                     for tz_date, unit__name, target__name, data in pred_data_qs]
         self.assertEqual(sorted(exp_rows), sorted(list(act_rows)))
+
+
+    def test_truth_batches(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads docs-ground-truth.csv
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-non-dup.csv'),
+                        file_name='docs-ground-truth-non-dup.csv')
+        oracle_model = oracle_model_for_project(project)
+        first_forecast = oracle_model.forecasts.first()
+        last_forecast = oracle_model.forecasts.last()
+
+        batches = truth_batches(project)
+        self.assertEqual(2, len(batches))
+        self.assertEqual(first_forecast.source, batches[0][0])
+        self.assertEqual(first_forecast.issued_at, batches[0][1])
+        self.assertEqual(last_forecast.source, batches[1][0])
+        self.assertEqual(last_forecast.issued_at, batches[1][1])
+
+        for source, issued_at in batches:
+            forecasts = truth_batch_forecasts(project, source, issued_at)
+            self.assertEqual(3, len(forecasts))
+            for forecast in forecasts:
+                self.assertEqual(source, forecast.source)
+                self.assertEqual(issued_at, forecast.issued_at)
 
 
     def test_timezeros_unique(self):

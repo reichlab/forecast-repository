@@ -111,9 +111,10 @@ def get_truth_data_preview(project):
     # note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field instead of
     # using 'data__value'
     pred_data_qs = PredictionData.objects \
-        .filter(pred_ele__forecast__forecast_model=oracle_model) \
-        .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name', 'pred_ele__target__name',
-                     'data')[:10]
+                       .filter(pred_ele__forecast__forecast_model=oracle_model) \
+                       .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+                                    'pred_ele__target__name',
+                                    'data')[:10]
     return [(tz_date, unit__name, target__name, data['value'])
             for tz_date, unit__name, target__name, data in pred_data_qs]
 
@@ -338,13 +339,6 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                                f"parsed_value={parsed_value}, cats_values={cats_values}")
 
         # valid
-
-        # value_i = parsed_value if data_types[0] == Target.INTEGER_DATA_TYPE else None
-        # value_f = parsed_value if data_types[0] == Target.FLOAT_DATA_TYPE else None
-        # value_t = parsed_value if data_types[0] == Target.TEXT_DATA_TYPE else None
-        # value_d = parsed_value if data_types[0] == Target.DATE_DATA_TYPE else None
-        # value_b = parsed_value if data_types[0] == Target.BOOLEAN_DATA_TYPE else None
-
         rows.append((time_zero, unit_name_to_obj[unit_name], target, parsed_value))
 
     # report warnings
@@ -360,3 +354,44 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
 
     # done
     return rows
+
+
+#
+# batch-related functions
+#
+
+def truth_batches(project):
+    """
+    Returns a list of "batches" of truth uploads. We define a batch as all of the oracle Forecasts that originated from
+    the same file. Recall that `load_truth_data()` breaks the incoming truth file into groups based on shared timezeros
+    and the loads each of those groups into its own oracle Forecast. Importantly, it finishes by setting all of the
+    Forecasts' `source` and `issued_at` values to be the same, thus implicitly creating a batch. This means batches are
+    identified by grouping oracle Forecasts by what's effectively the composite primary key `(source, issued_at)`.
+
+    :param project: the Project to get batches from
+    :return: all batches in `project`'s oracle model as a list of 2-tuples: (source, issued_at) sorted from oldest to
+        newest
+    """
+    from forecast_app.models import Forecast  # avoid circular imports
+
+
+    batch_qs = Forecast.objects.filter(forecast_model=oracle_model_for_project(project)) \
+        .values('source', 'issued_at') \
+        .distinct() \
+        .order_by('-source', '-issued_at') \
+        .values_list('source', 'issued_at')
+    return list(batch_qs)
+
+
+def truth_batch_forecasts(project, source, issued_at):
+    """
+    :param project: the Project to get batches from
+    :param source: tuple element 0 as returned by `truth_batches()`
+    :param issued_at: "" 1 ""
+    :return: list of `project`'s Forecasts in the batch identified by `source` and `issued_at`
+    """
+    from forecast_app.models import Forecast  # avoid circular imports
+
+
+    return list(Forecast.objects.filter(forecast_model=oracle_model_for_project(project),
+                                        source=source, issued_at=issued_at))
