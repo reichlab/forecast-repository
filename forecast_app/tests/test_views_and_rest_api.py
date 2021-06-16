@@ -378,6 +378,11 @@ class ViewsTestCase(TestCase):
                      (self.mo_user, False),
                      (self.superuser, True),
                      (self.non_staff_user, False)],
+                reverse('delete-project-latest-truth-batch', args=[str(self.public_project.pk)]):
+                    [(self.po_user, True),
+                     (self.mo_user, False),
+                     (self.superuser, True),
+                     (self.non_staff_user, False)],
             },
             # truth detail - public_project2 (no truth)
             reverse('truth-data-detail', args=[str(self.public_project2.pk)]): {
@@ -385,6 +390,11 @@ class ViewsTestCase(TestCase):
                     [(self.po_user, True),
                      (self.mo_user, False),
                      (self.superuser, True),
+                     (self.non_staff_user, False)],
+                reverse('delete-project-latest-truth-batch', args=[str(self.public_project.pk)]):
+                    [(self.po_user, False),
+                     (self.mo_user, False),
+                     (self.superuser, False),
                      (self.non_staff_user, False)],
             },
             # user detail - public_project (has truth)

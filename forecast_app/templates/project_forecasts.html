@@ -17,7 +17,7 @@
     </nav>
 
 
-    <h4>Forecast Heatmap
+    <h2>Forecast Heatmap
         <div class="dropdown d-inline-block">
             <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="dropdownMenuButton"
                     data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -32,7 +32,7 @@
                    id="color_num_targets"># targets</a>
             </div>
         </div>
-    </h4>
+    </h2>
 
 
     {# Vega-Lite #}
@@ -52,7 +52,7 @@
     </script>
 
 
-    <h4>Forecasts <small>({{ forecast_rows|length|intword|intcomma }})</small></h4>
+    <h2>Forecasts <small>({{ forecast_rows|length|intword|intcomma }})</small></h2>
 
     {% if forecast_rows %}
         <table id="forecasts_table" class="table table-striped table-bordered">

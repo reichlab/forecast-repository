@@ -36,7 +36,8 @@ from utils.project import config_dict_from_project, create_project_from_json, gr
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
-from utils.project_truth import is_truth_data_loaded, oracle_model_for_project, truth_batches
+from utils.project_truth import is_truth_data_loaded, oracle_model_for_project, truth_batches, \
+    truth_batch_summary_table, truth_delete_batch
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -539,7 +540,6 @@ def delete_project(request, project_pk):
     Does the actual deletion of a Project. Assumes that confirmation has already been given by the caller.
     Authorization: The logged-in user must be a superuser or the Project's owner.
     """
-    user = request.user
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
@@ -552,6 +552,28 @@ def delete_project(request, project_pk):
     delete_project_iteratively(project)  # more memory-efficient. o/w fails on Heroku for large projects
     messages.success(request, "Deleted project '{}'.".format(project_name))
     return redirect('projects')
+
+
+def delete_project_truth_latest_batch(request, project_pk):
+    """
+    Deletes the latest truth batch from project_pk if there is one.
+
+    :return:
+    """
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_edit_project(request.user, project):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    batches = truth_batches(project)
+    if not batches:
+        messages.error(request, f"Project has no truth batches to delete")
+    else:
+        last_batch = batches[-1]
+        truth_delete_batch(project, last_batch[0], last_batch[1])  # source, issued_at
+        messages.success(request, f"Deleted latest truth batch from project '{project.name}': source={last_batch[0]}, "
+                                  f"issued_at={last_batch[1]}")
+
+    return redirect('truth-data-detail', project_pk=project.pk)
 
 
 def edit_user(request, user_pk):
@@ -608,7 +630,6 @@ def create_model(request, project_pk):
     Shows a form to add a new ForecastModel for the passed User. Authorization: The logged-in user must be a superuser,
     or the Project's owner, or one if its model_owners.
     """
-    user = request.user
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_create_model(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
@@ -617,7 +638,7 @@ def create_model(request, project_pk):
         forecast_model_form = ForecastModelForm(request.POST)
         if forecast_model_form.is_valid():
             new_model = forecast_model_form.save(commit=False)
-            new_model.owner = user  # force the owner to the current user
+            new_model.owner = request.user  # force the owner to the current user
             new_model.project = project
             new_model.save()
             messages.success(request, "Created model '{}'".format(new_model))
@@ -662,7 +683,6 @@ def delete_model(request, model_pk):
     Does the actual deletion of the ForecastModel. Assumes that confirmation has already been given by the caller.
     Authorization: The logged-in user must be a superuser, or the Project's owner, or the model's owner.
     """
-    user = request.user
     forecast_model = get_object_or_404(ForecastModel, pk=model_pk)
     if not is_user_ok_edit_model(request.user, forecast_model):
         return HttpResponseForbidden(render(request, '403.html').content)
@@ -670,7 +690,7 @@ def delete_model(request, model_pk):
     forecast_model_name = forecast_model.name
     forecast_model.delete()
     messages.success(request, "Deleted model '{}'.".format(forecast_model_name))
-    return redirect('user-detail', pk=user.pk)
+    return redirect('user-detail', pk=request.user.pk)
 
 
 #
@@ -1094,14 +1114,13 @@ def truth_detail(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    batches = truth_batches(project)
     return render(
         request,
         'truth_data_detail.html',
         context={'project': project,
                  'is_truth_data_loaded': is_truth_data_loaded(project),
                  'oracle_model': oracle_model_for_project(project),
-                 'batches': batches,
+                 'batches': truth_batch_summary_table(project),  # 3-tuples: (source, issued_at, num_forecasts)
                  'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 

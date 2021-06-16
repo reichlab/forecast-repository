@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.test import TestCase
 
 from forecast_app.models import Project, TimeZero, Job, Forecast, PredictionData
@@ -15,7 +16,7 @@ from utils.forecast import load_predictions_from_json_io_dict
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
 from utils.project_truth import load_truth_data, is_truth_data_loaded, get_truth_data_preview, truth_data_qs, \
-    oracle_model_for_project, truth_batches, truth_batch_forecasts
+    oracle_model_for_project, truth_batches, truth_batch_forecasts, truth_delete_batch, truth_batch_summary_table
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -144,13 +145,16 @@ class ProjectTestCase(TestCase):
 
     def test_truth_batches(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
-        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads docs-ground-truth.csv
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads batch: docs-ground-truth.csv
+
+        # add a second batch
         load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-non-dup.csv'),
                         file_name='docs-ground-truth-non-dup.csv')
         oracle_model = oracle_model_for_project(project)
         first_forecast = oracle_model.forecasts.first()
         last_forecast = oracle_model.forecasts.last()
 
+        # test truth_batches() and truth_batch_forecasts() for each batch
         batches = truth_batches(project)
         self.assertEqual(2, len(batches))
         self.assertEqual(first_forecast.source, batches[0][0])
@@ -164,6 +168,27 @@ class ProjectTestCase(TestCase):
             for forecast in forecasts:
                 self.assertEqual(source, forecast.source)
                 self.assertEqual(issued_at, forecast.issued_at)
+
+        # test truth_batch_summary_table(). NB: utctimetuple() makes sqlite comparisons work
+        exp_table = [(source, issued_at.utctimetuple(), len(truth_batch_forecasts(project, source, issued_at)))
+                     for source, issued_at in batches]
+        act_table = [(source, issued_at.utctimetuple(), num_forecasts)
+                     for source, issued_at, num_forecasts in truth_batch_summary_table(project)]
+        self.assertEqual(exp_table, act_table)
+
+        # finally, test deleting a batch. try deleting the first, which should fail due to version rules.
+        # transaction.atomic() somehow avoids the second `truth_delete_batch()` call getting the error:
+        # django.db.transaction.TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.
+        with transaction.atomic():
+            with self.assertRaisesRegex(RuntimeError, 'you cannot delete a forecast that has any newer versions'):
+                truth_delete_batch(project, batches[0][0], batches[0][1])
+
+        # delete second batch - should not fail
+        truth_delete_batch(project, batches[1][0], batches[1][1])
+        batches = truth_batches(project)
+        self.assertEqual(1, len(batches))
+        self.assertEqual(first_forecast.source, batches[0][0])
+        self.assertEqual(first_forecast.issued_at, batches[0][1])
 
 
     def test_timezeros_unique(self):

@@ -36,18 +36,16 @@
                         {% endif %}
                     </td>
                 </tr>
-                {% if request.user.is_superuser %}
-                    <tr>
-                        <th>Oracle model:</th>
-                        <td>
-                            {% if is_truth_data_loaded %}
-                                <a href="{% url 'model-detail' oracle_model.pk %}">{{ oracle_model.abbreviation }}</a>
-                            {% else %}
-                                <small class="text-muted">(No truth data)</small>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endif %}
+                <tr>
+                    <th>Oracle model:</th>
+                    <td>
+                        {% if is_truth_data_loaded %}
+                            <a href="{% url 'model-detail' oracle_model.pk %}">{{ oracle_model.abbreviation }}</a>
+                        {% else %}
+                            <small class="text-muted">(No truth data)</small>
+                        {% endif %}
+                    </td>
+                </tr>
                 {% if is_user_ok_edit_project %}
                     <tr>
                         <th>Upload:</th>
@@ -71,7 +69,13 @@
     </div>
 
 
-    <h4>Batches</h4>
+    <h2>Batches
+        {% if is_user_ok_edit_project and batches %}
+            <a href="{% url 'delete-project-latest-truth-batch' project.pk %}" class="btn-sm btn-danger" role="button">
+                <i class="fas fa-trash-alt"></i> Delete Latest
+            </a>
+        {% endif %}
+    </h2>
     {% if is_truth_data_loaded %}
         <table class="table table-striped">
             <thead>
@@ -79,14 +83,16 @@
                 <th title="batch number">Batch</th>
                 <th title="source">Source</th>
                 <th title="issued at">Issued at</th>
+                <th title="num forecasts"># Forecasts</th>
             </tr>
             </thead>
             <tbody>
-            {% for source, issued_at in batches %}
+            {% for source, issued_at, num_forecasts in batches %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{% if source %} {{ source }} {% else %}(no source){% endif %}</td>
                     <td>{% localtime off %} {{ issued_at|date:"Y-m-d H:i:s T" }} {% endlocaltime %}</td>
+                    <td>{{ num_forecasts }}</td>
                 </tr>
             {% endfor %}
             </tbody>

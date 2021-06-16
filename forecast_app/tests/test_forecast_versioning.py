@@ -631,7 +631,7 @@ class ForecastVersionsTestCase(TestCase):
                                                                   is_incl_source=True, is_incl_notes=False))
         self.assertEqual(exp_forecast_cols, act_forecast_cols)
 
-        # case: all columns. utctimetuple() makes sqlite comparisons work
+        # case: all columns. NB: utctimetuple() makes sqlite comparisons work
         exp_forecast_cols = [[f2.pk, f2.forecast_model.pk, f2.time_zero.pk, f2.issued_at.utctimetuple(),
                               f2.created_at.utctimetuple(), f2.source, f2.notes]]  # list, not tuple
         act_forecast_cols = list(latest_forecast_cols_for_project(project))  # list for generator

@@ -4,11 +4,11 @@ import io
 import logging
 from collections import defaultdict
 
-from django.db import transaction
+from django.db import transaction, connection
 
 from forecast_app.models import PredictionElement
 from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 
 
 logger = logging.getLogger(__name__)
@@ -384,5 +384,54 @@ def truth_batch_forecasts(project, source, issued_at):
     from forecast_app.models import Forecast  # avoid circular imports
 
 
-    return list(Forecast.objects.filter(forecast_model=oracle_model_for_project(project),
-                                        source=source, issued_at=issued_at))
+    batch_forecasts_qs = Forecast.objects.filter(forecast_model=oracle_model_for_project(project),
+                                                 source=source, issued_at=issued_at)
+    return list(batch_forecasts_qs)
+
+
+def truth_delete_batch(project, source, issued_at):
+    """
+    Deletes the batch identified by `source` and `issued_at`.
+
+    :param project: the Project to get batches from
+    :param source: tuple element 0 as returned by `truth_batches()`
+    :param issued_at: "" 1 ""
+    """
+    from forecast_app.models import Forecast  # avoid circular imports
+
+
+    batch_forecasts_qs = Forecast.objects.filter(forecast_model=oracle_model_for_project(project),
+                                                 source=source, issued_at=issued_at)
+    batch_forecasts_qs.delete()
+
+
+def truth_batch_summary_table(project):
+    """
+    Returns a table as a list of lists for use in the UI. Similar to `truth_batches()` except that returns a third
+    tuple: num_forecasts. Done as a single query rather than N+1.
+
+    :param project: the Project to get batches from
+    :return: all batches in `project`'s oracle model as a list of 3-tuples: (source, issued_at, num_forecasts) sorted
+        from oldest to newest
+    """
+    from forecast_app.models import ForecastModel, Forecast  # avoid circular imports
+
+
+    oracle_model = oracle_model_for_project(project)
+    if not oracle_model:
+        return []
+
+    sql = f"""
+        SELECT f.source, f.issued_at, COUNT(*)
+        FROM {Forecast._meta.db_table} AS f
+                 JOIN {ForecastModel._meta.db_table} AS fm on f.forecast_model_id = fm.id
+        WHERE fm.id = %s
+        GROUP BY f.source, f.issued_at
+        ORDER BY f.issued_at;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (oracle_model.pk,))
+        rows = []
+        for source, issued_at, num_forecasts in batched_rows(cursor):
+            rows.append((source, issued_at, num_forecasts))
+    return rows

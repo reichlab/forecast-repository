@@ -135,7 +135,10 @@
                             .
                             <a href="{% url 'query-truth' project.pk %}">Download</a>
                         {% else %}
-                            <small class="text-muted">(No truth data)</small>
+                            {# show a link to the truth detail so they can upload if allowed #}
+                            <a href="{% url 'truth-data-detail' project.pk %}">
+                                <small class="text-muted">(No truth data)</small>
+                            </a>
                         {% endif %}
                     </td>
                 </tr>

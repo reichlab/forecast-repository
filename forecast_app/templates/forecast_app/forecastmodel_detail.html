@@ -117,6 +117,8 @@
                     <td>
                         {% if forecastmodel.aux_data_url %}
                             <a href="{{ forecastmodel.aux_data_url }}">{{ forecastmodel.aux_data_url }}</a>
+                        {% else %}
+                            <small class="text-muted">(No URL)</small>
                         {% endif %}
                     </td>
                 </tr>
