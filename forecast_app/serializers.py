@@ -219,13 +219,13 @@ class TruthSerializer(serializers.ModelSerializer):
     def get_created_at(self, project):
         oracle_model = oracle_model_for_project(project)
         last_truth_forecast = oracle_model.forecasts.last() if oracle_model else None
-        return last_truth_forecast.created_at if last_truth_forecast else None
+        return last_truth_forecast.created_at.isoformat() if last_truth_forecast else None
 
 
     def get_issued_at(self, project):
         oracle_model = oracle_model_for_project(project)
         last_truth_forecast = oracle_model.forecasts.last() if oracle_model else None
-        return last_truth_forecast.issued_at if last_truth_forecast else None
+        return last_truth_forecast.issued_at.isoformat() if last_truth_forecast else None
 
 
 class UserSerializer(serializers.ModelSerializer):
