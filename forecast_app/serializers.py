@@ -194,11 +194,12 @@ class TruthSerializer(serializers.ModelSerializer):
     project = serializers.SerializerMethodField()
     source = serializers.SerializerMethodField()
     created_at = serializers.SerializerMethodField()
+    issued_at = serializers.SerializerMethodField()
 
 
     class Meta:
         model = Project
-        fields = ('id', 'url', 'project', 'source', 'created_at',)
+        fields = ('id', 'url', 'project', 'source', 'created_at', 'issued_at',)
         extra_kwargs = {
             'url': {'view_name': 'api-truth-detail'},
         }
@@ -219,6 +220,12 @@ class TruthSerializer(serializers.ModelSerializer):
         oracle_model = oracle_model_for_project(project)
         last_truth_forecast = oracle_model.forecasts.last() if oracle_model else None
         return last_truth_forecast.created_at if last_truth_forecast else None
+
+
+    def get_issued_at(self, project):
+        oracle_model = oracle_model_for_project(project)
+        last_truth_forecast = oracle_model.forecasts.last() if oracle_model else None
+        return last_truth_forecast.issued_at if last_truth_forecast else None
 
 
 class UserSerializer(serializers.ModelSerializer):
