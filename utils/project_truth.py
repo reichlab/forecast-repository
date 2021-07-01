@@ -209,7 +209,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
                                  if isinstance(parsed_value, datetime.date) else parsed_value}}
                             for unit, target, parsed_value in timezero_rows]
         load_predictions_from_json_io_dict(forecast, {'meta': {}, 'predictions': prediction_dicts},
-                                           is_skip_validation=True)
+                                           is_skip_validation=True, is_subset_allowed=True)  # NB: is_subset_allowed
         forecasts.append(forecast)
 
     # set all issued_ats to be the same - this avoids an edge case where midnight is spanned and some are a day later.

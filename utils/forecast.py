@@ -85,7 +85,8 @@ BIN_SUM_REL_TOL = 0.001  # hard-coded magic number for prediction probability su
 
 
 @transaction.atomic
-def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=False, is_validate_cats=True):
+def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validation=False, is_validate_cats=True,
+                                       is_subset_allowed=False):
     """
     Top-level function that loads the prediction data into forecast from json_io_dict. Validates the forecast data. Note
     that we ignore the 'meta' portion of json_io_dict. Errors if any referenced Units and Targets do not exist in
@@ -104,12 +105,16 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
             versions.
 
     Rules 1 through 3 are enforced in this function, but rules 4 through 6 are enforced elsewhere using signals.
+    Rule 3 applies only to non-oracle forecasts, i.e., truth forecasts are allowed to be partial b/c we assume truth
+        retractions are not allowed.
 
     :param forecast: a Forecast to load json_io_dict's predictions into
     :param json_io_dict: a "JSON IO dict" to load from. see docs for details
     :param is_skip_validation: bypasses all validation of `json_io_dict`, including `is_validate_cats`. used for truth
         loading
     :param is_validate_cats: True if bin cat values should be validated against their Target.cats. used for testing
+    :param is_subset_allowed: controls whether `_is_pred_eles_subset_prev_versions()` is called:
+        True: don't call, False: do call.
     """
     if forecast.pred_eles.count() != 0:
         raise RuntimeError(f"cannot load data into a non-empty forecast: {forecast}")
@@ -134,7 +139,8 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
         _validated_pred_ele_rows_for_pred_dicts(forecast, json_io_dict['predictions'], is_skip_validation,
                                                 is_validate_cats)
     del json_io_dict  # hopefully frees up memory
-    _insert_pred_ele_rows(forecast, pred_ele_rows)  # raises. tests version rules then inserts, deleting any dups first
+    # raises. tests version rules then inserts, deleting any dups first
+    _insert_pred_ele_rows(forecast, pred_ele_rows, is_subset_allowed)
 
     # pass 2/2
     pred_data_rows = []  # appended-to next
@@ -246,7 +252,7 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
     return data_hash_to_pred_data, pred_ele_rows
 
 
-def _insert_pred_ele_rows(forecast, pred_ele_rows):
+def _insert_pred_ele_rows(forecast, pred_ele_rows, is_subset_allowed):
     """
     Validates forecast against previous data and then loads pred_ele_rows into the PredictionElement table. Skips
     duplicate prediction elements in `forecast`'s model. See note in _insert_pred_data_rows() re: postgres vs. sqlite.
@@ -254,6 +260,8 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
     :param forecast: the new, empty Forecast being inserted into
     :param pred_ele_rows: as returned by _validated_pred_ele_rows_for_pred_dicts():
         list of 6-tuples: (forecast_id, pred_class_int, unit_id, target_id, is_retract, data_hash)
+    :param is_subset_allowed: controls whether `_is_pred_eles_subset_prev_versions()` is called:
+        True: don't call, False: do call.
     :raises RuntimeError: if forecast version is invalid
     """
     # in order to validate and to skip inserting duplicate rows, we insert in these steps:
@@ -308,7 +316,7 @@ def _insert_pred_ele_rows(forecast, pred_ele_rows):
             cursor.executemany(sql, pred_ele_rows)
 
     # validate the rule: "cannot load data that's a subset of previous data"
-    if _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
+    if (not is_subset_allowed) and _is_pred_eles_subset_prev_versions(forecast, temp_table_name):
         raise RuntimeError(f"new data is a subset of previous. forecast={forecast}")
 
     # delete duplicates from temp table. note that we are not testing against issued_at, which would be wrong b/c

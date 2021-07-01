@@ -45,21 +45,21 @@ class ProjectTestCase(TestCase):
         self.assertTrue(is_truth_data_loaded(self.project))
 
         # csv references non-existent TimeZero in Project: the bad timezero 2017-01-02 is skipped by
-        # _read_truth_data_rows(), but the remaining data that's loaded (three 2017-01-01 rows) is therefore a subset,
-        # which is invalid. so we check for that
-        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
-            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
-                            'truths-bad-timezero.csv', is_convert_na_none=True)
+        # _read_truth_data_rows(), but the remaining data that's loaded (the three 2017-01-01 rows) is therefore a
+        # subset. this raised 'new data is a subset of previous' prior to this issue:
+        # [support truth "diff" uploads #319](https://github.com/reichlab/forecast-repository/issues/319), but now
+        # subsets are allowed.
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
+                        'truths-bad-timezero.csv', is_convert_na_none=True)
 
-        # csv references non-existent unit in Project: the bad unit is skipped, again resulting in a subset
-        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
-            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
-                            'truths-bad-location.csv', is_convert_na_none=True)
+        # csv references non-existent unit in Project: the bad unit is skipped, again resulting in a subset. again,
+        # subsets are now allowed
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
+                        'truths-bad-location.csv', is_convert_na_none=True)
 
-        # csv references non-existent target in Project: the bad target is skipped
-        with self.assertRaisesRegex(RuntimeError, 'new data is a subset of previous'):
-            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
-                            'truths-bad-target.csv', is_convert_na_none=True)
+        # csv references non-existent target in Project: the bad target is skipped. subset is allowed
+        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
+                        'truths-bad-target.csv', is_convert_na_none=True)
 
         project2 = Project.objects.create()
         make_cdc_units_and_targets(project2)
@@ -97,6 +97,27 @@ class ProjectTestCase(TestCase):
                         file_name='docs-ground-truth-non-dup.csv')
         self.assertEqual(3 * 2, oracle_model.forecasts.count())
         self.assertEqual(14 * 2, truth_data_qs(project).count())
+
+
+    def test_load_truth_data_diff(self):
+        """
+        Tests the relaxing of this forecast version rule when loading truth (issue
+        [support truth "diff" uploads #319](https://github.com/reichlab/forecast-repository/issues/319) ):
+            3. New forecast versions cannot imply any retracted prediction elements in existing versions, i.e., you
+            cannot load data that's a subset of the previous forecast's data.
+        """
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads docs-ground-truth.csv
+
+        oracle_model = oracle_model_for_project(project)
+        self.assertEqual(3, oracle_model.forecasts.count())  # for 3 timezeros: 2011-10-02, 2011-10-09, 2011-10-16
+        self.assertEqual(14, truth_data_qs(project).count())
+
+        # updates only the five location2 rows:
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-diff.csv'),
+                        file_name='docs-ground-truth-diff.csv')
+        self.assertEqual(3 + 1, oracle_model.forecasts.count())
+        self.assertEqual(14 + 5, truth_data_qs(project).count())
 
 
     def test_load_truth_data_other_files(self):
