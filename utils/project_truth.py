@@ -189,14 +189,18 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
 
     # group rows by timezero and then create and load oracle Forecasts for each group, passing them as
     # json_io_dicts. we leverage _load_truth_data_rows_for_forecast() by creating a json_io_dict for the truth data
-    # where each truth row becomes its own 'point' prediction element. NB: these forecasts are identified as coming from
-    # the same truth file via all forecasts having the same source and issued_at
+    # where each truth row becomes its own 'point' prediction element. notes:
+    # - these forecasts are identified as coming from the same truth file (aka "batch") via all forecasts setting the
+    #   same source and issued_at at the end
+    # - we collect "cannot load 100% duplicate data" RuntimeErrors so that we can count them at the end. the rule is
+    #   that there must be at least one oracle forecast that did not get that error
     timezero_groups = defaultdict(list)
     for timezero, unit, target, parsed_value in rows:
         timezero_groups[timezero].append([unit, target, parsed_value])
 
     source = file_name if file_name else ''
     forecasts = []  # ones created
+    forecasts_100pct_dup = []  # ones that raised RuntimeError "cannot load 100% duplicate data"
     logger.debug(f"_load_truth_data(): creating and loading {len(timezero_groups)} forecasts. source={source!r}")
     point_class = PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]
     for timezero, timezero_rows in timezero_groups.items():
@@ -208,18 +212,38 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
                                  'value': parsed_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                                  if isinstance(parsed_value, datetime.date) else parsed_value}}
                             for unit, target, parsed_value in timezero_rows]
-        load_predictions_from_json_io_dict(forecast, {'meta': {}, 'predictions': prediction_dicts},
-                                           is_skip_validation=True)
-        forecasts.append(forecast)
+        try:
+            load_predictions_from_json_io_dict(forecast, {'meta': {}, 'predictions': prediction_dicts},
+                                               is_skip_validation=True)
+            forecasts.append(forecast)
+        except RuntimeError as rte:
+            # todo instead of testing for a string, load_predictions_from_json_io_dict() should raise an application-
+            # specific RuntimeError subclass
+            if rte.args[0].startswith('cannot load 100% duplicate data'):
+                forecasts_100pct_dup.append(forecast)
+            else:
+                raise rte
+
+    # delete duplicate forecasts
+    if forecasts_100pct_dup:
+        Forecast.objects.filter(id__in=[f.id for f in forecasts_100pct_dup]) \
+            .delete()
+
+    # error if all oracle forecasts were 100% duplicate data
+    if forecasts_100pct_dup and not forecasts:
+        raise RuntimeError(f"cannot load 100% duplicate data (all {len(forecasts_100pct_dup)} oracle forecasts were "
+                           f"100% duplicate data)")
 
     # set all issued_ats to be the same - this avoids an edge case where midnight is spanned and some are a day later.
     # arbitrarily use the first forecast's issued_at
     if forecasts:
         issued_at = forecasts[0].issued_at
-        logger.debug(f"_load_truth_data(): setting issued_ats to {issued_at}, # forecasts={len(forecasts)}")
+        logger.debug(f"_load_truth_data(): setting issued_ats to {issued_at}. # forecasts={len(forecasts)}, "
+                     f"# 100% dup data forecasts={len(forecasts_100pct_dup)}")
         for forecast in forecasts:
             forecast.issued_at = issued_at
             forecast.save()
+            print(forecast.pk, forecast.source, forecast.issued_at)
 
     logger.debug(f"_load_truth_data(): done")
     return len(rows)
@@ -400,9 +424,11 @@ def truth_delete_batch(project, source, issued_at):
     from forecast_app.models import Forecast  # avoid circular imports
 
 
+    logger.debug(f"truth_delete_batch(): started. source={source}, issued_at={issued_at}")
     batch_forecasts_qs = Forecast.objects.filter(forecast_model=oracle_model_for_project(project),
                                                  source=source, issued_at=issued_at)
     batch_forecasts_qs.delete()
+    logger.debug(f"truth_delete_batch(): done. source={source}, issued_at={issued_at}")
 
 
 def truth_batch_summary_table(project):
