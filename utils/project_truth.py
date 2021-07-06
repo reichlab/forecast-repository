@@ -243,7 +243,6 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
         for forecast in forecasts:
             forecast.issued_at = issued_at
             forecast.save()
-            print(forecast.pk, forecast.source, forecast.issued_at)
 
     logger.debug(f"_load_truth_data(): done")
     return len(rows)

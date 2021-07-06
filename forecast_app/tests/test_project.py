@@ -150,6 +150,8 @@ class ProjectTestCase(TestCase):
         try:
             load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-partial-dup.csv'),
                             file_name='docs-ground-truth-partial-dup.csv')
+            batches = truth_batches(project)
+            self.assertEqual(2, len(batches))
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
