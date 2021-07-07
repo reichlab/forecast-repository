@@ -164,6 +164,19 @@ class ProjectTestCase(TestCase):
         self.assertEqual(sorted(exp_rows), sorted(list(act_rows)))
 
 
+    def test_load_truth_data_partial_dup(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads batch: docs-ground-truth.csv
+
+        try:
+            load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth-partial-dup.csv'),
+                            file_name='docs-ground-truth-partial-dup.csv')
+            batches = truth_batches(project)
+            self.assertEqual(2, len(batches))
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
+
     def test_truth_batches(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)  # loads batch: docs-ground-truth.csv

@@ -32,15 +32,15 @@ MIDDLEWARE = MIDDLEWARE + ['debug_toolbar.middleware.DebugToolbarMiddleware']  #
 RQ_QUEUES = {
     HIGH_QUEUE_NAME: {
         'URL': 'redis://localhost:6379/0',
-        'DEFAULT_TIMEOUT': 360,
+        'DEFAULT_TIMEOUT': 500,
     },
     DEFAULT_QUEUE_NAME: {
         'URL': 'redis://localhost:6379/0',
-        'DEFAULT_TIMEOUT': 360,
+        'DEFAULT_TIMEOUT': 500,
     },
     LOW_QUEUE_NAME: {
         'URL': 'redis://localhost:6379/0',
-        'DEFAULT_TIMEOUT': 360,
+        'DEFAULT_TIMEOUT': 500,
     },
 }
 
