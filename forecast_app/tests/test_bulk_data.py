@@ -1,8 +1,10 @@
 import csv
 import logging
 import tempfile
+import unittest
 from pathlib import Path
 
+from django.db import connection
 from django.test import TestCase
 
 from utils.bulk_data_dump import bulk_data_dump
@@ -13,6 +15,7 @@ from utils.utilities import get_or_create_super_po_mo_users
 logging.getLogger().setLevel(logging.ERROR)
 
 
+@unittest.skipIf(connection.vendor != 'postgresql', "bulk data dump does not support sqlite3")
 class BulkQueryTestCase(TestCase):
     """
     """
