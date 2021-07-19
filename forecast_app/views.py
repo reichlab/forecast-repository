@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
+from django.core.paginator import Paginator
 from django.db import connection, transaction, IntegrityError
 from django.db.models import Count
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
@@ -109,9 +110,12 @@ def zadmin_jobs(request):
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    paginator = Paginator(Job.objects.select_related('user').all().order_by('-id'), 25)  # 25/page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     return render(
         request, 'zadmin_jobs.html',
-        context={'jobs': Job.objects.select_related('user').all()})  # datatable does order by
+        context={'page_obj': page_obj})
 
 
 def zadmin(request):
@@ -840,11 +844,14 @@ class UserDetailView(UserPassesTestMixin, DetailView):
         detail_user = self.get_object()
         projects_and_roles = projects_and_roles_for_user(detail_user)
         owned_models = forecast_models_owned_by_user(detail_user)
+        paginator = Paginator(detail_user.jobs.all().order_by('-id'), 25)  # 25/page
+        page_number = self.request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
         context['is_user_ok_edit_user'] = is_user_ok_edit_user(self.request.user, detail_user)
         context['projects_and_roles'] = sorted(projects_and_roles,
                                                key=lambda project_and_role: project_and_role[0].name)
         context['owned_models'] = owned_models
-        context['jobs'] = detail_user.jobs.all()  # datatable does order by
+        context['page_obj'] = page_obj
         return context
 
 

@@ -12,7 +12,6 @@ urlpatterns = [
 
     url(r'^zadmin$', views.zadmin, name='zadmin'),
     url(r'^zadmin/jobs$', views.zadmin_jobs, name='zadmin-jobs'),
-    url(r'^delete_jobs/$', views.delete_jobs, name='delete-file-jobs'),
 
     url(r'^accounts/', include('django.contrib.auth.urls')),  # requires trailing slash and no $
     url(r'^users$', views.UserListView.as_view(), name='user-list'),

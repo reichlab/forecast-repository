@@ -10,33 +10,14 @@
     <p class="lead">Zoltar Admin: Jobs </p>
 
 
-    <h2>Jobs <small>({{ jobs|length }})</small></h2>
+    <h2>Jobs <small>({{ page_obj.paginator.count|intword|intcomma }})</small></h2>
 
-    {% if jobs %}
-        <br>
-        {% include 'job_table_snippet.html' with jobs=jobs %}
+    {% if page_obj %}
+        {% include 'job_table_snippet.html' with page_obj=page_obj %}
     {% else %}
         <p>
             <small class="text-muted">(No jobs)</small>
         </p>
     {% endif %}
-
-    <form class="form-inline" method="POST" enctype="multipart/form-data"
-          action="{% url 'delete-file-jobs' %}">
-        {% csrf_token %}
-        <div class="form-group">
-            <button class="form-control btn btn-danger" type="submit">Delete File Jobs</button>
-        </div>
-    </form>
-
-
-    <!-- activate the https://datatables.net/ -->
-    <script>
-        $(document).ready(function () {
-            $('#jobs_table').DataTable({
-                order: [[0, "desc"]],  // id
-            });
-        });
-    </script>
 
 {% endblock %}

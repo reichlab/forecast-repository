@@ -138,14 +138,14 @@
     <hr> {# hack to add space before next #}
 
 
-    <h2>Jobs <small>({{ jobs|length }})</small></h2>
+    <h2>Jobs <small>({{ page_obj.paginator.count|intword|intcomma }})</small></h2>
 
-    {% if jobs %}
+    {% if page_obj %}
         <p class="text-muted">Jobs created by {{ detail_user }}:</p>
 
         <div class="row">
             <div class="col-md-12">
-                {% include 'job_table_snippet.html' with jobs=jobs %}
+                {% include 'job_table_snippet.html' with page_obj=page_obj %}
             </div>
         </div>
     {% else %}
@@ -158,9 +158,6 @@
         $(document).ready(function () {
             $('#projects_table').DataTable();
             $('#models_table').DataTable();
-            $('#jobs_table').DataTable({
-                order: [[0, "desc"]],  // id
-            });
         });
     </script>
 
