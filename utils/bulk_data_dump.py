@@ -160,8 +160,17 @@ def create_and_fill_temp_tables(class_to_temp_table_cols, project, model_ids, un
         = id IN (SELECT DISTINCT forecast_id FROM pred_ele_temp)
     - Project: PredictionData:
         = id IN (SELECT id FROM pred_ele_temp)
+
+    Notes:
+    - we convert these boolean fields to int so b/c postgres exports booleans as 't'/'f'. converting to 0/1 matches
+      sqlite:
+        = ForecastModel.is_oracle
+        = PredictionElement.is_retract
+        = Project.is_public
+        = Target.is_step_ahead
+        = TimeZero.is_season_start
+    - todo xx this program only works with postgres, and fails with sqlite3
     """
-    # todo xx this works only with postgres, and fails with sqlite3
 
     # create Project, Unit, Target, TimeZero, and ForecastModel temp tables (similar queries). we `SELECT *` from the
     # temp tables, but not all columns are ultimately exported
@@ -234,7 +243,23 @@ def create_and_fill_temp_tables(class_to_temp_table_cols, project, model_ids, un
         # in case prev run failed before final DROP:
         cursor.execute(sql)
 
-    # logger.info(f"create_and_fill_temp_tables(): done")
+    # cast boolean fields to smallint. NB: cannot do directly ("cannot cast type boolean to smallint"), i.e., fails:
+    #   ALTER TABLE {temp_table_name} ALTER COLUMN {column_name} TYPE smallint USING is_oracle::smallint;
+    # this works, though - per https://www.postgresql.org/message-id/4CD3448D.60208@ultimeth.com :
+    #   ALTER TABLE ALTER col_name TYPE SMALLINT USING CASE WHEN col_name THEN 1 ELSE 0 END;
+    logger.info(f"create_and_fill_temp_tables(): converting boolean fields")
+    for clazz, column_name in ((ForecastModel, 'is_oracle'), (PredictionElement, 'is_retract'), (Project, 'is_public'),
+                               (Target, 'is_step_ahead'), (TimeZero, 'is_season_start')):
+        temp_table_name = class_to_temp_table_cols[clazz][0]
+        sql = f"""
+            ALTER TABLE {temp_table_name} ALTER COLUMN {column_name} TYPE smallint
+              USING CASE WHEN {column_name} THEN 1 ELSE 0 END;
+        """
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+
+    # done
+    logger.info(f"create_and_fill_temp_tables(): done")
 
 
 def count_rows(cursor, pred_ele_temp_table_name):
