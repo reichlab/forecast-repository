@@ -909,8 +909,9 @@ class ViewsTestCase(TestCase):
 
     def test_api_edit_project(self):
         # create a project to edit
-        project2 = Project.objects.create(owner=self.po_user)
-        self.assertEqual('', project2.name)
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project2 = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        self.assertEqual('My project', project2.name)
 
         # case: not authorized
         joe_user = User.objects.create_user(username='joe', password='password')
