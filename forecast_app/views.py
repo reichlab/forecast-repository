@@ -420,8 +420,7 @@ def create_project_from_file(request):
     except Exception as ex:
         return render(request, 'message.html',
                       context={'title': "Error creating project from file.",
-                               'message': f"There was an error uploading the file. The error was: "
-                                          f"&ldquo;{ex!r}&rdquo;"})
+                               'message': f"There was an error uploading the file. The error was: {ex}"})
 
 
 def create_project_from_form(request):
@@ -495,21 +494,26 @@ def edit_project_from_file_preview(request, project_pk):
     if is_error:
         return is_error
 
-    data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    current_config_dict = config_dict_from_project(project, request)
-    new_config_dict = json.load(data_file)
-    changes = order_project_config_diff(project_config_diff(current_config_dict, new_config_dict))
-    database_changes = database_changes_for_project_config_diff(project, changes)
+    try:
+        data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
+        current_config_dict = config_dict_from_project(project, request)
+        new_config_dict = json.load(data_file)
+        changes = order_project_config_diff(project_config_diff(current_config_dict, new_config_dict))
+        database_changes = database_changes_for_project_config_diff(project, changes)
 
-    # we serialize Changes so they can be passed to the template as a json string that is posted back to the server on
-    # Submit for execute_project_config_diff()
-    changes_json = json.dumps([change.serialize_to_dict() for change in changes])
-    return render(request, 'project_diff_report.html',
-                  context={'project': project,
-                           'data_file': data_file,
-                           'changes': changes,
-                           'changes_json': changes_json,
-                           'database_changes': database_changes})
+        # we serialize Changes so they can be passed to the template as a json string that is posted back to the server
+        # on Submit for execute_project_config_diff()
+        changes_json = json.dumps([change.serialize_to_dict() for change in changes])
+        return render(request, 'project_diff_report.html',
+                      context={'project': project,
+                               'data_file': data_file,
+                               'changes': changes,
+                               'changes_json': changes_json,
+                               'database_changes': database_changes})
+    except Exception as ex:
+        return render(request, 'message.html',
+                      context={'title': "Got an error trying to preview changes.",
+                               'message': f"The error was: {ex}"})
 
 
 def edit_project_from_file_execute(request, project_pk):
@@ -536,7 +540,7 @@ def edit_project_from_file_execute(request, project_pk):
     except Exception as ex:
         return render(request, 'message.html',
                       context={'title': "Got an error trying to execute changes.",
-                               'message': f"The error was: &ldquo;<span class=\"bg-danger\">{ex!r}</span>&rdquo;"})
+                               'message': f"The error was: {ex}"})
 
 
 def delete_project(request, project_pk):
@@ -1152,8 +1156,7 @@ def upload_truth(request, project_pk):
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
-                               'message': f"There was an error uploading the file. The error was: "
-                                          f"&ldquo;{is_error}&rdquo;"})
+                               'message': f"There was an error uploading the file. The error was: {is_error}"})
 
     messages.success(request, "Queued the truth file '{}' for uploading.".format(data_file.name))
     return redirect('job-detail', pk=job.pk)
@@ -1254,8 +1257,7 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
-                               'message': f"There was an error uploading the file. The error was: "
-                                          f"&ldquo;{is_error}&rdquo;"})
+                               'message': f"There was an error uploading the file. The error was: {is_error}"})
 
     messages.success(request, "Queued the forecast file '{}' for uploading.".format(data_file.name))
     return redirect('job-detail', pk=job.pk)

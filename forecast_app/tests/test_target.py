@@ -35,21 +35,18 @@ class TargetTestCase(TestCase):
         # and therefore cannot be tested for being passed
         # no type
         model_init = {}
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaisesRegex(RuntimeError, "target has no type"):
             Target.objects.create(**model_init)
-        self.assertIn('target has no type', str(context.exception))
 
         # no is_step_ahead
         model_init = {'type': Target.CONTINUOUS_TARGET_TYPE}
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaisesRegex(RuntimeError, "field type was not"):
             Target.objects.create(**model_init)
-        self.assertIn('is_step_ahead not found but is required', str(context.exception))
 
         # no step_ahead_increment
         model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': True}
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaisesRegex(RuntimeError, "step_ahead_increment not found but is required when is_step_ahead"):
             Target.objects.create(**model_init)
-        self.assertIn('step_ahead_increment not found but is required when is_step_ahead', str(context.exception))
 
         # no project (raises django.db.utils.IntegrityError)
         model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': False}

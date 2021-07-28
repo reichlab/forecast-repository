@@ -103,7 +103,7 @@ class ProjectUtilTestCase(TestCase):
         self.assertIn("found existing project", str(context.exception))
 
 
-    def test_create_project_from_json_bad_arg(self):
+    def test_create_project_from_json_bad_proj_config_file_path_or_dict_arg(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
@@ -130,43 +130,60 @@ class ProjectUtilTestCase(TestCase):
 
         # note: owner permissions tested by test_views_and_rest_api.py
 
-        # test missing top level fields
-        for field_name in ['name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data',
-                           'time_interval_type', 'visualization_y_label', 'units', 'targets', 'timezeros']:
-            field_value = project_dict[field_name]
-            with self.assertRaises(RuntimeError) as context:
+        # test top level required fields: missing or wrong type
+        for field_name in ['name', 'is_public', 'description', 'home_url', 'core_data', 'time_interval_type',
+                           'visualization_y_label', 'units', 'targets', 'timezeros']:
+            orig_field_value = project_dict[field_name]
+            with self.assertRaisesRegex(RuntimeError, "Wrong keys in project_dict"):
                 del (project_dict[field_name])
                 create_project_from_json(project_dict, po_user)
-            self.assertIn("Wrong keys in project_dict", str(context.exception))
-            project_dict[field_name] = field_value
+
+            project_dict[field_name] = {}  # dict - not a str, boolean, or list
+            with self.assertRaisesRegex(RuntimeError, "top level field type was not"):
+                create_project_from_json(project_dict, po_user)
+
+            project_dict[field_name] = orig_field_value  # reset to valid
 
         # test units
         project_dict['units'] = [{}]
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaisesRegex(RuntimeError, "unit_dict had no 'name' field"):
             create_project_from_json(project_dict, po_user)
-        self.assertIn("one of the unit_dicts had no 'name' field", str(context.exception))
 
-        # note: targets tested in test_create_project_from_json_target_validation()
+        project_dict['units'] = [{'name': []}]  # not a str
+        with self.assertRaisesRegex(RuntimeError, "invalid unit name"):
+            create_project_from_json(project_dict, po_user)
 
-        # test timezero missing fields
+        # note: targets tested in test_create_project_from_json_target_required_fields() and
+        # test_create_project_from_json_target_optional_fields()
+
+        # test timezero fields: missing or wrong type
         project_dict['units'] = [{"name": "HHS Region 1"}]  # reset to valid
         timezero_config = {'timezero_date': '2017-12-01',
                            'data_version_date': None,
                            'is_season_start': False}
         project_dict['timezeros'] = [timezero_config]
         for field_name in ['timezero_date', 'data_version_date', 'is_season_start']:  # required fields
-            field_value = timezero_config[field_name]
-            with self.assertRaises(RuntimeError) as context:
+            orig_field_value = timezero_config[field_name]
+            with self.assertRaisesRegex(RuntimeError, "Wrong keys in 'timezero_config"):
                 del (timezero_config[field_name])
                 create_project_from_json(project_dict, po_user)
-            self.assertIn("Wrong keys in 'timezero_config'", str(context.exception))
-            timezero_config[field_name] = field_value  # reset to valid
+
+            timezero_config[field_name] = {}  # dict - not a date str or boolean
+            with self.assertRaisesRegex(RuntimeError, "invalid field"):
+                create_project_from_json(project_dict, po_user)
+
+            timezero_config[field_name] = orig_field_value  # reset to valid
 
         # test optional 'season_name' field
         timezero_config['is_season_start'] = True
         with self.assertRaises(RuntimeError) as context:
             create_project_from_json(project_dict, po_user)
-        self.assertIn('season_name not found but is required when is_season_start', str(context.exception))
+        self.assertIn("season_name not found but is required when 'is_season_start'", str(context.exception))
+
+        timezero_config['season_name'] = {}  # dict - not a string
+        with self.assertRaisesRegex(RuntimeError, "invalid field"):
+            create_project_from_json(project_dict, po_user)
+
         timezero_config['season_name'] = 'tis the season'  # reset to valid
 
         # test time_interval_type
@@ -227,14 +244,18 @@ class ProjectUtilTestCase(TestCase):
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
 
-        # test missing target required fields. optional keys are tested below
+        # test required fields: missing or wrong type. optional keys are tested below
         for field_name in ['name', 'description', 'type', 'is_step_ahead']:  # required
-            field_value = first_target_dict[field_name]
-            with self.assertRaises(RuntimeError) as context:
+            orig_field_value = first_target_dict[field_name]
+            with self.assertRaisesRegex(RuntimeError, "Wrong required keys in target_dict"):
                 del (first_target_dict[field_name])
                 create_project_from_json(project_dict, po_user)
-            self.assertIn("Wrong required keys in target_dict", str(context.exception))
-            first_target_dict[field_name] = field_value  # reset to valid
+
+            first_target_dict[field_name] = {}  # dict - not a str or boolean
+            with self.assertRaisesRegex(RuntimeError, "field type was not"):
+                create_project_from_json(project_dict, po_user)
+
+            first_target_dict[field_name] = orig_field_value  # reset to valid
 
 
     def test_create_project_from_json_target_optional_fields(self):
@@ -246,9 +267,8 @@ class ProjectUtilTestCase(TestCase):
 
         # test optional 'step_ahead_increment': required only if 'is_step_ahead'
         first_target_dict['is_step_ahead'] = True  # was False w/no 'step_ahead_increment'
-        with self.assertRaises(RuntimeError) as context:
+        with self.assertRaisesRegex(RuntimeError, "step_ahead_increment not found but is required when is_step_ahead"):
             create_project_from_json(project_dict, po_user)
-        self.assertIn("step_ahead_increment not found but is required when is_step_ahead", str(context.exception))
 
         # test optional fields, based on type:
         # 1) test optional 'unit'. three cases a-c follow
@@ -352,17 +372,17 @@ class ProjectUtilTestCase(TestCase):
         self.assertIn("found existing Unit for name", str(context.exception))
 
 
-    def test_create_project_from_json_illegal_unit_target_name(self):
+    def test_create_project_from_json_invalid_unit_target_name(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:
             project_dict = json.load(fp)
             orig_unit_name = project_dict['units'][0]['name']
             orig_target_name = project_dict['targets'][0]['name']
 
-        bad_names = ('bad\nname', 'bad\tname', 'bad\u00072name')   # last: Bell :-)
+        bad_names = ('bad\nname', 'bad\tname', 'bad\u00072name')  # last: Bell :-)
         for bad_name in bad_names:
             project_dict['units'][0]['name'] = bad_name
-            with self.assertRaisesRegex(RuntimeError, 'illegal unit name'):
+            with self.assertRaisesRegex(RuntimeError, 'invalid unit name'):
                 create_project_from_json(project_dict, po_user)
         project_dict['units'][0]['name'] = orig_unit_name
 
@@ -379,7 +399,7 @@ class ProjectUtilTestCase(TestCase):
             project_dict = json.load(fp)
             baseline_target_dict = project_dict['targets'][2]  # "above baseline"
 
-        bad_names = ('bad\nname', 'bad\tname', 'bad\u00072name')   # last: Bell :-)
+        bad_names = ('bad\nname', 'bad\tname', 'bad\u00072name')  # last: Bell :-)
         for bad_name in bad_names:
             baseline_target_dict['cats'] = bad_name
             with self.assertRaisesRegex(RuntimeError, 'illegal cat value'):

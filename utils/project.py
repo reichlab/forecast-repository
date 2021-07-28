@@ -128,13 +128,28 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
         raise RuntimeError(f"proj_config_file_path_or_dict was neither a dict nor a Path. "
                            f"type={type(proj_config_file_path_or_dict).__name__}")  # is blank w/o __name__. unsure why
 
-    # validate project_dict
-    actual_keys = set(project_dict.keys())
-    expected_keys = {'name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type',
-                     'visualization_y_label', 'units', 'targets', 'timezeros'}
-    if actual_keys != expected_keys:
-        raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ actual_keys}. "
-                           f"expected={expected_keys}, actual={actual_keys}")
+    # validate required fields
+    all_keys = set(project_dict.keys())
+    tested_keys = all_keys - {'logo_url'}  # optional keys
+    field_name_to_type = {'name': str, 'is_public': bool, 'description': str, 'home_url': str, 'core_data': str,
+                          'time_interval_type': str, 'visualization_y_label': str, 'units': list, 'targets': list,
+                          'timezeros': list}
+    expected_keys = set(field_name_to_type.keys())
+    if tested_keys != expected_keys:
+        raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ all_keys}. "
+                           f"expected={expected_keys}, actual={all_keys}")
+
+    # validate optional field
+    if ('logo_url' in project_dict) and (project_dict['logo_url'] is not None) and \
+            (not isinstance(project_dict['logo_url'], str)):
+        raise RuntimeError(f"top level field type was not {str}. field_name='logo_url', "
+                           f"value={project_dict['logo_url']!r}, type={type(project_dict['logo_url'])}")
+
+    # validate field types
+    for field_name, field_type in field_name_to_type.items():
+        if not isinstance(project_dict[field_name], field_type):
+            raise RuntimeError(f"top level field type was not {field_type}. field_name={field_name!r}, "
+                               f"value={project_dict[field_name]!r}, type={type(project_dict[field_name])}")
 
     if is_validate_only:
         project = None
@@ -172,11 +187,11 @@ def _validate_and_create_units(project, project_dict, is_validate_only=False):
     units = []  # returned instances
     for unit_dict in project_dict['units']:
         if 'name' not in unit_dict:
-            raise RuntimeError(f"one of the unit_dicts had no 'name' field. units={project_dict['units']}")
+            raise RuntimeError(f"unit_dict had no 'name' field. units={project_dict['units']}")
 
         unit_name = unit_dict['name']
-        if not _is_valid_unit_target_name_or_cat(unit_name):
-            raise RuntimeError(f"illegal unit name: {unit_name!r}")
+        if (not isinstance(unit_name, str)) or (not _is_valid_unit_target_name_or_cat(unit_name)):
+            raise RuntimeError(f"invalid unit name: {unit_name!r}")
 
         # valid
         if not is_validate_only:
@@ -251,10 +266,18 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
     # check for keys required by all target types. optional keys are tested below
     all_keys = set(target_dict.keys())
     tested_keys = all_keys - {'id', 'url', 'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
-    expected_keys = {'name', 'description', 'type', 'is_step_ahead'}
+    field_name_to_type = {'name': str, 'description': str, 'type': str, 'is_step_ahead': bool}
+    expected_keys = set(field_name_to_type.keys())
+
     if tested_keys != expected_keys:
         raise RuntimeError(f"Wrong required keys in target_dict. difference={expected_keys ^ tested_keys}. "
                            f"expected_keys={expected_keys}, tested_keys={tested_keys}. target_dict={target_dict}")
+
+    # validate required keys' field types
+    for field_name, field_type in field_name_to_type.items():
+        if not isinstance(target_dict[field_name], field_type):
+            raise RuntimeError(f"field type was not {field_type}. field_name={field_name!r}, "
+                               f"value={target_dict[field_name]!r}, type={type(target_dict[field_name])}")
 
     # validate name
     target_name = target_dict['name']

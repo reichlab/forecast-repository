@@ -356,31 +356,50 @@ def validate_and_create_timezero(project, timezero_config, is_validate_only=Fals
         raise RuntimeError(f"Wrong keys in 'timezero_config'. difference={expected_keys ^ tested_keys}. "
                            f"expected={expected_keys}, tested_keys={tested_keys}")
 
-    # test for the optional season_name
+    # validate required keys
+    try:
+        timezero_date = datetime.datetime.strptime(timezero_config['timezero_date'], YYYY_MM_DD_DATE_FORMAT).date()
+    except Exception as exc:
+        raise RuntimeError(f"invalid field 'timezero_date'. exc={exc!r}")
+
+    try:
+        data_version_date = datetime.datetime.strptime(timezero_config['data_version_date'],
+                                                       YYYY_MM_DD_DATE_FORMAT).date() \
+            if timezero_config['data_version_date'] is not None else None
+    except Exception as exc:
+        raise RuntimeError(f"invalid field 'data_version_date'. exc={exc!r}")
+
+    is_season_start = timezero_config['is_season_start']
+    if not isinstance(is_season_start, bool):
+        raise RuntimeError(f"invalid field 'is_season_start': was not a boolean. is_season_start={is_season_start!r}, "
+                           f"type={type(is_season_start)}")
+
+    is_season_start = bool(timezero_config['is_season_start'])
+
+    # validate optional season_name
     if timezero_config['is_season_start'] and ('season_name' not in timezero_config.keys()):
-        raise RuntimeError(f"season_name not found but is required when is_season_start is passed. "
+        raise RuntimeError(f"season_name not found but is required when 'is_season_start' is passed. "
                            f"timezero_config={timezero_config}")
+
+    season_name = timezero_config['season_name'] if is_season_start else None
+    if (season_name is not None) and (not isinstance(season_name, str)):
+        raise RuntimeError(f"invalid field 'season_name': was not a string. season_name={season_name!r}, "
+                           f"type={type(season_name)}")
 
     # valid
     if is_validate_only:
         return None
 
     # create the TimeZero, first checking for an existing one
-    timezero_date = datetime.datetime.strptime(timezero_config['timezero_date'], YYYY_MM_DD_DATE_FORMAT).date()
     existing_timezero = project.timezeros.filter(timezero_date=timezero_date).first()
     if existing_timezero:
         raise RuntimeError(f"found existing TimeZero for timezero_date={timezero_date}")
 
-    dvd_datetime = datetime.datetime.strptime(timezero_config['data_version_date'], YYYY_MM_DD_DATE_FORMAT) \
-        if timezero_config['data_version_date'] else None
-    data_version_date = datetime.date(dvd_datetime.year, dvd_datetime.month, dvd_datetime.day) \
-        if dvd_datetime else None
-    is_season_start = timezero_config['is_season_start']
     timezero_init = {'project': project,
                      'timezero_date': timezero_date,
                      'data_version_date': data_version_date,
                      'is_season_start': is_season_start,
-                     'season_name': timezero_config['season_name'] if is_season_start else None}
+                     'season_name': season_name}
     return TimeZero.objects.create(**timezero_init)
 
 
