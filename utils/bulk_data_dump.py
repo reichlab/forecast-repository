@@ -89,8 +89,8 @@ def bulk_data_dump(project, query, output_dir):
         raise RuntimeError(f"invalid query: `type_ints` or `as_of` was passed but is disallowed. query={query}, "
                            f"type_ints={type_ints}, as_of={as_of}")
 
-    # create, fill, and export the temp tables. default empty ids to all objects - this simplifies the SQL (we always
-    # specify WHERE `= ANY(...)`), but this might be less efficient than simply omitting WHEREs if no ids
+    # create, fill, and export the temp tables. default empty IDs to all objects - this simplifies the SQL (we always
+    # specify WHERE `= ANY(...)`), but this might be less efficient than simply omitting WHEREs if no IDs
     logger.info(f"bulk_data_dump(): project={project}, query={query}, output_dir={output_dir}")
     model_ids = model_ids if model_ids else list(project.models.all().values_list('id', flat=True))
     unit_ids = unit_ids if unit_ids else list(project.units.all().values_list('id', flat=True))
@@ -169,7 +169,8 @@ def create_and_fill_temp_tables(class_to_temp_table_cols, project, model_ids, un
         = Project.is_public
         = Target.is_step_ahead
         = TimeZero.is_season_start
-    - todo xx this program only works with postgres, and fails with sqlite3
+
+    - todo this program only works with postgres, and fails with sqlite3 - see "WHERE IN" vs. "= ANY()"
     """
 
     # create Project, Unit, Target, TimeZero, and ForecastModel temp tables (similar queries). we `SELECT *` from the
@@ -183,12 +184,11 @@ def create_and_fill_temp_tables(class_to_temp_table_cols, project, model_ids, un
                        (Target, target_ids),
                        (TimeZero, timezero_ids)):
         temp_table_name = class_to_temp_table_cols[clazz][0]
-        where_id = "WHERE id = ANY(%s)" if connection.vendor == 'postgresql' else "WHERE id IN (%s)"
         sql = f"""
             CREATE TEMP TABLE {temp_table_name} AS
             SELECT *
             FROM {clazz._meta.db_table}
-            {where_id};
+            WHERE id = ANY(%s);
         """  # ANY per https://www.psycopg.org/docs/usage.html#lists-adaptation
         with connection.cursor() as cursor:
             cursor.execute(sql, (ids,))

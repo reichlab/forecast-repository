@@ -70,7 +70,7 @@
                 </div>
                 <select id="unit_select" class="form-control" name="unit">
                     {% for unit in found_units %}
-                        <option value="{{ unit.id }}" {% if unit == search_unit %}selected="selected"{% endif %}>
+                        <option value="{{ unit.id }}" {% if unit == search_unit %}selected{% endif %}>
                             {{ unit.name }}
                         </option>
                     {% endfor %}
@@ -87,7 +87,7 @@
                 <select id="target_select" class="form-control" name="target">
                     {% for target in found_targets %}
                         <option value="{{ target.id }}"
-                                {% if target == search_target %}selected="selected"{% endif %}>
+                                {% if target == search_target %}selected{% endif %}>
                             {{ target.name }}
                         </option>
                     {% endfor %}

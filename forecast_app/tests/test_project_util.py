@@ -11,7 +11,7 @@ from forecast_app.models import Project, Target, ForecastModel, TimeZero, Foreca
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json, config_dict_from_project, _target_dict_for_target, group_targets, \
-    unit_rows_for_project, models_summary_table_rows_for_project, target_rows_for_project
+    unit_rows_for_project, models_summary_table_rows_for_project, target_rows_for_project, targets_for_group_name
 from utils.utilities import get_or_create_super_po_mo_users
 
 
@@ -585,6 +585,9 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual(20, len(grouped_targets['wk ahead inc death']))
         self.assertEqual(20, len(grouped_targets['wk ahead cum death']))
         self.assertEqual(8, len(grouped_targets['wk ahead inc case']))
+
+        # test targets_for_group_name(group_name)
+        self.assertEqual(grouped_targets['wk ahead inc case'], targets_for_group_name(project, 'wk ahead inc case'))
 
         # case: mix of target names with step_ahead_increment at start of name, and others
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)

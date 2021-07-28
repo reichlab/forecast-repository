@@ -7,12 +7,13 @@ import math
 from collections import defaultdict
 
 from django.db import connection, transaction
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 
 from forecast_app.models import Forecast, Target, ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, \
     ForecastModel, PredictionElement, PredictionData
 from forecast_app.models.prediction_element import PRED_CLASS_NAME_TO_INT, PRED_CLASS_INT_TO_NAME
-from utils.project import _target_dict_for_target
+from utils.project import _target_dict_for_target, targets_for_group_name
 from utils.project_queries import _query_forecasts_sql_for_pred_class
 from utils.project_truth import POSTGRES_NULL_VALUE
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
@@ -129,7 +130,7 @@ def load_predictions_from_json_io_dict(forecast, json_io_dict, is_skip_validatio
     # passes:
     # 1) iterate over incoming prediction dicts, validating them and generating rows to insert into the
     #    PredictionElement table
-    # 2) load those just-inserted rows from the database so we can get their PRIMARY KEY (autoincrement) ids, and then
+    # 2) load those just-inserted rows from the database so we can get their PRIMARY KEY (autoincrement) IDs, and then
     #    re-iterate over prediction dict data (cached in memory) to generate rows to insert into the PredictionData
     #    table
 
@@ -876,9 +877,12 @@ def is_forecast_metadata_available(forecast):
     return ForecastMetaPrediction.objects.filter(forecast=forecast).exists()
 
 
-def forecast_metadata_counts_for_project(project):
+def forecast_metadata_counts_for_f_ids(forecasts_qs):
     """
-    :param project: a Project
+    view helper function
+
+    :param forecasts_qs: a QuerySet of Forecasts that is used to filter the results. presumably they are all from the
+        same Project
     :return: dict with metadata count information for all forecasts in `project`. the dict maps:
         forecast_id -> the 3-tuple (prediction_counts, unit_count, target_count) where:
         - prediction_counts: (point_count, named_count, bin_count, sample_count, quantile_count) - a 5-tuple
@@ -887,46 +891,64 @@ def forecast_metadata_counts_for_project(project):
     """
     forecast_id_to_counts = defaultdict(lambda: [None, None, None])  # return value. filled next
 
-    # query 1/2: get ForecastMetaPrediction counts
-    logger.debug(f"forecast_metadata_counts_for_project(): getting prediction counts")
-    sql = f"""
-        SELECT fmp.forecast_id AS forecast_id, fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count
-        FROM {ForecastMetaPrediction._meta.db_table} AS fmp
-                 JOIN {Forecast._meta.db_table} AS f ON fmp.forecast_id = f.id
-                 JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-        WHERE fm.project_id = %s;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk,))
-        for forecast_id, point_count, named_count, bin_count, sample_count, quantile_count in batched_rows(cursor):
-            forecast_id_to_counts[forecast_id][0] = (point_count, named_count, bin_count, sample_count, quantile_count)
+    # query 1/3: get ForecastMetaPrediction counts
+    for fmp in ForecastMetaPrediction.objects.filter(forecast__in=forecasts_qs):
+        forecast_id_to_counts[fmp.forecast_id][0] = (fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count,
+                                                     fmp.quantile_count)
 
-    # query 2/2: get ForecastMetaUnit and ForecastMetaTarget counts
-    logger.debug(f"forecast_metadata_counts_for_project(): getting unit and target counts")
-    sql = f"""
-        SELECT fmt.forecast_id AS forecast_id, count(*) AS num_targets, 1 AS is_target_count
-        FROM {ForecastMetaTarget._meta.db_table} AS fmt
-                 JOIN {Forecast._meta.db_table} AS f ON fmt.forecast_id = f.id
-                 JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-        WHERE fm.project_id = %s
-        GROUP BY fmt.forecast_id, fm.project_id
-        
-        UNION
-        
-        SELECT fmu.forecast_id AS forecast_id, count(*) AS num_units, 0 AS is_target_count
-        FROM {ForecastMetaUnit._meta.db_table} AS fmu
-                 JOIN {Forecast._meta.db_table} AS f ON fmu.forecast_id = f.id
-                 JOIN {ForecastModel._meta.db_table} AS fm ON f.forecast_model_id = fm.id
-        WHERE fm.project_id = %s
-        GROUP BY fmu.forecast_id, fm.project_id;
-    """
-    with connection.cursor() as cursor:
-        cursor.execute(sql, (project.pk, project.pk))
-        for forecast_id, count, is_target_count in batched_rows(cursor):
-            forecast_id_to_counts[forecast_id][2 if is_target_count else 1] = count
+    # query 2/3: get ForecastMetaUnit counts
+    f_fmu_qs = forecasts_qs.annotate(num_targets=Count('forecastmetaunit')).values_list('id', 'num_targets')
+    for forecast_id, count in f_fmu_qs:
+        forecast_id_to_counts[forecast_id][1] = count
+
+    # query 3/3: get ForecastMetaTarget counts
+    f_fmt_qs = forecasts_qs.annotate(num_targets=Count('forecastmetatarget')).values_list('id', 'num_targets')
+    for forecast_id, count in f_fmt_qs:
+        forecast_id_to_counts[forecast_id][2] = count
 
     # done
     return forecast_id_to_counts
+
+
+#
+# project_forecasts() helpers
+#
+
+def fm_ids_with_min_num_forecasts(project, min_num_forecasts):
+    """
+    :param project: the Project to limit ForecastModels to
+    :param min_num_forecasts: an int >= 1
+    :return: QuerySet of IDs of ForecastModels that have at least `min_num_forecasts` forecasts. excludes oracle models
+    """
+    return ForecastModel.objects.filter(project=project, is_oracle=False) \
+        .annotate(num_forecasts=Count('forecasts')) \
+        .filter(num_forecasts__gte=min_num_forecasts) \
+        .values_list('id', flat=True)
+
+
+def forecast_ids_in_date_range(project, date_1, date_2):
+    """
+    :param project: the Project to limit Forecasts to
+    :param date_1: a datetime.date
+    :param date_2: ""
+    :return: QuerySet of IDs of Forecasts that have a time_zero__timezero_date between `date_1` and `date_2`. excludes
+        oracle models
+    """
+    return Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False,
+                                   time_zero__timezero_date__gte=date_1, time_zero__timezero_date__lte=date_2) \
+        .values_list('id', flat=True)
+
+
+def forecast_ids_in_target_group(project, target_group_name):
+    """
+    :param project: the Project to limit Forecasts to
+    :param target_group_name: group_name as returned by `group_targets()`
+    :return: sequence of IDs of Forecasts that have any targets in target_group_name. excludes oracle models
+    """
+    targets = targets_for_group_name(project, target_group_name)
+    return ForecastMetaTarget.objects.filter(target__in=targets) \
+        .values_list('forecast__id', flat=True) \
+        .distinct()
 
 
 #

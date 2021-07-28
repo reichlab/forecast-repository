@@ -437,6 +437,17 @@ def group_targets(targets):
     return group_name_to_targets
 
 
+def targets_for_group_name(project, group_name):
+    """
+    The inverse of `group_targets()`.
+
+    :param project: the Project whose targets are to be checked against `group_name`
+    :param group_name: as returned by `group_targets()` for Targets in Project
+    :return: list of Targets in `project` matching `group_name`
+    """
+    return [target for target in project.targets.all() if _group_name_for_target(target) == group_name]
+
+
 def _group_name_for_target(target):
     split = list(filter(None, re.split(r'[ _\-]+', target.name)))  # our target naming convention
     if len(split) == 1:
@@ -467,8 +478,8 @@ def models_summary_table_rows_for_project(project):
     # this query has three steps: 1) a CTE that groups forecast by model, calculating for each: number of forecasts, and
     # min and max timezero_dates. 2) a CTE that joins that with forecasts and then groups to get forecasts corresponding
     # to max timezero_dates, resulting in separate rows per forecast version (i.e., per issued_at), from which we group
-    # to get max issued_at. 3) a join on that with forecasts to get the actual forecast ids corresponding to the max
-    # issued_ats. note that this query does not return forecast ids (with max issued_ats) for min timezero_dates,
+    # to get max issued_at. 3) a join on that with forecasts to get the actual forecast IDs corresponding to the max
+    # issued_ats. note that this query does not return forecast IDs (with max issued_ats) for min timezero_dates,
     # which means we cannot link to them, only to the newest forecasts.
     #
     # final columns (one row/forecast model):
@@ -624,7 +635,7 @@ def _forecast_ids_to_present_unit_or_target_id_sets(forecast_ids, is_unit):
     """
     :param forecast_ids: a list of Forecast IDs
     :param is_unit: True if should return Unit information. returns Target information o/w
-    :return: a dict mapping each forecast_id to a set of either its Unit or Targets ids, based on is_unit:
+    :return: a dict mapping each forecast_id to a set of either its Unit or Targets IDs, based on is_unit:
         {forecast_id -> set(unit_or_target_ids)}
     """
     if not forecast_ids:
@@ -714,8 +725,8 @@ def latest_forecast_ids_for_project(project, is_only_f_id, model_ids=None, timez
     :param project: a Project
     :param is_only_f_id: boolean that controls the return value: True: return a list of the latest forecast IDs.
         False: Return a dict that maps (forecast_model_id, timezero_id) 2-tuples to the latest forecast's forecast_id
-    :param model_ids: optional list of ForecastModel.ids to filter by. None means include all models
-    :param timezero_ids: "" Timezero.ids "". None means include all TimeZeros
+    :param model_ids: optional list of ForecastModel IDs to filter by. None means include all models
+    :param timezero_ids: "" Timezero IDs "". None means include all TimeZeros
     :param as_of: optional date string in YYYY_MM_DD_DATE_FORMAT used for filter based on `Forecast.issued_at`. (note
         that both postgres and sqlite3 support that literal format)
     """

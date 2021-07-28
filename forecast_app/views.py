@@ -1,3 +1,4 @@
+import datetime
 import enum
 import json
 import logging
@@ -31,7 +32,8 @@ from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
     MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.forecast import data_rows_from_forecast, is_forecast_metadata_available, forecast_metadata, \
-    forecast_metadata_counts_for_project
+    forecast_metadata_counts_for_f_ids, fm_ids_with_min_num_forecasts, forecast_ids_in_date_range, \
+    forecast_ids_in_target_group
 from utils.project import config_dict_from_project, create_project_from_json, group_targets, unit_rows_for_project, \
     models_summary_table_rows_for_project, target_rows_for_project, latest_forecast_ids_for_project
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
@@ -175,37 +177,104 @@ def project_explorer(request, project_pk):
                  'target_rows': target_rows_for_project(project) if tab == 'latest_targets' else []})
 
 
+HEATMAP_FILTER_ALL_TARGETS = 'all_targets'
+
+
 def project_forecasts(request, project_pk):
     """
     View function to render a list of all forecasts in a particular project, along with a boolean heatmap showing which
     Forecasts are present for which TimeZeros, based on https://vega.github.io/vega-lite/ .
 
     GET query parameters:
-    - `colorby`: controls which data field is used to color the vega-lite heatmap.
-                 choices: <missing> (defaults to 'units'), 'rows', 'units', 'targets'
+    - `color_by`: controls which data field is used to color the vega-lite heatmap.
+                 choices: <missing> (defaults to 'units'), 'predictions', 'units', 'targets'
+    - 'target': a target group to filter results to, as returned by `group_targets()`. pass HEATMAP_FILTER_ALL_TARGETS to show all
+    - 'date_range': a start and end date in the format: 'yyyy-mm-yy to yyyy-mm-yy'. dates are inclusive
+    - 'min_num_forecasts': how many forecasts (submissions) a model has made. a positive integer (i.e., not zero)
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    # validate query params
+    color_by = request.GET.get('color_by')
+    if color_by and (color_by not in ['predictions', 'units', 'targets']):
+        return HttpResponseBadRequest(f"invalid param `color_by`={color_by!r}. must be one of: ['predictions', "
+                                      f"'units', 'targets']")
+
+    target_group = request.GET.get('target')
+    target_groups = sorted([group_name for group_name, targets in group_targets(project.targets.all()).items()])
+    if target_group and (target_group not in [HEATMAP_FILTER_ALL_TARGETS] + target_groups):
+        return HttpResponseBadRequest(f"invalid param `target`={target_group!r}. must be one of: {target_groups}.")
+
+    date_range = request.GET.get('date_range')
+    date_1, date_2 = None, None
+    if date_range:
+        to_split = date_range.split(' to ')
+        if len(to_split) != 2:
+            return HttpResponseBadRequest(f"invalid param `date_range`={date_range!r}. must be the format "
+                                          f"'YYYY-MM-DD to YYYY-MM-DD', but did not contain ' to '")
+
+        try:
+            date_1 = datetime.datetime.strptime(to_split[0], YYYY_MM_DD_DATE_FORMAT).date()
+            date_2 = datetime.datetime.strptime(to_split[1], YYYY_MM_DD_DATE_FORMAT).date()
+            if not (date_1 <= date_2):
+                return HttpResponseBadRequest(f"invalid param `date_range`={date_range!r}. date_1 was not <= date_2. "
+                                              f"date_1={to_split[0]}, date_2={to_split[1]}")
+        except ValueError as ve:
+            return HttpResponseBadRequest(f"invalid param `date_range`={date_range!r}. must be the format "
+                                          f"'YYYY-MM-DD to YYYY-MM-DD', but one of the dates was invalid. "
+                                          f"date_1={to_split[0]}, date_2={to_split[1]}. ve={ve!r}")
+
+    min_num_forecasts = request.GET.get('min_num_forecasts')
+    if min_num_forecasts:
+        try:
+            min_num_forecasts = int(min_num_forecasts)
+        except ValueError as ve:
+            return HttpResponseBadRequest(f"invalid param `min_num_forecasts`={min_num_forecasts!r}. must be an "
+                                          f"integer. ve={ve!r}")
+        if min_num_forecasts < 1:
+            return HttpResponseBadRequest(f"invalid param `min_num_forecasts`={min_num_forecasts!r}. must be an "
+                                          f"integer >= 1")
+
+    # at this point we have validated the three filtering constraints that were optionally passed in. now we translate
+    # these into ForecastModel or Forecast IDs for the actual "WHERE IN" filtering. we implement this by keeping a
+    # running list of Forecast IDs, starting with either ones filtered by # min_num_forecasts (if present) or all
+    # Forecasts in the project
+    #
+    # - min_num_forecasts: used to get a list of ForecastModel IDs of models that have at least that many Forecasts
+    # - target_group:      "" Forecast IDs that forecast for any Targets in the group (use ForecastMetaTarget)
+    # - date_1, date_2:    "" Forecast IDs that have a time_zero__timezero_date between `date_1` and `date_2` inclusive
+    forecast_model_ids = fm_ids_with_min_num_forecasts(project, min_num_forecasts) if min_num_forecasts else None
+    forecasts_qs = Forecast.objects.filter(forecast_model__id__in=forecast_model_ids) if min_num_forecasts \
+        else Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False)
+    if date_range:
+        date_forecast_ids = forecast_ids_in_date_range(project, date_1, date_2)
+        forecasts_qs = forecasts_qs.filter(id__in=date_forecast_ids)
+    if target_group and (target_group != HEATMAP_FILTER_ALL_TARGETS):
+        target_forecast_ids = forecast_ids_in_target_group(project, target_group)
+        forecasts_qs = forecasts_qs.filter(id__in=target_forecast_ids)
+
     # create heatmap data
     logger.debug(f"project_forecasts(): entered. getting metadata counts. project_pk={project_pk}")
+    forecast_id_to_counts = forecast_metadata_counts_for_f_ids(forecasts_qs)
+
+    logger.debug(f"project_forecasts(): getting vegalite spec")
     encoding_color_field = {None: '# targets',  # default
                             'predictions': '# predictions',
                             'units': '# units',
-                            'targets': '# targets'}[request.GET.get('colorby')]
-    forecast_id_to_counts = forecast_metadata_counts_for_project(project)
-
-    logger.debug(f"project_forecasts(): getting vegalite spec")
+                            'targets': '# targets'}[color_by]
+    print('xx 1', repr([min_num_forecasts, target_group, date_range]), forecasts_qs.count(), len(forecast_id_to_counts),
+          sep='\n')
     vega_lite_spec = _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field)
+    print('xx 2', len(vega_lite_spec['data']['values']))
 
     # create forecasts table data
     logger.debug(f"project_forecasts(): making rows")
     forecast_rows = []  # filled next
-    rows_qs = Forecast.objects.filter(forecast_model__project=project, forecast_model__is_oracle=False) \
-        .values_list('id', 'issued_at', 'created_at', 'forecast_model_id', 'forecast_model__abbreviation',
-                     'time_zero__id', 'time_zero__timezero_date')  # datatable does order by
-    for f_id, f_issued_at, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in rows_qs:
+    forecasts_qs = forecasts_qs.values_list('id', 'issued_at', 'created_at', 'forecast_model_id',  # datatable orders by
+                                            'forecast_model__abbreviation', 'time_zero__id', 'time_zero__timezero_date')
+    for f_id, f_issued_at, f_created_at, fm_id, fm_abbrev, tz_id, tz_timezero_date in forecasts_qs:
         counts = forecast_id_to_counts[f_id]  # [None, None, None] if forecast_id is None (via defauldict)
         num_rows = sum(counts[0]) if counts[0] is not None else 0
         forecast_rows.append((reverse('forecast-detail', args=[f_id]), tz_timezero_date, f_issued_at, f_created_at,
@@ -218,7 +287,8 @@ def project_forecasts(request, project_pk):
     return render(request, 'project_forecasts.html',
                   context={'project': project,
                            'forecast_rows': forecast_rows,
-                           'vega_lite_spec': dumps})
+                           'vega_lite_spec': dumps,
+                           'target_groups': target_groups})
 
 
 def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field):
@@ -228,9 +298,14 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
     fm_tz_ids_to_f_id = latest_forecast_ids_for_project(project, False)  # ones with latest issued_at
     tz_id_dates = project.timezeros.all().order_by('timezero_date').values_list('id', 'timezero_date')
     values = []
-    for fm_id, fm_abbrev in project.models.all().order_by('abbreviation').values_list('id', 'abbreviation'):
+    for fm_id, fm_abbrev in project.models.filter(is_oracle=False) \
+            .order_by('abbreviation') \
+            .values_list('id', 'abbreviation'):
         for tz_id, tz_tzdate in tz_id_dates:
             forecast_id = fm_tz_ids_to_f_id.get((fm_id, tz_id), None)
+            if forecast_id not in forecast_id_to_counts:  # b/c defaultdict
+                continue
+
             counts = forecast_id_to_counts[forecast_id]  # [None, None, None] if forecast_id is None (via defauldict)
             if forecast_id is not None:
                 # 'T00:00:00' is per [Tooltip dates are off by one](https://github.com/vega/vega-lite/issues/6883):

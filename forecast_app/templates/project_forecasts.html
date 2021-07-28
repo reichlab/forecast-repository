@@ -3,6 +3,7 @@
 {% load humanize %}
 {% load tz %}
 {% load custom_tags %}
+{% load static %}
 
 {% block title %}Project Forecasts: {{ project.name }}{% endblock %}
 
@@ -16,37 +17,122 @@
         </ol>
     </nav>
 
+    <h2>Forecast Heatmap</h2>
 
-    <h2>Forecast Heatmap
-        <div class="dropdown d-inline-block">
-            <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="dropdownMenuButton"
-                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                Color by
-            </button>
-            <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=predictions"
-                   id="color_num_rows"># predictions</a>
-                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=units"
-                   id="color_num_units"># units</a>
-                <a class="dropdown-item" href="{% url 'project-forecasts' project.pk %}?colorby=targets"
-                   id="color_num_targets"># targets</a>
+    <div class="col-auto">
+        <form id="filter_form" class="form-inline" style="display: inline-block;" method="GET"
+              action="{% url 'project-forecasts' project.id %}">
+            <div class="form-row align-items-center">
+
+                <!-- Color by select -->
+                {# todo xx init: passed-in from url #}
+                <div class="col-auto">
+                    <label class="sr-only" for="colorby_select">Unit</label>
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">Color by</div>
+                        </div>
+                        <select id="colorby_select" class="form-control" name="color_by">
+                            <option value="predictions" selected># predictions</option>
+                            <option value="units"># units</option>
+                            <option value="targets"># targets</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Target group select -->
+                {# todo xx init: passed-in from url #}
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">Target</div>
+                        </div>
+                        <select id="target_select" class="form-control" name="target">
+                            {# todo xx option: {% if unit == search_unit %}selected{% endif %} #}
+                            <option value="all_targets">All Targets</option>
+                            {% for group_name in target_groups %}
+                                <option value="{{ group_name }}">{{ group_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Date range picker -->
+                {# todo xx init: passed-in from url #}
+                {# todo xx validate: "yyyy-mm-dd to yyyy-mm-dd" #}
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">Dates</div>
+                        </div>
+                        {# <input id="date_range" type="text" name="date_range" class="form-control" value="2021-06-21 to 2021-06-22"> #}
+                        <input id="date_range" type="text" name="date_range" class="form-control">
+                    </div>
+                </div>
+
+                <!-- # Submissions select -->
+                {# todo xx init: passed-in from url #}
+                {# todo xx validate: >=0 (> 0?) #}
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">Min. # submissions</div>
+                        </div>
+                        <input type="text" name="min_num_forecasts" class="form-control">
+                    </div>
+                </div>
+
+                <!-- Submit and Reset buttons -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <button type="submit" class="save btn btn-success btn-sm">Submit</button>
+                    </div>
+                </div>
+
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <a href="{% url 'project-forecasts' project.id %}" class="save btn btn-sm btn-light"
+                           role="button">Reset</a>
+                    </div>
+                </div>
+
             </div>
-        </div>
-    </h2>
+        </form>
+    </div>
 
 
-    {# Vega-Lite #}
+    <!-- https://github.com/longbill/jquery-date-range-picker
+    NB: we could not get the download to work, so we extracted these files from the demo page
+    https://longbill.github.io/jquery-date-range-picker/
+    -->
+    <link rel="stylesheet" type="text/css" href="{% static 'jquery_date_range_picker/daterangepicker.css' %}">
+    <script type="text/javascript" src="{% static 'jquery_date_range_picker/moment.js' %}"></script>
+    <script type="text/javascript" src="{% static 'jquery_date_range_picker/jquery_002.js' %}"></script>
+
+    <script type="text/javascript">
+        const config = {
+            // - startDate (String or false): This string defines the earliest date which is allowed for the user, same format as `format`
+            // - endDate (String or false): This string defines the latest date which is allowed for the user, same format as `format`
+            // default configuration:
+            //   - format: 'YYYY-MM-DD'
+            //   - separator: ' to ',
+            {#startDate: '2021-06-20',#}
+            {#endDate: '2021-06-23'#}
+        };
+        $('#date_range').dateRangePicker(config);
+    </script>
+
+
+    <!-- Vega-Lite -->
     <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
     <script src="https://cdn.jsdelivr.net/npm/vega-lite@4"></script>
     {# vega-embed gives this error: Source map error: Error: request failed with status 404. Resource URL: https://cdn.jsdelivr.net/npm/vega-embed@6 Source Map URL: vega-embed.min.js.map  #}
     <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
 
-    {# Vega-Lite #}
     <div class="row">
         <div id="vis" class="col-md-12"></div>
     </div>
 
-    {# Vega-Lite #}
     <script type="text/javascript">
         vegaEmbed('#vis', {{ vega_lite_spec|safe}});
     </script>

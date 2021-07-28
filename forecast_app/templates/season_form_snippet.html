@@ -5,7 +5,7 @@
             <option>(No seasons)</option>
         {% endif %}
         {% for season_name_option in seasons %}
-            <option {% if season_name_option == season_name %}selected="selected"{% endif %}>
+            <option {% if season_name_option == season_name %}selected{% endif %}>
                 {{ season_name_option }}
             </option>
         {% endfor %}

@@ -1,12 +1,14 @@
 import datetime
 import json
+import unittest
 
+from django.db import connection
 from django.db.models import QuerySet
 from django.test import TestCase
 
 from forecast_app.models import ForecastMetaPrediction, ForecastMetaUnit, ForecastMetaTarget, Forecast
 from utils.forecast import cache_forecast_metadata, clear_forecast_metadata, load_predictions_from_json_io_dict, \
-    forecast_metadata, is_forecast_metadata_available, forecast_metadata_counts_for_project
+    forecast_metadata, is_forecast_metadata_available, forecast_metadata_counts_for_f_ids
 from utils.make_minimal_projects import _make_docs_project
 from utils.utilities import get_or_create_super_po_mo_users
 
@@ -144,7 +146,7 @@ class ForecastMetadataTestCase(TestCase):
         self.assertTrue(is_forecast_metadata_available(self.forecast))
 
 
-    def tests_forecast_metadata_counts_for_project(self):
+    def test_forecast_metadata_counts_for_f_ids(self):
         forecast2 = Forecast.objects.create(forecast_model=self.forecast_model, source='docs-predictions-non-dup.json',
                                             time_zero=self.time_zero, notes="a small prediction file")
         with open('forecast_app/tests/predictions/docs-predictions-non-dup.json') as fp:
@@ -152,10 +154,12 @@ class ForecastMetadataTestCase(TestCase):
             load_predictions_from_json_io_dict(forecast2, json_io_dict_in, is_validate_cats=False)
         cache_forecast_metadata(self.forecast)
         cache_forecast_metadata(forecast2)
-        forecast_id_to_counts = forecast_metadata_counts_for_project(self.project)
+
+        forecasts_qs = self.forecast_model.forecasts.all()
+        forecast_id_to_counts = forecast_metadata_counts_for_f_ids(forecasts_qs)
         #  f_id:  [(point_count, named_count, bin_count, sample_count, quantile_count), num_names, num_targets]
-        # {   1:  [(11,          2,           6,        7,           3),             3,         5          ],
-        #     2:  [(11,          2,           6,        7,           3),             3,         5          ]}
+        # {   4:  [(11,          2,           6,         7,            3),              3,         5          ],
+        #     5:  [(11,          2,           6,         7,            3),              3,         5          ]}
         self.assertEqual(sorted([self.forecast.id, forecast2.id]), sorted(forecast_id_to_counts.keys()))
         self.assertEqual([(11, 2, 6, 7, 3), 3, 5], forecast_id_to_counts[self.forecast.id])
         self.assertEqual([(11, 2, 6, 7, 3), 3, 5], forecast_id_to_counts[forecast2.id])

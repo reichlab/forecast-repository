@@ -48,7 +48,7 @@ class Forecast(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.time_zero, self.issued_at, self.source, self.created_at))
+        return str((self.pk, self.forecast_model.id, self.time_zero, self.source, self.issued_at, self.created_at))
 
 
     def __str__(self):  # todo

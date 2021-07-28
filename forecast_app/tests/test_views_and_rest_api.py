@@ -3,12 +3,14 @@ import datetime
 import io
 import json
 import logging
+import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from botocore.exceptions import BotoCoreError
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -17,9 +19,10 @@ from rest_framework.test import APIClient, APIRequestFactory
 from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from forecast_app.models.job import Job
 from forecast_app.serializers import TargetSerializer, TimeZeroSerializer
-from forecast_app.views import _delete_forecast_worker
+from forecast_app.views import _delete_forecast_worker, HEATMAP_FILTER_ALL_TARGETS
 from utils.cdc_io import load_cdc_csv_forecast_file, make_cdc_units_and_targets
-from utils.project import delete_project_iteratively, create_project_from_json
+from utils.forecast import fm_ids_with_min_num_forecasts, forecast_ids_in_date_range, forecast_ids_in_target_group
+from utils.project import delete_project_iteratively, create_project_from_json, group_targets
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.project_truth import load_truth_data
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT, get_or_create_super_po_mo_users
@@ -1545,6 +1548,68 @@ class ViewsTestCase(TestCase):
         exp_rows = [['forecast_id', 'source'], [str(forecast.pk), 'split_source']]
         act_rows = [row for row in csv_reader]
         self.assertEqual(exp_rows, act_rows)  # also checks '\n' -> '_'
+
+
+    @unittest.skipIf(connection.vendor != 'postgresql', "project_forecasts with filtering does not support sqlite3")
+    def test_project_forecasts_query_params(self):
+        """
+        Tests the 'project-forecasts' view, which accepts (and responds) the optional query parameters (all strings)
+        documented in `project_forecasts()`
+        """
+        target_groups = [group_name for group_name, targets in group_targets(self.public_project.targets.all()).items()]
+        forecasts_url = reverse('project-forecasts', args=[str(self.public_project.pk)])
+
+        data_is_valid = [
+            ({}, True),
+            ({'color_by': 'predictions', 'target': HEATMAP_FILTER_ALL_TARGETS, 'date_range': '2021-07-20 to 2021-07-28',
+              'min_num_forecasts': '100'}, True),
+
+            ({'color_by': 'predictions'}, True),
+            ({'color_by': 'units'}, True),
+            ({'color_by': 'targets'}, True),
+            ({'color_by': 'bad_color_by'}, False),
+            ({'color_by': ' '}, False),
+
+            ({'target': HEATMAP_FILTER_ALL_TARGETS}, True),
+            ({'target': target_groups[0]}, True),
+            ({'target': 'bad_target'}, False),
+
+            ({'date_range': '2021-07-20 to 2021-07-28'}, True),
+            ({'date_range': '2021-07-21 to 2021-07-20'}, False),
+            ({'date_range': '2021/07/20 to 2021/07/28'}, False),
+            ({'date_range': 'bad_data_range'}, False),
+            ({'date_range': ' '}, False),
+
+            ({'min_num_forecasts': '1'}, True),
+            ({'min_num_forecasts': '0'}, False),
+            ({'min_num_forecasts': '-1'}, False),
+            ({'min_num_forecasts': 'bad_min_num_forecasts'}, False),
+            ({'min_num_forecasts': ' '}, False),
+        ]
+        for data, is_valid in data_is_valid:
+            response = self.client.get(forecasts_url, data=data)
+            exp_status = status.HTTP_200_OK if is_valid else status.HTTP_400_BAD_REQUEST
+            self.assertEqual(exp_status, response.status_code)
+
+
+    def test_models_min_num_forecasts(self):
+        self.assertEqual(1, len(fm_ids_with_min_num_forecasts(self.public_project, 1)))
+        self.assertEqual(0, len(fm_ids_with_min_num_forecasts(self.public_project, 2)))
+
+
+    def test_forecast_ids_in_date_range(self):
+        forecast_ids = forecast_ids_in_date_range(self.public_project,
+                                                  self.public_tz1.timezero_date, self.public_tz1.timezero_date)
+        self.assertEqual({self.public_forecast.pk}, set(forecast_ids))
+
+        forecast_ids = forecast_ids_in_date_range(self.public_project,
+                                                  self.private_tz1.timezero_date, self.private_tz1.timezero_date)
+        self.assertEqual([], list(forecast_ids))
+
+
+    def test_forecast_ids_in_target_group(self):
+        self.assertEqual({self.public_forecast.pk},
+                         set(forecast_ids_in_target_group(self.public_project, 'wk ahead')))
 
 
     #
