@@ -25,7 +25,6 @@
             <div class="form-row align-items-center">
 
                 <!-- Color by select -->
-                {# todo xx init: passed-in from url #}
                 <div class="col-auto">
                     <label class="sr-only" for="colorby_select">Unit</label>
                     <div class="input-group mb-2">
@@ -33,52 +32,58 @@
                             <div class="input-group-text">Color by</div>
                         </div>
                         <select id="colorby_select" class="form-control" name="color_by">
-                            <option value="predictions" selected># predictions</option>
-                            <option value="units"># units</option>
-                            <option value="targets"># targets</option>
+                            <option value="predictions" {% if filter_color_by == 'predictions' %}selected{% endif %}>
+                                # predictions
+                            </option>
+                            <option value="units" {% if filter_color_by == 'units' %}selected{% endif %}>
+                                # units
+                            </option>
+                            <option value="targets" {% if filter_color_by == 'targets' %}selected{% endif %}>
+                                # targets
+                            </option>
                         </select>
                     </div>
                 </div>
 
                 <!-- Target group select -->
-                {# todo xx init: passed-in from url #}
                 <div class="col-auto">
                     <div class="input-group mb-2">
                         <div class="input-group-prepend">
                             <div class="input-group-text">Target</div>
                         </div>
                         <select id="target_select" class="form-control" name="target">
-                            {# todo xx option: {% if unit == search_unit %}selected{% endif %} #}
                             <option value="all_targets">All Targets</option>
                             {% for group_name in target_groups %}
-                                <option value="{{ group_name }}">{{ group_name }}</option>
+                                <option value="{{ group_name }}"
+                                        {% if filter_target == group_name %}selected{% endif %}>
+                                    {{ group_name }}
+                                </option>
                             {% endfor %}
                         </select>
                     </div>
                 </div>
 
                 <!-- Date range picker -->
-                {# todo xx init: passed-in from url #}
-                {# todo xx validate: "yyyy-mm-dd to yyyy-mm-dd" #}
                 <div class="col-auto">
                     <div class="input-group mb-2">
                         <div class="input-group-prepend">
                             <div class="input-group-text">Dates</div>
                         </div>
-                        {# <input id="date_range" type="text" name="date_range" class="form-control" value="2021-06-21 to 2021-06-22"> #}
-                        <input id="date_range" type="text" name="date_range" class="form-control">
+                        {# todo validate: "yyyy-mm-dd to yyyy-mm-dd" #}
+                        <input id="date_range" type="text" name="date_range" class="form-control"
+                               {% if filter_date_range %}value="{{ filter_date_range }}"{% endif %}>
                     </div>
                 </div>
 
                 <!-- # Submissions select -->
-                {# todo xx init: passed-in from url #}
-                {# todo xx validate: >=0 (> 0?) #}
                 <div class="col-auto">
                     <div class="input-group mb-2">
                         <div class="input-group-prepend">
                             <div class="input-group-text">Min. # submissions</div>
                         </div>
-                        <input type="text" name="min_num_forecasts" class="form-control">
+                        {# todo validate: > 0 #}
+                        <input type="text" name="min_num_forecasts" class="form-control"
+                               {% if filter_min_num_forecasts %}value="{{ filter_min_num_forecasts }}"{% endif %}>
                     </div>
                 </div>
 

@@ -288,7 +288,11 @@ def project_forecasts(request, project_pk):
                   context={'project': project,
                            'forecast_rows': forecast_rows,
                            'vega_lite_spec': dumps,
-                           'target_groups': target_groups})
+                           'target_groups': target_groups,
+                           'filter_color_by': color_by if color_by else 'targets',  # default
+                           'filter_target': target_group,
+                           'filter_date_range': date_range,
+                           'filter_min_num_forecasts': min_num_forecasts})
 
 
 def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field):
