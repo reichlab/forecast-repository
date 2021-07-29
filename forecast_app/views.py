@@ -15,7 +15,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import connection, transaction, IntegrityError
-from django.db.models import Count
+from django.db.models import Count, Max
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
@@ -236,6 +236,20 @@ def project_forecasts(request, project_pk):
         if min_num_forecasts < 1:
             return HttpResponseBadRequest(f"invalid param `min_num_forecasts`={min_num_forecasts!r}. must be an "
                                           f"integer >= 1")
+
+    # default `date_range` parameter if not passed: no more than 60 TimeZeros, counting from the project's latest one
+    if not date_range:
+        tz_dates = list(project.timezeros.order_by('-timezero_date').values_list('timezero_date', flat=True)[:60])
+        date_1, date_2 = tz_dates[-1], tz_dates[0]
+        date_range = ' to '.join([date_1.strftime(YYYY_MM_DD_DATE_FORMAT), date_2.strftime(YYYY_MM_DD_DATE_FORMAT)])
+
+    # default `min_num_forecasts` parameter if not passed: round(0.05 * max_submissions) where max_submissions = maximum
+    # number of submissions from any model
+    if not min_num_forecasts:
+        max_dict = ForecastModel.objects.filter(project=project, is_oracle=False) \
+            .annotate(num_forecasts=Count('forecasts')) \
+            .aggregate(max_num_forecasts=Max('num_forecasts'))
+        min_num_forecasts = round(0.05 * max_dict['max_num_forecasts'])
 
     # at this point we have validated the three filtering constraints that were optionally passed in. now we translate
     # these into ForecastModel or Forecast IDs for the actual "WHERE IN" filtering. we implement this by keeping a
