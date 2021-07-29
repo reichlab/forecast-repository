@@ -191,10 +191,14 @@ def project_forecasts(request, project_pk):
     - 'target': a target group to filter results to, as returned by `group_targets()`. pass HEATMAP_FILTER_ALL_TARGETS to show all
     - 'date_range': a start and end date in the format: 'yyyy-mm-yy to yyyy-mm-yy'. dates are inclusive
     - 'min_num_forecasts': how many forecasts (submissions) a model has made. a positive integer (i.e., not zero)
+    - 'show_all': 'true' value optionally indicates the 'Show All' button was clickedd -> forces showing all forecasts.
+                  no query params are passed
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
+
+    is_show_all = request.GET.get('show_all')
 
     # validate query params
     color_by = request.GET.get('color_by')
@@ -238,14 +242,14 @@ def project_forecasts(request, project_pk):
                                           f"integer >= 1")
 
     # default `date_range` parameter if not passed: no more than 60 TimeZeros, counting from the project's latest one
-    if not date_range:
+    if (not is_show_all) and (not date_range):
         tz_dates = list(project.timezeros.order_by('-timezero_date').values_list('timezero_date', flat=True)[:60])
         date_1, date_2 = tz_dates[-1], tz_dates[0]
         date_range = ' to '.join([date_1.strftime(YYYY_MM_DD_DATE_FORMAT), date_2.strftime(YYYY_MM_DD_DATE_FORMAT)])
 
     # default `min_num_forecasts` parameter if not passed: round(0.05 * max_submissions) where max_submissions = maximum
     # number of submissions from any model
-    if not min_num_forecasts:
+    if (not is_show_all) and (not min_num_forecasts):
         max_dict = ForecastModel.objects.filter(project=project, is_oracle=False) \
             .annotate(num_forecasts=Count('forecasts')) \
             .aggregate(max_num_forecasts=Max('num_forecasts'))

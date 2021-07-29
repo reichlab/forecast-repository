@@ -96,8 +96,15 @@
 
                 <div class="col-auto">
                     <div class="input-group mb-2">
-                        <a href="{% url 'project-forecasts' project.id %}" class="save btn btn-sm btn-light"
-                           role="button">Reset</a>
+                        <a href="{% url 'project-forecasts' project.id %}"
+                           class="save btn btn-sm btn-light" role="button">Show Recent</a>
+                    </div>
+                </div>
+
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <a href="{% url 'project-forecasts' project.id %}?show_all=true"
+                           class="save btn btn-sm btn-light" role="button">Show All</a>
                     </div>
                 </div>
 
