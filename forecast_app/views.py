@@ -264,10 +264,7 @@ def project_forecasts(request, project_pk):
                             'predictions': '# predictions',
                             'units': '# units',
                             'targets': '# targets'}[color_by]
-    print('xx 1', repr([min_num_forecasts, target_group, date_range]), forecasts_qs.count(), len(forecast_id_to_counts),
-          sep='\n')
     vega_lite_spec = _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_field)
-    print('xx 2', len(vega_lite_spec['data']['values']))
 
     # create forecasts table data
     logger.debug(f"project_forecasts(): making rows")
