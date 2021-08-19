@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import statistics
 from numbers import Number
 from pathlib import Path
 from unittest.mock import patch
@@ -8,7 +9,7 @@ from unittest.mock import patch
 from botocore.exceptions import BotoCoreError
 from django.test import TestCase
 
-from forecast_app.models import TimeZero, Forecast, Job, Unit, Target, PredictionElement
+from forecast_app.models import TimeZero, Forecast, Job, Unit, Target
 from forecast_app.models.forecast_model import ForecastModel
 from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
 from utils.forecast import load_predictions_from_json_io_dict, NamedData
@@ -112,8 +113,7 @@ class ProjectQueriesTestCase(TestCase):
         seas = timezero_to_season_name[self.time_zero]
 
         # ---- case: all BinData in project. check cat and prob columns ----
-        rows = list(query_forecasts_for_project(  # list for generator
-            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS]]}))
+        rows = list(query_forecasts_for_project(self.project, {'types': ['bin']}))  # list for generator
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
@@ -139,8 +139,7 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_bin, sorted(act_rows))
 
         # ----  case: all named data in project. check family, and param1, 2, and 3 columns ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS]]}))
+        rows = list(query_forecasts_for_project(self.project, {'types': ['named']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named', NamedData.POIS_DIST, 1.1, '', ''),
@@ -153,7 +152,7 @@ class ProjectQueriesTestCase(TestCase):
 
         # ---- case: all PointData in project. check value column ----
         rows = list(query_forecasts_for_project(
-            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]]}))
+            self.project, {'types': ['point']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_point = [
@@ -173,8 +172,7 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_point, sorted(act_rows))
 
         # ---- case: all SampleData in project. check sample column ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS]]}))
+        rows = list(query_forecasts_for_project(self.project, {'types': ['sample']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
@@ -205,8 +203,7 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_sample, sorted(act_rows))
 
         # ---- case: all QuantileData in project. check quantile and value columns ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'types': [PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]]}))
+        rows = list(query_forecasts_for_project(self.project, {'types': ['quantile']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
@@ -317,6 +314,107 @@ class ProjectQueriesTestCase(TestCase):
         # _forecasts_query_worker(job.pk)
         # job.refresh_from_db()
         # self.assertEqual(Job.SUCCESS, job.status)
+
+
+    #
+    # test forecast queries with auto-convert
+    #
+
+    def test_validate_forecasts_query_options(self):
+        """
+        test the 'options' query key for the auto-conversion of prediction types feature
+        """
+        # test valid options
+        for valid_options in [
+            {},
+            {'convert.bin': True, 'convert.point': 'mean', 'convert.sample': 21, 'convert.quantile': [0.025, 0.975]},
+            {'convert.bin': False, 'convert.point': 'median', 'convert.sample': 10, 'convert.quantile': [0.025, 0.975]},
+        ]:
+            error_messages, _ = validate_forecasts_query(self.project, {'types': ['point'], 'options': valid_options})
+            self.assertEqual(0, len(error_messages))
+
+        # test invalid options
+        for invalid_options, exp_error_msg in [
+            (-1, "options was not a dict"),
+            ({'convert.bin': -1}, "bin option value was not a boolean"),
+            ({'convert.named': True}, "one or more invalid options keys"),
+            ({'convert.point': -1}, "point option value was not one of 'mean' or 'median'"),
+            ({'convert.point': 'hmm'}, "point option value was not one of 'mean' or 'median'"),
+            ({'convert.quantile': -1}, "quantile option value was not a list of unique numbers in [0, 1]"),
+            ({'convert.quantile': []}, "quantile option value was not a list of unique numbers in [0, 1]"),
+            ({'convert.quantile': [-1]}, "quantile option value was not a list of unique numbers in [0, 1]"),
+            ({'convert.quantile': [0.025, 0.025]}, "quantile option value was not a list of unique numbers in [0, 1]"),
+            ({'convert.sample': 'nope'}, "sample option value was not an int >0"),
+            ({'convert.sample': 0}, "sample option value was not an int >0"),
+        ]:
+            error_messages, _ = validate_forecasts_query(self.project, {'types': ['point'], 'options': invalid_options})
+            self.assertEqual(1, len(error_messages))
+            self.assertIn(exp_error_msg, error_messages[0])
+
+        # test options passed with no types
+        error_messages, _ = validate_forecasts_query(self.project, {'options': valid_options})
+        self.assertEqual(0, len(error_messages))
+
+        # test options passed with no types
+        error_messages, _ = validate_forecasts_query(self.project, {'types': [], 'options': valid_options})
+        self.assertEqual(0, len(error_messages))
+
+
+    def test_query_forecasts_for_project_convert_S_to_P(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project, name='convert model', abbreviation='convs_model')
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        u1 = Unit.objects.filter(name='location1').first()
+        t1 = Target.objects.filter(name='cases next week').first()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        samples = [0, 2, 2, 5]
+        predictions = [{"unit": u1.name, "target": t1.name, "class": "sample", "prediction": {"sample": samples}}]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+
+        # case: S->P: mean
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3'],
+            ['convs_model', '2011-10-02', '2011-2012', 'location1', 'cases next week', 'point',
+             statistics.mean(samples), '', '', '', '', '', '', '', '']]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['point'], 'options': {'convert.point': 'mean'}}))
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: S->P: median
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3'],
+            ['convs_model', '2011-10-02', '2011-2012', 'location1', 'cases next week', 'point',
+             statistics.median(samples), '', '', '', '', '', '', '', '']]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['point'], 'options': {'convert.point': 'median'}}))
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: P->P (no conversion necessary). note that we pass the 'convert.point' option, which operates as both
+        # a flag indicating conversion and a conversion option, even though in this case it won't apply b/c we already
+        # have the desired point prediction
+        f1.delete()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        predictions += [{"unit": u1.name, "target": t1.name, "class": "point", "prediction": {"value": 666}}]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3'],
+            ['convs_model', '2011-10-02', '2011-2012', 'location1', 'cases next week', 'point', 666, '', '', '', '', '',
+             '', '', '']]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['point'], 'options': {'convert.point': 'median'}}))
+        self.assertEqual(exp_rows, act_rows)
+
+
+    def test_query_forecasts_for_project_convert_unsupported_target_types(self):
+        self.fail()  # todo xx
+
+
+    def test_query_forecasts_for_project_convert_unsupported_conversions(self):
+        self.fail()  # todo xx
 
 
     #
@@ -848,7 +946,6 @@ class ProjectQueriesTestCase(TestCase):
         """
         project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
         tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        tz2str = tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
         model = forecast_model.abbreviation
         season = project.timezero_to_season_name()[tz1]
 
@@ -900,7 +997,6 @@ class ProjectQueriesTestCase(TestCase):
         """
         project, forecast_model, f1, tz1, tz2, u1, u2, u3, t1 = ProjectQueriesTestCase._set_up_as_of_case()
         tz1str = tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-        tz2str = tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)
         model = forecast_model.abbreviation
         season = project.timezero_to_season_name()[tz1]
 

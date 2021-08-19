@@ -42,7 +42,7 @@ class CdcIOTestCase(TestCase):
                 open(exp_json_path) as exp_json_fp:
             exp_json_io_dict = json.load(exp_json_fp)
             exp_predictions = [prediction_dict for prediction_dict in exp_json_io_dict['predictions']
-                               if prediction_dict['class'] == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]]
+                               if prediction_dict['class'] == 'point']
             act_json_io_dict = json_io_dict_from_cdc_csv_file(2011, cdc_csv_fp)
             self.assertEqual(7, len(act_json_io_dict['predictions']))
             self.assertEqual(exp_predictions, act_json_io_dict['predictions'])
