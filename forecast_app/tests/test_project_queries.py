@@ -365,8 +365,10 @@ class ProjectQueriesTestCase(TestCase):
         project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
         forecast_model = ForecastModel.objects.create(project=project, name='convert model', abbreviation='convs_model')
         tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
-        u1 = Unit.objects.filter(name='location1').first()
-        t1 = Target.objects.filter(name='cases next week').first()
+        u1 = project.units.filter(name='location1').first()
+        u2 = project.units.filter(name='location2').first()
+        t1 = project.targets.filter(name='cases next week').first()
+        t2 = project.targets.get(name='season severity')
         f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
         samples = [0, 2, 2, 5]
         predictions = [{"unit": u1.name, "target": t1.name, "class": "sample", "prediction": {"sample": samples}}]
@@ -397,8 +399,10 @@ class ProjectQueriesTestCase(TestCase):
         # have the desired point prediction
         f1.delete()
         f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        predictions += [{"unit": u1.name, "target": t1.name, "class": "point", "prediction": {"value": 666}}]
-        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+        load_predictions_from_json_io_dict(
+            f1, {'predictions': predictions + [
+                {"unit": u1.name, "target": t1.name, "class": "point", "prediction": {"value": 666}}]},
+            is_validate_cats=False)
         exp_rows = [
             ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
              'family', 'param1', 'param2', 'param3'],
@@ -408,13 +412,27 @@ class ProjectQueriesTestCase(TestCase):
                                                     {'types': ['point'], 'options': {'convert.point': 'median'}}))
         self.assertEqual(exp_rows, act_rows)
 
+        # case: S->B (currently unsupported conversion) -> returns only header
+        f1.delete()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3']]
+        act_rows = list(query_forecasts_for_project(project, {'types': ['bin'], 'options': {'convert.bin': True}}))
+        self.assertEqual(exp_rows, act_rows)
 
-    def test_query_forecasts_for_project_convert_unsupported_target_types(self):
-        self.fail()  # todo xx
-
-
-    def test_query_forecasts_for_project_convert_unsupported_conversions(self):
-        self.fail()  # todo xx
+        # case: unsupported target types -> returns only header
+        f1.delete()
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        predictions = [{"unit": u2.name, "target": t2.name, "class": "sample",
+                        "prediction": {"sample": ["moderate", "severe", "high", "moderate", "mild"]}}]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3']]
+        act_rows = list(query_forecasts_for_project(project, {'types': ['bin'], 'options': {'convert.bin': True}}))
+        self.assertEqual(exp_rows, act_rows)
 
 
     #
