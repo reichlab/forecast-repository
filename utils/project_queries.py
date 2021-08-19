@@ -100,7 +100,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     # dispatch to one of two implementations based on whether prediction type conversion is requested
     if ('options' in query) and query['options']:
         yield from _query_forecasts_for_project_yes_type_convert(
-            project, max_num_rows, model_ids, unit_ids, target_ids, timezero_ids, type_ints, as_of,
+            project, query, max_num_rows, model_ids, unit_ids, target_ids, timezero_ids, type_ints, as_of,
             forecast_model_id_to_obj, timezero_id_to_obj, unit_id_to_obj, target_id_to_obj, timezero_to_season_name,
             query['options'])
     else:
@@ -125,9 +125,9 @@ def _query_forecasts_for_project_no_type_convert(project, query, max_num_rows, m
 
     # get the SQL then execute and iterate over resulting data
     sql = _query_forecasts_sql_for_pred_class(type_ints, model_ids, unit_ids, target_ids, timezero_ids, as_of, True)
-    logger.debug(f"query_forecasts_for_project(): 2/3 executing sql. type_ints, model_ids, unit_ids, target_ids, "
-                 f"timezero_ids, as_of= {type_ints}, {model_ids}, {unit_ids}, {target_ids}, {timezero_ids}, "
-                 f"{as_of}")
+    logger.debug(f"_query_forecasts_for_project_no_type_convert(): 1/2 executing sql. type_ints, model_ids, unit_ids, "
+                 f"target_ids, timezero_ids, as_of= {type_ints}, {model_ids}, {unit_ids}, {target_ids}, "
+                 f"{timezero_ids}, {as_of}")
     num_rows = 0
     with connection.cursor() as cursor:
         cursor.execute(sql, (project.pk,))
@@ -145,7 +145,8 @@ def _query_forecasts_for_project_no_type_convert(project, query, max_num_rows, m
                                                             timezero_to_season_name, pred_class, pred_data)
 
     # done
-    logger.debug(f"query_forecasts_for_project(): 3/3 done. num_rows={num_rows}, query={query}, project={project}")
+    logger.debug(f"_query_forecasts_for_project_no_type_convert(): 2/2 done. num_rows={num_rows}, query={query}, "
+                 f"project={project}")
 
 
 def _generate_query_rows_no_type_convert(fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj, timezero_id_to_obj,
@@ -413,7 +414,7 @@ def _validate_as_of(query):
 # _query_forecasts_for_project_yes_type_convert()
 #
 
-def _query_forecasts_for_project_yes_type_convert(project, max_num_rows, model_ids, unit_ids, target_ids,
+def _query_forecasts_for_project_yes_type_convert(project, query, max_num_rows, model_ids, unit_ids, target_ids,
                                                   timezero_ids, type_ints, as_of, forecast_model_id_to_obj,
                                                   timezero_id_to_obj, unit_id_to_obj, target_id_to_obj,
                                                   timezero_to_season_name, query_options):
@@ -434,7 +435,7 @@ def _query_forecasts_for_project_yes_type_convert(project, max_num_rows, model_i
     pe_id_dst_pred_classes = []  # 2-tuples: (pe_id, dst_pred_class). filled next
     sql = _query_forecasts_sql_for_pred_class(type_ints, model_ids, unit_ids, target_ids, timezero_ids, as_of, True,
                                               is_type_convert=True)
-    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 1/zz executing sql. model_ids, unit_ids, "
+    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 1/4 getting filtered PEs. model_ids, unit_ids, "
                  f"target_ids, timezero_ids, as_of= {model_ids}, {unit_ids}, {target_ids}, {timezero_ids}, {as_of}")
     num_rows = 0
     with connection.cursor() as cursor:
@@ -472,6 +473,7 @@ def _query_forecasts_for_project_yes_type_convert(project, max_num_rows, model_i
 
     # insert the PE rows (pe_id_dst_pred_classes) into a TEMP TABLE for the final JOIN. we use the same insert method as in
     # `_insert_pred_ele_rows()`: dispatch based on vendor
+    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 2/4 creating temp table")
     temp_table_name = 'pred_ele_temp'
     column_names = ('pe_id', 'dst_class')  # both INTEGER
     with connection.cursor() as cursor:
@@ -497,6 +499,7 @@ def _query_forecasts_for_project_yes_type_convert(project, max_num_rows, model_i
             cursor.executemany(sql, pe_id_dst_pred_classes)
 
     # JOIN temp table with PredictionData to get the final CSV-ready rows
+    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 3/4 getting final PEs with data")
     sql = f"""
         SELECT f.forecast_model_id          AS fm_id,
                f.time_zero_id               AS tz_id,
@@ -527,6 +530,9 @@ def _query_forecasts_for_project_yes_type_convert(project, max_num_rows, model_i
                 yield from _generate_query_rows_yes_type_convert(
                     fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj, timezero_id_to_obj, unit_id_to_obj,
                     target_id_to_obj, timezero_to_season_name, pred_class, pred_data, dst_class, query_options)
+
+    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 4/4 done. num_rows={num_rows}, query={query}, "
+                 f"project={project}")
 
 
 def _generate_query_rows_yes_type_convert(fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj,
