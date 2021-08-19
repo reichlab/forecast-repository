@@ -116,6 +116,10 @@ class ProjectQueriesTestCase(TestCase):
         rows = list(query_forecasts_for_project(self.project, {'types': ['bin']}))  # list for generator
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'types': ['bin'], 'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+
         exp_rows_bin = [(model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-15', 0.01),
                         (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-22', 0.1),
                         (model, tz, seas, 'location1', 'Season peak week', 'bin', '2019-12-29', 0.89),
@@ -142,6 +146,10 @@ class ProjectQueriesTestCase(TestCase):
         rows = list(query_forecasts_for_project(self.project, {'types': ['named']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'types': ['named'], 'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+
         exp_rows_named = [(model, tz, seas, 'location1', 'cases next week', 'named', NamedData.POIS_DIST, 1.1, '', ''),
                           (model, tz, seas, 'location1', 'pct next week', 'named', NamedData.NORM_DIST, 1.1, 2.2, '')
                           ]  # sorted
@@ -151,8 +159,11 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_named, sorted(act_rows))
 
         # ---- case: all PointData in project. check value column ----
-        rows = list(query_forecasts_for_project(
-            self.project, {'types': ['point']}))
+        rows = list(query_forecasts_for_project(self.project, {'types': ['point']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'types': ['point'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_point = [
@@ -173,6 +184,10 @@ class ProjectQueriesTestCase(TestCase):
 
         # ---- case: all SampleData in project. check sample column ----
         rows = list(query_forecasts_for_project(self.project, {'types': ['sample']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'types': ['sample'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
         exp_rows_sample = [(model, tz, seas, 'location1', 'Season peak week', 'sample', '2019-12-15'),
@@ -206,6 +221,10 @@ class ProjectQueriesTestCase(TestCase):
         rows = list(query_forecasts_for_project(self.project, {'types': ['quantile']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'types': ['quantile'], 'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+
         exp_rows_quantile = [(model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.5, '2019-12-22'),
                              (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.75, '2019-12-29'),
                              (model, tz, seas, 'location2', 'Season peak week', 'quantile', 0.975, '2020-01-05'),
@@ -226,13 +245,29 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
                          len(rows))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
+                         len(rows))
+
         # ---- case: only one unit ----
         rows = list(query_forecasts_for_project(self.project, {'units': ['location3']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(18, len(rows))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'units': ['location3'], 'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+        self.assertEqual(18, len(rows))
+
         # ---- case: only one target ----
         rows = list(query_forecasts_for_project(self.project, {'targets': ['above baseline']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+        self.assertEqual(9, len(rows))
+
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'targets': ['above baseline'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(9, len(rows))
 
@@ -255,14 +290,33 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2)
                          - 4, len(rows))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+        self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2)
+                         - 4, len(rows))
+
         # ---- case: only one timezero ----
         rows = list(query_forecasts_for_project(self.project, {'timezeros': ['2011-10-22']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
                          len(rows))
 
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'timezeros': ['2011-10-22'], 'options': {'convert.bin': True}}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
+                         len(rows))
+
         # ---- case: only one model ----
         rows = list(query_forecasts_for_project(self.project, {'models': ['abbrev']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
+                         len(rows))
+
+        # ---- case: only one model ----
+        # same test but with conversion
+        rows = list(query_forecasts_for_project(self.project, {'models': ['abbrev'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
         self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
                          len(rows))
@@ -274,8 +328,19 @@ class ProjectQueriesTestCase(TestCase):
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
+        # same test but with conversion
+        try:
+            list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}, max_num_rows=29))
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
         with self.assertRaises(RuntimeError) as context:
             list(query_forecasts_for_project(self.project, {}, max_num_rows=28))
+        self.assertIn("number of rows exceeded maximum", str(context.exception))
+
+        # same test but with conversion
+        with self.assertRaises(RuntimeError) as context:
+            list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}, max_num_rows=28))
         self.assertIn("number of rows exceeded maximum", str(context.exception))
 
 
@@ -422,7 +487,7 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = list(query_forecasts_for_project(project, {'types': ['bin'], 'options': {'convert.bin': True}}))
         self.assertEqual(exp_rows, act_rows)
 
-        # case: unsupported target types -> returns only header
+        # case: S->B (unsupported target type) -> returns only header
         f1.delete()
         f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
         predictions = [{"unit": u2.name, "target": t2.name, "class": "sample",
@@ -785,15 +850,30 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(exp_rows, sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'options': {'convert.bin': True}}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(exp_rows, sorted(act_rows))
+
         # case: 10/20: same as default
         as_of = datetime.datetime.combine(datetime.date(2011, 10, 20), datetime.time(), tzinfo=datetime.timezone.utc)
         act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat(), 'options': {'convert.bin': True}}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
         # case: 10/21: same as default
         as_of = datetime.datetime.combine(datetime.date(2011, 10, 21), datetime.time(), tzinfo=datetime.timezone.utc)
         act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat(), 'options': {'convert.bin': True}}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -804,10 +884,20 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat(), 'options': {'convert.bin': True}}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
         # case: 10/3: just f1
         exp_rows = [['2011-10-02', 'location1', 'pct next week', 'point', 2.1]]
         as_of = datetime.datetime.combine(datetime.date(2011, 10, 2), datetime.time(), tzinfo=datetime.timezone.utc)
         act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat(), 'options': {'convert.bin': True}}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -816,6 +906,11 @@ class ProjectQueriesTestCase(TestCase):
                     ['2011-10-16', 'location2', 'pct next week', 'point', 2.0]]
         as_of = datetime.datetime.combine(datetime.date(2011, 10, 18), datetime.time(), tzinfo=datetime.timezone.utc)
         act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat()}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': as_of.isoformat(), 'options': {'convert.bin': True}}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -879,11 +974,21 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat(), 'options': {'convert.bin': True}}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
         # case: same except as_of = tz1.tzd
         exp_rows = [[tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u1, t1, 'point', 4],
                     [tz1.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT), u2, t1, 'point', 6]]
         act_rows = list(query_forecasts_for_project(project,
                                                     {'as_of': f1.issued_at.isoformat()}))
+        act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat(), 'options': {'convert.bin': True}}))
         act_rows = [row[1:2] + row[3:7] for row in act_rows[1:]]  # 'timezero', 'unit', 'target', 'class', 'value'
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
@@ -995,8 +1100,16 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
         exp_rows = []  # no rows (all are retracted)
         act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -1045,8 +1158,11 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 0, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project,
-                                                    {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
         exp_rows = [  # all rows from case table
@@ -1061,8 +1177,11 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 2, '', '', '', 0.25, '', '', '', ''],
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
-        act_rows = list(query_forecasts_for_project(project,
-                                                    {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -1122,6 +1241,10 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f1.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
         exp_rows = [  # dotted rows
             [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
             [model, tz1str, season, u2.name, t1.name, 'point', 7, '', '', '', '', '', '', '', ''],
@@ -1135,6 +1258,10 @@ class ProjectQueriesTestCase(TestCase):
             [model, tz1str, season, u3.name, t1.name, 'quantile', 50, '', '', '', 0.75, '', '', '', ''],
         ]
         act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 
@@ -1195,6 +1322,11 @@ class ProjectQueriesTestCase(TestCase):
                                                     {'as_of': f1.issued_at.isoformat()}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'as_of': f1.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
         exp_rows = [  # dotted rows
             [model, tz1str, season, u1.name, t1.name, 'named', '', '', '', '', '', 'pois', 1.1, '', ''],
             [model, tz1str, season, u2.name, t1.name, 'point', 5, '', '', '', '', '', '', '', ''],
@@ -1206,4 +1338,8 @@ class ProjectQueriesTestCase(TestCase):
         ]
         act_rows = list(query_forecasts_for_project(project,
                                                     {'as_of': f2.issued_at.isoformat()}))[1:]  # skip header
+        self.assertEqual(sorted(exp_rows), sorted(act_rows))
+
+        # same test but with conversion
+        act_rows = list(query_forecasts_for_project(project, {'as_of': f2.issued_at.isoformat(), 'options': {'convert.bin': True}}))[1:]  # skip header
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
