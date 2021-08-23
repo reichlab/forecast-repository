@@ -10,12 +10,11 @@ from django.db import connection
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
 
+
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
-from forecast_repo.settings.base import MAX_NUM_DUMP_PRED_ELES
-
-
 django.setup()
 
+from forecast_repo.settings.base import MAX_NUM_DUMP_PRED_ELES
 from utils.project_queries import validate_forecasts_query
 from forecast_app.models import Forecast, PredictionElement, Project, Unit, Target, TimeZero, ForecastModel, \
     PredictionData
