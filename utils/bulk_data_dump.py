@@ -10,8 +10,10 @@ from django.db import connection
 from django.shortcuts import get_object_or_404
 from django.utils.text import slugify
 
-
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
+from forecast_repo.settings.base import MAX_NUM_DUMP_PRED_ELES
+
+
 django.setup()
 
 from utils.project_queries import validate_forecasts_query
@@ -20,9 +22,6 @@ from forecast_app.models import Forecast, PredictionElement, Project, Unit, Targ
 
 
 logger = logging.getLogger(__name__)
-
-# 10E+06
-MAX_NUM_PRED_ELES = 2_000_000  # used by create_and_fill_temp_tables() as a limit
 
 
 @click.command()
@@ -213,10 +212,10 @@ def create_and_fill_temp_tables(class_to_temp_table_cols, project, model_ids, un
         logger.info(f"create_and_fill_temp_tables(): counting rows in {pred_ele_temp_table_name}")
         num_rows = count_rows(cursor, pred_ele_temp_table_name)
         logger.info(f"create_and_fill_temp_tables(): # rows in {pred_ele_temp_table_name}: num_rows={num_rows}, "
-                    f"MAX_NUM_PRED_ELES={MAX_NUM_PRED_ELES}")
-        if num_rows > MAX_NUM_PRED_ELES:
-            raise RuntimeError(f"num_rows > MAX_NUM_PRED_ELES. num_rows={num_rows},"
-                               f" MAX_NUM_PRED_ELES={MAX_NUM_PRED_ELES}")
+                    f"MAX_NUM_DUMP_PRED_ELES={MAX_NUM_DUMP_PRED_ELES}")
+        if num_rows > MAX_NUM_DUMP_PRED_ELES:
+            raise RuntimeError(f"num_rows > MAX_NUM_DUMP_PRED_ELES. num_rows={num_rows},"
+                               f" MAX_NUM_DUMP_PRED_ELES={MAX_NUM_DUMP_PRED_ELES}")
 
     # create Forecast temp table
     logger.info(f"create_and_fill_temp_tables(): Forecast")

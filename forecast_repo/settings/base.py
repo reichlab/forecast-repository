@@ -302,3 +302,15 @@ if 'MAX_UPLOAD_FILE_SIZE' in os.environ:
         raise RuntimeError(
             f"base.py: MAX_UPLOAD_FILE_SIZE config var could not be coerced to float: "
             f"{max_upload_file_size_value!r}")
+
+# used by bulk_data_dump_app() to limit the number of prediction elements that can be dumped:
+MAX_NUM_DUMP_PRED_ELES = 2_000_000
+
+if 'MAX_NUM_DUMP_PRED_ELES' in os.environ:
+    max_num_dump_pred_eles_value = os.environ.get('MAX_NUM_DUMP_PRED_ELES')
+    try:
+        MAX_NUM_DUMP_PRED_ELES = float(max_num_dump_pred_eles_value)
+    except ValueError:
+        raise RuntimeError(
+            f"base.py: MAX_NUM_DUMP_PRED_ELES config var could not be coerced to float: "
+            f"{max_num_dump_pred_eles_value!r}")
