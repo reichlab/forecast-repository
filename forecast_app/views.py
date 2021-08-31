@@ -30,7 +30,7 @@ from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLO
     JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_TRUTH
 from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
-    MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
+    MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE, MAX_NUM_DUMP_PRED_ELES
 from utils.forecast import data_rows_from_forecast, is_forecast_metadata_available, forecast_metadata, \
     forecast_metadata_counts_for_f_ids, fm_ids_with_min_num_forecasts, forecast_ids_in_date_range, \
     forecast_ids_in_target_group
@@ -133,6 +133,7 @@ def zadmin(request):
                  's3_bucket_prefix': S3_BUCKET_PREFIX,
                  'max_num_query_rows': MAX_NUM_QUERY_ROWS,
                  'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
+                 'max_num_dump_pred_eles': MAX_NUM_DUMP_PRED_ELES,
                  'projects_sort_pk': projects_sort_pk})
 
 
