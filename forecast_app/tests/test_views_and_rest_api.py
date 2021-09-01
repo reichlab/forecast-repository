@@ -524,8 +524,8 @@ class ViewsTestCase(TestCase):
 
     # update this when this changes: forecast_app/api_urls.py
     def test_api_get_endpoints(self):
-        unit_us_nat = self.public_project.units.filter(name='US National').first()
-        target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
+        unit_us_nat = self.public_project.units.get(name='US National')
+        target_1wk = self.public_project.targets.get(name='1 wk ahead')
         url_exp_user_status_code_pairs = [
             (reverse('api-root'), self.ONLY_PO_MO_STAFF),
 
@@ -642,11 +642,11 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-truth-detail', args=[self.public_project.pk]), format='json')
         self.assertEqual(['id', 'url', 'project', 'source', 'created_at', 'issued_at'], list(response.data))
 
-        unit_us_nat = self.public_project.units.filter(name='US National').first()
+        unit_us_nat = self.public_project.units.get(name='US National')
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))
         self.assertEqual(['id', 'url', 'name'], list(response.data))
 
-        target_1wk = self.public_project.targets.filter(name='1 wk ahead').first()
+        target_1wk = self.public_project.targets.get(name='1 wk ahead')
         response = self.client.get(reverse('api-target-detail', args=[target_1wk.pk]))
         self.assertEqual(['id', 'url', 'name', 'type', 'description', 'is_step_ahead', 'step_ahead_increment', 'unit',
                           'cats'], list(response.data))

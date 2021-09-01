@@ -587,20 +587,8 @@ def _validate_quantile_prediction_dict(prediction_dict, target):
                            f"|quantile|={len(pred_data_quantiles)}, |value|={len(pred_data_values)}, "
                            f"prediction_dict={prediction_dict}")
 
-    # validate: "Entries in the database rows in the `quantile` column must be numbers in [0, 1].
-    quantile_types_set = set(map(type, pred_data_quantiles))
-    if not (quantile_types_set <= {int, float}):
-        raise RuntimeError(f"wrong data type in `quantile` column, which should only contain ints or floats. "
-                           f"quantile column={pred_data_quantiles}, quantile_types_set={quantile_types_set}, "
-                           f"prediction_dict={prediction_dict}")
-    elif (min(pred_data_quantiles) < 0.0) or (max(pred_data_quantiles) > 1.0):
-        raise RuntimeError(f"Entries in the database rows in the `quantile` column must be numbers in [0, 1]. "
-                           f"quantile column={pred_data_quantiles}, prediction_dict={prediction_dict}")
-
-    # validate: `quantile`s must be unique."
-    if len(set(pred_data_quantiles)) != len(pred_data_quantiles):
-        raise RuntimeError(f"`quantile`s must be unique. quantile column={pred_data_quantiles}, "
-                           f"prediction_dict={prediction_dict}")
+    # validate the quantile list (two validations)
+    _validate_quantile_list(pred_data_quantiles)
 
     # validate: "The data format of `value` should correspond or be translatable to the `type` as in the target
     # definition."
@@ -635,6 +623,29 @@ def _validate_quantile_prediction_dict(prediction_dict, target):
         if not is_all_in_range:
             raise RuntimeError(f"Entries in `value` must obey existing ranges for targets. range_tuple={range_tuple}, "
                                f"pred_data_values={pred_data_values}, prediction_dict={prediction_dict}")
+
+
+def _validate_quantile_list(quantile_list):
+    """
+    `_validate_quantile_prediction_dict()` helper. a separate function so other apps can validate, specifically
+    `validate_forecasts_query()`.
+    """
+    if (not isinstance(quantile_list, list)) or (not quantile_list):
+        raise RuntimeError(f"quantile_list was not a non-empty list. quantile_list={quantile_list}, "
+                           f"type={type(quantile_list)}")
+
+    # validate: "Entries in the database rows in the `quantile` column must be numbers in [0, 1].
+    quantile_types_set = set(map(type, quantile_list))
+    if not (quantile_types_set <= {int, float}):
+        raise RuntimeError(f"wrong data type in `quantile` column, which should only contain ints or floats. "
+                           f"quantile_list={quantile_list}, quantile_types_set={quantile_types_set}")
+    elif (min(quantile_list) < 0.0) or (max(quantile_list) > 1.0):
+        raise RuntimeError(f"Entries in the database rows in the `quantile` column must be numbers in [0, 1]. "
+                           f"quantile_list={quantile_list}")
+
+    # validate: `quantile`s must be unique."
+    if len(set(quantile_list)) != len(quantile_list):
+        raise RuntimeError(f"`quantile`s must be unique. quantile_list={quantile_list}")
 
 
 def _insert_pred_data_rows(rows):

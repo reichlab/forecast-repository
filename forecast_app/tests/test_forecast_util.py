@@ -23,14 +23,14 @@ class ForecastUtilTestCase(TestCase):
     def test_data_rows_from_forecast(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        unit_loc1 = project.units.filter(name='location1').first()
-        unit_loc2 = project.units.filter(name='location2').first()
-        unit_loc3 = project.units.filter(name='location3').first()
-        target_pct_next_week = project.targets.filter(name='pct next week').first()
-        target_cases_next_week = project.targets.filter(name='cases next week').first()
-        target_season_severity = project.targets.filter(name='season severity').first()
-        target_above_baseline = project.targets.filter(name='above baseline').first()
-        target_season_peak_week = project.targets.filter(name='Season peak week').first()
+        unit_loc1 = project.units.get(name='location1')
+        unit_loc2 = project.units.get(name='location2')
+        unit_loc3 = project.units.get(name='location3')
+        target_pct_next_week = project.targets.get(name='pct next week')
+        target_cases_next_week = project.targets.get(name='cases next week')
+        target_season_severity = project.targets.get(name='season severity')
+        target_above_baseline = project.targets.get(name='above baseline')
+        target_season_peak_week = project.targets.get(name='Season peak week')
 
         # rows: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
         loc_targ_to_exp_rows = {

@@ -29,6 +29,7 @@ django-libsass = "*"
 brotlipy = "*"
 jsonfield = "*"
 python-dateutil = "*"
+numpy = "*"
 
 [dev-packages]
 

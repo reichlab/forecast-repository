@@ -3,9 +3,9 @@ import io
 import json
 import statistics
 from itertools import groupby
-from numbers import Number
 
 import dateutil
+import numpy
 from boto3.exceptions import Boto3Error
 from botocore.exceptions import BotoCoreError, ClientError, ConnectionClosedError
 from django.db import connection, transaction
@@ -305,6 +305,7 @@ def validate_forecasts_query(project, query):
         lists are all []. Note that types is converted to ints via PRED_CLASS_NAME_TO_INT.
     """
     from utils.forecast import PRED_CLASS_INT_TO_NAME  # avoid circular imports
+    from utils.forecast import _validate_quantile_list  # ""
 
 
     # return value. filled next
@@ -355,11 +356,11 @@ def validate_forecasts_query(project, query):
                 return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
         if 'convert.quantile' in options:
-            option = options['convert.quantile']
-            if (not isinstance(option, list)) or (not option) or (len(option) != len(set(option))) or \
-                    (not all(map(lambda _: isinstance(_, Number) and (0 <= _ <= 1), option))):
-                error_messages.append(f"quantile option value was not a list of unique numbers in [0, 1] "
-                                      f"option={option}, query={query}")
+            quantile_option = options['convert.quantile']
+            try:
+                _validate_quantile_list(quantile_option)
+            except RuntimeError as rte:
+                error_messages.append(rte.args[0])
                 return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
         if 'convert.sample' in options:
@@ -422,7 +423,7 @@ def _query_forecasts_for_project_yes_type_convert(project, query, max_num_rows, 
     The query_forecasts_for_project() implementation for the case of prediction type conversions. yields rows as
     documented in caller. Unlike _query_forecasts_for_project_no_type_convert(), this implementation requires two
     queries: one to get all prediction element (PE) rows that match all constraints in `query` EXCEPT type_ints, then
-    second to get those PEs' data.
+    second to get those PEs' data. It unsurprisingly ends up being slower than the no-convert implementation.
     """
     yield FORECAST_CSV_HEADER
 
@@ -459,7 +460,8 @@ def _query_forecasts_for_project_yes_type_convert(project, query, max_num_rows, 
 
                 src_bnpsq_ids[src_pred_class] = pe_id
 
-            # pass 2/2: loop over requested ("destination") PE types. expand type_ints [] to all if nec
+            # pass 2/2: loop over requested ("destination") PE types. expand type_ints [] to all if nec. check if we
+            # can convert. NB: these elifs must match those in `_generate_query_rows_yes_type_convert()`
             for dst_pred_class in list(PRED_CLASS_INT_TO_NAME.keys()) if not type_ints else type_ints:
                 if src_bnpsq_ids[dst_pred_class] is not None:
                     # we have the requested type - no conversion needed
@@ -467,8 +469,16 @@ def _query_forecasts_for_project_yes_type_convert(project, query, max_num_rows, 
                 elif (target_id_to_obj[target_id].type in [Target.CONTINUOUS_TARGET_TYPE,
                                                            Target.DISCRETE_TARGET_TYPE]) \
                         and (src_bnpsq_ids[PredictionElement.SAMPLE_CLASS] is not None) \
-                        and (dst_pred_class == PredictionElement.POINT_CLASS):
-                    # we have a currently-supported conversion. NB: todo implement others
+                        and (dst_pred_class == PredictionElement.POINT_CLASS) \
+                        and ('convert.point' in query_options):
+                    # we have a currently-supported conversion
+                    pe_id_dst_pred_classes.append((src_bnpsq_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
+                elif (target_id_to_obj[target_id].type in [Target.CONTINUOUS_TARGET_TYPE,
+                                                           Target.DISCRETE_TARGET_TYPE]) \
+                        and (src_bnpsq_ids[PredictionElement.SAMPLE_CLASS] is not None) \
+                        and (dst_pred_class == PredictionElement.QUANTILE_CLASS) \
+                        and ('convert.quantile' in query_options):
+                    # we have a currently-supported conversion
                     pe_id_dst_pred_classes.append((src_bnpsq_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
 
     # insert the PE rows (pe_id_dst_pred_classes) into a TEMP TABLE for the final JOIN. we use the same insert method as in
@@ -541,16 +551,26 @@ def _generate_query_rows_yes_type_convert(fm_id, tz_id, unit_id, target_id, fore
     """
     A _query_forecasts_for_project_yes_type_convert() helper that converts FROM src_pred_class ("source") TO
     dst_pred_class ("destination"), using _generate_query_rows_no_type_convert() for the final yield. Factors in the
-    prediction element's Target type.
+    prediction element's Target type. NB: this function's logic must match the elifs in
+    `_query_forecasts_for_project_yes_type_convert()`.
     """
     target = target_id_to_obj[target_id]
     out_pred_data = None  # for now we use None to indicate unimplemented. todo implement others
     if (target.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]) \
             and (src_pred_class == PredictionElement.SAMPLE_CLASS) \
-            and (dst_pred_class == PredictionElement.POINT_CLASS):
+            and (dst_pred_class == PredictionElement.POINT_CLASS) \
+            and ('convert.point' in query_options):
         samples = pred_data['sample']
         out_pred_data = {"value": statistics.mean(samples)} if query_options['convert.point'] == 'mean' \
             else {"value": statistics.median(samples)}
+    elif (target.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]) \
+            and (src_pred_class == PredictionElement.SAMPLE_CLASS) \
+            and (dst_pred_class == PredictionElement.QUANTILE_CLASS) \
+            and ('convert.quantile' in query_options):
+        samples = pred_data['sample']
+        quantiles = sorted(query_options['convert.quantile'])  # assume validated via `_validate_quantile_list()`
+        quant_value = numpy.quantile(samples, quantiles)
+        out_pred_data = {"quantile": quantiles, "value": quant_value}
 
     if out_pred_data is not None:
         yield from _generate_query_rows_no_type_convert(fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj,
