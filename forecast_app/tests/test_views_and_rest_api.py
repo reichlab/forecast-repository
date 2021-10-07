@@ -644,7 +644,7 @@ class ViewsTestCase(TestCase):
 
         unit_us_nat = self.public_project.units.get(name='US National')
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))
-        self.assertEqual(['id', 'url', 'name'], list(response.data))
+        self.assertEqual(['id', 'url', 'name', 'abbreviation'], list(response.data))
 
         target_1wk = self.public_project.targets.get(name='1 wk ahead')
         response = self.client.get(reverse('api-target-detail', args=[target_1wk.pk]))

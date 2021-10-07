@@ -8,17 +8,17 @@
   "time_interval_type": "Week",
   "visualization_y_label": "Weighted ILI (%)",
   "units": [
-    {"name": "HHS Region 1"},
-    {"name": "HHS Region 2"},
-    {"name": "HHS Region 3"},
-    {"name": "HHS Region 4"},
-    {"name": "HHS Region 5"},
-    {"name": "HHS Region 6"},
-    {"name": "HHS Region 7"},
-    {"name": "HHS Region 8"},
-    {"name": "HHS Region 9"},
-    {"name": "HHS Region 10"},
-    {"name": "US National"}
+    {"name": "HHS Region 1", "abbreviation": "HHS Region 1"},
+    {"name": "HHS Region 2", "abbreviation": "HHS Region 2"},
+    {"name": "HHS Region 3", "abbreviation": "HHS Region 3"},
+    {"name": "HHS Region 4", "abbreviation": "HHS Region 4"},
+    {"name": "HHS Region 5", "abbreviation": "HHS Region 5"},
+    {"name": "HHS Region 6", "abbreviation": "HHS Region 6"},
+    {"name": "HHS Region 7", "abbreviation": "HHS Region 7"},
+    {"name": "HHS Region 8", "abbreviation": "HHS Region 8"},
+    {"name": "HHS Region 9", "abbreviation": "HHS Region 9"},
+    {"name": "HHS Region 10", "abbreviation": "HHS Region 10"},
+    {"name": "US National", "abbreviation": "US National"}
   ],
   "targets": [
     {

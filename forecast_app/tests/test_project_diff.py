@@ -265,7 +265,7 @@ class ProjectDiffTestCase(TestCase):
             {'object_type': ObjectType.UNIT, 'object_pk': 'location3', 'change_type': ChangeType.OBJ_REMOVED,
              'field_name': None, 'object_dict': None},
             {'object_type': ObjectType.UNIT, 'object_pk': 'location4', 'change_type': ChangeType.OBJ_ADDED,
-             'field_name': None, 'object_dict': {'name': 'location4'}},
+             'field_name': None, 'object_dict': {'name': 'location4', 'abbreviation': 'loc3'}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'is_step_ahead',
              'object_dict': {'name': 'cases next week', 'type': 'discrete',

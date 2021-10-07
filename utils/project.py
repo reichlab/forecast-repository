@@ -193,6 +193,13 @@ def _validate_and_create_units(project, project_dict, is_validate_only=False):
         if (not isinstance(unit_name, str)) or (not _is_valid_unit_target_name_or_cat(unit_name)):
             raise RuntimeError(f"invalid unit name: {unit_name!r}")
 
+        if 'abbreviation' not in unit_dict:
+            raise RuntimeError(f"unit_dict had no 'abbreviation' field. units={project_dict['units']}")
+
+        unit_abbrev = unit_dict['abbreviation']
+        if (not isinstance(unit_abbrev, str)) or (not _is_valid_unit_target_name_or_cat(unit_abbrev)):
+            raise RuntimeError(f"invalid unit abbreviation: {unit_abbrev!r}")
+
         # valid
         if not is_validate_only:
             # create the Unit, first checking for an existing one
@@ -200,7 +207,7 @@ def _validate_and_create_units(project, project_dict, is_validate_only=False):
             if existing_unit:
                 raise RuntimeError(f"found existing Unit for name={unit_name}")
 
-            units.append(Unit.objects.create(project=project, name=unit_name))
+            units.append(Unit.objects.create(project=project, name=unit_name, abbreviation=unit_abbrev))
     return units
 
 

@@ -234,12 +234,14 @@
                 <table id="units_table" class="table table-striped table-bordered">
                     <thead>
                     <tr>
+                        <th>Abbreviation</th>
                         <th>Name</th>
                     </tr>
                     </thead>
                     <tbody>
                     {% for unit in units %}
                         <tr>
+                            <td>{{ unit.abbreviation }}</td>
                             <td>{{ unit.name }}</td>
                         </tr>
                     {% endfor %}

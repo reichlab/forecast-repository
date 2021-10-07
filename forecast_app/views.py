@@ -439,7 +439,7 @@ def query_project(request, project_pk, query_type):
         first_unit = project.units.first()
         first_target = project.targets.first()
         first_timezero = project.timezeros.first()
-        default_query = {'units': [first_unit.name] if first_unit else [],
+        default_query = {'units': [first_unit.abbreviation] if first_unit else [],
                          'targets': [first_target.name] if first_target else [],
                          'timezeros': [first_timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT)]
                          if first_timezero else []}

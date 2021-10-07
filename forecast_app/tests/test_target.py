@@ -231,7 +231,7 @@ class TargetTestCase(TestCase):
                                ('Season peak week', all_families)]  # Target.DATE_TARGET_TYPE
         for target, families in bad_target_families:
             for family_abbrev in families:
-                prediction_dict = {'unit': 'location1',
+                prediction_dict = {'unit': 'loc1',
                                    'target': target,
                                    'class': 'named',
                                    'prediction': {'family': family_abbrev, 'param1': 1.1, 'param2': 2.2, 'param3': 3.3}}
@@ -245,7 +245,7 @@ class TargetTestCase(TestCase):
                                 ('above baseline', {"quantile": [0.25, 0.75],  # Target.BINARY_TARGET_TYPE
                                                     "value": [True, False]})]
         for target, pred_data in bad_target_pred_data:
-            prediction_dict = {'unit': 'location1',
+            prediction_dict = {'unit': 'loc1',
                                'target': target,
                                'class': 'quantile',
                                'prediction': pred_data}

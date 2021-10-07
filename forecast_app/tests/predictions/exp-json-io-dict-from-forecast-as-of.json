@@ -3,7 +3,7 @@
     "meta": {},
     "predictions": [
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "bin",
         "prediction": {
@@ -20,7 +20,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "point",
         "prediction": {
@@ -28,7 +28,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "sample",
         "prediction": {
@@ -39,7 +39,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "above baseline",
         "class": "point",
         "prediction": {
@@ -47,7 +47,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "cases next week",
         "class": "named",
         "prediction": {
@@ -56,7 +56,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "pct next week",
         "class": "named",
         "prediction": {
@@ -66,7 +66,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "pct next week",
         "class": "point",
         "prediction": {
@@ -74,7 +74,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "season severity",
         "class": "bin",
         "prediction": {
@@ -91,7 +91,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "season severity",
         "class": "point",
         "prediction": {
@@ -99,7 +99,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "bin",
         "prediction": {
@@ -118,7 +118,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "point",
         "prediction": {
@@ -126,7 +126,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "quantile",
         "prediction": {
@@ -143,7 +143,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "above baseline",
         "class": "bin",
         "prediction": {
@@ -158,7 +158,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "above baseline",
         "class": "sample",
         "prediction": {
@@ -170,7 +170,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "cases next week",
         "class": "point",
         "prediction": {
@@ -178,7 +178,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "cases next week",
         "class": "sample",
         "prediction": {
@@ -190,7 +190,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "bin",
         "prediction": {
@@ -207,7 +207,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "point",
         "prediction": {
@@ -215,7 +215,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "quantile",
         "prediction": {
@@ -236,7 +236,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "season severity",
         "class": "point",
         "prediction": {
@@ -244,7 +244,7 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "season severity",
         "class": "sample",
         "prediction": {
@@ -258,7 +258,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "Season peak week",
         "class": "point",
         "prediction": {
@@ -266,7 +266,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "Season peak week",
         "class": "sample",
         "prediction": {
@@ -277,7 +277,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "above baseline",
         "class": "sample",
         "prediction": {
@@ -289,7 +289,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "bin",
         "prediction": {
@@ -306,7 +306,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "point",
         "prediction": {
@@ -314,7 +314,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "quantile",
         "prediction": {
@@ -329,7 +329,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "pct next week",
         "class": "point",
         "prediction": {
@@ -337,7 +337,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "pct next week",
         "class": "sample",
         "prediction": {
@@ -356,7 +356,7 @@
     "meta": {},
     "predictions": [
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "bin",
         "prediction": {
@@ -373,7 +373,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "point",
         "prediction": {
@@ -381,7 +381,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "sample",
         "prediction": {
@@ -392,7 +392,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "above baseline",
         "class": "point",
         "prediction": {
@@ -400,7 +400,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "cases next week",
         "class": "named",
         "prediction": {
@@ -409,7 +409,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "pct next week",
         "class": "named",
         "prediction": {
@@ -419,7 +419,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "pct next week",
         "class": "point",
         "prediction": {
@@ -427,7 +427,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "season severity",
         "class": "bin",
         "prediction": {
@@ -444,7 +444,7 @@
         }
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "season severity",
         "class": "point",
         "prediction": {
@@ -452,79 +452,79 @@
         }
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "quantile",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "above baseline",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "above baseline",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "cases next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "cases next week",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "quantile",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "season severity",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "season severity",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "Season peak week",
         "class": "point",
         "prediction": {
@@ -532,7 +532,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "Season peak week",
         "class": "sample",
         "prediction": {
@@ -543,7 +543,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "above baseline",
         "class": "sample",
         "prediction": {
@@ -555,7 +555,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "bin",
         "prediction": {
@@ -570,7 +570,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "point",
         "prediction": {
@@ -578,7 +578,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "quantile",
         "prediction": {
@@ -593,7 +593,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "pct next week",
         "class": "point",
         "prediction": {
@@ -601,7 +601,7 @@
         }
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "pct next week",
         "class": "sample",
         "prediction": {
@@ -620,175 +620,175 @@
     "meta": {},
     "predictions": [
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "Season peak week",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "above baseline",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "cases next week",
         "class": "named",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "pct next week",
         "class": "named",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "pct next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "season severity",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location1",
+        "unit": "loc1",
         "target": "season severity",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "Season peak week",
         "class": "quantile",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "above baseline",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "above baseline",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "cases next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "cases next week",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "pct next week",
         "class": "quantile",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "season severity",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location2",
+        "unit": "loc2",
         "target": "season severity",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "Season peak week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "Season peak week",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "above baseline",
         "class": "sample",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "bin",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "cases next week",
         "class": "quantile",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "pct next week",
         "class": "point",
         "prediction": null
       },
       {
-        "unit": "location3",
+        "unit": "loc3",
         "target": "pct next week",
         "class": "sample",
         "prediction": null

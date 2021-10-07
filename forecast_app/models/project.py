@@ -302,12 +302,22 @@ class Unit(models.Model):
     """
     Represents one of a project's units - just a string naming the target.
     """
+
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['project', 'abbreviation'], name='unique_unit_abbreviation'),
+        ]
+
+
     project = models.ForeignKey(Project, related_name='units', on_delete=models.CASCADE)
-    name = models.TextField()
+    name = models.TextField(help_text="Long name of the unit. Used for displays.")
+    abbreviation = models.TextField(help_text="Short name of the unit. This field is the 'official' one used by "
+                                              "queries, etc.")
 
 
     def __repr__(self):
-        return str((self.pk, self.name))
+        return str((self.pk, self.abbreviation, self.name))
 
 
     def __str__(self):  # todo

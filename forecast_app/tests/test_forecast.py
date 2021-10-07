@@ -226,7 +226,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'issued_at', 'notes', 'forecast_data', 'source',
                           'id', 'url'},
                          set(out_meta['forecast'].keys()))
-        self.assertEqual({'id', 'name', 'url'}, set(out_meta['units'][0].keys()))
+        self.assertEqual({'id', 'url', 'name', 'abbreviation'}, set(out_meta['units'][0].keys()))
         self.assertIsInstance(out_meta['forecast']['time_zero'], dict)  # test that time_zero is expanded, not URL
 
         del (json_io_dict_in['meta'])
@@ -239,33 +239,33 @@ class ForecastTestCase(TestCase):
 
         # spot-check some sample predictions
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                            if (pred_dict['unit'] == 'location3')
+                            if (pred_dict['unit'] == 'loc3')
                             and (pred_dict['target'] == 'pct next week')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual([2.3, 6.5, 0.0, 10.0234, 0.0001], sample_pred_dict['prediction']['sample'])
 
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                            if (pred_dict['unit'] == 'location2')
+                            if (pred_dict['unit'] == 'loc2')
                             and (pred_dict['target'] == 'season severity')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual(['moderate', 'severe', 'high', 'moderate', 'mild'], sample_pred_dict['prediction']['sample'])
 
         sample_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                            if (pred_dict['unit'] == 'location1')
+                            if (pred_dict['unit'] == 'loc1')
                             and (pred_dict['target'] == 'Season peak week')
                             and (pred_dict['class'] == 'sample')][0]
         self.assertEqual(['2020-01-05', '2019-12-15'], sample_pred_dict['prediction']['sample'])
 
         # spot-check some quantile predictions
         quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                              if (pred_dict['unit'] == 'location2')
+                              if (pred_dict['unit'] == 'loc2')
                               and (pred_dict['target'] == 'pct next week')
                               and (pred_dict['class'] == 'quantile')][0]
         self.assertEqual([0.025, 0.25, 0.5, 0.75, 0.975], quantile_pred_dict['prediction']['quantile'])
         self.assertEqual([1.0, 2.2, 2.2, 5.0, 50.0], quantile_pred_dict['prediction']['value'])
 
         quantile_pred_dict = [pred_dict for pred_dict in json_io_dict_out['predictions']
-                              if (pred_dict['unit'] == 'location2')
+                              if (pred_dict['unit'] == 'loc2')
                               and (pred_dict['target'] == 'Season peak week')
                               and (pred_dict['class'] == 'quantile')][0]
         self.assertEqual([0.5, 0.75, 0.975], quantile_pred_dict['prediction']['quantile'])

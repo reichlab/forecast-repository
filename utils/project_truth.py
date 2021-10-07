@@ -206,7 +206,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     for timezero, timezero_rows in timezero_groups.items():
         forecast = Forecast.objects.create(forecast_model=oracle_model, source=source, time_zero=timezero,
                                            notes=f"oracle forecast")
-        prediction_dicts = [{'unit': unit.name, 'target': target.name,
+        prediction_dicts = [{'unit': unit.abbreviation, 'target': target.name,
                              'class': point_class,
                              'prediction': {
                                  'value': parsed_value.strftime(YYYY_MM_DD_DATE_FORMAT)

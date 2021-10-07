@@ -8,9 +8,9 @@
   "time_interval_type": "Week",
   "visualization_y_label": "the scale for your variable of interest",
   "units": [
-    {"name": "location1"},
-    {"name": "location2"},
-    {"name": "location4"}
+    {"name": "location1", "abbreviation": "loc1"},
+    {"name": "location2", "abbreviation": "loc2"},
+    {"name": "location4", "abbreviation": "loc4"}
   ],
   "targets": [
     {

@@ -46,7 +46,7 @@ class PredictionsTestCase(TestCase):
     def test_load_predictions_from_json_io_dict_existing_pred_eles(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
-        json_io_dict = {"predictions": [{"unit": "location1",
+        json_io_dict = {"predictions": [{"unit": "loc1",
                                          "target": "pct next week",
                                          "class": "point",
                                          "prediction": {"value": 2.1}}]}
@@ -135,10 +135,10 @@ class PredictionsTestCase(TestCase):
         self.assertEqual(29, len(pred_data_qs))
 
         # test there's a prediction element for every .json item
-        unit_name_to_obj = {unit.name: unit for unit in project.units.all()}
+        unit_abbrev_to_obj = {unit.abbreviation: unit for unit in project.units.all()}
         target_name_to_obj = {target.name: target for target in project.targets.all()}
         for pred_ele_dict in json_io_dict['predictions']:
-            unit = unit_name_to_obj[pred_ele_dict['unit']]
+            unit = unit_abbrev_to_obj[pred_ele_dict['unit']]
             target = target_name_to_obj[pred_ele_dict['target']]
             pred_class_int = PRED_CLASS_NAME_TO_INT[pred_ele_dict['class']]
             data_hash = PredictionElement.hash_for_prediction_data_dict(pred_ele_dict['prediction'])
@@ -167,7 +167,7 @@ class PredictionsTestCase(TestCase):
         # test for invalid target
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"unit": "location1", "target": "bad target", "class": "bad class", "prediction": {}}
+                {"unit": "loc1", "target": "bad target", "class": "bad class", "prediction": {}}
             ]
             _validated_pred_ele_rows_for_pred_dicts(forecast, bad_prediction_dicts, False, False)
         self.assertIn('prediction_dict referred to an undefined Target', str(context.exception))
@@ -175,7 +175,7 @@ class PredictionsTestCase(TestCase):
         # test for invalid pred_class
         with self.assertRaises(RuntimeError) as context:
             bad_prediction_dicts = [
-                {"unit": "location1", "target": "pct next week", "class": "bad class", "prediction": {}}
+                {"unit": "loc1", "target": "pct next week", "class": "bad class", "prediction": {}}
             ]
             _validated_pred_ele_rows_for_pred_dicts(forecast, bad_prediction_dicts, False, False)
         self.assertIn('invalid pred_class', str(context.exception))
@@ -191,11 +191,11 @@ class PredictionsTestCase(TestCase):
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
         predictions = [
-            {"unit": u1.name, "target": t1.name, "class": "named", "prediction": None},
-            {"unit": u2.name, "target": t1.name, "class": "point", "prediction": None},
-            {"unit": u2.name, "target": t1.name, "class": "sample", "prediction": None},
-            {"unit": u3.name, "target": t1.name, "class": "bin", "prediction": None},
-            {"unit": u3.name, "target": t1.name, "class": "quantile", "prediction": None}
+            {"unit": u1.abbreviation, "target": t1.name, "class": "named", "prediction": None},
+            {"unit": u2.abbreviation, "target": t1.name, "class": "point", "prediction": None},
+            {"unit": u2.abbreviation, "target": t1.name, "class": "sample", "prediction": None},
+            {"unit": u3.abbreviation, "target": t1.name, "class": "bin", "prediction": None},
+            {"unit": u3.abbreviation, "target": t1.name, "class": "quantile", "prediction": None}
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
         self.assertEqual(5, f2.pred_eles.count())
@@ -257,7 +257,7 @@ class PredictionsTestCase(TestCase):
         f3.issued_at -= datetime.timedelta(days=2)
         f3.save()
         quantile_pred_dict = [pred_dict for pred_dict in json_io_dict['predictions']
-                              if (pred_dict['unit'] == 'location2')
+                              if (pred_dict['unit'] == 'loc2')
                               and (pred_dict['target'] == 'pct next week')
                               and (pred_dict['class'] == 'quantile')][0]
         # original: {"quantile": [0.025, 0.25, 0.5, 0.75,  0.975 ],

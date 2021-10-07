@@ -8,82 +8,310 @@
   "time_interval_type": "Biweek",
   "visualization_y_label": "DHF cases",
   "units": [
-    {"name": "TH01"},
-    {"name": "TH02"},
-    {"name": "TH03"},
-    {"name": "TH04"},
-    {"name": "TH05"},
-    {"name": "TH06"},
-    {"name": "TH07"},
-    {"name": "TH08"},
-    {"name": "TH09"},
-    {"name": "TH10"},
-    {"name": "TH11"},
-    {"name": "TH12"},
-    {"name": "TH13"},
-    {"name": "TH14"},
-    {"name": "TH15"},
-    {"name": "TH16"},
-    {"name": "TH17"},
-    {"name": "TH18"},
-    {"name": "TH20"},
-    {"name": "TH22"},
-    {"name": "TH23"},
-    {"name": "TH24"},
-    {"name": "TH25"},
-    {"name": "TH26"},
-    {"name": "TH27"},
-    {"name": "TH28"},
-    {"name": "TH29"},
-    {"name": "TH30"},
-    {"name": "TH31"},
-    {"name": "TH32"},
-    {"name": "TH33"},
-    {"name": "TH34"},
-    {"name": "TH35"},
-    {"name": "TH36"},
-    {"name": "TH37"},
-    {"name": "TH38"},
-    {"name": "TH39"},
-    {"name": "TH40"},
-    {"name": "TH41"},
-    {"name": "TH42"},
-    {"name": "TH43"},
-    {"name": "TH44"},
-    {"name": "TH46"},
-    {"name": "TH47"},
-    {"name": "TH48"},
-    {"name": "TH49"},
-    {"name": "TH50"},
-    {"name": "TH51"},
-    {"name": "TH52"},
-    {"name": "TH53"},
-    {"name": "TH54"},
-    {"name": "TH55"},
-    {"name": "TH56"},
-    {"name": "TH57"},
-    {"name": "TH58"},
-    {"name": "TH59"},
-    {"name": "TH60"},
-    {"name": "TH61"},
-    {"name": "TH62"},
-    {"name": "TH63"},
-    {"name": "TH64"},
-    {"name": "TH65"},
-    {"name": "TH66"},
-    {"name": "TH67"},
-    {"name": "TH68"},
-    {"name": "TH69"},
-    {"name": "TH70"},
-    {"name": "TH72"},
-    {"name": "TH73"},
-    {"name": "TH74"},
-    {"name": "TH75"},
-    {"name": "TH76"},
-    {"name": "TH77"},
-    {"name": "TH78"},
-    {"name": "TH79"},
-    {"name": "TH80"}
+    {
+      "name": "TH01",
+      "abbreviation": "TH01"
+    },
+    {
+      "name": "TH02",
+      "abbreviation": "TH02"
+    },
+    {
+      "name": "TH03",
+      "abbreviation": "TH03"
+    },
+    {
+      "name": "TH04",
+      "abbreviation": "TH04"
+    },
+    {
+      "name": "TH05",
+      "abbreviation": "TH05"
+    },
+    {
+      "name": "TH06",
+      "abbreviation": "TH06"
+    },
+    {
+      "name": "TH07",
+      "abbreviation": "TH07"
+    },
+    {
+      "name": "TH08",
+      "abbreviation": "TH08"
+    },
+    {
+      "name": "TH09",
+      "abbreviation": "TH09"
+    },
+    {
+      "name": "TH10",
+      "abbreviation": "TH10"
+    },
+    {
+      "name": "TH11",
+      "abbreviation": "TH11"
+    },
+    {
+      "name": "TH12",
+      "abbreviation": "TH12"
+    },
+    {
+      "name": "TH13",
+      "abbreviation": "TH13"
+    },
+    {
+      "name": "TH14",
+      "abbreviation": "TH14"
+    },
+    {
+      "name": "TH15",
+      "abbreviation": "TH15"
+    },
+    {
+      "name": "TH16",
+      "abbreviation": "TH16"
+    },
+    {
+      "name": "TH17",
+      "abbreviation": "TH17"
+    },
+    {
+      "name": "TH18",
+      "abbreviation": "TH18"
+    },
+    {
+      "name": "TH20",
+      "abbreviation": "TH20"
+    },
+    {
+      "name": "TH22",
+      "abbreviation": "TH22"
+    },
+    {
+      "name": "TH23",
+      "abbreviation": "TH23"
+    },
+    {
+      "name": "TH24",
+      "abbreviation": "TH24"
+    },
+    {
+      "name": "TH25",
+      "abbreviation": "TH25"
+    },
+    {
+      "name": "TH26",
+      "abbreviation": "TH26"
+    },
+    {
+      "name": "TH27",
+      "abbreviation": "TH27"
+    },
+    {
+      "name": "TH28",
+      "abbreviation": "TH28"
+    },
+    {
+      "name": "TH29",
+      "abbreviation": "TH29"
+    },
+    {
+      "name": "TH30",
+      "abbreviation": "TH30"
+    },
+    {
+      "name": "TH31",
+      "abbreviation": "TH31"
+    },
+    {
+      "name": "TH32",
+      "abbreviation": "TH32"
+    },
+    {
+      "name": "TH33",
+      "abbreviation": "TH33"
+    },
+    {
+      "name": "TH34",
+      "abbreviation": "TH34"
+    },
+    {
+      "name": "TH35",
+      "abbreviation": "TH35"
+    },
+    {
+      "name": "TH36",
+      "abbreviation": "TH36"
+    },
+    {
+      "name": "TH37",
+      "abbreviation": "TH37"
+    },
+    {
+      "name": "TH38",
+      "abbreviation": "TH38"
+    },
+    {
+      "name": "TH39",
+      "abbreviation": "TH39"
+    },
+    {
+      "name": "TH40",
+      "abbreviation": "TH40"
+    },
+    {
+      "name": "TH41",
+      "abbreviation": "TH41"
+    },
+    {
+      "name": "TH42",
+      "abbreviation": "TH42"
+    },
+    {
+      "name": "TH43",
+      "abbreviation": "TH43"
+    },
+    {
+      "name": "TH44",
+      "abbreviation": "TH44"
+    },
+    {
+      "name": "TH46",
+      "abbreviation": "TH46"
+    },
+    {
+      "name": "TH47",
+      "abbreviation": "TH47"
+    },
+    {
+      "name": "TH48",
+      "abbreviation": "TH48"
+    },
+    {
+      "name": "TH49",
+      "abbreviation": "TH49"
+    },
+    {
+      "name": "TH50",
+      "abbreviation": "TH50"
+    },
+    {
+      "name": "TH51",
+      "abbreviation": "TH51"
+    },
+    {
+      "name": "TH52",
+      "abbreviation": "TH52"
+    },
+    {
+      "name": "TH53",
+      "abbreviation": "TH53"
+    },
+    {
+      "name": "TH54",
+      "abbreviation": "TH54"
+    },
+    {
+      "name": "TH55",
+      "abbreviation": "TH55"
+    },
+    {
+      "name": "TH56",
+      "abbreviation": "TH56"
+    },
+    {
+      "name": "TH57",
+      "abbreviation": "TH57"
+    },
+    {
+      "name": "TH58",
+      "abbreviation": "TH58"
+    },
+    {
+      "name": "TH59",
+      "abbreviation": "TH59"
+    },
+    {
+      "name": "TH60",
+      "abbreviation": "TH60"
+    },
+    {
+      "name": "TH61",
+      "abbreviation": "TH61"
+    },
+    {
+      "name": "TH62",
+      "abbreviation": "TH62"
+    },
+    {
+      "name": "TH63",
+      "abbreviation": "TH63"
+    },
+    {
+      "name": "TH64",
+      "abbreviation": "TH64"
+    },
+    {
+      "name": "TH65",
+      "abbreviation": "TH65"
+    },
+    {
+      "name": "TH66",
+      "abbreviation": "TH66"
+    },
+    {
+      "name": "TH67",
+      "abbreviation": "TH67"
+    },
+    {
+      "name": "TH68",
+      "abbreviation": "TH68"
+    },
+    {
+      "name": "TH69",
+      "abbreviation": "TH69"
+    },
+    {
+      "name": "TH70",
+      "abbreviation": "TH70"
+    },
+    {
+      "name": "TH72",
+      "abbreviation": "TH72"
+    },
+    {
+      "name": "TH73",
+      "abbreviation": "TH73"
+    },
+    {
+      "name": "TH74",
+      "abbreviation": "TH74"
+    },
+    {
+      "name": "TH75",
+      "abbreviation": "TH75"
+    },
+    {
+      "name": "TH76",
+      "abbreviation": "TH76"
+    },
+    {
+      "name": "TH77",
+      "abbreviation": "TH77"
+    },
+    {
+      "name": "TH78",
+      "abbreviation": "TH78"
+    },
+    {
+      "name": "TH79",
+      "abbreviation": "TH79"
+    },
+    {
+      "name": "TH80",
+      "abbreviation": "TH80"
+    }
   ],
   "targets": [
     {

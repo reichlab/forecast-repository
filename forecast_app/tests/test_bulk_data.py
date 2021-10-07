@@ -112,7 +112,7 @@ class BulkQueryTestCase(TestCase):
         # test dumping partial database, constraining all options. this combination results in one matching prediction
         # element from one forecast
         query = {'models': ['docs_mod'],
-                 'units': ['location1'],
+                 'units': ['loc1'],
                  'targets': ['above baseline'],
                  'timezeros': ['2011-10-02']}
         exp_csv_file_to_num_rows = {
@@ -131,7 +131,7 @@ class BulkQueryTestCase(TestCase):
     def test_dump_partial_unit_option(self):
         # test dumping partial database, constraining all options. this combination results in 18 matching prediction
         # elements from 3 forecasts
-        query = {'units': ['location1']}
+        query = {'units': ['loc1']}
         exp_csv_file_to_num_rows = {
             'forecast.csv': 3,
             'predictiondata.csv': 18,

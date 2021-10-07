@@ -1,14 +1,14 @@
 {
   "meta": {},
   "predictions": [
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "pct next week",
       "class": "point",
       "prediction": {
         "value": 2.2
       }
     },
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "pct next week",
       "class": "named",
       "prediction": {
@@ -18,39 +18,39 @@
       }
     },
 
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "pct next week",
       "class": "point",
       "prediction": {
         "value": 3.0
       }
     },
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "pct next week",
       "class": "bin",
       "prediction": {
-        "cat": [1.1, 2.2, 3.3],
-        "prob": [0.1, 0.2, 0.7]
+        "cat": "loc1.1, 2.2, 3.3],
+        "prob": "loc0.1, 0.2, 0.7]
       }
     },
 
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "pct next week",
       "class": "point",
       "prediction": {
         "value": 4.567
       }
     },
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "pct next week",
       "class": "sample",
       "prediction": {
-        "sample": [6.5, 2.3, 0.0, 10.0234, 0.0001]
+        "sample": "loc6.5, 2.3, 0.0, 10.0234, 0.0001]
       }
     },
 
 
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "cases next week",
       "class": "named",
       "prediction": {
@@ -59,71 +59,71 @@
       }
     },
 
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "cases next week",
       "class": "point",
       "prediction": {
         "value": 6
       }
     },
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "cases next week",
       "class": "sample",
       "prediction": {
-        "sample": [2, 5]
+        "sample": "loc2, 5]
       }
     },
 
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "cases next week",
       "class": "point",
       "prediction": {
         "value": 11
       }
     },
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "cases next week",
       "class": "bin",
       "prediction": {
-        "cat": [0, 2],
-        "prob": [0.1, 0.9]
+        "cat": "loc0, 2],
+        "prob": "loc0.1, 0.9]
       }
     },
 
 
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "season severity",
       "class": "point",
       "prediction": {
         "value": "moderate"
       }
     },
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "season severity",
       "class": "bin",
       "prediction": {
-        "cat": ["mild", "moderate", "severe"],
-        "prob": [0.1, 0.0, 0.9]
+        "cat": "loc"mild", "moderate", "severe"],
+        "prob": "loc0.1, 0.0, 0.9]
       }
     },
 
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "season severity",
       "class": "point",
       "prediction": {
         "value": "severe"
       }
     },
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "season severity",
       "class": "sample",
       "prediction": {
-        "sample": ["severe", "high", "moderate", "mild"]
+        "sample": "loc"severe", "high", "moderate", "mild"]
       }
     },
 
 
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "above baseline",
       "class": "point",
       "prediction": {
@@ -131,82 +131,82 @@
       }
     },
 
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "above baseline",
       "class": "bin",
       "prediction": {
-        "cat": [true, false],
-        "prob": [0.1, 0.9]
+        "cat": "loctrue, false],
+        "prob": "loc0.1, 0.9]
       }
     },
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "above baseline",
       "class": "sample",
       "prediction": {
-        "sample": [false, true, true]
+        "sample": "locfalse, true, true]
       }
     },
 
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "above baseline",
       "class": "sample",
       "prediction": {
-        "sample": [true, false, true]
+        "sample": "loctrue, false, true]
       }
     },
 
 
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "Season peak week",
       "class": "point",
       "prediction": {
         "value": "2019-12-15"
       }
     },
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "Season peak week",
       "class": "bin",
       "prediction": {
-        "cat": ["2019-12-15", "2019-12-22", "2019-12-29"],
-        "prob": [0.1, 0.01, 0.89]
+        "cat": "loc"2019-12-15", "2019-12-22", "2019-12-29"],
+        "prob": "loc0.1, 0.01, 0.89]
       }
     },
-    {"unit": "location1",
+    {"unit": "loc1",
       "target": "Season peak week",
       "class": "sample",
       "prediction": {
-        "sample": ["2019-12-15", "2020-01-05"]
+        "sample": "loc"2019-12-15", "2020-01-05"]
       }
     },
 
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "Season peak week",
       "class": "point",
       "prediction": {
         "value": "2019-12-29"
       }
     },
-    {"unit": "location2",
+    {"unit": "loc2",
       "target": "Season peak week",
       "class": "bin",
       "prediction": {
-        "cat": ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"],
-        "prob": [0.05, 0.01, 0.05, 0.89]
+        "cat": "loc"2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"],
+        "prob": "loc0.05, 0.01, 0.05, 0.89]
       }
     },
 
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "Season peak week",
       "class": "point",
       "prediction": {
         "value": "2019-12-22"
       }
     },
-    {"unit": "location3",
+    {"unit": "loc3",
       "target": "Season peak week",
       "class": "sample",
       "prediction": {
-        "sample": ["2019-12-16", "2020-01-06"]
+        "sample": "loc"2019-12-16", "2020-01-06"]
       }
     }
   ]

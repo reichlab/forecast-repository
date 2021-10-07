@@ -8,12 +8,14 @@
             <table id="units_table" class="table table-striped table-bordered">
                 <thead>
                 <tr>
+                    <th>Abbreviation</th>
                     <th>Name</th>
                 </tr>
                 </thead>
                 <tbody>
                 {% for unit in found_units %}
                     <tr>
+                        <td>{{ unit.abbreviation }}</td>
                         <td>{{ unit.name }}</td>
                     </tr>
                 {% endfor %}
@@ -71,7 +73,7 @@
                 <select id="unit_select" class="form-control" name="unit">
                     {% for unit in found_units %}
                         <option value="{{ unit.id }}" {% if unit == search_unit %}selected{% endif %}>
-                            {{ unit.name }}
+                            {{ unit.abbreviation }}
                         </option>
                     {% endfor %}
                 </select>

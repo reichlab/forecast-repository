@@ -14,7 +14,7 @@ from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 class UnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
-        fields = ('id', 'url', 'name',)
+        fields = ('id', 'url', 'name', 'abbreviation')
         extra_kwargs = {
             'url': {'view_name': 'api-unit-detail'},
         }

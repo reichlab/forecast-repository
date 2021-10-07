@@ -83,7 +83,7 @@ class ForecastModel(models.Model):
 
 
     def __repr__(self):
-        return str((self.pk, self.name, self.abbreviation))
+        return str((self.pk, self.abbreviation, self.name))
 
 
     def __str__(self):  # todo

@@ -67,7 +67,7 @@ def json_io_dict_from_forecast(forecast, request, is_include_retract=False):
         cursor.execute(sql, (forecast.forecast_model.project.pk,))
         # counterintuitively must use json.loads per https://code.djangoproject.com/ticket/31991
         prediction_dicts = [
-            {'unit': unit_id_to_obj[unit_id].name,
+            {'unit': unit_id_to_obj[unit_id].abbreviation,
              'target': target_id_to_obj[target_id].name,
              'class': PRED_CLASS_INT_TO_NAME[pred_class],
              'prediction': json.loads(pred_data) if not is_retract else None}
@@ -168,27 +168,27 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
         data_hash_to_pred_data: a dict that maps data_hash -> prediction_data. does not include if is_retract (None)
         pred_ele_rows: a list of 6-tuples: (forecast_id, pred_class_int, unit_id, target_id, is_retract, data_hash)
     """
-    unit_name_to_obj = {unit.name: unit for unit in forecast.forecast_model.project.units.all()}
+    unit_abbrev_to_obj = {unit.abbreviation: unit for unit in forecast.forecast_model.project.units.all()}
     target_name_to_obj = {target.name: target for target in forecast.forecast_model.project.targets.all()}
 
     # this variable helps to do "prediction"-level validations at the end of this function. it maps 2-tuples to a list
     # of prediction classes (strs):
-    loc_targ_to_pred_classes = defaultdict(list)  # (unit_name, target_name) -> [prediction_class1, ...]
+    loc_targ_to_pred_classes = defaultdict(list)  # (unit_abbrev, target_name) -> [prediction_class1, ...]
 
     data_hash_to_pred_data = {}  # return value. filled next
     pred_ele_rows = []  # ""
     for prediction_dict in prediction_dicts:
-        unit_name = prediction_dict['unit']
+        unit_abbrev = prediction_dict['unit']
         target_name = prediction_dict['target']
         pred_class = prediction_dict['class']
         prediction_data = prediction_dict['prediction']  # None if a "retracted" prediction -> insert a single NULL row
         is_retract = prediction_data is None
-        loc_targ_to_pred_classes[(unit_name, target_name)].append(pred_class)
+        loc_targ_to_pred_classes[(unit_abbrev, target_name)].append(pred_class)
         if not is_skip_validation:
             # validate prediction class, and unit and target names (applies to all prediction classes)
-            if unit_name not in unit_name_to_obj:
-                raise RuntimeError(f"prediction_dict referred to an undefined Unit. unit_name={unit_name!r}. "
-                                   f"existing_unit_names={unit_name_to_obj.keys()}")
+            if unit_abbrev not in unit_abbrev_to_obj:
+                raise RuntimeError(f"prediction_dict referred to an undefined Unit. unit_abbrev={unit_abbrev!r}. "
+                                   f"existing_unit_abbrevs={unit_abbrev_to_obj.keys()}")
             elif target_name not in target_name_to_obj:
                 raise RuntimeError(f"prediction_dict referred to an undefined Target. target_name={target_name!r}. "
                                    f"existing_target_names={target_name_to_obj.keys()}")
@@ -222,7 +222,7 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
         if not is_retract:
             data_hash_to_pred_data[data_hash] = prediction_data
         pred_ele_rows.append((forecast.pk, PRED_CLASS_NAME_TO_INT[pred_class],
-                              unit_name_to_obj[unit_name].pk, target_name_to_obj[target_name].pk,
+                              unit_abbrev_to_obj[unit_abbrev].pk, target_name_to_obj[target_name].pk,
                               is_retract, data_hash))
 
     # finally, do "prediction"-level validation. recall that "prediction" is defined as "a group of a prediction
@@ -697,11 +697,11 @@ def data_rows_from_forecast(forecast, unit, target):
     :param unit: a Unit ""
     :param target: a Target ""
     :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample) where
-        data_rows_bin:      unit_name, target_name,  cat, prob
-        data_rows_named:    unit_name, target_name,  family, param1, param2, param3
-        data_rows_point:    unit_name, target_name,  value
-        data_rows_quantile: unit_name, target_name,  quantile, value
-        data_rows_sample:   unit_name, target_name,  sample
+        data_rows_bin:      unit_abbreviation, target_name,  cat, prob
+        data_rows_named:    unit_abbreviation, target_name,  family, param1, param2, param3
+        data_rows_point:    unit_abbreviation, target_name,  value
+        data_rows_quantile: unit_abbreviation, target_name,  quantile, value
+        data_rows_sample:   unit_abbreviation, target_name,  sample
     """
     data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
         [], [], [], [], []  # return value. filled next
@@ -719,18 +719,18 @@ def data_rows_from_forecast(forecast, unit, target):
             pred_data = json.loads(pred_data)
             if pred_class == PredictionElement.BIN_CLASS:
                 for cat, prob in zip(pred_data['cat'], pred_data['prob']):
-                    data_rows_bin.append((unit.name, target.name, cat, prob))
+                    data_rows_bin.append((unit.abbreviation, target.name, cat, prob))
             elif pred_class == PredictionElement.NAMED_CLASS:
-                data_rows_named.append((unit.name, target.name, pred_data['family'],
+                data_rows_named.append((unit.abbreviation, target.name, pred_data['family'],
                                         pred_data.get('param1'), pred_data.get('param2'), pred_data.get('param3')))
             elif pred_class == PredictionElement.POINT_CLASS:
-                data_rows_point.append((unit.name, target.name, pred_data['value']))
+                data_rows_point.append((unit.abbreviation, target.name, pred_data['value']))
             elif pred_class == PredictionElement.QUANTILE_CLASS:
                 for quantile, value in zip(pred_data['quantile'], pred_data['value']):
-                    data_rows_quantile.append((unit.name, target.name, quantile, value))
+                    data_rows_quantile.append((unit.abbreviation, target.name, quantile, value))
             elif pred_class == PredictionElement.SAMPLE_CLASS:
                 for sample in pred_data['sample']:
-                    data_rows_sample.append((unit.name, target.name, sample))
+                    data_rows_sample.append((unit.abbreviation, target.name, sample))
 
     # done
     return data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample

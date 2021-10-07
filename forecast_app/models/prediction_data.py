@@ -16,7 +16,7 @@ class PredictionData(models.Model):
     The `data` field is the "prediction" portion of a prediction element (AKA its "prediction_data"). For example,
     this prediction element:
 
-        {"unit": "location2",
+        {"unit": "loc2",
          "target": "pct next week",
          "class": "bin",
          "prediction": {

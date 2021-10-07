@@ -145,19 +145,27 @@ class ProjectUtilTestCase(TestCase):
             project_dict[field_name] = orig_field_value  # reset to valid
 
         # test units
-        project_dict['units'] = [{}]
+        project_dict['units'] = [{}]  # no 'name' or 'abbreviation'
         with self.assertRaisesRegex(RuntimeError, "unit_dict had no 'name' field"):
             create_project_from_json(project_dict, po_user)
 
-        project_dict['units'] = [{'name': []}]  # not a str
+        project_dict['units'] = [{'name': 'a name'}]  # no 'abbreviation'
+        with self.assertRaisesRegex(RuntimeError, "unit_dict had no 'abbreviation' field"):
+            create_project_from_json(project_dict, po_user)
+
+        project_dict['units'] = [{'name': [], 'abbreviation': []}]  # 'name' and 'abbreviation' not a str
         with self.assertRaisesRegex(RuntimeError, "invalid unit name"):
+            create_project_from_json(project_dict, po_user)
+
+        project_dict['units'] = [{'name': 'a name', 'abbreviation': []}]  # 'abbreviation' not a str
+        with self.assertRaisesRegex(RuntimeError, "invalid unit abbreviation"):
             create_project_from_json(project_dict, po_user)
 
         # note: targets tested in test_create_project_from_json_target_required_fields() and
         # test_create_project_from_json_target_optional_fields()
 
         # test timezero fields: missing or wrong type
-        project_dict['units'] = [{"name": "HHS Region 1"}]  # reset to valid
+        project_dict['units'] = [{"name": "HHS Region 1", 'abbreviation': "HHS Region 1"}]  # reset to valid
         timezero_config = {'timezero_date': '2017-12-01',
                            'data_version_date': None,
                            'is_season_start': False}
@@ -748,7 +756,7 @@ class ProjectUtilTestCase(TestCase):
                                             time_zero=time_zero3, notes="a small prediction file")
         json_io_dict = {
             "meta": {},
-            "predictions": [{"unit": "location1",
+            "predictions": [{"unit": "loc1",
                              "target": "pct next week",
                              "class": "point",
                              "prediction": {"value": 2.1}}]}
@@ -821,7 +829,7 @@ class ProjectUtilTestCase(TestCase):
                                             time_zero=time_zero3, notes="a small prediction file")
         json_io_dict = {
             "meta": {},
-            "predictions": [{"unit": "location1",
+            "predictions": [{"unit": "loc1",
                              "target": "pct next week",
                              "class": "point",
                              "prediction": {"value": 2.1}}]}

@@ -77,7 +77,7 @@ class PredictionValidationTestCase(TestCase):
                                              NamedData.POIS_DIST, NamedData.NBINOM_DIST,
                                              NamedData.NBINOM2_DIST],
                                             is_valid_family_tuple):
-                prediction_dict = {"unit": "location1", "target": target_name, "class": "named",
+                prediction_dict = {"unit": "loc1", "target": target_name, "class": "named",
                                    "prediction": {"family": family_abbrev}}  # add paramN next based on ok_params:
                 ok_params = FAMILY_TO_TARGET_OK_BAD_PARAMS[family_abbrev][1]
                 prediction_dict['prediction']["param1"] = ok_params[0]  # all families have param1
@@ -100,7 +100,7 @@ class PredictionValidationTestCase(TestCase):
 
 
     def test_within_a_prediction_there_cannot_be_no_more_than_1_prediction_element_of_the_same_class(self):
-        prediction_dict = {"unit": "location1", "target": "pct next week", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "pct next week", "class": "point",
                            "prediction": {"value": 1.1}}  # duplicated unit/target pair
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict] * 2})
@@ -108,7 +108,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         prediction_dict2 = dict(prediction_dict)  # copy, but with different unit/target pair
-        prediction_dict2['unit'] = 'location2'
+        prediction_dict2['unit'] = 'loc2'
         try:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict, prediction_dict2]})
         except Exception as ex:
@@ -125,7 +125,7 @@ class PredictionValidationTestCase(TestCase):
 
     # `|cat| = |prob|`
     def test_the_number_of_elements_in_cat_and_prob_should_be_identical(self):
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "bin",
                            "prediction": {"cat": [2.2, 3.3],
                                           "prob": [0.3, 0.2, 0.5]}}
         with self.assertRaises(RuntimeError) as context:
@@ -136,7 +136,7 @@ class PredictionValidationTestCase(TestCase):
 
     # `cat` (i, f, t, d, b)
     def test_entries_in_the_database_rows_in_the_cat_column_cannot_be_empty_na_or_null(self):
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "bin",
                            "prediction": {"cat": ["mild", "", "severe"],  # empty
                                           "prob": [0.0, 0.1, 0.9]}}
         with self.assertRaises(RuntimeError) as context:
@@ -144,7 +144,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "bin",
                            "prediction": {"cat": ["mild", "NA", "severe"],  # NA
                                           "prob": [0.0, 0.1, 0.9]}}
         with self.assertRaises(RuntimeError) as context:
@@ -152,7 +152,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in the database rows in the `cat` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "bin",
                            "prediction": {"cat": ["mild", None, "severe"],  # null
                                           "prob": [0.0, 0.1, 0.9]}}
         with self.assertRaises(RuntimeError) as context:
@@ -164,7 +164,7 @@ class PredictionValidationTestCase(TestCase):
     # `cat` (i, f, t, d, b)
     def test_entries_in_cat_must_be_a_subset_of_target_cats_from_the_target_definition(self):
         # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "bin",
                            "prediction": {"cat": [1.1, 2.2, -1.0],  # -1.0 not in cats
                                           "prob": [0.3, 0.2, 0.5]}}
         with self.assertRaises(RuntimeError) as context:
@@ -173,7 +173,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "cases next week": discrete. cats: [0, 2, 50]
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "bin",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "bin",
                            "prediction": {"cat": [-1, 1, 2],  # -1 not in cats
                                           "prob": [0.0, 0.1, 0.9]}}
         with self.assertRaises(RuntimeError) as context:
@@ -182,7 +182,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "season severity": nominal. cats: ["high", "mild", "moderate", "severe"]
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "bin",
                            "prediction": {"cat": ["mild", "-1", "severe"],  # '-1" not in cats
                                           "prob": [0.0, 0.1, 0.9]}}
         with self.assertRaises(RuntimeError) as context:
@@ -191,7 +191,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "Season peak week": date. cats: ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "bin",
                            "prediction": {
                                "cat": ["2019-12-15", "2019-12-22", "2020-01-11"],  # "2020-01-11" not in cats
                                "prob": [0.01, 0.1, 0.89]}}
@@ -204,7 +204,7 @@ class PredictionValidationTestCase(TestCase):
     # `prob` (f): [0, 1]
     def test_entries_in_the_database_rows_in_the_prob_column_must_be_numbers_in_0_1(self):
         # test precursor: prob column can only contain ints or floats
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "bin",
                            "prediction": {"cat": [1.1, 2.2, 3.3],
                                           "prob": [0.3, '0.2', 0.5]}}  # '0.2' not int or float
         with self.assertRaises(RuntimeError) as context:
@@ -213,7 +213,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "bin",
                            "prediction": {"cat": [1.1, 2.2, 3.3],
                                           "prob": [-1.1, 0.2, 0.5]}}  # -1.1 not in [0, 1]
         with self.assertRaises(RuntimeError) as context:
@@ -222,7 +222,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "cases next week": discrete. cats: [0, 2, 50]
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "bin",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "bin",
                            "prediction": {"cat": [0, 2, 50],
                                           "prob": [1.1, 0.1, 0.9]}}  # 1.1 not in [0, 1]
         with self.assertRaises(RuntimeError) as context:
@@ -236,7 +236,7 @@ class PredictionValidationTestCase(TestCase):
         # Note that for binary targets that by definition need only have one row, this validation does not apply.
         # "season severity": nominal. cats: ["high", "mild", "moderate", "severe"].
         # recall: BIN_SUM_REL_TOL
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "bin",
                            "prediction": {"cat": ["mild", "moderate", "severe"],
                                           "prob": [1.0, 0.1, 0.9]}}  # sums to 2.0, not 1.0
         with self.assertRaises(RuntimeError) as context:
@@ -245,7 +245,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "Season peak week": date. cats: ["2019-12-15", "2019-12-22", "2019-12-29", "2020-01-05"]
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "bin",
                            "prediction": {"cat": ["2019-12-15", "2019-12-22", "2019-12-29"],
                                           "prob": [0.01, 0.1, 0.8]}}  # sums to 0.91, not 1.0
         with self.assertRaises(RuntimeError) as context:
@@ -256,7 +256,7 @@ class PredictionValidationTestCase(TestCase):
 
     def test_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
         # 'pct next week': continuous
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "bin",
                            "prediction": {"cat": [1.1, '2.2', 3.3],
                                           "prob": [0.3, 0.2, 0.5]}}  # cat not float
         with self.assertRaises(RuntimeError) as context:
@@ -265,7 +265,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'cases next week: discrete
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "bin",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "bin",
                            "prediction": {"cat": [0, 2.2, 50],
                                           "prob": [0.0, 0.1, 0.9]}}  # cat not translatable to int
         with self.assertRaises(RuntimeError) as context:
@@ -274,7 +274,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'season severity: nominal
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "bin",
                            "prediction": {"cat": ["mild", True, "severe"],
                                           "prob": [0.0, 0.1, 0.9]}}  # cat not str
         with self.assertRaises(RuntimeError) as context:
@@ -283,7 +283,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'above baseline: binary
-        prediction_dict = {"unit": "location2", "target": "above baseline", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "above baseline", "class": "bin",
                            "prediction": {"cat": [True, "not boolean"],
                                           "prob": [0.9, 0.1]}}  # cat not boolean
         with self.assertRaises(RuntimeError) as context:
@@ -292,7 +292,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "bin",
                            "prediction": {"cat": ["2019-12-15", 1.1, "2019-12-29"],
                                           "prob": [0.01, 0.1, 0.89]}}  # cat not date
         with self.assertRaises(RuntimeError) as context:
@@ -301,7 +301,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "bin",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "bin",
                            "prediction": {"cat": ["2019-12-15", "x 2019-12-22", "2019-12-29"],
                                           "prob": [0.01, 0.1, 0.89]}}  # cat not date format
         with self.assertRaises(RuntimeError) as context:
@@ -318,7 +318,7 @@ class PredictionValidationTestCase(TestCase):
     def test_family_must_be_one_of_the_abbreviations_shown_in_the_table_below(self):
         # note that test_target_type_to_valid_named_families() test the underlying Target.valid_named_families()
         # function, but here we test that indirectly via load_predictions_from_json_io_dict().
-        prediction_dict = {"unit": "location1", "target": "pct next week", "class": "named",
+        prediction_dict = {"unit": "loc1", "target": "pct next week", "class": "named",
                            "prediction": {"family": "bad family",
                                           "param1": 1.1,
                                           "param2": 2.2}}
@@ -338,7 +338,7 @@ class PredictionValidationTestCase(TestCase):
         for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
             # test valid params using ok_params
             try:
-                prediction_dict = {"unit": "location1", "target": target_name, "class": "named",
+                prediction_dict = {"unit": "loc1", "target": target_name, "class": "named",
                                    "prediction": {"family": family_abbrev,
                                                   "param1": ok_params[0]}}  # all have param1. add 2&3 next if needed
                 if len(ok_params) > 1:
@@ -357,7 +357,7 @@ class PredictionValidationTestCase(TestCase):
         for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
             # test invalid param count by removing one param from ok_params
             ok_params = ok_params[:-1]  # discard the first. list may now be [], so no default 'param1' in dict
-            prediction_dict = {"unit": "location1", "target": target_name, "class": "named",
+            prediction_dict = {"unit": "loc1", "target": target_name, "class": "named",
                                "prediction": {"family": family_abbrev}}  # no param1
             with self.assertRaises(RuntimeError) as context:
                 if len(ok_params) > 0:
@@ -376,7 +376,7 @@ class PredictionValidationTestCase(TestCase):
         for family_abbrev, (target_name, ok_params, bad_params_list) in FAMILY_TO_TARGET_OK_BAD_PARAMS.items():
             # test invalid param range (but correct count) using bad_params
             for bad_params in bad_params_list:
-                prediction_dict = {"unit": "location1", "target": target_name, "class": "named",
+                prediction_dict = {"unit": "loc1", "target": target_name, "class": "named",
                                    "prediction": {"family": family_abbrev,
                                                   "param1": bad_params[0]}}  # all have param1. add 2&3 next
                 with self.assertRaises(RuntimeError) as context:
@@ -395,21 +395,21 @@ class PredictionValidationTestCase(TestCase):
 
     # `value` (i, f, t, d, b)
     def test_entries_in_the_database_rows_in_the_value_column_cannot_be_empty_na_or_null_point(self):
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "point",
                            "prediction": {"value": ""}}  # empty
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "point",
                            "prediction": {"value": "NA"}}  # NA
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in the database rows in the `value` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "point",
                            "prediction": {"value": None}}  # null
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -419,7 +419,7 @@ class PredictionValidationTestCase(TestCase):
 
     def test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_def_point(self):
         # 'pct next week': continuous
-        prediction_dict = {"unit": "location1", "target": "pct next week", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "pct next week", "class": "point",
                            "prediction": {"value": '1.2'}}  # value not float
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -427,7 +427,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'cases next week: discrete
-        prediction_dict = {"unit": "location2", "target": "cases next week", "class": "point",
+        prediction_dict = {"unit": "loc2", "target": "cases next week", "class": "point",
                            "prediction": {"value": 1.1}}  # value not int
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -435,7 +435,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'season severity: nominal
-        prediction_dict = {"unit": "location1", "target": "season severity", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "season severity", "class": "point",
                            "prediction": {"value": -1}}  # value not str
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -443,7 +443,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'above baseline: binary
-        prediction_dict = {"unit": "location1", "target": "above baseline", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "above baseline", "class": "point",
                            "prediction": {"value": "not boolean"}}  # value not boolean
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -451,14 +451,14 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "point",
                            "prediction": {"value": "x 2019-12-22"}}  # value not date
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"The data format of `value` should correspond or be translatable to the `type` as in the",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "point",
                            "prediction": {"value": "20191222"}}  # value wrong date format
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -472,21 +472,21 @@ class PredictionValidationTestCase(TestCase):
 
     # `sample` (i, f, t, d, b)
     def test_entries_in_the_database_rows_in_the_sample_column_cannot_be_empty_na_or_null(self):
-        prediction_dict = {"unit": "location2", "target": "season severity", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "season severity", "class": "sample",
                            "prediction": {"sample": ["moderate", "", "high", "moderate", "mild"]}}  # empty
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location2", "target": "season severity", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "season severity", "class": "sample",
                            "prediction": {"sample": ["moderate", "NA", "high", "moderate", "mild"]}}  # NA
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"Entries in the database rows in the `sample` column cannot be `“”`, `“NA”` or `NULL`",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location2", "target": "season severity", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "season severity", "class": "sample",
                            "prediction": {"sample": ["moderate", None, "high", "moderate", "mild"]}}  # null
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -496,7 +496,7 @@ class PredictionValidationTestCase(TestCase):
 
     def test_data_format_of_sample_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition(self):
         # 'pct next week': continuous
-        prediction_dict = {"unit": "location3", "target": "pct next week", "class": "sample",
+        prediction_dict = {"unit": "loc3", "target": "pct next week", "class": "sample",
                            "prediction": {"sample": [2.3, '6.5', 0.0, 10.0234, 0.0001]}}  # sample not float
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -504,7 +504,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'cases next week: discrete
-        prediction_dict = {"unit": "location2", "target": "cases next week", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "cases next week", "class": "sample",
                            "prediction": {"sample": [0, 2.0, 5]}}  # sample not int
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -512,7 +512,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'season severity: nominal
-        prediction_dict = {"unit": "location2", "target": "season severity", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "season severity", "class": "sample",
                            "prediction": {"sample": ["moderate", 1]}}  # sample not str
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -520,7 +520,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'above baseline: binary
-        prediction_dict = {"unit": "location2", "target": "above baseline", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "above baseline", "class": "sample",
                            "prediction": {"sample": [True, 'False', True]}}  # sample not boolean
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -528,7 +528,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "sample",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "sample",
                            "prediction": {"sample": ["2020-01-05", 2.2]}}  # sample not date
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -536,7 +536,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location1", "target": "Season peak week", "class": "sample",
+        prediction_dict = {"unit": "loc1", "target": "Season peak week", "class": "sample",
                            "prediction": {"sample": ["2020-01-05", "x 2019-12-15"]}}  # sample not date format
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -550,7 +550,7 @@ class PredictionValidationTestCase(TestCase):
 
     # `|quantile| = |value|`
     def test_the_number_of_elements_in_quantile_and_value_should_be_identical(self):
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.25, 0.5, 0.75, 0.975],  # one fewer
                                           "value": [1.0, 2.2, 2.2, 5.0, 50.0]}}
         with self.assertRaises(RuntimeError) as context:
@@ -558,7 +558,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"The number of elements in the `quantile` and `value` vectors should be identical.",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
                                           "value": [1.0, 2.2, 5.0, 50.0]}}  # one fewer
         with self.assertRaises(RuntimeError) as context:
@@ -570,7 +570,7 @@ class PredictionValidationTestCase(TestCase):
     # `quantile` (f)
     def test_entries_in_the_database_rows_in_the_quantile_column_must_be_numbers_in_0_1(self):
         # test precursor: prob column can only contain ints or floats
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, '0.25', 0.5, 0.75, 0.975],  # '0.25' not int or float
                                           "value": [1.0, 2.2, 2.2, 5.0, 50.0]}}
         with self.assertRaises(RuntimeError) as context:
@@ -579,7 +579,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "pct next week": continuous. cats: [0.0, 1.0, 1.1, 2.0, 2.2, 3.0, 3.3, 5.0, 10.0, 50.0]
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [-1.1, 0.25, 0.5, 0.75, 0.975],  # -1.1 not in [0, 1]
                                           "value": [1.0, 2.2, 2.2, 5.0, 50.0]}}
         with self.assertRaises(RuntimeError) as context:
@@ -588,7 +588,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # "cases next week": discrete. cats: [0, 2, 50]
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "quantile",
                            "prediction": {"quantile": [0.25, 1.1],  # 1.1 not in [0, 1]
                                           "value": [0, 50]}}
         with self.assertRaises(RuntimeError) as context:
@@ -599,7 +599,7 @@ class PredictionValidationTestCase(TestCase):
 
     # `quantile` (f)
     def test_quantiles_must_be_unique(self):
-        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "Season peak week", "class": "quantile",
                            "prediction": {"quantile": [0.5, 0.75, 0.75],  # 0.75 not unique
                                           "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}}
         with self.assertRaises(RuntimeError) as context:
@@ -610,7 +610,7 @@ class PredictionValidationTestCase(TestCase):
     # `value` (i, f, d)
     def test_entries_in_value_must_be_non_decreasing_as_quantiles_increase(self):
         # continuous target
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
                                           "value": [1.0, 1.0, 2.2, 5.0, 4.9]}}
 
@@ -619,7 +619,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
 
         # discrete target
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "quantile",
                            "prediction": {"quantile": [0.25, 0.75],
                                           "value": [50, 0]}}  # last decreases
         with self.assertRaises(RuntimeError) as context:
@@ -627,7 +627,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in `value` must be non-decreasing as quantiles increase.", str(context.exception))
 
         # date target
-        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "Season peak week", "class": "quantile",
                            "prediction": {"quantile": [0.5, 0.75, 0.975],
                                           "value": ["2019-12-22", "2019-12-21", "2020-01-05"]}}  # second decreases
         with self.assertRaises(RuntimeError) as context:
@@ -636,7 +636,7 @@ class PredictionValidationTestCase(TestCase):
 
         # continuous target: test that the two lists are sorted by quantile before testing for non-decreasing. in this
         # case the value list itself is not non-decreasing unless it's sorted, and should not raise the exception
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {  # the order of these pairs is changed from the original:
                                "quantile": [0.25, 0.025, 0.975, 0.75, 0.5, ],
                                "value": [2.2, 1.0, 50.0, 5.0, 2.2, ]}}
@@ -649,7 +649,7 @@ class PredictionValidationTestCase(TestCase):
     # `value` (i, f, d)
     def test_entries_in_value_must_obey_existing_ranges_for_targets(self):
         # 'pct next week': continuous. range: [0.0, 100.0]
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
                                           "value": [-0.1, 2.2, 2.2, 5.0, 50.0]}}  # first < 0.0
         with self.assertRaises(RuntimeError) as context:
@@ -657,7 +657,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
 
         # 'pct next week': continuous. range: [0.0, 100.0]
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
                                           "value": [1.0, 2.2, 2.2, 5.0, 101.0]}}  # last > 100.0
         with self.assertRaises(RuntimeError) as context:
@@ -665,7 +665,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
 
         # cases next week: discrete. range: [0, 100000]
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "quantile",
                            "prediction": {"quantile": [0.25, 0.75],
                                           "value": [-1, 50]}}  # first < 0
         with self.assertRaises(RuntimeError) as context:
@@ -673,7 +673,7 @@ class PredictionValidationTestCase(TestCase):
         self.assertIn(f"Entries in `value` must obey existing ranges for targets.", str(context.exception))
 
         # cases next week: discrete. range: [0, 100000]
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "quantile",
                            "prediction": {"quantile": [0.25, 0.75],
                                           "value": [0, 100001]}}  # last > 100000
         with self.assertRaises(RuntimeError) as context:
@@ -683,7 +683,7 @@ class PredictionValidationTestCase(TestCase):
 
     def test_data_format_of_value_should_correspond_or_be_translatable_to_the_type_as_in_the_target_def_quant(self):
         # 'pct next week': continuous
-        prediction_dict = {"unit": "location2", "target": "pct next week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "pct next week", "class": "quantile",
                            "prediction": {"quantile": [0.025, 0.25, 0.5, 0.75, 0.975],
                                           "value": [1.0, '2.2', 2.2, 5.0, 50.0]}}  # value not float
         with self.assertRaises(RuntimeError) as context:
@@ -692,7 +692,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'cases next week: discrete
-        prediction_dict = {"unit": "location3", "target": "cases next week", "class": "quantile",
+        prediction_dict = {"unit": "loc3", "target": "cases next week", "class": "quantile",
                            "prediction": {"quantile": [0.25, 0.75],
                                           "value": [0.1, 50]}}  # value not translatable to int
         with self.assertRaises(RuntimeError) as context:
@@ -701,7 +701,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "Season peak week", "class": "quantile",
                            "prediction": {"quantile": [0.5, 0.75, 0.975],
                                           "value": ["2019-12-22", 20191229, "2020-01-05"]}}  # value not date
         with self.assertRaises(RuntimeError) as context:
@@ -710,7 +710,7 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'Season peak week: date
-        prediction_dict = {"unit": "location2", "target": "Season peak week", "class": "quantile",
+        prediction_dict = {"unit": "loc2", "target": "Season peak week", "class": "quantile",
                            "prediction": {"quantile": [0.5, 0.75, 0.975],
                                           "value": ["2019-12-22", "x 2019-12-29", "2020-01-05"]}
                            }  # value not date format
@@ -726,9 +726,9 @@ class PredictionValidationTestCase(TestCase):
 
     def test_within_one_prediction_there_can_be_at_most_one_of_the_following_prediction_elements_but_not_both(self):
         # 'pct next week': continuous
-        prediction_dicts = [{"unit": "location1", "target": "pct next week", "class": "named",
+        prediction_dicts = [{"unit": "loc1", "target": "pct next week", "class": "named",
                              "prediction": {"family": "norm", "param1": 1.1, "param2": 2.2}},
-                            {"unit": "location1", "target": "pct next week", "class": "bin",
+                            {"unit": "loc1", "target": "pct next week", "class": "bin",
                              "prediction": {"cat": [1.1, 2.2, 3.3],
                                             "prob": [0.3, 0.2, 0.5]}}]
         with self.assertRaises(RuntimeError) as context:
@@ -737,9 +737,9 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # 'cases next week': discrete
-        prediction_dicts = [{"unit": "location1", "target": "cases next week", "class": "named",
+        prediction_dicts = [{"unit": "loc1", "target": "cases next week", "class": "named",
                              "prediction": {"family": "pois", "param1": 1.1}},
-                            {"unit": "location1", "target": "cases next week", "class": "bin",
+                            {"unit": "loc1", "target": "cases next week", "class": "bin",
                              "prediction": {"cat": [0, 2, 50],
                                             "prob": [0.0, 0.1, 0.9]}}]
         with self.assertRaises(RuntimeError) as context:
@@ -763,28 +763,28 @@ class PredictionValidationTestCase(TestCase):
 
     def test_if_range_is_specified_any_values_in_point_or_sample_prediction_elements_should_be_contained(self):
         # 'pct next week': continuous. range: [0.0, 100.0]
-        prediction_dict = {"unit": "location1", "target": "pct next week", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "pct next week", "class": "point",
                            "prediction": {"value": -1}}  # -1 <= 0.0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location1", "target": "pct next week", "class": "point",
+        prediction_dict = {"unit": "loc1", "target": "pct next week", "class": "point",
                            "prediction": {"value": 101.0}}  # 100.0 < 101.0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location3", "target": "pct next week", "class": "sample",
+        prediction_dict = {"unit": "loc3", "target": "pct next week", "class": "sample",
                            "prediction": {"sample": [2.3, 6.5, -1, 10.0234, 0.0001]}}  # -1 <= 0.0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location3", "target": "pct next week", "class": "sample",
+        prediction_dict = {"unit": "loc3", "target": "pct next week", "class": "sample",
                            "prediction": {"sample": [2.3, 6.5, 101.0, 10.0234, 0.0001]}}  # 100.0 < 101.0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -792,28 +792,28 @@ class PredictionValidationTestCase(TestCase):
                       str(context.exception))
 
         # cases next week: discrete. range: [0, 100000]
-        prediction_dict = {"unit": "location2", "target": "cases next week", "class": "point",
+        prediction_dict = {"unit": "loc2", "target": "cases next week", "class": "point",
                            "prediction": {"value": -1}}  # -1 <= 0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location2", "target": "cases next week", "class": "point",
+        prediction_dict = {"unit": "loc2", "target": "cases next week", "class": "point",
                            "prediction": {"value": 100001}}  # 100000 < 100001
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Point` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location2", "target": "cases next week", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "cases next week", "class": "sample",
                            "prediction": {"sample": [0, -1, 5]}}  # -1 <= 0
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
         self.assertIn(f"if `range` is specified, any values in `Sample` Prediction Elements should be contained within",
                       str(context.exception))
 
-        prediction_dict = {"unit": "location2", "target": "cases next week", "class": "sample",
+        prediction_dict = {"unit": "loc2", "target": "cases next week", "class": "sample",
                            "prediction": {"sample": [0, 100001, 5]}}  # 100000 < 100001
         with self.assertRaises(RuntimeError) as context:
             load_predictions_from_json_io_dict(self.forecast, {'predictions': [prediction_dict]})
@@ -876,7 +876,7 @@ class PredictionValidationTestCase(TestCase):
         # test_data_format_of_cat_should_correspond_or_be_translatable_to_the_type_as_in_the_target_definition()
 
         # case: not exactly two booleans
-        prediction_dict = {"unit": "location2", "target": "above baseline", "class": "bin",
+        prediction_dict = {"unit": "loc2", "target": "above baseline", "class": "bin",
                            "prediction": {"cat": [True, False, True],
                                           "prob": [0.8, 0.1, 0.1]}}  # cat not exactly two booleans
         with self.assertRaises(RuntimeError) as context:
@@ -962,28 +962,28 @@ class PredictionValidationTestCase(TestCase):
         load_truth_data(self.project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'))  # 14 rows
         self.assertEqual(14, truth_data_qs(self.project).count())
 
-        exp_rows = [(datetime.date(2011, 10, 2), 'location1', 'Season peak week', '2019-12-15'),
-                    (datetime.date(2011, 10, 2), 'location1', 'above baseline', True),
-                    (datetime.date(2011, 10, 2), 'location1', 'cases next week', 10),
-                    (datetime.date(2011, 10, 2), 'location1', 'pct next week', 4.5432),
-                    (datetime.date(2011, 10, 2), 'location1', 'season severity', 'moderate'),
-                    (datetime.date(2011, 10, 9), 'location2', 'Season peak week', '2019-12-29'),
-                    (datetime.date(2011, 10, 9), 'location2', 'above baseline', True),
-                    (datetime.date(2011, 10, 9), 'location2', 'cases next week', 3),
-                    (datetime.date(2011, 10, 9), 'location2', 'pct next week', 99.9),
-                    (datetime.date(2011, 10, 9), 'location2', 'season severity', 'severe'),
-                    (datetime.date(2011, 10, 16), 'location1', 'Season peak week', '2019-12-22'),
-                    (datetime.date(2011, 10, 16), 'location1', 'above baseline', False),
-                    (datetime.date(2011, 10, 16), 'location1', 'cases next week', 0),
-                    (datetime.date(2011, 10, 16), 'location1', 'pct next week', 0.0)]
+        exp_rows = [(datetime.date(2011, 10, 2), 'loc1', 'Season peak week', '2019-12-15'),
+                    (datetime.date(2011, 10, 2), 'loc1', 'above baseline', True),
+                    (datetime.date(2011, 10, 2), 'loc1', 'cases next week', 10),
+                    (datetime.date(2011, 10, 2), 'loc1', 'pct next week', 4.5432),
+                    (datetime.date(2011, 10, 2), 'loc1', 'season severity', 'moderate'),
+                    (datetime.date(2011, 10, 9), 'loc2', 'Season peak week', '2019-12-29'),
+                    (datetime.date(2011, 10, 9), 'loc2', 'above baseline', True),
+                    (datetime.date(2011, 10, 9), 'loc2', 'cases next week', 3),
+                    (datetime.date(2011, 10, 9), 'loc2', 'pct next week', 99.9),
+                    (datetime.date(2011, 10, 9), 'loc2', 'season severity', 'severe'),
+                    (datetime.date(2011, 10, 16), 'loc1', 'Season peak week', '2019-12-22'),
+                    (datetime.date(2011, 10, 16), 'loc1', 'above baseline', False),
+                    (datetime.date(2011, 10, 16), 'loc1', 'cases next week', 0),
+                    (datetime.date(2011, 10, 16), 'loc1', 'pct next week', 0.0)]
         # note: https://code.djangoproject.com/ticket/32483 sqlite3 json query bug -> we manually access field instead
         # of using 'data__value'
         pred_data_qs = PredictionData.objects \
             .filter(pred_ele__forecast__forecast_model=oracle_model_for_project(self.project)) \
-            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__abbreviation',
                          'pred_ele__target__name', 'data')
-        act_rows = [(tz_date, unit__name, target__name, data['value'])
-                    for tz_date, unit__name, target__name, data in pred_data_qs]
+        act_rows = [(tz_date, unit__abbrev, target__name, data['value'])
+                    for tz_date, unit__abbrev, target__name, data in pred_data_qs]
         self.assertEqual(sorted(exp_rows), sorted(act_rows))
 
 

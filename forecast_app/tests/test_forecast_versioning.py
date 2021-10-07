@@ -389,9 +389,9 @@ class ForecastVersionsTestCase(TestCase):
                                                                          tzinfo=datetime.timezone.utc))
 
         predictions_1 = [  # docs-predictions.json: 0 and 1
-            {"unit": "location1", "target": "pct next week", "class": "point",
+            {"unit": "loc1", "target": "pct next week", "class": "point",
              "prediction": {"value": 2.1}},  # [0]
-            {"unit": "location1", "target": "pct next week", "class": "named",
+            {"unit": "loc1", "target": "pct next week", "class": "named",
              "prediction": {"family": "norm", "param1": 1.1, "param2": 2.2}},  # [1]
         ]
         load_predictions_from_json_io_dict(f1, {'meta': {}, 'predictions': predictions_1})
@@ -401,11 +401,11 @@ class ForecastVersionsTestCase(TestCase):
                                      issued_at=f1.issued_at + datetime.timedelta(days=1))
 
         predictions_2 = [  # docs-predictions.json: 0 through 2
-            {"unit": "location1", "target": "pct next week", "class": "point",
+            {"unit": "loc1", "target": "pct next week", "class": "point",
              "prediction": {"value": 2.1}},  # [0] dup
-            {"unit": "location1", "target": "pct next week", "class": "named",
+            {"unit": "loc1", "target": "pct next week", "class": "named",
              "prediction": {"family": "norm", "param1": 3.3, "param2": 2.2}},  # [1] param1 changed
-            {"unit": "location2", "target": "pct next week", "class": "point",
+            {"unit": "loc2", "target": "pct next week", "class": "point",
              "prediction": {"value": 2.0}},  # [2] new
         ]
         load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': predictions_2})
@@ -466,22 +466,22 @@ class ForecastVersionsTestCase(TestCase):
 
         # load f1
         predictions = [
-            {"unit": 'location1', "target": 'cases next week', "class": "named",
+            {"unit": 'loc1', "target": 'cases next week', "class": "named",
              "prediction": {"family": "pois", "param1": 1.1}},
-            {"unit": 'location2', "target": 'cases next week', "class": "point", "prediction": {"value": 5}},
+            {"unit": 'loc2', "target": 'cases next week', "class": "point", "prediction": {"value": 5}},
         ]
         load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
 
         # load f2
         predictions = [
-            {"unit": 'location1', "target": 'cases next week', "class": "named", "prediction": None},  # retract
-            {"unit": 'location2', "target": 'cases next week', "class": "point", "prediction": None},  # retract
-            {"unit": 'location3', "target": 'Season peak week', "class": "sample",  # new
+            {"unit": 'loc1', "target": 'cases next week', "class": "named", "prediction": None},  # retract
+            {"unit": 'loc2', "target": 'cases next week', "class": "point", "prediction": None},  # retract
+            {"unit": 'loc3', "target": 'Season peak week', "class": "sample",  # new
              "prediction": {"sample": ["2020-01-05", "2019-12-15"]}},
-            {"unit": 'location1', "target": 'pct next week', "class": "bin",  # new
+            {"unit": 'loc1', "target": 'pct next week', "class": "bin",  # new
              "prediction": {"cat": [1.1, 2.2, 3.3],
                             "prob": [0.3, 0.2, 0.5]}},
-            {"unit": 'location1', "target": 'Season peak week', "class": "quantile",  # new
+            {"unit": 'loc1', "target": 'Season peak week', "class": "quantile",  # new
              "prediction": {"quantile": [0.5, 0.75, 0.975],
                             "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}},
         ]
@@ -493,11 +493,11 @@ class ForecastVersionsTestCase(TestCase):
 
         # test f1
         # forecast_meta_prediction (pnbsq), forecast_meta_unit_qs, forecast_meta_target_qs:
-        exp_meta = ((1, 1, 0, 0, 0), {'location1', 'location2'}, {'cases next week'})
+        exp_meta = ((1, 1, 0, 0, 0), {'loc1', 'loc2'}, {'cases next week'})
         act_meta = forecast_metadata(f1)
         act_fmp_counts = act_meta[0].point_count, act_meta[0].named_count, act_meta[0].bin_count, \
                          act_meta[0].sample_count, act_meta[0].quantile_count
-        act_fm_units = set([fmu.unit.name for fmu in act_meta[1]])
+        act_fm_units = set([fmu.unit.abbreviation for fmu in act_meta[1]])
         act_fm_targets = set([fmu.target.name for fmu in act_meta[2]])
         self.assertEqual(exp_meta[0], act_fmp_counts)
         self.assertEqual(exp_meta[1], act_fm_units)
@@ -505,11 +505,11 @@ class ForecastVersionsTestCase(TestCase):
 
         # test f2
         # forecast_meta_prediction (pnbsq), forecast_meta_unit_qs, forecast_meta_target_qs:
-        exp_meta = ((0, 0, 1, 1, 1), {'location1', 'location3'}, {'pct next week', 'Season peak week'})
+        exp_meta = ((0, 0, 1, 1, 1), {'loc1', 'loc3'}, {'pct next week', 'Season peak week'})
         act_meta = forecast_metadata(f2)
         act_fmp_counts = act_meta[0].point_count, act_meta[0].named_count, act_meta[0].bin_count, \
                          act_meta[0].sample_count, act_meta[0].quantile_count
-        act_fm_units = set([fmu.unit.name for fmu in act_meta[1]])
+        act_fm_units = set([fmu.unit.abbreviation for fmu in act_meta[1]])
         act_fm_targets = set([fmu.target.name for fmu in act_meta[2]])
         self.assertEqual(exp_meta[0], act_fmp_counts)
         self.assertEqual(exp_meta[1], act_fm_units)
@@ -522,9 +522,9 @@ class ForecastVersionsTestCase(TestCase):
         forecast_model = ForecastModel.objects.create(project=project, name='case model', abbreviation='case_model')
         tz1 = project.timezeros.get(timezero_date=datetime.date(2011, 10, 2))
 
-        u1 = project.units.get(name='location1')
-        u2 = project.units.get(name='location2')
-        u3 = project.units.get(name='location3')
+        u1 = project.units.get(abbreviation='loc1')
+        u2 = project.units.get(abbreviation='loc2')
+        u3 = project.units.get(abbreviation='loc3')
         t1 = project.targets.get(name='cases next week')
         t2 = project.targets.get(name='pct next week')
         t3 = project.targets.get(name='Season peak week')
@@ -537,58 +537,58 @@ class ForecastVersionsTestCase(TestCase):
 
         # load f1
         predictions = [
-            {"unit": 'location1', "target": 'cases next week', "class": "named",
+            {"unit": 'loc1', "target": 'cases next week', "class": "named",
              "prediction": {"family": "pois", "param1": 1.1}},
-            {"unit": 'location2', "target": 'cases next week', "class": "point",
+            {"unit": 'loc2', "target": 'cases next week', "class": "point",
              "prediction": {"value": 5}},
-            {"unit": 'location1', "target": 'pct next week', "class": "bin",
+            {"unit": 'loc1', "target": 'pct next week', "class": "bin",
              "prediction": {"cat": [1.1, 2.2, 3.3], "prob": [0.3, 0.2, 0.5]}},
         ]
         load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
 
         # load f2
         predictions = [
-            {"unit": 'location1', "target": 'cases next week', "class": "named", "prediction":
+            {"unit": 'loc1', "target": 'cases next week', "class": "named", "prediction":
                 {"family": "pois", "param1": 2.2}},  # changed
-            {"unit": 'location1', "target": 'cases next week', "class": "point",
+            {"unit": 'loc1', "target": 'cases next week', "class": "point",
              "prediction": {"value": 6}},  # new
-            {"unit": 'location2', "target": 'cases next week', "class": "point",
+            {"unit": 'loc2', "target": 'cases next week', "class": "point",
              "prediction": None},  # retract
-            {"unit": 'location3', "target": 'Season peak week', "class": "sample",  # new
+            {"unit": 'loc3', "target": 'Season peak week', "class": "sample",  # new
              "prediction": {"sample": ["2020-01-05", "2019-12-15"]}},
-            {"unit": 'location1', "target": 'pct next week', "class": "bin",  # dup
+            {"unit": 'loc1', "target": 'pct next week', "class": "bin",  # dup
              "prediction": {"cat": [1.1, 2.2, 3.3], "prob": [0.3, 0.2, 0.5]}},
-            {"unit": 'location1', "target": 'Season peak week', "class": "quantile",  # new
+            {"unit": 'loc1', "target": 'Season peak week', "class": "quantile",  # new
              "prediction": {"quantile": [0.5, 0.75, 0.975], "value": ["2019-12-22", "2019-12-29", "2020-01-05"]}},
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
 
         # test. rows: bnpqs
         f_loc_targ_to_exp_rows = {
-            (f1, u1, t1): ([], [('location1', 'cases next week', 'pois', 1.1, None, None)], [], [], []),
-            (f1, u1, t2): ([('location1', 'pct next week', 1.1, 0.3),
-                            ('location1', 'pct next week', 2.2, 0.2),
-                            ('location1', 'pct next week', 3.3, 0.5)],
+            (f1, u1, t1): ([], [('loc1', 'cases next week', 'pois', 1.1, None, None)], [], [], []),
+            (f1, u1, t2): ([('loc1', 'pct next week', 1.1, 0.3),
+                            ('loc1', 'pct next week', 2.2, 0.2),
+                            ('loc1', 'pct next week', 3.3, 0.5)],
                            [], [], [], []),
             (f1, u1, t3): ([], [], [], [], []),
-            (f1, u2, t1): ([], [], [('location2', 'cases next week', 5)], [], []),
+            (f1, u2, t1): ([], [], [('loc2', 'cases next week', 5)], [], []),
             (f1, u2, t2): ([], [], [], [], []),
             (f1, u2, t3): ([], [], [], [], []),
             (f1, u3, t1): ([], [], [], [], []),
             (f1, u3, t2): ([], [], [], [], []),
             (f1, u3, t3): ([], [], [], [], []),
             (f2, u1, t1): ([],
-                           [('location1', 'cases next week', 'pois', 2.2, None, None)],
-                           [('location1', 'cases next week', 6)],
+                           [('loc1', 'cases next week', 'pois', 2.2, None, None)],
+                           [('loc1', 'cases next week', 6)],
                            [], []),
-            (f2, u1, t2): ([('location1', 'pct next week', 1.1, 0.3),
-                            ('location1', 'pct next week', 2.2, 0.2),
-                            ('location1', 'pct next week', 3.3, 0.5)],
+            (f2, u1, t2): ([('loc1', 'pct next week', 1.1, 0.3),
+                            ('loc1', 'pct next week', 2.2, 0.2),
+                            ('loc1', 'pct next week', 3.3, 0.5)],
                            [], [], [], []),  # will fail if doesn't merge w/older version
             (f2, u1, t3): ([], [], [],
-                           [('location1', 'Season peak week', 0.5, '2019-12-22'),
-                            ('location1', 'Season peak week', 0.75, '2019-12-29'),
-                            ('location1', 'Season peak week', 0.975, '2020-01-05')],
+                           [('loc1', 'Season peak week', 0.5, '2019-12-22'),
+                            ('loc1', 'Season peak week', 0.75, '2019-12-29'),
+                            ('loc1', 'Season peak week', 0.975, '2020-01-05')],
                            []),
             (f2, u2, t1): ([], [], [], [], []),
             (f2, u2, t2): ([], [], [], [], []),
@@ -596,8 +596,8 @@ class ForecastVersionsTestCase(TestCase):
             (f2, u3, t1): ([], [], [], [], []),
             (f2, u3, t2): ([], [], [], [], []),
             (f2, u3, t3): ([], [], [], [],
-                           [('location3', 'Season peak week', '2020-01-05'),
-                            ('location3', 'Season peak week', '2019-12-15')]),
+                           [('loc3', 'Season peak week', '2020-01-05'),
+                            ('loc3', 'Season peak week', '2019-12-15')]),
         }
         for (forecast, unit, target), exp_rows in f_loc_targ_to_exp_rows.items():
             act_rows = data_rows_from_forecast(forecast, unit, target)

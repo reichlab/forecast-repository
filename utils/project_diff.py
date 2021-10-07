@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 # valid 'object_type' values:
 class ObjectType(IntEnum):  # IntEnum so tests can sort
     PROJECT = 0  # object_pk=project.name
-    UNIT = 1  # object_pk=unit.name
+    UNIT = 1  # object_pk=unit.abbreviation
     TARGET = 2  # object_pk=target.name
     TIMEZERO = 3  # object_pk=timezero.timezero_date formatted as YYYY_MM_DD_DATE_FORMAT
 
