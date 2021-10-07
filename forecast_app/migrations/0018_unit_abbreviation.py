@@ -19,7 +19,7 @@ def forwards_func(apps, schema_editor):
     # this is the slow one-at-a-time approach. I tried using https://docs.djangoproject.com/en/2.2/ref/models/expressions/#f-expressions
     # but was too complicated
     for unit in Unit.objects.all().iterator():
-        unit.issued_at = unit.name
+        unit.abbreviation = unit.name
         unit.save()
 
 
