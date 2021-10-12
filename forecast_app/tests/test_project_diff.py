@@ -25,6 +25,7 @@ class ProjectDiffTestCase(TestCase):
     def test_project_config_diff(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)
+
         # first we remove 'id' and 'url' fields from serializers to ease testing
         current_config_dict = config_dict_from_project(project, APIRequestFactory().request())
         for the_dict_list in [current_config_dict['units'], current_config_dict['targets'],
@@ -48,13 +49,17 @@ class ProjectDiffTestCase(TestCase):
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
 
-        # project units: remove 'location3', add 'location4'
+        # project units: remove 'loc3', add 'loc4', edit 'loc2' field
         edit_config_dict = copy.deepcopy(current_config_dict)
-        location_3_dict = [target_dict for target_dict in edit_config_dict['units']
-                           if target_dict['name'] == 'location3'][0]
-        location_3_dict['name'] = 'location4'  # 'location3'
-        exp_changes = [Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None),
-                       Change(ObjectType.UNIT, 'location4', ChangeType.OBJ_ADDED, None, location_3_dict)]
+        unit_3_dict = [target_dict for target_dict in edit_config_dict['units']
+                       if target_dict['abbreviation'] == 'loc3'][0]
+        unit_2_dict = [target_dict for target_dict in edit_config_dict['units']
+                       if target_dict['abbreviation'] == 'loc2'][0]
+        unit_3_dict['abbreviation'] = 'loc4'  # 'loc3'
+        unit_2_dict['name'] = 'location2_new_name'  # 'location2'
+        exp_changes = [Change(ObjectType.UNIT, 'loc3', ChangeType.OBJ_REMOVED, None, None),
+                       Change(ObjectType.UNIT, 'loc4', ChangeType.OBJ_ADDED, None, unit_3_dict),
+                       Change(ObjectType.UNIT, 'loc2', ChangeType.FIELD_EDITED, 'name', unit_2_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
         self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
                          sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
@@ -176,8 +181,8 @@ class ProjectDiffTestCase(TestCase):
         # removes one wasted activity ('pct next week', ChangeType.FIELD_EDITED) that is wasted b/c that target is being
         # ChangeType.OBJ_REMOVED:
         ordered_changes = order_project_config_diff(changes)
-        self.assertEqual(13, len(changes))  # contains two duplicate and one wasted change
-        self.assertEqual(10, len(ordered_changes))
+        self.assertEqual(14, len(changes))  # contains two duplicate and one wasted change
+        self.assertEqual(11, len(ordered_changes))
 
 
     def test_database_changes_for_project_config_diff(self):
@@ -189,7 +194,7 @@ class ProjectDiffTestCase(TestCase):
         _make_some_changes(edit_config_dict)
 
         changes = project_config_diff(out_config_dict, edit_config_dict)  # change, num_pred_eles, num_truth
-        exp_changes = [(Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None), 8, 0),
+        exp_changes = [(Change(ObjectType.UNIT, 'loc3', ChangeType.OBJ_REMOVED, None, None), 8, 0),
                        (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 7, 3),
                        (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 29, 5)]
         act_changes = database_changes_for_project_config_diff(project, changes)
@@ -262,10 +267,12 @@ class ProjectDiffTestCase(TestCase):
         exp_dicts = [
             {'object_type': ObjectType.PROJECT, 'object_pk': None, 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'name', 'object_dict': edit_config_dict},
-            {'object_type': ObjectType.UNIT, 'object_pk': 'location3', 'change_type': ChangeType.OBJ_REMOVED,
+            {'object_type': ObjectType.UNIT, 'object_pk': 'loc2', 'change_type': ChangeType.FIELD_EDITED,
+             'field_name': 'name', 'object_dict': {'name': 'location2_new_name', 'abbreviation': 'loc2'}},
+            {'object_type': ObjectType.UNIT, 'object_pk': 'loc3', 'change_type': ChangeType.OBJ_REMOVED,
              'field_name': None, 'object_dict': None},
-            {'object_type': ObjectType.UNIT, 'object_pk': 'location4', 'change_type': ChangeType.OBJ_ADDED,
-             'field_name': None, 'object_dict': {'name': 'location4', 'abbreviation': 'loc3'}},
+            {'object_type': ObjectType.UNIT, 'object_pk': 'loc4', 'change_type': ChangeType.OBJ_ADDED,
+             'field_name': None, 'object_dict': {'name': 'location3', 'abbreviation': 'loc4'}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'is_step_ahead',
              'object_dict': {'name': 'cases next week', 'type': 'discrete',
@@ -322,11 +329,14 @@ class ProjectDiffTestCase(TestCase):
         # Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, 'name', {'name': 'new project name', ...}]})
         self.assertEqual('new project name', project.name)
 
-        # Change(ObjectType.UNIT, 'location3', ChangeType.OBJ_REMOVED, None, None)
-        self.assertEqual(0, project.units.filter(name='location3').count())
+        #  Change(ObjectType.UNIT, 'loc2', ChangeType.FIELD_EDITED, 'name', {'name': 'location2_new_name'}),
+        self.assertEqual('location2_new_name', project.units.filter(abbreviation='loc2').first().name)
 
-        # Change(ObjectType.UNIT, 'location4', ChangeType.OBJ_ADDED, None, {'name': 'location4'})
-        self.assertEqual(1, project.units.filter(name='location4').count())
+        # Change(ObjectType.UNIT, 'loc3', ChangeType.OBJ_REMOVED, None, None)
+        self.assertEqual(0, project.units.filter(abbreviation='loc3').count())
+
+        # Change(ObjectType.UNIT, 'loc4', ChangeType.OBJ_ADDED, None, {'name': 'location4'})
+        self.assertEqual(1, project.units.filter(abbreviation='loc4').count())
 
         # Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None)
         # NB: queries work b/c # str is Date.isoformat(), the default for models.DateField
@@ -357,9 +367,13 @@ def _make_some_changes(edit_config_dict):
     # makes a useful variety of changes to edit_config_dict for testing
     edit_config_dict['name'] = 'new project name'  # edit project 'name'
 
-    location_3_dict = [target_dict for target_dict in edit_config_dict['units']
-                       if target_dict['name'] == 'location3'][0]
-    location_3_dict['name'] = 'location4'  # 'location3': remove and replace w/'location4'
+    unit_3_dict = [target_dict for target_dict in edit_config_dict['units']
+                   if target_dict['abbreviation'] == 'loc3'][0]
+    unit_3_dict['abbreviation'] = 'loc4'  # 'loc3': remove and replace w/'loc4'
+
+    unit_2_dict = [target_dict for target_dict in edit_config_dict['units']
+                   if target_dict['abbreviation'] == 'loc2'][0]
+    unit_2_dict['name'] = 'location2_new_name'  # edit 'name'
 
     tz_2011_10_02_dict = [target_dict for target_dict in edit_config_dict['timezeros']
                           if target_dict['timezero_date'] == '2011-10-02'][0]
@@ -386,8 +400,9 @@ def _make_some_changes(edit_config_dict):
     # - 'pct next week': wasted FIELD_EDITED and OBJ_REMOVED
     #
     # [Change(ObjectType.PROJECT,  None,              ChangeType.FIELD_EDITED,  'name',                 {'name': 'new project name', ...}]}),
-    #  Change(ObjectType.UNIT, 'location3',       ChangeType.OBJ_REMOVED,    None,                  None),
-    #  Change(ObjectType.UNIT, 'location4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'location4'}),
+    #  Change(ObjectType.UNIT, 'loc2',       ChangeType.FIELD_EDITED,   'name',                {'name': 'location2_new_name'}),
+    #  Change(ObjectType.UNIT, 'loc3',       ChangeType.OBJ_REMOVED,    None,                  None),
+    #  Change(ObjectType.UNIT, 'loc4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'location4'}),
     #  Change(ObjectType.TIMEZERO, '2011-10-02',      ChangeType.OBJ_REMOVED,    None,                  None),
     #  Change(ObjectType.TIMEZERO, '2011-10-22',      ChangeType.OBJ_ADDED,      None,                  {'timezero_date': '2011-10-22', ...}),
     #  Change(ObjectType.TIMEZERO, '2011-10-09',      ChangeType.FIELD_EDITED,  'data_version_date',    {'timezero_date': '2011-10-09', ...}),

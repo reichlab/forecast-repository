@@ -143,8 +143,9 @@ def project_config_diff(config_dict_1, config_dict_2):
     - 'targets': add, remove, edit
 
     Unit edits: fields:
-    - 'name': the Unit's pk. therefore editing this field effectively removes the existing Unit and adds a new
+    - 'abbreviation': the Unit's pk. therefore editing this field effectively removes the existing Unit and adds a new
         one to replace it
+    - editable fields: 'name'
 
     TimeZero edits: fields:
     - 'timezero_date': the TimeZero's pk. therefore editing this field effectively removes the existing TimeZero and
@@ -178,14 +179,27 @@ def project_config_diff(config_dict_1, config_dict_2):
             changes.append(Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, field_name, config_dict_2))
 
     # check for units added or removed
-    unit_names_1 = {unit_dict['name'] for unit_dict in config_dict_1['units']}
-    unit_names_2 = {unit_dict['name'] for unit_dict in config_dict_2['units']}
-    removed_loc_names = unit_names_1 - unit_names_2
-    added_loc_names = unit_names_2 - unit_names_1
-    changes.extend([Change(ObjectType.UNIT, name, ChangeType.OBJ_REMOVED, None, None)
-                    for name in removed_loc_names])
-    changes.extend([Change(ObjectType.UNIT, unit_dict['name'], ChangeType.OBJ_ADDED, None, unit_dict)
-                    for unit_dict in config_dict_2['units'] if unit_dict['name'] in added_loc_names])
+    unit_abbrevs_1 = {unit_dict['abbreviation'] for unit_dict in config_dict_1['units']}
+    unit_abbrevs_2 = {unit_dict['abbreviation'] for unit_dict in config_dict_2['units']}
+    removed_unit_abbrevs = unit_abbrevs_1 - unit_abbrevs_2
+    added_unit_abbrevs = unit_abbrevs_2 - unit_abbrevs_1
+    changes.extend([Change(ObjectType.UNIT, abbrev, ChangeType.OBJ_REMOVED, None, None)
+                    for abbrev in removed_unit_abbrevs])
+    changes.extend([Change(ObjectType.UNIT, unit_dict['abbreviation'], ChangeType.OBJ_ADDED, None, unit_dict)
+                    for unit_dict in config_dict_2['units'] if unit_dict['abbreviation'] in added_unit_abbrevs])
+
+    # check for unit field edits
+    unit_abbrev_1_to_dict = {unit_dict['abbreviation']: unit_dict for unit_dict in config_dict_1['units']}
+    unit_abbrev_2_to_dict = {unit_dict['abbreviation']: unit_dict for unit_dict in config_dict_2['units']}
+    for unit_abbrev in unit_abbrevs_1 & unit_abbrevs_2:
+        for field_name in ['name']:
+            if (field_name in unit_abbrev_1_to_dict[unit_abbrev]) and \
+                    (field_name in unit_abbrev_2_to_dict[unit_abbrev]) and \
+                    (unit_abbrev_2_to_dict[unit_abbrev][field_name] != '') and \
+                    (unit_abbrev_1_to_dict[unit_abbrev][field_name] != unit_abbrev_2_to_dict[unit_abbrev][field_name]):
+                # field_name edited
+                changes.append(Change(ObjectType.UNIT, unit_abbrev, ChangeType.FIELD_EDITED, field_name,
+                                      unit_abbrev_2_to_dict[unit_abbrev]))  # use 2nd dict in case other changes
 
     # check for timezeros added or removed
     timezero_dates_1 = {timezero_dict['timezero_date'] for timezero_dict in config_dict_1['timezeros']}
@@ -217,7 +231,7 @@ def project_config_diff(config_dict_1, config_dict_2):
                     (tz_date_1_to_dict[timezero_date][field_name] != tz_date_2_to_dict[timezero_date][field_name]):
                 # field_name edited
                 changes.append(Change(ObjectType.TIMEZERO, timezero_date, ChangeType.FIELD_EDITED, field_name,
-                                      tz_date_2_to_dict[timezero_date]))
+                                      tz_date_2_to_dict[timezero_date]))  # use 2nd dict in case other changes
 
     # check for targets added or removed
     target_names_1 = {target_dict['name'] for target_dict in config_dict_1['targets']}
@@ -413,9 +427,9 @@ def object_for_change(project, change, objects_to_save):
         found_object = project
     elif change.object_type == ObjectType.UNIT:
         found_objects_to_save = [the_obj for the_obj in objects_to_save
-                                 if (type(the_obj) == Unit) and (the_obj.name == change.object_pk)]
+                                 if (type(the_obj) == Unit) and (the_obj.abbreviation == change.object_pk)]
         found_object = found_objects_to_save[0] if found_objects_to_save \
-            else project.units.filter(name=change.object_pk).first()
+            else project.units.filter(abbreviation=change.object_pk).first()
     elif change.object_type == ObjectType.TARGET:
         found_objects_to_save = [the_obj for the_obj in objects_to_save
                                  if (type(the_obj) == Target) and (the_obj.name == change.object_pk)]
