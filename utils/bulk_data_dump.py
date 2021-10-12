@@ -124,7 +124,7 @@ def model_field_names(clazz):
     return {
         Project: ['id', 'core_data', 'description', 'home_url', 'is_public', 'logo_url', 'name', 'time_interval_type',
                   'visualization_y_label'],
-        Unit: ['id', 'project_id', 'name'],
+        Unit: ['id', 'project_id', 'abbreviation', 'name'],
         Target: ['id', 'project_id', 'description', 'is_step_ahead', 'name', 'step_ahead_increment', 'type', 'unit'],
         TimeZero: ['id', 'project_id', 'data_version_date', 'is_season_start', 'season_name', 'timezero_date'],
         ForecastModel: ['id', 'project_id', 'abbreviation', 'aux_data_url', 'citation', 'contributors', 'description',
