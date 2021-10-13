@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 
 @click.command()
 def post_018_migrate_app():
-    udpate_units_covid()
-    udpate_units_docs()
+    update_units_covid()
+    update_units_docs()
 
 
-def udpate_units_covid():
+def update_units_covid():
     # change the COVID-19 Forecasts project's Unit.names to be the official ones from locations.csv. (abbreviations are
     # already correct from the migration, which copied name -> abbreviation). we use the naive way: iterate through the
     # 3K+ locations in the csv file and set unit name - 1000s of queries
     project = get_object_or_404(Project, name='COVID-19 Forecasts')
-    csv_file = '/Users/cornell/IdeaProjects/covid19-forecast-hub/data-locations/locations.csv'
+    csv_file = 'locations.csv'
     with open(csv_file, 'r') as fp:
         csv_reader = csv.reader(fp, delimiter=',')
         next(csv_reader)  # skip header
@@ -36,7 +36,7 @@ def udpate_units_covid():
             unit.save()
 
 
-def udpate_units_docs():
+def update_units_docs():
     # change the docs projects' units to match tests/projects/docs-project.json
     project = get_object_or_404(Project, name='Docs Example Project')
     for name, abbrev in [("location1", "loc1"),
