@@ -1,5 +1,6 @@
 import csv
 import logging
+from pathlib import Path
 
 import click
 import django
@@ -26,7 +27,7 @@ def update_units_covid():
     # already correct from the migration, which copied name -> abbreviation). we use the naive way: iterate through the
     # 3K+ locations in the csv file and set unit name - 1000s of queries
     project = get_object_or_404(Project, name='COVID-19 Forecasts')
-    csv_file = 'locations.csv'
+    csv_file = Path(__file__).parent / 'locations.csv'
     with open(csv_file, 'r') as fp:
         csv_reader = csv.reader(fp, delimiter=',')
         next(csv_reader)  # skip header
