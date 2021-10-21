@@ -187,7 +187,7 @@ def job_cloud_file(job_pk):
             yield job, cloud_file_fp
 
             # __exit__(). NB: does NOT do: `job.status = Job.SUCCESS` - that's left to the caller
-            logger.debug(f"job_cloud_file(): Done. job={job}")
+            logger.debug(f"job_cloud_file(): 4/4 done. job={job}")
         except JobTimeoutException as jte:
             job.status = Job.TIMEOUT
             job.save()
