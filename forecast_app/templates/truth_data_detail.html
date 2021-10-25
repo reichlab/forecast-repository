@@ -29,7 +29,7 @@
                 <tr>
                     <th># Batches:</th>
                     <td>
-                        {% if is_truth_data_loaded %}
+                        {% if batches|length %}
                             {{ batches|length }}
                         {% else %}
                             <small class="text-muted">(No truth data)</small>
@@ -39,7 +39,7 @@
                 <tr>
                     <th>Oracle model:</th>
                     <td>
-                        {% if is_truth_data_loaded %}
+                        {% if batches|length %}
                             <a href="{% url 'model-detail' oracle_model.pk %}">{{ oracle_model.abbreviation }}</a>
                         {% else %}
                             <small class="text-muted">(No truth data)</small>
@@ -76,7 +76,7 @@
             </a>
         {% endif %}
     </h2>
-    {% if is_truth_data_loaded %}
+    {% if batches|length %}
         <table class="table table-striped">
             <thead>
             <tr>

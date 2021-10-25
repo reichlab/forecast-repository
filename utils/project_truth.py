@@ -81,6 +81,16 @@ def truth_data_qs(project):
 
 def is_truth_data_loaded(project):
     """
+    NB: slow for large projects due to the generated query, which looks like:
+
+        SELECT (1) AS "a"
+        FROM "forecast_app_predictionelement"
+                 INNER JOIN "forecast_app_forecast"
+                            ON ("forecast_app_predictionelement"."forecast_id" = "forecast_app_forecast"."id")
+        WHERE "forecast_app_forecast"."forecast_model_id" = 464
+        LIMIT 1;
+
+
     :return: True if `project` has truth data loaded via load_truth_data(). Actually, returns the count, which acts as a
         boolean.
     """

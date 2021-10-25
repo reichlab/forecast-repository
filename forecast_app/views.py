@@ -864,7 +864,6 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         context['units'] = project.units.all()  # datatable does order by
         context['target_groups'] = target_groups
         context['num_targets'] = project.targets.count()
-        context['is_truth_data_loaded'] = is_truth_data_loaded(project)
 
         # num_batches, latest_batch_source, latest_batch_timezero:
         context['truth_batch_info'] = len(batches), batches[-1][0] if batches else None, \
@@ -1224,7 +1223,6 @@ def truth_detail(request, project_pk):
         request,
         'truth_data_detail.html',
         context={'project': project,
-                 'is_truth_data_loaded': is_truth_data_loaded(project),
                  'oracle_model': oracle_model_for_project(project),
                  'batches': truth_batch_summary_table(project),  # 3-tuples: (source, issued_at, num_forecasts)
                  'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
