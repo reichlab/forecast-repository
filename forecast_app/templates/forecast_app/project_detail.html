@@ -123,7 +123,7 @@
                 <tr>
                     <th>Truth Data:</th>
                     <td>
-                        {% if is_truth_data_loaded %}
+                        {% if truth_batch_info.0 %}
                             {# show a link to the truth detail plus batch count and latest batch info #}
                             <a href="{% url 'truth-data-detail' project.pk %}">
                                 {% if truth_batch_info.1 %} {{ truth_batch_info.1 }} {% else %}(no source){% endif %}
