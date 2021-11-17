@@ -24,6 +24,7 @@ class ForecastModel(models.Model):
                        ('cc0-1.0', 'Creative Commons Zero v1.0 Universal'),
                        ('cc-by-nc-4.0', 'Creative Commons Attribution Non-Commercial 4.0'),
                        ('cc-by-4.0', 'Creative Commons Attribution 4.0'),
+                       ('cc-by-nc-nd-4.0', 'Creative Commons Attribution Non-Commercial No-Derivatives 4.0'),
                        ('cc-by-sa-4.0', 'Creative Commons Attribution Share Alike 4.0'),
                        ('wtfpl', 'Do What The F*ck You Want To Public License'),
                        ('ecl-2.0', 'Educational Community License v2.0'),
