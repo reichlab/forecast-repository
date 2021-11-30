@@ -145,7 +145,7 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
 
     Recall the seven cdc-project.json targets and their types:
     -------------------------+-------------------------------+-----------+-----------+---------------------
-    Target name              | target_type                   | unit      | data_type | step_ahead_increment
+    Target name              | target_type                   | unit      | data_type | numeric_horizon
     -------------------------+-------------------------------+-----------+-----------+---------------------
     "Season onset"           | Target.NOMINAL_TARGET_TYPE    | "week"    | date      | n/a
     "Season peak week"       | Target.DATE_TARGET_TYPE       | "week"    | text      | n/a

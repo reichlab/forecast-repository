@@ -6,6 +6,7 @@ from django.db import transaction
 
 from forecast_app.models import Unit, Target, PredictionElement
 from forecast_app.models.project import TimeZero
+from forecast_app.models.target import reference_date_type_for_name
 from utils.project import create_project_from_json, _validate_and_create_units, _validate_and_create_targets, \
     _validate_and_create_timezeros
 from utils.project_truth import truth_data_qs
@@ -155,7 +156,7 @@ def project_config_diff(config_dict_1, config_dict_2):
     Target edits: fields:
     - 'name': the Target's pk. therefore editing this field effectively removes the existing Target and adds a new one
         to replace it
-    - editable fields: 'description', 'is_step_ahead', 'step_ahead_increment', 'unit'
+    - editable fields: 'description', 'is_step_ahead', 'numeric_horizon', 'outcome_variable'
     - 'type': Target type cannot be edited because it might invalidate existing forecasts. therefore editing this field
         effectively removes the existing Target and adds a new one to replace it
     - 'range': similarly cannot be edited due to possible forecast invalidation
@@ -247,7 +248,7 @@ def project_config_diff(config_dict_1, config_dict_2):
     # add)
     targ_name_1_to_dict = {target_dict['name']: target_dict for target_dict in config_dict_1['targets']}
     targ_name_2_to_dict = {target_dict['name']: target_dict for target_dict in config_dict_2['targets']}
-    editable_fields = ['description', 'is_step_ahead', 'step_ahead_increment', 'unit']
+    editable_fields = ['description', 'outcome_variable', 'is_step_ahead', 'numeric_horizon', 'reference_date_type']
     non_editable_fields = ['type', 'range', 'cats']
     for target_name in target_names_1 & target_names_2:  # target_names_both
         for field_name in editable_fields + non_editable_fields:
@@ -401,9 +402,14 @@ def execute_project_config_diff(project, changes):
             attr_value = None if (change.change_type == ChangeType.FIELD_REMOVED) \
                                  or (change.object_dict[change.field_name] == '') \
                 else change.object_dict[change.field_name]
+
+            # handle the special case of 'reference_date_type', which needs conversion from str to int
+            if (change.change_type == ChangeType.FIELD_EDITED) and (change.field_name == 'reference_date_type'):
+                attr_value = reference_date_type_for_name(change.object_dict[change.field_name]).id
+
             setattr(the_obj, change.field_name, attr_value)
             # NB: do not save here b/c multiple FIELD_* changes might be required together to be valid, e.g., when
-            # changing Target.is_step_ahead to False, one must remove Target.step_ahead_increment (i.e., set it to None)
+            # changing Target.is_step_ahead to False, one must remove Target.numeric_horizon (i.e., set it to None)
             objects_to_save.append(the_obj)
     for object_to_save in objects_to_save:
         try:

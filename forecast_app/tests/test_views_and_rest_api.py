@@ -648,8 +648,8 @@ class ViewsTestCase(TestCase):
 
         target_1wk = self.public_project.targets.get(name='1 wk ahead')
         response = self.client.get(reverse('api-target-detail', args=[target_1wk.pk]))
-        self.assertEqual(['id', 'url', 'name', 'type', 'description', 'is_step_ahead', 'step_ahead_increment', 'unit',
-                          'cats'], list(response.data))
+        self.assertEqual(['id', 'url', 'name', 'type', 'description', 'outcome_variable', 'is_step_ahead',
+                          'numeric_horizon', 'reference_date_type', 'cats'], list(response.data))
 
         response = self.client.get(reverse('api-timezero-detail', args=[self.public_tz1.pk]))
         self.assertEqual(['id', 'url', 'timezero_date', 'data_version_date', 'is_season_start'],
@@ -741,29 +741,31 @@ class ViewsTestCase(TestCase):
         # test 'api-target-detail' | 'pct next week'
         pct_next_week_target = project.targets.filter(name='pct next week').first()
         response = self.client.get(reverse('api-target-detail', args=[pct_next_week_target.pk]))
-        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit',
-                          'range', 'cats'}, set(response.data))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'outcome_variable', 'is_step_ahead',
+                          'numeric_horizon', 'reference_date_type', 'range', 'cats'}, set(response.data))
 
         # test 'api-target-detail' | 'cases next week'
         cases_next_week_target = project.targets.filter(name='cases next week').first()
         response = self.client.get(reverse('api-target-detail', args=[cases_next_week_target.pk]))
-        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'step_ahead_increment', 'unit',
-                          'range', 'cats'}, set(response.data))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'outcome_variable', 'is_step_ahead',
+                          'numeric_horizon', 'reference_date_type', 'range', 'cats'}, set(response.data))
 
         # test 'api-target-detail' | 'season severity'
         season_severity_target = project.targets.filter(name='season severity').first()
         response = self.client.get(reverse('api-target-detail', args=[season_severity_target.pk]))
-        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'cats'}, set(response.data))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'outcome_variable', 'is_step_ahead', 'cats'},
+                         set(response.data))
 
         # test 'api-target-detail' | 'above baseline'
         above_baseline_target = project.targets.filter(name='above baseline').first()
         response = self.client.get(reverse('api-target-detail', args=[above_baseline_target.pk]))
-        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead'}, set(response.data))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'outcome_variable', 'is_step_ahead'},
+                         set(response.data))
 
         # test 'api-target-detail' | 'Season peak week'
         season_peak_week_target = project.targets.filter(name='Season peak week').first()
         response = self.client.get(reverse('api-target-detail', args=[season_peak_week_target.pk]))
-        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'is_step_ahead', 'unit', 'cats'},
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'outcome_variable', 'is_step_ahead', 'cats'},
                          set(response.data))
 
 
@@ -778,13 +780,14 @@ class ViewsTestCase(TestCase):
         pct_next_week_target = project.targets.filter(name='pct next week').first()
         pct_next_week_serializer = TargetSerializer(pct_next_week_target, context={'request': request})
         # -> <class 'forecast_app.serializers.TargetSerializer'>
-        self.assertEqual({'name', 'id', 'step_ahead_increment', 'url', 'is_step_ahead', 'range', 'description', 'unit',
-                          'type', 'cats'}, set(pct_next_week_serializer.data))
+        self.assertEqual({'id', 'url', 'name', 'description', 'type', 'outcome_variable', 'is_step_ahead',
+                          'numeric_horizon', 'reference_date_type', 'range', 'cats'},
+                         set(pct_next_week_serializer.data))
         self.assertEqual([0.0, 100.0], pct_next_week_serializer.data['range'])  # sanity-check
 
         season_peak_week_target = project.targets.filter(name='Season peak week').first()
         season_peak_week_serializer = TargetSerializer(season_peak_week_target, context={'request': request})
-        self.assertEqual({'description', 'is_step_ahead', 'url', 'name', 'type', 'id', 'cats', 'unit'},
+        self.assertEqual({'description', 'is_step_ahead', 'url', 'name', 'type', 'id', 'cats', 'outcome_variable'},
                          set(season_peak_week_serializer.data))
         self.assertEqual(f"http://testserver/api/target/{season_peak_week_serializer.data['id']}/",
                          season_peak_week_serializer.data['url'])  # sanity-check
@@ -1610,7 +1613,7 @@ class ViewsTestCase(TestCase):
 
     def test_forecast_ids_in_target_group(self):
         self.assertEqual({self.public_forecast.pk},
-                         set(forecast_ids_in_target_group(self.public_project, 'wk ahead')))
+                         set(forecast_ids_in_target_group(self.public_project, 'week ahead ILI percent')))
 
 
     #

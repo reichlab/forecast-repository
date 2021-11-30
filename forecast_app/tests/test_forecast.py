@@ -221,7 +221,7 @@ class ForecastTestCase(TestCase):
         # test round trip. ignore meta, but spot-check it first
         out_meta = json_io_dict_out['meta']
         self.assertEqual({'targets', 'forecast', 'units'}, set(out_meta.keys()))
-        self.assertEqual({'cats', 'unit', 'name', 'is_step_ahead', 'type', 'description', 'id', 'url'},
+        self.assertEqual({'cats', 'outcome_variable', 'name', 'is_step_ahead', 'type', 'description', 'id', 'url'},
                          set(out_meta['targets'][0].keys()))
         self.assertEqual({'time_zero', 'forecast_model', 'created_at', 'issued_at', 'notes', 'forecast_data', 'source',
                           'id', 'url'},

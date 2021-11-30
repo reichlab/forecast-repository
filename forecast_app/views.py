@@ -1025,11 +1025,11 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
                                 for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
 
-        # create sorted found_targets by: 1) group_name, then by: 2) step_ahead_increment if is_step_ahead. o/w by name
+        # create sorted found_targets by: 1) group_name, then by: 2) numeric_horizon if is_step_ahead. o/w by name
         found_targets = []
         for group_name, targets in target_groups:  # already sorted by group_name
             found_targets.extend(sorted(targets, key=lambda
-                target: target.step_ahead_increment if target.is_step_ahead else target.name))
+                target: target.numeric_horizon if target.is_step_ahead else target.name))
 
         # set search_unit, search_target, and data_rows_* if a query requested
         search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \

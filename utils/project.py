@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-import re
 from collections import defaultdict
 from itertools import groupby
 from pathlib import Path
@@ -12,6 +11,7 @@ from django.db import transaction
 
 from forecast_app.models import Project, Unit, Target, Forecast, ForecastModel, ForecastMetaUnit, ForecastMetaTarget
 from forecast_app.models.project import TimeZero
+from forecast_app.models.target import reference_date_type_for_name, reference_date_type_for_id
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -222,9 +222,9 @@ def _validate_and_create_timezeros(project, project_dict, is_validate_only=False
 
 def _validate_and_create_targets(project, project_dict, is_validate_only=False):
     targets = []
-    type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
     for target_dict in project_dict['targets']:
-        type_name = _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
+        # raises RuntimeError if invalid:
+        target_type_int, reference_date_type_int = _validate_target_dict(target_dict)
         if is_validate_only:
             continue
 
@@ -232,18 +232,17 @@ def _validate_and_create_targets(project, project_dict, is_validate_only=False):
         # so that Targets succeed only if others do too
         with transaction.atomic():
             model_init = {'project': project,
-                          'type': type_name_to_type_int[type_name],
+                          'type': target_type_int,
                           'name': target_dict['name'],
                           'description': target_dict['description'],
-                          'is_step_ahead': target_dict['is_step_ahead']}  # required keys
+                          'outcome_variable': target_dict['outcome_variable'],
+                          'is_step_ahead': target_dict['is_step_ahead'],
+                          }  # required keys
 
             # add is_step_ahead
             if target_dict['is_step_ahead']:
-                model_init['step_ahead_increment'] = target_dict['step_ahead_increment']
-
-            # add unit
-            if 'unit' in target_dict:
-                model_init['unit'] = target_dict['unit']
+                model_init['numeric_horizon'] = target_dict['numeric_horizon']
+                model_init['reference_date_type'] = reference_date_type_int
 
             # instantiate the new Target, first checking for an existing one
             existing_target = project.targets.filter(name=target_dict['name']).first()
@@ -269,11 +268,19 @@ def _validate_and_create_targets(project, project_dict, is_validate_only=False):
     return targets
 
 
-def _validate_target_dict(target_dict, type_name_to_type_int):
+def _validate_target_dict(target_dict):
+    """
+    Validates target_dict
+    :param target_dict:
+    :return: 2-tuple: (target_type_int, reference_date_type_int_or_None). latter is None if not is_step_ahead
+    :raises RuntimeError: if target_dict is invalid
+    """
+    type_name_to_int = {type_name: type_int for type_int, type_name in Target.TYPE_CHOICES}
+
     # check for keys required by all target types. optional keys are tested below
     all_keys = set(target_dict.keys())
-    tested_keys = all_keys - {'id', 'url', 'unit', 'step_ahead_increment', 'range', 'cats'}  # optional keys
-    field_name_to_type = {'name': str, 'description': str, 'type': str, 'is_step_ahead': bool}
+    tested_keys = all_keys - {'id', 'url', 'numeric_horizon', 'reference_date_type', 'range', 'cats'}  # optional keys
+    field_name_to_type = {'name': str, 'description': str, 'type': str, 'outcome_variable': str, 'is_step_ahead': bool}
     expected_keys = set(field_name_to_type.keys())
 
     if tested_keys != expected_keys:
@@ -293,7 +300,7 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
 
     # validate type
     type_name = target_dict['type']
-    valid_target_types = [type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES]
+    valid_target_types = type_name_to_int.keys()
     if type_name not in valid_target_types:
         raise RuntimeError(f"Invalid type_name={type_name}. valid_target_types={valid_target_types} . "
                            f"target_dict={target_dict}")
@@ -302,55 +309,44 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
     if target_dict['is_step_ahead'] is None:
         raise RuntimeError(f"is_step_ahead not found but is required")
 
-    # check for step_ahead_increment required if is_step_ahead
-    if target_dict['is_step_ahead'] and ('step_ahead_increment' not in target_dict):
-        raise RuntimeError(f"step_ahead_increment not found but is required when is_step_ahead is passed. "
-                           f"target_dict={target_dict}")
+    # check for numeric_horizon and reference_date_type required if is_step_ahead
+    if target_dict['is_step_ahead'] and (
+            (('numeric_horizon' not in target_dict) or (target_dict['numeric_horizon'] is None)) or
+            (('reference_date_type' not in target_dict)) or (target_dict['reference_date_type'] is None)):
+        raise RuntimeError(f"`numeric_horizon` or `reference_date_type` not found but is required when "
+                           f"`is_step_ahead` is passed. target_dict={target_dict}")
 
-    # check required, optional, and invalid keys by target type. 3 cases: 'unit', 'range', 'cats'
-    type_int = type_name_to_type_int[type_name]
+    # validate reference_date_type if is_step_ahead
+    reference_date_type = target_dict['reference_date_type'] if target_dict['is_step_ahead'] else None
+    ref_date_type_int = reference_date_type_for_name(reference_date_type).id if reference_date_type else None
+    if target_dict['is_step_ahead'] and (ref_date_type_int is None):
+        valid_ref_date_types = [rdt_name for rdt_id, rdt_name in Target.REF_DATE_TYPE_CHOICES]
+        raise RuntimeError(f"invalid reference_date_type={reference_date_type}. "
+                           f"valid_ref_date_types={valid_ref_date_types} . target_dict={target_dict}")
 
-    # 1) test optional 'unit'. three cases a-c follow
+    # check required, optional, and invalid keys by target type. 2 cases: 'range', 'cats'
+    type_int = type_name_to_int[type_name]
 
-    # 1a) required but not passed: ['continuous', 'discrete', 'date']
-    if ('unit' not in all_keys) and \
-            (type_int in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
-        raise RuntimeError(f"'unit' not passed but is required for type_name={type_name}")
+    # 1) test optional 'range'. three cases a-c follow
 
-    # 1b) optional: ok to pass or not pass: []: no need to validate
+    # 1a) required but not passed: []: no need to validate
 
-    # 1c) invalid but passed: ['nominal', 'binary']
-    if ('unit' in all_keys) and \
-            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE]):
-        raise RuntimeError(f"'unit' passed but is invalid for type_name={type_name}")
+    # 1b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
-    # test that unit, if passed to a Target.DATE_TARGET_TYPE, is valid
-    if ('unit' in all_keys) and (type_int == Target.DATE_TARGET_TYPE) and \
-            (target_dict['unit'] not in Target.DATE_UNITS):
-        raise RuntimeError(f"'unit' passed for date target but was not valid. unit={target_dict['unit']!r}, "
-                           f"valid_date_units={Target.DATE_UNITS!r}")
+    # 1c) invalid but passed: ['nominal', 'binary', 'date']
+    if ('range' in all_keys) and (type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE,
+                                               Target.DATE_TARGET_TYPE]):
+        raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
 
-    # 2) test optional 'range'. three cases a-c follow
+    # 2) test optional 'cats'. three cases a-c follow
 
-    # 2a) required but not passed: []: no need to validate
+    # 2a) required but not passed: ['nominal', 'date']
+    if ('cats' not in all_keys) and (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
+        raise RuntimeError(f"'cats' not passed but is required for type_name='{type_name}'")
 
     # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
-    # 2c) invalid but passed: ['nominal', 'binary', 'date']
-    if ('range' in all_keys) and (
-            type_int in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
-        raise RuntimeError(f"'range' passed but is invalid for type_name={type_name}")
-
-    # 3) test optional 'cats'. three cases a-c follow
-
-    # 3a) required but not passed: ['nominal', 'date']
-    if ('cats' not in all_keys) and \
-            (type_int in [Target.NOMINAL_TARGET_TYPE, Target.DATE_TARGET_TYPE]):
-        raise RuntimeError(f"'cats' not passed but is required for type_name='{type_name}'")
-
-    # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
-
-    # 3c) invalid but passed: ['binary']
+    # 2c) invalid but passed: ['binary']
     if ('cats' in all_keys) and (type_int == Target.BINARY_TARGET_TYPE):
         raise RuntimeError(f"'cats' passed but is invalid for type_name={type_name}")
 
@@ -394,7 +390,7 @@ def _validate_target_dict(target_dict, type_name_to_type_int):
             raise RuntimeError(f"the maximum cat ({max(cats)}) was not less than the range's upper bound "
                                f"({max(the_range)})")
 
-    return type_name
+    return type_int, ref_date_type_int
 
 
 def _create_project(project_dict, owner):
@@ -432,39 +428,35 @@ def _create_project(project_dict, owner):
 def group_targets(targets):
     """
     A utility for the `forecast_app.views.ProjectDetailView` class that groups related targets in `targets`. Only groups
-    is_step_ahead ones, treating others as their own group. Uses a simple algorithm to determine relatedness, one that
-    assumes that the actual step_ahead_increment is in the related targets' names. For example, "0 day ahead cum death"
-    (step_ahead_increment=0) and "1 day ahead cum death" (step_ahead_increment=1) would be grouped together. Similar are
-    "1 wk ahead" and "2 wk ahead", and "1_biweek_ahead" and "2_biweek_ahead".
+    is_step_ahead targets, treating others as their own group. There are two pieces:
+
+    1. how to decide grouped Targets:
+      is_step_ahead=False: each Target is its own group
+      is_step_ahead=True: group Targets using the 2-tuple: (Target.reference_date_type, Target.outcome_variable)
+
+    2. how to calculate each group_name (`_group_name_for_target()`):
+      is_step_ahead=False: Target.outcome_variable
+      is_step_ahead=True: Target.reference_date_type.abbreviation + " ahead " + Target.outcome_variable
 
     :param targets: list of Targets from the same Project
-    :return: a dict that maps group_name -> group_targets. for 1-target groups, group_name=target.name
+    :return: a dict that maps group_name -> group_targets
     """
-    # approach: split target names using a few hopefully-common characters, find the index of each one's
-    # step_ahead_increment, remove that item from the split, and group based on the remaining items in the split. use
-    # the split sans step_ahead_increment as the group name
-    name_type_unit_to_targets = defaultdict(list)  # maps: (group_name, target_type, target_unit) -> target_list
+    group_name_to_targets = defaultdict(list)  # maps: group_name -> target_list
     for target in targets:
         group_name = _group_name_for_target(target) if target.is_step_ahead else target.name
-        name_type_unit_to_targets[(group_name, target.type, target.unit)].append(target)
-
-    # create return value, replacing 3-tuple keys with unique strings. must handle case of same group_name but different
-    # target_type or target_unit. by convention we add an integer to the end to differentiate. first build a counter
-    # dict to help manage duplicate names
-    group_name_to_count = defaultdict(int)
-    for group_name, _, _ in name_type_unit_to_targets.keys():
-        group_name_to_count[group_name] += 1
-
-    group_name_to_targets = {}  # return value. filled next
-    for (group_name, target_type, target_unit), target_list in name_type_unit_to_targets.items():
-        # if group_name in name_type_unit_to_targets:  # duplicate
-        if group_name_to_count[group_name] != 1:  # duplicate
-            new_group_name = f'{group_name} {group_name_to_count[group_name]}'
-            group_name_to_count[group_name] -= 1  # for next one
-            group_name_to_targets[new_group_name] = target_list
-        else:  # no duplicate
-            group_name_to_targets[group_name] = target_list
+        group_name_to_targets[group_name].append(target)
     return group_name_to_targets
+
+
+def _group_name_for_target(target):
+    """
+    :param target: a Target where is_step_ahead = True
+    :return: group name as documented in `group_targets()`
+    """
+    if (not target.is_step_ahead) or (target.reference_date_type is None):
+        return target.outcome_variable
+    else:
+        return reference_date_type_for_id(target.reference_date_type).abbreviation + " ahead " + target.outcome_variable
 
 
 def targets_for_group_name(project, group_name):
@@ -476,20 +468,6 @@ def targets_for_group_name(project, group_name):
     :return: list of Targets in `project` matching `group_name`
     """
     return [target for target in project.targets.all() if _group_name_for_target(target) == group_name]
-
-
-def _group_name_for_target(target):
-    split = list(filter(None, re.split(r'[ _\-]+', target.name)))  # our target naming convention
-    if len(split) == 1:
-        return target.name
-    elif str(target.step_ahead_increment) not in split:
-        return target.name
-    else:
-        try:
-            split.remove(str(target.step_ahead_increment))
-            return ' '.join(split)  # by convention we use ' ' for the group name
-        except ValueError:  # index() failed
-            return target.name
 
 
 #

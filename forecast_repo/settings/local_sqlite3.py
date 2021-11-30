@@ -57,3 +57,11 @@ RQ_QUEUES = {
 #
 
 INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # at top, before 'django.contrib.staticfiles'
+
+
+#
+# ---- other config ----
+#
+
+# Allow all host headers
+ALLOWED_HOSTS = ['testserver', '127.0.0.1']  # to avoid local error: "Invalid HTTP_HOST header"

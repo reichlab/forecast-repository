@@ -19217,8 +19217,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 0,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 0,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1895,
@@ -19227,8 +19228,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 0,
-      "unit": "incident deaths"
+      "numeric_horizon": 0,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1896,
@@ -19237,8 +19239,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 0,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 0,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1897,
@@ -19247,8 +19250,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 1,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1898,
@@ -19257,8 +19261,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
-      "unit": "incident deaths"
+      "numeric_horizon": 1,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1899,
@@ -19267,8 +19272,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 1,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1900,
@@ -19277,8 +19283,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 1,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1901,
@@ -19287,8 +19294,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
-      "unit": "incident deaths"
+      "numeric_horizon": 1,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1902,
@@ -19297,8 +19305,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 10,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 10,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1903,
@@ -19307,8 +19316,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 10,
-      "unit": "incident deaths"
+      "numeric_horizon": 10,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1904,
@@ -19317,8 +19327,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 10,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 10,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1905,
@@ -19327,8 +19338,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 10,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 10,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1906,
@@ -19337,8 +19349,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 10,
-      "unit": "incident deaths"
+      "numeric_horizon": 10,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1907,
@@ -19347,8 +19360,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 100,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 100,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1908,
@@ -19357,8 +19371,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 100,
-      "unit": "incident deaths"
+      "numeric_horizon": 100,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1909,
@@ -19367,8 +19382,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 100,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 100,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1910,
@@ -19377,8 +19393,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 101,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 101,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1911,
@@ -19387,8 +19404,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 101,
-      "unit": "incident deaths"
+      "numeric_horizon": 101,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1912,
@@ -19397,8 +19415,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 101,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 101,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1913,
@@ -19407,8 +19426,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 102,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 102,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1914,
@@ -19417,8 +19437,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 102,
-      "unit": "incident deaths"
+      "numeric_horizon": 102,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1915,
@@ -19427,8 +19448,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 102,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 102,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1916,
@@ -19437,8 +19459,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 103,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 103,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2532,
@@ -19447,8 +19470,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 1,
-      "unit": "incident case"
+      "numeric_horizon": 1,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2533,
@@ -19457,8 +19481,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 2,
-      "unit": "incident case"
+      "numeric_horizon": 2,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2534,
@@ -19467,8 +19492,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 3,
-      "unit": "incident case"
+      "numeric_horizon": 3,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2535,
@@ -19477,8 +19503,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 4,
-      "unit": "incident case"
+      "numeric_horizon": 4,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2536,
@@ -19487,8 +19514,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 5,
-      "unit": "incident case"
+      "numeric_horizon": 5,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2537,
@@ -19497,8 +19525,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 6,
-      "unit": "incident case"
+      "numeric_horizon": 6,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2538,
@@ -19507,8 +19536,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 7,
-      "unit": "incident case"
+      "numeric_horizon": 7,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 2539,
@@ -19517,8 +19547,9 @@
       "type": "continuous",
       "description": "One- to eight-week ahead forecasts will be defined as the number of incident cases for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 8,
-      "unit": "incident case"
+      "numeric_horizon": 8,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident cases"
     },
     {
       "id": 1917,
@@ -19527,8 +19558,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 103,
-      "unit": "incident deaths"
+      "numeric_horizon": 103,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1918,
@@ -19537,8 +19569,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 103,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 103,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1919,
@@ -19547,8 +19580,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 104,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 104,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1920,
@@ -19557,8 +19591,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 104,
-      "unit": "incident deaths"
+      "numeric_horizon": 104,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1921,
@@ -19567,8 +19602,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 104,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 104,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1922,
@@ -19577,8 +19613,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 105,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 105,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1923,
@@ -19587,8 +19624,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 105,
-      "unit": "incident deaths"
+      "numeric_horizon": 105,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1924,
@@ -19597,8 +19635,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 105,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 105,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1925,
@@ -19607,8 +19646,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 106,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 106,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1926,
@@ -19617,8 +19657,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 106,
-      "unit": "incident deaths"
+      "numeric_horizon": 106,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1927,
@@ -19627,8 +19668,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 106,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 106,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1928,
@@ -19637,8 +19679,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 107,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 107,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1929,
@@ -19647,8 +19690,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 107,
-      "unit": "incident deaths"
+      "numeric_horizon": 107,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1930,
@@ -19657,8 +19701,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 107,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 107,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1931,
@@ -19667,8 +19712,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 108,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 108,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1932,
@@ -19677,8 +19723,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 108,
-      "unit": "incident deaths"
+      "numeric_horizon": 108,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1933,
@@ -19687,8 +19734,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 108,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 108,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1934,
@@ -19697,8 +19745,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 109,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 109,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1935,
@@ -19707,8 +19756,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 109,
-      "unit": "incident deaths"
+      "numeric_horizon": 109,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1936,
@@ -19717,8 +19767,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 109,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 109,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1937,
@@ -19727,8 +19778,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 11,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 11,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1938,
@@ -19737,8 +19789,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 11,
-      "unit": "incident deaths"
+      "numeric_horizon": 11,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1939,
@@ -19747,8 +19800,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 11,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 11,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1940,
@@ -19757,8 +19811,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 11,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 11,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1941,
@@ -19767,8 +19822,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 11,
-      "unit": "incident deaths"
+      "numeric_horizon": 11,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1942,
@@ -19777,8 +19833,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 110,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 110,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1943,
@@ -19787,8 +19844,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 110,
-      "unit": "incident deaths"
+      "numeric_horizon": 110,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1944,
@@ -19797,8 +19855,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 110,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 110,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1945,
@@ -19807,8 +19866,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 111,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 111,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1946,
@@ -19817,8 +19877,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 111,
-      "unit": "incident deaths"
+      "numeric_horizon": 111,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1947,
@@ -19827,8 +19888,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 111,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 111,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1948,
@@ -19837,8 +19899,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 112,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 112,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1949,
@@ -19847,8 +19910,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 112,
-      "unit": "incident deaths"
+      "numeric_horizon": 112,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1950,
@@ -19857,8 +19921,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 112,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 112,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1951,
@@ -19867,8 +19932,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 113,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 113,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1952,
@@ -19877,8 +19943,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 113,
-      "unit": "incident deaths"
+      "numeric_horizon": 113,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1953,
@@ -19887,8 +19954,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 113,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 113,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1954,
@@ -19897,8 +19965,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 114,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 114,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1955,
@@ -19907,8 +19976,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 114,
-      "unit": "incident deaths"
+      "numeric_horizon": 114,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1956,
@@ -19917,8 +19987,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 114,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 114,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1957,
@@ -19927,8 +19998,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 115,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 115,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1958,
@@ -19937,8 +20009,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 115,
-      "unit": "incident deaths"
+      "numeric_horizon": 115,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1959,
@@ -19947,8 +20020,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 115,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 115,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1960,
@@ -19957,8 +20031,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 116,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 116,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1961,
@@ -19967,8 +20042,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 116,
-      "unit": "incident deaths"
+      "numeric_horizon": 116,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1962,
@@ -19977,8 +20053,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 116,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 116,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1963,
@@ -19987,8 +20064,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 117,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 117,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1964,
@@ -19997,8 +20075,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 117,
-      "unit": "incident deaths"
+      "numeric_horizon": 117,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1965,
@@ -20007,8 +20086,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 117,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 117,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1966,
@@ -20017,8 +20097,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 118,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 118,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1967,
@@ -20027,8 +20108,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 118,
-      "unit": "incident deaths"
+      "numeric_horizon": 118,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1968,
@@ -20037,8 +20119,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 118,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 118,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1969,
@@ -20047,8 +20130,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 119,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 119,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1970,
@@ -20057,8 +20141,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 119,
-      "unit": "incident deaths"
+      "numeric_horizon": 119,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1971,
@@ -20067,8 +20152,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 119,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 119,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1972,
@@ -20077,8 +20163,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 12,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 12,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1973,
@@ -20087,8 +20174,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 12,
-      "unit": "incident deaths"
+      "numeric_horizon": 12,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1974,
@@ -20097,8 +20185,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 12,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 12,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1975,
@@ -20107,8 +20196,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 12,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 12,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1976,
@@ -20117,8 +20207,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 12,
-      "unit": "incident deaths"
+      "numeric_horizon": 12,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1977,
@@ -20127,8 +20218,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 120,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 120,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1978,
@@ -20137,8 +20229,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 120,
-      "unit": "incident deaths"
+      "numeric_horizon": 120,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1979,
@@ -20147,8 +20240,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 120,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 120,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1980,
@@ -20157,8 +20251,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 121,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 121,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1981,
@@ -20167,8 +20262,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 121,
-      "unit": "incident deaths"
+      "numeric_horizon": 121,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1982,
@@ -20177,8 +20273,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 121,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 121,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1983,
@@ -20187,8 +20284,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 122,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 122,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1984,
@@ -20197,8 +20295,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 122,
-      "unit": "incident deaths"
+      "numeric_horizon": 122,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1985,
@@ -20207,8 +20306,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 122,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 122,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1986,
@@ -20217,8 +20317,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 123,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 123,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1987,
@@ -20227,8 +20328,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 123,
-      "unit": "incident deaths"
+      "numeric_horizon": 123,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1988,
@@ -20237,8 +20339,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 123,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 123,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1989,
@@ -20247,8 +20350,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 124,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 124,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1990,
@@ -20257,8 +20361,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 124,
-      "unit": "incident deaths"
+      "numeric_horizon": 124,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1991,
@@ -20267,8 +20372,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 124,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 124,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1992,
@@ -20277,8 +20383,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 125,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 125,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1993,
@@ -20287,8 +20394,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 125,
-      "unit": "incident deaths"
+      "numeric_horizon": 125,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1994,
@@ -20297,8 +20405,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 125,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 125,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1995,
@@ -20307,8 +20416,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 126,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 126,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1996,
@@ -20317,8 +20427,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 126,
-      "unit": "incident deaths"
+      "numeric_horizon": 126,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 1997,
@@ -20327,8 +20438,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 126,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 126,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 1998,
@@ -20337,8 +20449,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 127,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 127,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 1999,
@@ -20347,8 +20460,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 127,
-      "unit": "incident deaths"
+      "numeric_horizon": 127,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2000,
@@ -20357,8 +20471,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 127,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 127,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2001,
@@ -20367,8 +20482,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 128,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 128,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2002,
@@ -20377,8 +20493,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 128,
-      "unit": "incident deaths"
+      "numeric_horizon": 128,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2003,
@@ -20387,8 +20504,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 128,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 128,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2004,
@@ -20397,8 +20515,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 129,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 129,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2005,
@@ -20407,8 +20526,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 129,
-      "unit": "incident deaths"
+      "numeric_horizon": 129,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2006,
@@ -20417,8 +20537,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 129,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 129,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2007,
@@ -20427,8 +20548,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 13,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 13,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2008,
@@ -20437,8 +20559,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 13,
-      "unit": "incident deaths"
+      "numeric_horizon": 13,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2009,
@@ -20447,8 +20570,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 13,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 13,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2010,
@@ -20457,8 +20581,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 13,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 13,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2011,
@@ -20467,8 +20592,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 13,
-      "unit": "incident deaths"
+      "numeric_horizon": 13,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2012,
@@ -20477,8 +20603,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 130,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 130,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2013,
@@ -20487,8 +20614,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 130,
-      "unit": "incident deaths"
+      "numeric_horizon": 130,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2014,
@@ -20497,8 +20625,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 130,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 130,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2015,
@@ -20507,8 +20636,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 14,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 14,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2016,
@@ -20517,8 +20647,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 14,
-      "unit": "incident deaths"
+      "numeric_horizon": 14,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2017,
@@ -20527,8 +20658,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 14,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 14,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2018,
@@ -20537,8 +20669,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 14,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 14,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2019,
@@ -20547,8 +20680,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 14,
-      "unit": "incident deaths"
+      "numeric_horizon": 14,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2020,
@@ -20557,8 +20691,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 15,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 15,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2021,
@@ -20567,8 +20702,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 15,
-      "unit": "incident deaths"
+      "numeric_horizon": 15,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2022,
@@ -20577,8 +20713,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 15,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 15,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2023,
@@ -20587,8 +20724,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 15,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 15,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2024,
@@ -20597,8 +20735,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 15,
-      "unit": "incident deaths"
+      "numeric_horizon": 15,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2025,
@@ -20607,8 +20746,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 16,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 16,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2026,
@@ -20617,8 +20757,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 16,
-      "unit": "incident deaths"
+      "numeric_horizon": 16,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2027,
@@ -20627,8 +20768,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 16,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 16,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2028,
@@ -20637,8 +20779,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 16,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 16,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2029,
@@ -20647,8 +20790,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 16,
-      "unit": "incident deaths"
+      "numeric_horizon": 16,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2030,
@@ -20657,8 +20801,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 17,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 17,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2031,
@@ -20667,8 +20812,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 17,
-      "unit": "incident deaths"
+      "numeric_horizon": 17,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2032,
@@ -20677,8 +20823,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 17,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 17,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2033,
@@ -20687,8 +20834,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 17,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 17,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2034,
@@ -20697,8 +20845,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 17,
-      "unit": "incident deaths"
+      "numeric_horizon": 17,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2035,
@@ -20707,8 +20856,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 18,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 18,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2036,
@@ -20717,8 +20867,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 18,
-      "unit": "incident deaths"
+      "numeric_horizon": 18,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2037,
@@ -20727,8 +20878,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 18,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 18,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2038,
@@ -20737,8 +20889,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 18,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 18,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2039,
@@ -20747,8 +20900,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 18,
-      "unit": "incident deaths"
+      "numeric_horizon": 18,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2040,
@@ -20757,8 +20911,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 19,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 19,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2041,
@@ -20767,8 +20922,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 19,
-      "unit": "incident deaths"
+      "numeric_horizon": 19,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2042,
@@ -20777,8 +20933,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 19,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 19,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2043,
@@ -20787,8 +20944,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 19,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 19,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2044,
@@ -20797,8 +20955,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 19,
-      "unit": "incident deaths"
+      "numeric_horizon": 19,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2045,
@@ -20807,8 +20966,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 2,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 2,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2046,
@@ -20817,8 +20977,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 2,
-      "unit": "incident deaths"
+      "numeric_horizon": 2,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2047,
@@ -20827,8 +20988,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 2,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 2,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2048,
@@ -20837,8 +20999,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 2,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 2,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2049,
@@ -20847,8 +21010,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 2,
-      "unit": "incident deaths"
+      "numeric_horizon": 2,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2050,
@@ -20857,8 +21021,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 20,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 20,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2051,
@@ -20867,8 +21032,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 20,
-      "unit": "incident deaths"
+      "numeric_horizon": 20,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2052,
@@ -20877,8 +21043,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 20,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 20,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2053,
@@ -20887,8 +21054,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 20,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 20,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2054,
@@ -20897,8 +21065,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 20,
-      "unit": "incident deaths"
+      "numeric_horizon": 20,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2055,
@@ -20907,8 +21076,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 21,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 21,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2056,
@@ -20917,8 +21087,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 21,
-      "unit": "incident deaths"
+      "numeric_horizon": 21,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2057,
@@ -20927,8 +21098,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 21,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 21,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2058,
@@ -20937,8 +21109,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 22,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 22,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2059,
@@ -20947,8 +21120,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 22,
-      "unit": "incident deaths"
+      "numeric_horizon": 22,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2060,
@@ -20957,8 +21131,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 22,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 22,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2061,
@@ -20967,8 +21142,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 23,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 23,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2062,
@@ -20977,8 +21153,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 23,
-      "unit": "incident deaths"
+      "numeric_horizon": 23,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2063,
@@ -20987,8 +21164,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 23,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 23,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2064,
@@ -20997,8 +21175,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 24,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 24,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2065,
@@ -21007,8 +21186,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 24,
-      "unit": "incident deaths"
+      "numeric_horizon": 24,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2066,
@@ -21017,8 +21197,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 24,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 24,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2067,
@@ -21027,8 +21208,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 25,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 25,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2068,
@@ -21037,8 +21219,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 25,
-      "unit": "incident deaths"
+      "numeric_horizon": 25,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2069,
@@ -21047,8 +21230,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 25,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 25,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2070,
@@ -21057,8 +21241,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 26,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 26,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2071,
@@ -21067,8 +21252,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 26,
-      "unit": "incident deaths"
+      "numeric_horizon": 26,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2072,
@@ -21077,8 +21263,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 26,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 26,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2073,
@@ -21087,8 +21274,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 27,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 27,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2074,
@@ -21097,8 +21285,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 27,
-      "unit": "incident deaths"
+      "numeric_horizon": 27,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2075,
@@ -21107,8 +21296,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 27,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 27,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2076,
@@ -21117,8 +21307,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 28,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 28,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2077,
@@ -21127,8 +21318,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 28,
-      "unit": "incident deaths"
+      "numeric_horizon": 28,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2078,
@@ -21137,8 +21329,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 28,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 28,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2079,
@@ -21147,8 +21340,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 29,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 29,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2080,
@@ -21157,8 +21351,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 29,
-      "unit": "incident deaths"
+      "numeric_horizon": 29,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2081,
@@ -21167,8 +21362,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 29,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 29,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2082,
@@ -21177,8 +21373,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 3,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 3,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2083,
@@ -21187,8 +21384,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 3,
-      "unit": "incident deaths"
+      "numeric_horizon": 3,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2084,
@@ -21197,8 +21395,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 3,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 3,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2085,
@@ -21207,8 +21406,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 3,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 3,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2086,
@@ -21217,8 +21417,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 3,
-      "unit": "incident deaths"
+      "numeric_horizon": 3,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2087,
@@ -21227,8 +21428,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 30,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 30,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2088,
@@ -21237,8 +21439,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 30,
-      "unit": "incident deaths"
+      "numeric_horizon": 30,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2089,
@@ -21247,8 +21450,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 30,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 30,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2090,
@@ -21257,8 +21461,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 31,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 31,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2091,
@@ -21267,8 +21472,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 31,
-      "unit": "incident deaths"
+      "numeric_horizon": 31,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2092,
@@ -21277,8 +21483,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 31,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 31,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2093,
@@ -21287,8 +21494,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 32,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 32,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2094,
@@ -21297,8 +21505,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 32,
-      "unit": "incident deaths"
+      "numeric_horizon": 32,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2095,
@@ -21307,8 +21516,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 32,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 32,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2096,
@@ -21317,8 +21527,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 33,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 33,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2097,
@@ -21327,8 +21538,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 33,
-      "unit": "incident deaths"
+      "numeric_horizon": 33,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2098,
@@ -21337,8 +21549,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 33,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 33,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2099,
@@ -21347,8 +21560,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 34,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 34,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2100,
@@ -21357,8 +21571,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 34,
-      "unit": "incident deaths"
+      "numeric_horizon": 34,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2101,
@@ -21367,8 +21582,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 34,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 34,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2102,
@@ -21377,8 +21593,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 35,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 35,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2103,
@@ -21387,8 +21604,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 35,
-      "unit": "incident deaths"
+      "numeric_horizon": 35,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2104,
@@ -21397,8 +21615,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 35,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 35,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2105,
@@ -21407,8 +21626,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 36,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 36,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2106,
@@ -21417,8 +21637,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 36,
-      "unit": "incident deaths"
+      "numeric_horizon": 36,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2107,
@@ -21427,8 +21648,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 36,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 36,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2108,
@@ -21437,8 +21659,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 37,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 37,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2109,
@@ -21447,8 +21670,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 37,
-      "unit": "incident deaths"
+      "numeric_horizon": 37,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2110,
@@ -21457,8 +21681,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 37,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 37,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2111,
@@ -21467,8 +21692,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 38,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 38,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2112,
@@ -21477,8 +21703,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 38,
-      "unit": "incident deaths"
+      "numeric_horizon": 38,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2113,
@@ -21487,8 +21714,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 38,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 38,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2114,
@@ -21497,8 +21725,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 39,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 39,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2115,
@@ -21507,8 +21736,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 39,
-      "unit": "incident deaths"
+      "numeric_horizon": 39,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2116,
@@ -21517,8 +21747,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 39,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 39,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2117,
@@ -21527,8 +21758,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 4,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 4,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2118,
@@ -21537,8 +21769,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 4,
-      "unit": "incident deaths"
+      "numeric_horizon": 4,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2119,
@@ -21547,8 +21780,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 4,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 4,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2120,
@@ -21557,8 +21791,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 4,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 4,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2121,
@@ -21567,8 +21802,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 4,
-      "unit": "incident deaths"
+      "numeric_horizon": 4,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2122,
@@ -21577,8 +21813,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 40,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 40,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2123,
@@ -21587,8 +21824,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 40,
-      "unit": "incident deaths"
+      "numeric_horizon": 40,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2124,
@@ -21597,8 +21835,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 40,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 40,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2125,
@@ -21607,8 +21846,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 41,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 41,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2126,
@@ -21617,8 +21857,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 41,
-      "unit": "incident deaths"
+      "numeric_horizon": 41,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2127,
@@ -21627,8 +21868,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 41,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 41,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2128,
@@ -21637,8 +21879,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 42,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 42,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2129,
@@ -21647,8 +21890,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 42,
-      "unit": "incident deaths"
+      "numeric_horizon": 42,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2130,
@@ -21657,8 +21901,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 42,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 42,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2131,
@@ -21667,8 +21912,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 43,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 43,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2132,
@@ -21677,8 +21923,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 43,
-      "unit": "incident deaths"
+      "numeric_horizon": 43,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2133,
@@ -21687,8 +21934,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 43,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 43,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2134,
@@ -21697,8 +21945,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 44,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 44,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2135,
@@ -21707,8 +21956,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 44,
-      "unit": "incident deaths"
+      "numeric_horizon": 44,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2136,
@@ -21717,8 +21967,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 44,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 44,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2137,
@@ -21727,8 +21978,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 45,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 45,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2138,
@@ -21737,8 +21989,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 45,
-      "unit": "incident deaths"
+      "numeric_horizon": 45,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2139,
@@ -21747,8 +22000,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 45,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 45,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2140,
@@ -21757,8 +22011,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 46,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 46,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2141,
@@ -21767,8 +22022,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 46,
-      "unit": "incident deaths"
+      "numeric_horizon": 46,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2142,
@@ -21777,8 +22033,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 46,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 46,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2143,
@@ -21787,8 +22044,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 47,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 47,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2144,
@@ -21797,8 +22055,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 47,
-      "unit": "incident deaths"
+      "numeric_horizon": 47,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2145,
@@ -21807,8 +22066,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 47,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 47,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2146,
@@ -21817,8 +22077,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 48,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 48,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2147,
@@ -21827,8 +22088,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 48,
-      "unit": "incident deaths"
+      "numeric_horizon": 48,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2148,
@@ -21837,8 +22099,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 48,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 48,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2149,
@@ -21847,8 +22110,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 49,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 49,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2150,
@@ -21857,8 +22121,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 49,
-      "unit": "incident deaths"
+      "numeric_horizon": 49,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2151,
@@ -21867,8 +22132,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 49,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 49,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2152,
@@ -21877,8 +22143,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 5,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 5,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2153,
@@ -21887,8 +22154,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 5,
-      "unit": "incident deaths"
+      "numeric_horizon": 5,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2154,
@@ -21897,8 +22165,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 5,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 5,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2155,
@@ -21907,8 +22176,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 5,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 5,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2156,
@@ -21917,8 +22187,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 5,
-      "unit": "incident deaths"
+      "numeric_horizon": 5,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2157,
@@ -21927,8 +22198,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 50,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 50,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2158,
@@ -21937,8 +22209,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 50,
-      "unit": "incident deaths"
+      "numeric_horizon": 50,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2159,
@@ -21947,8 +22220,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 50,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 50,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2160,
@@ -21957,8 +22231,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 51,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 51,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2161,
@@ -21967,8 +22242,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 51,
-      "unit": "incident deaths"
+      "numeric_horizon": 51,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2162,
@@ -21977,8 +22253,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 51,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 51,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2163,
@@ -21987,8 +22264,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 52,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 52,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2164,
@@ -21997,8 +22275,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 52,
-      "unit": "incident deaths"
+      "numeric_horizon": 52,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2165,
@@ -22007,8 +22286,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 52,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 52,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2166,
@@ -22017,8 +22297,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 53,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 53,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2167,
@@ -22027,8 +22308,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 53,
-      "unit": "incident deaths"
+      "numeric_horizon": 53,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2168,
@@ -22037,8 +22319,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 53,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 53,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2169,
@@ -22047,8 +22330,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 54,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 54,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2170,
@@ -22057,8 +22341,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 54,
-      "unit": "incident deaths"
+      "numeric_horizon": 54,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2171,
@@ -22067,8 +22352,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 54,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 54,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2172,
@@ -22077,8 +22363,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 55,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 55,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2173,
@@ -22087,8 +22374,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 55,
-      "unit": "incident deaths"
+      "numeric_horizon": 55,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2174,
@@ -22097,8 +22385,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 55,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 55,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2175,
@@ -22107,8 +22396,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 56,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 56,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2176,
@@ -22117,8 +22407,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 56,
-      "unit": "incident deaths"
+      "numeric_horizon": 56,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2177,
@@ -22127,8 +22418,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 56,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 56,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2178,
@@ -22137,8 +22429,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 57,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 57,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2179,
@@ -22147,8 +22440,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 57,
-      "unit": "incident deaths"
+      "numeric_horizon": 57,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2180,
@@ -22157,8 +22451,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 57,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 57,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2181,
@@ -22167,8 +22462,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 58,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 58,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2182,
@@ -22177,8 +22473,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 58,
-      "unit": "incident deaths"
+      "numeric_horizon": 58,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2183,
@@ -22187,8 +22484,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 58,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 58,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2184,
@@ -22197,8 +22495,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 59,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 59,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2185,
@@ -22207,8 +22506,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 59,
-      "unit": "incident deaths"
+      "numeric_horizon": 59,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2186,
@@ -22217,8 +22517,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 59,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 59,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2187,
@@ -22227,8 +22528,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 6,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 6,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2188,
@@ -22237,8 +22539,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 6,
-      "unit": "incident deaths"
+      "numeric_horizon": 6,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2189,
@@ -22247,8 +22550,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 6,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 6,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2190,
@@ -22257,8 +22561,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 6,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 6,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2191,
@@ -22267,8 +22572,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 6,
-      "unit": "incident deaths"
+      "numeric_horizon": 6,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2192,
@@ -22277,8 +22583,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 60,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 60,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2193,
@@ -22287,8 +22594,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 60,
-      "unit": "incident deaths"
+      "numeric_horizon": 60,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2194,
@@ -22297,8 +22605,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 60,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 60,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2195,
@@ -22307,8 +22616,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 61,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 61,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2196,
@@ -22317,8 +22627,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 61,
-      "unit": "incident deaths"
+      "numeric_horizon": 61,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2197,
@@ -22327,8 +22638,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 61,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 61,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2198,
@@ -22337,8 +22649,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 62,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 62,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2199,
@@ -22347,8 +22660,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 62,
-      "unit": "incident deaths"
+      "numeric_horizon": 62,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2200,
@@ -22357,8 +22671,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 62,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 62,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2201,
@@ -22367,8 +22682,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 63,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 63,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2202,
@@ -22377,8 +22693,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 63,
-      "unit": "incident deaths"
+      "numeric_horizon": 63,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2203,
@@ -22387,8 +22704,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 63,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 63,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2204,
@@ -22397,8 +22715,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 64,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 64,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2205,
@@ -22407,8 +22726,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 64,
-      "unit": "incident deaths"
+      "numeric_horizon": 64,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2206,
@@ -22417,8 +22737,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 64,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 64,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2207,
@@ -22427,8 +22748,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 65,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 65,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2208,
@@ -22437,8 +22759,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 65,
-      "unit": "incident deaths"
+      "numeric_horizon": 65,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2209,
@@ -22447,8 +22770,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 65,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 65,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2210,
@@ -22457,8 +22781,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 66,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 66,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2211,
@@ -22467,8 +22792,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 66,
-      "unit": "incident deaths"
+      "numeric_horizon": 66,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2212,
@@ -22477,8 +22803,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 66,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 66,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2213,
@@ -22487,8 +22814,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 67,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 67,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2214,
@@ -22497,8 +22825,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 67,
-      "unit": "incident deaths"
+      "numeric_horizon": 67,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2215,
@@ -22507,8 +22836,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 67,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 67,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2216,
@@ -22517,8 +22847,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 68,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 68,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2217,
@@ -22527,8 +22858,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 68,
-      "unit": "incident deaths"
+      "numeric_horizon": 68,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2218,
@@ -22537,8 +22869,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 68,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 68,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2219,
@@ -22547,8 +22880,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 69,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 69,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2220,
@@ -22557,8 +22891,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 69,
-      "unit": "incident deaths"
+      "numeric_horizon": 69,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2221,
@@ -22567,8 +22902,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 69,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 69,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2222,
@@ -22577,8 +22913,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 7,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 7,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2223,
@@ -22587,8 +22924,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 7,
-      "unit": "incident deaths"
+      "numeric_horizon": 7,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2224,
@@ -22597,8 +22935,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 7,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 7,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2225,
@@ -22607,8 +22946,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 7,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 7,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2226,
@@ -22617,8 +22957,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 7,
-      "unit": "incident deaths"
+      "numeric_horizon": 7,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2227,
@@ -22627,8 +22968,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 70,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 70,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2228,
@@ -22637,8 +22979,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 70,
-      "unit": "incident deaths"
+      "numeric_horizon": 70,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2229,
@@ -22647,8 +22990,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 70,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 70,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2230,
@@ -22657,8 +23001,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 71,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 71,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2231,
@@ -22667,8 +23012,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 71,
-      "unit": "incident deaths"
+      "numeric_horizon": 71,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2232,
@@ -22677,8 +23023,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 71,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 71,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2233,
@@ -22687,8 +23034,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 72,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 72,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2234,
@@ -22697,8 +23045,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 72,
-      "unit": "incident deaths"
+      "numeric_horizon": 72,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2235,
@@ -22707,8 +23056,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 72,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 72,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2236,
@@ -22717,8 +23067,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 73,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 73,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2237,
@@ -22727,8 +23078,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 73,
-      "unit": "incident deaths"
+      "numeric_horizon": 73,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2238,
@@ -22737,8 +23089,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 73,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 73,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2239,
@@ -22747,8 +23100,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 74,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 74,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2240,
@@ -22757,8 +23111,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 74,
-      "unit": "incident deaths"
+      "numeric_horizon": 74,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2241,
@@ -22767,8 +23122,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 74,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 74,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2242,
@@ -22777,8 +23133,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 75,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 75,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2243,
@@ -22787,8 +23144,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 75,
-      "unit": "incident deaths"
+      "numeric_horizon": 75,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2244,
@@ -22797,8 +23155,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 75,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 75,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2245,
@@ -22807,8 +23166,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 76,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 76,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2246,
@@ -22817,8 +23177,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 76,
-      "unit": "incident deaths"
+      "numeric_horizon": 76,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2247,
@@ -22827,8 +23188,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 76,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 76,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2248,
@@ -22837,8 +23199,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 77,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 77,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2249,
@@ -22847,8 +23210,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 77,
-      "unit": "incident deaths"
+      "numeric_horizon": 77,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2250,
@@ -22857,8 +23221,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 77,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 77,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2251,
@@ -22867,8 +23232,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 78,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 78,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2252,
@@ -22877,8 +23243,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 78,
-      "unit": "incident deaths"
+      "numeric_horizon": 78,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2253,
@@ -22887,8 +23254,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 78,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 78,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2254,
@@ -22897,8 +23265,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 79,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 79,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2255,
@@ -22907,8 +23276,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 79,
-      "unit": "incident deaths"
+      "numeric_horizon": 79,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2256,
@@ -22917,8 +23287,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 79,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 79,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2257,
@@ -22927,8 +23298,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 8,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 8,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2258,
@@ -22937,8 +23309,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 8,
-      "unit": "incident deaths"
+      "numeric_horizon": 8,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2259,
@@ -22947,8 +23320,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 8,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 8,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2260,
@@ -22957,8 +23331,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 8,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 8,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2261,
@@ -22967,8 +23342,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 8,
-      "unit": "incident deaths"
+      "numeric_horizon": 8,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2262,
@@ -22977,8 +23353,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 80,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 80,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2263,
@@ -22987,8 +23364,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 80,
-      "unit": "incident deaths"
+      "numeric_horizon": 80,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2264,
@@ -22997,8 +23375,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 80,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 80,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2265,
@@ -23007,8 +23386,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 81,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 81,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2266,
@@ -23017,8 +23397,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 81,
-      "unit": "incident deaths"
+      "numeric_horizon": 81,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2267,
@@ -23027,8 +23408,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 81,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 81,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2268,
@@ -23037,8 +23419,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 82,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 82,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2269,
@@ -23047,8 +23430,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 82,
-      "unit": "incident deaths"
+      "numeric_horizon": 82,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2270,
@@ -23057,8 +23441,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 82,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 82,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2271,
@@ -23067,8 +23452,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 83,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 83,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2272,
@@ -23077,8 +23463,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 83,
-      "unit": "incident deaths"
+      "numeric_horizon": 83,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2273,
@@ -23087,8 +23474,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 83,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 83,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2274,
@@ -23097,8 +23485,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 84,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 84,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2275,
@@ -23107,8 +23496,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 84,
-      "unit": "incident deaths"
+      "numeric_horizon": 84,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2276,
@@ -23117,8 +23507,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 84,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 84,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2277,
@@ -23127,8 +23518,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 85,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 85,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2278,
@@ -23137,8 +23529,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 85,
-      "unit": "incident deaths"
+      "numeric_horizon": 85,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2279,
@@ -23147,8 +23540,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 85,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 85,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2280,
@@ -23157,8 +23551,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 86,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 86,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2281,
@@ -23167,8 +23562,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 86,
-      "unit": "incident deaths"
+      "numeric_horizon": 86,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2282,
@@ -23177,8 +23573,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 86,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 86,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2283,
@@ -23187,8 +23584,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 87,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 87,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2284,
@@ -23197,8 +23595,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 87,
-      "unit": "incident deaths"
+      "numeric_horizon": 87,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2285,
@@ -23207,8 +23606,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 87,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 87,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2286,
@@ -23217,8 +23617,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 88,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 88,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2287,
@@ -23227,8 +23628,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 88,
-      "unit": "incident deaths"
+      "numeric_horizon": 88,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2288,
@@ -23237,8 +23639,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 88,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 88,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2289,
@@ -23247,8 +23650,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 89,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 89,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2290,
@@ -23257,8 +23661,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 89,
-      "unit": "incident deaths"
+      "numeric_horizon": 89,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2291,
@@ -23267,8 +23672,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 89,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 89,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2292,
@@ -23277,8 +23683,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 9,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 9,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2293,
@@ -23287,8 +23694,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 9,
-      "unit": "incident deaths"
+      "numeric_horizon": 9,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2294,
@@ -23297,8 +23705,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 9,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 9,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2295,
@@ -23307,8 +23716,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of cumulative deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 9,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 9,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2296,
@@ -23317,8 +23727,9 @@
       "type": "continuous",
       "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
       "is_step_ahead": true,
-      "step_ahead_increment": 9,
-      "unit": "incident deaths"
+      "numeric_horizon": 9,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2297,
@@ -23327,8 +23738,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 90,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 90,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2298,
@@ -23337,8 +23749,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 90,
-      "unit": "incident deaths"
+      "numeric_horizon": 90,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2299,
@@ -23347,8 +23760,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 90,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 90,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2300,
@@ -23357,8 +23771,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 91,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 91,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2301,
@@ -23367,8 +23782,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 91,
-      "unit": "incident deaths"
+      "numeric_horizon": 91,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2302,
@@ -23377,8 +23793,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 91,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 91,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2303,
@@ -23387,8 +23804,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 92,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 92,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2304,
@@ -23397,8 +23815,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 92,
-      "unit": "incident deaths"
+      "numeric_horizon": 92,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2305,
@@ -23407,8 +23826,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 92,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 92,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2306,
@@ -23417,8 +23837,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 93,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 93,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2307,
@@ -23427,8 +23848,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 93,
-      "unit": "incident deaths"
+      "numeric_horizon": 93,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2308,
@@ -23437,8 +23859,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 93,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 93,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2309,
@@ -23447,8 +23870,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 94,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 94,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2310,
@@ -23457,8 +23881,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 94,
-      "unit": "incident deaths"
+      "numeric_horizon": 94,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2311,
@@ -23467,8 +23892,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 94,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 94,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2312,
@@ -23477,8 +23903,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 95,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 95,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2313,
@@ -23487,8 +23914,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 95,
-      "unit": "incident deaths"
+      "numeric_horizon": 95,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2314,
@@ -23497,8 +23925,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 95,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 95,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2315,
@@ -23507,8 +23936,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 96,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 96,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2316,
@@ -23517,8 +23947,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 96,
-      "unit": "incident deaths"
+      "numeric_horizon": 96,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2317,
@@ -23527,8 +23958,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 96,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 96,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2318,
@@ -23537,8 +23969,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 97,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 97,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2319,
@@ -23547,8 +23980,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 97,
-      "unit": "incident deaths"
+      "numeric_horizon": 97,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2320,
@@ -23557,8 +23991,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 97,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 97,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2321,
@@ -23567,8 +24002,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 98,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 98,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2322,
@@ -23577,8 +24013,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 98,
-      "unit": "incident deaths"
+      "numeric_horizon": 98,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2323,
@@ -23587,8 +24024,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 98,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 98,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     },
     {
       "id": 2324,
@@ -23597,8 +24035,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of cumulative deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 99,
-      "unit": "cumulative deaths"
+      "numeric_horizon": 99,
+      "reference_date_type": "DAY",
+      "outcome_variable": "cumulative deaths"
     },
     {
       "id": 2325,
@@ -23607,8 +24046,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident deaths for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 99,
-      "unit": "incident deaths"
+      "numeric_horizon": 99,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident deaths"
     },
     {
       "id": 2326,
@@ -23617,8 +24057,9 @@
       "type": "continuous",
       "description": "Zero- to one-hundred-thirty-day ahead forecasts will be defined as the number of incident hospitalizations for the target day.",
       "is_step_ahead": true,
-      "step_ahead_increment": 99,
-      "unit": "incident hospitalization"
+      "numeric_horizon": 99,
+      "reference_date_type": "DAY",
+      "outcome_variable": "incident hospitalizations"
     }
   ],
   "timezeros": [

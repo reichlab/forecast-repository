@@ -1,5 +1,6 @@
 import datetime
 import itertools
+from collections import namedtuple
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -26,46 +27,62 @@ class Target(models.Model):
     INTEGER_DATA_TYPE = int
     TEXT_DATA_TYPE = str
 
-    # date unit choices
-    DATE_UNITS = ['month', 'week', 'biweek', 'day']
-
-    project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
-
     # target_type choices
     CONTINUOUS_TARGET_TYPE = 0
     DISCRETE_TARGET_TYPE = 1
     NOMINAL_TARGET_TYPE = 2
     BINARY_TARGET_TYPE = 3
     DATE_TARGET_TYPE = 4
-    TARGET_TYPE_CHOICES = (
+    TYPE_CHOICES = (
         (CONTINUOUS_TARGET_TYPE, 'continuous'),
         (DISCRETE_TARGET_TYPE, 'discrete'),
         (NOMINAL_TARGET_TYPE, 'nominal'),
         (BINARY_TARGET_TYPE, 'binary'),
         (DATE_TARGET_TYPE, 'date'),
     )
+
+    # reference_date_type ("RDT") choices. see _TARGET_REFERENCE_DATE_TYPES below for the master list of them
+    DAY_RDT = 0
+    MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT = 1
+    MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT = 2
+    BIWEEK_RDT = 3
+    REF_DATE_TYPE_CHOICES = (
+        (DAY_RDT, 'DAY'),
+        (MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT, 'MMWR_WEEK_LAST_TIMEZERO_MONDAY'),
+        (MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT, 'MMWR_WEEK_LAST_TIMEZERO_TUESDAY'),
+        (BIWEEK_RDT, 'BIWEEK'),
+    )
+
+    project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
+
     # required fields for all types
-    type = models.IntegerField(choices=TARGET_TYPE_CHOICES,
+    name = models.TextField(help_text="A brief name for the target.")
+    type = models.IntegerField(choices=TYPE_CHOICES,
                                help_text="The Target's type. The choices are 'continuous', 'discrete', 'nominal', "
                                          "'binary', and 'date'.")
-    name = models.TextField(help_text="A brief name for the target.")
     description = models.TextField(help_text="A verbose description of what the target is.")
+    outcome_variable = models.TextField(help_text="Human-readable string naming the target variable, e.g. 'Incident "
+                                                  "cases'.")
     is_step_ahead = BooleanField(help_text="True if the target is one of a sequence of targets that predict values at "
                                            "different points in the future.")
-    step_ahead_increment = IntegerField(help_text="An integer, indicating the forecast horizon represented by this "
-                                                  "target. It is required if `is_step_ahead` is True.",
-                                        null=True, default=None)
+    numeric_horizon = IntegerField(help_text="An integer, indicating the forecast horizon represented by this target. "
+                                             "It is required if `is_step_ahead` is True.",
+                                   null=True, default=None)
+    reference_date_type = models.IntegerField(choices=REF_DATE_TYPE_CHOICES,
+                                              help_text="Indicates how the Target calculates reference_date and "
+                                                        "target_end_date from a TimeZero. It is required if "
+                                                        "`is_step_ahead` is True.", null=True)
+
 
     # type-specific fields
-    unit = models.TextField(help_text="This target's units, e.g., 'percentage', 'week', 'cases', etc.", null=True)
-
-
-    # 'list' type-specific fields: see TargetLwr.lwrs, TargetCat.cats, and TargetDate.range
+    # NB: 'list' type-specific fields: see TargetLwr.lwrs, TargetCat.cats, and TargetDate.range
 
 
     def __repr__(self):
         return str((self.pk, self.name, Target.str_for_target_type(self.type),
-                    self.is_step_ahead, self.step_ahead_increment, self.unit))
+                    self.outcome_variable, self.is_step_ahead, self.numeric_horizon,
+                    reference_date_type_for_id(self.reference_date_type).name if self.reference_date_type is not None
+                    else None))
 
 
     def __str__(self):  # todo
@@ -78,7 +95,7 @@ class Target(models.Model):
 
     @classmethod
     def str_for_target_type(cls, the_type_int):
-        for type_int, type_name in cls.TARGET_TYPE_CHOICES:
+        for type_int, type_name in cls.TYPE_CHOICES:
             if type_int == the_type_int:
                 return type_name
 
@@ -87,7 +104,7 @@ class Target(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Validates is_step_ahead and step_ahead_increment, and is_date and is_step_ahead.
+        Validates is_step_ahead -> numeric_horizon and reference_date_type.
         """
         from utils.project import _target_dict_for_target, _validate_target_dict  # avoid circular imports
 
@@ -99,9 +116,7 @@ class Target(models.Model):
         # rest_framework.serializers.ModelSerializer.build_url_field(), etc. so we deal with the hack for now :-)
         request = APIRequestFactory().request()
         target_dict = _target_dict_for_target(self, request)
-
-        type_name_to_type_int = {type_name: type_int for type_int, type_name in Target.TARGET_TYPE_CHOICES}
-        _validate_target_dict(target_dict, type_name_to_type_int)  # raises RuntimeError if invalid
+        _validate_target_dict(target_dict)  # raises RuntimeError if invalid
 
         # done
         super().save(*args, **kwargs)
@@ -321,7 +336,7 @@ class Target(models.Model):
         Implements the named portion of the table at https://docs.zoltardata.com/targets/#valid-prediction-types-by-target-type
 
         :param family_int: one of NamedData.FAMILY_CHOICES
-        :param target_type: one of Target.TARGET_TYPE_CHOICES
+        :param target_type: one of Target.TYPE_CHOICES
         :return: True if family_int is a valid one for target_type
         """
         from utils.forecast import NamedData  # avoid circular imports
@@ -339,6 +354,97 @@ class Target(models.Model):
 
 
 #
+# ---- Target reference_date_types and functions ----
+#
+
+def calc_DAY_RDT(target, timezero):
+    """
+    Implements a simple day reference_date_type.
+    """
+    return None, None  # todo xx
+
+
+def calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero):
+    """
+    Implements the US covid19 hub week reference_date_type.
+    """
+    return None, None  # todo xx
+
+
+def calc_MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT(target, timezero):
+    """
+    Implements the European covid19 hub week reference_date_type.
+    """
+    return None, None  # todo xx
+
+
+def calc_BIWEEK_RDT(target, timezero):
+    """
+    Implements the Impetus biweek reference_date_type.
+    """
+    return None, None  # todo xx
+
+
+#
+# This tuple class contains information associated with each RDT in Target.reference_date_types. Instances are saved in
+# the master list _TARGET_REFERENCE_DATE_TYPES below.
+#
+# Fields:
+# - `id`: id (int) used in Target.reference_date_type DB field: 0, 1, ... NB: IDs should never be changed or deleted b/c
+#         they may have been stored in the database
+# - `name`: long name (str) used for the `reference_date_type` field in project config JSON files. taken from
+#           REF_DATE_TYPE_CHOICES
+# - `abbreviation`: short name (str) used for plot y axis
+# - `calc_fcn`: function that computes a datetime.date. the signature is:
+#                 f(target, timezero) -> (reference_date, target_end_date) . where:
+#   = input: A Target and TimeZero. Only target's numeric_horizon and reference_date_type fields are used
+#   = output: a 2-tuple: (reference_date, target_end_date)
+#
+ReferenceDateType = namedtuple('ReferenceDateType', ['id', 'name', 'abbreviation', 'calc_fcn'])
+
+#
+# master list of all possible Target.reference_date_types
+#
+
+# _TARGET_REFERENCE_DATE_TYPES helper var
+_RDT_ID_TO_ABBREV_AND_CALC_FCN = {
+    Target.DAY_RDT: ('day', calc_DAY_RDT),
+    Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT: ('week', calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT),
+    Target.MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT: ('week', calc_MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT),
+    Target.BIWEEK_RDT: ('biweek', calc_BIWEEK_RDT),
+}
+
+_TARGET_REFERENCE_DATE_TYPES = tuple(ReferenceDateType(rdt_id, rdt_name,
+                                                       _RDT_ID_TO_ABBREV_AND_CALC_FCN[rdt_id][0],
+                                                       _RDT_ID_TO_ABBREV_AND_CALC_FCN[rdt_id][1])
+                                     for rdt_id, rdt_name in Target.REF_DATE_TYPE_CHOICES)
+
+
+def reference_date_type_for_id(rdt_id):
+    """
+    :param rdt_id: ReferenceDateType.id to find
+    :return: ReferenceDateType for `ref_id`, or None if not found
+    """
+    rdt = [ref_date_type for ref_date_type in _TARGET_REFERENCE_DATE_TYPES if ref_date_type.id == rdt_id]
+    if not rdt:
+        raise RuntimeError(f"could not find ReferenceDateType for rdt_id={rdt_id!r}")
+
+    return rdt[0]
+
+
+def reference_date_type_for_name(rdt_name):
+    """
+    :param rdt_name: ReferenceDateType.name to find
+    :return: ReferenceDateType for `rdt_name`, or None if not found
+    """
+    rdt = [ref_date_type for ref_date_type in _TARGET_REFERENCE_DATE_TYPES if ref_date_type.name == rdt_name]
+    if not rdt:
+        raise RuntimeError(f"could not find ReferenceDateType for rdt_name={rdt_name!r}")
+
+    return rdt[0]
+
+
+#
 # ---- TargetCat ----
 #
 
@@ -349,6 +455,7 @@ class TargetCat(models.Model):
     """
     target = models.ForeignKey('Target', blank=True, null=True, related_name='cats', on_delete=models.CASCADE)
     cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
+    cat_f = models.FloatField(null=True)  # ""
     cat_f = models.FloatField(null=True)  # ""
     cat_t = models.TextField(null=True)  # ""
     cat_d = models.DateField(null=True)  # ""

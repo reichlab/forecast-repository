@@ -7,6 +7,7 @@ from pathlib import Path
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
+from forecast_app.models import Target
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import config_dict_from_project
 from utils.project_diff import project_config_diff, Change, order_project_config_diff, execute_project_config_diff, \
@@ -46,8 +47,8 @@ class ProjectDiffTestCase(TestCase):
         exp_changes = [Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, field_name, edit_config_dict) for
                        field_name, new_value in fields_new_values]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
-        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
-                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
+        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)),
+                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)))
 
         # project units: remove 'loc3', add 'loc4', edit 'loc2' field
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -61,8 +62,8 @@ class ProjectDiffTestCase(TestCase):
                        Change(ObjectType.UNIT, 'loc4', ChangeType.OBJ_ADDED, None, unit_3_dict),
                        Change(ObjectType.UNIT, 'loc2', ChangeType.FIELD_EDITED, 'name', unit_2_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
-        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
-                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
+        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)),
+                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)))
 
         # project timezeros: remove '2011-10-02', add '2011-10-22', edit '2011-10-09' fields
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -99,35 +100,41 @@ class ProjectDiffTestCase(TestCase):
                                        if target_dict['name'] == 'cases next week'][0]
         cases_next_week_target_dict['description'] = 'new descr'  # 'cases next week'
         cases_next_week_target_dict['is_step_ahead'] = False
-        del (cases_next_week_target_dict['step_ahead_increment'])
+        del (cases_next_week_target_dict['numeric_horizon'])
+        del (cases_next_week_target_dict['reference_date_type'])
 
         season_peak_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
                                         if target_dict['name'] == 'Season peak week'][0]
         season_peak_week_target_dict['description'] = 'new descr 2'  # 'Season peak week'
         season_peak_week_target_dict['is_step_ahead'] = True
-        season_peak_week_target_dict['step_ahead_increment'] = 2
-        season_peak_week_target_dict['unit'] = 'biweek'
+        season_peak_week_target_dict['reference_date_type'] = "BIWEEK"
+        season_peak_week_target_dict['numeric_horizon'] = 2
+        season_peak_week_target_dict['outcome_variable'] = 'biweek'
+        season_peak_week_target_dict['reference_date_type'] = 'MMWR_WEEK_LAST_TIMEZERO_MONDAY'
 
-        exp_changes = [Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None),
-                       Change(ObjectType.TARGET, 'pct next week 2', ChangeType.OBJ_ADDED, None,
-                              pct_next_week_target_dict),
-                       Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_REMOVED, 'step_ahead_increment',
-                              None),
-                       Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'description',
-                              cases_next_week_target_dict),
-                       Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'is_step_ahead',
-                              cases_next_week_target_dict),
-                       Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_ADDED, 'step_ahead_increment',
-                              season_peak_week_target_dict),
-                       Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'description',
-                              season_peak_week_target_dict),
-                       Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'is_step_ahead',
-                              season_peak_week_target_dict),
-                       Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'unit',
-                              season_peak_week_target_dict)]
+        exp_changes = [
+            Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'description',
+                   season_peak_week_target_dict),
+            Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'is_step_ahead',
+                   season_peak_week_target_dict),
+            Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_EDITED, 'outcome_variable',
+                   season_peak_week_target_dict),
+            Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_ADDED, 'numeric_horizon',
+                   season_peak_week_target_dict),
+            Change(ObjectType.TARGET, 'Season peak week', ChangeType.FIELD_ADDED, 'reference_date_type',
+                   season_peak_week_target_dict),
+            Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'description',
+                   cases_next_week_target_dict),
+            Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'is_step_ahead',
+                   cases_next_week_target_dict),
+            Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_REMOVED, 'numeric_horizon', None),
+            Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_REMOVED, 'reference_date_type', None),
+            Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None),
+            Change(ObjectType.TARGET, 'pct next week 2', ChangeType.OBJ_ADDED, None, pct_next_week_target_dict),
+        ]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
-        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
-                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
+        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)),
+                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)))
 
         # project targets: edit 'pct next week' 'type' (non-editable) and 'description' (editable) fields
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -141,8 +148,8 @@ class ProjectDiffTestCase(TestCase):
                        Change(ObjectType.TARGET, 'pct next week', ChangeType.FIELD_EDITED, 'description',
                               pct_next_week_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
-        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
-                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
+        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)),
+                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)))
 
         # project targets: edit 'cases next week': remove 'range' (non-editable)
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -154,8 +161,8 @@ class ProjectDiffTestCase(TestCase):
                        Change(ObjectType.TARGET, 'cases next week', ChangeType.OBJ_ADDED, None,
                               cases_next_week_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
-        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
-                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
+        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)),
+                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)))
 
         # project targets: edit 'season severity': edit 'cats' (non-editable)
         edit_config_dict = copy.deepcopy(current_config_dict)
@@ -166,8 +173,8 @@ class ProjectDiffTestCase(TestCase):
                        Change(ObjectType.TARGET, 'season severity', ChangeType.OBJ_ADDED, None,
                               season_severity_target_dict)]
         act_changes = project_config_diff(current_config_dict, edit_config_dict)
-        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)),
-                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type)))
+        self.assertEqual(sorted(exp_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)),
+                         sorted(act_changes, key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name)))
 
 
     def test_order_project_config_diff(self):
@@ -181,8 +188,8 @@ class ProjectDiffTestCase(TestCase):
         # removes one wasted activity ('pct next week', ChangeType.FIELD_EDITED) that is wasted b/c that target is being
         # ChangeType.OBJ_REMOVED:
         ordered_changes = order_project_config_diff(changes)
-        self.assertEqual(14, len(changes))  # contains two duplicate and one wasted change
-        self.assertEqual(11, len(ordered_changes))
+        self.assertEqual(15, len(changes))  # contains two duplicate and one wasted change
+        self.assertEqual(12, len(ordered_changes))
 
 
     def test_database_changes_for_project_config_diff(self):
@@ -213,6 +220,22 @@ class ProjectDiffTestCase(TestCase):
         changes = project_config_diff(out_config_dict, edit_config_dict)
         execute_project_config_diff(project, changes)
         self._do_make_some_changes_tests(project)
+
+
+    def test_execute_project_config_diff_reference_date_type_conversion(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, _, _, _ = _make_docs_project(po_user)
+
+        # make some changes
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
+        edit_config_dict = copy.deepcopy(out_config_dict)
+        cases_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
+                                       if target_dict['name'] == 'cases next week'][0]
+        cases_next_week_target_dict['reference_date_type'] = 'DAY'
+
+        changes = project_config_diff(out_config_dict, edit_config_dict)
+        execute_project_config_diff(project, changes)
+        self.assertEqual(Target.DAY_RDT, project.targets.filter(name='cases next week').first().reference_date_type)
 
 
     def test_diff_from_file(self):
@@ -253,7 +276,7 @@ class ProjectDiffTestCase(TestCase):
 
         # test round-trip for one Change
         changes = sorted(project_config_diff(out_config_dict, edit_config_dict),
-                         key=lambda _: (_.object_type, _.object_pk, _.change_type))
+                         key=lambda _: (_.object_type, _.object_pk, _.change_type, _.field_name))
         exp_dict = {'object_type': ObjectType.PROJECT,
                     'object_pk': None,
                     'change_type': ChangeType.FIELD_EDITED,
@@ -277,19 +300,24 @@ class ProjectDiffTestCase(TestCase):
              'field_name': 'is_step_ahead',
              'object_dict': {'name': 'cases next week', 'type': 'discrete',
                              'description': 'A forecasted integer number of cases for a future week.',
-                             'is_step_ahead': False, 'unit': 'cases', 'range': [0, 100000], 'cats': [0, 2, 50]}},
+                             'outcome_variable': 'cases', 'is_step_ahead': False, 'range': [0, 100000],
+                             'cats': [0, 2, 50]}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_REMOVED,
-             'field_name': 'step_ahead_increment', 'object_dict': None},
+             'field_name': 'numeric_horizon', 'object_dict': None},
+            {'object_type': ObjectType.TARGET, 'object_pk': 'cases next week', 'change_type': ChangeType.FIELD_REMOVED,
+             'field_name': 'reference_date_type', 'object_dict': None},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_ADDED,
              'field_name': None,
              'object_dict': {'name': 'pct next week', 'type': 'discrete', 'description': 'new descr',
-                             'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
-                             'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
+                             'outcome_variable': 'percentage positive tests', 'is_step_ahead': True,
+                             'numeric_horizon': 1, 'reference_date_type': 'MMWR_WEEK_LAST_TIMEZERO_MONDAY',
+                             'range': [0, 100], 'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_ADDED,
              'field_name': None,
              'object_dict': {'type': 'discrete', 'name': 'pct next week', 'description': 'new descr',
-                             'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
-                             'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
+                             'outcome_variable': 'percentage positive tests', 'is_step_ahead': True,
+                             'numeric_horizon': 1, 'reference_date_type': 'MMWR_WEEK_LAST_TIMEZERO_MONDAY',
+                             'range': [0, 100], 'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_REMOVED,
              'field_name': None, 'object_dict': None},
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.OBJ_REMOVED,
@@ -297,8 +325,9 @@ class ProjectDiffTestCase(TestCase):
             {'object_type': ObjectType.TARGET, 'object_pk': 'pct next week', 'change_type': ChangeType.FIELD_EDITED,
              'field_name': 'description',
              'object_dict': {'name': 'pct next week', 'type': 'discrete', 'description': 'new descr',
-                             'is_step_ahead': True, 'step_ahead_increment': 1, 'unit': 'percent', 'range': [0, 100],
-                             'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
+                             'outcome_variable': 'percentage positive tests', 'is_step_ahead': True,
+                             'numeric_horizon': 1, 'reference_date_type': 'MMWR_WEEK_LAST_TIMEZERO_MONDAY',
+                             'range': [0, 100], 'cats': [0, 1, 1, 2, 2, 3, 3, 5, 10, 50]}},
             {'object_type': ObjectType.TIMEZERO, 'object_pk': '2011-10-02', 'change_type': ChangeType.OBJ_REMOVED,
              'field_name': None, 'object_dict': None},
             {'object_type': ObjectType.TIMEZERO, 'object_pk': '2011-10-09', 'change_type': ChangeType.FIELD_EDITED,
@@ -359,8 +388,8 @@ class ProjectDiffTestCase(TestCase):
         # Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_EDITED, 'is_step_ahead', {'type': 'discrete', 'name': 'cases next week', ...})
         self.assertFalse(project.targets.filter(name='cases next week').first().is_step_ahead)
 
-        # Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_REMOVED, 'step_ahead_increment', None)
-        self.assertIsNone(project.targets.filter(name='cases next week').first().step_ahead_increment)
+        # Change(ObjectType.TARGET, 'cases next week', ChangeType.FIELD_REMOVED, 'numeric_horizon', None)
+        self.assertIsNone(project.targets.filter(name='cases next week').first().numeric_horizon)
 
 
 def _make_some_changes(edit_config_dict):
@@ -393,23 +422,26 @@ def _make_some_changes(edit_config_dict):
     cases_next_week_target_dict = [target_dict for target_dict in edit_config_dict['targets']
                                    if target_dict['name'] == 'cases next week'][0]
     cases_next_week_target_dict['is_step_ahead'] = False  # 'cases next week': edit 'is_step_ahead'
-    del (cases_next_week_target_dict['step_ahead_increment'])  # delete 'step_ahead_increment'
+    del (cases_next_week_target_dict['numeric_horizon'])
+    del (cases_next_week_target_dict['reference_date_type'])
 
     # resulting Changes. notes:
     # - 'pct next week': duplicate OBJ_REMOVED and OBJ_ADDED
     # - 'pct next week': wasted FIELD_EDITED and OBJ_REMOVED
     #
-    # [Change(ObjectType.PROJECT,  None,              ChangeType.FIELD_EDITED,  'name',                 {'name': 'new project name', ...}]}),
-    #  Change(ObjectType.UNIT, 'loc2',       ChangeType.FIELD_EDITED,   'name',                {'name': 'location2_new_name'}),
-    #  Change(ObjectType.UNIT, 'loc3',       ChangeType.OBJ_REMOVED,    None,                  None),
-    #  Change(ObjectType.UNIT, 'loc4',       ChangeType.OBJ_ADDED,      None,                  {'name': 'location4'}),
+    # [Change(ObjectType.PROJECT,  None,    ChangeType.FIELD_EDITED,  'name',  {'name': 'new project name', ...}]}),
+    #  Change(ObjectType.UNIT,     'loc2',  ChangeType.FIELD_EDITED,  'name',  {'name': 'location2_new_name', 'abbreviation': 'loc2', ...}),
+    #  Change(ObjectType.UNIT,     'loc3',  ChangeType.OBJ_REMOVED,    None,   None),
+    #  Change(ObjectType.UNIT,     'loc4',  ChangeType.OBJ_ADDED,      None,   {'name': 'location3', 'abbreviation': 'loc4', ...}),
     #  Change(ObjectType.TIMEZERO, '2011-10-02',      ChangeType.OBJ_REMOVED,    None,                  None),
     #  Change(ObjectType.TIMEZERO, '2011-10-22',      ChangeType.OBJ_ADDED,      None,                  {'timezero_date': '2011-10-22', ...}),
     #  Change(ObjectType.TIMEZERO, '2011-10-09',      ChangeType.FIELD_EDITED,  'data_version_date',    {'timezero_date': '2011-10-09', ...}),
-    #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.FIELD_EDITED,  'description',          {'type': 'discrete', 'name': 'pct next week', ...}),
+    #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.FIELD_EDITED,  'description',          {'name': 'pct next week', 'type': 'discrete', ...}),
     #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.OBJ_REMOVED,    None,                  None),
-    #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.OBJ_ADDED,      None,                  {'type': 'discrete', 'name': 'pct next week', ...}),
+    #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.OBJ_ADDED,      None,                  {'name': 'pct next week', 'type': 'discrete', ...}),
     #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.OBJ_REMOVED,    None,                  None),
-    #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.OBJ_ADDED,      None,                  {'type': 'discrete', 'name': 'pct next week', ...}),
-    #  Change(ObjectType.TARGET,   'cases next week', ChangeType.FIELD_EDITED,  'is_step_ahead',        {'type': 'discrete', 'name': 'cases next week', ...}),
-    #  Change(ObjectType.TARGET,   'cases next week', ChangeType.FIELD_REMOVED, 'step_ahead_increment', None)]
+    #  Change(ObjectType.TARGET,   'pct next week',   ChangeType.OBJ_ADDED,      None,                  {'name': 'pct next week', 'type': 'discrete', ...}),
+    #  Change(ObjectType.TARGET,   'cases next week', ChangeType.FIELD_EDITED,  'is_step_ahead',        {'name': 'cases next week', 'type': 'discrete', ...}),
+    #  Change(ObjectType.TARGET,   'cases next week', ChangeType.FIELD_REMOVED, 'numeric_horizon',      None),
+    #  Change(ObjectType.TARGET,   'cases next week', ChangeType.FIELD_REMOVED, 'reference_date_type',  None),
+    #  ]

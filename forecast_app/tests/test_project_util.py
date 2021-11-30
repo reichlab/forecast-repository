@@ -80,9 +80,9 @@ class ProjectUtilTestCase(TestCase):
         # spot-check a Target
         target = project.targets.filter(name='1 wk ahead').first()
         self.assertEqual(Target.CONTINUOUS_TARGET_TYPE, target.type)
-        self.assertEqual('percent', target.unit)
+        self.assertEqual('ILI percent', target.outcome_variable)
         self.assertTrue(target.is_step_ahead)
-        self.assertEqual(1, target.step_ahead_increment)
+        self.assertEqual(1, target.numeric_horizon)
 
         # check the TimeZero
         time_zero = project.timezeros.first()
@@ -214,15 +214,15 @@ class ProjectUtilTestCase(TestCase):
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
 
-        # test valid types
-        minimal_target_dict = {'name': 'n', 'description': 'd', 'is_step_ahead': False}  # no 'type'
+        # test valid types. no 'type':
+        minimal_target_dict = {'name': 'n', 'description': 'd', 'outcome_variable': 'v', 'is_step_ahead': False}
         target_type_int_to_required_keys_and_values = {
-            Target.CONTINUOUS_TARGET_TYPE: [('unit', 'month')],  # 'range' optional
-            Target.DISCRETE_TARGET_TYPE: [('unit', 'month')],  # 'range' optional
+            Target.CONTINUOUS_TARGET_TYPE: [('outcome_variable', 'month')],  # 'range' optional
+            Target.DISCRETE_TARGET_TYPE: [('outcome_variable', 'month')],  # 'range' optional
             Target.NOMINAL_TARGET_TYPE: [('cats', ['a', 'b'])],
             Target.BINARY_TARGET_TYPE: [],  # binary has no required keys
-            Target.DATE_TARGET_TYPE: [('unit', 'month'), ('cats', ['2019-12-15', '2019-12-22'])]}
-        type_int_to_name = {type_int: type_name for type_int, type_name in Target.TARGET_TYPE_CHOICES}
+            Target.DATE_TARGET_TYPE: [('outcome_variable', 'month'), ('cats', ['2019-12-15', '2019-12-22'])]}
+        type_int_to_name = {type_int: type_name for type_int, type_name in Target.TYPE_CHOICES}
         for type_int, required_keys_and_values in target_type_int_to_required_keys_and_values.items():
             test_target_dict = dict(minimal_target_dict)  # shallow copy
             project_dict['targets'] = [test_target_dict]
@@ -273,41 +273,16 @@ class ProjectUtilTestCase(TestCase):
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
 
-        # test optional 'step_ahead_increment': required only if 'is_step_ahead'
-        first_target_dict['is_step_ahead'] = True  # was False w/no 'step_ahead_increment'
-        with self.assertRaisesRegex(RuntimeError, "step_ahead_increment not found but is required when is_step_ahead"):
+        # test optional 'numeric_horizon': required only if 'is_step_ahead'
+        first_target_dict['is_step_ahead'] = True  # was False w/no 'numeric_horizon'
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is required"
+                                                  " when `is_step_ahead` is passed"):
             create_project_from_json(project_dict, po_user)
 
         # test optional fields, based on type:
-        # 1) test optional 'unit'. three cases a-c follow
-        # 1a) required but not passed: ['continuous', 'discrete', 'date']
-        with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
-            project_dict = json.load(fp)
-            first_target_dict = project_dict['targets'][0]  # 'Season onset'
-            project_dict['targets'] = [first_target_dict]
-        for target_type in ['continuous', 'discrete', 'date']:
-            first_target_dict['type'] = target_type
-            with self.assertRaises(RuntimeError) as context:
-                create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'unit' not passed but is required for type_name={target_type}", str(context.exception))
-
-        # 1b) optional: ok to pass or not pass: []: no need to validate
-
-        # 1c) invalid but passed: ['nominal', 'binary']
-        with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
-            project_dict = json.load(fp)
-            first_target_dict = project_dict['targets'][0]  # 'Season onset'
-            project_dict['targets'] = [first_target_dict]
-        first_target_dict['unit'] = 'month'
-        for target_type in ['nominal', 'binary']:
-            first_target_dict['type'] = target_type
-            with self.assertRaises(RuntimeError) as context:
-                create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'unit' passed but is invalid for type_name={target_type}", str(context.exception))
-
-        # 2) test optional 'range'. three cases a-c follow
-        # 2a) required but not passed: []: no need to validate
-        # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
+        # 1) test optional 'range'. three cases a-c follow
+        # 1a) required but not passed: []: no need to validate
+        # 1b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
         # 2c) invalid but passed: ['nominal', 'binary', 'date']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
@@ -317,35 +292,27 @@ class ProjectUtilTestCase(TestCase):
         first_target_dict['range'] = [1, 2]
         for target_type in ['nominal', 'binary', 'date']:
             first_target_dict['type'] = target_type
-            if target_type == 'date':
-                first_target_dict['unit'] = 'biweek'
-            else:
-                first_target_dict.pop('unit', None)
-            with self.assertRaises(RuntimeError) as context:
+            first_target_dict['outcome_variable'] = 'biweek'
+            with self.assertRaisesRegex(RuntimeError, "'range' passed but is invalid for type_name"):
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'range' passed but is invalid for type_name={target_type}", str(context.exception))
 
-        # 3) test optional 'cats'. three cases a-c follow
-        # 3a) required but not passed: ['nominal', 'date']
+        # 2) test optional 'cats'. three cases a-c follow
+        # 2a) required but not passed: ['nominal', 'date']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
             project_dict['targets'] = [first_target_dict]
         first_target_dict.pop('cats', None)
-        first_target_dict.pop('unit', None)
+        first_target_dict.pop('outcome_variable', None)
         for target_type in ['nominal', 'date']:
             first_target_dict['type'] = target_type
-            if target_type in ['continuous', 'discrete', 'date']:
-                first_target_dict['unit'] = 'biweek'
-            else:
-                first_target_dict.pop('unit', None)
-            with self.assertRaises(RuntimeError) as context:
+            first_target_dict['outcome_variable'] = 'biweek'
+            with self.assertRaisesRegex(RuntimeError, "'cats' not passed but is required for type_name"):
                 create_project_from_json(project_dict, po_user)
-            self.assertIn(f"'cats' not passed but is required for type_name='{target_type}'", str(context.exception))
 
-        # 3b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
+        # 2b) optional: ok to pass or not pass: ['continuous', 'discrete']: no need to validate
 
-        # 3c) invalid but passed: ['binary']
+        # 2c) invalid but passed: ['binary']
         with open(Path('forecast_app/tests/projects/cdc-project.json')) as fp:
             project_dict = json.load(fp)
             first_target_dict = project_dict['targets'][0]  # 'Season onset'
@@ -511,9 +478,9 @@ class ProjectUtilTestCase(TestCase):
         # test 'pct next week' target. continuous, with range and cats (w/lwrs)
         target = project.targets.filter(name='pct next week').first()
         self.assertEqual(Target.CONTINUOUS_TARGET_TYPE, target.type)
-        self.assertEqual('percent', target.unit)
+        self.assertEqual('percentage positive tests', target.outcome_variable)
         self.assertTrue(target.is_step_ahead)
-        self.assertEqual(1, target.step_ahead_increment)
+        self.assertEqual(1, target.numeric_horizon)
 
         ranges = target.ranges.all().order_by('value_f')
         self.assertEqual(2, len(ranges))
@@ -594,30 +561,31 @@ class ProjectUtilTestCase(TestCase):
     def test_group_targets(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
 
-        # case: target names with step_ahead_increment at start of name
+        # case: target names with numeric_horizon at start of name
         project = create_project_from_json(Path('forecast_app/tests/projects/COVID-19_Forecasts-config.json'), po_user)
         grouped_targets = group_targets(project.targets.all())
-        # group 1: "_ day ahead cum death" | 0 day ahead cum death, 1 day ahead cum death, ..., 130 day ahead cum death
-        # group 2: "_ day ahead inc death" | 0, 1, ..., 130
-        # group 3: "_ day ahead inc hosp"  | 0, 1, ..., 130
-        # group 4: "_ wk ahead cum death"  | 1 wk ahead cum death, 2 wk ahead cum death, ..., 20 wk ahead cum death
-        # group 5: "_ wk ahead inc death"  | 1, 2, ..., 20
-        # group 6: "_ wk ahead inc case"   | 1 wk ahead inc case, 2 wk ahead inc case, ..., 8 wk ahead inc case
+        # group 1: "day ahead cumulative deaths"         | 0 day ahead cum death, 1 day ahead cum death, ..., 130 day ahead cum death
+        # group 2: "day ahead incident deaths"           | 0, 1, ..., 130
+        # group 3: "day ahead incident hospitalizations" | 0, 1, ..., 130
+        # group 4: "week ahead cumulative deaths"        | 1 wk ahead cum death, 2 wk ahead cum death, ..., 20 wk ahead cum death
+        # group 5: "week ahead incident deaths"          | 1, 2, ..., 20
+        # group 6: "week ahead incident cases"           | 1 wk ahead inc case, 2 wk ahead inc case, ..., 8 wk ahead inc case
         self.assertEqual(6, len(grouped_targets))
-        self.assertEqual({'day ahead inc hosp', 'day ahead inc death', 'day ahead cum death', 'wk ahead inc death',
-                          'wk ahead cum death', 'wk ahead inc case'},
+        self.assertEqual({'week ahead incident deaths', 'day ahead incident hospitalizations',
+                          'day ahead cumulative deaths', 'week ahead cumulative deaths', 'week ahead incident cases',
+                          'day ahead incident deaths'},
                          set(grouped_targets.keys()))
-        self.assertEqual(131, len(grouped_targets['day ahead inc hosp']))
-        self.assertEqual(131, len(grouped_targets['day ahead inc death']))
-        self.assertEqual(131, len(grouped_targets['day ahead cum death']))
-        self.assertEqual(20, len(grouped_targets['wk ahead inc death']))
-        self.assertEqual(20, len(grouped_targets['wk ahead cum death']))
-        self.assertEqual(8, len(grouped_targets['wk ahead inc case']))
+        self.assertEqual(131, len(grouped_targets['day ahead incident hospitalizations']))
+        self.assertEqual(131, len(grouped_targets['day ahead incident deaths']))
+        self.assertEqual(131, len(grouped_targets['day ahead cumulative deaths']))
+        self.assertEqual(20, len(grouped_targets['week ahead incident deaths']))
+        self.assertEqual(20, len(grouped_targets['week ahead cumulative deaths']))
+        self.assertEqual(8, len(grouped_targets['week ahead incident cases']))
 
         # test targets_for_group_name(group_name)
         self.assertEqual(grouped_targets['wk ahead inc case'], targets_for_group_name(project, 'wk ahead inc case'))
 
-        # case: mix of target names with step_ahead_increment at start of name, and others
+        # case: mix of target names with numeric_horizon at start of name, and others
         project = create_project_from_json(Path('forecast_app/tests/projects/cdc-project.json'), po_user)
         grouped_targets = group_targets(project.targets.all())
         # group 1: "Season onset"
@@ -625,58 +593,31 @@ class ProjectUtilTestCase(TestCase):
         # group 3: "Season peak percentage"
         # group 4: "x wk ahead" | 1 wk ahead, 2 wk ahead, 3 wk ahead, 4 wk ahead
         self.assertEqual(4, len(grouped_targets))
-        self.assertEqual({'Season onset', 'Season peak week', 'Season peak percentage', 'wk ahead'},
+        self.assertEqual({'Season onset', 'Season peak week', 'Season peak percentage', 'week ahead ILI percent'},
                          set(grouped_targets.keys()))
-        self.assertEqual(4, len(grouped_targets['wk ahead']))
+        self.assertEqual(4, len(grouped_targets['week ahead ILI percent']))
 
-        # case: target names with step_ahead_increment inside the name (i.e., not at start)
+        # case: target names with numeric_horizon inside the name (i.e., not at start)
         project = Project.objects.create()
-        for step_ahead_increment in range(2):
-            target_init = {'project': project, 'name': f'wk {step_ahead_increment} ahead',
-                           'type': Target.CONTINUOUS_TARGET_TYPE, 'is_step_ahead': True,
-                           'step_ahead_increment': step_ahead_increment, 'unit': 'cases'}
+        for numeric_horizon in range(2):
+            target_init = {'project': project, 'name': f'wk {numeric_horizon} ahead',
+                           'type': Target.CONTINUOUS_TARGET_TYPE, 'outcome_variable': 'cases', 'is_step_ahead': True,
+                           'numeric_horizon': numeric_horizon,
+                           'reference_date_type': Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT}
             Target.objects.create(**target_init)
         grouped_targets = group_targets(project.targets.all())
         # group 1: 'wk x ahead'
         self.assertEqual(1, len(grouped_targets))
-        self.assertEqual({'wk ahead'}, set(grouped_targets.keys()))
-        self.assertEqual(2, len(grouped_targets['wk ahead']))
+        self.assertEqual({'week ahead cases'}, set(grouped_targets.keys()))
+        self.assertEqual(2, len(grouped_targets['week ahead cases']))
 
         # case: targets with no word boundaries
         project = create_project_from_json(Path('forecast_app/tests/projects/thai-project.json'), po_user)
         grouped_targets = group_targets(project.targets.all())
         # group 1: "x_biweek_ahead" | 1_biweek_ahead, 2_biweek_ahead, 3_biweek_ahead, 4_biweek_ahead, 5_biweek_ahead
         self.assertEqual(1, len(grouped_targets))
-        self.assertEqual({'biweek ahead'}, set(grouped_targets.keys()))
-        self.assertEqual(5, len(grouped_targets['biweek ahead']))
-
-        # case: similar names, different types
-        project = Project.objects.create()
-        for step_ahead_increment, target_type in [(0, Target.CONTINUOUS_TARGET_TYPE),
-                                                  (1, Target.DISCRETE_TARGET_TYPE)]:
-            target_init = {'project': project, 'name': f'wk {step_ahead_increment} ahead',
-                           'type': target_type, 'is_step_ahead': True,
-                           'step_ahead_increment': step_ahead_increment, 'unit': 'cases'}
-            Target.objects.create(**target_init)
-        grouped_targets = group_targets(project.targets.all())
-        # group 1: 'wk ahead' (discrete)
-        # group 2: 'wk ahead 2' (continuous)
-        self.assertEqual(2, len(grouped_targets))
-        self.assertEqual({'wk ahead', 'wk ahead 2'}, set(grouped_targets.keys()))
-
-        # case: similar names, different units
-        project = Project.objects.create()
-        for step_ahead_increment, target_unit in [(0, 'unit 1'),
-                                                  (1, 'unit 2')]:
-            target_init = {'project': project, 'name': f'wk {step_ahead_increment} ahead',
-                           'type': Target.CONTINUOUS_TARGET_TYPE, 'is_step_ahead': True,
-                           'step_ahead_increment': step_ahead_increment, 'unit': target_unit}
-            Target.objects.create(**target_init)
-        grouped_targets = group_targets(project.targets.all())
-        # group 1: 'wk ahead' ('unit 2')
-        # group 2: 'wk ahead 2' ('unit 1')
-        self.assertEqual(2, len(grouped_targets))
-        self.assertEqual({'wk ahead', 'wk ahead 2'}, set(grouped_targets.keys()))
+        self.assertEqual({'biweek ahead cases'}, set(grouped_targets.keys()))
+        self.assertEqual(5, len(grouped_targets['biweek ahead cases']))
 
 
     def test_models_summary_table_rows_for_project(self):
@@ -791,16 +732,17 @@ class ProjectUtilTestCase(TestCase):
 
         # case: one model with one timezero that has five groups of one target each.
         # recall: `group_targets(project.targets.all())` (only one target/group in this case):
-        #   {'pct next week':    [(1, 'pct next week', 'continuous', True, 1, 'percent')],
-        #    'cases next week':  [(2, 'cases next week', 'discrete', True, 2, 'cases')],
-        #    'season severity':  [(3, 'season severity', 'nominal', False, None, None)],
-        #    'above baseline':   [(4, 'above baseline', 'binary', False, None, None)],
-        #    'Season peak week': [(5, 'Season peak week', 'date', False, None, 'week')]}
+        #   {'week ahead percentage positive tests': [(1, 'pct next week', 'continuous', 'percentage positive tests', True, 1, 'MMWR_WEEK_LAST_TIMEZERO_MONDAY')],
+        #    'week ahead cases':                     [(2, 'cases next week', 'discrete', 'cases', True, 2, 'MMWR_WEEK_LAST_TIMEZERO_MONDAY')],
+        #    'season severity':                      [(3, 'season severity', 'nominal', 'season severity', False, None, None)],
+        #    'above baseline':                       [(4, 'above baseline', 'binary', 'above baseline', False, None, None)],
+        #    'Season peak week':                     [(5, 'Season peak week', 'date', 'season peak week', False, None, None)]})
         exp_rows = [(forecast_model, str(time_zero.timezero_date), forecast.id, 'Season peak week', 1),
                     (forecast_model, str(time_zero.timezero_date), forecast.id, 'above baseline', 1),
-                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'cases next week', 1),
-                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'pct next week', 1),
-                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'season severity', 1)]
+                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'season severity', 1),
+                    (forecast_model, str(time_zero.timezero_date), forecast.id, 'week ahead cases', 1),
+                    (forecast_model, str(time_zero.timezero_date), forecast.id,
+                     'week ahead percentage positive tests', 1)]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
         self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
 
@@ -815,9 +757,10 @@ class ProjectUtilTestCase(TestCase):
 
         exp_rows = [(forecast_model, str(time_zero2.timezero_date), forecast2.id, 'Season peak week', 1),
                     (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'above baseline', 1),
-                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'cases next week', 1),
-                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'pct next week', 1),
-                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'season severity', 1)]
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'season severity', 1),
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id, 'week ahead cases', 1),
+                    (forecast_model, str(time_zero2.timezero_date), forecast2.id,
+                     'week ahead percentage positive tests', 1)]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
         self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
 
@@ -827,16 +770,16 @@ class ProjectUtilTestCase(TestCase):
         time_zero3 = TimeZero.objects.create(project=project, timezero_date=datetime.date(2011, 10, 4))
         forecast3 = Forecast.objects.create(forecast_model=forecast_model2, source='docs-predictions.json',
                                             time_zero=time_zero3, notes="a small prediction file")
-        json_io_dict = {
-            "meta": {},
-            "predictions": [{"unit": "loc1",
-                             "target": "pct next week",
-                             "class": "point",
-                             "prediction": {"value": 2.1}}]}
+        json_io_dict = {"meta": {},
+                        "predictions": [{"unit": "loc1",
+                                         "target": "pct next week",
+                                         "class": "point",
+                                         "prediction": {"value": 2.1}}]}
         load_predictions_from_json_io_dict(forecast3, json_io_dict, is_validate_cats=False)
         cache_forecast_metadata(forecast3)  # required by _forecast_ids_to_present_unit_or_target_id_sets()
 
-        exp_rows = exp_rows + [(forecast_model2, str(time_zero3.timezero_date), forecast3.id, 'pct next week', 1)]
+        exp_rows = exp_rows + [(forecast_model2, str(time_zero3.timezero_date), forecast3.id,
+                                'week ahead percentage positive tests', 1)]
         act_rows = [(row[0], str(row[1]), row[2], row[3], row[4]) for row in target_rows_for_project(project)]
         self.assertEqual(sorted(exp_rows, key=lambda _: _[0].id), sorted(act_rows, key=lambda _: _[0].id))
 

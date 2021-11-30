@@ -33,6 +33,7 @@ class TargetTestCase(TestCase):
         # b/c I'm getting confused about which tests are testing which required fields, this tests steps through each
         # missing field to ensure it errors if missing. notice that TextFields default to '': name, description, unit
         # and therefore cannot be tested for being passed
+
         # no type
         model_init = {}
         with self.assertRaisesRegex(RuntimeError, "target has no type"):
@@ -43,42 +44,50 @@ class TargetTestCase(TestCase):
         with self.assertRaisesRegex(RuntimeError, "field type was not"):
             Target.objects.create(**model_init)
 
-        # no step_ahead_increment
-        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': True}
-        with self.assertRaisesRegex(RuntimeError, "step_ahead_increment not found but is required when is_step_ahead"):
-            Target.objects.create(**model_init)
+        # yes is_step_ahead; no numeric_horizon, no reference_date_type
+        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'outcome_variable': 'biweek', 'is_step_ahead': True}
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+            Target.objects.create(**model_init, **{})
+
+        # yes is_step_ahead; no numeric_horizon, yes reference_date_type
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+            Target.objects.create(**model_init, **{'reference_date_type': Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT})
+
+        # yes is_step_ahead; yes numeric_horizon, no reference_date_type
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+            Target.objects.create(**model_init, **{'numeric_horizon': 1})
 
         # no project (raises django.db.utils.IntegrityError)
-        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'unit': 'biweek', 'is_step_ahead': False}
+        model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'outcome_variable': 'biweek', 'is_step_ahead': False}
         with self.assertRaises(django.db.utils.IntegrityError) as context:
             Target.objects.create(**model_init)
         # self.assertIn('NOT NULL constraint failed: {Target._meta.db_table}.project_id', str(context.exception))  # sqlite3
         # self.assertIn('null value in column "project_id" violates not-null constraint', str(context.exception))  # postgres
 
 
-    def test_step_ahead_increment_if_is_step_ahead(self):
-        # target type: any. step_ahead_increment required if is_step_ahead
+    def test_numeric_horizon_if_is_step_ahead(self):
+        # target type: any. numeric_horizon required if is_step_ahead
 
-        # case: is_step_ahead=True, step_ahead_increment: missing
+        # case: is_step_ahead=True, numeric_horizon: missing
         model_init = {'project': self.project,
                       'type': Target.NOMINAL_TARGET_TYPE,
                       'name': 'target_name',
                       'description': 'target_description',
-                      'is_step_ahead': True}  # missing step_ahead_increment
-        with self.assertRaises(RuntimeError) as context:
+                      'is_step_ahead': True}  # missing numeric_horizon
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
             Target.objects.create(**model_init)
-        self.assertIn('step_ahead_increment not found but is required when is_step_ahead is', str(context.exception))
 
-        # case: is_step_ahead=True, step_ahead_increment: 0
-        model_init['step_ahead_increment'] = 0
+        # case: is_step_ahead=True, numeric_horizon: 0
+        model_init['numeric_horizon'] = 0
+        model_init['reference_date_type'] = Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT
         try:
             Target.objects.create(**model_init)
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
-        # case: is_step_ahead=False, step_ahead_increment: missing
+        # case: is_step_ahead=False, numeric_horizon: missing
         model_init['is_step_ahead'] = False
-        del (model_init['step_ahead_increment'])
+        del (model_init['numeric_horizon'])
         with self.assertRaises(Exception):
             try:
                 Target.objects.create(**model_init)
@@ -88,19 +97,6 @@ class TargetTestCase(TestCase):
                 raise Exception
 
 
-    def test_unit_required(self):
-        # target type: continuous, discrete, date
-        model_init = {'project': self.project,
-                      'name': 'target_name',
-                      'description': 'target_description',
-                      'is_step_ahead': False}  # missing type and unit
-        for target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
-            model_init['type'] = target_type
-            with self.assertRaises(RuntimeError) as context:
-                Target.objects.create(**model_init)
-            self.assertIn("'unit' not passed but is required", str(context.exception))
-
-
     def test_range_required(self):
         # target type: continuous and discrete accept an optional 'range' list via Target.set_range(). here we test that
         # that function checks the target type
@@ -108,7 +104,7 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': False,
-                      'unit': 'month'}  # missing type
+                      'outcome_variable': 'month'}  # missing type
         # case: valid types
         for target_type, the_range in [(Target.CONTINUOUS_TARGET_TYPE, (3.3, 4.4)),
                                        (Target.DISCRETE_TARGET_TYPE, (1, 2))]:  # unit valid for both
@@ -123,9 +119,9 @@ class TargetTestCase(TestCase):
         for target_type in [Target.NOMINAL_TARGET_TYPE, Target.BINARY_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
-                model_init['unit'] = 'month'
+                model_init['outcome_variable'] = 'month'
             else:
-                model_init.pop('unit', None)
+                model_init.pop('outcome_variable', None)
             target = Target.objects.create(**model_init)
             with self.assertRaises(ValidationError) as context:
                 target.set_range(0, 0)
@@ -146,9 +142,9 @@ class TargetTestCase(TestCase):
                                   (Target.DATE_TARGET_TYPE, ['2019-01-09', '2019-01-19'])]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
-                model_init['unit'] = 'month'
+                model_init['outcome_variable'] = 'month'
             else:
-                model_init.pop('unit', None)
+                model_init.pop('outcome_variable', None)
             target = Target.objects.create(**model_init)
             try:
                 target.set_cats(cats)
@@ -157,7 +153,7 @@ class TargetTestCase(TestCase):
 
         # case: invalid type
         model_init['type'] = Target.BINARY_TARGET_TYPE
-        model_init.pop('unit', None)
+        model_init.pop('outcome_variable', None)
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['2017-01-02', '2017-01-09'])
@@ -261,7 +257,7 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': False,
-                      'unit': 'the_unit'}  # missing type
+                      'outcome_variable': 'the outcome_variable'}  # missing type
         for target_type, the_range, exp_range in [(Target.CONTINUOUS_TARGET_TYPE, (3.3, 4.4),
                                                    [(None, 3.3), (None, 4.4)]),
                                                   (Target.DISCRETE_TARGET_TYPE, (1, 2),
@@ -425,9 +421,9 @@ class TargetTestCase(TestCase):
                                               (None, None, None, datetime.date(2019, 12, 22), None)])]:
             model_init['type'] = target_type
             if target_type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE, Target.DATE_TARGET_TYPE]:
-                model_init['unit'] = 'month'
+                model_init['outcome_variable'] = 'month'
             else:
-                model_init.pop('unit', None)
+                model_init.pop('outcome_variable', None)
             target = Target.objects.create(**model_init)
             for _ in range(2):  # twice to make sure old are deleted
                 target.set_cats(cats)
@@ -438,14 +434,14 @@ class TargetTestCase(TestCase):
 
         # test cat types must match - both within the list, and the target type's data_type
         model_init['type'] = Target.CONTINUOUS_TARGET_TYPE
-        model_init['unit'] = 'month'
+        model_init['outcome_variable'] = 'month'
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats(['cat4', 'cat5', 'cat6'])  # should be floats
         self.assertIn('cats_type_set was not a subset of data_types_set', str(context.exception))
 
         model_init['type'] = Target.NOMINAL_TARGET_TYPE
-        model_init.pop('unit', None)
+        model_init.pop('outcome_variable', None)
         target = Target.objects.create(**model_init)
         with self.assertRaises(ValidationError) as context:
             target.set_cats([1.1, 2.2, 3.3])  # should be strings
@@ -456,29 +452,6 @@ class TargetTestCase(TestCase):
         self.assertIn('cats_type_set was not a subset of data_types_set', str(context.exception))
 
 
-    def test_target_date_unit(self):
-        # date target type: unit must be one of Target.DATE_UNITS
-        model_init = {'project': self.project,
-                      'type': Target.DATE_TARGET_TYPE,
-                      'name': 'target_name',
-                      'description': 'target_description',
-                      'is_step_ahead': False}  # missing unit
-
-        # case: valid unit
-        for ok_unit in Target.DATE_UNITS:
-            model_init['unit'] = ok_unit
-            try:
-                Target.objects.create(**model_init)
-            except Exception as ex:
-                self.fail(f"unexpected exception: {ex}")
-
-        # case: invalid unit
-        model_init['unit'] = 'bad_unit'
-        with self.assertRaises(RuntimeError) as context:
-            Target.objects.create(**model_init)
-        self.assertIn("'unit' passed for date target but was not valid", str(context.exception))
-
-
     def test_target_date_format(self):
         # date target type: dates must be YYYY_MM_DD_DATE_FORMAT
         model_init = {'project': self.project,
@@ -486,7 +459,7 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': False,
-                      'unit': 'month'}
+                      'outcome_variable': 'month'}
         target = Target.objects.create(**model_init)
 
         # case: valid format
@@ -508,7 +481,7 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': False,
-                      'unit': 'month'}
+                      'outcome_variable': 'month'}
         target = Target.objects.create(**model_init)
         target.set_cats(['2019-01-09', '2019-01-19'])
         target_cats = sorted(list(TargetCat.objects.filter(target=target).values_list('cat_d', flat=True)))
@@ -522,7 +495,7 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': False,
-                      'unit': 'the_unit'}
+                      'outcome_variable': 'the_unit'}
         target = Target.objects.create(**model_init)
         target.set_cats([1.1, 2.2, 3.3])
         lwrs = sorted(list(TargetLwr.objects.filter(target=target).values_list('lwr', 'upper')))
