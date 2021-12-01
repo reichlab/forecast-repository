@@ -87,8 +87,12 @@ PROJ_NAME_TO_REGEX_LIST = {
 @click.command()
 def post_020_migrate_app():
     for proj_name, regex_tuples in PROJ_NAME_TO_REGEX_LIST.items():
-        project = get_object_or_404(Project, name=proj_name)
-        print(f"{project}")
+        project = Project.objects.filter(name=proj_name).first()
+        print(f"proj_name={proj_name!r}, #regex_tuples={len(regex_tuples)}. project={project}")
+        if not project:
+            print(f"  no project found for proj_name={proj_name!r}. skipping")
+            continue
+
         for target in project.targets.all().order_by('name'):
             ref_date_type_outcome_var = _ref_date_type_outcome_var_for_target(target, regex_tuples)
             if not ref_date_type_outcome_var:
