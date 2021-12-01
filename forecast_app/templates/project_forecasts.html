@@ -166,7 +166,9 @@
             <tbody>
             {% for forecast_url, timezero_date, issued_at, created_at, model_url, model_abbrev, num_pred_eles in forecast_rows %}
                 <tr>
-                    <td><a href="{{ model_url }}">{{ model_abbrev }}</a></td>
+                    <td><a href="{{ model_url }}">
+                        {% if model_abbrev %}{{ model_abbrev }}{% else %}(no abbreviation){% endif %}</a>
+                    </td>
                     <td><a href="{{ forecast_url }}">{{ timezero_date|date:"Y-m-d" }}</a></td>
                     <td>
                         {# handle whether datetimes came from db as objects or strings #}

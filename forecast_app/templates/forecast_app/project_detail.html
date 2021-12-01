@@ -184,7 +184,10 @@
             <tbody>
             {% for forecast_model, num_forecasts, oldest_forecast_tz_date, newest_forecast_tz_date, newest_forecast_id, newest_forecast_created_at in models_rows %}
                 <tr>
-                    <td><a href="{{ forecast_model.get_absolute_url }}">{{ forecast_model.abbreviation }}</a></td>
+                    <td><a href="{{ forecast_model.get_absolute_url }}">
+                        {% if forecast_model.abbreviation %}{{ forecast_model.abbreviation }}
+                        {% else %}(no abbreviation){% endif %}
+                    </td>
                     <td>{{ forecast_model.team_name }}</td>
                     <td>{{ num_forecasts }}</td>
                     <td>
