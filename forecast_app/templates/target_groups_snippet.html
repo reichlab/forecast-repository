@@ -4,8 +4,8 @@
         <th>Target Group</th>
         <th># Targets</th>
         <th>Type</th>
-        <th>Unit</th>
-        <th>Step&nbsp;ahead?</th>
+        <th>Outcome Variable</th>
+        <th>Step ahead?</th>
         <th>Example Target</th>
     </tr>
     </thead>
@@ -16,7 +16,7 @@
                 <td>{{ group_name }}</td>
                 <td>{{ targets|length }}</td>
                 <td><em>{{ first_target.type_as_str }}</em></td>
-                <td>{% if first_target.unit is not None %} {{ first_target.unit }} {% endif %}</td>
+                <td><em>{{ first_target.outcome_variable }}</em></td>
                 <td>{% if first_target.is_step_ahead %}<i class="fas fa-check"></i>{% else %}{% endif %}</td>
                 <td>&ldquo;{{ first_target.name }}&rdquo;</td>
             </tr>

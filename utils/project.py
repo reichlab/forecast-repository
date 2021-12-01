@@ -382,11 +382,11 @@ def _validate_target_dict(target_dict):
     if ('cats' in target_dict) and ('range' in target_dict):
         cats = [data_types[0](cat_str) for cat_str in target_dict['cats']]
         the_range = [data_types[0](range_str) for range_str in target_dict['range']]
-        if min(cats) != min(the_range):
+        if cats and (min(cats) != min(the_range)):
             raise RuntimeError(f"the minimum cat ({min(cats)}) did not equal the range's lower bound "
                                f"({min(the_range)})")
 
-        if max(cats) >= max(the_range):
+        if cats and (max(cats) >= max(the_range)):
             raise RuntimeError(f"the maximum cat ({max(cats)}) was not less than the range's upper bound "
                                f"({max(the_range)})")
 

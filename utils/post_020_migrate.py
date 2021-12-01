@@ -90,20 +90,24 @@ def post_020_migrate_app():
         project = get_object_or_404(Project, name=proj_name)
         print(f"{project}")
         for target in project.targets.all().order_by('name'):
-            if not target.is_step_ahead:
-                continue
-
             ref_date_type_outcome_var = _ref_date_type_outcome_var_for_target(target, regex_tuples)
             if not ref_date_type_outcome_var:
                 raise RuntimeError(f"no regex_for_target. target={target}, regex_tuples={regex_tuples}")
 
             new_ref_date_type_id, new_outcome_var = ref_date_type_outcome_var
-            new_rdt = reference_date_type_for_id(new_ref_date_type_id)
-            old_rdt = reference_date_type_for_id(target.reference_date_type)
-            old_outcome_var = target.outcome_variable
-            print(f"  {target.name!r}: {old_outcome_var!r}, {old_rdt.name!r} <- {new_outcome_var!r}, {new_rdt.name!r}")
+            print(f"  {target}, {ref_date_type_outcome_var}")
             target.outcome_variable = new_outcome_var
-            target.reference_date_type = new_ref_date_type_id
+            if target.is_step_ahead:
+                print(f"    v")
+                new_rdt = reference_date_type_for_id(new_ref_date_type_id)
+                old_rdt = reference_date_type_for_id(target.reference_date_type)
+                old_outcome_var = target.outcome_variable
+                print(f"  {target.name!r}: {old_outcome_var!r}, {old_rdt.name!r} <- "
+                      f"{new_outcome_var!r}, {new_rdt.name!r}")
+                target.reference_date_type = new_ref_date_type_id
+            else:
+                print(f"    x")
+                target.reference_date_type = None
             target.save()
 
 
