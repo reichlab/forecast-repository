@@ -144,17 +144,17 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     Uses season_start_year to convert EWs to YYYY_MM_DD_DATE_FORMAT dates.
 
     Recall the seven cdc-project.json targets and their types:
-    -------------------------+-------------------------------+-----------+-----------+---------------------
-    Target name              | target_type                   | unit      | data_type | numeric_horizon
-    -------------------------+-------------------------------+-----------+-----------+---------------------
-    "Season onset"           | Target.NOMINAL_TARGET_TYPE    | "week"    | date      | n/a
-    "Season peak week"       | Target.DATE_TARGET_TYPE       | "week"    | text      | n/a
-    "Season peak percentage" | Target.CONTINUOUS_TARGET_TYPE | "percent" | float     | n/a
-    "1 wk ahead"             | Target.CONTINUOUS_TARGET_TYPE | "percent" | float     | 1
-    "2 wk ahead"             | ""                            | ""        | ""        | 2
-    "3 wk ahead"             | ""                            | ""        | ""        | 3
-    "4 wk ahead"             | ""                            | ""        | ""        | 4
-    -------------------------+-------------------------------+-----------+-----------+---------------------
+    -------------------------+-------------------------------+--------------------------+-----------+----------------
+    Target name              | target_type                   | outcome_variable         | data_type | numeric_horizon
+    -------------------------+-------------------------------+--------------------------+-----------+----------------
+    "Season onset"           | Target.NOMINAL_TARGET_TYPE    | "season onset"           | date      | n/a
+    "Season peak week"       | Target.DATE_TARGET_TYPE       | "season peak week"       | text      | n/a
+    "Season peak percentage" | Target.CONTINUOUS_TARGET_TYPE | "season peak percentage" | float     | n/a
+    "1 wk ahead"             | Target.CONTINUOUS_TARGET_TYPE | "ILI percent"            | float     | 1
+    "2 wk ahead"             | ""                            | ""                       | ""        | 2
+    "3 wk ahead"             | ""                            | ""                       | ""        | 3
+    "4 wk ahead"             | ""                            | ""                       | ""        | 4
+    -------------------------+-------------------------------+--------------------------+-----------+----------------
 
     Note that the "Season onset" target is nominal and not date. This is due to how the CDC decided to represent the
     case when predicting no season onset, i.e., the threshold is not exceeded. This is done via a "none" bin where
