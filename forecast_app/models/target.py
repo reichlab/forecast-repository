@@ -2,6 +2,7 @@ import datetime
 import itertools
 from collections import namedtuple
 
+from dateutil import relativedelta
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import BooleanField, IntegerField
@@ -366,9 +367,34 @@ def calc_DAY_RDT(target, timezero):
 
 def calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero):
     """
-    Implements the US covid19 hub week reference_date_type.
+    Implements the US covid19 hub week reference_date_type. The algorithm is to calculate `reference_date` from
+    `timezero.timezero_date`, and then use `target.numeric_horizon` and `target.reference_date_type` to calculate
+    `target_end_date` relative to that `reference_date`.
+
+    reference_date: based on timezero.timezero_date's day of week:
+    - Saturday: reference_date = timezero.timezero_date
+    - Sunday or Monday: reference_date = timezero.timezero_date's previous saturday
+    - otherwise: reference_date = timezero.timezero_date's next saturday
+
+    target_end_date: reference_date + (target.numeric_horizon in number of weeks) * 7 days
+
+    :return a 2-tuple: (reference_date, target_end_date). both datetime.dates
     """
-    return None, None  # todo xx
+    # calculate reference_date. recall: date.weekday(): Monday is 0 and Sunday is 6
+    if timezero.timezero_date.weekday() == 5:  # Sat
+        reference_date = timezero.timezero_date
+    elif (timezero.timezero_date.weekday() == 6) or (timezero.timezero_date.weekday() == 0):  # Sun or Mon
+        prev_sat = relativedelta.relativedelta(weekday=relativedelta.SA(-1))
+        reference_date = timezero.timezero_date + prev_sat
+    else:  # Tue, Wed, Thu, or Fri
+        next_sat = relativedelta.relativedelta(weekday=relativedelta.SA(1))
+        reference_date = timezero.timezero_date + next_sat
+
+    # calculate target_end_date
+    target_end_date = reference_date + relativedelta.relativedelta(days=target.numeric_horizon * 7)
+
+    # done
+    return reference_date, target_end_date
 
 
 def calc_MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT(target, timezero):

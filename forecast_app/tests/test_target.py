@@ -8,8 +8,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.test import TestCase
 
-from forecast_app.models import Target, Project, Forecast
-from forecast_app.models.target import TargetRange, TargetCat, TargetLwr
+from forecast_app.models import Target, Project, Forecast, TimeZero
+from forecast_app.models.target import TargetRange, TargetCat, TargetLwr, calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT
 from utils.forecast import load_predictions_from_json_io_dict, NamedData
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
@@ -500,3 +500,50 @@ class TargetTestCase(TestCase):
         target.set_cats([1.1, 2.2, 3.3])
         lwrs = sorted(list(TargetLwr.objects.filter(target=target).values_list('lwr', 'upper')))
         self.assertEqual([(1.1, 2.2), (2.2, 3.3), (3.3, float('inf'))], lwrs)
+
+
+    def test_calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(self):
+        target = Target(name='test target', is_step_ahead=True, numeric_horizon=1,  # arbitrary numeric_horizon
+                        reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT)
+        timezero = TimeZero(timezero_date=datetime.date(2021, 12, 11))  # arbitrary timezero_date
+
+        # case: reference_date: timezero_date is a Sat -> self
+        timezero.timezero_date = datetime.date(2021, 12, 11)  # Sat
+        act_ref_date, _ = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+        self.assertEqual(timezero.timezero_date, act_ref_date)
+
+        # case: reference_date: timezero_date is Sun or Mon -> prev Sat
+        timezero.timezero_date = datetime.date(2021, 12, 5)  # Sun
+        act_ref_date, _ = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+        self.assertEqual(datetime.date(2021, 12, 4), act_ref_date)  # prev Sat
+
+        timezero.timezero_date = datetime.date(2021, 12, 6)  # Mon
+        act_ref_date, _ = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+        self.assertEqual(datetime.date(2021, 12, 4), act_ref_date)  # prev Sat
+
+        # case: reference_date: timezero_date is Tue, Wed, Thu, or Fri -> next Sat
+        tz_dates = [datetime.date(2021, 12, date) for date in [7, 8, 9, 10]]
+        for tz_date in tz_dates:
+            timezero.timezero_date = tz_date
+            act_ref_date, _ = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+            self.assertEqual(datetime.date(2021, 12, 11), act_ref_date)  # next Sat
+
+        # case: numeric_horizon: 1 week
+        target.numeric_horizon = 1
+        timezero.timezero_date = datetime.date(2021, 12, 11)  # Sat
+        act_ref_date, act_target_end_date = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+        self.assertEqual(datetime.date(2021, 12, 18), act_target_end_date)  # next Sat
+
+        # case: Sun that goes to prev Sat in prev year, numeric_horizon: 4 weeks
+        target.numeric_horizon = 4
+        timezero.timezero_date = datetime.date(2017, 1, 1)  # Sun
+        act_ref_date, act_target_end_date = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+        self.assertEqual(datetime.date(2016, 12, 31), act_ref_date)
+        self.assertEqual(datetime.date(2017, 1, 28), act_target_end_date)
+
+        # case: Tue that goes to next Sat in next year, numeric_horizon: 2 weeks
+        target.numeric_horizon = 2
+        timezero.timezero_date = datetime.date(2021, 12, 28)  # Tue
+        act_ref_date, act_target_end_date = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
+        self.assertEqual(datetime.date(2022, 1, 1), act_ref_date)
+        self.assertEqual(datetime.date(2022, 1, 15), act_target_end_date)
