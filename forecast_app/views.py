@@ -1056,7 +1056,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['num_pred_eles'] = sum(map(lambda _: _[1], pred_type_count_pairs)) if pred_type_count_pairs else 0
         context['num_unique_pes'] = num_unique_pes
         context['pred_type_count_pairs'] = sorted(pred_type_count_pairs)
-        context['found_units'] = sorted(found_units, key=lambda _: _.name)
+        context['found_units'] = sorted(found_units, key=lambda _: _.abbreviation)
         context['found_targets'] = found_targets
         context['target_groups'] = target_groups
         context['search_unit'] = search_unit
