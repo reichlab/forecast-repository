@@ -74,7 +74,7 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual(7, project.targets.count())
 
         # spot-check a Unit
-        unit = project.units.filter(name='US National').first()
+        unit = project.units.filter(name='nat').first()
         self.assertIsNotNone(unit)
 
         # spot-check a Target

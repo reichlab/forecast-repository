@@ -56,8 +56,7 @@ class ForecastTestCase(TestCase):
         self.assertEqual(11 * 7 * 2, self.forecast.pred_eles.count())  # locations * targets * points/bins
 
         # check 'US National' targets: spot-check a few point rows
-        act_points_qs = self.forecast.pred_eles.filter(unit__name='US National',
-                                                       pred_class=PredictionElement.POINT_CLASS)
+        act_points_qs = self.forecast.pred_eles.filter(unit__name='nat', pred_class=PredictionElement.POINT_CLASS)
         self.assertEqual(7, act_points_qs.count())
 
         # test empty file

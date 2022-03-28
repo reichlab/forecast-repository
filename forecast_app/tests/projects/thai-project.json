@@ -9,307 +9,307 @@
   "visualization_y_label": "DHF cases",
   "units": [
     {
-      "name": "TH01",
+      "name": "Mae Hong Son Province",
       "abbreviation": "TH01"
     },
     {
-      "name": "TH02",
+      "name": "Chiang Mai Province",
       "abbreviation": "TH02"
     },
     {
-      "name": "TH03",
+      "name": "Chiang Rai Province",
       "abbreviation": "TH03"
     },
     {
-      "name": "TH04",
+      "name": "Nan Province",
       "abbreviation": "TH04"
     },
     {
-      "name": "TH05",
+      "name": "Lamphun Province",
       "abbreviation": "TH05"
     },
     {
-      "name": "TH06",
+      "name": "Lampang Province",
       "abbreviation": "TH06"
     },
     {
-      "name": "TH07",
+      "name": "Phrae Province",
       "abbreviation": "TH07"
     },
     {
-      "name": "TH08",
+      "name": "Tak Province",
       "abbreviation": "TH08"
     },
     {
-      "name": "TH09",
+      "name": "Sukhothai Province",
       "abbreviation": "TH09"
     },
     {
-      "name": "TH10",
+      "name": "Uttaradit Province",
       "abbreviation": "TH10"
     },
     {
-      "name": "TH11",
+      "name": "Kamphaeng Phet Province",
       "abbreviation": "TH11"
     },
     {
-      "name": "TH12",
+      "name": "Phitsanulok Province",
       "abbreviation": "TH12"
     },
     {
-      "name": "TH13",
+      "name": "Phichit Province",
       "abbreviation": "TH13"
     },
     {
-      "name": "TH14",
+      "name": "Phetchabun Province",
       "abbreviation": "TH14"
     },
     {
-      "name": "TH15",
+      "name": "Uthai Thani Province",
       "abbreviation": "TH15"
     },
     {
-      "name": "TH16",
+      "name": "Nakhon Sawan Province",
       "abbreviation": "TH16"
     },
     {
-      "name": "TH17",
+      "name": "Nong Khai Province",
       "abbreviation": "TH17"
     },
     {
-      "name": "TH18",
+      "name": "Loei Province",
       "abbreviation": "TH18"
     },
     {
-      "name": "TH20",
+      "name": "Sakon Nakhon Province",
       "abbreviation": "TH20"
     },
     {
-      "name": "TH22",
+      "name": "Khon Kaen Province",
       "abbreviation": "TH22"
     },
     {
-      "name": "TH23",
+      "name": "Kalasin Province",
       "abbreviation": "TH23"
     },
     {
-      "name": "TH24",
+      "name": "Maha Sarakham Province",
       "abbreviation": "TH24"
     },
     {
-      "name": "TH25",
+      "name": "Roi Et Province",
       "abbreviation": "TH25"
     },
     {
-      "name": "TH26",
+      "name": "Chaiyaphum Province",
       "abbreviation": "TH26"
     },
     {
-      "name": "TH27",
+      "name": "Nakhon Ratchasima Province",
       "abbreviation": "TH27"
     },
     {
-      "name": "TH28",
+      "name": "Buriram Province",
       "abbreviation": "TH28"
     },
     {
-      "name": "TH29",
+      "name": "Surin Province",
       "abbreviation": "TH29"
     },
     {
-      "name": "TH30",
+      "name": "Sisaket Province",
       "abbreviation": "TH30"
     },
     {
-      "name": "TH31",
+      "name": "Narathiwat Province",
       "abbreviation": "TH31"
     },
     {
-      "name": "TH32",
+      "name": "Chai Nat Province",
       "abbreviation": "TH32"
     },
     {
-      "name": "TH33",
+      "name": "Sing Buri Province",
       "abbreviation": "TH33"
     },
     {
-      "name": "TH34",
+      "name": "Lop Buri Province",
       "abbreviation": "TH34"
     },
     {
-      "name": "TH35",
+      "name": "Ang Thong Province",
       "abbreviation": "TH35"
     },
     {
-      "name": "TH36",
+      "name": "Phra Nakhon Si Ayutthaya Province",
       "abbreviation": "TH36"
     },
     {
-      "name": "TH37",
+      "name": "Sara Buri Province",
       "abbreviation": "TH37"
     },
     {
-      "name": "TH38",
+      "name": "Nonthaburi Province",
       "abbreviation": "TH38"
     },
     {
-      "name": "TH39",
+      "name": "Pathum Thani Province",
       "abbreviation": "TH39"
     },
     {
-      "name": "TH40",
+      "name": "Krung Thep Mahanakhon Province",
       "abbreviation": "TH40"
     },
     {
-      "name": "TH41",
+      "name": "Phayao Province",
       "abbreviation": "TH41"
     },
     {
-      "name": "TH42",
+      "name": "Samut Prakan Province",
       "abbreviation": "TH42"
     },
     {
-      "name": "TH43",
+      "name": "Nakhon Nayok Province",
       "abbreviation": "TH43"
     },
     {
-      "name": "TH44",
+      "name": "Chachoengsao Province",
       "abbreviation": "TH44"
     },
     {
-      "name": "TH46",
+      "name": "Chon Buri Province",
       "abbreviation": "TH46"
     },
     {
-      "name": "TH47",
+      "name": "Rayong Province",
       "abbreviation": "TH47"
     },
     {
-      "name": "TH48",
+      "name": "Chanthaburi Province",
       "abbreviation": "TH48"
     },
     {
-      "name": "TH49",
+      "name": "Trat Province",
       "abbreviation": "TH49"
     },
     {
-      "name": "TH50",
+      "name": "Kanchanaburi Province",
       "abbreviation": "TH50"
     },
     {
-      "name": "TH51",
+      "name": "Suphan Buri Province",
       "abbreviation": "TH51"
     },
     {
-      "name": "TH52",
+      "name": "Ratchaburi Province",
       "abbreviation": "TH52"
     },
     {
-      "name": "TH53",
+      "name": "Nakhon Pathom Province",
       "abbreviation": "TH53"
     },
     {
-      "name": "TH54",
+      "name": "Samut Songkhram Province",
       "abbreviation": "TH54"
     },
     {
-      "name": "TH55",
+      "name": "Samut Sakhon Province",
       "abbreviation": "TH55"
     },
     {
-      "name": "TH56",
+      "name": "Phetchaburi Province",
       "abbreviation": "TH56"
     },
     {
-      "name": "TH57",
+      "name": "Prachuap Khiri Khan Province",
       "abbreviation": "TH57"
     },
     {
-      "name": "TH58",
+      "name": "Chumphon Province",
       "abbreviation": "TH58"
     },
     {
-      "name": "TH59",
+      "name": "Ranong Province",
       "abbreviation": "TH59"
     },
     {
-      "name": "TH60",
+      "name": "Surat Thani Province",
       "abbreviation": "TH60"
     },
     {
-      "name": "TH61",
+      "name": "Phangnga Province",
       "abbreviation": "TH61"
     },
     {
-      "name": "TH62",
+      "name": "Phuket Province",
       "abbreviation": "TH62"
     },
     {
-      "name": "TH63",
+      "name": "Krabi Province",
       "abbreviation": "TH63"
     },
     {
-      "name": "TH64",
+      "name": "Nakhon Si Thammarat Province",
       "abbreviation": "TH64"
     },
     {
-      "name": "TH65",
+      "name": "Trang Province",
       "abbreviation": "TH65"
     },
     {
-      "name": "TH66",
+      "name": "Phatthalung Province",
       "abbreviation": "TH66"
     },
     {
-      "name": "TH67",
+      "name": "Satun Province",
       "abbreviation": "TH67"
     },
     {
-      "name": "TH68",
+      "name": "Songkhla Province",
       "abbreviation": "TH68"
     },
     {
-      "name": "TH69",
+      "name": "Pattani Province",
       "abbreviation": "TH69"
     },
     {
-      "name": "TH70",
+      "name": "Yala Province",
       "abbreviation": "TH70"
     },
     {
-      "name": "TH72",
+      "name": "Yasothon Province",
       "abbreviation": "TH72"
     },
     {
-      "name": "TH73",
+      "name": "Nakhon Phanom Province",
       "abbreviation": "TH73"
     },
     {
-      "name": "TH74",
+      "name": "Prachin Buri Province",
       "abbreviation": "TH74"
     },
     {
-      "name": "TH75",
+      "name": "Ubon Ratchathani Province",
       "abbreviation": "TH75"
     },
     {
-      "name": "TH76",
+      "name": "Udon Thani Province",
       "abbreviation": "TH76"
     },
     {
-      "name": "TH77",
+      "name": "Amnat Charoen Province",
       "abbreviation": "TH77"
     },
     {
-      "name": "TH78",
+      "name": "Mukdahan Province",
       "abbreviation": "TH78"
     },
     {
-      "name": "TH79",
+      "name": "Nong Bua Lamphu Province",
       "abbreviation": "TH79"
     },
     {
-      "name": "TH80",
+      "name": "Sa Kaeo Province",
       "abbreviation": "TH80"
     }
   ],

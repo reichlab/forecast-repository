@@ -113,7 +113,7 @@ def get_truth_data_preview(project):
     # using 'data__value'
     pred_data_qs = PredictionData.objects \
                        .filter(pred_ele__forecast__forecast_model=oracle_model) \
-                       .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+                       .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__abbreviation',
                                     'pred_ele__target__name',
                                     'data')[:10]
     return [(tz_date, unit__name, target__name, data['value'])
@@ -287,7 +287,7 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
     unit_to_missing_count = defaultdict(int)
     target_to_missing_count = defaultdict(int)
 
-    unit_name_to_obj = {unit.name: unit for unit in project.units.all()}
+    unit_abbrev_to_obj = {unit.abbreviation: unit for unit in project.units.all()}
     target_name_to_obj = {target.name: target for target in project.targets.all()}
     timezero_date_to_obj = {}  # caches Project.time_zero_for_timezero_date()
     target_to_cats_values = {}  # caches Target.cats_values()
@@ -296,7 +296,7 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         if len(row) != 4:
             raise RuntimeError("Invalid row (wasn't 4 columns): {!r}".format(row))
 
-        timezero_date, unit_name, target_name, value = row
+        timezero_date, unit_abbrev, target_name, value = row
 
         # validate and cache timezero_date
         if timezero_date in timezero_date_to_obj:
@@ -311,8 +311,8 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
             continue
 
         # validate unit and target
-        if unit_name not in unit_name_to_obj:
-            unit_to_missing_count[unit_name] += 1
+        if unit_abbrev not in unit_abbrev_to_obj:
+            unit_to_missing_count[unit_abbrev] += 1
             continue
 
         if target_name not in target_name_to_obj:
@@ -363,15 +363,15 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                                f"parsed_value={parsed_value}, cats_values={cats_values}")
 
         # valid
-        rows.append((time_zero, unit_name_to_obj[unit_name], target, parsed_value))
+        rows.append((time_zero, unit_abbrev_to_obj[unit_abbrev], target, parsed_value))
 
     # report warnings
     for time_zero, count in timezero_to_missing_count.items():
         logger.warning("_read_truth_data_rows(): timezero not found in project: {}: {} row(s)"
                        .format(time_zero, count))
-    for unit_name, count in unit_to_missing_count.items():
+    for unit_abbrev, count in unit_to_missing_count.items():
         logger.warning("_read_truth_data_rows(): Unit not found in project: {!r}: {} row(s)"
-                       .format(unit_name, count))
+                       .format(unit_abbrev, count))
     for target_name, count in target_to_missing_count.items():
         logger.warning("_read_truth_data_rows(): Target not found in project: {!r}: {} row(s)"
                        .format(target_name, count))

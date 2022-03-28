@@ -524,7 +524,7 @@ class ViewsTestCase(TestCase):
 
     # update this when this changes: forecast_app/api_urls.py
     def test_api_get_endpoints(self):
-        unit_us_nat = self.public_project.units.get(name='US National')
+        unit_us_nat = self.public_project.units.get(name='nat')
         target_1wk = self.public_project.targets.get(name='1 wk ahead')
         url_exp_user_status_code_pairs = [
             (reverse('api-root'), self.ONLY_PO_MO_STAFF),
@@ -642,7 +642,7 @@ class ViewsTestCase(TestCase):
         response = self.client.get(reverse('api-truth-detail', args=[self.public_project.pk]), format='json')
         self.assertEqual(['id', 'url', 'project', 'source', 'created_at', 'issued_at'], list(response.data))
 
-        unit_us_nat = self.public_project.units.get(name='US National')
+        unit_us_nat = self.public_project.units.get(name='nat')
         response = self.client.get(reverse('api-unit-detail', args=[unit_us_nat.pk]))
         self.assertEqual(['id', 'url', 'name', 'abbreviation'], list(response.data))
 

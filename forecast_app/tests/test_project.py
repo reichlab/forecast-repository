@@ -134,7 +134,7 @@ class ProjectTestCase(TestCase):
         # of using 'data__value'
         pred_data_qs = PredictionData.objects \
             .filter(pred_ele__forecast__forecast_model=oracle_model_for_project(self.project)) \
-            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__abbreviation',
                          'pred_ele__target__name', 'data')
         act_rows = [(tz_date, unit__name, target__name, data['value'])
                     for tz_date, unit__name, target__name, data in pred_data_qs]
@@ -157,7 +157,7 @@ class ProjectTestCase(TestCase):
         # of using 'data__value'
         pred_data_qs = PredictionData.objects \
             .filter(pred_ele__forecast__forecast_model=oracle_model_for_project(project2)) \
-            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__name',
+            .values_list('pred_ele__forecast__time_zero__timezero_date', 'pred_ele__unit__abbreviation',
                          'pred_ele__target__name', 'data')
         act_rows = [(tz_date, unit__name, target__name, data['value'])
                     for tz_date, unit__name, target__name, data in pred_data_qs]
