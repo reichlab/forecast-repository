@@ -161,6 +161,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
         combination, OR an already-open file-like object
     :param file_name: name to use for the file
     :param is_convert_na_none: as passed to Target.is_value_compatible_with_target_type()
+    :return 2-tuple: (num_rows, forecasts)
     """
     logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
                  f"file_name={file_name}")
@@ -174,14 +175,16 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     logger.debug(f"load_truth_data(): calling _load_truth_data()")
     # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
     if isinstance(truth_file_path_or_fp, io.IOBase):
-        num_rows = _load_truth_data(project, oracle_model, truth_file_path_or_fp, file_name, is_convert_na_none)
+        num_rows, forecasts = _load_truth_data(project, oracle_model, truth_file_path_or_fp, file_name,
+                                               is_convert_na_none)
     else:
         with open(str(truth_file_path_or_fp)) as truth_file_fp:
-            num_rows = _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none)
+            num_rows, forecasts = _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none)
 
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
     logger.debug(f"load_truth_data(): done")
+    return num_rows, forecasts
 
 
 @transaction.atomic
@@ -195,7 +198,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     logger.debug(f"_load_truth_data(): entered. calling _read_truth_data_rows()")
     rows = _read_truth_data_rows(project, truth_file_fp, is_convert_na_none)
     if not rows:
-        return 0
+        return 0, []
 
     # group rows by timezero and then create and load oracle Forecasts for each group, passing them as
     # json_io_dicts. we leverage _load_truth_data_rows_for_forecast() by creating a json_io_dict for the truth data
@@ -255,14 +258,14 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
             forecast.save()
 
     logger.debug(f"_load_truth_data(): done")
-    return len(rows)
+    return len(rows), forecasts
 
 
 def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
     """
     Similar to _cleaned_rows_from_cdc_csv_file(), loads, validates, and cleans the rows in csv_file_fp.
 
-    :return: a list of 8-tuples: (timezero, unit, target, parsed_value) (first three are objects)
+    :return: a list of 4-tuples: (timezero, unit, target, parsed_value) (first three are objects)
     """
     from forecast_app.models import Target  # avoid circular imports
 
@@ -281,7 +284,7 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
         raise RuntimeError(f"invalid header. orig_header={orig_header!r}, expected header={TRUTH_CSV_HEADER !r}")
 
     # collect the rows. first we load them all into memory (processing and validating them as we go)
-    rows = []  # return value. filled next
+    rows = []  # return value
 
     timezero_to_missing_count = defaultdict(int)  # to minimize warnings
     unit_to_missing_count = defaultdict(int)

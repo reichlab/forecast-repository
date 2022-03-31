@@ -5,10 +5,10 @@ from pathlib import Path
 
 import click
 import django
-# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 from django.db import transaction
 
 
+# set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 

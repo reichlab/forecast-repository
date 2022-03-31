@@ -170,7 +170,7 @@ def _prediction_dicts_for_csv_rows(season_start_year, rows):
     :return: a list of PointData or BinData prediction dicts
     """
     prediction_dicts = []  # return value
-    rows.sort(key=lambda _: (_[0], _[1], _[2]))  # sorted for groupby()
+    rows.sort(key=lambda _: (_[0], _[1], _[2]))  # sort for groupby()
     for (location_name, target_name, is_point_row), bin_start_end_val_grouper in \
             groupby(rows, key=lambda _: (_[0], _[1], _[2])):
         if target_name not in ['Season onset', 'Season peak week', 'Season peak percentage', '1 wk ahead', '2 wk ahead',

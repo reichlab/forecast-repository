@@ -167,7 +167,7 @@ def project_config_diff(config_dict_1, config_dict_2):
     :return: a list of Change objects that 'move' the state of config_dict_1 to config_dict_2. aka a
         "project config diff". list order is non-deterministic
     """
-    changes = []  # return value. filled next. a list of Changes
+    changes = []  # return value. a list of Changes
 
     # validate inputs (ensures expected fields are present)
     create_project_from_json(config_dict_1, None, is_validate_only=True)
@@ -302,8 +302,8 @@ def order_project_config_diff(changes):
     :param changes: list of Changes as returned by project_config_diff()
     :return: list of ordered and cleaned changes
     """
-    changes = sorted(list(changes), key=lambda change: (change.object_type, change.object_pk))  # sorted for groupby()
-    cleaned_changes = []  # return value. filled next
+    changes = sorted(list(changes), key=lambda change: (change.object_type, change.object_pk))  # sort for groupby()
+    cleaned_changes = []  # return value
     for (object_type, object_pk), change_grouper \
             in groupby(changes, key=lambda change: (change.object_type, change.object_pk)):
         # collect the changes, omitting duplicates. note that we only check change_type and not object_dict, i.e., we
@@ -348,7 +348,7 @@ def database_changes_for_project_config_diff(project, changes):
         .filter(forecast__forecast_model__project=project,
                 forecast__forecast_model__is_oracle=False)
     pred_ele_truth_qs = truth_data_qs(project)
-    database_changes = []  # return value. filled next
+    database_changes = []  # return value
     for change in order_project_config_diff(changes):
         if (change.object_type == ObjectType.PROJECT) or (change.change_type != ChangeType.OBJ_REMOVED):
             continue

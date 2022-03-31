@@ -628,7 +628,7 @@ def _project_explorer_unit_rows(project):
     # combine into 5-tuple: (model, newest_forecast_tz_date, newest_forecast_id, present_unit_names, missing_unit_names)
     unit_id_to_obj = {unit.id: unit for unit in project.units.all()}
     all_unit_ids = set(unit_id_to_obj.keys())
-    rows = []  # return value. filled next
+    rows = []  # return value
     for model, newest_forecast_tz_date, newest_forecast_id in models_rows:
         present_unit_ids = forecast_id_to_unit_id_set.get(newest_forecast_id, set())
         missing_unit_ids = all_unit_ids - present_unit_ids
@@ -703,7 +703,7 @@ def target_rows_for_project(project):
     forecast_id_to_target_id_set = _forecast_ids_to_present_unit_or_target_id_sets(forecast_ids, False)
 
     # build target_rows
-    target_rows = []  # return value. filled next
+    target_rows = []  # return value
     target_id_to_object = {target.id: target for target in project.targets.all()}
     for forecast_model, newest_forecast_tz_date, newest_forecast_id in models_rows:
         newest_forecast_target_ids = forecast_id_to_target_id_set.get(newest_forecast_id, [])

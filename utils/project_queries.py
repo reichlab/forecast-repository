@@ -83,7 +83,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     :param max_num_rows: the number of rows at which this function raises a RuntimeError
     :return: a list of CSV rows including the header
     """
-    logger.debug(f"query_forecasts_for_project(): 1/3 validating query. query={query}, project={project}")
+    logger.debug(f"query_forecasts_for_project(): entered. project={project}, query={query}")
 
     # validate query
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids, type_ints, as_of) = \
@@ -145,8 +145,8 @@ def _query_forecasts_for_project_no_type_convert(project, query, max_num_rows, m
                                                             timezero_to_season_name, pred_class, pred_data)
 
     # done
-    logger.debug(f"_query_forecasts_for_project_no_type_convert(): 2/2 done. num_rows={num_rows}, query={query}, "
-                 f"project={project}")
+    logger.debug(f"_query_forecasts_for_project_no_type_convert(): 2/2 done. num_rows={num_rows}, project={project}, "
+                 f"query={query}")
 
 
 def _generate_query_rows_no_type_convert(fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj, timezero_id_to_obj,
@@ -308,7 +308,7 @@ def validate_forecasts_query(project, query):
     from utils.forecast import _validate_quantile_list  # ""
 
 
-    # return value. filled next
+    # return value
     error_messages, model_ids, unit_ids, target_ids, timezero_ids, types, as_of = [], [], [], [], [], [], None
 
     # validate query type
@@ -541,8 +541,8 @@ def _query_forecasts_for_project_yes_type_convert(project, query, max_num_rows, 
                     fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj, timezero_id_to_obj, unit_id_to_obj,
                     target_id_to_obj, timezero_to_season_name, pred_class, pred_data, dst_class, query_options)
 
-    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 4/4 done. num_rows={num_rows}, query={query}, "
-                 f"project={project}")
+    logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 4/4 done. num_rows={num_rows}, project={project}, "
+                 f"query={query}")
 
 
 def _generate_query_rows_yes_type_convert(fm_id, tz_id, unit_id, target_id, forecast_model_id_to_obj,
@@ -589,7 +589,7 @@ def _validate_query_ids(project, query):
 
     :return: a 2-tuple: (error_messages, (model_ids, unit_ids, target_ids, timezero_ids))
     """
-    # return value. filled next
+    # return value
     error_messages, model_ids, unit_ids, target_ids, timezero_ids = [], [], [], [], []
 
     # validate keys are correct type (lists), and validate object strings (must have corresponding IDs)
@@ -812,7 +812,7 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     :return: a list of CSV rows including the header
     """
     # validate query
-    logger.debug(f"query_truth_for_project(): 1/3 validating query. query={query}, project={project}")
+    logger.debug(f"query_truth_for_project(): 1/3 validating query. project={project}, query={query}")
     error_messages, (unit_ids, target_ids, timezero_ids, as_of) = validate_truth_query(project, query)
     if error_messages:
         raise RuntimeError(f"invalid query. query={query}, errors={error_messages}")
@@ -860,7 +860,7 @@ def validate_truth_query(project, query):
     :param query: ""
     :return: a 2-tuple: (error_messages, (unit_ids, target_ids, timezero_ids, as_of))
     """
-    # return value. filled next
+    # return value
     error_messages, unit_ids, target_ids, timezero_ids, as_of = [], [], [], [], None
 
     # validate query type

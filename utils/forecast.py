@@ -175,7 +175,7 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
     # of prediction classes (strs):
     loc_targ_to_pred_classes = defaultdict(list)  # (unit_abbrev, target_name) -> [prediction_class1, ...]
 
-    data_hash_to_pred_data = {}  # return value. filled next
+    data_hash_to_pred_data = {}  # return value
     pred_ele_rows = []  # ""
     for prediction_dict in prediction_dicts:
         unit_abbrev = prediction_dict['unit']
@@ -704,7 +704,7 @@ def data_rows_from_forecast(forecast, unit, target):
         data_rows_sample:   unit_abbreviation, target_name,  sample
     """
     data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
-        [], [], [], [], []  # return value. filled next
+        [], [], [], [], []  # return value
 
     # fill rows by leveraging `query_forecasts_for_project()`'s `_query_forecasts_sql_for_pred_class()`,
     # which does the necessary work of merging versions and picking latest issued_at data.
@@ -900,7 +900,7 @@ def forecast_metadata_counts_for_f_ids(forecasts_qs):
         - unit_count:        num_units
         - target_count:      num_targets
     """
-    forecast_id_to_counts = defaultdict(lambda: [None, None, None])  # return value. filled next
+    forecast_id_to_counts = defaultdict(lambda: [None, None, None])  # return value
 
     # query 1/3: get ForecastMetaPrediction counts
     for fmp in ForecastMetaPrediction.objects.filter(forecast__in=forecasts_qs):

@@ -1,0 +1,209 @@
+{
+  "name": "COVID-19 Forecasts Viz Test",
+  "is_public": true,
+  "description": "The goal of this repository is to create a standardized set of data on forecasts from experienced teams making projections of cumulative and incident deaths due to COVID-19 in the United States.",
+  "home_url": "https://covid19forecasthub.org",
+  "logo_url": "https://github.com/reichlab/covid19-forecast-hub-web/raw/master/images/forecast-hub-logo_DARKBLUE.png",
+  "core_data": "https://github.com/reichlab/covid19-death-forecasts/tree/master/data-processed",
+  "time_interval_type": "Week",
+  "visualization_y_label": "Weighted ILI (%)",
+  "units": [
+    {
+      "name": "US",
+      "abbreviation": "US"
+    },
+    {
+      "name": "Texas",
+      "abbreviation": "48"
+    }
+  ],
+  "targets": [
+    {
+      "name": "1 wk ahead inc death",
+      "type": "continuous",
+      "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
+      "outcome_variable": "incident deaths",
+      "is_step_ahead": true,
+      "numeric_horizon": 1,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "cats": []
+    },
+    {
+      "name": "2 wk ahead inc death",
+      "type": "continuous",
+      "description": "One- to twenty-week ahead forecasts will be defined as the number of incident deaths for the target week.",
+      "outcome_variable": "incident deaths",
+      "is_step_ahead": true,
+      "numeric_horizon": 2,
+      "reference_date_type": "MMWR_WEEK_LAST_TIMEZERO_MONDAY",
+      "cats": []
+    }
+  ],
+  "timezeros": [
+    {
+      "timezero_date": "2021-12-12",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-13",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-14",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-15",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-16",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-19",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-20",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-21",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-22",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-25",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-26",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-27",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2021-12-29",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-02",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-03",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-04",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-08",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-09",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-10",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-11",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-12",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-13",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-14",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-15",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-16",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-17",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-19",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-20",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-21",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-22",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-23",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-24",
+      "data_version_date": null,
+      "is_season_start": false
+    },
+    {
+      "timezero_date": "2022-01-31",
+      "data_version_date": null,
+      "is_season_start": false
+    }
+  ]
+}
