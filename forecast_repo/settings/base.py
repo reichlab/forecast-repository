@@ -314,3 +314,10 @@ if 'MAX_NUM_DUMP_PRED_ELES' in os.environ:
         raise RuntimeError(
             f"base.py: MAX_NUM_DUMP_PRED_ELES config var could not be coerced to float: "
             f"{max_num_dump_pred_eles_value!r}")
+
+# used to generate /robots.txt . format: CSV (comma-delimited)
+if 'BAD_BOTS' in os.environ:
+    bad_bots_value = os.environ.get('BAD_BOTS')
+    BAD_BOTS = [robot_name for robot_name in bad_bots_value.strip().split(',') if robot_name]  # only non-empty names
+else:
+    BAD_BOTS = []
