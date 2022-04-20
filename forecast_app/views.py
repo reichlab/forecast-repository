@@ -39,7 +39,7 @@ from utils.project import config_dict_from_project, create_project_from_json, gr
 from utils.project_diff import project_config_diff, database_changes_for_project_config_diff, Change, \
     execute_project_config_diff, order_project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
-from utils.project_truth import is_truth_data_loaded, oracle_model_for_project, truth_batches, \
+from utils.project_truth import oracle_model_for_project, truth_batches, \
     truth_batch_summary_table, truth_delete_batch
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -52,15 +52,22 @@ def index(request):
 
 
 def robots_txt(request):
-    # the robots.txt template contains a mix of absolute and relative paths. for simplicity we "hard-code" the absolute
-    # ones rather than getting them via `reverse()`. we do get the relative paths (which all happen to be Project-
-    # specific) via `reverse()`. this means this function needs to be pretty lightweight because it can be called
-    # frequently by different bots
+    # the robots.txt template contains a mix of absolute and relative paths, plus a "blacklist" of bad bots. for
+    # simplicity we "hard-code" the absolute ones rather than getting them via `reverse()`. we do get the relative paths
+    # (which all happen to be Project- specific) via `reverse()`. this means this function needs to be pretty
+    # lightweight because it can be called frequently by different bots
+
+    from forecast_repo.settings.base import BAD_BOTS  # avoid circular imports
+
+
     disallow_urls = []  # relative URLs
     for project_id in Project.objects.all().values_list('id', flat=True):
-        for project_url_name in ['project-explorer', 'project-config', 'truth-data-detail']:
+        for project_url_name in ['project-explorer', 'project-config', 'truth-data-detail', 'query-truth',
+                                 'project-forecasts', 'query-forecasts']:
             disallow_urls.append(reverse(project_url_name, args=[str(project_id)]))  # relative URLs
-    return render(request, 'robots.html', content_type="text/plain", context={'disallow_urls': disallow_urls})
+    return render(request, 'robots.html',
+                  content_type="text/plain",
+                  context={'disallow_urls': disallow_urls, 'bad_bots': BAD_BOTS})
 
 
 def about(request):

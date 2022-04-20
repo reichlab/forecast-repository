@@ -7,5 +7,12 @@ Disallow: /forecast/
 Disallow: /job/
 Disallow: /user/
 Disallow: /users
+
+{# NB: `endfor` must be on new line so that file includes newlines #}
 {% for disallow_url in disallow_urls %}Disallow: {{ disallow_url }}
+{% endfor %}
+
+{% for bot_name in bad_bots %}User-agent: {{ bot_name }}
+Disallow: /
+
 {% endfor %}
