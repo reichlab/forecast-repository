@@ -147,7 +147,7 @@ def viz_model_names(project):
 
 
 #
-# locations() API method
+# locations() API method. todo xx delete when API URL defined
 #
 
 def locations(project):
@@ -161,7 +161,7 @@ def locations(project):
 
 
 #
-# target_variables() API method
+# target_variables() API method. todo xx delete when API URL defined
 #
 
 def target_variables(project):
@@ -175,7 +175,7 @@ def target_variables(project):
 
 
 #
-# available_as_ofs() API method
+# available_as_ofs() API method. todo xx delete when API URL defined
 #
 
 def available_as_ofs(project):
@@ -189,7 +189,7 @@ def available_as_ofs(project):
 
 
 #
-# models() API method
+# models() API method. todo xx delete when API URL defined
 #
 
 def models(project):
@@ -223,16 +223,9 @@ def viz_data(project, is_forecast, target_key, unit_abbrev, reference_date):
         else _viz_data_truth(project, target_key, unit_abbrev, reference_date)
 
 
-def _target_key_to_targets(project):
-    """
-    :return: dict mapping target_key (see `viz_key_for_target()`) -> list of that key's Targets
-    """
-    target_key_to_targets = defaultdict(list)
-    targets = viz_targets(project)
-    for target in sorted(targets, key=lambda _: _.name):
-        target_key_to_targets[viz_key_for_target(target)].append(target)
-    return target_key_to_targets
-
+#
+# _viz_data_truth()
+#
 
 def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
     """
@@ -279,6 +272,17 @@ def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
     return {'date': json_dates, 'y': json_ys}
 
 
+def _target_key_to_targets(project):
+    """
+    :return: dict mapping target_key (see `viz_key_for_target()`) -> list of that key's Targets
+    """
+    target_key_to_targets = defaultdict(list)
+    targets = viz_targets(project)
+    for target in sorted(targets, key=lambda _: _.name):
+        target_key_to_targets[viz_key_for_target(target)].append(target)
+    return target_key_to_targets
+
+
 def _viz_truth_for_target_unit_ref_date(project, target_tz_to_target_end_date, one_step_ahead_target, unit_abbrev,
                                         ref_date):
     # todo xx re-alignment of dates hack. accounts for truth reporting delays & upload dates. specific to covid project
@@ -295,6 +299,10 @@ def _viz_truth_for_target_unit_ref_date(project, target_tz_to_target_end_date, o
         ys.append(value)
     return dates, ys
 
+
+#
+# _viz_data_forecasts()
+#
 
 def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
     """

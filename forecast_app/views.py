@@ -389,6 +389,28 @@ def _vega_lite_spec_for_project(project, forecast_id_to_counts, encoding_color_f
     return vega_lite_spec
 
 
+def project_viz(request, project_pk):
+    """
+    View function to render prototype forecast visualization via https://github.com/reichlab/Covid-19-Hub-Vizualization
+    and https://github.com/reichlab/nuxt-forecast-viz .
+
+    GET query parameters: none
+    """
+
+    from utils.visualization import target_variables, locations  # avoid circular imports
+
+
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    return render(
+        request,
+        'project_viz.html',
+        context={'project': project,
+                 'models': project.models.all()})
+
+
 #
 # ---- query functions ----
 #

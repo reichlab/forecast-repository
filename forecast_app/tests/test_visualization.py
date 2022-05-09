@@ -15,27 +15,6 @@ logging.getLogger().setLevel(logging.ERROR)
 
 class VisualizationTestCase(TestCase):
     """
-    functions:
-    - viz_targets()
-    - viz_target_variables()
-      x viz_key_for_target()
-    - viz_units()
-    - viz_available_reference_dates()
-      x _viz_ref_and_target_end_dates()
-    - viz_model_names()
-
-    API:
-    x locations()
-      -> viz_units()
-    x target_variables()
-      -> viz_target_variables()
-    x available_as_ofs()
-      -> viz_available_reference_dates()
-    x models()
-      -> viz_model_names
-    x viz_data()
-      -> _viz_data_truth()
-      -> _viz_data_forecasts()
     """
 
 
@@ -222,4 +201,30 @@ class VisualizationTestCase(TestCase):
 
 
     def test_viz_forecast_versions(self):
+        self.fail('todo xx')
+
+
+    def test_viz_api_endpoints(self):
+        # - forecast_app.views.project_viz
+        # - locations
+        # - target_variables
+        # - available_as_ofs
+        # - models
+        # - viz_data
+        #
+        # Q: should they be moved to api_views.py?
+        # Q: should this test be moved to test_views_and_rest_api.py?
+        self.fail('todo xx')
+
+
+    def test_viz_api_endpoint_permissions(self):
+        # - forecast_app.views.project_viz
+        # - locations
+        # - target_variables
+        # - available_as_ofs
+        # - models
+        # - viz_data
+        #
+        # Q: should they be moved to api_views.py?
+        # Q: should this test be moved to test_views_and_rest_api.py?
         self.fail('todo xx')
