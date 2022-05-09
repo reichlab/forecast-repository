@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% load humanize %}
+{% load tz %}
+
+{% block title %}Zoltar Admin: Jobs Viz{% endblock %}
+
+{% block content %}
+
+    <p class="lead">Zoltar Admin: Jobs Viz</p>
+
+
+    <h2>Jobs by user</h2>
+
+
+    <!-- Vega-Lite -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+    <div class="row">
+        <div id="vis" class="col-md-12"></div>
+    </div>
+
+    <script type="text/javascript">
+        vegaEmbed('#vis', {{ vega_lite_spec|safe}});
+    </script>
+
+{% endblock %}

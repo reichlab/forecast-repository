@@ -115,18 +115,6 @@ def project_summary_info(project):
 # ---- admin-related view functions ----
 #
 
-def zadmin_jobs(request):
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    paginator = Paginator(Job.objects.select_related('user').all().order_by('-id'), 25)  # 25/page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return render(
-        request, 'zadmin_jobs.html',
-        context={'page_obj': page_obj})
-
-
 def zadmin(request):
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
@@ -144,15 +132,52 @@ def zadmin(request):
                  'projects_sort_pk': projects_sort_pk})
 
 
-def delete_jobs(request):
+def zadmin_jobs(request):
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding cloud file (the uploaded
-    # file)
-    Job.objects.all().delete()
-    messages.success(request, "Deleted all Jobs.")
-    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
+    paginator = Paginator(Job.objects.select_related('user').all().order_by('-id'), 25)  # 25/page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    return render(
+        request, 'zadmin_jobs.html',
+        context={'page_obj': page_obj})
+
+
+def zadmin_jobs_viz(request):
+    """
+    Shows a simple vega-lite bar chart of jobs grouped by user - per https://vega.github.io/editor/#/examples/vega-lite/bar
+    """
+    if not is_user_ok_admin(request.user):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    # get per-user row counts
+    sql = f"""
+        SELECT job.user_id, max(au.username), count(job.id) AS job_count
+        FROM forecast_app_job as job
+                 JOIN auth_user au on job.user_id = au.id
+        GROUP BY job.user_id ;
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+
+    # set vega_lite_spec
+    values = [{"user": username, "# jobs": job_count} for user_id, username, job_count in rows]
+    vega_lite_spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": values},
+        "mark": "bar",
+        "encoding": {
+            "x": {"field": "user", "type": "nominal", "axis": {"labelAngle": 45}},
+            "y": {"field": "# jobs", "type": "quantitative"}
+        }
+    }
+
+    # render
+    return render(
+        request, 'zadmin_jobs_viz.html',
+        context={'vega_lite_spec': vega_lite_spec})
 
 
 #
