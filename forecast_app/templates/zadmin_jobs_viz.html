@@ -12,6 +12,50 @@
 
     <h2>Jobs by user</h2>
 
+    <div class="col-auto">
+        <form id="filter_form" class="form-inline" style="display: inline-block;" method="GET"
+              action="{% url 'zadmin-jobs-viz' %}">
+            <div class="form-row align-items-center">
+
+                <!-- # Days text input -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text"># Days</div>
+                        </div>
+                        <input type="text" name="num_days" class="form-control"
+                               {% if num_days %}value="{{ num_days }}"{% endif %}>
+                    </div>
+                </div>
+
+                <!-- exclude_umass checkbox -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <label for="exclude_umass" class="form-check-label">Exclude UMass:&nbsp;</label>
+                        <input type="checkbox" name="exclude_umass"
+                               class="form-control"
+                               {% if exclude_umass %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Submit and Reset buttons -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <button type="submit" class="save btn btn-success btn-sm">Submit</button>
+                    </div>
+                </div>
+
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <a href="{% url 'zadmin-jobs-viz' %}"
+                           class="save btn btn-sm btn-light" role="button">Reset</a>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+    </div>
+
 
     <!-- Vega-Lite -->
     <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>

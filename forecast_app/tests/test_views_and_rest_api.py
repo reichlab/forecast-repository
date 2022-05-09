@@ -179,6 +179,7 @@ class ViewsTestCase(TestCase):
 
             (reverse('zadmin'), self.ONLY_SU_200),
             (reverse('zadmin-jobs'), self.ONLY_SU_200),
+            (reverse('zadmin-jobs-viz'), self.ONLY_SU_200),
 
             (reverse('user-list'), self.ONLY_SU_200),
 
