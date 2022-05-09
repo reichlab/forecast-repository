@@ -177,6 +177,8 @@ def zadmin_jobs_viz(request):
     # - `interval` is Postgres-specific and does not work with sqlite3
     # - without %% we get "IndexError: tuple index out of range" at the `execute()` call. related:
     #   https://stackoverflow.com/questions/2106207/escape-sql-like-value-for-postgres-with-psycopg2 :
+    # - we use a UNION to get the total # jobs, which feels like a hack. we tag that special summary row with a username
+    #   of `NULL`, which we remove later. could have been done in two queries...
     where_created_at = f"job.created_at > current_date - interval '%s days'" \
         if connection.vendor == 'postgresql' else ''
     where_exclude_umass = f"au.email NOT LIKE '%%umass.edu'" \
@@ -188,25 +190,36 @@ def zadmin_jobs_viz(request):
     else:
         where_sql = ''
     sql = f"""
-        SELECT max(au.username), count(job.id) AS job_count
-        FROM forecast_app_job as job
-                 JOIN auth_user au on job.user_id = au.id
+        SELECT max(au.username), count(job.id)
+        FROM {Job._meta.db_table} AS job
+                 JOIN auth_user au ON job.user_id = au.id
         {where_sql}
-        GROUP BY job.user_id ;
+        GROUP BY job.user_id
+        UNION
+        SELECT NULL, count(job.id)
+        FROM {Job._meta.db_table} AS job
+                 JOIN auth_user au ON job.user_id = au.id
+        {where_sql};
     """
     with connection.cursor() as cursor:
-        cursor.execute(sql, (num_days,)) if where_created_at else cursor.execute(sql)
+        cursor.execute(sql, (num_days, num_days)) if where_created_at else cursor.execute(sql)
         rows = cursor.fetchall()
 
-    # set vega_lite_spec
-    values = [{"user": username, "# jobs": job_count} for username, job_count in rows]
+    # set vega_lite_spec, extracting the NULL-tagged summary row for the total # jobs
+    total_num_jobs = -1
+    values = []
+    for username, job_count in rows:
+        if username is None:
+            total_num_jobs = job_count
+        else:
+            values.append({"user": username, "# jobs": job_count})
     vega_lite_spec = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "data": {"values": values},
         "mark": {"type": "bar", "tooltip": True},
         "encoding": {
             "x": {"field": "user", "type": "nominal", "axis": {"labelAngle": 45}},
-            "y": {"field": "# jobs", "type": "quantitative"}
+            "y": {"field": "# jobs", "type": "quantitative", "scale": {"type": "sqrt"}}
         }
     }
 
@@ -215,6 +228,7 @@ def zadmin_jobs_viz(request):
         request, 'zadmin_jobs_viz.html',
         context={'num_days': num_days,
                  'exclude_umass': exclude_umass,
+                 'total_num_jobs': total_num_jobs,
                  'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
 
 
