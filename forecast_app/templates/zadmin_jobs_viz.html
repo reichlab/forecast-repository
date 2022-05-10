@@ -17,6 +17,24 @@
               action="{% url 'zadmin-jobs-viz' %}">
             <div class="form-row align-items-center">
 
+                <!-- y-axis select -->
+                <div class="col-auto">
+                    <label class="sr-only" for="y_axis_select">y-axis</label>
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">y-axis</div>
+                        </div>
+                        <select id="y_axis_select" class="form-control" name="y_axis">
+                            <option value="jobs" {% if y_axis == '# jobs' %}selected{% endif %}>
+                                # jobs
+                            </option>
+                            <option value="rows" {% if y_axis == '# rows' %}selected{% endif %}>
+                                # rows
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- # Days text input -->
                 <div class="col-auto">
                     <div class="input-group mb-2">

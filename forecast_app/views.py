@@ -151,11 +151,14 @@ def zadmin_jobs_viz(request):
     GET query parameters:
     - `num_days`: number of days (int) of jobs to show, going back from today
     - `exclude_umass`: checked (the string 'on') if UMass-related users should be excluded
+    - `y_axis`: controls what the y-axis displays. either `jobs` or `rows`
     """
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     # get inputs, setting defaults
+    y_axis_field = "# rows" if request.GET.get('y_axis') == 'rows' else "# jobs"  # default
+
     num_days = request.GET.get('num_days')
     if num_days:
         try:
@@ -189,14 +192,15 @@ def zadmin_jobs_viz(request):
         where_sql = f"WHERE {where_created_at} {where_exclude_umass}"
     else:
         where_sql = ''
+    num_rows_sum = f"sum((job.output_json -> 'num_rows')::int)" if connection.vendor == 'postgresql' else '-1'
     sql = f"""
-        SELECT max(au.username), count(job.id)
+        SELECT max(au.username), count(job.id), {num_rows_sum}
         FROM {Job._meta.db_table} AS job
-                 JOIN auth_user au ON job.user_id = au.id
+                 JOIN auth_user AS au ON job.user_id = au.id
         {where_sql}
         GROUP BY job.user_id
         UNION
-        SELECT NULL, count(job.id)
+        SELECT NULL, count(job.id), NULL
         FROM {Job._meta.db_table} AS job
                  JOIN auth_user au ON job.user_id = au.id
         {where_sql};
@@ -208,25 +212,27 @@ def zadmin_jobs_viz(request):
     # set vega_lite_spec, extracting the NULL-tagged summary row for the total # jobs
     total_num_jobs = -1
     values = []
-    for username, job_count in rows:
+    for username, job_count, num_rows_sum in rows:
         if username is None:
             total_num_jobs = job_count
         else:
-            values.append({"user": username, "# jobs": job_count})
+            values.append({"user": username, "# jobs": job_count, "# rows": num_rows_sum})
     vega_lite_spec = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "data": {"values": values},
-        "mark": {"type": "bar", "tooltip": True},
+        "mark": {"type": "bar"},
         "encoding": {
             "x": {"field": "user", "type": "nominal", "axis": {"labelAngle": 45}},
-            "y": {"field": "# jobs", "type": "quantitative", "scale": {"type": "sqrt"}}
+            "y": {"field": y_axis_field, "type": "quantitative", "scale": {"type": "sqrt"}},
+            'tooltip': [{'field': 'user'}, {'field': '# jobs', 'format': ','}, {'field': '# rows', 'format': ','}]
         }
     }
 
     # render
     return render(
         request, 'zadmin_jobs_viz.html',
-        context={'num_days': num_days,
+        context={'y_axis': y_axis_field,
+                 'num_days': num_days,
                  'exclude_umass': exclude_umass,
                  'total_num_jobs': total_num_jobs,
                  'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
