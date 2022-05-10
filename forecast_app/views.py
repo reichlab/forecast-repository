@@ -200,7 +200,7 @@ def zadmin_jobs_viz(request):
         {where_sql}
         GROUP BY job.user_id
         UNION
-        SELECT NULL, count(job.id), NULL
+        SELECT NULL, count(job.id), {num_rows_sum}
         FROM {Job._meta.db_table} AS job
                  JOIN auth_user au ON job.user_id = au.id
         {where_sql};
@@ -211,12 +211,16 @@ def zadmin_jobs_viz(request):
 
     # set vega_lite_spec, extracting the NULL-tagged summary row for the total # jobs
     total_num_jobs = -1
+    total_num_rows = -1
     values = []
     for username, job_count, num_rows_sum in rows:
         if username is None:
             total_num_jobs = job_count
+            total_num_rows = num_rows_sum
         else:
-            values.append({"user": username, "# jobs": job_count, "# rows": num_rows_sum})
+            values.append({"user": username,
+                           "# jobs": job_count,
+                           "# rows": num_rows_sum if num_rows_sum is not None else 0})
     vega_lite_spec = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "data": {"values": values},
@@ -235,6 +239,7 @@ def zadmin_jobs_viz(request):
                  'num_days': num_days,
                  'exclude_umass': exclude_umass,
                  'total_num_jobs': total_num_jobs,
+                 'total_num_rows': total_num_rows,
                  'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
 
 
