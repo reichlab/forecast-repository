@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% load humanize %}
+{% load tz %}
+
+{% block title %}Zoltar Admin: Jobs Viz{% endblock %}
+
+{% block content %}
+
+    <p class="lead">Zoltar Admin: Jobs Viz</p>
+
+
+    <h2>Jobs By User <small>({{ total_num_jobs|intword|intcomma }} jobs, {{ total_num_rows|intword|intcomma }} rows)</small></h2>
+
+    <div class="col-auto">
+        <form id="filter_form" class="form-inline" style="display: inline-block;" method="GET"
+              action="{% url 'zadmin-jobs-viz' %}">
+            <div class="form-row align-items-center">
+
+                <!-- y-axis select -->
+                <div class="col-auto">
+                    <label class="sr-only" for="y_axis_select">y-axis</label>
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text">y-axis</div>
+                        </div>
+                        <select id="y_axis_select" class="form-control" name="y_axis">
+                            <option value="jobs" {% if y_axis == '# jobs' %}selected{% endif %}>
+                                # jobs
+                            </option>
+                            <option value="rows" {% if y_axis == '# rows' %}selected{% endif %}>
+                                # rows
+                            </option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- # Days text input -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <div class="input-group-prepend">
+                            <div class="input-group-text"># Days</div>
+                        </div>
+                        <input type="text" name="num_days" class="form-control"
+                               {% if num_days %}value="{{ num_days }}"{% endif %}>
+                    </div>
+                </div>
+
+                <!-- exclude_umass checkbox -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <label for="exclude_umass" class="form-check-label">Exclude UMass:&nbsp;</label>
+                        <input type="checkbox" name="exclude_umass"
+                               class="form-control"
+                               {% if exclude_umass %}checked{% endif %}>
+                    </div>
+                </div>
+
+                <!-- Submit and Reset buttons -->
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <button type="submit" class="save btn btn-success btn-sm">Submit</button>
+                    </div>
+                </div>
+
+                <div class="col-auto">
+                    <div class="input-group mb-2">
+                        <a href="{% url 'zadmin-jobs-viz' %}"
+                           class="save btn btn-sm btn-light" role="button">Reset</a>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+    </div>
+
+
+    <!-- Vega-Lite -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+
+    <div class="row">
+        <div id="vis" class="col-md-12"></div>
+    </div>
+
+    <script type="text/javascript">
+        vegaEmbed('#vis', {{ vega_lite_spec|safe}});
+    </script>
+
+{% endblock %}

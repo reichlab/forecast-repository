@@ -115,18 +115,6 @@ def project_summary_info(project):
 # ---- admin-related view functions ----
 #
 
-def zadmin_jobs(request):
-    if not is_user_ok_admin(request.user):
-        return HttpResponseForbidden(render(request, '403.html').content)
-
-    paginator = Paginator(Job.objects.select_related('user').all().order_by('-id'), 25)  # 25/page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    return render(
-        request, 'zadmin_jobs.html',
-        context={'page_obj': page_obj})
-
-
 def zadmin(request):
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
@@ -144,15 +132,115 @@ def zadmin(request):
                  'projects_sort_pk': projects_sort_pk})
 
 
-def delete_jobs(request):
+def zadmin_jobs(request):
     if not is_user_ok_admin(request.user):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    # NB: delete() runs in current thread. recall pre_delete() signal deletes corresponding cloud file (the uploaded
-    # file)
-    Job.objects.all().delete()
-    messages.success(request, "Deleted all Jobs.")
-    return redirect('zadmin')  # hard-coded. see note below re: redirect to same page
+    paginator = Paginator(Job.objects.select_related('user').all().order_by('-id'), 25)  # 25/page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    return render(
+        request, 'zadmin_jobs.html',
+        context={'page_obj': page_obj})
+
+
+def zadmin_jobs_viz(request):
+    """
+    Shows a simple vega-lite bar chart of jobs grouped by user - per https://vega.github.io/editor/#/examples/vega-lite/bar
+
+    GET query parameters:
+    - `num_days`: number of days (int) of jobs to show, going back from today
+    - `exclude_umass`: checked (the string 'on') if UMass-related users should be excluded
+    - `y_axis`: controls what the y-axis displays. either `jobs` or `rows`
+    """
+    if not is_user_ok_admin(request.user):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    # get inputs, setting defaults
+    y_axis_field = "# rows" if request.GET.get('y_axis') == 'rows' else "# jobs"  # default
+
+    num_days = request.GET.get('num_days')
+    if num_days:
+        try:
+            num_days = int(num_days)
+        except ValueError as ve:
+            return render(request, 'message.html',
+                          context={'title': "Error visualizing jobs.",
+                                   'message': f"invalid param `num_days`={num_days!r}. must be an integer. ve={ve!r}"})
+    else:
+        num_days = 14  # default
+
+    exclude_umass = request.GET.get('exclude_umass')
+    if exclude_umass == 'on':
+        exclude_umass = True
+    else:
+        exclude_umass = False  # default
+
+    # get per-user row counts. note:
+    # - `interval` is Postgres-specific and does not work with sqlite3
+    # - without %% we get "IndexError: tuple index out of range" at the `execute()` call. related:
+    #   https://stackoverflow.com/questions/2106207/escape-sql-like-value-for-postgres-with-psycopg2 :
+    # - we use a UNION to get the total # jobs, which feels like a hack. we tag that special summary row with a username
+    #   of `NULL`, which we remove later. could have been done in two queries...
+    where_created_at = f"job.created_at > current_date - interval '%s days'" \
+        if connection.vendor == 'postgresql' else ''
+    where_exclude_umass = f"au.email NOT LIKE '%%umass.edu'" \
+        if exclude_umass else ''
+    if where_created_at and where_exclude_umass:
+        where_sql = f"WHERE {where_created_at} AND {where_exclude_umass}"
+    elif where_created_at or where_exclude_umass:
+        where_sql = f"WHERE {where_created_at} {where_exclude_umass}"
+    else:
+        where_sql = ''
+    num_rows_sum = f"sum((job.output_json -> 'num_rows')::int)" if connection.vendor == 'postgresql' else '-1'
+    sql = f"""
+        SELECT max(au.username), count(job.id), {num_rows_sum}
+        FROM {Job._meta.db_table} AS job
+                 JOIN auth_user AS au ON job.user_id = au.id
+        {where_sql}
+        GROUP BY job.user_id
+        UNION
+        SELECT NULL, count(job.id), {num_rows_sum}
+        FROM {Job._meta.db_table} AS job
+                 JOIN auth_user au ON job.user_id = au.id
+        {where_sql};
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(sql, (num_days, num_days)) if where_created_at else cursor.execute(sql)
+        rows = cursor.fetchall()
+
+    # set vega_lite_spec, extracting the NULL-tagged summary row for the total # jobs
+    total_num_jobs = -1
+    total_num_rows = -1
+    values = []
+    for username, job_count, num_rows_sum in rows:
+        if username is None:
+            total_num_jobs = job_count
+            total_num_rows = num_rows_sum
+        else:
+            values.append({"user": username,
+                           "# jobs": job_count,
+                           "# rows": num_rows_sum if num_rows_sum is not None else 0})
+    vega_lite_spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "data": {"values": values},
+        "mark": {"type": "bar"},
+        "encoding": {
+            "x": {"field": "user", "type": "nominal", "axis": {"labelAngle": 45}},
+            "y": {"field": y_axis_field, "type": "quantitative", "scale": {"type": "sqrt"}},
+            'tooltip': [{'field': 'user'}, {'field': '# jobs', 'format': ','}, {'field': '# rows', 'format': ','}]
+        }
+    }
+
+    # render
+    return render(
+        request, 'zadmin_jobs_viz.html',
+        context={'y_axis': y_axis_field,
+                 'num_days': num_days,
+                 'exclude_umass': exclude_umass,
+                 'total_num_jobs': total_num_jobs,
+                 'total_num_rows': total_num_rows,
+                 'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
 
 
 #
