@@ -34,7 +34,7 @@
 
 {% include 'navbar_snippet.html' %}
 
-<div class="container mt-4">
+<div class="container-fluid">
     <!-- hack to put vertical spacing above row, https://stackoverflow.com/questions/12273588/add-vertical-blank-space-using-twitter-bootstrap -->
     <ol style="visibility:hidden;"></ol>
 
@@ -88,9 +88,12 @@
 </body>
 
 <footer class="footer navbar-fixed-bottom">
-    <div class="container">
+    <div class="container-fluid">
         <hr>
-        <span class="text-muted">This website and application code are available under a GPLv3 license. Forecast data within projects may be subject to different licenses. Please consult project descriptions for more information. </span>
+        <div class="text-center">
+            This website and application code are available under a GPLv3 license. Forecast data within projects may be
+            subject to different licenses. Please consult project descriptions for more information.
+        </div>
     </div>
 </footer>
 
