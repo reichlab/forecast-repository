@@ -84,13 +84,11 @@ def projects(request):
     # list of 4-tuples: (project, num_models, num_forecasts, num_rows_exact):
     projects_info = [(project_last_update[0], *project_summary_info(project_last_update[0]))
                      for project_last_update in projects_last_updates]
-    return render(
-        request,
-        'projects.html',
-        context={'projects_info': projects_info,
-                 'is_user_ok_create_project': is_user_ok_create_project(request.user),
-                 'num_public_projects': len(Project.objects.filter(is_public=True)),
-                 'num_private_projects': len(Project.objects.filter(is_public=False))})
+    return render(request, 'projects.html',
+                  context={'projects_info': projects_info,
+                           'is_user_ok_create_project': is_user_ok_create_project(request.user),
+                           'num_public_projects': len(Project.objects.filter(is_public=True)),
+                           'num_private_projects': len(Project.objects.filter(is_public=False))})
 
 
 def project_summary_info(project):
@@ -121,15 +119,14 @@ def zadmin(request):
 
     django_db_name = db.utils.settings.DATABASES['default']['NAME']
     projects_sort_pk = [(project, project.models.count()) for project in Project.objects.order_by('pk')]
-    return render(
-        request, 'zadmin.html',
-        context={'django_db_name': django_db_name,
-                 'django_conn': connection,
-                 's3_bucket_prefix': S3_BUCKET_PREFIX,
-                 'max_num_query_rows': MAX_NUM_QUERY_ROWS,
-                 'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
-                 'max_num_dump_pred_eles': MAX_NUM_DUMP_PRED_ELES,
-                 'projects_sort_pk': projects_sort_pk})
+    return render(request, 'zadmin.html',
+                  context={'django_db_name': django_db_name,
+                           'django_conn': connection,
+                           's3_bucket_prefix': S3_BUCKET_PREFIX,
+                           'max_num_query_rows': MAX_NUM_QUERY_ROWS,
+                           'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
+                           'max_num_dump_pred_eles': MAX_NUM_DUMP_PRED_ELES,
+                           'projects_sort_pk': projects_sort_pk})
 
 
 def zadmin_jobs(request):
@@ -139,9 +136,8 @@ def zadmin_jobs(request):
     paginator = Paginator(Job.objects.select_related('user').all().order_by('-id'), 25)  # 25/page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    return render(
-        request, 'zadmin_jobs.html',
-        context={'page_obj': page_obj})
+    return render(request, 'zadmin_jobs.html',
+                  context={'page_obj': page_obj})
 
 
 def zadmin_jobs_viz(request):
@@ -233,14 +229,13 @@ def zadmin_jobs_viz(request):
     }
 
     # render
-    return render(
-        request, 'zadmin_jobs_viz.html',
-        context={'y_axis': y_axis_field,
-                 'num_days': num_days,
-                 'exclude_umass': exclude_umass,
-                 'total_num_jobs': total_num_jobs,
-                 'total_num_rows': total_num_rows,
-                 'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
+    return render(request, 'zadmin_jobs_viz.html',
+                  context={'y_axis': y_axis_field,
+                           'num_days': num_days,
+                           'exclude_umass': exclude_umass,
+                           'total_num_jobs': total_num_jobs,
+                           'total_num_rows': total_num_rows,
+                           'vega_lite_spec': json.dumps(vega_lite_spec, indent=4)})
 
 
 #
@@ -260,17 +255,15 @@ def project_explorer(request, project_pk):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     tab = request.GET.get('tab', 'latest_units')
-    return render(
-        request,
-        'project_explorer.html',
-        context={'project': project,
+    return render(request, 'project_explorer.html',
+                  context={'project': project,
 
-                 # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
-                 # missing_unit_names:
-                 'unit_rows': unit_rows_for_project(project) if tab == 'latest_units' else [],
+                           # model, newest_forecast_tz_date, newest_forecast_id, num_present_unit_names, present_unit_names,
+                           # missing_unit_names:
+                           'unit_rows': unit_rows_for_project(project) if tab == 'latest_units' else [],
 
-                 # model, newest_forecast_tz_date, newest_forecast_id, target_group_name, target_group_count:
-                 'target_rows': target_rows_for_project(project) if tab == 'latest_targets' else []})
+                           # model, newest_forecast_tz_date, newest_forecast_id, target_group_name, target_group_count:
+                           'target_rows': target_rows_for_project(project) if tab == 'latest_targets' else []})
 
 
 HEATMAP_FILTER_ALL_TARGETS = 'all_targets'
@@ -485,18 +478,24 @@ def project_viz(request, project_pk):
     GET query parameters: none
     """
 
-    from utils.visualization import target_variables, locations  # avoid circular imports
-
-
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    return render(
-        request,
-        'project_viz.html',
-        context={'project': project,
-                 'models': project.models.all()})
+    # model_names = viz_model_names(project)
+    # base_colors = ['#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26',
+    #                '#f0f921']  # model colors. a range from dark blue to yellow
+    # model_color_pairs = list(zip(model_names, itertools.cycle(base_colors)))
+    return render(request, 'project_viz.html',
+                  context={'project': project,
+                           # 'target_variables': viz_target_variables(project),
+                           # 'units': viz_units(project),
+                           # 'intervals': ['0%', '50%', '95%'],  # todo xx
+                           # 'models': project.models.all(),
+                           # 'models': model_names,
+                           # 'model_color_pairs': model_color_pairs,
+                           # 'available_as_ofs': dict(viz_available_reference_dates(project)),  # convert from defaultdict
+                           })
 
 
 #
@@ -1336,13 +1335,12 @@ def truth_detail(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    return render(
-        request,
-        'truth_data_detail.html',
-        context={'project': project,
-                 'oracle_model': oracle_model_for_project(project),
-                 'batches': truth_batch_summary_table(project),  # 3-tuples: (source, issued_at, num_forecasts)
-                 'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
+    return render(request, 'truth_data_detail.html',
+                  context={'project': project,
+                           'oracle_model': oracle_model_for_project(project),
+                           'batches': truth_batch_summary_table(project),
+                           # 3-tuples: (source, issued_at, num_forecasts)
+                           'is_user_ok_edit_project': is_user_ok_edit_project(request.user, project)})
 
 
 def upload_truth(request, project_pk):

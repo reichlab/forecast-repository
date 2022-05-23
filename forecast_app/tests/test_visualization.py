@@ -198,33 +198,3 @@ class VisualizationTestCase(TestCase):
                                                     viz_available_reference_dates(self.project)[target_key]):
             act_forecasts = viz_data(self.project, True, target_key, viz_unit, ref_date)
             self.assertEqual(unit_ref_date_to_exp_forecasts[(viz_unit, ref_date)], act_forecasts)
-
-
-    def test_viz_forecast_versions(self):
-        self.fail('todo xx')
-
-
-    def test_viz_api_endpoints(self):
-        # - forecast_app.views.project_viz
-        # - locations
-        # - target_variables
-        # - available_as_ofs
-        # - models
-        # - viz_data
-        #
-        # Q: should they be moved to api_views.py?
-        # Q: should this test be moved to test_views_and_rest_api.py?
-        self.fail('todo xx')
-
-
-    def test_viz_api_endpoint_permissions(self):
-        # - forecast_app.views.project_viz
-        # - locations
-        # - target_variables
-        # - available_as_ofs
-        # - models
-        # - viz_data
-        #
-        # Q: should they be moved to api_views.py?
-        # Q: should this test be moved to test_views_and_rest_api.py?
-        self.fail('todo xx')

@@ -59,7 +59,7 @@ REST_FRAMEWORK = {
     # ],
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_jwt.authentication.JSONWebTokenAuthentication',  # djangorestframework-jwt
-        # 'rest_framework.authentication.SessionAuthentication',  # default
+        'rest_framework.authentication.SessionAuthentication',  # default
         # 'rest_framework.authentication.BasicAuthentication',  # ""
     ),
     'PAGE_SIZE': 10

@@ -144,7 +144,8 @@
                 </tr>
                 <tr>
                     <th>Features:</th>
-                    <td><strong>Project</strong>: <a href="{% url 'project-explorer' project.pk %}">Explorer</a>.
+                    <td><strong>Project</strong>: <a href="{% url 'project-explorer' project.pk %}">Explorer</a>,
+                        <a href="{% url 'project-viz' project.pk %}">Viz</a>.
                         <strong>Forecasts</strong>: <a href="{% url 'project-forecasts' project.pk %}">Summary</a>,
                         <a href="{% url 'query-forecasts' project.pk %}">Download</a>.
                     </td>

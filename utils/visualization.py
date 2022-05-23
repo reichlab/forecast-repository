@@ -92,9 +92,9 @@ def viz_available_reference_dates(project):
     Notes:
     - the returned value's keys match the 'value' values of `viz_target_variables()`
 
-    :return a list of dates for which ground truth and forecasts are available, for each target variable. Basically,
-    these are the times in the past at which we can view historical forecasts. dates are in 'YYYY-MM-DD' format.
-    example:
+    :return a dict that contains a list of dates for which ground truth and forecasts are available, for each target
+        variable. Basically, these are the times in the past at which we can view historical forecasts. dates are in
+        'YYYY-MM-DD' format. example:
         {"case": ["2020-08-01", "2020-08-08", ...],
          "death":["2020-04-11", "2020-04-18", ...],
          "hosp":["2020-12-05", "2020-12-12", ...],
@@ -144,62 +144,6 @@ def viz_model_names(project):
     """
     # todo xx list special one(s) first
     return [model.abbreviation for model in project.models.all() if not model.is_oracle]
-
-
-#
-# locations() API method. todo xx delete when API URL defined
-#
-
-def locations(project):
-    """
-    Top-level viz API endpoint that returns the static `locations.json`-type dict for `project`.
-
-    :param project: a Project
-    :return: dict as in `viz_units()`
-    """
-    return viz_units(project)
-
-
-#
-# target_variables() API method. todo xx delete when API URL defined
-#
-
-def target_variables(project):
-    """
-    Top-level viz API endpoint that returns the static `target_variables.json`-type dict for `project`.
-
-    :param project: a Project
-    :return: dict as in `viz_target_variables()`
-    """
-    return viz_target_variables(project)
-
-
-#
-# available_as_ofs() API method. todo xx delete when API URL defined
-#
-
-def available_as_ofs(project):
-    """
-    Top-level viz API endpoint that returns the static `target_variables.json`-type dict for `project`.
-
-    :param project: a Project
-    :return: dict as in `viz_available_reference_dates()`
-    """
-    return viz_available_reference_dates(project)
-
-
-#
-# models() API method. todo xx delete when API URL defined
-#
-
-def models(project):
-    """
-    Top-level viz API endpoint that returns the static `models.json`-type dict for `project`.
-
-    :param project: a Project
-    :return: list as in `viz_model_names()`
-    """
-    return viz_model_names(project)
 
 
 #
@@ -349,7 +293,7 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
 
     # query forecasts
     timezeros = sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))
-    query = {'models': models(project),
+    query = {'models': viz_model_names(project),
              'units': [unit_abbrev],
              'targets': [target.name for target in target_key_to_targets[target_key]],
              'timezeros': timezeros,

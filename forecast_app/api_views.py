@@ -37,6 +37,7 @@ from utils.project import create_project_from_json, config_dict_from_project, la
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+from utils.visualization import viz_units, viz_target_variables, viz_available_reference_dates, viz_model_names
 
 
 logger = logging.getLogger(__name__)
@@ -998,3 +999,67 @@ def download_latest_forecasts(request, pk):
         writer.writerow([f_id, source.replace('\n', '_')])
 
     return response
+
+
+#
+# Visualization endpoints
+#
+
+@api_view(['GET'])
+def viz_units_api(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    return JsonResponse(viz_units(project), safe=False)
+
+
+@api_view(['GET'])
+def viz_target_vars(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    return JsonResponse(viz_target_variables(project), safe=False)
+
+
+@api_view(['GET'])
+def viz_avail_ref_dates(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    return JsonResponse(viz_available_reference_dates(project))
+
+
+@api_view(['GET'])
+def viz_models(request, pk):
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    return JsonResponse(viz_model_names(project), safe=False)
+
+
+@api_view(['GET'])
+def viz_data_api(request, pk):
+    """
+    Requires these query parameters, which are passed AS-IS to `viz_data()`:
+      is_forecast, target_key, unit_abbrev, reference_date
+    """
+    # imported here so that tests can patch via mock:
+    from utils.visualization import viz_data
+
+    project = get_object_or_404(Project, pk=pk)
+    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    actual_keys = set(request.query_params.keys())
+    expected_keys = {'is_forecast', 'target_key', 'unit_abbrev', 'reference_date'}
+    if actual_keys != expected_keys:
+        return JsonResponse({'error': f"Wrong keys in 'query parameters'. difference={expected_keys ^ actual_keys}. "
+                                      f"expected={expected_keys}, actual={actual_keys}"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    return JsonResponse(viz_data(project, request.query_params['is_forecast'], request.query_params['target_key'],
+                                 request.query_params['unit_abbrev'], request.query_params['reference_date']))

@@ -524,42 +524,50 @@ class ViewsTestCase(TestCase):
 
 
     # update this when this changes: forecast_app/api_urls.py
-    def test_api_get_endpoints(self):
+    @patch('utils.visualization.viz_data', return_value={})
+    def test_api_get_endpoints(self, mock_viz_data):
         unit_us_nat = self.public_project.units.get(name='nat')
         target_1wk = self.public_project.targets.get(name='1 wk ahead')
         url_exp_user_status_code_pairs = [
-            (reverse('api-root'), self.ONLY_PO_MO_STAFF),
+            (reverse('api-root'), self.ONLY_PO_MO_STAFF, {}),
 
-            (reverse('api-project-list'), self.ONLY_PO_MO_STAFF),
-            (reverse('api-project-detail', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-project-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-unit-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-unit-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-target-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-target-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-timezero-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-timezero-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-model-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-model-list', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-truth-detail', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-truth-detail', args=[self.private_project.pk]), self.ONLY_PO_MO),
-            (reverse('api-user-detail', args=[self.po_user.pk]), self.ONLY_PO),
-            (reverse('api-job-detail', args=[self.job.pk]), self.ONLY_PO),
-            (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO_STAFF),
+            (reverse('api-project-list'), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-project-detail', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-project-detail', args=[self.private_project.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-unit-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-unit-list', args=[self.private_project.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-target-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-target-list', args=[self.private_project.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-timezero-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-timezero-list', args=[self.private_project.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-model-list', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-model-list', args=[self.private_project.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-truth-detail', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-truth-detail', args=[self.private_project.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-user-detail', args=[self.po_user.pk]), self.ONLY_PO, {}),
+            (reverse('api-job-detail', args=[self.job.pk]), self.ONLY_PO, {}),
+            (reverse('api-unit-detail', args=[unit_us_nat.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO_STAFF, {}),
 
-            (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-model-detail', args=[self.private_model.pk]), self.ONLY_PO_MO),
-            (reverse('api-forecast-list', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-forecast-list', args=[self.private_model.pk]), self.ONLY_PO_MO),
+            (reverse('api-viz-units', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-viz-target-vars', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-viz-avail-ref-dates', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-viz-models', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-viz-data', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF,
+             {'is_forecast': True, 'target_key': '', 'unit_abbrev': '', 'reference_date': ''}),
 
-            (reverse('api-forecast-detail', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-forecast-detail', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
-            (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF),
-            (reverse('api-forecast-data', args=[self.private_forecast.pk]), self.ONLY_PO_MO),
+            (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-model-detail', args=[self.private_model.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-forecast-list', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-forecast-list', args=[self.private_model.pk]), self.ONLY_PO_MO, {}),
+
+            (reverse('api-forecast-detail', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-forecast-detail', args=[self.private_forecast.pk]), self.ONLY_PO_MO, {}),
+            (reverse('api-forecast-data', args=[self.public_forecast.pk]), self.ONLY_PO_MO_STAFF, {}),
+            (reverse('api-forecast-data', args=[self.private_forecast.pk]), self.ONLY_PO_MO, {}),
         ]
-        for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
+        for url, user_exp_status_code_list, data in url_exp_user_status_code_pairs:
             for user, exp_status_code in user_exp_status_code_list:
                 # authenticate using JWT. used instead of web API self.client.login() authentication elsewhere b/c
                 # base.py configures JWT: REST_FRAMEWORK > DEFAULT_AUTHENTICATION_CLASSES > JSONWebTokenAuthentication
@@ -570,7 +578,7 @@ class ViewsTestCase(TestCase):
                         else self.non_staff_user_password if user == self.non_staff_user \
                         else self.superuser_password
                     self._authenticate_jwt_user(user, password)
-                response = self.client.get(url)
+                response = self.client.get(url, data=data)
                 self.assertEqual(exp_status_code, response.status_code)
 
 
@@ -1615,6 +1623,26 @@ class ViewsTestCase(TestCase):
     def test_forecast_ids_in_target_group(self):
         self.assertEqual({self.public_forecast.pk},
                          set(forecast_ids_in_target_group(self.public_project, 'week ahead ILI percent')))
+
+
+    @patch('utils.visualization.viz_data', return_value={})
+    def test_viz_data_api_params(self, mock_viz_data):
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        url = reverse('api-viz-data', args=[self.public_project.pk])
+
+        # missing 'is_forecast' param
+        response = self.client.get(url, data={'target_key': '', 'unit_abbrev': '', 'reference_date': ''})
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
+        # extra param
+        response = self.client.get(url, data={'foo': 666, 'is_forecast': True, 'target_key': '', 'unit_abbrev': '',
+                                              'reference_date': ''})
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
+        # blue sky
+        response = self.client.get(url, data={'is_forecast': True, 'target_key': '', 'unit_abbrev': '',
+                                              'reference_date': ''})
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
 
 
     #
