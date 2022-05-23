@@ -46,10 +46,11 @@ const App = {
         forecasts: {},
     },
     initialize(projectId, csrf_token) {
-        console.log("initialize(): entered", projectId, csrf_token)
         App.projectId = projectId;
         App.csrf_token = csrf_token;
 
+        /*
+        // todo xx this all needs careful thinking:
         // configure AJAX to work with DRF - per https://stackoverflow.com/questions/42514560/django-and-ajax-csrf-token-missing-despite-being-passed
         function csrfSafeMethod(method) {
             return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
@@ -58,14 +59,13 @@ const App = {
         $.ajaxSetup({
             beforeSend: function (xhr, settings) {
                 if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-                    xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
                 }
             }
         });
+        */
 
-        // init static information
-        this.init_static_vars();
-        App.initColors();
+        this.initStaticVars();
 
         // initialize plotly
         const ploty_div = document.getElementById('ploty_div');
@@ -78,39 +78,63 @@ const App = {
 
         // todo xx sync state -> UI
 
-        console.log("initialize(): done")
     },
-    init_static_vars() {
-        console.log("init_static_vars(): entered")
-
+    initStaticVars() {
         // this.state.target_variables
-        // todo xx
+        $.ajax({
+            url: "/api/project/" + App.projectId + "/viz-target-vars/",
+            type: 'GET',
+            dataType: 'json',
+            success: function (data, textStatus, jqXHR) {
+                App.setTargetVars(data);
+            },
+            error: function (jqXHR, textStatus, thrownError) {
+                console.log("initStaticVars(): error(): target_variables", textStatus, thrownError);
+            }
+        });
 
         // this.state.locations
-        // todo xx
+        $.ajax({
+            url: "/api/project/" + App.projectId + "/viz-units/",
+            type: 'GET',
+            dataType: 'json',
+            success: function (data, textStatus, jqXHR) {
+                App.setLocations(data);
+            },
+            error: function (jqXHR, textStatus, thrownError) {
+                console.log("initStaticVars(): error(): locations", textStatus, thrownError);
+            }
+        });
 
         // this.state.intervals
         this.state.intervals = ['0%', '50%', '95%']  // todo xx
 
         // this.state.available_as_ofs
-        // todo xx
+        $.ajax({
+            url: "/api/project/" + App.projectId + "/viz-avail-ref-dates/",
+            type: 'GET',
+            dataType: 'json',
+            success: function (data, textStatus, jqXHR) {
+                App.setAvailableAsOfs(data);
+            },
+            error: function (jqXHR, textStatus, thrownError) {
+                console.log("initStaticVars(): error(): as-ofs", textStatus, thrownError);
+            }
+        });
 
         // this.state.current_date
         // todo xx
 
         // this.state.models
-        const url = "/api/project/" + App.projectId + "/viz-models/"
-        console.log("init_static_vars(): calling ajax: url=" + url)
         $.ajax({
-            url: url,
+            url: "/api/project/" + App.projectId + "/viz-models/",
             type: 'GET',
             dataType: 'json',
             success: function (data, textStatus, jqXHR) {
-                // console.log("init_static_vars(): success(): data=" + data + ", textStatus=" + textStatus + ", jqXHR=" + jqXHR);
-                App.set_models(data);
+                App.setModels(data);
             },
             error: function (jqXHR, textStatus, thrownError) {
-                console.log("init_static_vars(): error(): textStatus=" + textStatus + ", thrownError=" + thrownError);
+                console.log("initStaticVars(): error(): models", textStatus, thrownError);
             }
         });
 
@@ -122,10 +146,9 @@ const App = {
 
         // this.state.disclaimer
         // todo xx
-
-        console.log("init_static_vars(): done")
     },
-    initColors() {
+    setModels(models) {
+        this.state.models = models;
         this.state.colors = Array(parseInt(this.state.models.length / 10, 10) + 1).fill([
             '#0d0887',
             '#46039f',
@@ -138,26 +161,46 @@ const App = {
             '#fdca26',
             '#f0f921'
         ]).flat()
-    },
-    set_models(models) {
-        this.state.models = models;
 
         // update the select model div. todo xx hard-coded ID
         const $selectModelDiv = $("#forecastViz_select_model");
         $selectModelDiv.empty();
         const thisState = this.state;
         this.state.models.forEach(function (model, modelIdx) {
-            const modelColor = thisState.colors[modelIdx];
-            $selectModelDiv.append(_selectModelDiv(model, modelIdx, modelColor));
+            $selectModelDiv.append(_selectModelDiv(model, modelIdx, thisState.colors[modelIdx]));
         });
 
         // todo xx update other UI
+    },
+    setTargetVars(targetVars) {
+        this.state.target_variables = targetVars;
 
+        // update the target variable select. todo xx hard-coded ID
+        const $targetVarsSelect = $("#target_variable");
+        $targetVarsSelect.empty();
+        this.state.target_variables.forEach(function (targetVar) {
+            const optionNode = `<option value="${targetVar.value}">${targetVar.text}</option>`;
+            $targetVarsSelect.append(optionNode);
+        });
+
+        // todo xx update other UI
     },
-    increment_as_of() {
-        // todo xx
+    setLocations(locations) {
+        this.state.locations = locations;
+
+        // update the location select. todo xx hard-coded ID
+        const $locationSelect = $("#location");
+        $locationSelect.empty();
+        this.state.locations.forEach(function (location) {
+            const optionNode = `<option value="${location.value}">${location.text}</option>`;
+            $locationSelect.append(optionNode);
+        });
+
+        // todo xx update other UI
     },
-    decrement_as_of() {
-        // todo xx
+    setAvailableAsOfs(availableAsOfs) {
+        this.state.available_as_ofs = availableAsOfs;
+
+        // todo xx update other UI
     }
 };

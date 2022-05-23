@@ -482,20 +482,8 @@ def project_viz(request, project_pk):
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
-    # model_names = viz_model_names(project)
-    # base_colors = ['#0d0887', '#46039f', '#7201a8', '#9c179e', '#bd3786', '#d8576b', '#ed7953', '#fb9f3a', '#fdca26',
-    #                '#f0f921']  # model colors. a range from dark blue to yellow
-    # model_color_pairs = list(zip(model_names, itertools.cycle(base_colors)))
     return render(request, 'project_viz.html',
-                  context={'project': project,
-                           # 'target_variables': viz_target_variables(project),
-                           # 'units': viz_units(project),
-                           # 'intervals': ['0%', '50%', '95%'],  # todo xx
-                           # 'models': project.models.all(),
-                           # 'models': model_names,
-                           # 'model_color_pairs': model_color_pairs,
-                           # 'available_as_ofs': dict(viz_available_reference_dates(project)),  # convert from defaultdict
-                           })
+                  context={'project': project})
 
 
 #

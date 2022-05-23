@@ -25,15 +25,13 @@
         {# options div #}
         <div id="forecastViz_options" class="col-md-3">
 
-            {# Outcome, Location, and Intreval selects #}
+            {# Outcome, Location, and Interval selects #}
             <form>
                 <div class="form-row">
                     <label for="target_variable" class="col-sm-4 col-form-label">Outcome:</label>
                     <div class="col-sm-8">
                         <select id="target_variable" class="form-control" name="target_variables">
-                            {% for target_var in target_variables %}
-                                <option value="{{ target_var.value }}">{{ target_var.text }}</option>
-                            {% endfor %}
+                            {# <OPTION>s populated by `setTargetVars()` #}
                         </select>
                     </div>
                 </div>
@@ -42,9 +40,7 @@
                     <label for="location" class="col-sm-4 col-form-label">Location:</label>
                     <div class="col-sm-8">
                         <select id="location" class="form-control" name="location">
-                            {% for unit in units %}
-                                <option value="{{ unit.value }}">{{ unit.text }}</option>
-                            {% endfor %}
+                            {# <OPTION>s populated by `setLocations()` #}
                         </select>
                     </div>
                 </div>
@@ -53,9 +49,11 @@
                     <label for="intervals" class="col-sm-4 col-form-label">Interval:</label>
                     <div class="col-sm-8">
                         <select id="intervals" class="form-control" name="intervals">
+                            {% comment %}
                             {% for interval in intervals %}
                                 <option value="interval">{{ interval }}</option>
                             {% endfor %}
+                            {% endcomment %}
                         </select>
                     </div>
                 </div>
@@ -78,8 +76,9 @@
             <label class="forecastViz_label" for="forecastViz_all">Select Models:</label>
             <input type="checkbox" id="forecastViz_all">
 
-            {# model list. populated by set_models() #}
+            {# model list #}
             <div id="forecastViz_select_model">
+                {# child <DIV>s populated by `set_models()` #}
             </div>
 
         </div>
@@ -109,11 +108,14 @@
             display: inline-block;
         }
 
+        .forecastViz_select_data {
+            font-size: 14px;
+        }
+
         #forecastViz_select_model {
             height: 48vh;
             overflow-y: scroll;
-            {# margin-top: 20px; #}
-            font-size: 14px;
+        {# margin-top: 20px; #} font-size: 14px;
         }
 
     </style>
