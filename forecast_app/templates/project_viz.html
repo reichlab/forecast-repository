@@ -31,7 +31,7 @@
                     <label for="target_variable" class="col-sm-4 col-form-label">Outcome:</label>
                     <div class="col-sm-8">
                         <select id="target_variable" class="form-control" name="target_variables">
-                            {# <OPTION>s populated by `setTargetVars()` #}
+                            {# <OPTION>s populated by `initializeTargetVarsUI()` #}
                         </select>
                     </div>
                 </div>
@@ -40,7 +40,7 @@
                     <label for="location" class="col-sm-4 col-form-label">Location:</label>
                     <div class="col-sm-8">
                         <select id="location" class="form-control" name="location">
-                            {# <OPTION>s populated by `setLocations()` #}
+                            {# <OPTION>s populated by `initializeLocationsUI()` #}
                         </select>
                     </div>
                 </div>
@@ -49,11 +49,7 @@
                     <label for="intervals" class="col-sm-4 col-form-label">Interval:</label>
                     <div class="col-sm-8">
                         <select id="intervals" class="form-control" name="intervals">
-                            {% comment %}
-                            {% for interval in intervals %}
-                                <option value="interval">{{ interval }}</option>
-                            {% endfor %}
-                            {% endcomment %}
+                            {# <OPTION>s populated by `initializeIntervalsUI()` #}
                         </select>
                     </div>
                 </div>
@@ -92,7 +88,7 @@
 
 
     <script>
-        App.initialize({{ project.id }}, "{{ csrf_token }}");
+        App.initialize({{ project.id }}, {{ options|safe }});
     </script>
 
 

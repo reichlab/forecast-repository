@@ -550,10 +550,6 @@ class ViewsTestCase(TestCase):
             (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO_STAFF, {}),
             (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO_STAFF, {}),
 
-            (reverse('api-viz-units', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
-            (reverse('api-viz-target-vars', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
-            (reverse('api-viz-avail-ref-dates', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
-            (reverse('api-viz-models', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF, {}),
             (reverse('api-viz-data', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF,
              {'is_forecast': True, 'target_key': '', 'unit_abbrev': '', 'reference_date': ''}),
 

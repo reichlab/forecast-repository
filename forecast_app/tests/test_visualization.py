@@ -61,7 +61,6 @@ class VisualizationTestCase(TestCase):
 
 
     def test_viz_model_names(self):
-        # todo xx test order, when implemented
         exp_models = ['COVIDhub-ensemble', 'COVIDhub-baseline']  # NB: no 'oracle'
         act_models = viz_model_names(self.project)
         self.assertEqual(exp_models, act_models)

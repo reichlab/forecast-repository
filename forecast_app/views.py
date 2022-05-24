@@ -477,13 +477,34 @@ def project_viz(request, project_pk):
 
     GET query parameters: none
     """
+    from utils.visualization import viz_target_variables, viz_units, viz_model_names, \
+        viz_available_reference_dates  # avoid circular imports
+
 
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    target_variables = viz_target_variables(project)
+    init_target_var = target_variables[0]['value']  # todo xx
+    units = viz_units(project)
+    intervals = ['0%', '50%', '95%']  # todo xx
+    available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
+    model_names = viz_model_names(project)
+    options = {'target_variables': target_variables,
+               'init_target_var': init_target_var,
+               'units': units,
+               'init_unit': units[0]['value'],  # todo xx
+               'intervals': intervals,
+               'init_interval': intervals[-1],
+               'available_as_ofs': available_as_ofs,
+               'current_date': available_as_ofs[init_target_var][-1],  # todo xx
+               'models': model_names,
+               'default_models': model_names[0:1],  # todo xx
+               }
     return render(request, 'project_viz.html',
-                  context={'project': project})
+                  context={'project': project,
+                           'options': json.dumps(options)})
 
 
 #

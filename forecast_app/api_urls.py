@@ -18,12 +18,6 @@ urlpatterns = [
     url(r'^project/(?P<pk>\d+)/forecast_queries/$', api_views.query_forecasts_endpoint, name='api-forecast-queries'),
     url(r'^project/(?P<pk>\d+)/truth_queries/$', api_views.query_truth_endpoint, name='api-truth-queries'),
     url(r'^project/(?P<pk>\d+)/forecasts/$', api_views.download_latest_forecasts, name='api-project-latest-forecasts'),
-
-    # visualization
-    url(r'^project/(?P<pk>\d+)/viz-units/$', api_views.viz_units_api, name='api-viz-units'),
-    url(r'^project/(?P<pk>\d+)/viz-target-vars/$', api_views.viz_target_vars, name='api-viz-target-vars'),
-    url(r'^project/(?P<pk>\d+)/viz-avail-ref-dates/$', api_views.viz_avail_ref_dates, name='api-viz-avail-ref-dates'),
-    url(r'^project/(?P<pk>\d+)/viz-models/$', api_views.viz_models, name='api-viz-models'),
     url(r'^project/(?P<pk>\d+)/viz-data/$', api_views.viz_data_api, name='api-viz-data'),
 
     # other object detail

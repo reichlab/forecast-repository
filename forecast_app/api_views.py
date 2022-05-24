@@ -1006,42 +1006,6 @@ def download_latest_forecasts(request, pk):
 #
 
 @api_view(['GET'])
-def viz_units_api(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden()
-
-    return JsonResponse(viz_units(project), safe=False)
-
-
-@api_view(['GET'])
-def viz_target_vars(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden()
-
-    return JsonResponse(viz_target_variables(project), safe=False)
-
-
-@api_view(['GET'])
-def viz_avail_ref_dates(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden()
-
-    return JsonResponse(viz_available_reference_dates(project))
-
-
-@api_view(['GET'])
-def viz_models(request, pk):
-    project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
-        return HttpResponseForbidden()
-
-    return JsonResponse(viz_model_names(project), safe=False)
-
-
-@api_view(['GET'])
 def viz_data_api(request, pk):
     """
     Requires these query parameters, which are passed AS-IS to `viz_data()`:

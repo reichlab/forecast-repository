@@ -141,8 +141,8 @@ def _viz_ref_and_target_end_dates(project):
 def viz_model_names(project):
     """
     :return a list of model abbreviations being displayed. example: ["COVIDhub-baseline", "COVIDhub-ensemble", ...]
+        Does not return them an any particular order.
     """
-    # todo xx list special one(s) first
     return [model.abbreviation for model in project.models.all() if not model.is_oracle]
 
 
