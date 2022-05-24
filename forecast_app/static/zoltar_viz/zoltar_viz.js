@@ -20,7 +20,7 @@ function _selectModelDiv(model, modelIdx, modelColor, isChecked) {
 
 // event handler helper
 function _setSelectedTruths() {
-    const isCurrTruthChecked = $("#forecastViz_Current_Truth").prop('checked');  // todo xx hard-coded ID
+    const isCurrTruthChecked = $("#forecastViz_Current_Truth").prop('checked');  // todo hard-coded ID
     const isAsOfTruthChecked = $("#forecastViz_Truth_as_of").prop('checked');  // ""
     const selectedTruths = [];
     if (isCurrTruthChecked) {
@@ -127,29 +127,29 @@ const App = {
     },
     addEventHandlers() {
         // option, location, and interval selects
-        $('#target_variable').on('change', function () {  // todo xx hard-coded ID
+        $('#target_variable').on('change', function () {  // todo hard-coded ID
             App.state.selected_target_var = this.value;
             // todo xx update dependencies
         });
-        $('#location').on('change', function () {  // todo xx hard-coded ID
+        $('#location').on('change', function () {  // todo hard-coded ID
             App.state.selected_location = this.value;
             // todo xx update dependencies
         });
-        $('#intervals').on('change', function () {  // todo xx hard-coded ID
+        $('#intervals').on('change', function () {  // todo hard-coded ID
             App.state.selected_interval = this.value;
             // todo xx update dependencies
         });
 
         // truth checkboxes
-        $("#forecastViz_Current_Truth").change(function () {  // todo xx hard-coded ID
+        $("#forecastViz_Current_Truth").change(function () {  // todo hard-coded ID
             _setSelectedTruths();
         });
-        $("#forecastViz_Truth_as_of").change(function () {  // todo xx hard-coded ID
+        $("#forecastViz_Truth_as_of").change(function () {  // todo hard-coded ID
             _setSelectedTruths();
         });
 
         // model checkboxes
-        $(".model-check").change(function () {  // todo xx hard-coded ID
+        $(".model-check").change(function () {  // todo hard-coded ID
             const $this = $(this);
             const model = $this.prop('id');
             const isChecked = $this.prop('checked');
@@ -164,12 +164,22 @@ const App = {
             }
         });
 
-        // left and right keys
-        // todo xx
-
         // left and right buttons
-        // todo xx
+        $("#decrement_as_of").click(function () {  // todo hard-coded ID
+            App.decrementAsOf();
+        });
+        $("#increment_as_of").click(function () {  // todo hard-coded ID
+            App.incrementAsOf();
+        });
 
+        // left and right keys
+        window.addEventListener('keydown', function (event) {
+            if (event.code === "ArrowLeft") {
+                App.decrementAsOf();
+            } else if (event.code === "ArrowRight") {
+                App.incrementAsOf();
+            }
+        });
     },
     initializeUI() {
         // initialize options and models list (left column)
@@ -186,7 +196,7 @@ const App = {
     },
     initializeTargetVarsUI() {
         // update the target variable select
-        const $targetVarsSelect = $("#target_variable");  // todo xx hard-coded ID
+        const $targetVarsSelect = $("#target_variable");  // todo hard-coded ID
         const thisState = this.state;
         $targetVarsSelect.empty();
         this.state.target_variables.forEach(function (targetVar) {
@@ -197,7 +207,7 @@ const App = {
     },
     initializeLocationsUI() {
         // update the location select
-        const $locationSelect = $("#location");  // todo xx hard-coded ID
+        const $locationSelect = $("#location");  // todo hard-coded ID
         const thisState = this.state;
         $locationSelect.empty();
         this.state.locations.forEach(function (location) {
@@ -208,7 +218,7 @@ const App = {
     },
     initializeIntervalsUI() {
         // update the interval select
-        const $intervalsSelect = $("#intervals");  // todo xx hard-coded ID
+        const $intervalsSelect = $("#intervals");  // todo hard-coded ID
         const thisState = this.state;
         $intervalsSelect.empty();
         this.state.intervals.forEach(function (interval) {
@@ -219,12 +229,20 @@ const App = {
     },
     initializeModelsUI() {
         // update the select model div
-        const $selectModelDiv = $("#forecastViz_select_model");  // todo xx hard-coded ID
+        const $selectModelDiv = $("#forecastViz_select_model");  // todo hard-coded ID
         const thisState = this.state;
         $selectModelDiv.empty();
         this.state.models.forEach(function (model, modelIdx) {
             const isChecked = (thisState.selected_models.indexOf(model) > -1);
             $selectModelDiv.append(_selectModelDiv(model, modelIdx, thisState.colors[modelIdx], isChecked));
         });
+    },
+    incrementAsOf() {
+        console.log('incrementAsOf()');
+        // todo xx
+    },
+    decrementAsOf() {
+        console.log('decrementAsOf()');
+        // todo xx
     },
 };

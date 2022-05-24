@@ -79,9 +79,22 @@
 
         </div>
 
-        {# plotly div #}
+        {# plotly and friends div #}
         <div id="forecastViz_viz" class="col-md-9">
-            <div id="ploty_div"></div>
+            <p class="forecastViz_disclaimer"><b>{xx_disclaimer}</b></p>
+
+            <div id="ploty_div">
+                {# content populated by Plotly lib #}
+            </div>
+
+            <div class="container">
+                <div class="col-md-12 text-center">
+                    <button type="button" class="btn btn-primary" id="decrement_as_of">&lt;</button>
+                    <button type="button" class="btn btn-primary" id="increment_as_of">&gt;</button>
+                </div>
+            </div>
+            <p style="text-align:center"><small>Note: You can navigate to forecasts from previous weeks with the left
+                and right arrow keys</small></p>
         </div>
 
     </div>
@@ -93,9 +106,6 @@
 
 
     <style>
-
-        {# from nuxt-forecast-viz/components/lib/forecastViz.vue #}
-
         .forecastViz_dot {
             height: 15px;
             width: 15px;
@@ -111,9 +121,15 @@
         #forecastViz_select_model {
             height: 48vh;
             overflow-y: scroll;
-        {# margin-top: 20px; #} font-size: 14px;
+            font-size: 14px;
         }
 
+        .forecastViz_disclaimer {
+            text-align: center;
+            margin-left: 3%;
+            margin-right: 3%;
+            font-size: 18px;
+        }
     </style>
 
 {% endblock %}
