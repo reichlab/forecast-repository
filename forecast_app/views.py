@@ -501,6 +501,7 @@ def project_viz(request, project_pk):
                'current_date': available_as_ofs[init_target_var][-1],  # todo xx
                'models': model_names,
                'default_models': model_names[0:1],  # todo xx
+               'disclaimer': 'todo disclaimer',  # todo xx
                }
     return render(request, 'project_viz.html',
                   context={'project': project,

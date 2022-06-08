@@ -30,7 +30,7 @@ function _setSelectedTruths() {
         selectedTruths.push('Truth as of');
     }
     App.state.selected_truth = selectedTruths;
-    App.fetchDataUpdatePlot(false);
+    App.fetchDataUpdatePlot(false, null);
 }
 
 
@@ -90,7 +90,7 @@ const App = {
         models: [],
         default_models: [],
         // all_models: false,  // todo xx
-        // disclaimer: "",  // todo xx
+        disclaimer: "",
 
         // Dynamic/updated and we need to track: 2 categories:
         // 1/2 Tracks UI state:
@@ -141,6 +141,7 @@ const App = {
         this.state.current_date = options['current_date'];
         this.state.models = options['models'];
         this.state.default_models = options['default_models'];
+        this.state.disclaimer = options['disclaimer'];
         this.state.colors = Array(parseInt(this.state.models.length / 10, 10) + 1).fill([
             '#0d0887',
             '#46039f',
@@ -182,7 +183,7 @@ const App = {
 
         // pull initial data (current truth, selected truth, and selected forecast) and update the plot
         console.log('initialize(): fetching data and updating plot');
-        this.fetchDataUpdatePlot(true);
+        this.fetchDataUpdatePlot(true, true);
 
         console.log('initialize(): done');
     },
@@ -196,6 +197,9 @@ const App = {
         // initialize current and as_of truth checkboxes' text
         $("#currentTruthDate").text(`Current (${this.state.current_date})`);
         this.updateTruthAsOfCheckboxText();
+
+        // initialize disclaimer
+        $('#disclaimer').text(this.state.disclaimer);
 
         // initialize plotly (right column)
         const plotyDiv = document.getElementById('ploty_div');
@@ -250,15 +254,15 @@ const App = {
         // option, location, and interval selects
         $('#target_variable').on('change', function () {
             App.state.selected_target_var = this.value;
-            App.fetchDataUpdatePlot(true);
+            App.fetchDataUpdatePlot(true, false);  // todo xx isFetchCurrentTruth = true!?
         });
         $('#location').on('change', function () {
             App.state.selected_location = this.value;
-            App.fetchDataUpdatePlot(true);
+            App.fetchDataUpdatePlot(true, false);  // todo xx isFetchCurrentTruth = true!?
         });
         $('#intervals').on('change', function () {
             App.state.selected_interval = this.value;
-            App.fetchDataUpdatePlot(false);
+            App.fetchDataUpdatePlot(false, null);
         });
 
         // truth checkboxes
@@ -283,7 +287,7 @@ const App = {
                     return value !== model;
                 });
             }
-            App.fetchDataUpdatePlot(false);
+            App.fetchDataUpdatePlot(false, null);
         });
 
         // left and right buttons
@@ -310,18 +314,22 @@ const App = {
     //
 
     incrementAsOf() {
-        console.log('incrementAsOf()');
-        // todo xx
-
-        this.updateTruthAsOfCheckboxText();
-        this.fetchDataUpdatePlot(true);
+        const state = this.state;
+        const as_of_index = state.available_as_ofs[state.selected_target_var].indexOf(state.selected_as_of_date);
+        if (as_of_index < state.available_as_ofs[state.selected_target_var].length - 1) {
+            state.selected_as_of_date = state.available_as_ofs[state.selected_target_var][as_of_index + 1];
+            this.fetchDataUpdatePlot(true, false);
+            this.updateTruthAsOfCheckboxText();
+        }
     },
     decrementAsOf() {
-        console.log('decrementAsOf()');
-        // todo xx
-
-        this.updateTruthAsOfCheckboxText();
-        this.fetchDataUpdatePlot(true);
+        const state = this.state;
+        const as_of_index = state.available_as_ofs[state.selected_target_var].indexOf(state.selected_as_of_date);
+        if (as_of_index > 0) {
+            state.selected_as_of_date = state.available_as_ofs[state.selected_target_var][as_of_index - 1];
+            this.fetchDataUpdatePlot(true, false);
+            this.updateTruthAsOfCheckboxText();
+        }
     },
     updateTruthAsOfCheckboxText() {
         $("#asOfTruthDate").text(`As of ${this.state.selected_as_of_date}`);
@@ -332,19 +340,29 @@ const App = {
     // date fetch-related functions
     //
 
-    fetchDataUpdatePlot(isFetchFirst) {
+    /**
+     * Updates the plot, optionally first fetching data.
+     *
+     * @param isFetchFirst true if should fetch before plotting. false if no fetch
+     * @param isFetchCurrentTruth applies if isFetchFirst: controls whether current truth is fetched in addition to
+     *  as_of truth and forecasts. ignored if not isFetchFirst
+     */
+    fetchDataUpdatePlot(isFetchFirst, isFetchCurrentTruth) {
         if (isFetchFirst) {
-            const promise1 = this.fetchCurrentTruth();
-            const promise2 = this.fetchAsOfTruth();
-            const promise3 = this.fetchForecasts();
-            console.log('fetchDataUpdatePlot(): waiting on promises', promise1, promise2, promise3);
-            Promise.all([promise1, promise2, promise3])
-                .then((values) => {
-                    console.log('fetchDataUpdatePlot(): Promise.all() done. updating plot', values);
-                    this.updatePlot();
-                });
+            const promises = [this.fetchAsOfTruth(), this.fetchForecasts()];
+            if (isFetchCurrentTruth) {
+                promises.push(this.fetchCurrentTruth());
+            }
+            console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): waiting on promises`, promises);
+            const $plotyDiv = $('#ploty_div');
+            $plotyDiv.fadeTo(0, 0.5);
+            Promise.all(promises).then((values) => {
+                console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): Promise.all() done. updating plot`, values);
+                this.updatePlot();
+                $plotyDiv.fadeTo(0, 1.0);
+            });
         } else {
-            console.log('fetchDataUpdatePlot(): updating plot');
+            console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): updating plot`);
             this.updatePlot();
         }
     },
@@ -353,7 +371,6 @@ const App = {
             App.state.selected_target_var, App.state.selected_location, App.state.current_date)
             .then(response => response.json())
             .then((data) => {
-                console.log('fetchCurrentTruth()', data);
                 App.state.current_truth = data;
             });  // Promise
     },
@@ -362,7 +379,6 @@ const App = {
             App.state.selected_target_var, App.state.selected_location, App.state.selected_as_of_date)
             .then(response => response.json())
             .then((data) => {
-                console.log('fetchAsOfTruth()', data);
                 App.state.as_of_truth = data;
             });  // Promise
     },
@@ -371,7 +387,6 @@ const App = {
             App.state.selected_target_var, App.state.selected_location, App.state.selected_as_of_date)
             .then(response => response.json())
             .then((data) => {
-                console.log('fetchForecasts()', data);
                 App.state.forecasts = data;
             });  // Promise
     },
