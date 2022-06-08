@@ -1008,8 +1008,11 @@ def download_latest_forecasts(request, pk):
 @api_view(['GET'])
 def viz_data_api(request, pk):
     """
-    Requires these query parameters, which are passed AS-IS to `viz_data()`:
-      is_forecast, target_key, unit_abbrev, reference_date
+    Requires these query parameters, which are passed to `viz_data()`:
+    - is_forecast: either 'true' or 'false'. converted to a boolean and passed to `viz_data()`
+    - target_key: passed as-is to `viz_data()`
+    - unit_abbrev: ""
+    - reference_date: ""
     """
     # imported here so that tests can patch via mock:
     from utils.visualization import viz_data
@@ -1025,5 +1028,6 @@ def viz_data_api(request, pk):
                                       f"expected={expected_keys}, actual={actual_keys}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
-    return JsonResponse(viz_data(project, request.query_params['is_forecast'], request.query_params['target_key'],
+    is_forecast = request.query_params['is_forecast'] == 'true'
+    return JsonResponse(viz_data(project, is_forecast, request.query_params['target_key'],
                                  request.query_params['unit_abbrev'], request.query_params['reference_date']))

@@ -195,7 +195,7 @@ def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
     if len(one_step_ahead_targets) != 1:
         logger.error(f"could not find exactly one one-step-ahead target. "
                      f"one_step_ahead_targets={one_step_ahead_targets}")
-        return
+        return {}
 
     one_step_ahead_target = one_step_ahead_targets[0]
     date_y_pairs = set()  # 2-tuples as returned by _viz_truth_for_target_unit_ref_date()
@@ -203,13 +203,13 @@ def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
                                                     unit_abbrev, reference_date)  # datetime.date, *
     if not dates:  # if dates = [] then ys = [] too
         logger.warning(f"  x {target_key!r}, {unit_abbrev!r}, {reference_date!r}: {one_step_ahead_target.name!r}")
-        return None  # no truth data
+        return {}  # no truth data
 
     date_y_pairs.update(zip(dates, ys))
     logger.info(f"  v {target_key!r}, {unit_abbrev!r}, {reference_date!r}: {one_step_ahead_target.name!r}: "
                 f"{len(dates), len(ys)}")
     if not date_y_pairs:
-        return None
+        return {}
 
     # save truth data as JSON, sorting first
     json_dates, json_ys = zip(*sorted(date_y_pairs, key=lambda _: _[0]))
@@ -289,7 +289,7 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
 
     if reference_date not in ref_date_to_target_tzs:
         logger.error(f"ref_date not found in ref_date_to_target_tzs: {reference_date}")
-        return None
+        return {}
 
     # query forecasts
     timezeros = sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))
@@ -303,7 +303,7 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
 
     if not rows:
         logger.warning(f"query returned no rows")
-        return None
+        return {}
 
     # build and save viz_dict via a nested groupby() to fill viz_dict. recall query csv output columns:
     #  model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
