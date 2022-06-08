@@ -188,16 +188,14 @@ const App = {
     },
     initializeUI() {
         // populate options and models list (left column)
-        App.initializeTargetVarsUI();
-        App.initializeLocationsUI();
-        App.initializeIntervalsUI();
-        App.initializeModelsUI();
+        this.initializeTargetVarsUI();
+        this.initializeLocationsUI();
+        this.initializeIntervalsUI();
+        this.initializeModelsUI();
 
-        // initialize truth checkboxes' text
-        const $currentTruthDate = $("#currentTruthDate");
-        const $asOfTruthDate = $("#asOfTruthDate");
-        $currentTruthDate.text(`Current (${this.state.current_date})`);
-        $asOfTruthDate.text(`As of ${this.state.selected_as_of_date}`);
+        // initialize current and as_of truth checkboxes' text
+        $("#currentTruthDate").text(`Current (${this.state.current_date})`);
+        this.updateTruthAsOfCheckboxText();
 
         // initialize plotly (right column)
         const plotyDiv = document.getElementById('ploty_div');
@@ -315,13 +313,18 @@ const App = {
         console.log('incrementAsOf()');
         // todo xx
 
+        this.updateTruthAsOfCheckboxText();
         this.fetchDataUpdatePlot(true);
     },
     decrementAsOf() {
         console.log('decrementAsOf()');
         // todo xx
 
+        this.updateTruthAsOfCheckboxText();
         this.fetchDataUpdatePlot(true);
+    },
+    updateTruthAsOfCheckboxText() {
+        $("#asOfTruthDate").text(`As of ${this.state.selected_as_of_date}`);
     },
 
 
@@ -384,10 +387,23 @@ const App = {
         const layout = this.getPlotlyLayout();
 
         const debugObj = {
-            'plotly_data': data, 'plotly_layout': layout,
-            'current_truth': this.state.current_truth,
-            'as_of_truth': this.state.as_of_truth,
-            'forecasts': this.state.forecasts
+            'selection': {
+                'selected_target_var': this.state.selected_target_var,
+                'selected_location': this.state.selected_location,
+                'selected_interval': this.state.selected_interval,
+                'selected_as_of_date': this.state.selected_as_of_date,
+                'selected_truth': this.state.selected_truth,
+                'selected_models': this.state.selected_models
+            },
+            'data': {
+                'current_truth': this.state.current_truth,
+                'as_of_truth': this.state.as_of_truth,
+                'forecasts': this.state.forecasts
+            },
+            'plotly': {
+                'data': data,
+                'layout': layout,
+            },
         };
         console.log('updatePlot()', JSON.stringify(debugObj));
 
