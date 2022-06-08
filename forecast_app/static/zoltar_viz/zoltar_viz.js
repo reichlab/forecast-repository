@@ -254,11 +254,11 @@ const App = {
         // option, location, and interval selects
         $('#target_variable').on('change', function () {
             App.state.selected_target_var = this.value;
-            App.fetchDataUpdatePlot(true, false);  // todo xx isFetchCurrentTruth = true!?
+            App.fetchDataUpdatePlot(true, true);
         });
         $('#location').on('change', function () {
             App.state.selected_location = this.value;
-            App.fetchDataUpdatePlot(true, false);  // todo xx isFetchCurrentTruth = true!?
+            App.fetchDataUpdatePlot(true, true);
         });
         $('#intervals').on('change', function () {
             App.state.selected_interval = this.value;
