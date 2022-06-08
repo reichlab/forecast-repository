@@ -20,7 +20,7 @@ function _selectModelDiv(model, modelIdx, modelColor, isChecked) {
 
 // event handler helper
 function _setSelectedTruths() {
-    const isCurrTruthChecked = $("#forecastViz_Current_Truth").prop('checked');  // todo hard-coded ID
+    const isCurrTruthChecked = $("#forecastViz_Current_Truth").prop('checked');
     const isAsOfTruthChecked = $("#forecastViz_Truth_as_of").prop('checked');  // ""
     const selectedTruths = [];
     if (isCurrTruthChecked) {
@@ -162,6 +162,17 @@ const App = {
         // this.state.selected_truth: synchronized via default <input ... checked> setting
         this.state.selected_models = options['default_models'];
 
+        const debugObj = {
+            'target_variables': this.state.target_variables,
+            'locations': this.state.locations,
+            'intervals': this.state.intervals,
+            'available_as_ofs': this.state.available_as_ofs,
+            'current_date': this.state.current_date,
+            'models': this.state.models,
+            'colors': this.state.colors,
+        };
+        console.log('initialize(): static vars initialized', JSON.stringify(debugObj));
+
         // populate UI elements, setting selection state to initial
         console.log('initialize(): initializing UI');
         this.initializeUI();
@@ -182,6 +193,12 @@ const App = {
         App.initializeIntervalsUI();
         App.initializeModelsUI();
 
+        // initialize truth checkboxes' text
+        const $currentTruthDate = $("#currentTruthDate");
+        const $asOfTruthDate = $("#asOfTruthDate");
+        $currentTruthDate.text(`Current (${this.state.current_date})`);
+        $asOfTruthDate.text(`As of ${this.state.selected_as_of_date}`);
+
         // initialize plotly (right column)
         const plotyDiv = document.getElementById('ploty_div');
         const data = []  // data will be update by `updatePlot()`
@@ -190,7 +207,7 @@ const App = {
     },
     initializeTargetVarsUI() {
         // populate the target variable select
-        const $targetVarsSelect = $("#target_variable");  // todo hard-coded ID
+        const $targetVarsSelect = $("#target_variable");
         const thisState = this.state;
         $targetVarsSelect.empty();
         this.state.target_variables.forEach(function (targetVar) {
@@ -201,7 +218,7 @@ const App = {
     },
     initializeLocationsUI() {
         // populate the location select
-        const $locationSelect = $("#location");  // todo hard-coded ID
+        const $locationSelect = $("#location");
         const thisState = this.state;
         $locationSelect.empty();
         this.state.locations.forEach(function (location) {
@@ -212,7 +229,7 @@ const App = {
     },
     initializeIntervalsUI() {
         // populate the interval select
-        const $intervalsSelect = $("#intervals");  // todo hard-coded ID
+        const $intervalsSelect = $("#intervals");
         const thisState = this.state;
         $intervalsSelect.empty();
         this.state.intervals.forEach(function (interval) {
@@ -223,7 +240,7 @@ const App = {
     },
     initializeModelsUI() {
         // populate the select model div
-        const $selectModelDiv = $("#forecastViz_select_model");  // todo hard-coded ID
+        const $selectModelDiv = $("#forecastViz_select_model");
         const thisState = this.state;
         $selectModelDiv.empty();
         this.state.models.forEach(function (model, modelIdx) {
@@ -233,29 +250,29 @@ const App = {
     },
     addEventHandlers() {
         // option, location, and interval selects
-        $('#target_variable').on('change', function () {  // todo hard-coded ID
+        $('#target_variable').on('change', function () {
             App.state.selected_target_var = this.value;
             App.fetchDataUpdatePlot(true);
         });
-        $('#location').on('change', function () {  // todo hard-coded ID
+        $('#location').on('change', function () {
             App.state.selected_location = this.value;
             App.fetchDataUpdatePlot(true);
         });
-        $('#intervals').on('change', function () {  // todo hard-coded ID
+        $('#intervals').on('change', function () {
             App.state.selected_interval = this.value;
             App.fetchDataUpdatePlot(false);
         });
 
         // truth checkboxes
-        $("#forecastViz_Current_Truth").change(function () {  // todo hard-coded ID
+        $("#forecastViz_Current_Truth").change(function () {
             _setSelectedTruths();
         });
-        $("#forecastViz_Truth_as_of").change(function () {  // todo hard-coded ID
+        $("#forecastViz_Truth_as_of").change(function () {
             _setSelectedTruths();
         });
 
         // model checkboxes
-        $(".model-check").change(function () {  // todo hard-coded ID
+        $(".model-check").change(function () {
             const $this = $(this);
             const model = $this.prop('id');
             const isChecked = $this.prop('checked');
@@ -272,10 +289,10 @@ const App = {
         });
 
         // left and right buttons
-        $("#decrement_as_of").click(function () {  // todo hard-coded ID
+        $("#decrement_as_of").click(function () {
             App.decrementAsOf();
         });
-        $("#increment_as_of").click(function () {  // todo hard-coded ID
+        $("#increment_as_of").click(function () {
             App.incrementAsOf();
         });
 
@@ -368,9 +385,9 @@ const App = {
 
         const debugObj = {
             'plotly_data': data, 'plotly_layout': layout,
-            'state.current_truth': this.state.current_truth,
-            'state.as_of_truth': this.state.as_of_truth,
-            'state.forecasts': this.state.forecasts
+            'current_truth': this.state.current_truth,
+            'as_of_truth': this.state.as_of_truth,
+            'forecasts': this.state.forecasts
         };
         console.log('updatePlot()', JSON.stringify(debugObj));
 
