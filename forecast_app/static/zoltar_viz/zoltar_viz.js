@@ -100,6 +100,7 @@ const App = {
         selected_as_of_date: '',
         selected_truth: ['Current Truth', 'Truth as of'],
         selected_models: [],
+        last_selected_models: [],  // last manually-selected models. used by "Select Models" checkbox
         colors: [],
 
         // 2/2 Data used to create plots:
@@ -273,6 +274,21 @@ const App = {
             _setSelectedTruths();
         });
 
+        // "Select Models" checkbox
+        $("#forecastViz_all").change(function () {
+            const $this = $(this);
+            const isChecked = $this.prop('checked');
+            if (isChecked) {
+                App.state.last_selected_models = App.state.selected_models;
+                App.state.selected_models = App.selectableModels();
+                App.checkModels(App.state.selected_models);
+            } else {
+                App.state.selected_models = App.state.last_selected_models;
+                App.checkModels(App.state.selected_models);
+            }
+            App.updatePlot();
+        });
+
         // model checkboxes
         $(".model-check").change(function () {
             const $this = $(this);
@@ -283,7 +299,7 @@ const App = {
                 App.state.selected_models.push(model);
             } else if (!isChecked && isAlreadyInArray) {
                 // App.state.selected_models.remove(model);  // I wish
-                App.state.selected_models = App.state.selected_models.filter(function (value, index, arr) {
+                App.state.selected_models = App.state.selected_models.filter(function (value) {
                     return value !== model;
                 });
             }
@@ -335,6 +351,21 @@ const App = {
         $("#asOfTruthDate").text(`As of ${this.state.selected_as_of_date}`);
     },
 
+    // Returns an array of models that are not grayed out.
+    selectableModels() {
+        return App.state.models.filter(function (element, index) {
+            return index < 100;
+        });
+    },
+
+    // Checks each item in #forecastViz_select_model that's in the passed list.
+    checkModels(models) {
+        this.state.models.forEach(function (model) {
+            const isShouldCheck = (models.indexOf(model) > -1);
+            const $modelCheckbox = $(`#${model}`);
+            $modelCheckbox.prop('checked', isShouldCheck);
+        });
+    },
 
     //
     // date fetch-related functions
