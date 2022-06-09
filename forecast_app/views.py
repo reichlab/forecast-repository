@@ -490,7 +490,11 @@ def project_viz(request, project_pk):
     units = viz_units(project)
     intervals = ['0%', '50%', '95%']  # todo xx
     available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
-    model_names = viz_model_names(project)
+
+    # todo xx hack to sort "COVIDhub*" first:
+    model_names = sorted(viz_model_names(project),
+                         key=lambda _: '0' + _ if _.startswith('COVIDhub') else _)
+
     options = {'target_variables': target_variables,
                'init_target_var': init_target_var,
                'units': units,

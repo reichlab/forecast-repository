@@ -384,7 +384,7 @@ const App = {
             if (isFetchCurrentTruth) {
                 promises.push(this.fetchCurrentTruth());
             }
-            console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): waiting on promises`, promises);
+            console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): waiting on promises`);
             const $plotyDiv = $('#ploty_div');
             $plotyDiv.fadeTo(0, 0.5);
             Promise.all(promises).then((values) => {
@@ -500,10 +500,11 @@ const App = {
                 marker: {color: 'black'}
             })
         }
-        // console.log('xx pd', pd);
 
         let pd0 = []
         if (state.forecasts.length !== 0) {
+
+            // add the line for predictive medians
             pd0 = Object.keys(state.forecasts).map((model) => {
                 if (state.selected_models.includes(model)) {
                     const index = state.models.indexOf(model)
@@ -515,6 +516,7 @@ const App = {
                     const uq1 = model_forecasts['q0.75']
                     const uq2 = model_forecasts['q0.975']
 
+                    // 1-3: sort model forecasts in order of target end date
                     // 1) combine the arrays:
                     const list = []
                     for (let j = 0; j < date.length; j++) {
@@ -541,15 +543,21 @@ const App = {
                         model_forecasts['q0.975'][k] = list[k].uq2
                     }
 
+                    const x = [];
+                    if (Object.keys(state.as_of_truth).length !== 0) {
+                        x.push(state.as_of_truth.date.slice(-1)[0]);
+                    }
+                    x.push(model_forecasts.target_end_date.slice(0)[0]);
+
+                    const y = [];
+                    if (Object.keys(state.as_of_truth).length !== 0) {
+                        y.push(state.as_of_truth.y.slice(-1)[0]);
+                    }
+                    y.push(model_forecasts['q0.5'].slice(0)[0]);
+
                     return {
-                        x: [
-                            state.as_of_truth.date.slice(-1)[0],
-                            model_forecasts.target_end_date.slice(0)[0]
-                        ],
-                        y: [
-                            state.as_of_truth.y.slice(-1)[0],
-                            model_forecasts['q0.5'].slice(0)[0]
-                        ],
+                        x: x,
+                        y: y,
 
                         mode: 'lines',
                         type: 'scatter',
@@ -558,17 +566,17 @@ const App = {
                         opacity: 0.7,
                         line: {color: state.colors[index]},
                         hoverinfo: 'none'
-                    }
+                    };
                 }
                 return []
             })
         }
-        // console.log('xx pd0', pd0);
         pd = pd.concat(...pd0)
 
+        // add interval polygons
         let pd1 = []
         if (state.forecasts.length !== 0) {
-            pd1 = Object.keys(state.forecasts).map((model) => {
+            pd1 = Object.keys(state.forecasts).map((model) => {  // notes that state.forecasts are still sorted
                 if (state.selected_models.includes(model)) {
                     const index = state.models.indexOf(model)
                     const is_hosp = state.selected_target_var === 'hosp'
@@ -597,16 +605,15 @@ const App = {
                         return [plot_line]
                     }
 
-                    const x = state.as_of_truth.date
-                        .slice(-1)
-                        .concat(model_forecasts.target_end_date)
-                    const y1 = state.as_of_truth.y
-                        .slice(-1)
-                        .concat(model_forecasts[lower_quantile])
-                    const y2 = state.as_of_truth.y
-                        .slice(-1)
-                        .concat(model_forecasts[upper_quantile])
-
+                    const x = Object.keys(state.as_of_truth).length !== 0 ?
+                        state.as_of_truth.date.slice(-1).concat(model_forecasts.target_end_date) :
+                        model_forecasts.target_end_date;
+                    const y1 = Object.keys(state.as_of_truth).length !== 0 ?
+                        state.as_of_truth.y.slice(-1).concat(model_forecasts[lower_quantile]) :  // lower edge
+                        model_forecasts[lower_quantile];
+                    const y2 = Object.keys(state.as_of_truth).length !== 0 ?
+                        state.as_of_truth.y.slice(-1).concat(model_forecasts[upper_quantile]) :
+                        model_forecasts[upper_quantile];  // upper edge
                     return [
                         plot_line,
                         {
@@ -627,11 +634,9 @@ const App = {
                 return []
             })
         }
-        // console.log('xx pd1', pd1);
         pd = pd.concat(...pd1)
 
         // done!
-        // console.log('xx pd', pd);
         return pd
     },
 };
