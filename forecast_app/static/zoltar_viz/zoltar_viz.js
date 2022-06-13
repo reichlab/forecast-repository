@@ -2,17 +2,16 @@
 // helper functions
 //
 
-// `initializeModelsUI()` helper
-function _selectModelDiv(model, modelIdx, modelColor, isChecked) {
-    const disabled = modelIdx >= 100 ? 'disabled="disabled"' : '';
+// `updateModelsList()` helper
+function _selectModelDiv(model, modelColor, isEnabled, isChecked) {
+    const disabled = isEnabled ? '' : 'disabled="disabled"';
     const checked = isChecked ? 'checked' : '';
     return `<div class="form-group form-check"
-                 style="margin-bottom: 0${modelIdx >= 100 ? '; color: lightgrey' : ''}">
+                 style="margin-bottom: 0${!isEnabled ? '; color: lightgrey' : ''}">
                 <label>
                     <input type="checkbox" id="${model}" class="model-check" ${disabled} ${checked}>
                     &nbsp;${model}
-                    &nbsp;<span class="forecastViz_dot" style="background-color:
-                        ${modelIdx < 100 ? modelColor : 'lightgray'}; "></span>
+                    &nbsp;<span class="forecastViz_dot" style="background-color: ${modelColor}; "></span>
                 </label>
             </div>`;
 }
@@ -164,6 +163,7 @@ const App = {
         // this.state.selected_truth: synchronized via default <input ... checked> setting
         this.state.selected_models = options['default_models'];
 
+        /*
         const debugObj = {
             'target_variables': this.state.target_variables,
             'locations': this.state.locations,
@@ -174,6 +174,7 @@ const App = {
             'colors': this.state.colors,
         };
         console.log('initialize(): static vars initialized', JSON.stringify(debugObj));
+        */
 
         // populate UI elements, setting selection state to initial
         console.log('initialize(): initializing UI');
@@ -193,7 +194,7 @@ const App = {
         this.initializeTargetVarsUI();
         this.initializeLocationsUI();
         this.initializeIntervalsUI();
-        this.initializeModelsUI();
+        this.updateModelsList();
 
         // initialize current and as_of truth checkboxes' text
         $("#currentTruthDate").text(`Current (${this.state.current_date})`);
@@ -241,15 +242,34 @@ const App = {
             $intervalsSelect.append(optionNode);
         });
     },
-    initializeModelsUI() {
+    updateModelsList() {
         // populate the select model div
         const $selectModelDiv = $("#forecastViz_select_model");
         const thisState = this.state;
         $selectModelDiv.empty();
-        this.state.models.forEach(function (model, modelIdx) {
-            const isChecked = (thisState.selected_models.indexOf(model) > -1);
-            $selectModelDiv.append(_selectModelDiv(model, modelIdx, thisState.colors[modelIdx], isChecked));
-        });
+
+        // split models into two groups: those with forecasts (enabled, colored) and those without (disabled, gray)
+        // 1. add models with forecasts
+        this.state.models
+            .filter(function (model) {
+                return App.state.forecasts.hasOwnProperty(model);
+            })
+            .forEach(function (model, modelIdx) {
+                const isChecked = (thisState.selected_models.indexOf(model) > -1);
+                $selectModelDiv.append(_selectModelDiv(model, thisState.colors[modelIdx], true, isChecked));
+            });
+
+        // 2. add models without forecasts
+        this.state.models
+            .filter(function (model) {
+                return !App.state.forecasts.hasOwnProperty(model);
+            })
+            .forEach(function (model) {
+                $selectModelDiv.append(_selectModelDiv(model, 'grey', false, false));
+            });
+
+        // re-wire up model checkboxes
+        this.addModelCheckEventHandler();
     },
     addEventHandlers() {
         // option, location, and interval selects
@@ -274,6 +294,13 @@ const App = {
             _setSelectedTruths();
         });
 
+        // Shuffle Colours button
+        $("#forecastViz_shuffle").click(function () {
+            App.state.colors = App.state.colors.sort(() => 0.5 - Math.random())
+            App.updateModelsList();
+            App.updatePlot();
+        });
+
         // "Select Models" checkbox
         $("#forecastViz_all").change(function () {
             const $this = $(this);
@@ -281,30 +308,15 @@ const App = {
             if (isChecked) {
                 App.state.last_selected_models = App.state.selected_models;
                 App.state.selected_models = App.selectableModels();
-                App.checkModels(App.state.selected_models);
             } else {
                 App.state.selected_models = App.state.last_selected_models;
-                App.checkModels(App.state.selected_models);
             }
+            App.checkModels(App.state.selected_models);
             App.updatePlot();
         });
 
-        // model checkboxes
-        $(".model-check").change(function () {
-            const $this = $(this);
-            const model = $this.prop('id');
-            const isChecked = $this.prop('checked');
-            const isAlreadyInArray = (App.state.selected_models.indexOf(model) > -1);
-            if (isChecked && !isAlreadyInArray) {
-                App.state.selected_models.push(model);
-            } else if (!isChecked && isAlreadyInArray) {
-                // App.state.selected_models.remove(model);  // I wish
-                App.state.selected_models = App.state.selected_models.filter(function (value) {
-                    return value !== model;
-                });
-            }
-            App.fetchDataUpdatePlot(false, null);
-        });
+        // wire up model checkboxes
+        this.addModelCheckEventHandler();
 
         // left and right buttons
         $("#decrement_as_of").click(function () {
@@ -321,6 +333,22 @@ const App = {
             } else if (event.code === "ArrowRight") {
                 App.incrementAsOf();
             }
+        });
+    },
+    addModelCheckEventHandler() {
+        $(".model-check").change(function () {
+            const $this = $(this);
+            const model = $this.prop('id');
+            const isChecked = $this.prop('checked');
+            const isInSelectedModels = (App.state.selected_models.indexOf(model) > -1);
+            if (isChecked && !isInSelectedModels) {
+                App.state.selected_models.push(model);
+            } else if (!isChecked && isInSelectedModels) {
+                App.state.selected_models = App.state.selected_models.filter(function (value) {
+                    return value !== model;
+                });  // App.state.selected_models.remove(model);
+            }
+            App.fetchDataUpdatePlot(false, null);
         });
     },
 
@@ -389,11 +417,13 @@ const App = {
             $plotyDiv.fadeTo(0, 0.5);
             Promise.all(promises).then((values) => {
                 console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): Promise.all() done. updating plot`, values);
+                this.updateModelsList();
                 this.updatePlot();
                 $plotyDiv.fadeTo(0, 1.0);
             });
         } else {
             console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): updating plot`);
+            this.updateModelsList();
             this.updatePlot();
         }
     },
@@ -432,6 +462,7 @@ const App = {
         const data = this.getPlotlyData();
         const layout = this.getPlotlyLayout();
 
+        /*
         const debugObj = {
             'selection': {
                 'selected_target_var': this.state.selected_target_var,
@@ -439,7 +470,7 @@ const App = {
                 'selected_interval': this.state.selected_interval,
                 'selected_as_of_date': this.state.selected_as_of_date,
                 'selected_truth': this.state.selected_truth,
-                'selected_models': this.state.selected_models
+                'selected_mo1dels': this.state.selected_models
             },
             'data': {
                 'current_truth': this.state.current_truth,
@@ -452,6 +483,7 @@ const App = {
             },
         };
         console.log('updatePlot()', JSON.stringify(debugObj));
+        */
 
         Plotly.react(plotyDiv, data, layout);
     },
