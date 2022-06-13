@@ -486,16 +486,20 @@ def project_viz(request, project_pk):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     target_variables = viz_target_variables(project)
-    init_target_var = target_variables[0]['value']  # todo xx
+    init_target_var = target_variables[0]['value'] if target_variables else None  # todo xx
     units = viz_units(project)
     intervals = ['0%', '50%', '95%']  # todo xx
     available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
 
-    # todo xx
-    first_models = ["COVIDhub-ensemble", "COVIDhub-baseline"]
+    first_models = ["COVIDhub-ensemble", "COVIDhub-baseline"]    # todo xx
     model_names = first_models + [model_name for model_name in sorted(viz_model_names(project))
                                   if model_name not in first_models]
 
+    current_date = None
+    try:
+        current_date = available_as_ofs[init_target_var][-1]  # todo xx
+    except Exception:
+        pass
     options = {'target_variables': target_variables,
                'init_target_var': init_target_var,
                'units': units,
@@ -503,7 +507,7 @@ def project_viz(request, project_pk):
                'intervals': intervals,
                'init_interval': intervals[-1],
                'available_as_ofs': available_as_ofs,
-               'current_date': available_as_ofs[init_target_var][-1],  # todo xx
+               'current_date': current_date,
                'models': model_names,
                'default_models': model_names[0:1],  # todo xx
                'disclaimer': 'todo disclaimer',  # todo xx

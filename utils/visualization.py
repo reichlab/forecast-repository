@@ -162,9 +162,13 @@ def viz_data(project, is_forecast, target_key, unit_abbrev, reference_date):
     :return a dict containing the data. format depends on `is_forecast` - see `_viz_data_truth()` and
     `_viz_data_forecasts()` for details
     """
-    reference_date = datetime.datetime.strptime(reference_date, YYYY_MM_DD_DATE_FORMAT).date()
-    return _viz_data_forecasts(project, target_key, unit_abbrev, reference_date) if is_forecast \
-        else _viz_data_truth(project, target_key, unit_abbrev, reference_date)
+    try:
+        reference_date = datetime.datetime.strptime(reference_date, YYYY_MM_DD_DATE_FORMAT).date()
+        return _viz_data_forecasts(project, target_key, unit_abbrev, reference_date) if is_forecast \
+            else _viz_data_truth(project, target_key, unit_abbrev, reference_date)
+    except ValueError as ve:
+        logger.error(f"could not parse reference_date={reference_date}. exc={ve!r}")
+        return {}
 
 
 #

@@ -460,7 +460,7 @@ const App = {
     updatePlot() {
         const plotyDiv = document.getElementById('ploty_div');
         const data = this.getPlotlyData();
-        const layout = this.getPlotlyLayout();
+        let layout = this.getPlotlyLayout();
 
         /*
         const debugObj = {
@@ -485,9 +485,16 @@ const App = {
         console.log('updatePlot()', JSON.stringify(debugObj));
         */
 
+        if (data.length === 0) {
+            layout = {title: {text: 'No Visualization Data Found'}};
+        }
         Plotly.react(plotyDiv, data, layout);
     },
     getPlotlyLayout() {
+        if (this.state.target_variables.length === 0) {
+            return {};
+        }
+
         const variable = this.state.target_variables.filter((obj) => obj.value === this.state.selected_target_var)[0].plot_text;
         const location = this.state.locations.filter((obj) => obj.value === this.state.selected_location)[0].text;
         return {
