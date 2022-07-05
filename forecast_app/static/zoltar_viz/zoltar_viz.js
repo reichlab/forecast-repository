@@ -88,7 +88,6 @@ const App = {
         current_date: "",
         models: [],
         default_models: [],
-        // all_models: false,  // todo xx
         disclaimer: "",
 
         // Dynamic/updated and we need to track: 2 categories:
