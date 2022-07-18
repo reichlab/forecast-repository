@@ -5,7 +5,6 @@
   "home_url": "http://www.iddynamics.jhsph.edu/projects/impetus",
   "logo_url": "http://www.iddynamics.jhsph.edu/sites/default/files/styles/project-logo/public/content/project/logos/ImpetusLogo.png",
   "core_data": "https://github.com/reichlab/dengue-data",
-  "time_interval_type": "Biweek",
   "units": [
     {
       "name": "Mae Hong Son Province",

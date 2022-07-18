@@ -5,7 +5,6 @@
   "home_url": "https://covid19forecasthub.org",
   "logo_url": "https://github.com/reichlab/covid19-forecast-hub-web/raw/master/images/forecast-hub-logo_DARKBLUE.png",
   "core_data": "https://github.com/reichlab/covid19-death-forecasts/tree/master/data-processed",
-  "time_interval_type": "Week",
   "units": [
     {
       "id": 524,

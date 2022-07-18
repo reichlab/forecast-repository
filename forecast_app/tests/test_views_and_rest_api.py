@@ -624,7 +624,7 @@ class ViewsTestCase(TestCase):
 
         response = self.client.get(reverse('api-project-detail', args=[self.public_project.pk]), format='json')
         self.assertEqual(['id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
-                          'time_interval_type', 'truth', 'model_owners', 'models', 'units', 'targets', 'timezeros'],
+                          'truth', 'model_owners', 'models', 'units', 'targets', 'timezeros'],
                          list(response.data))
 
         response = self.client.get(reverse('api-unit-list', args=[self.public_project.pk]), format='json')
@@ -881,7 +881,7 @@ class ViewsTestCase(TestCase):
         # spot-check response
         response_json = json_response.json()
         self.assertEqual({'id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
-                          'time_interval_type', 'truth', 'model_owners', 'models', 'units', 'targets', 'timezeros'},
+                          'truth', 'model_owners', 'models', 'units', 'targets', 'timezeros'},
                          set(response_json.keys()))
         self.assertEqual('CDC Flu challenge', response_json['name'])
 

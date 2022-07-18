@@ -137,7 +137,7 @@ def project_config_diff(config_dict_1, config_dict_2):
     made to config_dict_1 to result in config_dict_2. Here are the kinds of diffs:
 
     Project edits:
-    - editable fields: 'name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type'
+    - editable fields: 'name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data'
     - 'units': add, remove
     - 'timezeros': add, remove, edit
     - 'targets': add, remove, edit
@@ -173,7 +173,7 @@ def project_config_diff(config_dict_1, config_dict_2):
     create_project_from_json(config_dict_2, None, is_validate_only=True)
 
     # check project field edits
-    for field_name in ['name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data', 'time_interval_type']:
+    for field_name in ['name', 'is_public', 'description', 'home_url', 'logo_url', 'core_data']:
         if config_dict_1[field_name] != config_dict_2[field_name]:
             changes.append(Change(ObjectType.PROJECT, None, ChangeType.FIELD_EDITED, field_name, config_dict_2))
 
