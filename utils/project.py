@@ -76,8 +76,6 @@ def config_dict_from_project(project, request):
     tz_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
-            'time_interval_type': project.time_interval_type_as_str(),
-            'visualization_y_label': project.visualization_y_label,
             'units': [dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
             'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
             'timezeros': [dict(_) for _ in tz_serializer_multi.data]}  # replace OrderedDicts
@@ -132,8 +130,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
     all_keys = set(project_dict.keys())
     tested_keys = all_keys - {'logo_url'}  # optional keys
     field_name_to_type = {'name': str, 'is_public': bool, 'description': str, 'home_url': str, 'core_data': str,
-                          'time_interval_type': str, 'visualization_y_label': str, 'units': list, 'targets': list,
-                          'timezeros': list}
+                          'units': list, 'targets': list, 'timezeros': list}
     expected_keys = set(field_name_to_type.keys())
     if tested_keys != expected_keys:
         raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ all_keys}. "
@@ -394,24 +391,10 @@ def _validate_target_dict(target_dict):
 
 
 def _create_project(project_dict, owner):
-    # validate time_interval_type - one of: 'week', 'biweek', or 'month'
-    time_interval_type_input = project_dict['time_interval_type'].lower()
-    time_interval_type = None
-    for db_value, human_readable_value in Project.TIME_INTERVAL_TYPE_CHOICES:
-        if human_readable_value.lower() == time_interval_type_input:
-            time_interval_type = db_value
-
-    if time_interval_type is None:
-        time_interval_type_choices = [choice[1] for choice in Project.TIME_INTERVAL_TYPE_CHOICES]
-        raise RuntimeError(f"invalid 'time_interval_type': {time_interval_type_input}. must be one of: "
-                           f"{time_interval_type_choices}")
-
     project = Project.objects.create(
         owner=owner,
         is_public=project_dict['is_public'],
         name=project_dict['name'],
-        time_interval_type=time_interval_type,
-        visualization_y_label=(project_dict['visualization_y_label']),
         description=project_dict['description'],
         home_url=project_dict['home_url'],  # required
         logo_url=project_dict['logo_url'] if 'logo_url' in project_dict else None,

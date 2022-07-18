@@ -122,8 +122,7 @@ def filename_for_args(project, query):
 def model_field_names(clazz):
     # this is a hard-coded version that is suitable for copying to external library
     return {
-        Project: ['id', 'core_data', 'description', 'home_url', 'is_public', 'logo_url', 'name', 'time_interval_type',
-                  'visualization_y_label'],
+        Project: ['id', 'core_data', 'description', 'home_url', 'is_public', 'logo_url', 'name'],
         Unit: ['id', 'project_id', 'abbreviation', 'name'],
         Target: ['id', 'project_id', 'name', 'type', 'description', 'outcome_variable', 'is_step_ahead',
                  'numeric_horizon', 'reference_date_type'],

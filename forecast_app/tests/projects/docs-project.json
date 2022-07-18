@@ -5,8 +5,6 @@
   "home_url": "https://reichlab.io",
   "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
   "core_data": "http://reichlab.io/",
-  "time_interval_type": "Week",
-  "visualization_y_label": "the scale for your variable of interest",
   "units": [
     {"name": "location1", "abbreviation": "loc1"},
     {"name": "location2", "abbreviation": "loc2"},

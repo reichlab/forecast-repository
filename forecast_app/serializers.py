@@ -168,7 +168,6 @@ class TimeZeroSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class ProjectSerializer(serializers.HyperlinkedModelSerializer):
-    time_interval_type = serializers.SerializerMethodField()
     truth = serializers.SerializerMethodField()
 
     models = serializers.SerializerMethodField()  # HyperlinkedRelatedField did not allow excluding non-oracle models
@@ -180,8 +179,7 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Project
         fields = ('id', 'url', 'owner', 'is_public', 'name', 'description', 'home_url', 'logo_url', 'core_data',
-                  'time_interval_type', 'visualization_y_label', 'truth', 'model_owners', 'models', 'units', 'targets',
-                  'timezeros',)
+                  'truth', 'model_owners', 'models', 'units', 'targets', 'timezeros',)
         extra_kwargs = {
             'url': {'view_name': 'api-project-detail'},
             'owner': {'view_name': 'api-user-detail'},
@@ -196,10 +194,6 @@ class ProjectSerializer(serializers.HyperlinkedModelSerializer):
         for forecast_model in project.models.filter(is_oracle=False):
             models.append(reverse('api-model-detail', args=[forecast_model.pk], request=request))
         return models
-
-
-    def get_time_interval_type(self, project):
-        return project.time_interval_type_as_str()
 
 
     def get_truth(self, project):

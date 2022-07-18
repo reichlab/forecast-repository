@@ -43,16 +43,6 @@ class Project(models.Model):
 
     name = models.TextField()
 
-    WEEK_TIME_INTERVAL_TYPE = 'w'
-    BIWEEK_TIME_INTERVAL_TYPE = 'b'
-    MONTH_TIME_INTERVAL_TYPE = 'm'
-    TIME_INTERVAL_TYPE_CHOICES = ((WEEK_TIME_INTERVAL_TYPE, 'Week'),
-                                  (BIWEEK_TIME_INTERVAL_TYPE, 'Biweek'),
-                                  (MONTH_TIME_INTERVAL_TYPE, 'Month'))
-    time_interval_type = models.CharField(max_length=1,
-                                          choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE,
-                                          help_text="Used when visualizing the x axis label.")
-    visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
     description = models.TextField(help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
     home_url = models.URLField(help_text="The project's home site.")
@@ -83,15 +73,6 @@ class Project(models.Model):
 
         # done
         super().save(*args, **kwargs)
-
-
-    def time_interval_type_as_str(self):
-        """
-        :return: my time_interval_type as a human-friendly string from TIME_INTERVAL_TYPE_CHOICES
-        """
-        for db_value, human_readable_value in Project.TIME_INTERVAL_TYPE_CHOICES:
-            if db_value == self.time_interval_type:
-                return human_readable_value
 
 
     def get_absolute_url(self):
@@ -225,13 +206,6 @@ class Project(models.Model):
         :return: the first TimeZero in me that has a timezero_date matching timezero_date
         """
         return self.timezeros.filter(timezero_date=timezero_date).first()
-
-
-    def time_interval_type_to_foresight(self):
-        """
-        :return: my time_interval_type formatted for D3-Foresight's pointType
-        """
-        return dict(Project.TIME_INTERVAL_TYPE_CHOICES)[self.time_interval_type].lower()
 
 
     def last_update(self):

@@ -5,8 +5,6 @@
   "home_url": "https://github.com/FluSightNetwork/cdc-flusight-ensemble",
   "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
   "core_data": "https://github.com/FluSightNetwork/cdc-flusight-ensemble/tree/master/model-forecasts/component-models",
-  "time_interval_type": "Week",
-  "visualization_y_label": "Weighted ILI (%)",
   "units": [
     {"name": "hhs1", "abbreviation": "HHS Region 1"},
     {"name": "hhs2", "abbreviation": "HHS Region 2"},
