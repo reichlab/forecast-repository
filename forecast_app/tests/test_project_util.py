@@ -68,7 +68,6 @@ class ProjectUtilTestCase(TestCase):
         self.assertTrue(project.is_public)
         self.assertEqual('CDC Flu challenge', project.name)
         self.assertEqual(Project.WEEK_TIME_INTERVAL_TYPE, project.time_interval_type)
-        self.assertEqual('Weighted ILI (%)', project.visualization_y_label)
 
         self.assertEqual(11, project.units.count())
         self.assertEqual(7, project.targets.count())
@@ -131,8 +130,8 @@ class ProjectUtilTestCase(TestCase):
         # note: owner permissions tested by test_views_and_rest_api.py
 
         # test top level required fields: missing or wrong type
-        for field_name in ['name', 'is_public', 'description', 'home_url', 'core_data', 'time_interval_type',
-                           'visualization_y_label', 'units', 'targets', 'timezeros']:
+        for field_name in ['name', 'is_public', 'description', 'home_url', 'core_data', 'time_interval_type', 'units',
+                           'targets', 'timezeros']:
             orig_field_value = project_dict[field_name]
             with self.assertRaisesRegex(RuntimeError, "Wrong keys in project_dict"):
                 del (project_dict[field_name])

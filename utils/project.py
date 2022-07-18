@@ -77,7 +77,6 @@ def config_dict_from_project(project, request):
     return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
             'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
             'time_interval_type': project.time_interval_type_as_str(),
-            'visualization_y_label': project.visualization_y_label,
             'units': [dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
             'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
             'timezeros': [dict(_) for _ in tz_serializer_multi.data]}  # replace OrderedDicts
@@ -132,8 +131,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
     all_keys = set(project_dict.keys())
     tested_keys = all_keys - {'logo_url'}  # optional keys
     field_name_to_type = {'name': str, 'is_public': bool, 'description': str, 'home_url': str, 'core_data': str,
-                          'time_interval_type': str, 'visualization_y_label': str, 'units': list, 'targets': list,
-                          'timezeros': list}
+                          'time_interval_type': str, 'units': list, 'targets': list, 'timezeros': list}
     expected_keys = set(field_name_to_type.keys())
     if tested_keys != expected_keys:
         raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ all_keys}. "
@@ -411,7 +409,6 @@ def _create_project(project_dict, owner):
         is_public=project_dict['is_public'],
         name=project_dict['name'],
         time_interval_type=time_interval_type,
-        visualization_y_label=(project_dict['visualization_y_label']),
         description=project_dict['description'],
         home_url=project_dict['home_url'],  # required
         logo_url=project_dict['logo_url'] if 'logo_url' in project_dict else None,

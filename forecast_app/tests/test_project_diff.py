@@ -39,8 +39,7 @@ class ProjectDiffTestCase(TestCase):
         # project fields: edit
         fields_new_values = [('name', 'new name'), ('is_public', False), ('description', 'new descr'),
                              ('home_url', 'new home_url'), ('logo_url', 'new logo_url'),
-                             ('core_data', 'new core_data'), ('time_interval_type', 'Biweek'),
-                             ('visualization_y_label', 'new visualization_y_label')]
+                             ('core_data', 'new core_data'), ('time_interval_type', 'Biweek')]
         edit_config_dict = copy.deepcopy(current_config_dict)
         for field_name, new_value in fields_new_values:
             edit_config_dict[field_name] = new_value

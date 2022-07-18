@@ -52,7 +52,6 @@ class Project(models.Model):
     time_interval_type = models.CharField(max_length=1,
                                           choices=TIME_INTERVAL_TYPE_CHOICES, default=WEEK_TIME_INTERVAL_TYPE,
                                           help_text="Used when visualizing the x axis label.")
-    visualization_y_label = models.TextField(help_text="Used when visualizing the Y axis label.")
     description = models.TextField(help_text="A few paragraphs describing the project. Please see documentation for"
                                              "what should be included here - 'real-time-ness', time_zeros, etc.")
     home_url = models.URLField(help_text="The project's home site.")
