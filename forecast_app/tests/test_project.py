@@ -359,7 +359,7 @@ class ProjectTestCase(TestCase):
             self.assertEqual(exp_season_name, project2.season_name_containing_timezero(timezero))
 
 
-    def test_visualization_targets(self):
+    def test_step_ahead_targets(self):
         self.assertEqual(['1 wk ahead', '2 wk ahead', '3 wk ahead', '4 wk ahead'],
                          [target.name for target in self.project.step_ahead_targets()])
 
