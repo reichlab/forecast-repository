@@ -74,8 +74,13 @@ def config_dict_from_project(project, request):
 
     unit_serializer_multi = UnitSerializer(project.units, many=True, context={'request': request})
     tz_serializer_multi = TimeZeroSerializer(project.timezeros, many=True, context={'request': request})
-    return {'name': project.name, 'is_public': project.is_public, 'description': project.description,
-            'home_url': project.home_url, 'logo_url': project.logo_url, 'core_data': project.core_data,
+    return {'name': project.name,
+            'is_public': project.is_public,
+            'description': project.description,
+            'home_url': project.home_url,
+            'logo_url': project.logo_url,
+            'core_data': project.core_data,
+            'viz_options': project.viz_options,
             'units': [dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
             'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
             'timezeros': [dict(_) for _ in tz_serializer_multi.data]}  # replace OrderedDicts
@@ -112,6 +117,9 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
         validation is done but no creation (is_validate_only=True)
     :return: the new Project
     """
+    from utils.visualization import validate_project_viz_options  # avoid circular imports
+
+
     logger.info(f"* create_project_from_json(): started. proj_config_file_path_or_dict="
                 f"{proj_config_file_path_or_dict}, owner={owner}, is_validate_only={is_validate_only}")
     if isinstance(proj_config_file_path_or_dict, dict):
@@ -128,19 +136,25 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
 
     # validate required fields
     all_keys = set(project_dict.keys())
-    tested_keys = all_keys - {'logo_url'}  # optional keys
+    tested_keys = all_keys - {'logo_url', 'viz_options'}  # optional keys
     field_name_to_type = {'name': str, 'is_public': bool, 'description': str, 'home_url': str, 'core_data': str,
                           'units': list, 'targets': list, 'timezeros': list}
     expected_keys = set(field_name_to_type.keys())
     if tested_keys != expected_keys:
-        raise RuntimeError(f"Wrong keys in project_dict. difference={expected_keys ^ all_keys}. "
-                           f"expected={expected_keys}, actual={all_keys}")
+        raise RuntimeError(f"Wrong keys in project_dict. difference={tested_keys ^ expected_keys}. "
+                           f"tested={tested_keys}, expected={expected_keys}, actual={all_keys}")
 
-    # validate optional field
-    if ('logo_url' in project_dict) and (project_dict['logo_url'] is not None) and \
+    # validate optional fields. NB: we cannot validate xx until after the project's been created
+    if ('logo_url' in project_dict) and project_dict['logo_url'] and \
             (not isinstance(project_dict['logo_url'], str)):
         raise RuntimeError(f"top level field type was not {str}. field_name='logo_url', "
                            f"value={project_dict['logo_url']!r}, type={type(project_dict['logo_url'])}")
+
+    # validate as much of 'viz_options' as we can (since there are no Targets, Units, or Models until after creation)
+    if 'viz_options' in project_dict:
+        viz_opts_errors = validate_project_viz_options(None, project_dict['viz_options'], is_validate_objects=False)
+        if viz_opts_errors:
+            raise RuntimeError(f"'viz_options' is invalid. errors={viz_opts_errors}")
 
     # validate field types
     for field_name, field_type in field_name_to_type.items():
@@ -399,6 +413,7 @@ def _create_project(project_dict, owner):
         home_url=project_dict['home_url'],  # required
         logo_url=project_dict['logo_url'] if 'logo_url' in project_dict else None,
         core_data=project_dict['core_data'] if 'core_data' in project_dict else None,
+        viz_options=project_dict['viz_options'] if 'viz_options' in project_dict else None,
     )
     project.save()
     return project

@@ -40,6 +40,8 @@
                         <a class="dropdown-item" href="{% url 'edit-project-from-form' project.pk %}">From form...</a>
                         <a class="dropdown-item" data-toggle="modal" data-target="#choose_project_config_modal"
                            href="#">From file...</a>
+                        <a class="dropdown-item" href="{% url 'project-viz-options-edit' project.pk %}">Viz
+                            Options...</a>
                     </div>
                 </div>
             </form>
@@ -141,7 +143,11 @@
                 <tr>
                     <th>Features:</th>
                     <td><strong>Project</strong>: <a href="{% url 'project-explorer' project.pk %}">Explorer</a>,
-                        <a href="{% url 'project-viz' project.pk %}">Viz</a>.
+                        <a href="{% url 'project-viz' project.pk %}">Viz</a>
+                        (<a href="{% url 'project-viz-options-edit' project.pk %}">options</a>
+                        {% if not viz_options_valid %}<i class="fas fa-exclamation-triangle text-warning"
+                                                         title="invalid project viz options"></i>{% else %}
+                            <i class="fas fa-check text-success" title="valid project viz options"></i>{% endif %}).
                         <strong>Forecasts</strong>: <a href="{% url 'project-forecasts' project.pk %}">Summary</a>,
                         <a href="{% url 'query-forecasts' project.pk %}">Download</a>.
                     </td>

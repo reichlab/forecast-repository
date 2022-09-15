@@ -48,7 +48,7 @@ def viz_target_variables(project):
          ...]
     """
     target_variables = []  # return value
-    for group_name, target_list in group_targets(viz_targets(project)).items():
+    for _, target_list in group_targets(viz_targets(project)).items():
         if not target_list:
             continue
 
@@ -330,3 +330,102 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
                 viz_dict[model][quantile_key].append(value)
 
     return viz_dict
+
+
+#
+# validate_project_viz_options()
+#
+
+def validate_project_viz_options(project, viz_options, is_validate_objects=True):
+    """
+    Validates viz_options, which is a dict suitable for saving in the `Project.viz_options` field. An example
+    viz_options:
+
+        {"initial_target_var": "incident_deaths",
+         "initial_unit": "48",
+         "intervals": [0, 50, 95],
+         "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],
+         "models_at_top": ["COVIDhub-ensemble", "COVIDhub-baseline"],
+         "disclaimer": "Most forecasts have failed to reliably predict rapid changes ..."}
+
+    :param project: a Project. ignored if is_validate_objects is False
+    :param viz_options: a dict as documented at https://docs.zoltardata.com/xx <- todo xx . briefly: it has six keys:
+        - "disclaimer": arbitrary string that's shown at the top of the viz
+        - "initial_checked_models": a list of strs naming model abbreviations to initially check in the viz.
+            see viz_model_names()
+        - "initial_target_var": a valid target group for `project`. see viz_target_variables()' `value` key
+        - "initial_unit": a valid Unit abbreviation for `project`. see viz_units()' `value` key
+        - "intervals": a list of one or more ints between 0 and 100 inclusive. these represent percentages
+        - "models_at_top": a list of strs naming model abbreviations to sort at the top of the viz model list. see
+            viz_model_names()
+    :param is_validate_objects: boolean indicating whether object-related fields should be validated (Targets, Units,
+        and Models)
+    :return: a list of error messages if viz_options is invalid, or [] o/w
+    """
+    if not isinstance(viz_options, dict):
+        return [f"viz_options is not a dict. viz_options={viz_options}, type={type(viz_options)}"]
+
+    expected_keys = {'initial_target_var', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
+                     'disclaimer'}
+    actual_keys = set(viz_options.keys())
+    if actual_keys != expected_keys:
+        return [f"viz_options keys are invalid. expected_keys={expected_keys}, actual_keys={actual_keys}, "
+                f"difference={actual_keys ^ expected_keys}"]
+
+    # validate field types
+    errors = []
+    field_name_to_type = {'initial_target_var': str, 'initial_unit': str, 'intervals': list,
+                          'initial_checked_models': list, 'models_at_top': list, 'disclaimer': str}
+    for field_name, field_type in field_name_to_type.items():
+        if not isinstance(viz_options[field_name], field_type):
+            errors.append(f"top level field type was not {field_type}. field_name={field_name!r}, "
+                          f"value={viz_options[field_name]!r}, type={type(viz_options[field_name])}")
+    if errors:
+        return errors
+
+    # validate individual field values
+    # 'initial_target_var'
+    if is_validate_objects:
+        target_var_vals = {target_var['value'] for target_var in viz_target_variables(project)}
+        if viz_options['initial_target_var'] not in target_var_vals:
+            errors.append(f"initial_target_var is invalid. initial_target_var={viz_options['initial_target_var']!r}, "
+                          f"target_var_vals={target_var_vals!r}")
+
+    # 'initial_unit'
+    if is_validate_objects:
+        unit_vals = {unit['value'] for unit in viz_units(project)}
+        if viz_options['initial_unit'] not in unit_vals:
+            errors.append(f"initial_unit is invalid. viz_opt_unit_vals={viz_options['initial_unit']!r}, "
+                          f"unit_vals={unit_vals!r}")
+
+    # 'intervals'
+    intervals = viz_options['intervals']
+    if not isinstance(intervals, list) \
+            or not intervals \
+            or not all(map(lambda _: isinstance(_, int) and 0 <= _ <= 100, intervals)):
+        errors.append(f"intervals is invalid. must be between 0 and 100 inclusive: {intervals !r}")
+
+    # 'initial_checked_models'
+    if is_validate_objects:
+        model_names = set(viz_model_names(project))
+        viz_opt_checked_models = set(viz_options['initial_checked_models'])
+        if is_validate_objects and (not viz_opt_checked_models
+                                   or not all(map(lambda _: isinstance(_, str), viz_opt_checked_models))
+                                   or not viz_opt_checked_models <= model_names):
+            errors.append(f"initial_checked_models is invalid. viz_opt_checked_models={viz_opt_checked_models!r}, "
+                          f"model_names={model_names!r}")
+
+    # 'models_at_top'
+    viz_opt_models_at_top = set(viz_options['models_at_top'])
+    if is_validate_objects and (not viz_opt_models_at_top
+                               or not all(map(lambda _: isinstance(_, str), viz_opt_models_at_top))
+                               or not viz_opt_models_at_top <= model_names):
+        errors.append(f"models_at_top is invalid. viz_opt_models_at_top={viz_opt_models_at_top!r}, "
+                      f"model_names={model_names!r}")
+
+    # 'disclaimer'
+    if not isinstance(viz_options['disclaimer'], str):
+        errors.append(f"disclaimer is invalid (not a str): {type(viz_options['disclaimer'])}")
+
+    # done
+    return errors

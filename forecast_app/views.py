@@ -477,44 +477,159 @@ def project_viz(request, project_pk):
 
     GET query parameters: none
     """
-    from utils.visualization import viz_target_variables, viz_units, viz_model_names, \
-        viz_available_reference_dates  # avoid circular imports
-
-
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
+    return render(request, 'project_viz.html',
+                  context={'project': project,
+                           'options': json.dumps(_viz_options_from_project(project))})
+
+
+def _viz_options_from_project(project):
+    """
+    project_viz() helper that returns a dict from project.viz_options that's suitable for zoltar_viz.js. Handles the
+    case of missing or invalid options.
+
+    :param project: a Project
+    :return: a viz_options dict based on project's viz_options
+    """
+    from utils.visualization import validate_project_viz_options, viz_target_variables, viz_units, \
+        viz_available_reference_dates, viz_model_names  # avoid circular imports
+
+
+    viz_options = project.viz_options  # might be None
+    errors = validate_project_viz_options(project, viz_options)
+    if errors:
+        # todo xx a cleaner way to indicate invalid options to component?
+        options = {'target_variables': [], 'initial_target_var': '', 'units': [], 'initial_unit': '', 'intervals': [],
+                   'init_interval': '', 'available_as_ofs': [], 'current_date': '', 'models': [],
+                   'initial_checked_models': [],
+                   'disclaimer': f"Project viz_options had {len(errors)} error(s): {'.'.join(errors)}"}
+        return options
+
+    # viz_options is valid
     target_variables = viz_target_variables(project)
-    init_target_var = target_variables[0]['value'] if target_variables else None  # todo xx
     units = viz_units(project)
-    intervals = ['0%', '50%', '95%']  # todo xx
     available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
 
-    first_models = ["COVIDhub-ensemble", "COVIDhub-baseline"]    # todo xx
+    first_models = project.viz_options['models_at_top']
     model_names = first_models + [model_name for model_name in sorted(viz_model_names(project))
                                   if model_name not in first_models]
-
     current_date = None
     try:
-        current_date = available_as_ofs[init_target_var][-1]  # todo xx
+        current_date = available_as_ofs[project.viz_options['initial_target_var']][-1]  # todo xx
     except Exception:
         pass
+
+    intervals = [f'{_}%' for _ in project.viz_options['intervals']]
     options = {'target_variables': target_variables,
-               'init_target_var': init_target_var,
+               'initial_target_var': project.viz_options['initial_target_var'],
                'units': units,
-               'init_unit': units[0]['value'],  # todo xx
+               'initial_unit': project.viz_options['initial_unit'],
                'intervals': intervals,
-               'init_interval': intervals[-1],
+               'init_interval': intervals[-1],  # todo xx should be in viz_options?
                'available_as_ofs': available_as_ofs,
                'current_date': current_date,
                'models': model_names,
-               'default_models': model_names[0:1],  # todo xx
-               'disclaimer': 'todo disclaimer',  # todo xx
-               }
-    return render(request, 'project_viz.html',
+               'initial_checked_models': project.viz_options['initial_checked_models'],
+               'disclaimer': project.viz_options['disclaimer']}
+    return options
+
+
+def project_viz_options_edit(request, project_pk):
+    """
+    Implements step 1/2 of the editing options workflow: showing the editor.
+
+    GET query parameters: None
+    """
+    from utils.visualization import validate_project_viz_options, viz_model_names, viz_target_variables, \
+        viz_units  # avoid circular imports
+
+
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_edit_project(request.user, project):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    target_variables = sorted(viz_target_variables(project), key=lambda _: _['text'])
+    units = sorted(viz_units(project), key=lambda _: _['text'])
+    models = sorted(viz_model_names(project))
+    viz_options = project.viz_options  # NULL/None in database if never set
+    if viz_options:
+        errors = validate_project_viz_options(project, viz_options)
+    else:  # no set options, so give them some kind of starting point
+        errors = []
+        messages.success(request, f"Project viz_options not yet set. Generating some options below for you to start "
+                                  "with.")
+        viz_options = {"intervals": [0, 50, 95],
+                       "disclaimer": "disclaimer here",
+                       "initial_unit": units[0]['value'] if units else "no units!",
+                       "models_at_top": [models[0]] if models else [],
+                       "initial_target_var": target_variables[0]['value'] if target_variables else "no targets!",
+                       "initial_checked_models": [models[0]] if models else []}
+    viz_options_str = json.dumps(viz_options, indent=4)  # indent plus following replaces makes it pretty for JavaScript
+    viz_options_str = viz_options_str.replace('\n', '\\n')
+    return render(request, 'project_viz_options.html',
                   context={'project': project,
-                           'options': json.dumps(options)})
+                           'options': viz_options_str,
+                           'is_validate_only': json.dumps(False),
+                           'target_variables': target_variables,
+                           'units': units,
+                           'models': models,
+                           'errors': errors})
+
+
+def project_viz_options_execute(request, project_pk):
+    """
+    Implements step 2/2 of the editing options workflow: validating and optionally saving the edited JSON.
+
+    POST parameters:
+    - validateOnlyCheckbox: 'on' if 'Validate Only' checkbox is checked
+    - optionsTextArea: JSON string from 'optionsTextArea' textarea
+    """
+    from utils.visualization import validate_project_viz_options, viz_model_names, viz_target_variables, \
+        viz_units  # avoid circular imports
+
+
+    project = get_object_or_404(Project, pk=project_pk)
+    if not is_user_ok_edit_project(request.user, project):
+        return HttpResponseForbidden(render(request, '403.html').content)
+
+    if request.method != 'POST':
+        return HttpResponseBadRequest(f"only the POST method is supported")
+
+    is_validate_only = request.POST.get('validateOnlyCheckbox') == 'on'
+    viz_options_str = request.POST.get('optionsTextArea')
+    viz_options_parsed = {}
+    errors = []
+    try:
+        viz_options_parsed = json.loads(viz_options_str)
+        errors.extend(validate_project_viz_options(project, viz_options_parsed))
+    except json.decoder.JSONDecodeError as jde:
+        errors.append(f"invalid JSON: {jde!r}")
+    if is_validate_only or errors:
+        # format viz_options_str to be pretty in JavaScript. we handle cases of different OS newline encodings
+        viz_options_str = viz_options_str \
+            .replace('\r\n', '\\n') \
+            .replace('\r', '\\n') \
+            .replace('\n', '\\n')
+        target_variables = sorted(viz_target_variables(project), key=lambda _: _['text'])
+        units = sorted(viz_units(project), key=lambda _: _['text'])
+        models = sorted(viz_model_names(project))
+        return render(request, 'project_viz_options.html',
+                      context={'project': project,
+                               'options': viz_options_str,
+                               'is_validate_only': json.dumps(is_validate_only),
+                               'target_variables': target_variables,
+                               'units': units,
+                               'models': models,
+                               'errors': errors})
+    else:
+        # save viz_options_parsed in project
+        project.viz_options = viz_options_parsed
+        project.save()
+        messages.success(request, f"Project viz options saved.")
+        return redirect('project-detail', pk=project.pk)
 
 
 #
@@ -749,6 +864,9 @@ def edit_project_from_file_preview(request, project_pk):
 def edit_project_from_file_execute(request, project_pk):
     """
     Part 2/2 of editing a project via uploading a new configuration file, executes
+
+    POST parameters:
+    - changes_json: serialized Changes list from the project_diff_report.html form
     """
     project = get_object_or_404(Project, pk=project_pk)
     if not is_user_ok_edit_project(request.user, project):
@@ -757,7 +875,7 @@ def edit_project_from_file_execute(request, project_pk):
     if request.method != 'POST':
         return HttpResponseBadRequest(f"only the POST method is supported")
 
-    changes_json = request.POST['changes_json']  # serialized Changes list from the project_diff_report.html form
+    changes_json = request.POST.get('changes_json')  # serialized Changes list from the project_diff_report.html form
     deserialized_change_dicts = json.loads(changes_json)
     changes = [Change.deserialize_dict(change_dict) for change_dict in deserialized_change_dicts]
     logger.debug(f"edit_project_from_file_execute(): executing project config diff... changes={changes}")
@@ -983,6 +1101,9 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
 
     def get_context_data(self, **kwargs):
+        from utils.visualization import validate_project_viz_options  # avoid circular imports
+
+
         project = self.get_object()
 
         # set target_groups: change from dict to 2-tuples
@@ -990,6 +1111,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
         target_groups = sorted([(group_name, sorted(target_list, key=lambda target: target.name))
                                 for group_name, target_list in target_groups.items()],
                                key=lambda _: _[0])  # [(group_name, group_targets), ...]
+
         batches = truth_batches(project)
         context = super().get_context_data(**kwargs)
         context['models_rows'] = models_summary_table_rows_for_project(project)
@@ -1005,6 +1127,12 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
                                       batches[-1][1] if batches else None
 
         context['project_summary_info'] = project_summary_info(project)  # num_models, num_forecasts, num_rows_exact
+
+        # viz info
+        viz_options = project.viz_options  # might be None
+        errors = validate_project_viz_options(project, viz_options)
+        context['viz_options_valid'] = len(errors) == 0
+
         return context
 
 

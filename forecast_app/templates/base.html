@@ -26,6 +26,7 @@
     {% compress css %}
         <link type="text/x-scss" rel="stylesheet" href="{% static 'css/custom.scss' %}">
     {% endcompress %}
+
     <script src="{% static 'fontawesome/fontawesome-all.min.js' %}"></script>
 
     {% block head %}
@@ -62,7 +63,7 @@
     {% endif %}
 
 
-    {# insert the main content from child pages  #}
+    {# insert the main content from child pages #}
     {% block content %}
     {% endblock %}
 

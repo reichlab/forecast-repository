@@ -1,3 +1,4 @@
+import copy
 import itertools
 import logging
 
@@ -7,7 +8,7 @@ from forecast_app.models import Target
 from utils.make_covid_viz_test_project import _make_covid_viz_test_project
 from utils.utilities import get_or_create_super_po_mo_users
 from utils.visualization import viz_target_variables, viz_units, viz_available_reference_dates, viz_model_names, \
-    viz_targets, viz_data
+    viz_targets, viz_data, validate_project_viz_options
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -56,18 +57,10 @@ class VisualizationTestCase(TestCase):
         self.assertEqual(exp_avail_ref_dates, act_avail_ref_dates)
 
 
-    def test_viz_available_reference_dates_removes_dups(self):
-        self.fail('todo xx')
-
-
     def test_viz_model_names(self):
         exp_models = ['COVIDhub-ensemble', 'COVIDhub-baseline']  # NB: no 'oracle'
         act_models = viz_model_names(self.project)
         self.assertEqual(exp_models, act_models)
-
-
-    def test_viz_models_first(self):
-        self.fail('todo xx')
 
 
     def test_viz_truth(self):
@@ -197,3 +190,81 @@ class VisualizationTestCase(TestCase):
                                                     viz_available_reference_dates(self.project)[target_key]):
             act_forecasts = viz_data(self.project, True, target_key, viz_unit, ref_date)
             self.assertEqual(unit_ref_date_to_exp_forecasts[(viz_unit, ref_date)], act_forecasts)
+
+
+    def test_validate_project_viz_options(self):
+        # print(viz_model_names(self.project), viz_target_variables(self.project), viz_units(self.project))
+        # ['COVIDhub-ensemble', 'COVIDhub-baseline']
+        # [{'value': 'incident_deaths',  'text': 'incident deaths',  'plot_text': 'incident deaths'}]
+        # [{'value': 'US',  'text': 'US'},
+        #  {'value': '48',  'text': 'Texas'}]
+
+        # blue sky
+        viz_options = {
+            "initial_target_var": "incident_deaths",
+            "initial_unit": "48",
+            "intervals": [0, 50, 95],
+            "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],
+            "models_at_top": ["COVIDhub-ensemble", "COVIDhub-baseline"],
+            "disclaimer": "Most forecasts have failed to reliably predict rapid changes ..."
+        }
+        act_valid = validate_project_viz_options(self.project, viz_options)
+        self.assertEqual([], act_valid)
+
+        # test bad key types and missing keys
+        for key in {'initial_target_var', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
+                    'disclaimer'}:
+            edit_viz_options = copy.deepcopy(viz_options)
+            edit_viz_options[key] = 0  # int is invalid for all keys
+            act_valid = validate_project_viz_options(self.project, edit_viz_options)
+            self.assertEqual(1, len(act_valid))
+            self.assertIn('top level field type was not', act_valid[0])
+
+            del (edit_viz_options[key])
+            act_valid = validate_project_viz_options(self.project, edit_viz_options)
+            self.assertEqual(1, len(act_valid))
+            self.assertIn('viz_options keys are invalid', act_valid[0])
+
+        # test extra key
+        edit_viz_options = copy.deepcopy(viz_options)
+        edit_viz_options['bad key'] = 0
+        act_valid = validate_project_viz_options(self.project, edit_viz_options)
+        self.assertEqual(1, len(act_valid))
+        self.assertIn('viz_options keys are invalid', act_valid[0])
+
+        # test bad model list types (not strings)
+        edit_viz_options = copy.deepcopy(viz_options)
+        edit_viz_options['initial_checked_models'] = [0]
+        act_valid = validate_project_viz_options(self.project, edit_viz_options)
+        self.assertEqual(1, len(act_valid))
+        self.assertIn('initial_checked_models is invalid', act_valid[0])
+
+        edit_viz_options = copy.deepcopy(viz_options)
+        edit_viz_options['models_at_top'] = [0]
+        act_valid = validate_project_viz_options(self.project, edit_viz_options)
+        self.assertEqual(1, len(act_valid))
+        self.assertIn('models_at_top is invalid', act_valid[0])
+
+        # test is_validate_objects
+        edit_viz_options = copy.deepcopy(viz_options)
+        edit_viz_options['initial_target_var'] = 'bad var'
+        edit_viz_options['initial_checked_models'] = ['bad model']
+        edit_viz_options['models_at_top'] = ['bad model']
+        act_valid = validate_project_viz_options(self.project, edit_viz_options, is_validate_objects=False)
+        self.assertEqual(0, len(act_valid))
+
+        # test invalid options, one by one
+        key_bad_val = [('initial_target_var', 'bad var'),
+                       ('initial_unit', 'bad unit'),
+                       ('intervals', []),
+                       ('intervals', [-1]),
+                       ('intervals', ["one"]),
+                       ('initial_checked_models', []),
+                       ('initial_checked_models', ['bad model']),
+                       ('models_at_top', []),
+                       ('models_at_top', ['bad model'])]
+        for key, bad_val in key_bad_val:
+            edit_viz_options = copy.deepcopy(viz_options)
+            edit_viz_options[key] = bad_val
+            act_valid = validate_project_viz_options(self.project, edit_viz_options)
+            self.assertEqual(1, len(act_valid))

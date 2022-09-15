@@ -5,6 +5,14 @@
   "home_url": "https://reichlab.io",
   "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
   "core_data": "http://reichlab.io/",
+  "viz_options": {
+    "initial_target_var": "cases",
+    "initial_unit": "loc1",
+    "intervals": [0, 50, 95],
+    "initial_checked_models": ["docs_mod"],
+    "models_at_top": ["docs_mod"],
+    "disclaimer": "docs disclaimer"
+  },
   "units": [
     {"name": "location1", "abbreviation": "loc1"},
     {"name": "location2_new_name", "abbreviation": "loc2"},

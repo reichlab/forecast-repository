@@ -87,7 +87,7 @@ const App = {
         available_as_ofs: [],
         current_date: "",
         models: [],
-        default_models: [],
+        initial_checked_models: [],
         disclaimer: "",
 
         // Dynamic/updated and we need to track: 2 categories:
@@ -139,7 +139,7 @@ const App = {
         this.state.available_as_ofs = options['available_as_ofs'];
         this.state.current_date = options['current_date'];
         this.state.models = options['models'];
-        this.state.default_models = options['default_models'];
+        this.state.initial_checked_models = options['initial_checked_models'];
         this.state.disclaimer = options['disclaimer'];
         this.state.colors = Array(parseInt(this.state.models.length / 10, 10) + 1).fill([
             '#0d0887',
@@ -155,12 +155,12 @@ const App = {
         ]).flat()
 
         // save initial selected state
-        this.state.selected_target_var = options['init_target_var'];
-        this.state.selected_location = options['init_unit'];
+        this.state.selected_target_var = options['initial_target_var'];
+        this.state.selected_location = options['initial_unit'];
         this.state.selected_interval = options['init_interval'];
         this.state.selected_as_of_date = options['current_date'];
         // this.state.selected_truth: synchronized via default <input ... checked> setting
-        this.state.selected_models = options['default_models'];
+        this.state.selected_models = options['initial_checked_models'];
 
         /*
         const debugObj = {

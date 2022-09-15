@@ -51,6 +51,11 @@ class Project(models.Model):
         help_text="Directory or Zip file containing data files (e.g., CSV files) made made available to everyone in "
                   "the challenge, including supplemental data like Google queries or weather.")
 
+    # project-specific JSON that's used to initialize the project visualization component. see
+    # `validate_project_viz_options()` for details
+    viz_options = models.JSONField(null=True, blank=True,
+                                   help_text="Optional object containing options to pass to zoltar_viz.js")
+
 
     def __repr__(self):
         return str((self.pk, self.name))

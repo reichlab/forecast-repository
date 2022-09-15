@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% load static %}
+
+{% block title %}Project viz: {{ project.name }}{% endblock %}
+
+{% block content %}
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'projects' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{{ project.get_absolute_url }}">{{ project.name }}</a></li>
+            <li class="breadcrumb-item active">Viz Options</li>
+        </ol>
+    </nav>
+
+    {# the UI is one row with two columns: JSON edit form on the left, and autocomplete helpers on the right #}
+    <div class="row">
+        <div class="col-md-8">
+            {% if errors %}
+                <p class="text-danger">Viz options: Invalid. {{ errors|length }} error(s):</p>
+                <ul>
+                    {% for error in errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-success">Viz options options: Valid</p>
+                <ul>
+                    <li>No errors</li>
+                </ul>
+            {% endif %}
+            <div>
+                <form class="form-horizontal" method="POST"
+                      action="{% url 'project-viz-options-execute' project.pk %}">
+                    {% csrf_token %}
+                    <label for="optionsTextArea"></label>
+                    <textarea id="optionsTextArea" name="optionsTextArea" class="form-control" rows=20>options will go here</textarea>
+                    <input type="checkbox" id="validateOnlyCheckbox" name="validateOnlyCheckbox"
+                           {% if is_validate_only %}checked{% endif %}>
+                    <label for="validateOnlyCheckbox">&nbsp;Validate Only</label>
+                    <button name="submit" type="submit" class="save btn btn-success">Submit</button>
+                    <a href="{% url 'project-detail' project.pk %}" class="btn btn-danger" role="button">Cancel</a>
+                </form>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <p><strong>Visualization options</strong>: This page allows you to edit this project's visualization options
+                as documented <a href="https://docs.zoltardata.com/xx">todo xx here</a>. Briefly, it is a JSON object
+                with six keys:
+            </p>
+            <ul>
+                <li><code>disclaimer</code>: arbitrary string that's shown at the top of the viz</li>
+                <li>initial_checked_models: a list of strs naming model abbreviations to initially check in the viz. see
+                    viz_model_names()
+                </li>
+                <li><code>initial_target_var</code>: a valid target group for `project`. see viz_target_variables()'
+                    `value` key
+                </li>
+                <li><code>initial_unit</code>: a valid Unit abbreviation for `project`. see viz_units()' `value`
+                    key
+                </li>
+                <li><code>intervals</code>: a list of one or more ints between 0 and 100 inclusive. these represent
+                    percentages
+                </li>
+                <li><code>models_at_top</code>: a list of strs naming model abbreviations to sort at the top of the viz
+                    model list. see viz_model_names()
+                </li>
+            </ul>
+            <p><strong>Choices</strong>: Selecting an item from these reference lists will copy it, allowing pasting
+                into the corresponding JSON field:
+            </p>
+            <div class="col-auto">
+                {# <div class="row" style="margin-top: 1rem;"><strong>Targets ({{ target_variables|length }}):</strong></div> #}
+                <label for="target_select"><strong>Targets ({{ target_variables|length }}):</strong></label>
+                <select id="target_select" class="form-control" name="target">
+                    {% for target_var in target_variables %}
+                        <option value="{{ target_var.value }}">"{{ target_var.value }}"</option>
+                    {% endfor %}
+                </select>
+
+                {# <div class="row" style="margin-top: 1rem;"><strong>Units ({{ units|length }}):</strong></div> #}
+                <label for="unit_select" style="margin-top: 1rem;"><strong>Units ({{ units|length }}):</strong></label>
+                <select id="unit_select" class="form-control" name="unit">
+                    {% for unit in units %}
+                        <option value="{{ unit.value }}">{{ unit.text }} - "{{ unit.value }}"</option>
+                    {% endfor %}
+                </select>
+
+                {# <div class="row" style="margin-top: 1rem;"><strong>Models ({{ models|length }}):</strong></div> #}
+                <label for="model_select" style="margin-top: 1rem;"><strong>Models
+                    ({{ models|length }}):</strong></label>
+                <select id="model_select" class="form-control" name="model">
+                    {% for model in models %}
+                        <option value="{{ model }}">"{{ model }}"</option>
+                    {% endfor %}
+                </select>
+
+                <label for="copy_text"></label>
+                <input type="text" id="copyable_text_input" class="form-control" readOnly
+                       placeholder="(Select something to see copy-able text here.)">
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        $(document).ready(function () {
+            // fill #optionsTextArea with the options string. NB: we depend on its coming in formatted pretty
+            const options_str = '{{ options|safe }}';
+            $('#optionsTextArea').html(options_str);
+
+            // set up copying selected item to clipboard. todo xx https://stackoverflow.com/questions/3354367/html-select-element-onchange-trigger-for-already-selected-option
+            $('#target_select').on('change', function () {
+                $('#copyable_text_input').val(this.value);
+            });
+            $('#unit_select').on('change', function () {
+                $('#copyable_text_input').val(this.value);
+            });
+            $('#model_select').on('change', function () {
+                $('#copyable_text_input').val(this.value);
+            });
+        });
+    </script>
+
+{% endblock %}

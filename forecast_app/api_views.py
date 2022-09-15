@@ -37,7 +37,6 @@ from utils.project import create_project_from_json, config_dict_from_project, la
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
-from utils.visualization import viz_units, viz_target_variables, viz_available_reference_dates, viz_model_names
 
 
 logger = logging.getLogger(__name__)
@@ -1016,6 +1015,7 @@ def viz_data_api(request, pk):
     """
     # imported here so that tests can patch via mock:
     from utils.visualization import viz_data
+
 
     project = get_object_or_404(Project, pk=pk)
     if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):

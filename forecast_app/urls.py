@@ -22,7 +22,11 @@ urlpatterns = [
     url(r'^project/(?P<project_pk>\d+)/query_forecasts$', views.query_project,
         {'query_type': views.QueryType.FORECASTS}, name='query-forecasts'),
     url(r'^project/(?P<project_pk>\d+)/explorer', views.project_explorer, name='project-explorer'),
-    url(r'^project/(?P<project_pk>\d+)/viz', views.project_viz, name='project-viz'),
+    url(r'^project/(?P<project_pk>\d+)/viz$', views.project_viz, name='project-viz'),
+    url(r'^project/(?P<project_pk>\d+)/viz_options_edit$',
+        views.project_viz_options_edit, name='project-viz-options-edit'),
+    url(r'^project/(?P<project_pk>\d+)/viz_options_execute$',
+        views.project_viz_options_execute, name='project-viz-options-execute'),
     url(r'^project/(?P<project_pk>\d+)/download_config$', views.download_project_config, name='project-config'),
 
     url(r'^project/(?P<project_pk>\d+)/truth$', views.truth_detail, name='truth-data-detail'),

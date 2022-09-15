@@ -6,6 +6,7 @@ import logging
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlencode
 
 from botocore.exceptions import BotoCoreError
 from django.contrib.auth.models import User
@@ -189,6 +190,10 @@ class ViewsTestCase(TestCase):
             (reverse('project-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-explorer', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-explorer', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-viz', args=[str(self.public_project.pk)]), self.OK_ALL),
+            (reverse('project-viz', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
+            (reverse('project-viz-options-edit', args=[str(self.public_project.pk)]), self.ONLY_PO),
+            (reverse('project-viz-options-edit', args=[str(self.private_project.pk)]), self.ONLY_PO),
             (reverse('project-config', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-config', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('create-project-from-form', args=[]), self.ONLY_PO_MO),
@@ -228,7 +233,7 @@ class ViewsTestCase(TestCase):
             (reverse('download-forecast', args=[str(self.public_forecast.pk)]), self.OK_ALL),
             (reverse('download-forecast', args=[str(self.private_forecast.pk)]), self.ONLY_PO_MO),
         ]
-        # 'download-forecast' returns BAD_REQ_400 b/c they expect a POST with a 'format' parameter, and we don't pass
+        # 'download-forecast' cases return BAD_REQ_400 b/c they expect POST with 'format' parameter, and we don't pass
         # the correct query params. however, 400 does indicate that the code passed the authorization portion
         for url, user_exp_status_code_list in url_exp_user_status_code_pairs:
             for user, exp_status_code in user_exp_status_code_list:
@@ -435,8 +440,8 @@ class ViewsTestCase(TestCase):
 
     def test_url_post_edit_project_from_file(self):
         # for both 'edit-project-from-file-preview' and 'edit-project-from-file-execute', only po_user and superuser can
-        # POST, and to both public and private projects. anonymous and mo_user cannot POST to none
-        for url_name in ['edit-project-from-file-preview', 'edit-project-from-file-preview']:
+        # POST, and to both public and private projects. anonymous and mo_user cannot POST to any
+        for url_name in ['edit-project-from-file-preview', 'edit-project-from-file-execute']:
             for proj_pk in [self.public_project.pk, self.private_project.pk]:
                 url = reverse(url_name, args=[str(proj_pk)])
 
@@ -448,17 +453,62 @@ class ViewsTestCase(TestCase):
                 response = self.client.post(url)
                 self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
-                self.client.login(username=self.po_user.username, password=self.po_user_password)
+                self.client.login(username=self.non_staff_user.username, password=self.non_staff_user_password)
                 response = self.client.post(url)
-                self.assertEqual(status.HTTP_200_OK, response.status_code)
+                self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+                # we pass 'changes_json' to prevent edit_project_from_file_execute() from throwing an error like:
+                #   TypeError: the JSON object must be str, bytes or bytearray, not NoneType
+                # urlencode & content_type per https://stackoverflow.com/questions/50240315/django-apiclient-post-empty
+                self.client.login(username=self.po_user.username, password=self.po_user_password)
+                post_data = {'changes_json': {}}
+                response = self.client.post(url, urlencode(post_data), content_type='application/x-www-form-urlencoded')
+                exp_status = status.HTTP_200_OK if url_name == 'edit-project-from-file-preview' \
+                    else status.HTTP_302_FOUND
+                self.assertEqual(exp_status, response.status_code)
 
                 self.client.login(username=self.superuser.username, password=self.superuser_password)
+                response = self.client.post(url, urlencode(post_data), content_type='application/x-www-form-urlencoded')
+                self.assertEqual(exp_status, response.status_code)
+
+
+    def test_url_post_project_viz_options(self):
+        """
+        Very similar to test_url_post_edit_project_from_file() - please see comments there.
+        """
+        for url_name in ['project-viz-options-edit', 'project-viz-options-execute']:
+            for proj_pk in [self.public_project.pk, self.private_project.pk]:
+                url = reverse(url_name, args=[str(proj_pk)])
+
+                self.client.logout()  # AnonymousUser
                 response = self.client.post(url)
-                self.assertEqual(status.HTTP_200_OK, response.status_code)
+                self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+                self.client.login(username=self.mo_user.username, password=self.mo_user_password)
+                response = self.client.post(url)
+                self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
 
                 self.client.login(username=self.non_staff_user.username, password=self.non_staff_user_password)
                 response = self.client.post(url)
                 self.assertEqual(status.HTTP_403_FORBIDDEN, response.status_code)
+
+                # we pass 'validateOnlyCheckbox' and 'optionsTextArea' to prevent project_viz_options_execute() from
+                # throwing an error like:
+                #   TypeError: the JSON object must be str, bytes or bytearray, not NoneType
+                # urlencode & content_type per https://stackoverflow.com/questions/50240315/django-apiclient-post-empty
+                self.client.login(username=self.po_user.username, password=self.po_user_password)
+                options = {'initial_target_var': 'ili_percent', 'initial_unit': 'US National', 'intervals': [0],
+                           'initial_checked_models': ['abbrev'], 'models_at_top': ['abbrev'], 'disclaimer': ''}
+                options_str = json.dumps(options)
+                post_data = {'validateOnlyCheckbox': 'off', 'optionsTextArea': options_str}
+                response = self.client.post(url, urlencode(post_data), content_type='application/x-www-form-urlencoded')
+                exp_status = status.HTTP_200_OK if url_name == 'project-viz-options-edit' \
+                    else status.HTTP_302_FOUND
+                self.assertEqual(exp_status, response.status_code)
+
+                self.client.login(username=self.superuser.username, password=self.superuser_password)
+                response = self.client.post(url, urlencode(post_data), content_type='application/x-www-form-urlencoded')
+                self.assertEqual(exp_status, response.status_code)
 
 
     def test_delete_project_interactively(self):
