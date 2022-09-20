@@ -143,8 +143,10 @@
                 <tr>
                     <th>Features:</th>
                     <td><strong>Project</strong>: <a href="{% url 'project-explorer' project.pk %}">Explorer</a>,
-                        <a href="{% url 'project-viz' project.pk %}">Viz</a>
-                        (<a href="{% url 'project-viz-options-edit' project.pk %}">options</a>
+                        <a {% if user.is_authenticated %}href="{% url 'project-viz' project.pk %}"
+                           {% else %}title="Please log in to view visualizations"{% endif %}>Viz</a>
+                        (<a {% if user.is_authenticated %}href="{% url 'project-viz-options-edit' project.pk %}"
+                            {% else %}title="Please log in to edit visualization options"{% endif %}>options</a>
                         {% if not viz_options_valid %}<i class="fas fa-exclamation-triangle text-warning"
                                                          title="invalid project viz options"></i>{% else %}
                             <i class="fas fa-check text-success" title="valid project viz options"></i>{% endif %}).
