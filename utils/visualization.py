@@ -25,8 +25,7 @@ def viz_targets(project):
     :return: project's targets that are valid for visualization
     """
     return project.targets.filter(is_step_ahead=True, reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT,
-                                  type__in=(Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE),
-                                  numeric_horizon__lte=4)
+                                  type__in=(Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE))
 
 
 #
