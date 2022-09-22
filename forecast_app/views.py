@@ -562,7 +562,7 @@ def project_viz_options_edit(request, project_pk):
         messages.success(request, f"Project viz_options not yet set. Generating some options below for you to start "
                                   "with.")
         viz_options = {"intervals": [0, 50, 95],
-                       "disclaimer": "disclaimer here",
+                       "disclaimer": "TODO disclaimer here. (Note: This visualization is a beta feature.)",
                        "initial_unit": units[0]['value'] if units else "no units!",
                        "models_at_top": [models[0]] if models else [],
                        "initial_target_var": target_variables[0]['value'] if target_variables else "no targets!",

@@ -191,7 +191,7 @@ const App = {
     initializeUI() {
         // populate options and models list (left column)
         this.initializeTargetVarsUI();
-        this.initializeLocationsUI();
+        this.initializeUnitsUI();
         this.initializeIntervalsUI();
         this.updateModelsList();
 
@@ -219,9 +219,9 @@ const App = {
             $targetVarsSelect.append(optionNode);
         });
     },
-    initializeLocationsUI() {
+    initializeUnitsUI() {
         // populate the location select
-        const $locationSelect = $("#location");
+        const $locationSelect = $("#unit");
         const thisState = this.state;
         $locationSelect.empty();
         this.state.locations.forEach(function (location) {

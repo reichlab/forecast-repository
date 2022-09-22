@@ -26,7 +26,7 @@
         {# options div #}
         <div id="forecastViz_options" class="col-md-3">
 
-            {# Outcome, Location, and Interval selects #}
+            {# Outcome, Unit, and Interval selects #}
             <form>
                 <div class="form-row">
                     <label for="target_variable" class="col-sm-4 col-form-label">Outcome:</label>
@@ -38,10 +38,10 @@
                 </div>
 
                 <div class="form-row">
-                    <label for="location" class="col-sm-4 col-form-label">Location:</label>
+                    <label for="unit" class="col-sm-4 col-form-label">Unit:</label>
                     <div class="col-sm-8">
-                        <select id="location" class="form-control" name="location">
-                            {# <OPTION>s populated by `initializeLocationsUI()` #}
+                        <select id="unit" class="form-control" name="unit">
+                            {# <OPTION>s populated by `initializeUnitsUI()` #}
                         </select>
                     </div>
                 </div>
