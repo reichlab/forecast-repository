@@ -82,7 +82,7 @@ const App = {
     state: {
         // Static data, fixed at time of creation
         target_variables: [],
-        locations: [],
+        units: [],
         intervals: [],
         available_as_ofs: [],
         current_date: "",
@@ -93,7 +93,7 @@ const App = {
         // Dynamic/updated and we need to track: 2 categories:
         // 1/2 Tracks UI state:
         selected_target_var: '',
-        selected_location: '',
+        selected_unit: '',
         selected_interval: '',
         selected_as_of_date: '',
         selected_truth: ['Current Truth', 'Truth as of'],
@@ -134,7 +134,7 @@ const App = {
 
         // save static vars
         this.state.target_variables = options['target_variables'];
-        this.state.locations = options['units'];
+        this.state.units = options['units'];
         this.state.intervals = options['intervals'];
         this.state.available_as_ofs = options['available_as_ofs'];
         this.state.current_date = options['current_date'];
@@ -156,7 +156,7 @@ const App = {
 
         // save initial selected state
         this.state.selected_target_var = options['initial_target_var'];
-        this.state.selected_location = options['initial_unit'];
+        this.state.selected_unit = options['initial_unit'];
         this.state.selected_interval = options['init_interval'];
         this.state.selected_as_of_date = options['current_date'];
         // this.state.selected_truth: synchronized via default <input ... checked> setting
@@ -165,7 +165,7 @@ const App = {
         /*
         const debugObj = {
             'target_variables': this.state.target_variables,
-            'locations': this.state.locations,
+            'units': this.state.units,
             'intervals': this.state.intervals,
             'available_as_ofs': this.state.available_as_ofs,
             'current_date': this.state.current_date,
@@ -220,14 +220,14 @@ const App = {
         });
     },
     initializeUnitsUI() {
-        // populate the location select
-        const $locationSelect = $("#unit");
+        // populate the unit select
+        const $unitSelect = $("#unit");
         const thisState = this.state;
-        $locationSelect.empty();
-        this.state.locations.forEach(function (location) {
-            const selected = location.value === thisState.selected_location ? 'selected' : '';
-            const optionNode = `<option value="${location.value}" ${selected} >${location.text}</option>`;
-            $locationSelect.append(optionNode);
+        $unitSelect.empty();
+        this.state.units.forEach(function (unit) {
+            const selected = unit.value === thisState.selected_unit ? 'selected' : '';
+            const optionNode = `<option value="${unit.value}" ${selected} >${unit.text}</option>`;
+            $unitSelect.append(optionNode);
         });
     },
     initializeIntervalsUI() {
@@ -271,13 +271,13 @@ const App = {
         this.addModelCheckEventHandler();
     },
     addEventHandlers() {
-        // option, location, and interval selects
+        // option, unit, and interval selects
         $('#target_variable').on('change', function () {
             App.state.selected_target_var = this.value;
             App.fetchDataUpdatePlot(true, true);
         });
-        $('#location').on('change', function () {
-            App.state.selected_location = this.value;
+        $('#unit').on('change', function () {
+            App.state.selected_unit = this.value;
             App.fetchDataUpdatePlot(true, true);
         });
         $('#intervals').on('change', function () {
@@ -428,7 +428,7 @@ const App = {
     },
     fetchCurrentTruth() {
         return _fetchData(false,
-            App.state.selected_target_var, App.state.selected_location, App.state.current_date)
+            App.state.selected_target_var, App.state.selected_unit, App.state.current_date)
             .then(response => response.json())
             .then((data) => {
                 App.state.current_truth = data;
@@ -436,7 +436,7 @@ const App = {
     },
     fetchAsOfTruth() {
         return _fetchData(false,
-            App.state.selected_target_var, App.state.selected_location, App.state.selected_as_of_date)
+            App.state.selected_target_var, App.state.selected_unit, App.state.selected_as_of_date)
             .then(response => response.json())
             .then((data) => {
                 App.state.as_of_truth = data;
@@ -444,7 +444,7 @@ const App = {
     },
     fetchForecasts() {
         return _fetchData(true,
-            App.state.selected_target_var, App.state.selected_location, App.state.selected_as_of_date)
+            App.state.selected_target_var, App.state.selected_unit, App.state.selected_as_of_date)
             .then(response => response.json())
             .then((data) => {
                 App.state.forecasts = data;
@@ -465,7 +465,7 @@ const App = {
         const debugObj = {
             'selection': {
                 'selected_target_var': this.state.selected_target_var,
-                'selected_location': this.state.selected_location,
+                'selected_unit': this.state.selected_unit,
                 'selected_interval': this.state.selected_interval,
                 'selected_as_of_date': this.state.selected_as_of_date,
                 'selected_truth': this.state.selected_truth,
@@ -495,12 +495,12 @@ const App = {
         }
 
         const variable = this.state.target_variables.filter((obj) => obj.value === this.state.selected_target_var)[0].plot_text;
-        const location = this.state.locations.filter((obj) => obj.value === this.state.selected_location)[0].text;
+        const unit = this.state.units.filter((obj) => obj.value === this.state.selected_unit)[0].text;
         return {
             autosize: true,
             showlegend: false,
             title: {
-                text: `Forecasts of ${variable} <br> in ${location} as of ${this.state.selected_as_of_date}`,
+                text: `Forecasts of ${variable} <br> in ${unit} as of ${this.state.selected_as_of_date}`,
                 x: 0.5,
                 y: 0.90,
                 xanchor: 'center',
