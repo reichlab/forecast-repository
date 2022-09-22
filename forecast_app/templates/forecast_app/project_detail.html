@@ -144,6 +144,11 @@
                     <th>Visualization:</th>
                     <td><a {% if user.is_authenticated %}href="{% url 'project-viz' project.pk %}"
                            {% else %}title="Please log in to view visualizations"{% endif %}>Visualization</a>
+                        (<a {% if user.is_authenticated %}href="{% url 'project-viz-options-edit' project.pk %}"
+                           {% else %}title="Please log in to edit visualization options"{% endif %}>Edit options</a>
+                        {% if not viz_options_valid %}<i class="fas fa-exclamation-triangle text-warning"
+                                                         title="invalid project viz options"></i>{% else %}
+                            <i class="fas fa-check text-success" title="valid project viz options"></i>{% endif %})
                         <small class="text-muted">(interactive visualization of all forecasts in the project - beta
                             feature)</small>
                     </td>
