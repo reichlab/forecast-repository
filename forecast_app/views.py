@@ -548,7 +548,7 @@ def project_viz_options_edit(request, project_pk):
 
 
     project = get_object_or_404(Project, pk=project_pk)
-    if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
+    if not is_user_ok_edit_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     target_variables = sorted(viz_target_variables(project), key=lambda _: _['text'])
