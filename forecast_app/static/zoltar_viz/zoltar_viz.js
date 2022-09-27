@@ -253,8 +253,9 @@ const App = {
             .filter(function (model) {
                 return App.state.forecasts.hasOwnProperty(model);
             })
-            .forEach(function (model, modelIdx) {
+            .forEach(function (model) {
                 const isChecked = (thisState.selected_models.indexOf(model) > -1);
+                const modelIdx = thisState.models.indexOf(model);
                 $selectModelDiv.append(_selectModelDiv(model, thisState.colors[modelIdx], true, isChecked));
             });
 
