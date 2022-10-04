@@ -66,6 +66,90 @@ function _handleFetchDataError(jqXHR, textStatus, thrownError) {
 }
 
 
+/**
+ * `initialize()` helper that builds UI by adding DOM elements to $componentDiv. the UI is one row with two columns:
+ * options on left and the plotly plot on the right
+ *
+ * @param $componentDiv - an empty Bootstrap 4 row (JQuery object)
+ * @private
+ */
+function _createUIElements($componentDiv) {
+    //
+    // make $optionsDiv (left column)
+    //
+    const $optionsDiv = $('<div class="col-md-3"></div>');
+
+    // add Outcome, Unit, and Interval selects (form)
+    const $outcomeFormRow = $(
+        '<div class="form-row">\n' +
+        '    <label for="target_variable" class="col-sm-4 col-form-label">Outcome:</label>\n' +
+        '    <div class="col-sm-8">\n' +
+        '        <select id="target_variable" class="form-control" name="target_variables"></select>\n' +
+        '    </div>\n' +
+        '</div>');
+    const $unitFormRow = $(
+        '<div class="form-row">\n' +
+        '    <label for="unit" class="col-sm-4 col-form-label">Unit:</label>\n' +
+        '    <div class="col-sm-8">\n' +
+        '        <select id="unit" class="form-control" name="unit"></select>\n' +
+        '    </div>\n' +
+        '</div>');
+    const $intervalFormRow = $(
+        '<div class="form-row">\n' +
+        '    <label for="intervals" class="col-sm-4 col-form-label">Interval:</label>\n' +
+        '    <div class="col-sm-8">\n' +
+        '        <select id="intervals" class="form-control" name="intervals">\n' +
+        '    </div>\n' +
+        '</div>');
+    const $optionsForm = $('<form></form>').append($outcomeFormRow, $unitFormRow, $intervalFormRow);
+    $optionsDiv.append($optionsForm);
+
+    // add truth checkboxes
+    const $truthCheckboxesDiv = $(
+        '<div class="form-group form-check forecastViz_select_data ">\n' +
+        '    <input title="curr truth" type="checkbox" id="forecastViz_Current_Truth" value="Current Truth" checked>\n' +
+        '      <span id="currentTruthDate">Current ({xx_current_date})</span>\n' +
+        '      <span class="forecastViz_dot" style="background-color: lightgrey; "></span>\n' +
+        '    <br>\n' +
+        '    <input title="truth as of" type="checkbox" id="forecastViz_Truth_as_of" value="Truth as of" checked>\n' +
+        '      <span id="asOfTruthDate">As of {xx_as_of_date}</span>\n' +
+        '      <span class="forecastViz_dot" style="background-color: black;"></span>\n' +
+        '</div>');
+    $optionsDiv.append('<div class="pt-md-3">Select Truth Data:</div>');
+    $optionsDiv.append($truthCheckboxesDiv);
+
+    // add model list controls and model list
+    $optionsDiv.append($('<button type="button" class="btn btn-sm rounded-pill" id="forecastViz_shuffle" style="float: right;">Shuffle Colours</button>'));
+    $optionsDiv.append($('<label class="forecastViz_label" for="forecastViz_all">Select Models:</label>'));
+    $optionsDiv.append($('<input type="checkbox" id="forecastViz_all">'));
+    $optionsDiv.append($('<div id="forecastViz_select_model"></div>'));
+
+
+    //
+    // make $vizDiv (right column)
+    //
+    const $vizDiv = $('<div class="col-md-9"></div>');
+    const $buttonsDiv = $(
+        '<div class="container">\n' +
+        '    <div class="col-md-12 text-center">\n' +
+        '        <button type="button" class="btn btn-primary" id="decrement_as_of">&lt;</button>\n' +
+        '        <button type="button" class="btn btn-primary" id="increment_as_of">&gt;</button>\n' +
+        '    </div>\n' +
+        '</div>'
+    );
+    $vizDiv.append($('<p class="forecastViz_disclaimer"><b><span id="disclaimer">{xx_disclaimer}</span></b></p>'));
+    $vizDiv.append($('<div id="ploty_div"></div>'));
+    $vizDiv.append($buttonsDiv);
+    $vizDiv.append($('<p style="text-align:center"><small>Note: You can navigate to forecasts from previous weeks with the left and right arrow keys</small></p>'));
+
+
+    //
+    // finish
+    //
+    $componentDiv.empty().append($optionsDiv, $vizDiv);
+}
+
+
 //
 // App
 //
@@ -112,7 +196,13 @@ const App = {
     // initialization-related functions
     //
 
-    initialize(projectId, options) {
+    /**
+     * Toggle visibility of a content tab
+     * @param {String} componentDiv - id of a DOM node to populate. it must be an empty Bootstrap 4 row
+     * @param {String} projectId - zoltar project id
+     * @param {int} options - visualization initialization options as documented at https://docs.zoltardata.com/visualizationoptionspage/
+     */
+    initialize(componentDiv, projectId, options) {
         App.projectId = projectId;
         console.log('initialize(): entered', projectId);
 
@@ -175,8 +265,15 @@ const App = {
         console.log('initialize(): static vars initialized', JSON.stringify(debugObj));
         */
 
-        // populate UI elements, setting selection state to initial
+        // populate UI elements, setting selection state to initial, first validating `componentDiv`
+        const componentDivEle = document.getElementById(componentDiv);
+        if (componentDivEle === null) {
+            throw `componentDiv DOM node not found: '${componentDiv}'`;
+        }
+
         console.log('initialize(): initializing UI');
+        const $componentDiv = $(componentDivEle);
+        _createUIElements($componentDiv);
         this.initializeUI();
 
         // wire up UI controls (event handlers)

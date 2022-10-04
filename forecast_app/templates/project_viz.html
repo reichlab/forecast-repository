@@ -7,6 +7,7 @@
 {% block head %}
     <script src="https://cdn.plot.ly/plotly-2.12.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.3/moment.min.js"></script>
+    <link type="text/x-scss" rel="stylesheet" href="{% static 'zoltar_viz/zoltar_viz.css' %}">
     <script type="text/javascript" src="{% static 'zoltar_viz/zoltar_viz.js' %}"></script>
 {% endblock %}
 
@@ -20,118 +21,13 @@
         </ol>
     </nav>
 
-    {# the UI is one row with two columns: options on left and the plotly plot on the right #}
-    <div class="row">
-
-        {# options div #}
-        <div id="forecastViz_options" class="col-md-3">
-
-            {# Outcome, Unit, and Interval selects #}
-            <form>
-                <div class="form-row">
-                    <label for="target_variable" class="col-sm-4 col-form-label">Outcome:</label>
-                    <div class="col-sm-8">
-                        <select id="target_variable" class="form-control" name="target_variables">
-                            {# <OPTION>s populated by `initializeTargetVarsUI()` #}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <label for="unit" class="col-sm-4 col-form-label">Unit:</label>
-                    <div class="col-sm-8">
-                        <select id="unit" class="form-control" name="unit">
-                            {# <OPTION>s populated by `initializeUnitsUI()` #}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <label for="intervals" class="col-sm-4 col-form-label">Interval:</label>
-                    <div class="col-sm-8">
-                        <select id="intervals" class="form-control" name="intervals">
-                            {# <OPTION>s populated by `initializeIntervalsUI()` #}
-                        </select>
-                    </div>
-                </div>
-            </form>
-
-            {# truth checkboxes #}
-            <div class="pt-md-3">Select Truth Data:</div>
-            <div class="form-group form-check forecastViz_select_data ">
-                <input title="curr truth" type="checkbox" id="forecastViz_Current_Truth" value="Current Truth" checked>
-                &nbsp;<span id="currentTruthDate">Current ({xx_current_date})</span>
-                &nbsp;<span class="forecastViz_dot" style="background-color: lightgrey; "></span>
-                <br>
-                <input title="truth as of" type="checkbox" id="forecastViz_Truth_as_of" value="Truth as of" checked>
-                &nbsp;<span id="asOfTruthDate">As of {xx_as_of_date}</span>
-                &nbsp;<span class="forecastViz_dot" style="background-color: black;"></span>
-            </div>
-
-            {# model list controls #}
-            <button type="button" class="btn btn-sm rounded-pill" id="forecastViz_shuffle" style="float: right;">
-                Shuffle Colours</button>
-            <label class="forecastViz_label" for="forecastViz_all">Select Models:</label>
-            <input type="checkbox" id="forecastViz_all">
-
-            {# model list #}
-            <div id="forecastViz_select_model">
-                {# child <DIV>s populated by `set_models()` #}
-            </div>
-
-        </div>
-
-        {# plotly and friends div #}
-        <div id="forecastViz_viz" class="col-md-9">
-            <p class="forecastViz_disclaimer"><b><span id="disclaimer">{xx_disclaimer}</span></b></p>
-
-            <div id="ploty_div">
-                {# content populated by Plotly lib #}
-            </div>
-
-            <div class="container">
-                <div class="col-md-12 text-center">
-                    <button type="button" class="btn btn-primary" id="decrement_as_of">&lt;</button>
-                    <button type="button" class="btn btn-primary" id="increment_as_of">&gt;</button>
-                </div>
-            </div>
-            <p style="text-align:center"><small>Note: You can navigate to forecasts from previous weeks with the left
-                and right arrow keys</small></p>
-        </div>
-
+    <div id="forecastViz_row" class="row">
+        {# the div passed to zoltar_viz.js initialize(), which populates all DOM elements #}
     </div>
 
 
     <script>
-        App.initialize({{ project.id }}, {{ options|safe }});
+        App.initialize('forecastViz_row', {{ project.id }}, {{ options|safe }});
     </script>
-
-
-    <style>
-        .forecastViz_dot {
-            height: 15px;
-            width: 15px;
-            border-radius: 50%;
-            border: 1px solid black;
-            display: inline-block;
-        }
-
-        .forecastViz_select_data {
-            font-size: 14px;
-        }
-
-        #forecastViz_select_model {
-            height: 48vh;
-            overflow-y: scroll;
-            font-size: 14px;
-        }
-
-        .forecastViz_disclaimer {
-            text-align: center;
-            margin-left: 3%;
-            margin-right: 3%;
-            font-size: 18px;
-        }
-    </style>
 
 {% endblock %}
