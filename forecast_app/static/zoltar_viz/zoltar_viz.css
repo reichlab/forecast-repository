@@ -1,0 +1,24 @@
+.forecastViz_dot {
+    height: 15px;
+    width: 15px;
+    border-radius: 50%;
+    border: 1px solid black;
+    display: inline-block;
+}
+
+.forecastViz_select_data {
+    font-size: 14px;
+}
+
+#forecastViz_select_model {
+    height: 48vh;
+    overflow-y: scroll;
+    font-size: 14px;
+}
+
+.forecastViz_disclaimer {
+    text-align: center;
+    margin-left: 3%;
+    margin-right: 3%;
+    font-size: 18px;
+}
