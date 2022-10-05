@@ -108,20 +108,24 @@ function _createUIElements($componentDiv) {
     const $truthCheckboxesDiv = $(
         '<div class="form-group form-check forecastViz_select_data ">\n' +
         '    <input title="curr truth" type="checkbox" id="forecastViz_Current_Truth" value="Current Truth" checked>\n' +
-        '      <span id="currentTruthDate">Current ({xx_current_date})</span>\n' +
-        '      <span class="forecastViz_dot" style="background-color: lightgrey; "></span>\n' +
+        '      &nbsp;<span id="currentTruthDate">Current ({xx_current_date})</span>\n' +
+        '      &nbsp;<span class="forecastViz_dot" style="background-color: lightgrey; "></span>\n' +
         '    <br>\n' +
         '    <input title="truth as of" type="checkbox" id="forecastViz_Truth_as_of" value="Truth as of" checked>\n' +
-        '      <span id="asOfTruthDate">As of {xx_as_of_date}</span>\n' +
-        '      <span class="forecastViz_dot" style="background-color: black;"></span>\n' +
+        '      &nbsp;<span id="asOfTruthDate">As of {xx_as_of_date}</span>\n' +
+        '      &nbsp;<span class="forecastViz_dot" style="background-color: black;"></span>\n' +
         '</div>');
     $optionsDiv.append('<div class="pt-md-3">Select Truth Data:</div>');
     $optionsDiv.append($truthCheckboxesDiv);
 
-    // add model list controls and model list
-    $optionsDiv.append($('<button type="button" class="btn btn-sm rounded-pill" id="forecastViz_shuffle" style="float: right;">Shuffle Colours</button>'));
-    $optionsDiv.append($('<label class="forecastViz_label" for="forecastViz_all">Select Models:</label>'));
-    $optionsDiv.append($('<input type="checkbox" id="forecastViz_all">'));
+    // add model list controls
+    $optionsDiv.append($(
+        '<button type="button" class="btn btn-sm rounded-pill" id="forecastViz_shuffle" style="float: right;">\n' +
+        '    Shuffle Colours</button>\n' +
+        '<label class="forecastViz_label" for="forecastViz_all">Select Models:</label>\n' +
+        '<input type="checkbox" id="forecastViz_all">'));
+
+    // add the model list itself
     $optionsDiv.append($('<div id="forecastViz_select_model"></div>'));
 
 
