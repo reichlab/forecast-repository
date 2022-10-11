@@ -80,7 +80,7 @@ def config_dict_from_project(project, request):
             'home_url': project.home_url,
             'logo_url': project.logo_url,
             'core_data': project.core_data,
-            'viz_options': project.viz_options,
+            'viz_options': project.viz_options,  # note: NULL (db) -> None (Python) -> null (JSON)
             'units': [dict(_) for _ in unit_serializer_multi.data],  # replace OrderedDicts
             'targets': [_target_dict_for_target(target, request) for target in project.targets.all()],
             'timezeros': [dict(_) for _ in tz_serializer_multi.data]}  # replace OrderedDicts
@@ -151,7 +151,7 @@ def create_project_from_json(proj_config_file_path_or_dict, owner, is_validate_o
                            f"value={project_dict['logo_url']!r}, type={type(project_dict['logo_url'])}")
 
     # validate as much of 'viz_options' as we can (since there are no Targets, Units, or Models until after creation)
-    if 'viz_options' in project_dict:
+    if ('viz_options' in project_dict) and (project_dict['viz_options'] is not None):
         viz_opts_errors = validate_project_viz_options(None, project_dict['viz_options'], is_validate_objects=False)
         if viz_opts_errors:
             raise RuntimeError(f"'viz_options' is invalid. errors={viz_opts_errors}")
