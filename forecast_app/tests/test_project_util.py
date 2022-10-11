@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 import logging
@@ -523,6 +524,19 @@ class ProjectUtilTestCase(TestCase):
         self.assertEqual([datetime.date(2019, 12, 15), datetime.date(2019, 12, 22),
                           datetime.date(2019, 12, 29), datetime.date(2020, 1, 5)],
                          list(dates.values_list('cat_d', flat=True)))
+
+
+    def test_create_project_from_json_viz_options_none(self):
+        # exposes a bug where a json file with null 'viz_options' caused an error
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        with open(Path('forecast_app/tests/projects/docs-project.json')) as fp:  # viz_options is non-null
+            project_dict = json.load(fp)
+        project_dict['name'] = 'test_create_project_from_json_viz_options'
+        project_dict['viz_options'] = None
+        try:
+            create_project_from_json(project_dict, po_user)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
 
 
     def test_target_round_trip_target_dict(self):
