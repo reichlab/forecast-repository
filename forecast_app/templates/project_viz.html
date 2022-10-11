@@ -27,7 +27,48 @@
 
 
     <script>
-        App.initialize('forecastViz_row', {{ project.id }}, {{ options|safe }});
+        /*
+        // todo xx all this authorization stuff needs careful thinking:
+        // configure AJAX to work with DRF - per https://stackoverflow.com/questions/42514560/django-and-ajax-csrf-token-missing-despite-being-passed
+        function csrfSafeMethod(method) {
+            return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+        }
+
+        $.ajaxSetup({
+            beforeSend: function (xhr, settings) {
+                if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
+                }
+            }
+        });
+        */
+
+        /***
+         * Makes an AJAX call to the Zoltar API to fetch truth or forecast data using the passed args, which correspond to those
+         * of `utils.visualization.viz_data()` (see). The `success` and `error` callbacks are passed directly to the $.ajax()
+         * call and therefore accept the standard arguments:
+         * - success: function (data, textStatus, jqXHR) { ... }
+         * - error: function (jqXHR, textStatus, thrownError) { ... }
+         */
+        function _fetchData(isForecast, targetKey, unitAbbrev, referenceDate) {
+            const url = "/api/project/" + {{ project.id }} + "/viz-data/";
+            const requestData = {
+                is_forecast: isForecast,
+                target_key: targetKey,
+                unit_abbrev: unitAbbrev,
+                reference_date: referenceDate,
+            };
+
+            // MUS: using JQuery ajax():
+            // return $.ajax({url: url, type: 'GET', data: requestData, dataType: 'json', success: success, error: error,});
+
+            // using https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+            const urlObj = new URL(url, document.location.origin);
+            Object.keys(requestData).forEach(key => urlObj.searchParams.append(key, requestData[key]))
+            return fetch(urlObj);  // Promise
+        }
+
+        App.initialize('forecastViz_row', _fetchData, {{ options|safe }});
     </script>
 
 {% endblock %}

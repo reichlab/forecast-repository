@@ -33,39 +33,6 @@ function _setSelectedTruths() {
 }
 
 
-/***
- * Makes an AJAX call to the Zoltar API to fetch truth or forecast data using the passed args, which correspond to those
- * of `utils.visualization.viz_data()` (see). The `success` and `error` callbacks are passed directly to the $.ajax()
- * call and therefore accept the standard arguments:
- * - success: function (data, textStatus, jqXHR) { ... }
- * - error: function (jqXHR, textStatus, thrownError) { ... }
- */
-function _fetchData(isForecast, targetKey, unitAbbrev, referenceDate) {
-    const url = "/api/project/" + App.projectId + "/viz-data/";
-    const requestData = {
-        is_forecast: isForecast,
-        target_key: targetKey,
-        unit_abbrev: unitAbbrev,
-        reference_date: referenceDate,
-    };
-
-    // using JQuery ajax()
-    // return $.ajax({url: url, type: 'GET', data: requestData, dataType: 'json', success: success, error: error,});
-
-    // using https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-    const urlObj = new URL(url, document.location.origin);
-    Object.keys(requestData).forEach(key => urlObj.searchParams.append(key, requestData[key]))
-    return fetch(urlObj);  // Promise
-}
-
-
-// helper for `_fetchData()` error arg
-function _handleFetchDataError(jqXHR, textStatus, thrownError) {
-    console.log("_handleFetchDataError(): error. textStatus=" + textStatus + ", thrownError=" + thrownError);
-    // todo xx
-}
-
-
 /**
  * `initialize()` helper that builds UI by adding DOM elements to $componentDiv. the UI is one row with two columns:
  * options on left and the plotly plot on the right
@@ -168,7 +135,11 @@ const App = {
     //
 
     state: {
-        // Static data, fixed at time of creation
+        // _fetchData that was passed to initialize():
+        _fetchData: null,
+
+
+        // Static data, fixed at time of creation:
         target_variables: [],
         units: [],
         intervals: [],
@@ -203,28 +174,13 @@ const App = {
     /**
      * Toggle visibility of a content tab
      * @param {String} componentDiv - id of a DOM node to populate. it must be an empty Bootstrap 4 row
-     * @param {String} projectId - zoltar project id
+     * @param {String} _fetchData - function as documented in forecast-repository/forecast_app/templates/project_viz.html .
+     *                              args: isForecast, targetKey, unitAbbrev, referenceDate
      * @param {int} options - visualization initialization options as documented at https://docs.zoltardata.com/visualizationoptionspage/
      */
-    initialize(componentDiv, projectId, options) {
-        App.projectId = projectId;
-        console.log('initialize(): entered', projectId);
-
-        /*
-        // todo xx all this authorization stuff needs careful thinking:
-        // configure AJAX to work with DRF - per https://stackoverflow.com/questions/42514560/django-and-ajax-csrf-token-missing-despite-being-passed
-        function csrfSafeMethod(method) {
-            return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
-        }
-
-        $.ajaxSetup({
-            beforeSend: function (xhr, settings) {
-                if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
-                }
-            }
-        });
-        */
+    initialize(componentDiv, _fetchData, options) {
+        App._fetchData = _fetchData;
+        console.log('initialize(): entered', _fetchData);
 
         // save static vars
         this.state.target_variables = options['target_variables'];
@@ -529,7 +485,7 @@ const App = {
         }
     },
     fetchCurrentTruth() {
-        return _fetchData(false,
+        return App._fetchData(false,
             App.state.selected_target_var, App.state.selected_unit, App.state.current_date)
             .then(response => response.json())
             .then((data) => {
@@ -537,7 +493,7 @@ const App = {
             });  // Promise
     },
     fetchAsOfTruth() {
-        return _fetchData(false,
+        return App._fetchData(false,
             App.state.selected_target_var, App.state.selected_unit, App.state.selected_as_of_date)
             .then(response => response.json())
             .then((data) => {
@@ -545,7 +501,7 @@ const App = {
             });  // Promise
     },
     fetchForecasts() {
-        return _fetchData(true,
+        return App._fetchData(true,
             App.state.selected_target_var, App.state.selected_unit, App.state.selected_as_of_date)
             .then(response => response.json())
             .then((data) => {
