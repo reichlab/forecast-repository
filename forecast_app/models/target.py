@@ -362,7 +362,9 @@ def calc_DAY_RDT(target, timezero):
     """
     Implements a simple day reference_date_type.
     """
-    return None, None  # todo xx
+    reference_date = timezero.timezero_date
+    target_end_date = reference_date + relativedelta.relativedelta(days=target.numeric_horizon)
+    return reference_date, target_end_date
 
 
 def calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero):

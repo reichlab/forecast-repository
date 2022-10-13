@@ -3,6 +3,7 @@ import itertools
 import logging
 from collections import defaultdict
 
+from django.db import models
 from django.utils.text import get_valid_filename
 
 from forecast_app.models import Target
@@ -24,8 +25,10 @@ def viz_targets(project):
     """
     :return: project's targets that are valid for visualization
     """
-    return project.targets.filter(is_step_ahead=True, reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT,
-                                  type__in=(Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE))
+    return project.targets \
+        .filter(is_step_ahead=True, type__in=(Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE)) \
+        .filter(models.Q(reference_date_type=Target.DAY_RDT) |
+                models.Q(reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT))
 
 
 #
@@ -409,16 +412,16 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
         model_names = set(viz_model_names(project))
         viz_opt_checked_models = set(viz_options['initial_checked_models'])
         if is_validate_objects and (not viz_opt_checked_models
-                                   or not all(map(lambda _: isinstance(_, str), viz_opt_checked_models))
-                                   or not viz_opt_checked_models <= model_names):
+                                    or not all(map(lambda _: isinstance(_, str), viz_opt_checked_models))
+                                    or not viz_opt_checked_models <= model_names):
             errors.append(f"initial_checked_models is invalid. viz_opt_checked_models={viz_opt_checked_models!r}, "
                           f"model_names={model_names!r}")
 
     # 'models_at_top'
     viz_opt_models_at_top = set(viz_options['models_at_top'])
     if is_validate_objects and (not viz_opt_models_at_top
-                               or not all(map(lambda _: isinstance(_, str), viz_opt_models_at_top))
-                               or not viz_opt_models_at_top <= model_names):
+                                or not all(map(lambda _: isinstance(_, str), viz_opt_models_at_top))
+                                or not viz_opt_models_at_top <= model_names):
         errors.append(f"models_at_top is invalid. viz_opt_models_at_top={viz_opt_models_at_top!r}, "
                       f"model_names={model_names!r}")
 

@@ -27,15 +27,20 @@ class VisualizationTestCase(TestCase):
 
     def test_viz_targets(self):
         # _make_covid_viz_test_project(): 2 Targets: "1 wk ahead inc death", "2 wk ahead inc death". we create a Target
-        # with numeric_horizon > 4, which used to be excluded but is now included
-        Target.objects.create(project=self.project, name='test target', type=Target.CONTINUOUS_TARGET_TYPE,
+        # with numeric_horizon > 4, which used to be excluded but is now included. we also include a Target.DAY_RDT
+        # target to make sure it's included too
+        Target.objects.create(project=self.project, name='mmwr target', type=Target.CONTINUOUS_TARGET_TYPE,
                               is_step_ahead=True, numeric_horizon=5,
                               reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT)
+        Target.objects.create(project=self.project, name='day target', type=Target.CONTINUOUS_TARGET_TYPE,
+                              is_step_ahead=True, numeric_horizon=2,
+                              reference_date_type=Target.DAY_RDT)
         exp_viz_targets = [self.project.targets.filter(name='1 wk ahead inc death').first(),
                            self.project.targets.filter(name='2 wk ahead inc death').first(),
-                           self.project.targets.filter(name='test target').first()]
+                           self.project.targets.filter(name='mmwr target').first(),
+                           self.project.targets.filter(name='day target').first()]
         act_viz_targets = sorted(viz_targets(self.project), key=lambda _: _.name)
-        self.assertEqual(exp_viz_targets, act_viz_targets)
+        self.assertEqual(sorted(exp_viz_targets, key=lambda _: _.id), sorted(act_viz_targets, key=lambda _: _.id))
 
 
     def test_viz_target_variables(self):

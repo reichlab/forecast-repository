@@ -9,7 +9,8 @@ from django.db import transaction
 from django.test import TestCase
 
 from forecast_app.models import Target, Project, Forecast, TimeZero
-from forecast_app.models.target import TargetRange, TargetCat, TargetLwr, calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT
+from forecast_app.models.target import TargetRange, TargetCat, TargetLwr, calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT, \
+    calc_DAY_RDT
 from utils.forecast import load_predictions_from_json_io_dict, NamedData
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
@@ -547,3 +548,11 @@ class TargetTestCase(TestCase):
         act_ref_date, act_target_end_date = calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(target, timezero)
         self.assertEqual(datetime.date(2022, 1, 1), act_ref_date)
         self.assertEqual(datetime.date(2022, 1, 15), act_target_end_date)
+
+
+    def test_calc_DAY_RDT(self):
+        target = Target(name='test target', is_step_ahead=True, numeric_horizon=1, reference_date_type=Target.DAY_RDT)
+        timezero = TimeZero(timezero_date=datetime.date(2020, 1, 22))
+        act_ref_date, act_target_end_date = calc_DAY_RDT(target, timezero)
+        self.assertEqual(timezero.timezero_date, act_ref_date)
+        self.assertEqual(timezero.timezero_date + datetime.timedelta(days=1), act_target_end_date)  # 1 day ahead
