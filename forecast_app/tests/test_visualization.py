@@ -32,19 +32,20 @@ class VisualizationTestCase(TestCase):
         Target.objects.create(project=self.project, name='mmwr target', type=Target.CONTINUOUS_TARGET_TYPE,
                               is_step_ahead=True, numeric_horizon=5,
                               reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT)
-        Target.objects.create(project=self.project, name='day target', type=Target.CONTINUOUS_TARGET_TYPE,
-                              is_step_ahead=True, numeric_horizon=2,
-                              reference_date_type=Target.DAY_RDT)
-        exp_viz_targets = [self.project.targets.filter(name='1 wk ahead inc death').first(),
+        exp_viz_targets = [self.project.targets.filter(name='1 day ahead inc hosp').first(),
+                           self.project.targets.filter(name='1 wk ahead inc death').first(),
                            self.project.targets.filter(name='2 wk ahead inc death').first(),
-                           self.project.targets.filter(name='mmwr target').first(),
-                           self.project.targets.filter(name='day target').first()]
-        act_viz_targets = sorted(viz_targets(self.project), key=lambda _: _.name)
-        self.assertEqual(sorted(exp_viz_targets, key=lambda _: _.id), sorted(act_viz_targets, key=lambda _: _.id))
+                           self.project.targets.filter(name='mmwr target').first()]
+        act_viz_targets = viz_targets(self.project)
+        self.assertEqual(sorted(exp_viz_targets, key=lambda _: _.name), sorted(act_viz_targets, key=lambda _: _.name))
 
 
     def test_viz_target_variables(self):
-        exp_target_vars = [{'value': 'incident_deaths', 'text': 'incident deaths', 'plot_text': 'incident deaths'}]
+        exp_target_vars = [
+            {'value': 'day_ahead_incident_hospitalizations', 'text': 'day ahead incident hospitalizations',
+             'plot_text': 'day ahead incident hospitalizations'},
+            {'value': 'week_ahead_incident_deaths', 'text': 'week ahead incident deaths',
+             'plot_text': 'week ahead incident deaths'}]
         act_target_vars = viz_target_variables(self.project)
         self.assertEqual(exp_target_vars, act_target_vars)
 
@@ -59,7 +60,9 @@ class VisualizationTestCase(TestCase):
 
     def test_viz_available_reference_dates(self):
         exp_avail_ref_dates = {
-            'incident_deaths': ['2022-01-01', '2022-01-08', '2022-01-15', '2022-01-22', '2022-01-29']}
+            'week_ahead_incident_deaths': ['2022-01-01', '2022-01-08', '2022-01-15', '2022-01-22', '2022-01-29'],
+            'day_ahead_incident_hospitalizations': ['2022-01-03', '2022-01-10', '2022-01-17', '2022-01-24',
+                                                    '2022-01-31']}
         act_avail_ref_dates = viz_available_reference_dates(self.project)
         self.assertEqual(exp_avail_ref_dates, act_avail_ref_dates)
 
@@ -97,8 +100,7 @@ class VisualizationTestCase(TestCase):
                                             '2022-01-22', '2022-01-29'),
                                    'y': (478.0, 266.0, 422.0, 717.0, 623.0, 971.0, 1212.0)},
         }
-
-        target_key = viz_target_variables(self.project)[0]['value']  # only one - same for both relevant Targets
+        target_key = 'week_ahead_incident_deaths'
         for viz_unit, ref_date in itertools.product([viz_unit['value'] for viz_unit in viz_units(self.project)],
                                                     viz_available_reference_dates(self.project)[target_key]):
             act_truth = viz_data(self.project, False, target_key, viz_unit, ref_date)
@@ -192,7 +194,7 @@ class VisualizationTestCase(TestCase):
                                                          'q0.5': [1198, 1321], 'q0.75': [1387, 1494],
                                                          'q0.975': [1727, 1944]}},
         }
-        target_key = viz_target_variables(self.project)[0]['value']  # only one - same for both relevant Targets
+        target_key = 'week_ahead_incident_deaths'
         for viz_unit, ref_date in itertools.product([viz_unit['value'] for viz_unit in viz_units(self.project)],
                                                     viz_available_reference_dates(self.project)[target_key]):
             act_forecasts = viz_data(self.project, True, target_key, viz_unit, ref_date)
@@ -200,15 +202,9 @@ class VisualizationTestCase(TestCase):
 
 
     def test_validate_project_viz_options(self):
-        # print(viz_model_names(self.project), viz_target_variables(self.project), viz_units(self.project))
-        # ['COVIDhub-ensemble', 'COVIDhub-baseline']
-        # [{'value': 'incident_deaths',  'text': 'incident deaths',  'plot_text': 'incident deaths'}]
-        # [{'value': 'US',  'text': 'US'},
-        #  {'value': '48',  'text': 'Texas'}]
-
         # blue sky
         viz_options = {
-            "initial_target_var": "incident_deaths",
+            "initial_target_var": "week_ahead_incident_deaths",
             "initial_unit": "48",
             "intervals": [0, 50, 95],
             "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],

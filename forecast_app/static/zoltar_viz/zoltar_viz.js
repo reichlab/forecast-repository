@@ -222,6 +222,7 @@ const App = {
             'models': this.state.models,
             'colors': this.state.colors,
         };
+        console.log('initialize(): static vars initialized', JSON.stringify(options));
         console.log('initialize(): static vars initialized', JSON.stringify(debugObj));
         */
 
@@ -471,7 +472,7 @@ const App = {
             }
             console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): waiting on promises`);
             const $plotyDiv = $('#ploty_div');
-            $plotyDiv.fadeTo(0, 0.5);
+            $plotyDiv.fadeTo(0, 0.25);
             Promise.all(promises).then((values) => {
                 console.log(`fetchDataUpdatePlot(${isFetchFirst}, ${isFetchCurrentTruth}): Promise.all() done. updating plot`, values);
                 this.updateModelsList();
@@ -518,6 +519,9 @@ const App = {
         const plotyDiv = document.getElementById('ploty_div');
         const data = this.getPlotlyData();
         let layout = this.getPlotlyLayout();
+        if (data.length === 0) {
+            layout = {title: {text: 'No Visualization Data Found'}};
+        }
 
         /*
         const debugObj = {
@@ -527,7 +531,7 @@ const App = {
                 'selected_interval': this.state.selected_interval,
                 'selected_as_of_date': this.state.selected_as_of_date,
                 'selected_truth': this.state.selected_truth,
-                'selected_mo1dels': this.state.selected_models
+                'selected_models': this.state.selected_models
             },
             'data': {
                 'current_truth': this.state.current_truth,
@@ -539,12 +543,9 @@ const App = {
                 'layout': layout,
             },
         };
-        console.log('updatePlot()', JSON.stringify(debugObj));
+        console.log('updatePlot()', debugObj);
         */
 
-        if (data.length === 0) {
-            layout = {title: {text: 'No Visualization Data Found'}};
-        }
         Plotly.react(plotyDiv, data, layout);
     },
     getPlotlyLayout() {
@@ -599,7 +600,6 @@ const App = {
 
         let pd0 = []
         if (state.forecasts.length !== 0) {
-
             // add the line for predictive medians
             pd0 = Object.keys(state.forecasts).map((model) => {
                 if (state.selected_models.includes(model)) {
@@ -654,7 +654,6 @@ const App = {
                     return {
                         x: x,
                         y: y,
-
                         mode: 'lines',
                         type: 'scatter',
                         name: model,

@@ -9,7 +9,7 @@ from django.utils.text import get_valid_filename
 from forecast_app.models import Target
 from forecast_app.models.target import reference_date_type_for_id
 from forecast_app.views import ProjectDetailView
-from utils.project import group_targets
+from utils.project import group_targets, _group_name_for_target
 from utils.project_queries import query_forecasts_for_project, query_truth_for_project
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 #
 # functions that support the https://github.com/reichlab/Covid-19-Hub-Vizualization integration prototype
+# - note that we use utils.project.group_targets() and friends to manage visualization-related target grouping
+#
+
+#
+# viz_targets()
 #
 
 def viz_targets(project):
@@ -56,16 +61,16 @@ def viz_target_variables(project):
 
         first_target = sorted(target_list, key=lambda target: target.name)[0]
         target_variables.append({'value': viz_key_for_target(first_target),
-                                 'text': first_target.outcome_variable,
-                                 'plot_text': first_target.outcome_variable})
-    return target_variables
+                                 'text': _group_name_for_target(first_target),
+                                 'plot_text': _group_name_for_target(first_target)})
+    return sorted(target_variables, key=lambda _:_['value'])
 
 
 def viz_key_for_target(target):
     """
     helper that returns a string suitable for keys in `viz_target_variables()` and `viz_available_reference_dates()`
     """
-    return get_valid_filename(target.outcome_variable.lower())
+    return get_valid_filename(_group_name_for_target(target).lower())
 
 
 #
@@ -105,7 +110,7 @@ def viz_available_reference_dates(project):
     reference_dates = defaultdict(list)  # returned value
 
     # build unsorted reference_dates with datetime.dates
-    for target, timezero, reference_date, target_end_date in _viz_ref_and_target_end_dates(project):
+    for target, _, reference_date, _ in _viz_ref_and_target_end_dates(project):
         reference_dates[viz_key_for_target(target)].append(reference_date)
 
     # sort by date and convert to yyyy-mm-dd, removing duplicates
