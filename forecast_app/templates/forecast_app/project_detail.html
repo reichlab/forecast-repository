@@ -144,19 +144,21 @@
                     <th>Visualization:</th>
                     <td>
                         {# viz link #}
-                        {% if user.is_authenticated %}
+                        {% if user.is_authenticated and viz_options_valid %}
                             <a href="{% url 'project-viz' project.pk %}">Visualization</a>
+                        {% elif user.is_authenticated %}
+                            (Please configure options to view visualizations)
                         {% else %}
                             (Please log in to view visualizations)
                         {% endif %}
 
                         {# viz options link and status icon #}
                         {% if user.is_authenticated %}
-                            (<a {% if is_user_ok_edit_project %}href="{% url 'project-viz-options-edit' project.pk %}"
+                            [<a {% if is_user_ok_edit_project %}href="{% url 'project-viz-options-edit' project.pk %}"
                                 {% endif %}>Configure</a>
                             {% if not viz_options_valid %}<i class="fas fa-exclamation-triangle text-warning"
                                                              title="invalid project viz options"></i>{% else %}
-                                <i class="fas fa-check text-success" title="valid project viz options"></i>{% endif %})
+                                <i class="fas fa-check text-success" title="valid project viz options"></i>{% endif %}]
                         {% endif %}
 
                         {# viz help text #}
