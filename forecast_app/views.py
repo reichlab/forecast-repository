@@ -1556,7 +1556,11 @@ def _upload_truth_worker(job_pk):
                 return
 
             filename = job.input_json['filename']
-            load_truth_data(project, cloud_file_fp, file_name=filename)
+            num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+                load_truth_data(project, cloud_file_fp, file_name=filename)
+            job.output_json = {'num_rows': num_rows, 'num_forecasts': len(forecasts),
+                               'missing_time_zeros': missing_time_zeros, 'missing_units': missing_units,
+                               'missing_targets': missing_targets}
             job.status = Job.SUCCESS
             job.save()
     except JobTimeoutException as jte:

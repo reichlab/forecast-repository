@@ -80,7 +80,8 @@ def reload_covid_truth_app():
         logger.info(os.popen(f'ls -al {TRUTH_FILE}').readline().strip())
         logger.info(f"loading truth")
         try:
-            num_rows, forecasts = load_truth_data(project, TRUTH_FILE, file_name='zoltar-truth.csv')
+            num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+                load_truth_data(project, TRUTH_FILE, file_name='zoltar-truth.csv')
         except RuntimeError as rte:
             logger.error(f"error loading truth: {rte!r}")
 

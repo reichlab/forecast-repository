@@ -49,17 +49,29 @@ class ProjectTestCase(TestCase):
         # subset. this raised 'new data is a subset of previous' prior to this issue:
         # [support truth "diff" uploads #319](https://github.com/reichlab/forecast-repository/issues/319), but now
         # subsets are allowed.
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
-                        'truths-bad-timezero.csv', is_convert_na_none=True)
+        num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-timezero.csv'),
+                            'truths-bad-timezero.csv', is_convert_na_none=True)
+        self.assertEqual(('2017-01-02',), missing_time_zeros)
+        self.assertEqual((), missing_units)
+        self.assertEqual((), missing_targets)
 
         # csv references non-existent unit in Project: the bad unit is skipped, again resulting in a subset. again,
         # subsets are now allowed
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
-                        'truths-bad-location.csv', is_convert_na_none=True)
+        num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-location.csv'),
+                            'truths-bad-location.csv', is_convert_na_none=True)
+        self.assertEqual(('2017-01-02',), missing_time_zeros)
+        self.assertEqual(('bad location',), missing_units)
+        self.assertEqual((), missing_targets)
 
         # csv references non-existent target in Project: the bad target is skipped. subset is allowed
-        load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
-                        'truths-bad-target.csv', is_convert_na_none=True)
+        num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+            load_truth_data(self.project, Path('forecast_app/tests/truth_data/truths-bad-target.csv'),
+                            'truths-bad-target.csv', is_convert_na_none=True)
+        self.assertEqual((), missing_time_zeros)
+        self.assertEqual((), missing_units)
+        self.assertEqual(('bad target',), missing_targets)
 
         project2 = Project.objects.create()
         make_cdc_units_and_targets(project2)
@@ -405,7 +417,11 @@ class ProjectTestCase(TestCase):
             job = Job.objects.create()
             job.input_json = {'project_pk': self.project.pk, 'filename': 'a name!'}
             job.save()
-            job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
+
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # job, cloud_file_fp
+            # num_rows, forecasts, missing_time_zeros, missing_units, missing_targets:
+            load_truth_mock.return_value = (0, [], (), (), ())
+
             _upload_truth_worker(job.pk)  # should fail and not call load_predictions_from_json_io_dict()
             job.refresh_from_db()
             load_truth_mock.assert_called_once()

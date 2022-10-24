@@ -175,16 +175,17 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     logger.debug(f"load_truth_data(): calling _load_truth_data()")
     # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
     if isinstance(truth_file_path_or_fp, io.IOBase):
-        num_rows, forecasts = _load_truth_data(project, oracle_model, truth_file_path_or_fp, file_name,
-                                               is_convert_na_none)
+        num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+            _load_truth_data(project, oracle_model, truth_file_path_or_fp, file_name, is_convert_na_none)
     else:
         with open(str(truth_file_path_or_fp)) as truth_file_fp:
-            num_rows, forecasts = _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none)
+            num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+                _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none)
 
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
     logger.debug(f"load_truth_data(): done")
-    return num_rows, forecasts
+    return num_rows, forecasts, missing_time_zeros, missing_units, missing_targets
 
 
 @transaction.atomic
@@ -196,7 +197,8 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     # load, validate, and replace with objects and parsed values.
     # rows: (timezero, unit, target, parsed_value) (first three are objects)
     logger.debug(f"_load_truth_data(): entered. calling _read_truth_data_rows()")
-    rows = _read_truth_data_rows(project, truth_file_fp, is_convert_na_none)
+    rows, missing_time_zeros, missing_units, missing_targets = \
+        _read_truth_data_rows(project, truth_file_fp, is_convert_na_none)
     if not rows:
         return 0, []
 
@@ -258,7 +260,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
             forecast.save()
 
     logger.debug(f"_load_truth_data(): done")
-    return len(rows), forecasts
+    return len(rows), forecasts, missing_time_zeros, missing_units, missing_targets
 
 
 def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
@@ -380,7 +382,10 @@ def _read_truth_data_rows(project, csv_file_fp, is_convert_na_none):
                        .format(target_name, count))
 
     # done
-    return rows
+    missing_time_zeros = tuple(timezero_to_missing_count.keys())
+    missing_units = tuple(unit_to_missing_count.keys())
+    missing_targets = tuple(target_to_missing_count.keys())
+    return rows, missing_time_zeros, missing_units, missing_targets
 
 
 #

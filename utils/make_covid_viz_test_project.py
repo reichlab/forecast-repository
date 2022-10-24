@@ -92,7 +92,8 @@ def _make_covid_viz_test_project(user):
     for commit_hash, commit_date in reversed(truth_commit_hash_date):
         try:
             csv_file = test_viz_proj_path / 'truths-small' / f'{commit_hash}-zoltar-truth.csv'
-            num_rows, forecasts = load_truth_data(project, csv_file, file_name='zoltar-truth.csv')
+            num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
+                load_truth_data(project, csv_file, file_name='zoltar-truth.csv')
             for forecast in forecasts:
                 forecast.issued_at = dateutil.parser.parse(commit_date)
                 forecast.save()
