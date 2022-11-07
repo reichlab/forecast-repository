@@ -263,6 +263,41 @@ class ProjectDiffTestCase(TestCase):
         self._do_make_some_changes_tests(project)
 
 
+    def test_diff_from_file_timezero_bug(self):
+        # exposes the bug [problem adding a season_name to existing timezero #346]: 'passed is_season_start with no season_name'
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, _, _, _ = _make_docs_project(po_user)
+        with open(Path('forecast_app/tests/project_diff/docs-project-edited-2.json')) as fp:
+            edited_config_dict = json.load(fp)
+        out_config_dict = config_dict_from_project(project, APIRequestFactory().request())
+        changes = project_config_diff(out_config_dict, edited_config_dict)
+        # TimeZero '2011-10-02': set 'is_season_start' to False, delete 'season_name':
+        # TimeZero '2011-10-09': set 'is_season_start' to True, add 'season_name' = '2012-2013':
+        # Target 'pct next week': set 'is_step_ahead' to False, delete 'numeric_horizon':
+        # Target 'season severity': set 'is_step_ahead' to True, add 'numeric_horizon' = 1 and 'reference_date_type' = 'MMWR_WEEK_LAST_TIMEZERO_MONDAY':
+        try:
+            execute_project_config_diff(project, changes)
+        except Exception as ex:
+            self.fail(f"unexpected exception: {ex}")
+
+        tz = project.timezeros.filter(timezero_date='2011-10-02').first()
+        self.assertEqual(False, tz.is_season_start)
+        self.assertEqual(None, tz.season_name)
+
+        tz = project.timezeros.filter(timezero_date='2011-10-09').first()
+        self.assertEqual(True, tz.is_season_start)
+        self.assertEqual('2012-2013', tz.season_name)
+
+        target = project.targets.filter(name='pct next week').first()
+        self.assertEqual(False, target.is_step_ahead)
+        self.assertEqual(None, target.numeric_horizon)
+
+        target = project.targets.filter(name='season severity').first()
+        self.assertEqual(True, target.is_step_ahead)
+        self.assertEqual(1, target.numeric_horizon)
+        self.assertEqual(Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT, target.reference_date_type)
+
+
     def test_serialize_change_list(self):
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, _, _, _ = _make_docs_project(po_user)

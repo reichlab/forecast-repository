@@ -265,8 +265,8 @@ class ProjectUtilTestCase(TestCase):
 
         # test optional 'numeric_horizon': required only if 'is_step_ahead'
         first_target_dict['is_step_ahead'] = True  # was False w/no 'numeric_horizon'
-        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is required"
-                                                  " when `is_step_ahead` is passed"):
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` and `reference_date_type` not found but are "
+                                                  "required when `is_step_ahead` is passed"):
             create_project_from_json(project_dict, po_user)
 
         # test optional fields, based on type:

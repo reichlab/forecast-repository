@@ -47,15 +47,15 @@ class TargetTestCase(TestCase):
 
         # yes is_step_ahead; no numeric_horizon, no reference_date_type
         model_init = {'type': Target.CONTINUOUS_TARGET_TYPE, 'outcome_variable': 'biweek', 'is_step_ahead': True}
-        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` and `reference_date_type` not found but are"):
             Target.objects.create(**model_init, **{})
 
         # yes is_step_ahead; no numeric_horizon, yes reference_date_type
-        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` and `reference_date_type` not found but are"):
             Target.objects.create(**model_init, **{'reference_date_type': Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT})
 
         # yes is_step_ahead; yes numeric_horizon, no reference_date_type
-        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` and `reference_date_type` not found but are"):
             Target.objects.create(**model_init, **{'numeric_horizon': 1})
 
         # no project (raises django.db.utils.IntegrityError)
@@ -75,7 +75,7 @@ class TargetTestCase(TestCase):
                       'name': 'target_name',
                       'description': 'target_description',
                       'is_step_ahead': True}  # missing numeric_horizon
-        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` or `reference_date_type` not found but is"):
+        with self.assertRaisesRegex(RuntimeError, "`numeric_horizon` and `reference_date_type` not found but are"):
             Target.objects.create(**model_init)
 
         # case: is_step_ahead=True, numeric_horizon: 0

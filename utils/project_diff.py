@@ -380,7 +380,7 @@ def execute_project_config_diff(project, changes):
     :param project: the Project that's being modified
     :param changes: list of Changes as returned by project_config_diff()
     """
-    objects_to_save = []
+    objects_to_save = set()
     for change in order_project_config_diff(changes):
         if change.change_type == ChangeType.OBJ_ADDED:
             if change.object_type == ObjectType.UNIT:
@@ -402,13 +402,14 @@ def execute_project_config_diff(project, changes):
                 else change.object_dict[change.field_name]
 
             # handle the special case of 'reference_date_type', which needs conversion from str to int
-            if (change.change_type == ChangeType.FIELD_EDITED) and (change.field_name == 'reference_date_type'):
+            if ((change.change_type == ChangeType.FIELD_ADDED) or (change.change_type == ChangeType.FIELD_EDITED)) \
+                    and (change.field_name == 'reference_date_type'):
                 attr_value = reference_date_type_for_name(change.object_dict[change.field_name]).id
 
             setattr(the_obj, change.field_name, attr_value)
             # NB: do not save here b/c multiple FIELD_* changes might be required together to be valid, e.g., when
             # changing Target.is_step_ahead to False, one must remove Target.numeric_horizon (i.e., set it to None)
-            objects_to_save.append(the_obj)
+            objects_to_save.add(the_obj)
     for object_to_save in objects_to_save:
         try:
             object_to_save.save()
@@ -440,9 +441,9 @@ def object_for_change(project, change, objects_to_save):
         found_object = found_objects_to_save[0] if found_objects_to_save \
             else project.targets.filter(name=change.object_pk).first()
     elif change.object_type == ObjectType.TIMEZERO:
-        # queries work b/c # str is Date.isoformat(), the default for models.DateField
         found_objects_to_save = [the_obj for the_obj in objects_to_save
-                                 if (type(the_obj) == TimeZero) and (the_obj.timezero_date == change.object_pk)]
+                                 if (type(the_obj) == TimeZero) and
+                                 (the_obj.timezero_date.isoformat() == change.object_pk)]
         found_object = found_objects_to_save[0] if found_objects_to_save \
             else project.timezeros.filter(timezero_date=change.object_pk).first()
     else:

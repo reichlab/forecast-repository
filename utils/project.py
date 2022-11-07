@@ -324,7 +324,7 @@ def _validate_target_dict(target_dict):
     if target_dict['is_step_ahead'] and (
             (('numeric_horizon' not in target_dict) or (target_dict['numeric_horizon'] is None)) or
             (('reference_date_type' not in target_dict)) or (target_dict['reference_date_type'] is None)):
-        raise RuntimeError(f"`numeric_horizon` or `reference_date_type` not found but is required when "
+        raise RuntimeError(f"`numeric_horizon` and `reference_date_type` not found but are required when "
                            f"`is_step_ahead` is passed. target_dict={target_dict}")
 
     # validate reference_date_type if is_step_ahead
