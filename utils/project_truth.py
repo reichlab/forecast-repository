@@ -200,7 +200,7 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     rows, missing_time_zeros, missing_units, missing_targets = \
         _read_truth_data_rows(project, truth_file_fp, is_convert_na_none)
     if not rows:
-        return 0, []
+        return 0, rows, missing_time_zeros, missing_units, missing_targets
 
     # group rows by timezero and then create and load oracle Forecasts for each group, passing them as
     # json_io_dicts. we leverage _load_truth_data_rows_for_forecast() by creating a json_io_dict for the truth data
