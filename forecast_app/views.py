@@ -503,8 +503,8 @@ def _viz_options_from_project(project):
     if errors:
         # todo xx a cleaner way to indicate invalid options to component?
         options = {'target_variables': [], 'initial_target_var': '', 'units': [], 'initial_unit': '', 'intervals': [],
-                   'init_interval': '', 'available_as_ofs': [], 'current_date': '', 'models': [],
-                   'initial_checked_models': [],
+                   'initial_interval': '', 'available_as_ofs': [], 'initial_as_of': '', 'current_date': '',
+                   'models': [], 'initial_checked_models': [],
                    'disclaimer': f"Project viz_options had {len(errors)} error(s): {'.'.join(errors)}"}
         return options
 
@@ -528,8 +528,10 @@ def _viz_options_from_project(project):
                'units': units,
                'initial_unit': project.viz_options['initial_unit'],
                'intervals': intervals,
-               'init_interval': intervals[-1],  # todo xx should be in viz_options?
+               'initial_interval': intervals[-1],  # todo xx should be in viz_options?
                'available_as_ofs': available_as_ofs,
+               # todo could be smart about this and pick the latest date that actually has both truth and forecast data for that date:
+               'initial_as_of': current_date,
                'current_date': current_date,
                'models': model_names,
                'initial_checked_models': project.viz_options['initial_checked_models'],
