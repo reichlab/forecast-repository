@@ -1,17 +1,22 @@
 import datetime
+import io
 import itertools
+import json
 import logging
+import tempfile
 from collections import defaultdict
 
+import botocore
 from django.db import models
 from django.utils.text import get_valid_filename
 
 from forecast_app.models import Target
 from forecast_app.models.target import reference_date_type_for_id
 from forecast_app.views import ProjectDetailView
+from utils.cloud_file import delete_file, is_file_exists, download_file, upload_file, _s3_bucket_name_for_object
 from utils.project import group_targets, _group_name_for_target
 from utils.project_queries import query_forecasts_for_project, query_truth_for_project
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT, basic_str
 
 
 logger = logging.getLogger(__name__)
@@ -63,7 +68,7 @@ def viz_target_variables(project):
         target_variables.append({'value': viz_key_for_target(first_target),
                                  'text': _group_name_for_target(first_target),
                                  'plot_text': _group_name_for_target(first_target)})
-    return sorted(target_variables, key=lambda _:_['value'])
+    return sorted(target_variables, key=lambda _: _['value'])
 
 
 def viz_key_for_target(target):
@@ -110,7 +115,7 @@ def viz_available_reference_dates(project):
     reference_dates = defaultdict(list)  # returned value
 
     # build unsorted reference_dates with datetime.dates
-    for target, _, reference_date, _ in _viz_ref_and_target_end_dates(project):
+    for target, reference_date in _viz_target_ref_dates(project):
         reference_dates[viz_key_for_target(target)].append(reference_date)
 
     # sort by date and convert to yyyy-mm-dd, removing duplicates
@@ -123,22 +128,24 @@ def viz_available_reference_dates(project):
     return reference_dates
 
 
-def _viz_ref_and_target_end_dates(project):
+def _viz_target_ref_dates(project):
     """
     `viz_available_reference_dates()` helper. could be done once for a Project and then cached.
 
-    :return: list of 4-tuples that contain visualization date-related information for relevant targets. only returns
-    info for timezeros that have forecasts. tuples:
-        (target, timezero, reference_date, target_end_date)  # first two: objects, latter two: datetime.dates
+    :return: list of 2-tuples that contain visualization date-related information for relevant targets. only returns
+    info for timezeros that have forecasts. tuples: (target, reference_date) - types: (Target, datetime.date)
     """
-    ref_and_target_end_dates = []  # return value
+    targets = viz_targets(project)
     timezeros = [timezero for timezero, num_forecasts in ProjectDetailView.timezeros_num_forecasts(project)
                  if num_forecasts != 0]  # NB: oracle excluded
-    for target, timezero in itertools.product(viz_targets(project), timezeros):
+
+    target_ref_dates = []  # return value
+    for target, timezero in itertools.product(targets, timezeros):  # NB: slow
         rdt = reference_date_type_for_id(target.reference_date_type)
-        reference_date, target_end_date = rdt.calc_fcn(target, timezero)
-        ref_and_target_end_dates.append((target, timezero, reference_date, target_end_date))
-    return ref_and_target_end_dates
+        reference_date, _ = rdt.calc_fcn(target.numeric_horizon, timezero.timezero_date)  # _ = target_end_date
+        target_ref_dates.append((target, reference_date))
+
+    return target_ref_dates
 
 
 #
@@ -193,32 +200,29 @@ def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
         "y": [0, 15, ...]}
     """
     target_key_to_targets = _target_key_to_targets(project)
+    if target_key not in target_key_to_targets:
+        logger.error(f"target_key not found in target_key_to_targets: {target_key}. "
+                     f"keys={list(target_key_to_targets.keys())}")
+        return {}
 
     # compute target_end_dates for Target x TimeZero, stored as dicts for fast lookup of CSV rows
-    target_tz_to_target_end_date = {}  # (target_name, timezero_date) -> target_end_date: (str, str) -> str
-    for target, timezero in itertools.product(viz_targets(project), project.timezeros.all().order_by('timezero_date')):
-        rdt = reference_date_type_for_id(target.reference_date_type)
-        _, target_end_date = rdt.calc_fcn(target, timezero)
-        target_timezero_tuple = (target.name, timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT))
-        target_tz_to_target_end_date[target_timezero_tuple] = target_end_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-
     one_step_ahead_targets = [target for target in target_key_to_targets[target_key] if target.numeric_horizon == 1]
     if len(one_step_ahead_targets) != 1:
-        logger.error(f"could not find exactly one one-step-ahead target. "
+        logger.error(f"could not find exactly one one-step-ahead target. target_key={target_key}, "
                      f"one_step_ahead_targets={one_step_ahead_targets}")
         return {}
 
     one_step_ahead_target = one_step_ahead_targets[0]
     date_y_pairs = set()  # 2-tuples as returned by _viz_truth_for_target_unit_ref_date()
-    dates, ys = _viz_truth_for_target_unit_ref_date(project, target_tz_to_target_end_date, one_step_ahead_target,
-                                                    unit_abbrev, reference_date)  # datetime.date, *
+    dates, ys = _viz_truth_for_target_unit_ref_date(project, one_step_ahead_target, unit_abbrev, reference_date)
     if not dates:  # if dates = [] then ys = [] too
-        logger.warning(f"  x {target_key!r}, {unit_abbrev!r}, {reference_date!r}: {one_step_ahead_target.name!r}")
+        logger.warning(f"_viz_data_truth(): no dates: {target_key!r}, {unit_abbrev!r}, {reference_date!r}: "
+                       f"{one_step_ahead_target.name!r}")
         return {}  # no truth data
 
     date_y_pairs.update(zip(dates, ys))
-    logger.info(f"  v {target_key!r}, {unit_abbrev!r}, {reference_date!r}: {one_step_ahead_target.name!r}: "
-                f"{len(dates), len(ys)}")
+    logger.debug(f"_viz_data_truth(): found dates: {target_key!r}, {unit_abbrev!r}, {reference_date!r}: "
+                 f"{one_step_ahead_target.name!r}: {len(dates), len(ys)}")
     if not date_y_pairs:
         return {}
 
@@ -238,19 +242,21 @@ def _target_key_to_targets(project):
     return target_key_to_targets
 
 
-def _viz_truth_for_target_unit_ref_date(project, target_tz_to_target_end_date, one_step_ahead_target, unit_abbrev,
-                                        ref_date):
+def _viz_truth_for_target_unit_ref_date(project, one_step_ahead_target, unit_abbrev, ref_date):
     # todo xx re-alignment of dates hack. accounts for truth reporting delays & upload dates. specific to covid project
     ref_date_adjusted = ref_date + datetime.timedelta(days=2)
     as_of = f"{ref_date_adjusted.strftime(YYYY_MM_DD_DATE_FORMAT)} 12:00 EST"  # todo timezone?
     query = {'targets': [one_step_ahead_target.name], 'units': [unit_abbrev], 'as_of': as_of}
     dates, ys = [], []  # data columns. filled next. former is datetime.date
-    for idx, (timezero, unit, target, value) in enumerate(query_truth_for_project(project, query)):
+    # `list` makes this much faster than without!:
+    for idx, (timezero, unit, target, value) in enumerate(list(query_truth_for_project(project, query))):
         if idx == 0:
             continue  # skip header
 
-        target_end_date = target_tz_to_target_end_date[(target, timezero)]  # YYYY_MM_DD_DATE_FORMAT
-        dates.append(target_end_date)
+        timezero_date = datetime.datetime.strptime(timezero, YYYY_MM_DD_DATE_FORMAT).date()
+        rdt = reference_date_type_for_id(one_step_ahead_target.reference_date_type)
+        _, target_end_date = rdt.calc_fcn(one_step_ahead_target.numeric_horizon, timezero_date)  # _ = reference_date
+        dates.append(target_end_date.strftime(YYYY_MM_DD_DATE_FORMAT))
         ys.append(value)
     return dates, ys
 
@@ -286,18 +292,15 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
      ...}
     """
     target_key_to_targets = _target_key_to_targets(project)
+    if target_key not in target_key_to_targets:
+        logger.error(f"target_key not found in target_key_to_targets: {target_key}. "
+                     f"keys={list(target_key_to_targets.keys())}")
+        return {}
 
     # compute target_end_dates for Target x TimeZero, stored as dicts for fast lookup of CSV rows
-    ref_date_to_target_tzs = defaultdict(list)  # ref_date -> (target_name, timezero_date): datetime.date -> (str, str)
-    target_tz_to_target_end_date = {}  # (target_name, timezero_date) -> target_end_date: (str, str) -> str
-    for target, timezero in itertools.product(target_key_to_targets[target_key],
-                                              project.timezeros.all().order_by('timezero_date')):
-        rdt = reference_date_type_for_id(target.reference_date_type)
-        calc_reference_date, target_end_date = rdt.calc_fcn(target, timezero)
-        target_timezero_tuple = (target.name, timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT))
-        ref_date_to_target_tzs[calc_reference_date].append(target_timezero_tuple)
-        target_tz_to_target_end_date[target_timezero_tuple] = target_end_date.strftime(YYYY_MM_DD_DATE_FORMAT)
-
+    targets = target_key_to_targets[target_key]
+    timezeros = project.timezeros.all().order_by('timezero_date')
+    ref_date_to_target_tzs = _ref_date_to_target_tzs(targets, timezeros)
     if reference_date not in ref_date_to_target_tzs:
         logger.error(f"ref_date not found in ref_date_to_target_tzs: {reference_date}")
         return {}
@@ -306,10 +309,10 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
     timezeros = sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))
     query = {'models': viz_model_names(project),
              'units': [unit_abbrev],
-             'targets': [target.name for target in target_key_to_targets[target_key]],
+             'targets': [target.name for target in targets],
              'timezeros': timezeros,
              'types': ['quantile']}  # NB: no point, just quantile
-    rows = list(query_forecasts_for_project(project, query))  # list for generator
+    rows = list(query_forecasts_for_project(project, query))  # `list` makes this much faster than without!
     rows.pop(0)  # header
 
     if not rows:
@@ -318,11 +321,16 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
 
     # build and save viz_dict via a nested groupby() to fill viz_dict. recall query csv output columns:
     #  model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+    target_name_to_obj = {target.name: target for target in targets}
     rows.sort(key=lambda _: (_[0], _[1], _[4]))  # sort for groupby(): model, timezero, target
     viz_dict = defaultdict(lambda: defaultdict(list))  # dict for JSON output. filled next
     for model, tz_target_grouper in itertools.groupby(rows, key=lambda _: _[0]):
         for (timezero, target), quantile_grouper in itertools.groupby(tz_target_grouper, key=lambda _: (_[1], _[4])):
-            target_end_date = target_tz_to_target_end_date[(target, timezero)]  # YYYY_MM_DD_DATE_FORMAT
+            timezero_date = datetime.datetime.strptime(timezero, YYYY_MM_DD_DATE_FORMAT).date()
+            target_obj = target_name_to_obj[target]
+            rdt = reference_date_type_for_id(target_obj.reference_date_type)
+            _, target_end_date = rdt.calc_fcn(target_obj.numeric_horizon, timezero_date)  # _ = reference_date
+            target_end_date = target_end_date.strftime(YYYY_MM_DD_DATE_FORMAT)
 
             if target_end_date in viz_dict[model]['target_end_date']:  # todo xx correct? think!
                 logger.error(f"target_end_date already in viz_dict: {target_end_date!r}")
@@ -337,6 +345,16 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
                 viz_dict[model][quantile_key].append(value)
 
     return viz_dict
+
+
+def _ref_date_to_target_tzs(targets, timezeros):
+    ref_date_to_target_tzs = defaultdict(list)  # ref_date -> (target_name, timezero_date): datetime.date -> (str, str)
+    for target, timezero in itertools.product(targets, timezeros):  # NB: slow
+        rdt = reference_date_type_for_id(target.reference_date_type)
+        calc_reference_date, target_end_date = rdt.calc_fcn(target.numeric_horizon, timezero.timezero_date)
+        target_timezero_tuple = (target.name, timezero.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT))
+        ref_date_to_target_tzs[calc_reference_date].append(target_timezero_tuple)
+    return ref_date_to_target_tzs
 
 
 #
@@ -436,3 +454,75 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
 
     # done
     return errors
+
+
+#
+# target/timezero caching functions
+#
+
+class VizAvailRefDatesCache:
+    """
+    Implements caching of `viz_available_reference_dates()` using AWS S3. Usage:
+    - create an instance, passing it a Project
+    - call `update_cache()` to compute and cache the cached_value (available_reference_dates)
+    - call `cached_data()` to retrieve the cached_value from S3
+    - refresh the cache via `update_cache()`
+    - test whether the cached
+    """
+
+
+    def __init__(self, project):
+        self.project = project
+
+
+    def __repr__(self):
+        return str((self.pk))
+
+
+    def __str__(self):  # todo
+        return basic_str(self)
+
+
+    @property
+    def pk(self):  # self.pk used by `utils.cloud_file._folder_name_for_object_()`
+        return self.project.pk
+
+
+    def cached_data(self):
+        if self.is_cached():
+            with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
+                download_file(self, cloud_file_fp)
+                cloud_file_fp.seek(0)  # yes you have to do this!
+                return json.load(cloud_file_fp)
+        else:  # NB: no fallback
+            return None
+
+
+    def clear_cache(self):
+        delete_file(self)
+
+
+    def is_cached(self):
+        # returns same as `utils.cloud_file.is_file_exists()
+        return is_file_exists(self)
+
+
+    def update_cache(self):
+        self.clear_cache()
+
+        # from utils.project_queries._query_worker():
+        with io.BytesIO() as bytes_io:
+            text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
+            logger.info(f"update_cache(): computing cached_value")
+            cached_value = viz_available_reference_dates(self.project)
+            json.dump(cached_value, text_io_wrapper)
+            text_io_wrapper.flush()
+            bytes_io.seek(0)
+            try:
+                logger.info(f"update_cache(): calling upload_file(). "
+                            f"s3_bucket_name={_s3_bucket_name_for_object(self)!r}")
+                upload_file(self, bytes_io)
+                logger.error(f"update_cache(): upload_file succeeded")
+            except botocore.exceptions.ClientError as ce:
+                logger.error(f"update_cache(): upload_file failed: {ce!r}")
+            return cached_value

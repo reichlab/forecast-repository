@@ -2,6 +2,7 @@ import csv
 import io
 import json
 import statistics
+import timeit
 from itertools import groupby
 
 import dateutil
@@ -83,6 +84,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
     :param max_num_rows: the number of rows at which this function raises a RuntimeError
     :return: a list of CSV rows including the header
     """
+    start_time = timeit.default_timer()
     logger.debug(f"query_forecasts_for_project(): entered. project={project}, query={query}")
 
     # validate query
@@ -107,6 +109,8 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
         yield from _query_forecasts_for_project_no_type_convert(
             project, query, max_num_rows, model_ids, unit_ids, target_ids, timezero_ids, type_ints, as_of,
             forecast_model_id_to_obj, timezero_id_to_obj, unit_id_to_obj, target_id_to_obj, timezero_to_season_name)
+    delta_secs = timeit.default_timer() - start_time
+    logger.debug(f"query_forecasts_for_project(): done. delta_secs={delta_secs}, project={project}, query={query}")
 
 
 #
@@ -812,6 +816,7 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
     :return: a list of CSV rows including the header
     """
     # validate query
+    start_time = timeit.default_timer()
     logger.debug(f"query_truth_for_project(): 1/3 validating query. project={project}, query={query}")
     error_messages, (unit_ids, target_ids, timezero_ids, as_of) = validate_truth_query(project, query)
     if error_messages:
@@ -848,7 +853,9 @@ def query_truth_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):
             yield [tz_date, unit_id_to_obj[unit_id].abbreviation, target_id_to_obj[target_id].name, pred_data['value']]
 
     # done
-    logger.debug(f"query_truth_for_project(): 3/3 done. num_rows={num_rows}, query={query}, project={project}")
+    delta_secs = timeit.default_timer() - start_time
+    logger.debug(f"query_truth_for_project(): 3/3 done. delta_secs={delta_secs}, num_rows={num_rows}, query={query}, "
+                 f"project={project}")
 
 
 def validate_truth_query(project, query):

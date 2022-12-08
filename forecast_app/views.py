@@ -495,7 +495,7 @@ def _viz_options_from_project(project):
     :return: a viz_options dict based on project's viz_options
     """
     from utils.visualization import validate_project_viz_options, viz_target_variables, viz_units, \
-        viz_available_reference_dates, viz_model_names  # avoid circular imports
+        viz_available_reference_dates, viz_model_names, VizAvailRefDatesCache  # avoid circular imports
 
 
     viz_options = project.viz_options  # might be None
@@ -511,7 +511,12 @@ def _viz_options_from_project(project):
     # viz_options is valid
     target_variables = viz_target_variables(project)
     units = viz_units(project)
-    available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
+
+    cache = VizAvailRefDatesCache(project)
+    if cache.is_cached()[0]:
+        available_as_ofs = cache.cached_data()  # S3 JSON file
+    else:  # slow fallback
+        available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
 
     first_models = project.viz_options['models_at_top']
     model_names = first_models + [model_name for model_name in sorted(viz_model_names(project))
