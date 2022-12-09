@@ -40,8 +40,8 @@ class PredictionData(models.Model):
     - None of the values are transformed in any way. For example, 'family' is not changed to an int.
     - This field is the data that each PredictionElement.data_hash is calculated on.
     """
-    pred_ele = models.ForeignKey('PredictionElement', related_name='pred_data', on_delete=models.CASCADE,
-                                 primary_key=True)
+    pred_ele = models.OneToOneField('PredictionElement', related_name='pred_data', on_delete=models.CASCADE,
+                                    primary_key=True)
     data = models.JSONField()
 
 

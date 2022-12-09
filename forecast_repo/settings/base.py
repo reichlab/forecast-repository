@@ -62,7 +62,6 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.SessionAuthentication',  # default
         # 'rest_framework.authentication.BasicAuthentication',  # ""
     ),
-    'PAGE_SIZE': 10
 }
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 2500  # editing Projects involves possibly many <input> fields dep. on # of TimeZeros

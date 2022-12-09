@@ -484,10 +484,9 @@ class TargetCat(models.Model):
     target = models.ForeignKey('Target', blank=True, null=True, related_name='cats', on_delete=models.CASCADE)
     cat_i = models.IntegerField(null=True)  # NULL if any others non-NULL
     cat_f = models.FloatField(null=True)  # ""
-    cat_f = models.FloatField(null=True)  # ""
     cat_t = models.TextField(null=True)  # ""
     cat_d = models.DateField(null=True)  # ""
-    cat_b = models.NullBooleanField(null=True)  # ""
+    cat_b = models.BooleanField(null=True)  # ""
 
 
     def __repr__(self):
