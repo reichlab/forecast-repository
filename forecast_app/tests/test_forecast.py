@@ -187,7 +187,6 @@ class ForecastTestCase(TestCase):
 
         forecast2.delete()
         self.assertEqual(1, self.forecast_model.forecasts.count())  # back to one
-        self.assertEqual(0, forecast2.pred_eles.count())
 
 
     def test_forecast_for_time_zero(self):

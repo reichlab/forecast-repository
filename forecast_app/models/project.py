@@ -69,12 +69,13 @@ class Project(models.Model):
         """
         Validates my TimeZero.timezero_dates for uniqueness.
         """
-        found_timezero_dates = []
-        for timezero in self.timezeros.all():
-            if timezero.timezero_date not in found_timezero_dates:
-                found_timezero_dates.append(timezero.timezero_date)
-            else:
-                raise ValidationError("found duplicate TimeZero.timezero_date: {}".format(timezero.timezero_date))
+        if self.pk is not None:  # o/w: ValueError: 'Project' instance needs to have a primary key value before this relationship can be used.
+            found_timezero_dates = []
+            for timezero in self.timezeros.all():
+                if timezero.timezero_date not in found_timezero_dates:
+                    found_timezero_dates.append(timezero.timezero_date)
+                else:
+                    raise ValidationError("found duplicate TimeZero.timezero_date: {}".format(timezero.timezero_date))
 
         # done
         super().save(*args, **kwargs)

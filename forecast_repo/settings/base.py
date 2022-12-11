@@ -13,7 +13,10 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 import logging
 import os
 
+import django
 from django.conf import settings
+from django.utils.encoding import smart_str
+from django.utils.translation import gettext
 
 
 #
@@ -320,3 +323,19 @@ if 'BAD_BOTS' in os.environ:
     BAD_BOTS = [robot_name for robot_name in bad_bots_value.strip().split(',') if robot_name]  # only non-empty names
 else:
     BAD_BOTS = []
+
+#
+# Django 4-related upgrade changes
+#
+
+# prevernt warnings like this:
+# forecast_app.Forecast: (models.W042) Auto-created primary key used when not defining a primary key type, by default 'django.db.models.AutoField'.
+# 	HINT: Configure the DEFAULT_AUTO_FIELD setting or the ForecastAppConfig.default_auto_field attribute to point to a subclass of AutoField, e.g. 'django.db.models.BigAutoField'.
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+# work around djangorestframework-jwt 1.11.0 (last version before Nov 8, 2022 retirement) import breakages due to
+# Django 4 depreciations. per
+# https://stackoverflow.com/questions/71589827/i-have-an-error-about-smart-text-after-installing-django-admin-charts
+
+django.utils.encoding.smart_text = smart_str
+django.utils.translation.ugettext = gettext

@@ -109,15 +109,15 @@ class Target(models.Model):
         """
         from utils.project import _target_dict_for_target, _validate_target_dict  # avoid circular imports
 
-
-        # validate by serializing to a dict so we can use _validate_target_dict(). note that Targets created without
-        # a name, description. request is required for TargetSerializer's 'id' field, but that field is ignored, so as
-        # a hack we use APIRequestFactory. the other way around this is to make the 'id' field dynamic, but that looks
-        # like it could get complicated - see rest_framework.relations.HyperlinkedIdentityField,
-        # rest_framework.serializers.ModelSerializer.build_url_field(), etc. so we deal with the hack for now :-)
-        request = APIRequestFactory().request()
-        target_dict = _target_dict_for_target(self, request)
-        _validate_target_dict(target_dict)  # raises RuntimeError if invalid
+        if self.pk is not None:
+            # validate by serializing to a dict so we can use _validate_target_dict(). note that Targets created without
+            # a name, description. request is required for TargetSerializer's 'id' field, but that field is ignored, so as
+            # a hack we use APIRequestFactory. the other way around this is to make the 'id' field dynamic, but that looks
+            # like it could get complicated - see rest_framework.relations.HyperlinkedIdentityField,
+            # rest_framework.serializers.ModelSerializer.build_url_field(), etc. so we deal with the hack for now :-)
+            request = APIRequestFactory().request()
+            target_dict = _target_dict_for_target(self, request)
+            _validate_target_dict(target_dict)  # raises RuntimeError if invalid
 
         # done
         super().save(*args, **kwargs)
