@@ -1,22 +1,18 @@
 import datetime
-import io
 import itertools
-import json
 import logging
-import tempfile
 from collections import defaultdict
 
-import botocore
+from django.core.cache import cache
 from django.db import models
 from django.utils.text import get_valid_filename
 
 from forecast_app.models import Target
 from forecast_app.models.target import reference_date_type_for_id
 from forecast_app.views import ProjectDetailView
-from utils.cloud_file import delete_file, is_file_exists, download_file, upload_file, _s3_bucket_name_for_object
 from utils.project import group_targets, _group_name_for_target
 from utils.project_queries import query_forecasts_for_project, query_truth_for_project
-from utils.utilities import YYYY_MM_DD_DATE_FORMAT, basic_str
+from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
 logger = logging.getLogger(__name__)
@@ -457,72 +453,128 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
 
 
 #
-# target/timezero caching functions
+# viz caching utility functions
 #
 
-class VizAvailRefDatesCache:
+def _viz_cache_keys(project):
     """
-    Implements caching of `viz_available_reference_dates()` using AWS S3. Usage:
-    - create an instance, passing it a Project
-    - call `update_cache()` to compute and cache the cached_value (available_reference_dates)
-    - call `cached_data()` to retrieve the cached_value from S3
-    - refresh the cache via `update_cache()`
-    - test whether the cached
+    Note: Only works for this 'BACKEND': 'django.core.cache.backends.redis.RedisCache'
+
+    :param project: a Project
+    :return: ALL (Redis-based) cache keys for `project`, including available_reference_dates and viz data.
     """
+    # example keys:
+    #   ":1:viz:avail_ref_dates:44"
+    #   ":1:viz:data:44:0|week_ahead_incident_deaths|US|2022-11-12"
+    #   ":1:viz:data:44:1|week_ahead_incident_deaths|US|2022-11-12"
+
+    # We use `make_key()` to help get the final Django key prefix - https://docs.djangoproject.com/en/4.1/topics/cache/#cache-key-transformation .
+    # This factors in for us the settings KEY_FUNCTION, VERSION, and KEY_PREFIX.
+    dj_key_prefix = cache.make_key('')  # the default is ':1:'
+    all_keys_query = f"{dj_key_prefix}*{project.pk}*"
+    keys = cache._cache.get_client().keys(all_keys_query)  # binary, e.g., b':1:viz:avail_ref_dates:44'
+
+    # convert binary keys to strings and then strip off the Django prefix - decode is OK b/c Django cache uses str keys
+    return [key.decode()[len(dj_key_prefix):] for key in keys]
 
 
-    def __init__(self, project):
-        self.project = project
+def viz_cache_delete_all(project):
+    """
+    Deletes ALL cached viz data related to `project`.
+
+    :param project: a Project
+    """
+    keys = _viz_cache_keys(project)
+    if keys:
+        cache.delete_many(keys)
 
 
-    def __repr__(self):
-        return str((self.pk))
+#
+# viz caching functions: viz_available_reference_dates()
+#
+
+VIZ_CACHE_TIMEOUT_AVAIL_REF_DATES = 14_400  # 4 hours (4 hours * 60 min/hr * 60 sec/min)  # todo xx save in env var?
 
 
-    def __str__(self):  # todo
-        return basic_str(self)
+def _viz_cache_key_avail_ref_dates(project):
+    """
+    NB: Django's cache framework adds prefixes to keys. For example, for project 44 this function returns
+    "viz:avail_ref_dates:44" which Django translates to ":1:viz:avail_ref_dates:44" in Redis. See:
+    https://docs.djangoproject.com/en/4.1/topics/cache/#cache-key-transformation
+      https://docs.djangoproject.com/en/4.1/ref/settings/#std-setting-CACHES-KEY_PREFIX
+      https://docs.djangoproject.com/en/4.1/ref/settings/#std-setting-CACHES-VERSION
+
+    :param project: a Project
+    :return: `viz_cache_avail_ref_dates()` cache key to use for args
+    """
+    return f"viz:avail_ref_dates:{project.pk}"  # note our convention of using colons for key "namespace"
 
 
-    @property
-    def pk(self):  # self.pk used by `utils.cloud_file._folder_name_for_object_()`
-        return self.project.pk
+def viz_cache_avail_ref_dates(project):
+    """
+    Implements caching of `viz_available_reference_dates()` using Django's cache framework.
+
+    :param project: the Project to call `viz_available_reference_dates()` on
+    :return: `viz_available_reference_dates()` result, either from the cache (if present) or freshly-computed
+    """
+    viz_cache_key = _viz_cache_key_avail_ref_dates(project)
+    available_as_ofs = cache.get(viz_cache_key)
+    if available_as_ofs is None:
+        logger.info(f"viz_cache_avail_ref_dates(): cache miss. computing: {viz_cache_key!r}")
+        available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
+        cache.set(viz_cache_key, available_as_ofs, VIZ_CACHE_TIMEOUT_AVAIL_REF_DATES)
+        logger.info(f"viz_cache_avail_ref_dates(): cache miss. done: {viz_cache_key!r}")
+        return available_as_ofs
+    else:
+        logger.info(f"viz_cache_avail_ref_dates(): cache hit: {viz_cache_key!r}")
+        return available_as_ofs
 
 
-    def cached_data(self):
-        if self.is_cached():
-            with tempfile.TemporaryFile() as cloud_file_fp:  # <class '_io.BufferedRandom'>
-                download_file(self, cloud_file_fp)
-                cloud_file_fp.seek(0)  # yes you have to do this!
-                return json.load(cloud_file_fp)
-        else:  # NB: no fallback
-            return None
+def viz_cache_avail_ref_dates_delete(project):
+    """
+    Deletes the `viz_available_reference_dates()` cache entry for `project`.
+
+    :param project: a Project
+    :return True if the key was successfully deleted, False otherwise
+    """
+    return cache.delete(_viz_cache_key_avail_ref_dates(project))
 
 
-    def clear_cache(self):
-        delete_file(self)
+#
+# viz caching functions: viz_data()
+#
+
+VIZ_CACHE_TIMEOUT_DATA = 14_400  # 4 hours (4 hours * 60 min/hr * 60 sec/min)  # todo xx save in env var?
 
 
-    def is_cached(self):
-        # returns same as `utils.cloud_file.is_file_exists()
-        return is_file_exists(self)
+def _viz_cache_key_data(project, is_forecast, target_key, unit_abbrev, reference_date):
+    """
+    :param project: a Project
+    :return: `viz_data()` cache key to use for args
+    """
+    # note our convention of using colons for key "namespace":
+    return f"viz:data:{project.pk}:{'1' if is_forecast else '0'}|{target_key}|{unit_abbrev}|{reference_date}"
 
 
-    def update_cache(self):
-        self.clear_cache()
+def viz_cache_data(project, is_forecast, target_key, unit_abbrev, reference_date):
+    """
+    Implements caching of `viz_data()` using Django's cache framework.
 
-        # from utils.project_queries._query_worker():
-        with io.BytesIO() as bytes_io:
-            text_io_wrapper = io.TextIOWrapper(bytes_io, 'utf-8', newline='')
-            logger.info(f"update_cache(): computing cached_value")
-            cached_value = viz_available_reference_dates(self.project)
-            json.dump(cached_value, text_io_wrapper)
-            text_io_wrapper.flush()
-            bytes_io.seek(0)
-            try:
-                logger.info(f"update_cache(): calling upload_file(). "
-                            f"s3_bucket_name={_s3_bucket_name_for_object(self)!r}")
-                upload_file(self, bytes_io)
-                logger.error(f"update_cache(): upload_file succeeded")
-            except botocore.exceptions.ClientError as ce:
-                logger.error(f"update_cache(): upload_file failed: {ce!r}")
-            return cached_value
+    :param project: the Project to call `viz_data()` on
+    :param is_forecast: as passed to `viz_data()`
+    :param target_key: ""
+    :param unit_abbrev: ""
+    :param reference_date: ""
+    :return: `viz_data()` result, either from the cache (if present) or freshly-computed
+    """
+    viz_cache_key = _viz_cache_key_data(project, is_forecast, target_key, unit_abbrev, reference_date)
+    data = cache.get(viz_cache_key)
+    if data is None:
+        logger.info(f"viz_cache_data(): cache miss. computing: {viz_cache_key!r}")
+        data = viz_data(project, is_forecast, target_key, unit_abbrev, reference_date)
+        cache.set(viz_cache_key, dict(data), VIZ_CACHE_TIMEOUT_DATA)  # defaultdict -> dict. o/w can't pickle
+        logger.info(f"viz_cache_data(): cache miss. done: {viz_cache_key!r}")
+        return data
+    else:
+        logger.info(f"viz_cache_data(): cache hit: {viz_cache_key!r}")
+        return data

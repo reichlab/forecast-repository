@@ -9,7 +9,7 @@ import django
 django.setup()
 
 from forecast_app.models import Project
-from utils.visualization import VizAvailRefDatesCache
+from utils.visualization import viz_cache_avail_ref_dates, viz_cache_avail_ref_dates_delete
 
 
 logger = logging.getLogger(__name__)
@@ -22,15 +22,10 @@ def update_viz_cache_app():
     """
     for project in Project.objects.all():
         logger.info(f"update_viz_cache_app(): entered. project={project}")
-
         start_time = timeit.default_timer()
-        cache = VizAvailRefDatesCache(project)
-
-        logger.info(f"update_viz_cache_app(): calling update_cache()")
-        cached_data = cache.update_cache()
-
-        logger.info(f"update_viz_cache_app(): done. delta_secs={timeit.default_timer() - start_time}, "
-                    f"{cache.is_cached()}, {cached_data.keys()}")
+        viz_cache_avail_ref_dates_delete(project)
+        viz_cache_avail_ref_dates(project)  # computes if cache miss
+        logger.info(f"update_viz_cache_app(): done. delta_secs={timeit.default_timer() - start_time}")
 
 
 if __name__ == '__main__':

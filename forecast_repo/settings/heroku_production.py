@@ -68,6 +68,17 @@ RQ_QUEUES = {
 }
 
 #
+# ---- redis cache ----
+#
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': redis_url,
+    }
+}
+
+#
 # ---- other config ----
 #
 

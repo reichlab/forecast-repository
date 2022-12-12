@@ -37,6 +37,7 @@ from utils.project import create_project_from_json, config_dict_from_project, la
 from utils.project_diff import execute_project_config_diff, project_config_diff
 from utils.project_queries import _forecasts_query_worker, _truth_query_worker
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
+from utils.visualization import viz_cache_data
 
 
 logger = logging.getLogger(__name__)
@@ -1028,6 +1029,7 @@ def viz_data_api(request, pk):
                                       f"expected={expected_keys}, actual={actual_keys}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
-    is_forecast = request.query_params['is_forecast'] == 'true'
-    return JsonResponse(viz_data(project, is_forecast, request.query_params['target_key'],
-                                 request.query_params['unit_abbrev'], request.query_params['reference_date']))
+    # `viz_cache_data()` computes if cache miss:
+    return JsonResponse(viz_cache_data(project, request.query_params['is_forecast'] == 'true',
+                                       request.query_params['target_key'], request.query_params['unit_abbrev'],
+                                       request.query_params['reference_date']))

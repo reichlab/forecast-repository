@@ -45,6 +45,17 @@ RQ_QUEUES = {
 }
 
 #
+# ---- redis cache ----
+#
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://localhost:6379/0',
+    }
+}
+
+#
 # ---- djangorestframework-jwt config ----
 #
 
@@ -58,7 +69,6 @@ RQ_QUEUES = {
 #
 
 INSTALLED_APPS = ['whitenoise.runserver_nostatic'] + INSTALLED_APPS  # at top, before 'django.contrib.staticfiles'
-
 
 #
 # ---- other config ----
