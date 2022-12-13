@@ -556,7 +556,7 @@ def _viz_cache_key_data(project, is_forecast, target_key, unit_abbrev, reference
     return f"viz:data:{project.pk}:{'1' if is_forecast else '0'}|{target_key}|{unit_abbrev}|{reference_date}"
 
 
-def viz_cache_data(project, is_forecast, target_key, unit_abbrev, reference_date):
+def viz_cache_data(project, is_forecast, target_key, unit_abbrev, reference_date, force=False):
     """
     Implements caching of `viz_data()` using Django's cache framework.
 
@@ -565,15 +565,18 @@ def viz_cache_data(project, is_forecast, target_key, unit_abbrev, reference_date
     :param target_key: ""
     :param unit_abbrev: ""
     :param reference_date: ""
+    :param force: True cause `set()` to be called regardless of whether the passed combination is already cached. False
+        skips calling `set()` if cache exists
     :return: `viz_data()` result, either from the cache (if present) or freshly-computed
     """
     viz_cache_key = _viz_cache_key_data(project, is_forecast, target_key, unit_abbrev, reference_date)
     data = cache.get(viz_cache_key)
-    if data is None:
-        logger.info(f"viz_cache_data(): cache miss. computing: {viz_cache_key!r}")
+    if force or (data is None):
+        logger.info(f"viz_cache_data(): cache miss ({'m' if data is None else '_'}{'f' if force else '_'}): "
+                    f"{viz_cache_key!r}")
         data = viz_data(project, is_forecast, target_key, unit_abbrev, reference_date)
         cache.set(viz_cache_key, dict(data), VIZ_CACHE_TIMEOUT_DATA)  # defaultdict -> dict. o/w can't pickle
-        logger.info(f"viz_cache_data(): cache miss. done: {viz_cache_key!r}")
+        logger.info(f"viz_cache_data(): caching done: {viz_cache_key!r}")
         return data
     else:
         logger.info(f"viz_cache_data(): cache hit: {viz_cache_key!r}")
