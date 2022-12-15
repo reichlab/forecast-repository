@@ -217,8 +217,6 @@ def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
         return {}  # no truth data
 
     date_y_pairs.update(zip(dates, ys))
-    logger.debug(f"_viz_data_truth(): found dates: {target_key!r}, {unit_abbrev!r}, {reference_date!r}: "
-                 f"{one_step_ahead_target.name!r}: {len(dates), len(ys)}")
     if not date_y_pairs:
         return {}
 
@@ -520,13 +518,10 @@ def viz_cache_avail_ref_dates(project):
     viz_cache_key = _viz_cache_key_avail_ref_dates(project)
     available_as_ofs = cache.get(viz_cache_key)
     if available_as_ofs is None:
-        logger.info(f"viz_cache_avail_ref_dates(): cache miss. computing: {viz_cache_key!r}")
         available_as_ofs = dict(viz_available_reference_dates(project))  # defaultdict -> dict
         cache.set(viz_cache_key, available_as_ofs, VIZ_CACHE_TIMEOUT_AVAIL_REF_DATES)
-        logger.info(f"viz_cache_avail_ref_dates(): cache miss. done: {viz_cache_key!r}")
         return available_as_ofs
     else:
-        logger.info(f"viz_cache_avail_ref_dates(): cache hit: {viz_cache_key!r}")
         return available_as_ofs
 
 
@@ -572,12 +567,8 @@ def viz_cache_data(project, is_forecast, target_key, unit_abbrev, reference_date
     viz_cache_key = _viz_cache_key_data(project, is_forecast, target_key, unit_abbrev, reference_date)
     data = cache.get(viz_cache_key)
     if force or (data is None):
-        logger.info(f"viz_cache_data(): cache miss ({'m' if data is None else '_'}{'f' if force else '_'}): "
-                    f"{viz_cache_key!r}")
         data = viz_data(project, is_forecast, target_key, unit_abbrev, reference_date)
         cache.set(viz_cache_key, dict(data), VIZ_CACHE_TIMEOUT_DATA)  # defaultdict -> dict. o/w can't pickle
-        logger.info(f"viz_cache_data(): caching done: {viz_cache_key!r}")
         return data
     else:
-        logger.info(f"viz_cache_data(): cache hit: {viz_cache_key!r}")
         return data

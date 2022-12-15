@@ -35,7 +35,6 @@ def update_viz_cache_app():
             if any(map(lambda _: _ == '', [target_var, unit, as_of])):
                 continue
 
-            logger.info(f"update_viz_cache_app(): caching combo: {(target_var, unit, as_of)}")
             for is_forecast in [False, True]:
                 viz_cache_data(project, is_forecast, target_var, unit, as_of, force=True)
 
