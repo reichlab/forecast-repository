@@ -489,6 +489,16 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
                                           f"forecast_model={forecast_model}"},
                                 status=status.HTTP_400_BAD_REQUEST)
 
+        # validate 'format'
+        if 'format' not in request.data:
+            return JsonResponse({'error': "No 'format' form field."}, status=status.HTTP_400_BAD_REQUEST)
+
+        data_format = request.data['format']
+        if data_format not in ['csv', 'json']:
+            return JsonResponse({'error': f"Bad 'format' value (was neither 'csv' nor 'json'): {data_format}."},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+
         # check for existing forecast for time_zero and the about-to-be-set issued_at by creating the new Forecast.
         # this will fail if there's already a version that matches the 'unique_version' constraint ('forecast_model',
         # 'time_zero', 'issued_at'). we pass the new Forecast's id through `_upload_file()` to
@@ -507,7 +517,7 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
 
         # upload to cloud and enqueue a job to process a new Job
         is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker, type=JOB_TYPE_UPLOAD_FORECAST,
-                                     forecast_pk=new_forecast.pk)
+                                     format=data_format, forecast_pk=new_forecast.pk)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'. "
                                           f"forecast_model={forecast_model}"},
@@ -775,8 +785,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
 
         # upload to cloud and enqueue a job to process a new Job
         data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-        is_error, job = _upload_file(request.user, data_file, _upload_truth_worker,
-                                     type=JOB_TYPE_UPLOAD_TRUTH,
+        is_error, job = _upload_file(request.user, data_file, _upload_truth_worker, type=JOB_TYPE_UPLOAD_TRUTH,
                                      project_pk=project.pk)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'"},

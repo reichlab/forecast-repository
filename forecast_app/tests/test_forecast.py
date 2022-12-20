@@ -1,3 +1,4 @@
+import csv
 import datetime
 import json
 import shutil
@@ -318,7 +319,7 @@ class ForecastTestCase(TestCase):
                 load_preds_mock.side_effect = exception
                 forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
                 job = Job.objects.create()
-                job.input_json = {'forecast_pk': forecast2.pk, 'filename': 'a name!'}
+                job.input_json = {'forecast_pk': forecast2.pk, 'filename': 'a name!', 'format': 'json'}
                 job.save()
 
                 job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
@@ -345,7 +346,7 @@ class ForecastTestCase(TestCase):
                 patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock:
             forecast2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=time_zero)
             job = Job.objects.create()
-            job.input_json = {'forecast_pk': forecast2.pk, 'filename': 'a name!'}
+            job.input_json = {'forecast_pk': forecast2.pk, 'filename': 'a name!', 'format': 'csv'}  # arbitrary format
             job.save()
 
             job_cloud_file_mock.return_value.__enter__.return_value = (job, None)  # 2-tuple: (job, cloud_file_fp)
@@ -382,11 +383,42 @@ class ForecastTestCase(TestCase):
                 patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
                 open('forecast_app/tests/predictions/docs-predictions.json') as cloud_file_fp:
             job = Job.objects.create()
-            job.input_json = {'forecast_pk': forecast.pk, 'filename': 'a name!'}
+            job.input_json = {'forecast_pk': forecast.pk, 'filename': 'a name!', 'format': 'json'}
             job.save()
             job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
             _upload_forecast_worker(job.pk)
             job.refresh_from_db()
+            load_preds_mock.assert_called_once()
+            cache_metatdata_mock.assert_called_once()
+            self.assertEqual(Job.SUCCESS, job.status)
+            self.assertEqual(job.input_json['forecast_pk'], job.output_json['forecast_pk'])
+
+
+    def test__upload_forecast_worker_csv_file_format(self):
+        # tests that `_upload_forecast_worker()` calls `json_io_dict_from_csv_rows()` when 'format' == 'csv', and that
+        # it passes the output to `load_predictions_from_json_io_dict()`
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
+        forecast.issued_at -= datetime.timedelta(days=1)  # older version avoids unique constraint errors
+        forecast.save()
+
+        with patch('forecast_app.models.job.job_cloud_file') as job_cloud_file_mock, \
+                patch('utils.forecast.load_predictions_from_json_io_dict') as load_preds_mock, \
+                patch('utils.forecast.cache_forecast_metadata') as cache_metatdata_mock, \
+                patch('utils.csv_io.json_io_dict_from_csv_rows') as dict_from_csv_mock, \
+                open('forecast_app/tests/predictions/docs-predictions.csv') as cloud_file_fp:
+            job = Job.objects.create()
+            job.input_json = {'forecast_pk': forecast.pk, 'filename': 'a name!', 'format': 'csv'}
+            job.save()
+            job_cloud_file_mock.return_value.__enter__.return_value = (job, cloud_file_fp)
+            _upload_forecast_worker(job.pk)
+            job.refresh_from_db()
+
+            # check dict_from_csv_mock
+            cloud_file_fp.seek(0)
+            csv_rows = list(csv.reader(cloud_file_fp))
+            dict_from_csv_mock.assert_called_once_with(csv_rows)
+
             load_preds_mock.assert_called_once()
             cache_metatdata_mock.assert_called_once()
             self.assertEqual(Job.SUCCESS, job.status)

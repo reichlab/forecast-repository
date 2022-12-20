@@ -4,10 +4,10 @@ from pathlib import Path
 
 from django.test import TestCase
 
-from forecast_app.models import Project, ForecastModel, TimeZero, Forecast, PredictionElement
+from forecast_app.models import Project, ForecastModel, TimeZero, Forecast
 from utils.cdc_io import json_io_dict_from_cdc_csv_file, make_cdc_units_and_targets, \
     _monday_date_from_ew_and_season_start_year
-from utils.forecast import load_predictions_from_json_io_dict, PRED_CLASS_INT_TO_NAME
+from utils.forecast import load_predictions_from_json_io_dict
 
 
 class CdcIOTestCase(TestCase):

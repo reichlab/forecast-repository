@@ -25,8 +25,12 @@ from utils.utilities import YYYY_MM_DD_DATE_FORMAT, batched_rows
 # query_forecasts_for_project()
 #
 
-FORECAST_CSV_HEADER = ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample',
-                       'quantile', 'family', 'param1', 'param2', 'param3']
+# for reading in CSV files to convert to a "JSON IO dict" (aka 'json_io_dict' by callers):
+CSV_HEADER = ['unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile', 'family', 'param1', 'param2',
+              'param3']
+
+# for outputting forecast query data as CSV:
+FORECAST_CSV_HEADER = ['model', 'timezero', 'season'] + CSV_HEADER
 
 
 def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS):

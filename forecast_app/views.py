@@ -1,3 +1,4 @@
+import csv
 import datetime
 import enum
 import json
@@ -1506,8 +1507,7 @@ def upload_truth(request, project_pk):
 
     # upload to cloud and enqueue a job to process a new Job
     data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
-    is_error, job = _upload_file(request.user, data_file, _upload_truth_worker,
-                                 type=JOB_TYPE_UPLOAD_TRUTH,
+    is_error, job = _upload_file(request.user, data_file, _upload_truth_worker, type=JOB_TYPE_UPLOAD_TRUTH,
                                  project_pk=project_pk)
     if is_error:
         return render(request, 'message.html',
@@ -1611,9 +1611,19 @@ def upload_forecast(request, forecast_model_pk, timezero_pk):
                                           f"file_name='{data_file.name}', "
                                           f"forecast_model={forecast_model}. error={ie}"})
 
-    # upload to cloud and enqueue a job to process a new Job
+    # upload to cloud and enqueue a job to process a new Job. NB: we determine the upload format based on
+    # data_file.content_type, which should be set by the browser
+    if data_file.content_type == 'text/csv':
+        data_format = 'csv'
+    elif data_file.content_type == 'application/json':
+        data_format = 'json'
+    else:
+        return render(request, 'message.html',
+                      context={'title': "Error uploading file.",
+                               'message': f"Invalid file: content_type was neither 'text/csv' nor 'application/json': "
+                                          f"{data_file.content_type!r}."})
     is_error, job = _upload_file(request.user, data_file, _upload_forecast_worker, type=JOB_TYPE_UPLOAD_FORECAST,
-                                 forecast_pk=new_forecast.pk)
+                                 format=data_format, forecast_pk=new_forecast.pk)
     if is_error:
         return render(request, 'message.html',
                       context={'title': "Error uploading file.",
@@ -1628,7 +1638,7 @@ def _upload_forecast_worker(job_pk):
     An _upload_file() enqueue() function that loads a forecast data file. Called by upload_forecast(). It is passed an
     empty Forecast's id to load into. Deletes that forecast if there were errors loading the data.
 
-    - Expected Job.input_json key(s): 'forecast_pk', 'filename' - passed to _upload_file()
+    - Required Job.input_json key(s) (passed to `_upload_file()`): 'forecast_pk', 'filename', 'format'
     - Saves Job.output_json key(s): 'forecast_pk' (passed through from input_json for API caller convenience)
 
     :param job_pk: the Job's pk
@@ -1636,6 +1646,7 @@ def _upload_forecast_worker(job_pk):
     # imported here so that tests can patch via mock:
     from forecast_app.models.job import job_cloud_file
     from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
+    from utils.csv_io import json_io_dict_from_csv_rows
 
 
     with job_cloud_file(job_pk) as (job, cloud_file_fp):
@@ -1651,22 +1662,37 @@ def _upload_forecast_worker(job_pk):
             job.save()
             logger.error(job.failure_message + f". job={job}")
             return
+        elif 'format' not in job.input_json:
+            job.status = Job.FAILED
+            job.failure_message = f"_upload_forecast_worker(): error: missing 'format'"
+            job.save()
+            logger.error(job.failure_message + f". job={job}")
+            return
 
         forecast_pk = job.input_json['forecast_pk']
         forecast = Forecast.objects.filter(pk=forecast_pk).first()  # None if doesn't exist
         if not forecast:
-            logger.error(f"_upload_forecast_worker(): error: no Forecast found for forecast_pk={forecast_pk}. "
-                         f"job={job}")
+            job.status = Job.FAILED
+            job.failure_message = f"_upload_forecast_worker(): error: no Forecast found for forecast_pk={forecast_pk}. "
+            f"job={job}"
+            job.save()
+            logger.error(job.failure_message + f". job={job}")
             return
 
         # set source here rather than in caller b/c we now have filename via `_upload_file()`
         forecast.source = job.input_json['filename']
         forecast.save()
+
+        # finally, load the predictions
         try:
             with transaction.atomic():
                 logger.debug(f"_upload_forecast_worker(): 1/4 loading json_io_dict. forecast={forecast}. job={job}")
-                notes = job.input_json.get('notes', '')
-                json_io_dict = json.load(cloud_file_fp)
+                # set json_io_dict based on data format
+                if job.input_json['format'] == 'csv':
+                    csv_rows = list(csv.reader(cloud_file_fp))
+                    json_io_dict = json_io_dict_from_csv_rows(csv_rows)
+                else:  # 'json' format
+                    json_io_dict = json.load(cloud_file_fp)
 
                 logger.debug(f"_upload_forecast_worker(): 2/4 loading predictions. job={job}")
                 load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)  # transaction.atomic

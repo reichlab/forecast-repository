@@ -1294,6 +1294,7 @@ class ViewsTestCase(TestCase):
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': 'x20171202',
+                'format': 'csv',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
             self.assertIn("Badly formatted 'timezero_date' form field", json_response.json()['error'])
@@ -1303,9 +1304,29 @@ class ViewsTestCase(TestCase):
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': '2017-12-03',  # NOT public_tz1 or public_tz2
+                'format': 'csv',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
             self.assertIn("TimeZero not found for 'timezero_date' form field", json_response.json()['error'])
+
+            # case: no 'format'
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': f'JWT {jwt_token}',
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertIn("No 'format' form field", json_response.json()['error'])
+
+            # case: bad 'format'
+            json_response = self.client.post(upload_forecast_url, {
+                'data_file': data_file,
+                'Authorization': f'JWT {jwt_token}',
+                'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                'format': 'bad format',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertIn("Bad 'format' value", json_response.json()['error'])
 
             # case: blue sky: _upload_file() -> NOT is_error
             upload_file_mock.return_value = False, Job.objects.create()  # is_error, job
@@ -1313,6 +1334,7 @@ class ViewsTestCase(TestCase):
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                'format': 'csv',
             }, format='multipart')
             response_dict = json.loads(json_response.content)
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
@@ -1331,6 +1353,7 @@ class ViewsTestCase(TestCase):
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': self.public_tz2.timezero_date.strftime(YYYY_MM_DD_DATE_FORMAT),
+                'format': 'csv',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
             self.assertIn("There was an error uploading the file", json_response.json()['error'])
@@ -1342,6 +1365,7 @@ class ViewsTestCase(TestCase):
                 'data_file': data_file,
                 'Authorization': f'JWT {jwt_token}',
                 'timezero_date': new_timezero_date,  # doesn't exist
+                'format': 'csv',
             }, format='multipart')
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
             self.assertIn("Badly formatted 'timezero_date' form field", json_response.json()['error'])
