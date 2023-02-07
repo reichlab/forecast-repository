@@ -1494,7 +1494,7 @@ def truth_detail(request, project_pk):
 
 def upload_truth(request, project_pk):
     """
-    Uploads the passed data into a the project's truth, replacing any existing truth data.
+    Uploads the passed data into the project's truth, replacing any existing truth data.
     Authorization: The logged-in user must be a superuser or the Project's owner.
     """
     project = get_object_or_404(Project, pk=project_pk)
@@ -1558,7 +1558,7 @@ def _upload_truth_worker(job_pk):
 
             filename = job.input_json['filename']
             num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
-                load_truth_data(project, cloud_file_fp, file_name=filename)
+                load_truth_data(project, cloud_file_fp, file_name=filename, issued_at=job.input_json.get('issued_at'))
             job.output_json = {'num_rows': num_rows, 'num_forecasts': len(forecasts),
                                'missing_time_zeros': missing_time_zeros, 'missing_units': missing_units,
                                'missing_targets': missing_targets}

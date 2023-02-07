@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urlencode
 
+import django
 from botocore.exceptions import BotoCoreError
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -1230,6 +1231,18 @@ class ViewsTestCase(TestCase):
             self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
             self.assertEqual({'error': "No 'data_file' form field."}, json_response.json())
 
+            # case: bad 'issued_at'
+            jwt_token = self._authenticate_jwt_user(self.po_user, self.po_user_password)
+            json_response = self.client.post(upload_truth_url, {
+                'data_file': data_file,
+                'issued_at': 'bad issued_at',
+                'Authorization': f'JWT {jwt_token}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
+            self.assertEqual({'error': "issued_at was not a recognizable datetime format: 'bad issued_at': "
+                                       "Unknown string format: bad issued_at"},
+                             json_response.json())
+
             # case: _upload_file() -> is_error
             upload_file_mock.return_value = True, None  # is_error, job
             json_response = self.client.post(upload_truth_url, {
@@ -1249,6 +1262,20 @@ class ViewsTestCase(TestCase):
             }, format='multipart')
             self.assertEqual(status.HTTP_200_OK, json_response.status_code)
             self.assertEqual(job_return_value.id, json_response.json()['id'])
+
+            # case: blue sky: passing optional issued_at -> it's passed as kwarg to _upload_file()
+            job_return_value = Job.objects.create()
+            upload_file_mock.reset_mock()
+            upload_file_mock.return_value = False, job_return_value  # is_error, job
+            issued_at = '2023-02-07T19:42:44.647755+00:00'  # NB: includes required timezone info!
+            json_response = self.client.post(upload_truth_url, {
+                'data_file': data_file,
+                'issued_at': issued_at,
+                'Authorization': f'JWT {jwt_token}',
+            }, format='multipart')
+            self.assertEqual(status.HTTP_200_OK, json_response.status_code)
+            self.assertTrue('issued_at' in upload_file_mock.call_args.kwargs)
+            self.assertEqual(upload_file_mock.call_args.kwargs['issued_at'], issued_at)
 
 
     def test_api_upload_forecast(self):
@@ -1573,8 +1600,7 @@ class ViewsTestCase(TestCase):
             'Authorization': f'JWT {self._authenticate_jwt_user(self.po_user, self.po_user_password)}',
         }, format='json')
         self.assertEqual(status.HTTP_400_BAD_REQUEST, json_response.status_code)
-        self.assertEqual({'error': "'issued_at' was not in YYYY-MM-DD format: '20201110'"},
-                         json_response.json())
+        self.assertEqual({'error': "'issued_at' was not in ISO format: '20201110'"}, json_response.json())
 
         # case: set issued_at: blue sky
         old_issued_at = forecast.issued_at

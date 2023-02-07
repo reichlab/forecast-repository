@@ -4,6 +4,7 @@ import logging
 import tempfile
 from wsgiref.util import FileWrapper
 
+import dateutil
 import django
 import django_rq
 from boto3.exceptions import Boto3Error
@@ -498,7 +499,6 @@ class ForecastModelForecastList(UserPassesTestMixin, generics.ListCreateAPIView)
             return JsonResponse({'error': f"Bad 'format' value (was neither 'csv' nor 'json'): {data_format}."},
                                 status=status.HTTP_400_BAD_REQUEST)
 
-
         # check for existing forecast for time_zero and the about-to-be-set issued_at by creating the new Forecast.
         # this will fail if there's already a version that matches the 'unique_version' constraint ('forecast_model',
         # 'time_zero', 'issued_at'). we pass the new Forecast's id through `_upload_file()` to
@@ -659,7 +659,7 @@ class ForecastDetail(UserPassesTestMixin, generics.RetrieveUpdateDestroyAPIView)
                 forecast.save()
                 return Response(status=status.HTTP_200_OK)
             except ValueError:
-                return JsonResponse({'error': f"'issued_at' was not in YYYY-MM-DD format: {issued_at_str!r}"},
+                return JsonResponse({'error': f"'issued_at' was not in ISO format: {issued_at_str!r}"},
                                     status=status.HTTP_400_BAD_REQUEST)
         else:
             return JsonResponse({'error': f"Could not find supported field in data: {list(request.data.keys())}. "
@@ -777,16 +777,30 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
         if 'data_file' not in request.data:
             return JsonResponse({'error': "No 'data_file' form field."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # NB: if multiple files, just uses the first one:
+        # validate optional 'issued_at'. parse as_of using dateutil's flexible parser and then check for timezone info.
+        # error if none found
+        issued_at = request.data.get('issued_at')
+        if issued_at is not None:
+            try:
+                issued_at_dt = dateutil.parser.parse(issued_at)
+                if issued_at_dt.tzinfo is None:
+                    return JsonResponse({'error': f"issued_at did not contain timezone info: {issued_at!r}"},
+                        status=status.HTTP_400_BAD_REQUEST)
+            except dateutil.parser._parser.ParserError as pe:
+                return JsonResponse({'error': f"issued_at was not a recognizable datetime format: {issued_at!r}: {pe}"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+        # NB: if multiple files, just use the first one:
         data_file = request.data['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
         if data_file.size > MAX_UPLOAD_FILE_SIZE:
-            message = "File was too large to upload. size={}, max={}.".format(data_file.size, MAX_UPLOAD_FILE_SIZE)
-            return JsonResponse({'error': message}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'error': f"File was too large to upload. size={data_file.size}, "
+                                          f"max={MAX_UPLOAD_FILE_SIZE}."},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         # upload to cloud and enqueue a job to process a new Job
         data_file = request.FILES['data_file']  # UploadedFile (e.g., InMemoryUploadedFile or TemporaryUploadedFile)
         is_error, job = _upload_file(request.user, data_file, _upload_truth_worker, type=JOB_TYPE_UPLOAD_TRUTH,
-                                     project_pk=project.pk)
+                                     project_pk=project.pk, issued_at=issued_at)
         if is_error:
             return JsonResponse({'error': f"There was an error uploading the file. The error was: '{is_error}'"},
                                 status=status.HTTP_400_BAD_REQUEST)

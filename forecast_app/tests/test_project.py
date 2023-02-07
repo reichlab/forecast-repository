@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from unittest.mock import patch
 
+import django
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.test import TestCase
@@ -187,6 +188,22 @@ class ProjectTestCase(TestCase):
             self.assertEqual(2, len(batches))
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
+
+
+    def test_load_truth_data_issued_at(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)  # atomic
+        issued_at = django.utils.timezone.now() - datetime.timedelta(days=1)
+        load_truth_data(project, Path('forecast_app/tests/truth_data/docs-ground-truth.csv'),
+                        file_name='docs-ground-truth.csv', issued_at=issued_at.isoformat())
+        # test that all the oracle forecasts created for docs-ground-truth.csv have the same source and issued_at, and
+        # that all issued_at values match the one that was passed in
+        oracle_model = oracle_model_for_project(project)
+        forecasts = oracle_model.forecasts.all()
+        self.assertEqual(3, len(forecasts))
+        self.assertEqual(1, len(set([forecast.source for forecast in forecasts])))
+        self.assertEqual(1, len(set([forecast.issued_at for forecast in forecasts])))
+        self.assertEqual(issued_at, forecasts[0].issued_at)
 
 
     def test_truth_batches(self):

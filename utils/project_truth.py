@@ -4,6 +4,7 @@ import io
 import logging
 from collections import defaultdict
 
+import dateutil
 from django.db import transaction, connection
 
 from forecast_app.models import PredictionElement
@@ -130,7 +131,7 @@ TRUTH_CSV_HEADER = ['timezero', 'unit', 'target', 'value']
 
 
 @transaction.atomic
-def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_na_none=False):
+def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_na_none=False, issued_at=None):
     """
     Loads the data in truth_file_path (see below for file format docs), implementing our truth-as-forecasts approach
     where each group of values in the file with the same timezeros are loaded as PointData within a new Forecast
@@ -161,6 +162,9 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
         combination, OR an already-open file-like object
     :param file_name: name to use for the file
     :param is_convert_na_none: as passed to Target.is_value_compatible_with_target_type()
+    :param issued_at: optional datetime str to use for the uploaded truth forecasts' issued_at value (defaults to the
+        datetime at time of upload). the value must contain a timezone, and obey the constraints documented at
+        https://docs.zoltardata.com/forecastversions/#forecast-version-rules
     :return 2-tuple: (num_rows, forecasts)
     """
     logger.debug(f"load_truth_data(): entered. truth_file_path_or_fp={truth_file_path_or_fp}, "
@@ -176,11 +180,11 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
     # https://stackoverflow.com/questions/1661262/check-if-object-is-file-like-in-python
     if isinstance(truth_file_path_or_fp, io.IOBase):
         num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
-            _load_truth_data(project, oracle_model, truth_file_path_or_fp, file_name, is_convert_na_none)
+            _load_truth_data(project, oracle_model, truth_file_path_or_fp, file_name, is_convert_na_none, issued_at)
     else:
         with open(str(truth_file_path_or_fp)) as truth_file_fp:
             num_rows, forecasts, missing_time_zeros, missing_units, missing_targets = \
-                _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none)
+                _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none, issued_at)
 
     # done
     logger.debug(f"load_truth_data(): saving. num_rows: {num_rows}")
@@ -189,7 +193,7 @@ def load_truth_data(project, truth_file_path_or_fp, file_name=None, is_convert_n
 
 
 @transaction.atomic
-def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none):
+def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert_na_none, issued_at):
     from forecast_app.models import Forecast  # avoid circular imports
     from utils.forecast import load_predictions_from_json_io_dict  # ""
 
@@ -252,7 +256,8 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     # set all issued_ats to be the same - this avoids an edge case where midnight is spanned and some are a day later.
     # arbitrarily use the first forecast's issued_at
     if forecasts:
-        issued_at = forecasts[0].issued_at
+        # NB: parse() call matches issued_at validation in api_views.TruthDetail.post
+        issued_at = dateutil.parser.parse(issued_at) if issued_at is not None else forecasts[0].issued_at
         logger.debug(f"_load_truth_data(): setting issued_ats to {issued_at}. # forecasts={len(forecasts)}, "
                      f"# 100% dup data forecasts={len(forecasts_100pct_dup)}")
         for forecast in forecasts:
