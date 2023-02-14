@@ -144,12 +144,10 @@
                     <th>Visualization:</th>
                     <td>
                         {# viz link #}
-                        {% if user.is_authenticated and viz_options_valid %}
+                        {% if viz_options_valid %}
                             <a href="{% url 'project-viz' project.pk %}">Visualization</a>
-                        {% elif user.is_authenticated %}
-                            (Please configure options to view visualizations)
                         {% else %}
-                            (Please log in to view visualizations)
+                            (Please configure options to view visualizations)
                         {% endif %}
 
                         {# viz options link and status icon #}
