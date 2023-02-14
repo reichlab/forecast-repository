@@ -1044,7 +1044,7 @@ def viz_data_api(request, pk):
     _viz_data = viz_data  # so above import won't be optimized away :-)
 
     project = get_object_or_404(Project, pk=pk)
-    if (not request.user.is_authenticated) or not is_user_ok_view_project(request.user, project):
+    if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden()
 
     actual_keys = set(request.query_params.keys())

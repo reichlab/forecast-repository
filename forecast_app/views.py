@@ -479,7 +479,7 @@ def project_viz(request, project_pk):
     GET query parameters: none
     """
     project = get_object_or_404(Project, pk=project_pk)
-    if not (request.user.is_authenticated and is_user_ok_view_project(request.user, project)):
+    if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden(render(request, '403.html').content)
 
     return render(request, 'project_viz.html',

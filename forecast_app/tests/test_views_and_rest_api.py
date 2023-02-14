@@ -191,7 +191,7 @@ class ViewsTestCase(TestCase):
             (reverse('project-forecasts', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-explorer', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-explorer', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
-            (reverse('project-viz', args=[str(self.public_project.pk)]), self.ONLY_PO_MO_STAFF),
+            (reverse('project-viz', args=[str(self.public_project.pk)]), self.OK_ALL),
             (reverse('project-viz', args=[str(self.private_project.pk)]), self.ONLY_PO_MO),
             (reverse('project-viz-options-edit', args=[str(self.public_project.pk)]), self.ONLY_PO),
             (reverse('project-viz-options-edit', args=[str(self.private_project.pk)]), self.ONLY_PO),
@@ -599,7 +599,7 @@ class ViewsTestCase(TestCase):
             (reverse('api-target-detail', args=[target_1wk.pk]), self.ONLY_PO_MO_STAFF, {}),
             (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO_STAFF, {}),
 
-            (reverse('api-viz-data', args=[self.public_project.pk]), self.ONLY_PO_MO_STAFF,
+            (reverse('api-viz-data', args=[self.public_project.pk]), self.OK_ALL,
              {'is_forecast': True, 'target_key': '', 'unit_abbrev': '', 'reference_date': ''}),
 
             (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF, {}),
