@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e2e276f59b25262bb8d7d336779eabec42d0e76104face7f71780370bf8b3b54"
+            "sha256": "a287d25f5be3ac9ede70dd728d5559b95179e1344d869fcba8ae065ca1c59cb2"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -42,11 +42,11 @@
         },
         "botocore": {
             "hashes": [
-                "sha256:710864600818b80c865334e12af729923e2886cc760685c614c0eae9cbbfdd4d",
-                "sha256:9e14f8dba1252a03d0a7db7240dc48fa4a3ac470434a044b23c0001f648d6d4f"
+                "sha256:40406466f5c416b1f54bfbfc11aef90d783103f7ea77a1992dcaf1768ab04e12",
+                "sha256:783e7fa97bb5bf3759e4b333b8da2bcaffdb54828ea1d759b55329cc39003b98"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==1.29.63"
+            "version": "==1.29.71"
         },
         "brotli": {
             "hashes": [
@@ -290,11 +290,11 @@
         },
         "django": {
             "hashes": [
-                "sha256:bceb0fe1a386781af0788cae4108622756cd05e7775448deec04a71ddf87685d",
-                "sha256:c6fe7ebe7c017fe59f1029821dae0acb5a2ddcd6c9a0138fd20a8bfefac914bc"
+                "sha256:44f714b81c5f190d9d2ddad01a532fe502fa01c4cb8faf1d081f4264ed15dcd8",
+                "sha256:f2f431e75adc40039ace496ad3b9f17227022e8b11566f4b363da44c7e44761e"
             ],
             "index": "pypi",
-            "version": "==4.1.6"
+            "version": "==4.1.7"
         },
         "django-anymail": {
             "extras": [
@@ -700,11 +700,11 @@
         },
         "setuptools": {
             "hashes": [
-                "sha256:a7687c12b444eaac951ea87a9627c4f904ac757e7abdc5aac32833234af90378",
-                "sha256:e261cdf010c11a41cb5cb5f1bf3338a7433832029f559a6a7614bd42a967c300"
+                "sha256:95f00380ef2ffa41d9bba85d95b27689d923c93dfbafed4aecd7cf988a25e012",
+                "sha256:bb6d8e508de562768f2027902929f8523932fcd1fb784e6d573d2cafac995a48"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==67.1.0"
+            "version": "==67.3.2"
         },
         "six": {
             "hashes": [
