@@ -13,6 +13,7 @@ from botocore.exceptions import BotoCoreError
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
+from django.http import QueryDict
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
@@ -600,7 +601,10 @@ class ViewsTestCase(TestCase):
             (reverse('api-timezero-detail', args=[self.public_tz1.pk]), self.ONLY_PO_MO_STAFF, {}),
 
             (reverse('api-viz-data', args=[self.public_project.pk]), self.OK_ALL,
-             {'is_forecast': True, 'target_key': '', 'unit_abbrev': '', 'reference_date': ''}),
+             {'is_forecast': True, 'target_key': 'week_ahead_ili_percent', 'unit_abbrev': '',
+              'reference_date': '2016-12-31'}),
+            (reverse('api-viz-human-ensemble-model', args=[self.public_project.pk]), self.OK_ALL,
+             {'component_model': 'abbrev', 'target_key': 'week_ahead_ili_percent', 'reference_date': '2016-12-31'}),
 
             (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF, {}),
             (reverse('api-model-detail', args=[self.private_model.pk]), self.ONLY_PO_MO, {}),
@@ -1734,6 +1738,30 @@ class ViewsTestCase(TestCase):
         # blue sky
         response = self.client.get(url, data={'is_forecast': True, 'target_key': '', 'unit_abbrev': '',
                                               'reference_date': ''})
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
+
+
+    @patch('utils.visualization.viz_human_ensemble_model', return_value={})
+    def test_viz_human_ensemble_model_api_params(self, mock_viz_human_ensemble_model):
+        self._authenticate_jwt_user(self.po_user, self.po_user_password)
+        url = reverse('api-viz-human-ensemble-model', args=[self.public_project.pk])
+
+        # missing 'component_model' param
+        response = self.client.get(url, data={'target_key': '', 'reference_date': ''})
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
+        # extra param
+        response = self.client.get(url, data={'foo': 666, 'component_model': 'model1', 'target_key': '',
+                                              'reference_date': ''})
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
+        # blue sky. tests multiple 'component_model' values
+        query_dict = QueryDict(mutable=True)
+        query_dict.appendlist('component_model', 'model1')
+        query_dict.appendlist('component_model', 'model2')
+        query_dict.appendlist('target_key', '')
+        query_dict.appendlist('reference_date', '')
+        response = self.client.get(url, data=query_dict)
         self.assertEqual(status.HTTP_200_OK, response.status_code)
 
 

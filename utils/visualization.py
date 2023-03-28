@@ -11,7 +11,7 @@ from forecast_app.models import Target
 from forecast_app.models.target import reference_date_type_for_id
 from forecast_app.views import ProjectDetailView
 from utils.project import group_targets, _group_name_for_target
-from utils.project_queries import query_forecasts_for_project, query_truth_for_project
+from utils.project_queries import query_forecasts_for_project, query_truth_for_project, FORECAST_CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
 
@@ -197,7 +197,7 @@ def _viz_data_truth(project, target_key, unit_abbrev, reference_date):
     """
     target_key_to_targets = _target_key_to_targets(project)
     if target_key not in target_key_to_targets:
-        logger.error(f"target_key not found in target_key_to_targets: {target_key}. "
+        logger.error(f"target_key not found in target_key_to_targets: {target_key!r}. "
                      f"keys={list(target_key_to_targets.keys())}")
         return {}
 
@@ -287,7 +287,7 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
     """
     target_key_to_targets = _target_key_to_targets(project)
     if target_key not in target_key_to_targets:
-        logger.error(f"target_key not found in target_key_to_targets: {target_key}. "
+        logger.error(f"target_key not found in target_key_to_targets: {target_key!r}. "
                      f"keys={list(target_key_to_targets.keys())}")
         return {}
 
@@ -296,7 +296,7 @@ def _viz_data_forecasts(project, target_key, unit_abbrev, reference_date):
     timezeros = project.timezeros.all().order_by('timezero_date')
     ref_date_to_target_tzs = _ref_date_to_target_tzs(targets, timezeros)
     if reference_date not in ref_date_to_target_tzs:
-        logger.error(f"ref_date not found in ref_date_to_target_tzs: {reference_date}")
+        logger.error(f"ref_date not found in ref_date_to_target_tzs: {reference_date!r}")
         return {}
 
     # query forecasts
@@ -448,6 +448,106 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
 
     # done
     return errors
+
+
+#
+# viz_human_ensemble_model()
+#
+
+HUMAN_ENSEMBLE_MODEL_NAME = 'user'  # todo xx configurable?
+
+
+def viz_human_ensemble_model(project, component_models, target_key, reference_date):
+    """
+    Top-level human judgement ensemble model viz API endpoint that returns a CSV forecast for the passed args.
+
+    :param project: a Project
+    :param component_models: list of model names to build the ensemble from. see `viz_model_names()
+    :param target_key: which Targets to use. see `viz_key_for_target()`
+    :param reference_date: a string in 'YYYY-MM-DD' format as returned by `viz_available_reference_dates()`
+    :return: a list of CSV rows (lists) including the header - see `query_forecasts_for_project()`
+    """
+    logger.debug(f"viz_human_ensemble_model(): {project}, {component_models}, {target_key!r}, {reference_date!r}")
+
+    # validate args and convert inputs to zoltar data structures
+    reference_date = datetime.datetime.strptime(reference_date, YYYY_MM_DD_DATE_FORMAT).date()
+    valid_model_names = viz_model_names(project)
+    for model in component_models:
+        if model not in valid_model_names:
+            raise RuntimeError(f"invalid model name: {model!r}. valid model names: {valid_model_names}")
+
+    target_key_to_targets = _target_key_to_targets(project)
+    if target_key not in target_key_to_targets:
+        raise RuntimeError(f"target_key not found in target_key_to_targets: {target_key!r}. "
+                           f"keys={list(target_key_to_targets.keys())}")
+
+    targets = [target for target in target_key_to_targets[target_key] if target.numeric_horizon <= 4]
+    ref_date_to_target_tzs = _ref_date_to_target_tzs(targets, project.timezeros.all().order_by('timezero_date'))
+    if reference_date not in ref_date_to_target_tzs:
+        raise RuntimeError(f"ref_date not found in ref_date_to_target_tzs: {reference_date!r}. "
+                           f"ref_date_to_target_tzs={ref_date_to_target_tzs}")
+
+    # query forecasts. NB: we only query for quantile forecasts, not point or any other types
+    timezeros = sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))
+    query = {'models': component_models,
+             'targets': [target.name for target in targets],
+             'timezeros': timezeros,
+             'types': ['quantile']}
+
+    # recall query output columns:
+    #   model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, param2, param3.
+    # in our case, we don't care about the non-quantile columns (cat, sample, family, param1, param2, param3). nor do we
+    # need class b/c it's always 'quantile'
+    rows = list(query_forecasts_for_project(project, query))  # `list` makes this much faster than without!
+    rows.pop(0)  # header
+
+    # now that we have query rows, build three data structures to help processing. first two are based on using this
+    # 4-tuple as a key: (timezero, unit, target, quantile). NB: this approach is memory-intensive
+
+    # unique keys across all models:
+    tz_unit_targ_quants = set()  # (timezero, unit, target, quantile)
+
+    # maps: {model_name: {(timezero, unit, target, quantile): value}}:
+    model_to_tzutq_to_val = defaultdict(lambda: defaultdict(list))
+
+    # used for output. we assume season is the same for all timezeros:
+    tz_to_season = {}
+
+    for model, timezero, season, unit, target, _, value, _, _, _, quantile, _, _, _, _ in rows:
+        key = (timezero, unit, target, quantile)
+        season = '' if season is None else season
+        tz_unit_targ_quants.add(key)
+        model_to_tzutq_to_val[model][key] = value
+        if timezero not in tz_to_season:
+            tz_to_season[timezero] = season
+
+    # output one user forecast row for each key that's present in all models. we use the intermediate `user_rows` var
+    # to collect the varying row information, and then use it to generate the final full row with model, season, class,
+    # and all the empty non-quantile columns
+    user_rows = []  # (timezero, unit, target, quantile, value)
+    for key in sorted(list(tz_unit_targ_quants), key=lambda _: str(_)):
+        values = [model_to_tzutq_to_val[model][key]
+                  for model in component_models if key in model_to_tzutq_to_val[model]]
+        if len(values) != len(component_models):
+            continue  # skip this row b/c at least one model doesn't have this key
+
+        timezero, unit, target, quantile = key
+        value = sum(values) / len(values)  # mean
+        user_rows.append((timezero, unit, target, quantile, value))
+
+    # with open(f"/tmp/user_rows.csv", 'w') as fp:
+    #     csv_writer = csv.writer(fp, delimiter=',')
+    #     csv_writer.writerows(user_rows)
+
+    # collect final rows
+    user_rows_final = [FORECAST_CSV_HEADER]
+    for timezero, unit, target, quantile, value in user_rows:
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, param2, param3
+        user_rows_final.append([HUMAN_ENSEMBLE_MODEL_NAME, timezero, tz_to_season[timezero], unit, target, 'quantile',
+                                value, '', '', '', quantile, '', '', '', ''])
+
+    # done
+    return user_rows_final
 
 
 #

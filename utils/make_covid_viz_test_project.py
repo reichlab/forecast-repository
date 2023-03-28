@@ -59,15 +59,16 @@ def _make_covid_viz_test_project(user):
     # create models
     ensemble_model = ForecastModel.objects.create(project=project, name="ensemble", abbreviation="COVIDhub-ensemble")
     baseline_model = ForecastModel.objects.create(project=project, name="baseline", abbreviation="COVIDhub-baseline")
-    models = [ensemble_model, baseline_model]
+    lnq_ens1_model = ForecastModel.objects.create(project=project, name="ens1", abbreviation="LNQ-ens1")
+    models = [ensemble_model, baseline_model, lnq_ens1_model]
 
-    # load forecast files. e.g., '2022-01-03-COVIDhub-ensemble.csv.json' or '2022-01-03-COVIDhub-baseline.csv.json'
+    # load ensemble and baseline forecast files. e.g., '2022-01-03-COVIDhub-ensemble.csv.json' or
+    # '2022-01-03-COVIDhub-baseline.csv.json'
     logger.info("loading forecast files")
     forecasts = []  # filled below
-    # tz_datetimes = [datetime.date(2022, 1, 3), datetime.date(2022, 1, 10), datetime.date(2022, 1, 17), datetime.date(2022, 1, 24), datetime.date(2022, 1, 31)]
     tz_datetimes = [dateutil.parser.parse(date) for date in
                     ["2022-01-03", "2022-01-10", "2022-01-17", "2022-01-24", "2022-01-31"]]
-    for tz_datetime, model in itertools.product(tz_datetimes, models):
+    for tz_datetime, model in itertools.product(tz_datetimes, [ensemble_model, baseline_model]):
         time_zero = project.timezeros.filter(timezero_date=tz_datetime).first()
         forecast_filename = f"{tz_datetime.strftime(YYYY_MM_DD_DATE_FORMAT)}-COVIDhub-{model.name}.json"
         forecast = Forecast.objects.create(forecast_model=model, source=forecast_filename, time_zero=time_zero,
@@ -78,6 +79,20 @@ def _make_covid_viz_test_project(user):
             logger.info(f"loading {forecast_filename}")
             load_predictions_from_json_io_dict(forecast, json_io_dict_in, is_validate_cats=False)  # atomic
             cache_forecast_metadata(forecast)  # atomic
+
+    # load LNQ-ens1 forecast file
+    tz_datetime = dateutil.parser.parse("2022-01-03")
+    time_zero = project.timezeros.filter(timezero_date=tz_datetime).first()
+    model = lnq_ens1_model
+    forecast_filename = "2022-01-03-LNQ-ens1.json"
+    forecast = Forecast.objects.create(forecast_model=model, source=forecast_filename, time_zero=time_zero,
+                                       notes=forecast_filename)
+    forecasts.append(forecast)
+    with open(test_viz_proj_path / 'forecasts-json-small' / forecast_filename) as ensemble_fp:
+        json_io_dict_in = json.load(ensemble_fp)
+        logger.info(f"loading {forecast_filename}")
+        load_predictions_from_json_io_dict(forecast, json_io_dict_in, is_validate_cats=False)  # atomic
+        cache_forecast_metadata(forecast)  # atomic
 
     # load truth, setting issued_at based on commit date. note that we must process truth from oldest to newest so we
     # don't get the error "editing a version's issued_at cannot reposition it before any existing forecasts"

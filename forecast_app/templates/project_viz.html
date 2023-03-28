@@ -27,22 +27,6 @@
     <script type="module">
         import App from 'https://cdn.jsdelivr.net/gh/reichlab/predtimechart@1.0.6/predtimechart.js';
 
-        /*
-        // todo xx all this authorization stuff needs careful thinking:
-        // configure AJAX to work with DRF - per https://stackoverflow.com/questions/42514560/django-and-ajax-csrf-token-missing-despite-being-passed
-        function csrfSafeMethod(method) {
-            return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
-        }
-
-        $.ajaxSetup({
-            beforeSend: function (xhr, settings) {
-                if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
-                    xhr.setRequestHeader("X-CSRFToken", csrf_token);
-                }
-            }
-        });
-        */
-
         /***
          * Makes an AJAX call to the Zoltar API to fetch truth or forecast data using the passed args, which correspond to those
          * of `utils.visualization.viz_data()` (see). The `success` and `error` callbacks are passed directly to the $.ajax()
@@ -51,7 +35,7 @@
          * - error: function (jqXHR, textStatus, thrownError) { ... }
          */
         function _fetchData(isForecast, targetKey, unitAbbrev, referenceDate) {
-            const url = "/api/project/" + {{ project.id }} + "/viz-data/";
+            const url = "/api/project/" + {{ project.id }} +"/viz-data/";
             const requestData = {
                 is_forecast: isForecast,
                 target_key: targetKey,
@@ -59,17 +43,33 @@
                 reference_date: referenceDate,
             };
 
-            // MUS: using JQuery ajax():
-            // return $.ajax({url: url, type: 'GET', data: requestData, dataType: 'json', success: success, error: error,});
-
             // using https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
             const urlObj = new URL(url, document.location.origin);
             Object.keys(requestData).forEach(key => urlObj.searchParams.append(key, requestData[key]))
             return fetch(urlObj);  // Promise
         }
 
-        // componentDiv, _fetchData, isIndicateRedraw, options:
-        App.initialize('forecastViz_row', _fetchData, true, {{ options|safe }});
+        /**
+         * Human judgement ensemble model function that does an AJAX call to the Zoltar API to compute forecast CSV
+         * data for the passed args.
+         *
+         * @private
+         */
+        function _calcUemForecasts(componentModels, targetKey, referenceDate) {
+            const url = "/api/project/" + {{ project.id }} +"/viz-human-ensemble-model/";
+            const urlObj = new URL(url, document.location.origin);
+            urlObj.searchParams.append('target_key', targetKey);
+            urlObj.searchParams.append('reference_date', referenceDate);
+            componentModels.forEach((model) => {
+                urlObj.searchParams.append('component_model', model);
+            });
+            console.debug('_calcUemForecasts()', componentModels, targetKey, referenceDate, '.', urlObj.toString());
+            return fetch(urlObj);  // Promise
+        }
+
+        // componentDiv, _fetchData, isIndicateRedraw, options, _calcUemForecasts:
+        App.initialize('forecastViz_row', _fetchData, true, {{ options|safe }}, _calcUemForecasts);
+
     </script>
 
 {% endblock %}

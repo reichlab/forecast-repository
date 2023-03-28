@@ -785,7 +785,7 @@ class TruthDetail(UserPassesTestMixin, generics.RetrieveAPIView):
                 issued_at_dt = dateutil.parser.parse(issued_at)
                 if issued_at_dt.tzinfo is None:
                     return JsonResponse({'error': f"issued_at did not contain timezone info: {issued_at!r}"},
-                        status=status.HTTP_400_BAD_REQUEST)
+                                        status=status.HTTP_400_BAD_REQUEST)
             except dateutil.parser._parser.ParserError as pe:
                 return JsonResponse({'error': f"issued_at was not a recognizable datetime format: {issued_at!r}: {pe}"},
                                     status=status.HTTP_400_BAD_REQUEST)
@@ -997,7 +997,7 @@ def _download_job_data_request(job):
 @renderer_classes((CSVRenderer,))
 def download_latest_forecasts(request, pk):
     """
-    :return: `latest_forecast_cols_for_project()` output as CSV. for now just does returns a list of the 2-tuples:
+    :return: `latest_forecast_cols_for_project()` output as CSV. for now just returns a list of the 2-tuples:
         (Forecast.id, Forecast.source), but later may generalize to allow passing specific columns in `request`
     """
     project = get_object_or_404(Project, pk=pk)
@@ -1008,7 +1008,7 @@ def download_latest_forecasts(request, pk):
     csv_filename = get_valid_filename(f"project-{project.name}-latest-forecasts.csv")
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
 
-    # for now just does returns a list of the 2-tuples: (Forecast.id, Forecast.source)
+    # for now just returns a list of the 2-tuples: (Forecast.id, Forecast.source)
     rows = latest_forecast_cols_for_project(project, is_incl_fm_id=False, is_incl_tz_id=False,
                                             is_incl_issued_at=False, is_incl_created_at=False,
                                             is_incl_source=True, is_incl_notes=False)
@@ -1032,10 +1032,10 @@ def download_latest_forecasts(request, pk):
 def viz_data_api(request, pk):
     """
     Requires these query parameters, which are passed to `viz_data()`:
-    - is_forecast: either 'true' or 'false'. converted to a boolean and passed to `viz_data()`
-    - target_key: passed as-is to `viz_data()`
-    - unit_abbrev: ""
-    - reference_date: ""
+    - `is_forecast`: either 'true' or 'false'. converted to a boolean and passed to `viz_data()`
+    - `target_key`: passed as-is to `viz_data()`
+    - `unit_abbrev`: ""
+    - `reference_date`: ""
     """
     # imported here so that tests can patch via mock:
     from utils.visualization import viz_data
@@ -1058,3 +1058,47 @@ def viz_data_api(request, pk):
     return JsonResponse(viz_cache_data(project, request.query_params['is_forecast'] == 'true',
                                        request.query_params['target_key'], request.query_params['unit_abbrev'],
                                        request.query_params['reference_date']))
+
+
+@api_view(['GET'])
+def viz_human_ensemble_model_api(request, pk):
+    """
+    Requires these query parameters, which are passed to `viz_human_ensemble_model()`:
+    - `component_model`: multi-valued request parameter listing component models
+    - `target_key`: passed as-is to `viz_data()`
+    - `reference_date`: ""
+    """
+    # imported here so that tests can patch via mock:
+    from utils.visualization import viz_human_ensemble_model
+
+
+    _viz_human_ensemble_model = viz_human_ensemble_model  # so above import won't be optimized away :-)
+
+    # "GET /api/project/316/viz-human-ensemble-model/?target_key=week_ahead_incident_deaths&reference_date=2022-01-29&model=COVIDhub-baseline&model=COVIDhub-ensemble HTTP/1.1"
+    # target_key=week_ahead_incident_deaths
+    # reference_date=2022-01-29
+    # model=COVIDhub-baseline
+    # model=COVIDhub-ensemble
+
+    project = get_object_or_404(Project, pk=pk)
+    if not is_user_ok_view_project(request.user, project):
+        return HttpResponseForbidden()
+
+    actual_keys = set(request.query_params.keys())
+    expected_keys = {'component_model', 'target_key', 'reference_date'}
+    if actual_keys != expected_keys:
+        return JsonResponse({'error': f"Wrong keys in 'query parameters'. difference={expected_keys ^ actual_keys}. "
+                                      f"expected={expected_keys}, actual={actual_keys}"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    component_models = request.query_params.getlist('component_model')  # 'component_model' can be multi-valued
+    rows = viz_human_ensemble_model(project, component_models, request.query_params['target_key'],
+                                    request.query_params['reference_date'])
+
+    # todo xx more efficient way to stream CSV rows back? e.g., StringIO?
+    response = HttpResponse(content_type='text/csv')
+    csv_filename = get_valid_filename(f"project-{project.name}-human-ensemble-model.csv")
+    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+    writer = csv.writer(response)
+    writer.writerows(rows)
+    return response

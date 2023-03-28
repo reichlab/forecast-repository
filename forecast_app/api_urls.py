@@ -21,6 +21,8 @@ urlpatterns = [
     re_path(r'^project/(?P<pk>\d+)/forecasts/$', api_views.download_latest_forecasts,
             name='api-project-latest-forecasts'),
     re_path(r'^project/(?P<pk>\d+)/viz-data/$', api_views.viz_data_api, name='api-viz-data'),
+    re_path(r'^project/(?P<pk>\d+)/viz-human-ensemble-model/$', api_views.viz_human_ensemble_model_api,
+            name='api-viz-human-ensemble-model'),
 
     # other object detail
     re_path(r'^user/(?P<pk>\d+)/$', api_views.UserDetail.as_view(), name='api-user-detail'),

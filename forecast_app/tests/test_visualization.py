@@ -1,4 +1,5 @@
 import copy
+import csv
 import itertools
 import logging
 
@@ -8,7 +9,7 @@ from forecast_app.models import Target
 from utils.make_covid_viz_test_project import _make_covid_viz_test_project
 from utils.utilities import get_or_create_super_po_mo_users
 from utils.visualization import viz_target_variables, viz_units, viz_available_reference_dates, viz_model_names, \
-    viz_targets, viz_data, validate_project_viz_options
+    viz_targets, viz_data, validate_project_viz_options, viz_human_ensemble_model
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -68,7 +69,7 @@ class VisualizationTestCase(TestCase):
 
 
     def test_viz_model_names(self):
-        exp_models = ['COVIDhub-ensemble', 'COVIDhub-baseline']  # NB: no 'oracle'
+        exp_models = ['COVIDhub-ensemble', 'COVIDhub-baseline', 'LNQ-ens1']  # NB: no 'oracle'
         act_models = viz_model_names(self.project)
         self.assertEqual(exp_models, act_models)
 
@@ -195,6 +196,8 @@ class VisualizationTestCase(TestCase):
                                                          'q0.975': [1727, 1944]}},
         }
         target_key = 'week_ahead_incident_deaths'
+        model = self.project.models.filter(abbreviation="LNQ-ens1")
+        model.delete()
         for viz_unit, ref_date in itertools.product([viz_unit['value'] for viz_unit in viz_units(self.project)],
                                                     viz_available_reference_dates(self.project)[target_key]):
             act_forecasts = viz_data(self.project, True, target_key, viz_unit, ref_date)
@@ -271,3 +274,89 @@ class VisualizationTestCase(TestCase):
             edit_viz_options[key] = bad_val
             act_valid = validate_project_viz_options(self.project, edit_viz_options)
             self.assertEqual(1, len(act_valid))
+
+
+    def test_viz_human_ensemble_model(self):
+        # test bad args
+        with self.assertRaisesRegex(RuntimeError, "invalid model name"):
+            viz_human_ensemble_model(self.project, ['bad_model'], 'bad_target_key', '2021-12-01')
+
+        with self.assertRaisesRegex(RuntimeError, "target_key not found in target_key_to_targets"):
+            viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'], 'bad_target_key',
+                                     '2021-12-01')
+
+        with self.assertRaisesRegex(RuntimeError, "ref_date not found in ref_date_to_target_tzs"):
+            viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
+                                     'week_ahead_incident_deaths', '2021-12-01')
+
+        # case: two models, same quantiles
+        ref_date = '2022-01-01'
+        act_rows = viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
+                                            'week_ahead_incident_deaths', ref_date)
+        act_header = act_rows.pop(0)  # header
+        act_rows = sorted(act_rows)
+
+        with open("forecast_app/tests/viz_human_ensemble_model/two-model-exp.csv") as fp:
+            csv_reader = csv.reader(fp)
+            exp_rows = list(csv_reader)
+        exp_header = exp_rows.pop(0)  # header
+
+        # convert `value` and `quantile` columns from strs to numbers to compare to act_rows. columns:
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, param2, param3
+        exp_rows = [[_[0], _[1], _[2], _[3], _[4], _[5], float(_[6]), _[7], _[8], _[9], float(_[10]), _[11],
+                     _[12], _[13], _[14]] for _ in exp_rows]
+        exp_rows = sorted(exp_rows)
+
+        self.assertEqual(exp_header, act_header)
+        self.assertEqual(len(exp_rows), len(act_rows))
+        self._assertAlmostEqualViz(act_rows, exp_rows)
+
+        # case: one model -> same except for model name
+        act_rows = viz_human_ensemble_model(self.project, ['LNQ-ens1'], 'week_ahead_incident_deaths', ref_date)
+        act_header = act_rows.pop(0)  # header
+        act_rows = sorted(act_rows)
+
+        with open("forecast_app/tests/viz_human_ensemble_model/one-model-exp.csv") as fp:
+            csv_reader = csv.reader(fp)
+            exp_rows = list(csv_reader)
+        exp_header = exp_rows.pop(0)  # header
+        exp_rows = [[_[0], _[1], _[2], _[3], _[4], _[5], float(_[6]), _[7], _[8], _[9], float(_[10]), _[11],
+                     _[12], _[13], _[14]] for _ in exp_rows]
+        exp_rows = sorted(exp_rows)
+
+        self.assertEqual(exp_header, act_header)
+        self.assertEqual(len(exp_rows), len(act_rows))
+        self._assertAlmostEqualViz(act_rows, exp_rows)
+
+        # case: two models, different quantiles (23 vs. 7)
+        act_rows = viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'LNQ-ens1'],
+                                            'week_ahead_incident_deaths', ref_date)
+        act_header = act_rows.pop(0)  # header
+        act_rows = sorted(act_rows)
+
+        with open("forecast_app/tests/viz_human_ensemble_model/two-model-different-quantiles.csv") as fp:
+            csv_reader = csv.reader(fp)
+            exp_rows = list(csv_reader)
+        exp_header = exp_rows.pop(0)  # header
+        exp_rows = [[_[0], _[1], _[2], _[3], _[4], _[5], float(_[6]), _[7], _[8], _[9], float(_[10]), _[11],
+                     _[12], _[13], _[14]] for _ in exp_rows]
+        exp_rows = sorted(exp_rows)
+
+        self.assertEqual(exp_header, act_header)
+        self.assertEqual(len(exp_rows), len(act_rows))
+        self._assertAlmostEqualViz(act_rows, exp_rows)
+
+
+    def _assertAlmostEqualViz(self, act_rows, exp_rows):
+        # test each row individually b/c we need to use assertAlmostEqual() to handle str-to-number precision
+        # differences
+        for exp_row, act_row in zip(exp_rows, act_rows):
+            self.assertEqual(  # skip idx 6 & 10
+                [exp_row[0], exp_row[1], exp_row[2], exp_row[3], exp_row[4], exp_row[5], exp_row[7], exp_row[8],
+                 exp_row[9], exp_row[11], exp_row[12], exp_row[13], exp_row[14]],
+                [act_row[0], act_row[1], act_row[2], act_row[3], act_row[4], act_row[5], act_row[7], act_row[8],
+                 act_row[9], act_row[11], act_row[12], act_row[13], act_row[14]])
+            # default of 7 was not enough for this row:
+            # AssertionError: 1126.657046 != 1126.65704587046 within 7 places (1.295400124945445e-07 difference)
+            self.assertAlmostEqual(exp_row[6], act_row[6], places=5)
+            self.assertAlmostEqual(exp_row[10], act_row[10])
