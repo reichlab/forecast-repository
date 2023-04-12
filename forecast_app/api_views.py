@@ -1074,31 +1074,30 @@ def viz_human_ensemble_model_api(request, pk):
 
     _viz_human_ensemble_model = viz_human_ensemble_model  # so above import won't be optimized away :-)
 
-    # "GET /api/project/316/viz-human-ensemble-model/?target_key=week_ahead_incident_deaths&reference_date=2022-01-29&model=COVIDhub-baseline&model=COVIDhub-ensemble HTTP/1.1"
-    # target_key=week_ahead_incident_deaths
-    # reference_date=2022-01-29
-    # model=COVIDhub-baseline
-    # model=COVIDhub-ensemble
-
     project = get_object_or_404(Project, pk=pk)
     if not is_user_ok_view_project(request.user, project):
         return HttpResponseForbidden()
 
     actual_keys = set(request.query_params.keys())
-    expected_keys = {'component_model', 'target_key', 'reference_date'}
+    expected_keys = {'component_model', 'target_key', 'reference_date', 'user_model_name'}
     if actual_keys != expected_keys:
         return JsonResponse({'error': f"Wrong keys in 'query parameters'. difference={expected_keys ^ actual_keys}. "
                                       f"expected={expected_keys}, actual={actual_keys}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
     component_models = request.query_params.getlist('component_model')  # 'component_model' can be multi-valued
-    rows = viz_human_ensemble_model(project, component_models, request.query_params['target_key'],
-                                    request.query_params['reference_date'])
+    user_model_name = request.query_params['user_model_name']
+    reference_date = request.query_params['reference_date']
+    try:
+        rows = viz_human_ensemble_model(project, component_models, request.query_params['target_key'], reference_date,
+                                        user_model_name)
+    except RuntimeError as rte:
+        return HttpResponseBadRequest(f"error calculating model: {rte}")
 
     # todo xx more efficient way to stream CSV rows back? e.g., StringIO?
     response = HttpResponse(content_type='text/csv')
-    csv_filename = get_valid_filename(f"project-{project.name}-human-ensemble-model.csv")
-    response['Content-Disposition'] = 'attachment; filename="{}"'.format(str(csv_filename))
+    csv_filename = get_valid_filename(f"{reference_date}-{user_model_name}.csv")
+    response['Content-Disposition'] = f'attachment; filename="{csv_filename}"'
     writer = csv.writer(response)
     writer.writerows(rows)
     return response

@@ -454,10 +454,7 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
 # viz_human_ensemble_model()
 #
 
-HUMAN_ENSEMBLE_MODEL_NAME = 'user'  # todo xx configurable?
-
-
-def viz_human_ensemble_model(project, component_models, target_key, reference_date):
+def viz_human_ensemble_model(project, component_models, target_key, reference_date, user_model_name):
     """
     Top-level human judgement ensemble model viz API endpoint that returns a CSV forecast for the passed args.
 
@@ -465,6 +462,8 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
     :param component_models: list of model names to build the ensemble from. see `viz_model_names()
     :param target_key: which Targets to use. see `viz_key_for_target()`
     :param reference_date: a string in 'YYYY-MM-DD' format as returned by `viz_available_reference_dates()`
+    :param user_model_name: a string naming the user model. must not be None or '', and must pass unchanged through
+        django.utils.text.get_valid_filename() (i.e., no spaces, commas, tabs, etc.)
     :return: a list of CSV rows (lists) including the header - see `query_forecasts_for_project()`
     """
     logger.debug(f"viz_human_ensemble_model(): {project}, {component_models}, {target_key!r}, {reference_date!r}")
@@ -486,6 +485,9 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
     if reference_date not in ref_date_to_target_tzs:
         raise RuntimeError(f"ref_date not found in ref_date_to_target_tzs: {reference_date!r}. "
                            f"ref_date_to_target_tzs={ref_date_to_target_tzs}")
+
+    if (not user_model_name) or (user_model_name != get_valid_filename(user_model_name)):
+        raise RuntimeError(f"invalid user_model_name: {user_model_name!r}")
 
     # query forecasts. NB: we only query for quantile forecasts, not point or any other types
     timezeros = sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))
@@ -535,15 +537,11 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
         value = sum(values) / len(values)  # mean
         user_rows.append((timezero, unit, target, quantile, value))
 
-    # with open(f"/tmp/user_rows.csv", 'w') as fp:
-    #     csv_writer = csv.writer(fp, delimiter=',')
-    #     csv_writer.writerows(user_rows)
-
     # collect final rows
     user_rows_final = [FORECAST_CSV_HEADER]
     for timezero, unit, target, quantile, value in user_rows:
         # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, param2, param3
-        user_rows_final.append([HUMAN_ENSEMBLE_MODEL_NAME, timezero, tz_to_season[timezero], unit, target, 'quantile',
+        user_rows_final.append([user_model_name, timezero, tz_to_season[timezero], unit, target, 'quantile',
                                 value, '', '', '', quantile, '', '', '', ''])
 
     # done

@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urlencode
 
-import django
 from botocore.exceptions import BotoCoreError
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -604,7 +603,8 @@ class ViewsTestCase(TestCase):
              {'is_forecast': True, 'target_key': 'week_ahead_ili_percent', 'unit_abbrev': '',
               'reference_date': '2016-12-31'}),
             (reverse('api-viz-human-ensemble-model', args=[self.public_project.pk]), self.OK_ALL,
-             {'component_model': 'abbrev', 'target_key': 'week_ahead_ili_percent', 'reference_date': '2016-12-31'}),
+             {'component_model': 'abbrev', 'target_key': 'week_ahead_ili_percent', 'reference_date': '2016-12-31',
+              'user_model_name': 'user-model-name'}),
 
             (reverse('api-model-detail', args=[self.public_model.pk]), self.ONLY_PO_MO_STAFF, {}),
             (reverse('api-model-detail', args=[self.private_model.pk]), self.ONLY_PO_MO, {}),
@@ -1750,9 +1750,13 @@ class ViewsTestCase(TestCase):
         response = self.client.get(url, data={'target_key': '', 'reference_date': ''})
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
 
+        # missing 'user_model_name' param
+        response = self.client.get(url, data={'component_model': 'model1', 'target_key': '', 'reference_date': ''})
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+
         # extra param
         response = self.client.get(url, data={'foo': 666, 'component_model': 'model1', 'target_key': '',
-                                              'reference_date': ''})
+                                              'reference_date': '', 'user_model_name': 'user-model-name'})
         self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
 
         # blue sky. tests multiple 'component_model' values
@@ -1760,8 +1764,11 @@ class ViewsTestCase(TestCase):
         query_dict.appendlist('component_model', 'model1')
         query_dict.appendlist('component_model', 'model2')
         query_dict.appendlist('target_key', '')
-        query_dict.appendlist('reference_date', '')
+        query_dict.appendlist('reference_date', '2016-12-31')
+        query_dict.appendlist('user_model_name', 'user-model-name')
         response = self.client.get(url, data=query_dict)
+        self.assertEqual('attachment; filename="2016-12-31-user-model-name.csv"',
+                         response.headers['Content-Disposition'])
         self.assertEqual(status.HTTP_200_OK, response.status_code)
 
 

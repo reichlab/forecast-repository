@@ -277,22 +277,35 @@ class VisualizationTestCase(TestCase):
 
 
     def test_viz_human_ensemble_model(self):
+        ref_date = '2022-01-01'
+
         # test bad args
         with self.assertRaisesRegex(RuntimeError, "invalid model name"):
-            viz_human_ensemble_model(self.project, ['bad_model'], 'bad_target_key', '2021-12-01')
+            viz_human_ensemble_model(self.project, ['bad_model'], 'bad_target_key', '2021-12-01', 'user-model-name')
 
         with self.assertRaisesRegex(RuntimeError, "target_key not found in target_key_to_targets"):
             viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'], 'bad_target_key',
-                                     '2021-12-01')
+                                     '2021-12-01', 'user-model-name')
 
         with self.assertRaisesRegex(RuntimeError, "ref_date not found in ref_date_to_target_tzs"):
             viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
-                                     'week_ahead_incident_deaths', '2021-12-01')
+                                     'week_ahead_incident_deaths', '2021-12-01', 'user-model-name')
+
+        with self.assertRaisesRegex(RuntimeError, "invalid user_model_name"):
+            viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
+                                     'week_ahead_incident_deaths', ref_date, None)
+
+        with self.assertRaisesRegex(RuntimeError, "invalid user_model_name"):
+            viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
+                                     'week_ahead_incident_deaths', ref_date, '')
+
+        with self.assertRaisesRegex(RuntimeError, "invalid user_model_name"):
+            viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
+                                     'week_ahead_incident_deaths', ref_date, 'very\tbad name')
 
         # case: two models, same quantiles
-        ref_date = '2022-01-01'
         act_rows = viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'COVIDhub-ensemble'],
-                                            'week_ahead_incident_deaths', ref_date)
+                                            'week_ahead_incident_deaths', ref_date, 'user-model-name')
         act_header = act_rows.pop(0)  # header
         act_rows = sorted(act_rows)
 
@@ -312,7 +325,8 @@ class VisualizationTestCase(TestCase):
         self._assertAlmostEqualViz(act_rows, exp_rows)
 
         # case: one model -> same except for model name
-        act_rows = viz_human_ensemble_model(self.project, ['LNQ-ens1'], 'week_ahead_incident_deaths', ref_date)
+        act_rows = viz_human_ensemble_model(self.project, ['LNQ-ens1'], 'week_ahead_incident_deaths', ref_date,
+                                            'user-model-name')
         act_header = act_rows.pop(0)  # header
         act_rows = sorted(act_rows)
 
@@ -330,7 +344,7 @@ class VisualizationTestCase(TestCase):
 
         # case: two models, different quantiles (23 vs. 7)
         act_rows = viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'LNQ-ens1'],
-                                            'week_ahead_incident_deaths', ref_date)
+                                            'week_ahead_incident_deaths', ref_date, 'user-model-name')
         act_header = act_rows.pop(0)  # header
         act_rows = sorted(act_rows)
 
