@@ -1,3 +1,4 @@
+import csv
 import datetime
 import itertools
 import logging
@@ -466,7 +467,8 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
         django.utils.text.get_valid_filename() (i.e., no spaces, commas, tabs, etc.)
     :return: a list of CSV rows (lists) including the header - see `query_forecasts_for_project()`
     """
-    logger.debug(f"viz_human_ensemble_model(): {project}, {component_models}, {target_key!r}, {reference_date!r}")
+    logger.debug(f"viz_human_ensemble_model(): {project}, {component_models}, {target_key!r}, {reference_date!r}, "
+                 f"{user_model_name!r}")
 
     # validate args and convert inputs to zoltar data structures
     reference_date = datetime.datetime.strptime(reference_date, YYYY_MM_DD_DATE_FORMAT).date()
@@ -480,7 +482,8 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
         raise RuntimeError(f"target_key not found in target_key_to_targets: {target_key!r}. "
                            f"keys={list(target_key_to_targets.keys())}")
 
-    targets = [target for target in target_key_to_targets[target_key] if target.numeric_horizon <= 4]
+    targets = [target for target in target_key_to_targets[target_key]
+               if target.numeric_horizon <= 4]  # todo xx hard-coded
     ref_date_to_target_tzs = _ref_date_to_target_tzs(targets, project.timezeros.all().order_by('timezero_date'))
     if reference_date not in ref_date_to_target_tzs:
         raise RuntimeError(f"ref_date not found in ref_date_to_target_tzs: {reference_date!r}. "
@@ -490,36 +493,48 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
         raise RuntimeError(f"invalid user_model_name: {user_model_name!r}")
 
     # query forecasts. NB: we only query for quantile forecasts, not point or any other types
-    timezeros = sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))
     query = {'models': component_models,
              'targets': [target.name for target in targets],
-             'timezeros': timezeros,
+             'timezeros': (
+                 sorted(list(set([timezero for target, timezero in ref_date_to_target_tzs[reference_date]])))),
              'types': ['quantile']}
 
     # recall query output columns:
-    #   model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, param2, param3.
+    # - model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, param2, param3.
     # in our case, we don't care about the non-quantile columns (cat, sample, family, param1, param2, param3). nor do we
     # need class b/c it's always 'quantile'
     rows = list(query_forecasts_for_project(project, query))  # `list` makes this much faster than without!
     rows.pop(0)  # header
 
     # now that we have query rows, build three data structures to help processing. first two are based on using this
-    # 4-tuple as a key: (timezero, unit, target, quantile). NB: this approach is memory-intensive
+    # 3-tuple as a key: (unit, target, quantile). note that we do *not* include timezero in the key tuple because recall
+    # that different forecasts could have different timezeros corresponding to the same reference_date. this means that
+    # this solution must handle multiple timezeros for the same model/reference_date combination (which it does via
+    # `existing_key` below). also note that this approach is memory-intensive
 
     # unique keys across all models:
-    tz_unit_targ_quants = set()  # (timezero, unit, target, quantile)
+    tz_unit_targ_quants = set()  # (unit, target, quantile)
 
-    # maps: {model_name: {(timezero, unit, target, quantile): value}}:
-    model_to_tzutq_to_val = defaultdict(lambda: defaultdict(list))
+    # maps: {model_name: {(unit, target, quantile): (value, timezero)}} :
+    model_to_tzutq_to_val_tz = defaultdict(lambda: defaultdict(tuple))
 
     # used for output. we assume season is the same for all timezeros:
     tz_to_season = {}
 
     for model, timezero, season, unit, target, _, value, _, _, _, quantile, _, _, _, _ in rows:
-        key = (timezero, unit, target, quantile)
+        key = (unit, target, quantile)
         season = '' if season is None else season
         tz_unit_targ_quants.add(key)
-        model_to_tzutq_to_val[model][key] = value
+
+        # add the key, but only if the current timezero is > existing, if any
+        if model in model_to_tzutq_to_val_tz and key in model_to_tzutq_to_val_tz[model]:
+            existing_key = model_to_tzutq_to_val_tz[model][key]  # (value, timezero)
+            if datetime.datetime.strptime(timezero, YYYY_MM_DD_DATE_FORMAT).date() > \
+                    datetime.datetime.strptime(existing_key[1], YYYY_MM_DD_DATE_FORMAT).date():
+                model_to_tzutq_to_val_tz[model][key] = (value, timezero)
+        else:  # no existing key
+            model_to_tzutq_to_val_tz[model][key] = (value, timezero)
+
         if timezero not in tz_to_season:
             tz_to_season[timezero] = season
 
@@ -528,13 +543,18 @@ def viz_human_ensemble_model(project, component_models, target_key, reference_da
     # and all the empty non-quantile columns
     user_rows = []  # (timezero, unit, target, quantile, value)
     for key in sorted(list(tz_unit_targ_quants), key=lambda _: str(_)):
-        values = [model_to_tzutq_to_val[model][key]
-                  for model in component_models if key in model_to_tzutq_to_val[model]]
-        if len(values) != len(component_models):
+        value_tzs = [model_to_tzutq_to_val_tz[model][key]  # [(value, timezero), ...]
+                     for model in component_models if key in model_to_tzutq_to_val_tz[model]]
+        if len(value_tzs) != len(component_models):
             continue  # skip this row b/c at least one model doesn't have this key
 
-        timezero, unit, target, quantile = key
+        unit, target, quantile = key
+        values = [value for value, timezero in value_tzs]
         value = sum(values) / len(values)  # mean
+
+        # NB: timezeros could be different even though they correspond to the same reference_date. we use the latest
+        timezero = sorted([timezero for value, timezero in value_tzs],  # timezeros
+                          key=lambda _: datetime.datetime.strptime(_, YYYY_MM_DD_DATE_FORMAT).date())[-1]
         user_rows.append((timezero, unit, target, quantile, value))
 
     # collect final rows

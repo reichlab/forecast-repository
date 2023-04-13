@@ -13,7 +13,6 @@ from django.db import transaction
 django.setup()
 
 from utils.project_truth import load_truth_data
-from utils.print_project_info import print_project_info
 from utils.forecast import cache_forecast_metadata, load_predictions_from_json_io_dict
 from utils.project import delete_project_iteratively, create_project_from_json
 from forecast_app.models import Project, ForecastModel, Forecast
@@ -81,7 +80,7 @@ def _make_covid_viz_test_project(user):
             cache_forecast_metadata(forecast)  # atomic
 
     # load LNQ-ens1 forecast file
-    tz_datetime = dateutil.parser.parse("2022-01-03")
+    tz_datetime = dateutil.parser.parse("2022-01-02")
     time_zero = project.timezeros.filter(timezero_date=tz_datetime).first()
     model = lnq_ens1_model
     forecast_filename = "2022-01-03-LNQ-ens1.json"

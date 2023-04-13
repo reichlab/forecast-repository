@@ -1,11 +1,14 @@
 import copy
 import csv
 import itertools
+import json
 import logging
 
+import dateutil
 from django.test import TestCase
 
-from forecast_app.models import Target
+from forecast_app.models import Target, Forecast
+from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_metadata
 from utils.make_covid_viz_test_project import _make_covid_viz_test_project
 from utils.utilities import get_or_create_super_po_mo_users
 from utils.visualization import viz_target_variables, viz_units, viz_available_reference_dates, viz_model_names, \
@@ -62,8 +65,8 @@ class VisualizationTestCase(TestCase):
     def test_viz_available_reference_dates(self):
         exp_avail_ref_dates = {
             'week_ahead_incident_deaths': ['2022-01-01', '2022-01-08', '2022-01-15', '2022-01-22', '2022-01-29'],
-            'day_ahead_incident_hospitalizations': ['2022-01-03', '2022-01-10', '2022-01-17', '2022-01-24',
-                                                    '2022-01-31']}
+            'day_ahead_incident_hospitalizations': ['2022-01-02', '2022-01-03', '2022-01-10', '2022-01-17',
+                                                    '2022-01-24', '2022-01-31']}
         act_avail_ref_dates = viz_available_reference_dates(self.project)
         self.assertEqual(exp_avail_ref_dates, act_avail_ref_dates)
 
@@ -196,7 +199,7 @@ class VisualizationTestCase(TestCase):
                                                          'q0.975': [1727, 1944]}},
         }
         target_key = 'week_ahead_incident_deaths'
-        model = self.project.models.filter(abbreviation="LNQ-ens1")
+        model = self.project.models.filter(abbreviation="LNQ-ens1").first()
         model.delete()
         for viz_unit, ref_date in itertools.product([viz_unit['value'] for viz_unit in viz_units(self.project)],
                                                     viz_available_reference_dates(self.project)[target_key]):
@@ -342,7 +345,7 @@ class VisualizationTestCase(TestCase):
         self.assertEqual(len(exp_rows), len(act_rows))
         self._assertAlmostEqualViz(act_rows, exp_rows)
 
-        # case: two models, different quantiles (23 vs. 7)
+        # case: two models, different quantiles (23 vs. 7) and different timezeros for same reference_date
         act_rows = viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'LNQ-ens1'],
                                             'week_ahead_incident_deaths', ref_date, 'user-model-name')
         act_header = act_rows.pop(0)  # header
@@ -356,6 +359,27 @@ class VisualizationTestCase(TestCase):
                      _[12], _[13], _[14]] for _ in exp_rows]
         exp_rows = sorted(exp_rows)
 
+        self.assertEqual(exp_header, act_header)
+        self.assertEqual(len(exp_rows), len(act_rows))
+        self._assertAlmostEqualViz(act_rows, exp_rows)
+
+        # case: same, but add a second forecast to a model with a different timezero for the same reference_date
+        tz_datetime = dateutil.parser.parse("2022-01-03")  # existing is 2022-01-02 from 2022-01-03-LNQ-ens1.json
+        time_zero = self.project.timezeros.filter(timezero_date=tz_datetime).first()
+        model = self.project.models.filter(abbreviation="LNQ-ens1").first()
+        forecast_filename = "2022-01-03-LNQ-ens1.json"
+        forecast = Forecast.objects.create(forecast_model=model, source=forecast_filename, time_zero=time_zero,
+                                           notes=forecast_filename)
+        with open(f"forecast_app/tests/projects/covid-viz-test-project/forecasts-json-small/{forecast_filename}") as fp:
+            json_io_dict_in = json.load(fp)
+            load_predictions_from_json_io_dict(forecast, json_io_dict_in, is_validate_cats=False)  # atomic
+            cache_forecast_metadata(forecast)  # atomic
+        act_rows = viz_human_ensemble_model(self.project, ['COVIDhub-baseline', 'LNQ-ens1'],
+                                            'week_ahead_incident_deaths', ref_date, 'user-model-name')
+        act_header = act_rows.pop(0)  # header
+        act_rows = sorted(act_rows)
+        # expected values should be the same b/c the code uses the latest timezero, which is always '2022-01-03'. this
+        # may not be the best test for this reason, but it's ok for now
         self.assertEqual(exp_header, act_header)
         self.assertEqual(len(exp_rows), len(act_rows))
         self._assertAlmostEqualViz(act_rows, exp_rows)
