@@ -496,7 +496,8 @@ def _viz_options_from_project(project):
     :return: a viz_options dict based on project's viz_options
     """
     from utils.visualization import validate_project_viz_options, viz_target_variables, viz_units, \
-        viz_model_names, viz_cache_avail_ref_dates  # avoid circular imports
+        viz_model_names, viz_cache_avail_ref_dates, \
+        viz_initial_xaxis_range_from_range_offset  # avoid circular imports
 
 
     viz_options = project.viz_options  # might be None
@@ -518,11 +519,12 @@ def _viz_options_from_project(project):
                                   if model_name not in first_models]
     current_date = None
     try:
-        current_date = available_as_ofs[project.viz_options['initial_target_var']][-1]  # todo xx
+        current_date = available_as_ofs[project.viz_options['initial_target_var']][-1]  # todo xx better way to choose?
     except Exception:
         pass
 
     intervals = [f'{_}%' for _ in project.viz_options['intervals']]
+    xaxis_range = viz_initial_xaxis_range_from_range_offset(project.viz_options['x_axis_range_offset'], current_date)
     options = {'target_variables': target_variables,
                'initial_target_var': project.viz_options['initial_target_var'],
                'units': units,
@@ -535,7 +537,8 @@ def _viz_options_from_project(project):
                'current_date': current_date,
                'models': model_names,
                'initial_checked_models': project.viz_options['initial_checked_models'],
-               'disclaimer': project.viz_options['disclaimer']}
+               'disclaimer': project.viz_options['disclaimer'],
+               'initial_xaxis_range': xaxis_range}
     return options
 
 

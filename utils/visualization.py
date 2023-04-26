@@ -1,4 +1,3 @@
-import csv
 import datetime
 import itertools
 import logging
@@ -353,7 +352,7 @@ def _ref_date_to_target_tzs(targets, timezeros):
 
 
 #
-# validate_project_viz_options()
+# viz options-related functions
 #
 
 def validate_project_viz_options(project, viz_options, is_validate_objects=True):
@@ -366,7 +365,8 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
          "intervals": [0, 50, 95],
          "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],
          "models_at_top": ["COVIDhub-ensemble", "COVIDhub-baseline"],
-         "disclaimer": "Most forecasts have failed to reliably predict rapid changes ..."}
+         "disclaimer": "Most forecasts have failed to reliably predict rapid changes ...",
+         "x_axis_range_offset": [52, 6]}
 
     :param project: a Project. ignored if is_validate_objects is False
     :param viz_options: a dict as documented at https://docs.zoltardata.com/xx <- todo xx . briefly: it has six keys:
@@ -378,6 +378,8 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
         - "intervals": a list of one or more ints between 0 and 100 inclusive. these represent percentages
         - "models_at_top": a list of strs naming model abbreviations to sort at the top of the viz model list. see
             viz_model_names()
+        - "x_axis_range_offset": controls the predtimechart's initial xaxis range. is either None or a list of two
+            positive (>0) ints: [weeks_before_final_reference_date, weeks_after_final_reference_date]
     :param is_validate_objects: boolean indicating whether object-related fields should be validated (Targets, Units,
         and Models)
     :return: a list of error messages if viz_options is invalid, or [] o/w
@@ -386,7 +388,7 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
         return [f"viz_options is not a dict. viz_options={viz_options}, type={type(viz_options)}"]
 
     expected_keys = {'initial_target_var', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
-                     'disclaimer'}
+                     'disclaimer', 'x_axis_range_offset'}
     actual_keys = set(viz_options.keys())
     if actual_keys != expected_keys:
         return [f"viz_options keys are invalid. expected_keys={expected_keys}, actual_keys={actual_keys}, "
@@ -400,6 +402,13 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
         if not isinstance(viz_options[field_name], field_type):
             errors.append(f"top level field type was not {field_type}. field_name={field_name!r}, "
                           f"value={viz_options[field_name]!r}, type={type(viz_options[field_name])}")
+
+    # validate 'x_axis_range_offset' field: either None or a list
+    x_axis_range_offset = viz_options['x_axis_range_offset']
+    if (x_axis_range_offset is not None) and (not isinstance(x_axis_range_offset, list)):
+        errors.append(f"'top level field type was not not None or list. value={x_axis_range_offset!r}, "
+                      f"type={type(x_axis_range_offset)!r}")
+
     if errors:
         return errors
 
@@ -447,8 +456,39 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
     if not isinstance(viz_options['disclaimer'], str):
         errors.append(f"disclaimer is invalid (not a str): {type(viz_options['disclaimer'])}")
 
+    # 'x_axis_range_offset'
+    if (x_axis_range_offset is not None) and ((len(x_axis_range_offset) != 2)
+                                              or (not isinstance(x_axis_range_offset[0], int))
+                                              or (not isinstance(x_axis_range_offset[1], int))
+                                              or (x_axis_range_offset[0] < 1)
+                                              or (x_axis_range_offset[1] < 1)):
+        errors.append(f"x_axis_range_offset is invalid (not a list of two ints > 0): {x_axis_range_offset}")
+
     # done
     return errors
+
+
+def viz_initial_xaxis_range_from_range_offset(x_axis_range_offset, reference_date):
+    """
+    :param x_axis_range_offset: as documented in `validate_project_viz_options()` above: either None or a list of two
+        positive (>0) ints: [weeks_before_final_reference_date, weeks_after_final_reference_date]. we assume it has been
+        validated via `validate_project_viz_options()`
+    :param reference_date: date str in 'YYYY-MM-DD' format that `x_axis_range_offset` is relative to
+    :return: a predtimechart `initial_xaxis_range` value for `x_axis_range_offset` and `reference_date` as documented at
+        https://github.com/reichlab/predtimechart/ : either null or an array of two dates in 'YYYY-MM-DD' format that
+        specify the initial xaxis range to use
+    """
+    if not x_axis_range_offset or not reference_date:
+        return None
+
+    try:
+        weeks_before_ref_date, weeks_after_ref_date = x_axis_range_offset
+        reference_date = datetime.datetime.strptime(reference_date, YYYY_MM_DD_DATE_FORMAT).date()
+        ref_date_0 = reference_date - datetime.timedelta(weeks=weeks_before_ref_date)
+        ref_date_1 = reference_date + datetime.timedelta(weeks=weeks_after_ref_date)
+        return [ref_date_0.strftime(YYYY_MM_DD_DATE_FORMAT), ref_date_1.strftime(YYYY_MM_DD_DATE_FORMAT)]
+    except ValueError as ve:
+        raise RuntimeError(f"could not parse reference_date={reference_date}. exc={ve!r}")
 
 
 #

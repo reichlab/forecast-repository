@@ -25,7 +25,7 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="text-success">Viz options options: Valid</p>
+                <p class="text-success">Viz options: Valid</p>
                 <ul>
                     <li>No errors</li>
                 </ul>
@@ -46,8 +46,8 @@
         </div>
         <div class="col-md-4">
             <p><strong>Visualization options</strong>: This page allows you to edit this project's visualization options
-                as documented <a href="https://docs.zoltardata.com/visualizationoptionspage">here</a>. Briefly, it is a JSON object
-                with six keys:
+                as documented <a href="https://docs.zoltardata.com/visualizationoptionspage">here</a>. Briefly, it is a
+                JSON object with these keys:
             </p>
             <ul>
                 <li><code>disclaimer</code>: An arbitrary string that's shown at the top of the viz.</li>
@@ -66,12 +66,15 @@
                 <li><code>models_at_top</code>: A list of strings naming model abbreviations to sort at the top of the
                     viz model list. Use the <strong>Models</strong> select below to explore all the project's models.
                 </li>
+                <li><code>x_axis_range_offset</code>: Controls the viz's optional initial xaxis range, and is either
+                    <code>null</code> or a list of two positive (>0) integers:
+                    <code>[<i>weeks_before_final_reference_date</i>, <i>weeks_after_final_reference_date</i>]</code>.
+                </li>
             </ul>
             <p><strong>Choices</strong>: Selecting an item from these reference lists will copy it, allowing pasting
                 into the corresponding JSON field:
             </p>
             <div class="col-auto">
-                {# <div class="row" style="margin-top: 1rem;"><strong>Targets ({{ target_variables|length }}):</strong></div> #}
                 <label for="target_select"><strong>Targets ({{ target_variables|length }}):</strong></label>
                 <select id="target_select" class="form-control" name="target">
                     {% for target_var in target_variables %}

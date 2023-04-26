@@ -12,7 +12,8 @@ from utils.forecast import load_predictions_from_json_io_dict, cache_forecast_me
 from utils.make_covid_viz_test_project import _make_covid_viz_test_project
 from utils.utilities import get_or_create_super_po_mo_users
 from utils.visualization import viz_target_variables, viz_units, viz_available_reference_dates, viz_model_names, \
-    viz_targets, viz_data, validate_project_viz_options, viz_human_ensemble_model
+    viz_targets, viz_data, validate_project_viz_options, viz_human_ensemble_model, \
+    viz_initial_xaxis_range_from_range_offset
 
 
 logging.getLogger().setLevel(logging.ERROR)
@@ -215,14 +216,15 @@ class VisualizationTestCase(TestCase):
             "intervals": [0, 50, 95],
             "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],
             "models_at_top": ["COVIDhub-ensemble", "COVIDhub-baseline"],
-            "disclaimer": "Most forecasts have failed to reliably predict rapid changes ..."
+            "disclaimer": "Most forecasts have failed to reliably predict rapid changes ...",
+            "x_axis_range_offset": None
         }
         act_valid = validate_project_viz_options(self.project, viz_options)
         self.assertEqual([], act_valid)
 
         # test bad key types and missing keys
         for key in {'initial_target_var', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
-                    'disclaimer'}:
+                    'disclaimer', 'x_axis_range_offset'}:
             edit_viz_options = copy.deepcopy(viz_options)
             edit_viz_options[key] = 0  # int is invalid for all keys
             act_valid = validate_project_viz_options(self.project, edit_viz_options)
@@ -271,12 +273,30 @@ class VisualizationTestCase(TestCase):
                        ('initial_checked_models', []),
                        ('initial_checked_models', ['bad model']),
                        ('models_at_top', []),
-                       ('models_at_top', ['bad model'])]
+                       ('models_at_top', ['bad model']),
+                       ('x_axis_range_offset', 'not a list'),
+                       ('x_axis_range_offset', []),
+                       ('x_axis_range_offset', [-1]),
+                       ('x_axis_range_offset', [-1, 1]),
+                       ('x_axis_range_offset', [1, -1]),
+                       ('x_axis_range_offset', ['a', 'b'])]
         for key, bad_val in key_bad_val:
             edit_viz_options = copy.deepcopy(viz_options)
             edit_viz_options[key] = bad_val
             act_valid = validate_project_viz_options(self.project, edit_viz_options)
             self.assertEqual(1, len(act_valid))
+
+
+    def test_viz_initial_xaxis_range_from_range_offset(self):
+        range_offset_ref_date_exp_init_range_tuples = [
+            (None, None, None),
+            (None, '2023-01-08', None),
+            ([0, 0], None, None),
+            ([0, 0], '2023-01-08', ['2023-01-08', '2023-01-08']),
+            ([2, 1], '2023-01-08', ['2022-12-25', '2023-01-15'])]
+        for x_axis_range_offset, ref_date, exp_initial_xaxis_range in range_offset_ref_date_exp_init_range_tuples:
+            act_initial_xaxis_range = viz_initial_xaxis_range_from_range_offset(x_axis_range_offset, ref_date)
+            self.assertEqual(exp_initial_xaxis_range, act_initial_xaxis_range)
 
 
     def test_viz_human_ensemble_model(self):

@@ -11,7 +11,8 @@
     "intervals": [0, 50, 95],
     "initial_checked_models": ["docs_mod"],
     "models_at_top": ["docs_mod"],
-    "disclaimer": "docs disclaimer"
+    "disclaimer": "docs disclaimer",
+    "x_axis_range_offset": null
   },
   "units": [
     {"name": "location1", "abbreviation": "loc1"},
