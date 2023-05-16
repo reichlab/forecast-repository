@@ -6,7 +6,7 @@
   "logo_url": "https://github.com/reichlab/covid19-forecast-hub-web/raw/master/images/forecast-hub-logo_DARKBLUE.png",
   "core_data": "https://github.com/reichlab/covid19-death-forecasts/tree/master/data-processed",
   "viz_options": {
-    "initial_target_var": "week_ahead_incident_deaths",
+    "included_target_vars": ["week_ahead_incident_deaths"],
     "initial_unit": "48",
     "intervals": [0, 50, 95],
     "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],

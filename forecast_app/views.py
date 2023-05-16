@@ -489,7 +489,7 @@ def project_viz(request, project_pk):
 
 def _viz_options_from_project(project):
     """
-    project_viz() helper that returns a dict from project.viz_options that's suitable for zoltar_viz.js. Handles the
+    project_viz() helper that returns a dict from project.viz_options that's suitable for predtimechart. Handles the
     case of missing or invalid options.
 
     :param project: a Project
@@ -517,16 +517,18 @@ def _viz_options_from_project(project):
     first_models = project.viz_options['models_at_top']
     model_names = first_models + [model_name for model_name in sorted(viz_model_names(project))
                                   if model_name not in first_models]
+
     current_date = None
+    initial_target_var = project.viz_options['included_target_vars'][0]
     try:
-        current_date = available_as_ofs[project.viz_options['initial_target_var']][-1]  # todo xx better way to choose?
+        current_date = available_as_ofs[initial_target_var][-1]  # todo xx better way to choose?
     except Exception:
         pass
 
     intervals = [f'{_}%' for _ in project.viz_options['intervals']]
     xaxis_range = viz_initial_xaxis_range_from_range_offset(project.viz_options['x_axis_range_offset'], current_date)
     options = {'target_variables': target_variables,
-               'initial_target_var': project.viz_options['initial_target_var'],
+               'initial_target_var': initial_target_var,
                'units': units,
                'initial_unit': project.viz_options['initial_unit'],
                'intervals': intervals,
@@ -566,12 +568,16 @@ def project_viz_options_edit(request, project_pk):
         errors = []
         messages.success(request, f"Project viz_options not yet set. Generating some options below for you to start "
                                   "with.")
-        viz_options = {"intervals": [0, 50, 95],
-                       "disclaimer": "TODO disclaimer here. (Note: This visualization is a beta feature.)",
-                       "initial_unit": units[0]['value'] if units else "no units!",
-                       "models_at_top": [models[0]] if models else [],
-                       "initial_target_var": target_variables[0]['value'] if target_variables else "no targets!",
-                       "initial_checked_models": [models[0]] if models else []}
+        viz_options = {
+            "disclaimer": "TODO disclaimer here. (Note: This visualization is a beta feature.)",
+            "initial_checked_models": [models[0]] if models else [],
+            "included_target_vars": [target_variable['value'] for target_variable in target_variables]
+            if target_variables else ["no targets!"],
+            "initial_unit": units[0]['value'] if units else "no units!",
+            "intervals": [0, 50, 95],
+            "models_at_top": [models[0]] if models else [],
+            "x_axis_range_offset": None,
+        }
     viz_options_str = json.dumps(viz_options, indent=4)  # indent plus following replaces makes it pretty for JavaScript
     viz_options_str = viz_options_str.replace('\n', '\\n')
     return render(request, 'project_viz_options.html',

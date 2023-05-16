@@ -360,7 +360,7 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
     Validates viz_options, which is a dict suitable for saving in the `Project.viz_options` field. An example
     viz_options:
 
-        {"initial_target_var": "incident_deaths",
+        {"included_target_vars": ["incident_deaths"],
          "initial_unit": "48",
          "intervals": [0, 50, 95],
          "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],
@@ -373,7 +373,8 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
         - "disclaimer": arbitrary string that's shown at the top of the viz
         - "initial_checked_models": a list of strs naming model abbreviations to initially check in the viz.
             see viz_model_names()
-        - "initial_target_var": a valid target group for `project`. see viz_target_variables()' `value` key
+        - "included_target_vars": a list of valid target groups for `project`. see viz_target_variables()' `value` key.
+            The first will be used as the initially-selected variable.
         - "initial_unit": a valid Unit abbreviation for `project`. see viz_units()' `value` key
         - "intervals": a list of one or more ints between 0 and 100 inclusive. these represent percentages
         - "models_at_top": a list of strs naming model abbreviations to sort at the top of the viz model list. see
@@ -387,7 +388,7 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
     if not isinstance(viz_options, dict):
         return [f"viz_options is not a dict. viz_options={viz_options}, type={type(viz_options)}"]
 
-    expected_keys = {'initial_target_var', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
+    expected_keys = {'included_target_vars', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
                      'disclaimer', 'x_axis_range_offset'}
     actual_keys = set(viz_options.keys())
     if actual_keys != expected_keys:
@@ -396,7 +397,7 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
 
     # validate field types
     errors = []
-    field_name_to_type = {'initial_target_var': str, 'initial_unit': str, 'intervals': list,
+    field_name_to_type = {'included_target_vars': list, 'initial_unit': str, 'intervals': list,
                           'initial_checked_models': list, 'models_at_top': list, 'disclaimer': str}
     for field_name, field_type in field_name_to_type.items():
         if not isinstance(viz_options[field_name], field_type):
@@ -413,11 +414,13 @@ def validate_project_viz_options(project, viz_options, is_validate_objects=True)
         return errors
 
     # validate individual field values
-    # 'initial_target_var'
+    # 'included_target_vars'
     if is_validate_objects:
         target_var_vals = {target_var['value'] for target_var in viz_target_variables(project)}
-        if viz_options['initial_target_var'] not in target_var_vals:
-            errors.append(f"initial_target_var is invalid. initial_target_var={viz_options['initial_target_var']!r}, "
+        included_target_vars = set(viz_options['included_target_vars'])
+        if (not included_target_vars) or (not included_target_vars <= target_var_vals):  # empty or not subset
+            errors.append(f"included_target_vars is invalid (not a subset of target_var_vals). "
+                          f"included_target_vars={included_target_vars !r}, "
                           f"target_var_vals={target_var_vals!r}")
 
     # 'initial_unit'

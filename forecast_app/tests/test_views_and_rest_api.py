@@ -498,9 +498,9 @@ class ViewsTestCase(TestCase):
             #   TypeError: the JSON object must be str, bytes or bytearray, not NoneType
             # urlencode & content_type per https://stackoverflow.com/questions/50240315/django-apiclient-post-empty
             self.client.login(username=self.po_user.username, password=self.po_user_password)
-            options = {'initial_target_var': 'week_ahead_ili_percent', 'initial_unit': 'US National', 'intervals': [0],
-                       'initial_checked_models': ['abbrev'], 'models_at_top': ['abbrev'], 'disclaimer': '',
-                       'x_axis_range_offset': None}
+            options = {'included_target_vars': ['week_ahead_ili_percent'], 'initial_unit': 'US National',
+                       'intervals': [0], 'initial_checked_models': ['abbrev'], 'models_at_top': ['abbrev'],
+                       'disclaimer': '', 'x_axis_range_offset': None}
             options_str = json.dumps(options)
             post_data = {'validateOnlyCheckbox': 'off', 'optionsTextArea': options_str}
             response = self.client.post(url, urlencode(post_data), content_type='application/x-www-form-urlencoded')

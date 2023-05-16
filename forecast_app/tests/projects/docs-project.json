@@ -6,7 +6,7 @@
   "logo_url": "http://reichlab.io/assets/images/logo/nav-logo.png",
   "core_data": "http://reichlab.io/",
   "viz_options": {
-    "initial_target_var": "cases",
+    "included_target_vars": ["week_ahead_cases", "week_ahead_percentage_positive_tests"],
     "initial_unit": "loc1",
     "intervals": [0, 50, 95],
     "initial_checked_models": ["docs_mod"],

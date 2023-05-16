@@ -211,7 +211,7 @@ class VisualizationTestCase(TestCase):
     def test_validate_project_viz_options(self):
         # blue sky
         viz_options = {
-            "initial_target_var": "week_ahead_incident_deaths",
+            "included_target_vars": ["week_ahead_incident_deaths"],
             "initial_unit": "48",
             "intervals": [0, 50, 95],
             "initial_checked_models": ["COVIDhub-baseline", "COVIDhub-ensemble"],
@@ -223,7 +223,7 @@ class VisualizationTestCase(TestCase):
         self.assertEqual([], act_valid)
 
         # test bad key types and missing keys
-        for key in {'initial_target_var', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
+        for key in {'included_target_vars', 'initial_unit', 'intervals', 'initial_checked_models', 'models_at_top',
                     'disclaimer', 'x_axis_range_offset'}:
             edit_viz_options = copy.deepcopy(viz_options)
             edit_viz_options[key] = 0  # int is invalid for all keys
@@ -258,14 +258,15 @@ class VisualizationTestCase(TestCase):
 
         # test is_validate_objects
         edit_viz_options = copy.deepcopy(viz_options)
-        edit_viz_options['initial_target_var'] = 'bad var'
+        edit_viz_options['included_target_vars'] = ['bad var']
         edit_viz_options['initial_checked_models'] = ['bad model']
         edit_viz_options['models_at_top'] = ['bad model']
         act_valid = validate_project_viz_options(self.project, edit_viz_options, is_validate_objects=False)
         self.assertEqual(0, len(act_valid))
 
         # test invalid options, one by one
-        key_bad_val = [('initial_target_var', 'bad var'),
+        key_bad_val = [('included_target_vars', []),
+                       ('included_target_vars', ['bad var']),
                        ('initial_unit', 'bad unit'),
                        ('intervals', []),
                        ('intervals', [-1]),

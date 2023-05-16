@@ -53,7 +53,7 @@ def _target_unit_as_of_combos_to_cache(project, available_as_ofs):
     # cache initial page load. NB: `_viz_options_from_project()` will be relatively fast due to above
     # `viz_cache_avail_ref_dates()` call
     viz_options = _viz_options_from_project(project)
-    initial_target_var = viz_options['initial_target_var']
+    initial_target_var = viz_options['included_target_vars'][0]
     initial_unit = viz_options['initial_unit']
     initial_as_of = viz_options['initial_as_of']
 
