@@ -512,7 +512,6 @@ def _viz_options_from_project(project):
 
     # viz_options is valid
     target_variables = viz_target_variables(project)
-    units = viz_units(project)
     available_as_ofs = viz_cache_avail_ref_dates(project)  # computes if cache miss
     first_models = project.viz_options['models_at_top']
     model_names = first_models + [model_name for model_name in sorted(viz_model_names(project))
@@ -529,8 +528,8 @@ def _viz_options_from_project(project):
     xaxis_range = viz_initial_xaxis_range_from_range_offset(project.viz_options['x_axis_range_offset'], current_date)
     options = {'target_variables': target_variables,
                'initial_target_var': initial_target_var,
-               'units': units,
-               'initial_unit': project.viz_options['initial_unit'],
+               'task_ids': {'unit': viz_units(project)},
+               'initial_task_ids': {'unit': project.viz_options['initial_unit']},
                'intervals': intervals,
                'initial_interval': intervals[-1],  # todo xx should be in viz_options?
                'available_as_ofs': available_as_ofs,

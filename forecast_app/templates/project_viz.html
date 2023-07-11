@@ -36,9 +36,12 @@
          * call and therefore accept the standard arguments:
          * - success: function (data, textStatus, jqXHR) { ... }
          * - error: function (jqXHR, textStatus, thrownError) { ... }
+         *
+         * Recall that taskIDs is an object with keys for each task ID and corresponding values. For Zoltar, there is
+         * always only one task ID: 'unit', e.g., {"unit": "48"}
          */
-        function _fetchData(isForecast, targetKey, unitAbbrev, referenceDate) {
-            const url = "/api/project/" + {{ project.id }} +"/viz-data/";
+        function _fetchData(isForecast, targetKey, taskIDs, referenceDate) {
+            const unitAbbrev = taskIDs['unit'];
             const requestData = {
                 is_forecast: isForecast,
                 target_key: targetKey,
@@ -47,6 +50,7 @@
             };
 
             // using https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+            const url = "/api/project/" + {{ project.id }} +"/viz-data/";
             const urlObj = new URL(url, document.location.origin);
             Object.keys(requestData).forEach(key => urlObj.searchParams.append(key, requestData[key]))
             return fetch(urlObj);  // Promise
