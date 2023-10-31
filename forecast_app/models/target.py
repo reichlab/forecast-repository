@@ -47,11 +47,13 @@ class Target(models.Model):
     MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT = 1
     MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT = 2
     BIWEEK_RDT = 3
+    MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT = 4
     REF_DATE_TYPE_CHOICES = (
         (DAY_RDT, 'DAY'),
         (MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT, 'MMWR_WEEK_LAST_TIMEZERO_MONDAY'),
         (MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT, 'MMWR_WEEK_LAST_TIMEZERO_TUESDAY'),
         (BIWEEK_RDT, 'BIWEEK'),
+        (MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT, 'MMWR_WEEK_LAST_TIMEZERO_SATURDAY'),
     )
 
     project = models.ForeignKey(Project, related_name='targets', on_delete=models.CASCADE)
@@ -108,6 +110,7 @@ class Target(models.Model):
         Validates is_step_ahead -> numeric_horizon and reference_date_type.
         """
         from utils.project import _target_dict_for_target, _validate_target_dict  # avoid circular imports
+
 
         if self.pk is not None:
             # validate by serializing to a dict so we can use _validate_target_dict(). note that Targets created without
@@ -348,10 +351,10 @@ class Target(models.Model):
                                    NamedData.LNORM_DIST,
                                    NamedData.GAMMA_DIST,
                                    NamedData.BETA_DIST))) or \
-               ((target_type == Target.DISCRETE_TARGET_TYPE) and
-                (family_abbrev in (NamedData.POIS_DIST,
-                                   NamedData.NBINOM_DIST,
-                                   NamedData.NBINOM2_DIST)))
+            ((target_type == Target.DISCRETE_TARGET_TYPE) and
+             (family_abbrev in (NamedData.POIS_DIST,
+                                NamedData.NBINOM_DIST,
+                                NamedData.NBINOM2_DIST)))
 
 
 #
@@ -413,6 +416,32 @@ def calc_BIWEEK_RDT(numeric_horizon, timezero_date):
     return None, None  # todo xx
 
 
+def calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT(numeric_horizon, timezero_date):
+    """
+    Similar to calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(), implements the Saturday-based reference_date_type for
+    https://github.com/cdcepi/Flusight-forecast-data .
+
+    reference_date: based on timezero_date's day of week:
+    - Saturday: reference_date = timezero_date
+    - otherwise: reference_date = timezero_date's next saturday
+
+    target_end_date: reference_date + (numeric_horizon in number of weeks) * 7 days
+
+    :return a 2-tuple: (reference_date, target_end_date). both datetime.dates
+    """
+    if timezero_date.weekday() == 5:  # Sat
+        reference_date = timezero_date
+    else:  # Sun, Mon, Tue, Wed, Thu, or Fri
+        next_sat = relativedelta.relativedelta(weekday=relativedelta.SA(1))
+        reference_date = timezero_date + next_sat
+
+    # calculate target_end_date
+    target_end_date = reference_date + relativedelta.relativedelta(days=numeric_horizon * 7)
+
+    # done
+    return reference_date, target_end_date
+
+
 #
 # This tuple class contains information associated with each RDT in Target.reference_date_types. Instances are saved in
 # the master list _TARGET_REFERENCE_DATE_TYPES below.
@@ -440,6 +469,7 @@ _RDT_ID_TO_ABBREV_AND_CALC_FCN = {
     Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT: ('week', calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT),
     Target.MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT: ('week', calc_MMWR_WEEK_LAST_TIMEZERO_TUESDAY_RDT),
     Target.BIWEEK_RDT: ('biweek', calc_BIWEEK_RDT),
+    Target.MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT: ('week', calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT),
 }
 
 _TARGET_REFERENCE_DATE_TYPES = tuple(ReferenceDateType(rdt_id, rdt_name,

@@ -8,7 +8,7 @@ from django.test import TestCase
 
 from forecast_app.models import Target, Project, Forecast, TimeZero
 from forecast_app.models.target import TargetRange, TargetCat, TargetLwr, calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT, \
-    calc_DAY_RDT
+    calc_DAY_RDT, calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT
 from utils.forecast import load_predictions_from_json_io_dict, NamedData
 from utils.make_minimal_projects import _make_docs_project
 from utils.project import create_project_from_json
@@ -465,6 +465,14 @@ class TargetTestCase(TestCase):
         self.assertEqual([(1.1, 2.2), (2.2, 3.3), (3.3, float('inf'))], lwrs)
 
 
+    def test_calc_DAY_RDT(self):
+        target = Target(name='test target', is_step_ahead=True, numeric_horizon=1, reference_date_type=Target.DAY_RDT)
+        timezero = TimeZero(timezero_date=datetime.date(2020, 1, 22))
+        act_ref_date, act_target_end_date = calc_DAY_RDT(target.numeric_horizon, timezero.timezero_date)
+        self.assertEqual(timezero.timezero_date, act_ref_date)
+        self.assertEqual(timezero.timezero_date + datetime.timedelta(days=1), act_target_end_date)  # 1 day ahead
+
+
     def test_calc_MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT(self):
         target = Target(name='test target', is_step_ahead=True, numeric_horizon=1,  # arbitrary numeric_horizon
                         reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT)
@@ -515,9 +523,34 @@ class TargetTestCase(TestCase):
         self.assertEqual(datetime.date(2022, 1, 15), act_target_end_date)
 
 
-    def test_calc_DAY_RDT(self):
-        target = Target(name='test target', is_step_ahead=True, numeric_horizon=1, reference_date_type=Target.DAY_RDT)
-        timezero = TimeZero(timezero_date=datetime.date(2020, 1, 22))
-        act_ref_date, act_target_end_date = calc_DAY_RDT(target.numeric_horizon, timezero.timezero_date)
+    def test_calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT(self):
+        target = Target(name='test target', is_step_ahead=True, numeric_horizon=1,  # arbitrary numeric_horizon
+                        reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT)
+        timezero = TimeZero(timezero_date=datetime.date(2021, 12, 11))  # arbitrary timezero_date
+
+        # case: reference_date: timezero_date is a Sat -> self
+        timezero.timezero_date = datetime.date(2021, 12, 11)  # Sat
+        act_ref_date, _ = calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT(target.numeric_horizon, timezero.timezero_date)
         self.assertEqual(timezero.timezero_date, act_ref_date)
-        self.assertEqual(timezero.timezero_date + datetime.timedelta(days=1), act_target_end_date)  # 1 day ahead
+
+        # case: reference_date: timezero_date is Sun, Mon, Tue, Wed, Thu, or Fri -> next Sat
+        tz_dates = [datetime.date(2021, 12, date) for date in [5, 6, 7, 8, 9, 10]]
+        for tz_date in tz_dates:
+            timezero.timezero_date = tz_date
+            act_ref_date, _ = calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT(target.numeric_horizon, timezero.timezero_date)
+            self.assertEqual(datetime.date(2021, 12, 11), act_ref_date)  # next Sat
+
+        # case: numeric_horizon: 1 week
+        target.numeric_horizon = 1
+        timezero.timezero_date = datetime.date(2021, 12, 11)  # Sat
+        act_ref_date, act_target_end_date = calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT(target.numeric_horizon,
+                                                                                      timezero.timezero_date)
+        self.assertEqual(datetime.date(2021, 12, 18), act_target_end_date)  # next Sat
+
+        # case: Sun, numeric_horizon: -1 weeks -> next Sat (next year), prev Sat (this year)
+        target.numeric_horizon = -1
+        timezero.timezero_date = datetime.date(2021, 12, 26)  # Sun
+        act_ref_date, act_target_end_date = calc_MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT(target.numeric_horizon,
+                                                                                      timezero.timezero_date)
+        self.assertEqual(datetime.date(2022, 1, 1), act_ref_date)
+        self.assertEqual(datetime.date(2021, 12, 25), act_target_end_date)

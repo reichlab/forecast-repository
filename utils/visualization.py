@@ -34,7 +34,8 @@ def viz_targets(project):
     return project.targets \
         .filter(is_step_ahead=True, type__in=(Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE)) \
         .filter(models.Q(reference_date_type=Target.DAY_RDT) |
-                models.Q(reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT))
+                models.Q(reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_MONDAY_RDT) |
+                models.Q(reference_date_type=Target.MMWR_WEEK_LAST_TIMEZERO_SATURDAY_RDT))  # implemented ones
 
 
 #
