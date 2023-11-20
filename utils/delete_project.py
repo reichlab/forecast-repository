@@ -4,14 +4,13 @@ import resource
 import click
 import django
 
-from utils.project import delete_project_iteratively
-
 
 logger = logging.getLogger(__name__)
 
 # set up django. must be done before loading models. NB: requires DJANGO_SETTINGS_MODULE to be set
 django.setup()
 
+from utils.project import delete_project_iteratively
 from forecast_app.models import Project
 
 
