@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="Black">
+    <option name="sdkName" value="Python 3.9 (forecast-repository-aIKRoinE)" />
+  </component>
   <component name="JavaScriptSettings">
     <option name="languageLevel" value="ES6" />
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_6" default="false" project-jdk-name="forecast-repository-aIKRoinE" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_1_6" project-jdk-name="Python 3.9 (forecast-repository-aIKRoinE)" project-jdk-type="Python SDK" />
   <component name="SbtLocalSettings">
     <option name="modificationStamps">
       <map>
