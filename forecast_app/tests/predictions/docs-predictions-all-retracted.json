@@ -8,6 +8,21 @@
     },
     {"unit": "loc1",
       "target": "pct next week",
+      "class": "mean",
+      "prediction": null
+    },
+    {"unit": "loc1",
+      "target": "pct next week",
+      "class": "median",
+      "prediction": null
+    },
+    {"unit": "loc1",
+      "target": "pct next week",
+      "class": "mode",
+      "prediction": null
+    },
+    {"unit": "loc1",
+      "target": "pct next week",
       "class": "named",
       "prediction": null
     },

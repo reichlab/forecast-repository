@@ -32,13 +32,16 @@ def csv_rows_from_json_io_dict(json_io_dict):
     rows = [CSV_HEADER]  # return value. filled next
     for prediction_dict in json_io_dict['predictions']:
         prediction_class = prediction_dict['class']
-        if prediction_class not in list(PRED_CLASS_INT_TO_NAME.values()):  # 'bin', 'named', 'point', 'sample', quantile
+        if prediction_class not in list(PRED_CLASS_INT_TO_NAME.values()):
             raise RuntimeError(f"invalid prediction_dict class: {prediction_class}")
 
         is_bin_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS]
         is_named_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS]
         is_point_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]
         is_sample_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS]
+        is_mean_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MEAN_CLASS]
+        is_median_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MEDIAN_CLASS]
+        is_mode_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MODE_CLASS]
         unit = prediction_dict['unit']
         target = prediction_dict['target']
         prediction_data = prediction_dict['prediction']
@@ -53,7 +56,7 @@ def csv_rows_from_json_io_dict(json_io_dict):
                 cat, prob = RETRACT_VAL, RETRACT_VAL
             elif is_named_class:
                 family, param1, param2, param3 = RETRACT_VAL, RETRACT_VAL, RETRACT_VAL, RETRACT_VAL
-            elif is_point_class:
+            elif is_point_class or is_mean_class or is_median_class or is_mode_class:
                 value = RETRACT_VAL
             elif is_sample_class:
                 sample = RETRACT_VAL
@@ -71,7 +74,7 @@ def csv_rows_from_json_io_dict(json_io_dict):
                          prediction_data['param1'] if 'param1' in prediction_data else '',
                          prediction_data['param2'] if 'param2' in prediction_data else '',
                          prediction_data['param3'] if 'param3' in prediction_data else ''])
-        elif is_point_class:
+        elif is_point_class or is_mean_class or is_median_class or is_mode_class:
             rows.append([unit, target, prediction_class, prediction_data['value'], cat, prob, sample, quantile,
                          family, param1, param2, param3])
         elif is_sample_class:
@@ -110,7 +113,10 @@ def json_io_dict_from_csv_rows(csv_rows):
                                    'named': _pred_dict_for_named_rows,
                                    'point': _pred_dict_for_point_rows,
                                    'sample': _pred_dict_for_sample_rows,
-                                   'quantile': _pred_dict_for_quantile_rows}
+                                   'quantile': _pred_dict_for_quantile_rows,
+                                   'mean': _pred_dict_for_point_rows,
+                                   'median': _pred_dict_for_point_rows,
+                                   'mode': _pred_dict_for_point_rows}
     prediction_dicts = []
     csv_rows.sort(key=lambda _: (_[0], _[1], _[2]))  # sorted for groupby(): unit, target, pred_class
     for (unit, target, pred_class), values_grouper in groupby(csv_rows, key=lambda _: (_[0], _[1], _[2])):

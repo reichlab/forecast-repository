@@ -221,12 +221,11 @@ def _load_truth_data(project, oracle_model, truth_file_fp, file_name, is_convert
     forecasts = []  # ones created
     forecasts_100pct_dup = []  # ones that raised RuntimeError "cannot load 100% duplicate data"
     logger.debug(f"_load_truth_data(): creating and loading {len(timezero_groups)} forecasts. source={source!r}")
-    point_class = PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]
     for timezero, timezero_rows in timezero_groups.items():
         forecast = Forecast.objects.create(forecast_model=oracle_model, source=source, time_zero=timezero,
                                            notes=f"oracle forecast")
         prediction_dicts = [{'unit': unit.abbreviation, 'target': target.name,
-                             'class': point_class,
+                             'class': PRED_CLASS_INT_TO_NAME[PredictionElement.MODE_CLASS],
                              'prediction': {
                                  'value': parsed_value.strftime(YYYY_MM_DD_DATE_FORMAT)
                                  if isinstance(parsed_value, datetime.date) else parsed_value}}

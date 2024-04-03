@@ -200,8 +200,8 @@ class ProjectDiffTestCase(TestCase):
 
         changes = project_config_diff(out_config_dict, edit_config_dict)  # change, num_pred_eles, num_truth
         exp_changes = [(Change(ObjectType.UNIT, 'loc3', ChangeType.OBJ_REMOVED, None, None), 8, 0),
-                       (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 7, 3),
-                       (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 29, 5)]
+                       (Change(ObjectType.TARGET, 'pct next week', ChangeType.OBJ_REMOVED, None, None), 10, 3),
+                       (Change(ObjectType.TIMEZERO, '2011-10-02', ChangeType.OBJ_REMOVED, None, None), 32, 5)]
         act_changes = database_changes_for_project_config_diff(project, changes)
         self.assertEqual(exp_changes, act_changes)
 

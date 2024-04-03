@@ -31,7 +31,7 @@ from forecast_app.models.job import Job, JOB_TYPE_DELETE_FORECAST, JOB_TYPE_UPLO
     JOB_TYPE_UPLOAD_FORECAST, JOB_TYPE_QUERY_FORECAST, JOB_TYPE_QUERY_TRUTH
 from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME
 from forecast_repo.settings.base import S3_BUCKET_PREFIX, UPLOAD_FILE_QUEUE_NAME, DELETE_FORECAST_QUEUE_NAME, \
-    MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE, MAX_NUM_DUMP_PRED_ELES
+    MAX_NUM_QUERY_ROWS, MAX_UPLOAD_FILE_SIZE
 from utils.forecast import data_rows_from_forecast, is_forecast_metadata_available, forecast_metadata, \
     forecast_metadata_counts_for_f_ids, fm_ids_with_min_num_forecasts, forecast_ids_in_date_range, \
     forecast_ids_in_target_group
@@ -104,7 +104,8 @@ def project_summary_info(project):
     # ForecastMetaPrediction, but for simplicity we simply sum them all, which will be zero if none are present. this
     # case cannot be differentiated from the one where there are ForecastMetaPredictions but their counts are all zero,
     # but that seems unlikely
-    num_rows_exact = sum([sum([fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count])
+    num_rows_exact = sum([sum([fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count,
+                               fmp.mean_count, fmp.median_count, fmp.mode_count])
                           for fmp in ForecastMetaPrediction.objects.filter(forecast__forecast_model__project=project,
                                                                            forecast__forecast_model__is_oracle=False)])
     return (*project.num_models_forecasts(), num_rows_exact)
@@ -126,7 +127,6 @@ def zadmin(request):
                            's3_bucket_prefix': S3_BUCKET_PREFIX,
                            'max_num_query_rows': MAX_NUM_QUERY_ROWS,
                            'max_upload_file_size': MAX_UPLOAD_FILE_SIZE,
-                           'max_num_dump_pred_eles': MAX_NUM_DUMP_PRED_ELES,
                            'projects_sort_pk': projects_sort_pk})
 
 
@@ -1134,7 +1134,7 @@ class ProjectDetailView(UserPassesTestMixin, DetailView):
 
         # num_batches, latest_batch_source, latest_batch_timezero:
         context['truth_batch_info'] = len(batches), batches[-1][0] if batches else None, \
-                                      batches[-1][1] if batches else None
+            batches[-1][1] if batches else None
 
         context['project_summary_info'] = project_summary_info(project)  # num_models, num_forecasts, num_rows_exact
 
@@ -1306,7 +1306,7 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
         # set search_unit, search_target, and data_rows_* if a query requested
         search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, \
-        data_rows_sample = self.search_forecast()
+            data_rows_sample, data_rows_mean, data_rows_median, data_rows_mode = self.search_forecast()
 
         # determine my version_str - must examine all forecasts for my timezero, similar to
         # `views.ForecastModelDetailView.get_context_data()`.
@@ -1339,6 +1339,9 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
         context['data_rows_point'] = data_rows_point
         context['data_rows_quantile'] = data_rows_quantile
         context['data_rows_sample'] = data_rows_sample
+        context['data_rows_mean'] = data_rows_mean
+        context['data_rows_median'] = data_rows_median
+        context['data_rows_mode'] = data_rows_mode
         return context
 
 
@@ -1357,7 +1360,10 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
             (PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS], forecast_meta_prediction.named_count),
             (PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS], forecast_meta_prediction.point_count),
             (PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS], forecast_meta_prediction.sample_count),
-            (PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS], forecast_meta_prediction.quantile_count)]
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS], forecast_meta_prediction.quantile_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.MEAN_CLASS], forecast_meta_prediction.mean_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.MEDIAN_CLASS], forecast_meta_prediction.median_count),
+            (PRED_CLASS_INT_TO_NAME[PredictionElement.MODE_CLASS], forecast_meta_prediction.mode_count)]
         found_units = [forecast_meta_unit.unit for forecast_meta_unit
                        in forecast_meta_unit_qs.select_related('unit')]
         found_targets = [forecast_meta_target.target for forecast_meta_target
@@ -1367,9 +1373,10 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
 
     def search_forecast(self):
         """
-        `ForecastDetailView.get_context_data` helper, returns a 7-tuple based on the two search args in self.request
+        `ForecastDetailView.get_context_data` helper, returns a 10-tuple based on the two search args in self.request
         ('unit' - a Unit.id and 'target' - a Target.id):
-            (search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample)
+            (search_unit, search_target, data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile,
+             data_rows_sample, data_rows_mean, data_rows_median, data_rows_mode)
         If the passed args are valid, the first two items are None and the remainder are [].
         """
         search_unit_and_target = None  # 2-tuple if query was valid: (search_unit, search_target). set next
@@ -1399,15 +1406,17 @@ class ForecastDetailView(UserPassesTestMixin, DetailView):
                                              f"target={search_target_id}")
 
         # do the actual query if valid search params
-        data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = [], [], [], [], []
+        data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample, data_rows_mean, data_rows_median, data_rows_mode = [], [], [], [], [], [], [], []
         if search_unit_and_target:
             forecast = self.get_object()
-            data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
-                data_rows_from_forecast(forecast, search_unit_and_target[0], search_unit_and_target[1])
+            (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample, data_rows_mean,
+             data_rows_median, data_rows_mode) = (
+                data_rows_from_forecast(forecast, search_unit_and_target[0], search_unit_and_target[1]))
 
-        return search_unit_and_target[0] if search_unit_and_target else None, \
-               search_unit_and_target[1] if search_unit_and_target else None, \
-               data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample
+        return (search_unit_and_target[0] if search_unit_and_target else None,
+                search_unit_and_target[1] if search_unit_and_target else None,
+                data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample, data_rows_mean,
+                data_rows_median, data_rows_mode)
 
 
 class JobDetailView(UserPassesTestMixin, DetailView):
@@ -1936,4 +1945,4 @@ def is_user_ok_delete_forecast(user, forecast):
 
 def is_user_ok_upload_forecast(request, forecast_model):
     return request.user.is_superuser or (request.user == forecast_model.project.owner) or \
-           (request.user == forecast_model.owner)
+        (request.user == forecast_model.owner)

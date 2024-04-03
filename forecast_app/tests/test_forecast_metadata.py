@@ -43,6 +43,9 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(6, meta_cache_prediction.bin_count)
         self.assertEqual(7, meta_cache_prediction.sample_count)
         self.assertEqual(3, meta_cache_prediction.quantile_count)
+        self.assertEqual(1, meta_cache_prediction.mean_count)
+        self.assertEqual(1, meta_cache_prediction.median_count)
+        self.assertEqual(1, meta_cache_prediction.mode_count)
 
         # second run first deletes existing rows, resulting in the same number as before
         cache_forecast_metadata(self.forecast)
@@ -129,6 +132,9 @@ class ForecastMetadataTestCase(TestCase):
         self.assertEqual(6, forecast_meta_prediction.bin_count)
         self.assertEqual(7, forecast_meta_prediction.sample_count)
         self.assertEqual(3, forecast_meta_prediction.quantile_count)
+        self.assertEqual(1, forecast_meta_prediction.mean_count)
+        self.assertEqual(1, forecast_meta_prediction.median_count)
+        self.assertEqual(1, forecast_meta_prediction.mode_count)
 
         self.assertIsInstance(forecast_meta_unit_qs, QuerySet)
         self.assertEqual(3, len(forecast_meta_unit_qs))
@@ -157,9 +163,11 @@ class ForecastMetadataTestCase(TestCase):
 
         forecasts_qs = self.forecast_model.forecasts.all()
         forecast_id_to_counts = forecast_metadata_counts_for_f_ids(forecasts_qs)
-        #  f_id:  [(point_count, named_count, bin_count, sample_count, quantile_count), num_names, num_targets]
-        # {   4:  [(11,          2,           6,         7,            3),              3,         5          ],
-        #     5:  [(11,          2,           6,         7,            3),              3,         5          ]}
+        # counts: point_count, named_count, bin_count, sample_count, quantile_count, mean_count, median_count,
+        # mode_count
+        #  f_id:  [(counts),                   num_names, num_targets]
+        # {   4:  [(11, 2, 6, 7, 3, 1, 1, 1),  3,         5          ],
+        #     5:  [(11, 2, 6, 7, 3, 1, 1, 1),  3,         5          ]}
         self.assertEqual(sorted([self.forecast.id, forecast2.id]), sorted(forecast_id_to_counts.keys()))
-        self.assertEqual([(11, 2, 6, 7, 3), 3, 5], forecast_id_to_counts[self.forecast.id])
-        self.assertEqual([(11, 2, 6, 7, 3), 3, 5], forecast_id_to_counts[forecast2.id])
+        self.assertEqual([(11, 2, 6, 7, 3, 1, 1, 1), 3, 5], forecast_id_to_counts[self.forecast.id])
+        self.assertEqual([(11, 2, 6, 7, 3, 1, 1, 1), 3, 5], forecast_id_to_counts[forecast2.id])

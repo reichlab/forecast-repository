@@ -47,8 +47,10 @@ def print_forecast_metadata_all_projects(project_pk):
                 if all([forecast_meta_prediction, forecast_meta_unit_qs.count(), forecast_meta_target_qs.count()]):
                     print(f"  = {forecast.pk}|{forecast.source}: pnbsq: {forecast_meta_prediction.point_count}|"
                           f"{forecast_meta_prediction.named_count}|{forecast_meta_prediction.bin_count}|"
-                          f"{forecast_meta_prediction.sample_count}|{forecast_meta_prediction.quantile_count}, "
-                          f"{len(forecast_meta_unit_qs)} units, {len(forecast_meta_target_qs)} targets")
+                          f"{forecast_meta_prediction.sample_count}|{forecast_meta_prediction.quantile_count}|"
+                          f"{forecast_meta_prediction.mean_count}|{forecast_meta_prediction.median_count}|"
+                          f"{forecast_meta_prediction.mode_count}, {len(forecast_meta_unit_qs)} units, "
+                          f"{len(forecast_meta_target_qs)} targets")
                 elif any([forecast_meta_prediction, forecast_meta_unit_qs.count(), forecast_meta_target_qs.count()]):
                     print(f"  = {forecast.pk}|{forecast.source}: not all! {forecast_meta_prediction}, "
                           f"{forecast_meta_unit_qs.count()}, {forecast_meta_target_qs.count()}")

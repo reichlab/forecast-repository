@@ -26,6 +26,9 @@ class CsvIOTestCase(TestCase):
         exp_rows = [
             CSV_HEADER,
             ['loc1', 'pct next week', 'point', 2.1, '', '', '', '', '', '', '', ''],
+            ['loc1', 'pct next week', 'mean', 2.11, '', '', '', '', '', '', '', ''],
+            ['loc1', 'pct next week', 'median', 2.12, '', '', '', '', '', '', '', ''],
+            ['loc1', 'pct next week', 'mode', 2.13, '', '', '', '', '', '', '', ''],
             ['loc1', 'pct next week', 'named', '', '', '', '', '', 'norm', 1.1, 2.2, ''],
             ['loc2', 'pct next week', 'point', 2.0, '', '', '', '', '', '', '', ''],
             ['loc2', 'pct next week', 'bin', '', 1.1, 0.3, '', '', '', '', '', ''],

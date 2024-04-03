@@ -1,5 +1,8 @@
 unit,target,class,value,cat,prob,sample,quantile,family,param1,param2,param3
 loc1,pct next week,point,"NULL",,,,,,,,
+loc1,pct next week,mean,"NULL",,,,,,,,
+loc1,pct next week,median,"NULL",,,,,,,,
+loc1,pct next week,mode,"NULL",,,,,,,,
 loc1,pct next week,named,,,,,,"NULL","NULL","NULL","NULL"
 loc2,pct next week,point,"NULL",,,,,,,,
 loc2,pct next week,bin,,"NULL","NULL",,,,,,

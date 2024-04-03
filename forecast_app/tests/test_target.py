@@ -167,6 +167,9 @@ class TargetTestCase(TestCase):
         # PredictionElement.NAMED_CLASS    + Target.DATE_TARGET_TYPE       + any family
         # PredictionElement.QUANTILE_CLASS + Target.NOMINAL_TARGET_TYPE
         # PredictionElement.QUANTILE_CLASS + Target.BINARY_TARGET_TYPE
+        # PredictionElement.MEAN_CLASS + Target.NOMINAL_TARGET_TYPE
+        # PredictionElement.MEAN_CLASS + Target.BINARY_TARGET_TYPE
+        # PredictionElement.MEDIAN_CLASS + Target.NOMINAL_TARGET_TYPE
 
         _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
         project, time_zero, forecast_model, forecast = _make_docs_project(po_user)
@@ -207,6 +210,29 @@ class TargetTestCase(TestCase):
             prediction_dict = {'unit': 'loc1',
                                'target': target,
                                'class': 'quantile',
+                               'prediction': pred_data}
+            with self.assertRaises(RuntimeError) as context:
+                load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})
+            self.assertIn('is not valid for', str(context.exception))
+
+        # test PredictionElement.MEAN_CLASS. invalid: Target.NOMINAL_TARGET_TYPE , Target.BINARY_TARGET_TYPE
+        bad_target_pred_data = [('season severity', {"value": 1}),  # Target.NOMINAL_TARGET_TYPE
+                                ('above baseline', {"value": True})]  # Target.BINARY_TARGET_TYPE
+        for target, pred_data in bad_target_pred_data:
+            prediction_dict = {'unit': 'loc1',
+                               'target': target,
+                               'class': 'mean',
+                               'prediction': pred_data}
+            with self.assertRaises(RuntimeError) as context:
+                load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})
+            self.assertIn('is not valid for', str(context.exception))
+
+        # test PredictionElement.MEDIAN_CLASS. invalid: Target.NOMINAL_TARGET_TYPE
+        bad_target_pred_data = [('season severity', {"value": 1})]  # Target.NOMINAL_TARGET_TYPE
+        for target, pred_data in bad_target_pred_data:
+            prediction_dict = {'unit': 'loc1',
+                               'target': target,
+                               'class': 'median',
                                'prediction': pred_data}
             with self.assertRaises(RuntimeError) as context:
                 load_predictions_from_json_io_dict(forecast2, {'predictions': [prediction_dict]})

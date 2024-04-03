@@ -442,10 +442,10 @@ class ForecastVersionsTestCase(TestCase):
         f1_json = json_io_dict_from_forecast(forecasts[0], None, True)
         f2_json = json_io_dict_from_forecast(forecasts[1], None, True)
         with open('forecast_app/tests/predictions/exp-json-io-dict-from-forecast-as-of.json') as fp:
-            json_io_dicts = json.load(fp)
-            for exp_pred_dict, act_pred_dict in [(json_io_dicts[0], f0_json),
-                                                 (json_io_dicts[1], f1_json),
-                                                 (json_io_dicts[2], f2_json)]:
+            exp_json_io_dicts = json.load(fp)
+            for exp_pred_dict, act_pred_dict in [(exp_json_io_dicts[0], f0_json),
+                                                 (exp_json_io_dicts[1], f1_json),
+                                                 (exp_json_io_dicts[2], f2_json)]:
                 self.assertEqual(exp_pred_dict, act_pred_dict)
 
 
@@ -493,10 +493,11 @@ class ForecastVersionsTestCase(TestCase):
 
         # test f1
         # forecast_meta_prediction (pnbsq), forecast_meta_unit_qs, forecast_meta_target_qs:
-        exp_meta = ((1, 1, 0, 0, 0), {'loc1', 'loc2'}, {'cases next week'})
+        exp_meta = ((1, 1, 0, 0, 0, 0, 0, 0), {'loc1', 'loc2'}, {'cases next week'})
         act_meta = forecast_metadata(f1)
         act_fmp_counts = act_meta[0].point_count, act_meta[0].named_count, act_meta[0].bin_count, \
-                         act_meta[0].sample_count, act_meta[0].quantile_count
+            act_meta[0].sample_count, act_meta[0].quantile_count, \
+            act_meta[0].mean_count, act_meta[0].median_count, act_meta[0].mode_count
         act_fm_units = set([fmu.unit.abbreviation for fmu in act_meta[1]])
         act_fm_targets = set([fmu.target.name for fmu in act_meta[2]])
         self.assertEqual(exp_meta[0], act_fmp_counts)
@@ -505,10 +506,11 @@ class ForecastVersionsTestCase(TestCase):
 
         # test f2
         # forecast_meta_prediction (pnbsq), forecast_meta_unit_qs, forecast_meta_target_qs:
-        exp_meta = ((0, 0, 1, 1, 1), {'loc1', 'loc3'}, {'pct next week', 'Season peak week'})
+        exp_meta = ((0, 0, 1, 1, 1, 0, 0, 0), {'loc1', 'loc3'}, {'pct next week', 'Season peak week'})
         act_meta = forecast_metadata(f2)
         act_fmp_counts = act_meta[0].point_count, act_meta[0].named_count, act_meta[0].bin_count, \
-                         act_meta[0].sample_count, act_meta[0].quantile_count
+            act_meta[0].sample_count, act_meta[0].quantile_count, \
+            act_meta[0].mean_count, act_meta[0].median_count, act_meta[0].mode_count
         act_fm_units = set([fmu.unit.abbreviation for fmu in act_meta[1]])
         act_fm_targets = set([fmu.target.name for fmu in act_meta[2]])
         self.assertEqual(exp_meta[0], act_fmp_counts)
@@ -563,41 +565,42 @@ class ForecastVersionsTestCase(TestCase):
         ]
         load_predictions_from_json_io_dict(f2, {'predictions': predictions}, is_validate_cats=False)
 
-        # test. rows: bnpqs
+        # rows: 8-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample,
+        #                 data_rows_mean, data_rows_median, data_rows_mode)
         f_loc_targ_to_exp_rows = {
-            (f1, u1, t1): ([], [('loc1', 'cases next week', 'pois', 1.1, None, None)], [], [], []),
+            (f1, u1, t1): ([], [('loc1', 'cases next week', 'pois', 1.1, None, None)], [], [], [], [], [], []),
             (f1, u1, t2): ([('loc1', 'pct next week', 1.1, 0.3),
                             ('loc1', 'pct next week', 2.2, 0.2),
                             ('loc1', 'pct next week', 3.3, 0.5)],
-                           [], [], [], []),
-            (f1, u1, t3): ([], [], [], [], []),
-            (f1, u2, t1): ([], [], [('loc2', 'cases next week', 5)], [], []),
-            (f1, u2, t2): ([], [], [], [], []),
-            (f1, u2, t3): ([], [], [], [], []),
-            (f1, u3, t1): ([], [], [], [], []),
-            (f1, u3, t2): ([], [], [], [], []),
-            (f1, u3, t3): ([], [], [], [], []),
+                           [], [], [], [], [], [], []),
+            (f1, u1, t3): ([], [], [], [], [], [], [], []),
+            (f1, u2, t1): ([], [], [('loc2', 'cases next week', 5)], [], [], [], [], []),
+            (f1, u2, t2): ([], [], [], [], [], [], [], []),
+            (f1, u2, t3): ([], [], [], [], [], [], [], []),
+            (f1, u3, t1): ([], [], [], [], [], [], [], []),
+            (f1, u3, t2): ([], [], [], [], [], [], [], []),
+            (f1, u3, t3): ([], [], [], [], [], [], [], []),
             (f2, u1, t1): ([],
                            [('loc1', 'cases next week', 'pois', 2.2, None, None)],
                            [('loc1', 'cases next week', 6)],
-                           [], []),
+                           [], [], [], [], []),
             (f2, u1, t2): ([('loc1', 'pct next week', 1.1, 0.3),
                             ('loc1', 'pct next week', 2.2, 0.2),
                             ('loc1', 'pct next week', 3.3, 0.5)],
-                           [], [], [], []),  # will fail if doesn't merge w/older version
+                           [], [], [], [], [], [], []),  # will fail if doesn't merge w/older version
             (f2, u1, t3): ([], [], [],
                            [('loc1', 'Season peak week', 0.5, '2019-12-22'),
                             ('loc1', 'Season peak week', 0.75, '2019-12-29'),
                             ('loc1', 'Season peak week', 0.975, '2020-01-05')],
-                           []),
-            (f2, u2, t1): ([], [], [], [], []),
-            (f2, u2, t2): ([], [], [], [], []),
-            (f2, u2, t3): ([], [], [], [], []),
-            (f2, u3, t1): ([], [], [], [], []),
-            (f2, u3, t2): ([], [], [], [], []),
+                           [], [], [], []),
+            (f2, u2, t1): ([], [], [], [], [], [], [], []),
+            (f2, u2, t2): ([], [], [], [], [], [], [], []),
+            (f2, u2, t3): ([], [], [], [], [], [], [], []),
+            (f2, u3, t1): ([], [], [], [], [], [], [], []),
+            (f2, u3, t2): ([], [], [], [], [], [], [], []),
             (f2, u3, t3): ([], [], [], [],
                            [('loc3', 'Season peak week', '2020-01-05'),
-                            ('loc3', 'Season peak week', '2019-12-15')]),
+                            ('loc3', 'Season peak week', '2019-12-15')], [], [], []),
         }
         for (forecast, unit, target), exp_rows in f_loc_targ_to_exp_rows.items():
             act_rows = data_rows_from_forecast(forecast, unit, target)
