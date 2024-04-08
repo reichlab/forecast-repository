@@ -27,16 +27,19 @@ class ForecastMetaPrediction(ForecastMetadataCache):
     Caches this metadata for Forecasts: prediction type counts from my forecast's PredictionElements.
     """
 
-    point_count = IntegerField(default=None, null=True)  # number of PointPredictions in this forecast
-    named_count = IntegerField(default=None, null=True)  # "" NamedDistribution ""
-    bin_count = IntegerField(default=None, null=True)  # "" BinDistribution ""
-    sample_count = IntegerField(default=None, null=True)  # "" SampleDistribution ""
-    quantile_count = IntegerField(default=None, null=True)  # "" QuantileDistribution ""
+    point_count = IntegerField()  # number of point predictions in this forecast
+    named_count = IntegerField()  # "" named ""
+    bin_count = IntegerField()  # "" bin ""
+    sample_count = IntegerField()  # "" sample ""
+    quantile_count = IntegerField()  # "" quantile ""
+    mean_count = IntegerField()  # "" mean ""
+    median_count = IntegerField()  # "" median ""
+    mode_count = IntegerField()  # "" mode ""
 
 
     def __repr__(self):
         return str((self.pk, self.forecast.pk, self.point_count, self.named_count, self.bin_count, self.sample_count,
-                    self.quantile_count))
+                    self.quantile_count, self.mean_count, self.median_count, self.mode_count))
 
 
     def __str__(self):  # todo

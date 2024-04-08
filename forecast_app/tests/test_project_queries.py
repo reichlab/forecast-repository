@@ -113,11 +113,7 @@ class ProjectQueriesTestCase(TestCase):
         timezero_to_season_name = self.project.timezero_to_season_name()
         seas = timezero_to_season_name[self.time_zero]
 
-        # ---- case: all BinData in project. check cat and prob columns ----
-        rows = list(query_forecasts_for_project(self.project, {'types': ['bin']}))  # list for generator
-        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-
-        # same test but with conversion
+        # ---- case: all bin data in project. check cat and prob columns ----
         rows = list(query_forecasts_for_project(self.project, {'types': ['bin'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
@@ -144,10 +140,6 @@ class ProjectQueriesTestCase(TestCase):
         self.assertEqual(exp_rows_bin, sorted(act_rows))
 
         # ----  case: all named data in project. check family, and param1, 2, and 3 columns ----
-        rows = list(query_forecasts_for_project(self.project, {'types': ['named']}))
-        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-
-        # same test but with conversion
         rows = list(query_forecasts_for_project(self.project, {'types': ['named'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
@@ -159,11 +151,7 @@ class ProjectQueriesTestCase(TestCase):
                     for row in rows]
         self.assertEqual(exp_rows_named, sorted(act_rows))
 
-        # ---- case: all PointData in project. check value column ----
-        rows = list(query_forecasts_for_project(self.project, {'types': ['point']}))
-        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-
-        # same test but with conversion
+        # ---- case: all point data in project. check value column ----
         rows = list(query_forecasts_for_project(self.project, {'types': ['point'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
@@ -183,11 +171,7 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
         self.assertEqual(exp_rows_point, sorted(act_rows))
 
-        # ---- case: all SampleData in project. check sample column ----
-        rows = list(query_forecasts_for_project(self.project, {'types': ['sample']}))
-        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-
-        # same test but with conversion
+        # ---- case: all sample data in project. check sample column ----
         rows = list(query_forecasts_for_project(self.project, {'types': ['sample'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
 
@@ -218,11 +202,7 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[9]) for row in rows]
         self.assertEqual(exp_rows_sample, sorted(act_rows))
 
-        # ---- case: all QuantileData in project. check quantile and value columns ----
-        rows = list(query_forecasts_for_project(self.project, {'types': ['quantile']}))
-        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-
-        # same test but with conversion
+        # ---- case: all quantile data in project. check quantile and value columns ----
         rows = list(
             query_forecasts_for_project(self.project, {'types': ['quantile'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
@@ -241,17 +221,30 @@ class ProjectQueriesTestCase(TestCase):
         act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[10], row[6]) for row in rows]
         self.assertEqual(exp_rows_quantile, sorted(act_rows))
 
+        # ---- case: all mean, median, and mode data in project. check value column ----
+        rows = list(query_forecasts_for_project(self.project, {'types': ['mean', 'median', 'mode']}))
+        self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
+
+        exp_rows_mmm = [(model, tz, seas, 'loc1', 'pct next week', 'mean', 2.11),
+                        (model, tz, seas, 'loc1', 'pct next week', 'median', 2.12),
+                        (model, tz, seas, 'loc1', 'pct next week', 'mode', 2.13)]  # sorted
+        # model, timezero, season, unit, target, class, value, cat, prob, sample, quantile, family, param1, 2, 3
+        act_rows = [(row[0], row[1], row[2], row[3], row[4], row[5], row[6]) for row in rows]
+        self.assertEqual(exp_rows_mmm, sorted(act_rows))
+
         # ---- case: empty query -> all forecasts in project ----
         rows = list(query_forecasts_for_project(self.project, {}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
-                         len(rows))
+        self.assertEqual(
+            len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin + exp_rows_mmm),
+            len(rows))
 
         # same test but with conversion
         rows = list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin),
-                         len(rows))
+        self.assertEqual(
+            len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin + exp_rows_mmm),
+            len(rows))
 
         # ---- case: only one unit ----
         rows = list(query_forecasts_for_project(self.project, {'units': ['loc3']}))
@@ -291,51 +284,56 @@ class ProjectQueriesTestCase(TestCase):
         # "loc2", "Season peak week", "quantile": 2 not 3
         rows = list(query_forecasts_for_project(self.project, {}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2)
-                         - 4, len(rows))
+        self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin
+                              + exp_rows_mmm) * 2) - 4, len(rows))
 
         # same test but with conversion
         rows = list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) * 2)
+        self.assertEqual((len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin
+                              + exp_rows_mmm) * 2)
                          - 4, len(rows))
 
         # ---- case: only one timezero ----
         rows = list(query_forecasts_for_project(self.project, {'timezeros': ['2011-10-22']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin
+                             + exp_rows_mmm) - 4,
                          len(rows))
 
         # same test but with conversion
         rows = list(
             query_forecasts_for_project(self.project, {'timezeros': ['2011-10-22'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin
+                             + exp_rows_mmm) - 4,
                          len(rows))
 
         # ---- case: only one model ----
         rows = list(query_forecasts_for_project(self.project, {'models': ['abbrev']}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin
+                             + exp_rows_mmm) - 4,
                          len(rows))
 
         # ---- case: only one model ----
         # same test but with conversion
         rows = list(query_forecasts_for_project(self.project, {'models': ['abbrev'], 'options': {'convert.bin': True}}))
         self.assertEqual(FORECAST_CSV_HEADER, rows.pop(0))
-        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin) - 4,
+        self.assertEqual(len(exp_rows_quantile + exp_rows_sample + exp_rows_point + exp_rows_named + exp_rows_bin
+                             + exp_rows_mmm) - 4,
                          len(rows))
 
 
     def test_query_forecasts_for_project_max_num_rows(self):
         try:
-            list(query_forecasts_for_project(self.project, {}, max_num_rows=29))  # actual number of rows = 29
+            list(query_forecasts_for_project(self.project, {}, max_num_rows=32))  # actual number of rows = 32
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
         # same test but with conversion
         try:
-            list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}, max_num_rows=29))
+            list(query_forecasts_for_project(self.project, {'options': {'convert.bin': True}}, max_num_rows=32))
         except Exception as ex:
             self.fail(f"unexpected exception: {ex}")
 
@@ -399,6 +397,7 @@ class ProjectQueriesTestCase(TestCase):
             {},
             {'convert.bin': True, 'convert.point': 'mean', 'convert.sample': 21, 'convert.quantile': [0.025, 0.975]},
             {'convert.bin': False, 'convert.point': 'median', 'convert.sample': 10, 'convert.quantile': [0.025, 0.975]},
+            {'convert.mean': True, 'convert.median': True, 'convert.mode': True},
         ]:
             error_messages, _ = validate_forecasts_query(self.project, {'types': ['point'], 'options': valid_options})
             self.assertEqual(0, len(error_messages))
@@ -417,6 +416,9 @@ class ProjectQueriesTestCase(TestCase):
             ({'convert.quantile': [0.025, 0.025]}, "quantile`s must be unique"),
             ({'convert.sample': 'nope'}, "sample option value was not an int >0"),
             ({'convert.sample': 0}, "sample option value was not an int >0"),
+            ({'convert.mean': -1}, "mean option value was not a boolean"),
+            ({'convert.median': -1}, "median option value was not a boolean"),
+            ({'convert.mode': -1}, "mode option value was not a boolean"),
         ]:
             error_messages, _ = validate_forecasts_query(self.project, {'types': ['point'], 'options': invalid_options})
             self.assertEqual(1, len(error_messages))
@@ -450,7 +452,8 @@ class ProjectQueriesTestCase(TestCase):
         u2 = project.units.get(abbreviation='loc2')
         t1 = project.targets.get(name='pct next week')
         f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
-        predictions = [{"unit": u1.abbreviation, "target": t1.name, "class": "sample", "prediction": {"sample": samples}}]
+        predictions = [
+            {"unit": u1.abbreviation, "target": t1.name, "class": "sample", "prediction": {"sample": samples}}]
         load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
 
         # case: S->Q
@@ -531,7 +534,8 @@ class ProjectQueriesTestCase(TestCase):
         exp_rows = [
             ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
              'family', 'param1', 'param2', 'param3']]
-        act_rows = list(query_forecasts_for_project(project, {'types': ['bin'], 'options': {'convert.bin': True}}))
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['bin'], 'options': {'convert.bin': True}}))
         self.assertEqual(exp_rows, act_rows)
 
         # case: S->B (unsupported target type) -> returns only header
@@ -543,7 +547,44 @@ class ProjectQueriesTestCase(TestCase):
         exp_rows = [
             ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
              'family', 'param1', 'param2', 'param3']]
-        act_rows = list(query_forecasts_for_project(project, {'types': ['bin'], 'options': {'convert.bin': True}}))
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['bin'], 'options': {'convert.bin': True}}))
+        self.assertEqual(exp_rows, act_rows)
+
+
+    def test_query_forecasts_for_project_convert_S_to_MM(self):
+        _, _, po_user, _, _, _, _, _ = get_or_create_super_po_mo_users(is_create_super=True)
+        project = create_project_from_json(Path('forecast_app/tests/projects/docs-project.json'), po_user)
+        forecast_model = ForecastModel.objects.create(project=project, name='convert model', abbreviation='convs_model')
+        tz1 = project.timezeros.filter(timezero_date=datetime.date(2011, 10, 2)).first()
+        u1 = project.units.get(abbreviation='loc1')
+        u2 = project.units.get(abbreviation='loc2')
+        t1 = project.targets.get(name='cases next week')
+        t2 = project.targets.get(name='season severity')
+        f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
+        samples = [0, 2, 2, 5]
+        predictions = [{"unit": u1.abbreviation, "target": t1.name, "class": "sample",
+                        "prediction": {"sample": samples}}]
+        load_predictions_from_json_io_dict(f1, {'predictions': predictions}, is_validate_cats=False)
+
+        # case: S->Mean
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3'],
+            ['convs_model', '2011-10-02', '2011-2012', 'loc1', 'cases next week', 'mean',
+             statistics.mean(samples), '', '', '', '', '', '', '', '']]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['mean'], 'options': {'convert.mean': True}}))
+        self.assertEqual(exp_rows, act_rows)
+
+        # case: S->Median
+        exp_rows = [
+            ['model', 'timezero', 'season', 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile',
+             'family', 'param1', 'param2', 'param3'],
+            ['convs_model', '2011-10-02', '2011-2012', 'loc1', 'cases next week', 'median',
+             statistics.median(samples), '', '', '', '', '', '', '', '']]
+        act_rows = list(query_forecasts_for_project(project,
+                                                    {'types': ['median'], 'options': {'convert.median': True}}))
         self.assertEqual(exp_rows, act_rows)
 
 
@@ -1064,7 +1105,8 @@ class ProjectQueriesTestCase(TestCase):
         # load f1 (all "cases next week" dicts from docs-predictions.json)
         f1 = Forecast.objects.create(forecast_model=forecast_model, source='f1', time_zero=tz1)
         predictions = [
-            {"unit": u1.abbreviation, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u1.abbreviation, "target": t1.name, "class": "named",
+             "prediction": {"family": "pois", "param1": 1.1}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "point", "prediction": {"value": 5}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "sample", "prediction": {"sample": [0, 2, 5]}},
             {"unit": u3.abbreviation, "target": t1.name, "class": "bin",
@@ -1189,7 +1231,8 @@ class ProjectQueriesTestCase(TestCase):
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
         predictions = [
-            {"unit": u1.abbreviation, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.2}},
+            {"unit": u1.abbreviation, "target": t1.name, "class": "named",
+             "prediction": {"family": "pois", "param1": 1.2}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "point", "prediction": {"value": 6}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "sample", "prediction": {"sample": [0, 3, 6]}},
             {"unit": u3.abbreviation, "target": t1.name, "class": "bin",
@@ -1271,7 +1314,8 @@ class ProjectQueriesTestCase(TestCase):
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
         predictions = [
-            {"unit": u1.abbreviation, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u1.abbreviation, "target": t1.name, "class": "named",
+             "prediction": {"family": "pois", "param1": 1.1}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "point", "prediction": {"value": 7}},  # updated
             {"unit": u2.abbreviation, "target": t1.name, "class": "sample", "prediction": {"sample": [0, 2, 5]}},
             {"unit": u3.abbreviation, "target": t1.name, "class": "bin",  # updated
@@ -1353,7 +1397,8 @@ class ProjectQueriesTestCase(TestCase):
 
         f2 = Forecast.objects.create(forecast_model=forecast_model, source='f2', time_zero=tz1)
         predictions = [
-            {"unit": u1.abbreviation, "target": t1.name, "class": "named", "prediction": {"family": "pois", "param1": 1.1}},
+            {"unit": u1.abbreviation, "target": t1.name, "class": "named",
+             "prediction": {"family": "pois", "param1": 1.1}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "point", "prediction": {"value": 5}},
             {"unit": u2.abbreviation, "target": t1.name, "class": "sample", "prediction": None},  # retracted
             {"unit": u3.abbreviation, "target": t1.name, "class": "bin",  # all updated

@@ -21,12 +21,18 @@ class PredictionElement(models.Model):
     POINT_CLASS = 2
     SAMPLE_CLASS = 3
     QUANTILE_CLASS = 4
+    MEAN_CLASS = 5
+    MEDIAN_CLASS = 6
+    MODE_CLASS = 7
     PRED_CLASS_CHOICES = (
         (BIN_CLASS, 'bin'),
         (NAMED_CLASS, 'named'),
         (POINT_CLASS, 'point'),
         (SAMPLE_CLASS, 'sample'),
         (QUANTILE_CLASS, 'quantile'),
+        (MEAN_CLASS, 'mean'),
+        (MEDIAN_CLASS, 'median'),
+        (MODE_CLASS, 'mode'),
     )
 
     forecast = models.ForeignKey('Forecast', related_name='pred_eles', on_delete=models.CASCADE)

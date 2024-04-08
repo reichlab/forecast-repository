@@ -69,10 +69,13 @@ class PredictionsTestCase(TestCase):
             load_predictions_from_json_io_dict(forecast, json_io_dict, is_validate_cats=False)
 
         # test PredictionElement.forecast and is_retract
-        self.assertEqual(29, forecast.pred_eles.count())
+        self.assertEqual(32, forecast.pred_eles.count())
         self.assertEqual(0, PredictionElement.objects.filter(is_retract=True).count())
 
         exp_rows = [('point', 'location1', 'pct next week', '2c343e1ea37e8b493c219066a8664276'),
+                    ('mean', 'location1', 'pct next week', '4723aed2e3667f67e470bd8580d5510c'),
+                    ('median', 'location1', 'pct next week', '4e5842f95986fb7e64c484990d6387cf'),
+                    ('mode', 'location1', 'pct next week', '61ba7e3fbe6d0961a70ca041c089e7c1'),
                     ('named', 'location1', 'pct next week', '58a7f8487958446d57333b262aaa8271'),
                     ('point', 'location2', 'pct next week', '2b9db448ae1a3b7065ffee67d4857268'),
                     ('bin', 'location2', 'pct next week', '7d1485af48de540dbcd954ee5cba51cb'),
@@ -131,8 +134,8 @@ class PredictionsTestCase(TestCase):
         # test prediction element counts match number in .json file
         pred_ele_qs = forecast.pred_eles.all()
         pred_data_qs = PredictionData.objects.filter(pred_ele__forecast=forecast)
-        self.assertEqual(29, len(pred_ele_qs))
-        self.assertEqual(29, len(pred_data_qs))
+        self.assertEqual(32, len(pred_ele_qs))
+        self.assertEqual(32, len(pred_data_qs))
 
         # test there's a prediction element for every .json item
         unit_abbrev_to_obj = {unit.abbreviation: unit for unit in project.units.all()}
@@ -238,9 +241,9 @@ class PredictionsTestCase(TestCase):
         f2 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz2)
         load_predictions_from_json_io_dict(f2, {'meta': {}, 'predictions': pred_dicts[:-1]},  # all but last PE
                                            is_validate_cats=False)
-        self.assertEqual(27, f1.pred_eles.count())
-        self.assertEqual(28, f2.pred_eles.count())
-        self.assertEqual(27 + 28, project.num_pred_ele_rows_all_models(is_oracle=False))
+        self.assertEqual(30, f1.pred_eles.count())
+        self.assertEqual(31, f2.pred_eles.count())
+        self.assertEqual(30 + 31, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same predictions into a different version -> none should load (they're all duplicates)
         f1.issued_at -= datetime.timedelta(days=1)
@@ -248,10 +251,10 @@ class PredictionsTestCase(TestCase):
 
         f3 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1)
         load_predictions_from_json_io_dict(f3, json_io_dict, is_validate_cats=False)
-        self.assertEqual(27, f1.pred_eles.count())
-        self.assertEqual(28, f2.pred_eles.count())
+        self.assertEqual(30, f1.pred_eles.count())
+        self.assertEqual(31, f2.pred_eles.count())
         self.assertEqual(2, f3.pred_eles.count())  # 2 were new (non-dup)
-        self.assertEqual(27 + 28 + 2, project.num_pred_ele_rows_all_models(is_oracle=False))
+        self.assertEqual(30 + 31 + 2, project.num_pred_ele_rows_all_models(is_oracle=False))
 
         # case: load the same file, but change one multi-row prediction (a sample) to have partial duplication
         f3.issued_at -= datetime.timedelta(days=2)
@@ -266,7 +269,7 @@ class PredictionsTestCase(TestCase):
         f4 = Forecast.objects.create(forecast_model=forecast_model, time_zero=tz1)
         load_predictions_from_json_io_dict(f4, json_io_dict, is_validate_cats=False)
         self.assertEqual(1, f4.pred_eles.count())
-        self.assertEqual(27 + 28 + 2 + 1, project.num_pred_ele_rows_all_models(is_oracle=False))
+        self.assertEqual(30 + 31 + 2 + 1, project.num_pred_ele_rows_all_models(is_oracle=False))
 
 
     #

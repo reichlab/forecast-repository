@@ -66,7 +66,7 @@ def query_forecasts_for_project(project, query, max_num_rows=MAX_NUM_QUERY_ROWS)
       page). keys are period-delimited strings and values are options-specific values (all single values). for example,
       'convert.bin' and 'convert.point'.
 
-    Currently the only options are ones controlling auto-conversion of prediction types. Each one provides two pieces
+    Currently, the only options are ones controlling auto-conversion of prediction types. Each one provides two pieces
     of information: 1) that the conversion TO that prediction type is desired, and 2) type-specific options for that
     conversion. Zoltar uses rules to do the conversion based on what "source" predictions are available. Briefly, these
     are the ultimately supported conversions (NB: see below for what's currently implemented):
@@ -179,7 +179,10 @@ def _generate_query_rows_no_type_convert(fm_id, tz_id, unit_id, target_id, forec
         yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].abbreviation,
                target_id_to_obj[target_id].name, class_str,
                value, cat, prob, sample, quantile, family, param1, param2, param3]
-    elif pred_class == PredictionElement.POINT_CLASS:
+    elif ((pred_class == PredictionElement.POINT_CLASS)
+          or (pred_class == PredictionElement.MEAN_CLASS)
+          or (pred_class == PredictionElement.MEDIAN_CLASS)
+          or (pred_class == PredictionElement.MODE_CLASS)):
         value = pred_data['value']
         yield [model_str, timezero_str, season, unit_id_to_obj[unit_id].abbreviation,
                target_id_to_obj[target_id].name, class_str,
@@ -200,7 +203,9 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
                                         is_exclude_oracle, is_include_retract=False, is_type_convert=False):
     """
     A `query_forecasts_for_project()` helper that returns an SQL query string based on my args that, when executed,
-    returns a list of 7-tuples: (forecast_model_id, timezero_id, pred_class, unit_id, target_id, is_retract, pred_data),
+    returns a list of 6-tuples or 7-tuples depending on `is_type_convert`:
+    - False: (forecast_model_id, timezero_id, pred_class, unit_id, target_id, is_retract, pred_data)
+    - True: (forecast_model_id, timezero_id, unit_id, target_id, pred_ele_id, pred_class)
     where:
     - pred_class: PRED_CLASS_CHOICES int
     - data: the stored json
@@ -217,7 +222,7 @@ def _query_forecasts_sql_for_pred_class(pred_classes, model_ids, unit_ids, targe
         changes the query to ignore `pred_classes`, SELECT different columns, and do an ORDER BY
     :return SQL to execute. returns columns as described above
     """
-    # about the query: the ranked_rows CTE groups prediction elements and then ranks then in issued_at order, which
+    # about the query: the ranked_rows CTE groups prediction elements and then ranks them in issued_at order, which
     # implements our masking (newer issued_ats mask older ones) and merging (discarded duplicates are merged back in
     # via previous versions) search semantics. it is crucial that the CTE /not/ include is_retract b/c that's how
     # retractions are implemented: they are ranked higher than the prediction elements they mask if they're newer.
@@ -347,7 +352,8 @@ def validate_forecasts_query(project, query):
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
         options_keys = set(options.keys())
-        if not (options_keys <= {'convert.bin', 'convert.point', 'convert.sample', 'convert.quantile'}):
+        if not (options_keys <= {'convert.bin', 'convert.point', 'convert.sample', 'convert.quantile',
+                                 'convert.mean', 'convert.median', 'convert.mode'}):
             error_messages.append(f"one or more invalid options keys. keys={options_keys}, query={query}")
             return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
 
@@ -376,6 +382,25 @@ def validate_forecasts_query(project, query):
                 error_messages.append(f"sample option value was not an int >0 "
                                       f"option={options['convert.sample']}, query={query}")
                 return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+
+        if 'convert.mean' in options:
+            if not isinstance(options['convert.mean'], bool):
+                error_messages.append(f"mean option value was not a boolean. option={options['convert.mean']}, "
+                                      f"query={query}")
+                return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+
+        if 'convert.median' in options:
+            if not isinstance(options['convert.median'], bool):
+                error_messages.append(f"median option value was not a boolean. option={options['convert.median']}, "
+                                      f"query={query}")
+                return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+
+        if 'convert.mode' in options:
+            if not isinstance(options['convert.mode'], bool):
+                error_messages.append(f"mode option value was not a boolean. option={options['convert.mode']}, "
+                                      f"query={query}")
+                return [error_messages, (model_ids, unit_ids, target_ids, timezero_ids, types, as_of)]
+
 
     # validate object IDs that strings refer to
     error_messages, (model_ids, unit_ids, target_ids, timezero_ids) = _validate_query_ids(project, query)
@@ -452,45 +477,59 @@ def _query_forecasts_for_project_yes_type_convert(project, query, max_num_rows, 
         for (fm_id, tz_id, unit_id, target_id), pe_id_class_grouper in \
                 groupby(batched_rows(cursor), key=lambda _: (_[0], _[1], _[2], _[3])):
             # 2-tuples: (pred_ele_id, src_pred_class)
-            # loop twice through all PEs in group, the first time filling src_bnpsq_ids (source prediction types) and
+            # loop twice through all PEs in group, the first time filling src_bnpsqmmm_ids (source prediction types) and
             # counting rows. we need the former to decide which PEs to get data for in the second loop. conveniently we
-            # index into it using src_pred_class (PRED_CLASS_CHOICES) - we know there's only one prediction of a
-            # particular type per group.
+            # can index directly into it using src_pred_class (PRED_CLASS_CHOICES) - we know there's only one prediction
+            # of a particular type per group.
             # NB: todo currently we only support: 1) target types: continuous, discrete. 2) conversions: P <- S
-            src_bnpsq_ids = [None, None, None, None, None]  # PRED_CLASS_CHOICES order
+            src_bnpsqmmm_ids = [None, None, None, None, None, None, None, None]  # PRED_CLASS_CHOICES order
 
-            # pass 1/2: loop over available ("source") PE types:
+            # pass 1/2: collect available ("source") PE types:
             for _, _, _, _, pe_id, src_pred_class in pe_id_class_grouper:
                 num_rows += 1
                 if num_rows > max_num_rows:
                     raise RuntimeError(f"number of rows exceeded maximum. num_rows={num_rows}, "
                                        f"max_num_rows={max_num_rows}")
 
-                src_bnpsq_ids[src_pred_class] = pe_id
+                src_bnpsqmmm_ids[src_pred_class] = pe_id
 
             # pass 2/2: loop over requested ("destination") PE types. expand type_ints [] to all if nec. check if we
             # can convert. NB: these elifs must match those in `_generate_query_rows_yes_type_convert()`
             for dst_pred_class in list(PRED_CLASS_INT_TO_NAME.keys()) if not type_ints else type_ints:
-                if src_bnpsq_ids[dst_pred_class] is not None:
+                if src_bnpsqmmm_ids[dst_pred_class] is not None:
                     # we have the requested type - no conversion needed
-                    pe_id_dst_pred_classes.append((src_bnpsq_ids[dst_pred_class], dst_pred_class))
+                    pe_id_dst_pred_classes.append((src_bnpsqmmm_ids[dst_pred_class], dst_pred_class))
                 elif (target_id_to_obj[target_id].type in [Target.CONTINUOUS_TARGET_TYPE,
                                                            Target.DISCRETE_TARGET_TYPE]) \
-                        and (src_bnpsq_ids[PredictionElement.SAMPLE_CLASS] is not None) \
+                        and (src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS] is not None) \
                         and (dst_pred_class == PredictionElement.POINT_CLASS) \
                         and ('convert.point' in query_options):
-                    # we have a currently-supported conversion
-                    pe_id_dst_pred_classes.append((src_bnpsq_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
+                    # sample -> point
+                    pe_id_dst_pred_classes.append((src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
                 elif (target_id_to_obj[target_id].type in [Target.CONTINUOUS_TARGET_TYPE,
                                                            Target.DISCRETE_TARGET_TYPE]) \
-                        and (src_bnpsq_ids[PredictionElement.SAMPLE_CLASS] is not None) \
+                        and (src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS] is not None) \
+                        and (dst_pred_class == PredictionElement.MEAN_CLASS) \
+                        and ('convert.mean' in query_options):
+                    # sample -> mean
+                    pe_id_dst_pred_classes.append((src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
+                elif (target_id_to_obj[target_id].type in [Target.CONTINUOUS_TARGET_TYPE,
+                                                           Target.DISCRETE_TARGET_TYPE]) \
+                        and (src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS] is not None) \
+                        and (dst_pred_class == PredictionElement.MEDIAN_CLASS) \
+                        and ('convert.median' in query_options):
+                    # sample -> median
+                    pe_id_dst_pred_classes.append((src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
+                elif (target_id_to_obj[target_id].type in [Target.CONTINUOUS_TARGET_TYPE,
+                                                           Target.DISCRETE_TARGET_TYPE]) \
+                        and (src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS] is not None) \
                         and (dst_pred_class == PredictionElement.QUANTILE_CLASS) \
                         and ('convert.quantile' in query_options):
-                    # we have a currently-supported conversion
-                    pe_id_dst_pred_classes.append((src_bnpsq_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
+                    # sample -> quantile
+                    pe_id_dst_pred_classes.append((src_bnpsqmmm_ids[PredictionElement.SAMPLE_CLASS], dst_pred_class))
 
-    # insert the PE rows (pe_id_dst_pred_classes) into a TEMP TABLE for the final JOIN. we use the same insert method as in
-    # `_insert_pred_ele_rows()`: dispatch based on vendor
+    # insert the PE rows (pe_id_dst_pred_classes) into a TEMP TABLE for the final JOIN. we use the same insert method as
+    # in `_insert_pred_ele_rows()`: dispatch based on vendor
     logger.debug(f"_query_forecasts_for_project_yes_type_convert(): 2/4 creating temp table")
     temp_table_name = 'pred_ele_temp'
     column_names = ('pe_id', 'dst_class')  # both INTEGER
@@ -568,13 +607,29 @@ def _generate_query_rows_yes_type_convert(fm_id, tz_id, unit_id, target_id, fore
             and (src_pred_class == PredictionElement.SAMPLE_CLASS) \
             and (dst_pred_class == PredictionElement.POINT_CLASS) \
             and ('convert.point' in query_options):
+        # sample -> point
         samples = pred_data['sample']
         out_pred_data = {"value": statistics.mean(samples)} if query_options['convert.point'] == 'mean' \
             else {"value": statistics.median(samples)}
     elif (target.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]) \
             and (src_pred_class == PredictionElement.SAMPLE_CLASS) \
+            and (dst_pred_class == PredictionElement.MEAN_CLASS) \
+            and ('convert.mean' in query_options):
+        # sample -> mean
+        samples = pred_data['sample']
+        out_pred_data = {"value": statistics.mean(samples)}
+    elif (target.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]) \
+            and (src_pred_class == PredictionElement.SAMPLE_CLASS) \
+            and (dst_pred_class == PredictionElement.MEDIAN_CLASS) \
+            and ('convert.median' in query_options):
+        # sample -> median
+        samples = pred_data['sample']
+        out_pred_data = {"value": statistics.median(samples)}
+    elif (target.type in [Target.CONTINUOUS_TARGET_TYPE, Target.DISCRETE_TARGET_TYPE]) \
+            and (src_pred_class == PredictionElement.SAMPLE_CLASS) \
             and (dst_pred_class == PredictionElement.QUANTILE_CLASS) \
             and ('convert.quantile' in query_options):
+        # sample -> quantile
         samples = pred_data['sample']
         quantiles = sorted(query_options['convert.quantile'])  # assume validated via `_validate_quantile_list()`
         quant_value = numpy.quantile(samples, quantiles)

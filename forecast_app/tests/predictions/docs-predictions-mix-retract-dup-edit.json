@@ -10,6 +10,27 @@
     },
     {"unit": "loc1",
       "target": "pct next week",
+      "class": "mean",
+      "prediction": {
+        "value": 2.11
+      }
+    },
+    {"unit": "loc1",
+      "target": "pct next week",
+      "class": "median",
+      "prediction": {
+        "value": 2.12
+      }
+    },
+    {"unit": "loc1",
+      "target": "pct next week",
+      "class": "mode",
+      "prediction": {
+        "value": 2.13
+      }
+    },
+    {"unit": "loc1",
+      "target": "pct next week",
       "class": "named",
       "prediction": {
         "family": "norm",

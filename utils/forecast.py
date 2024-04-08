@@ -198,7 +198,7 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
                                    f"{list(PRED_CLASS_INT_TO_NAME.values())}. "
                                    f"prediction_dict={prediction_dict}")
 
-            # do class-specific validation
+            # do class-specific validation per the table at https://docs.zoltardata.com/targets/#valid-prediction-types-by-target-type
             target = target_name_to_obj[target_name]
             if (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS]) \
                     and not is_retract:
@@ -207,13 +207,34 @@ def _validated_pred_ele_rows_for_pred_dicts(forecast, prediction_dicts, is_skip_
                     and not is_retract:
                 family_abbrev = prediction_data['family']
                 _validate_named_prediction_dict(family_abbrev, prediction_dict, target)  # raises o/w
-            elif (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]) \
+            elif ((pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS])
+                  or (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MODE_CLASS])) \
                     and not is_retract:
+                # point and mode prediction classes are valid for all target types, so no need to validate
                 _validate_point_prediction_dict(prediction_dict, target, prediction_data['value'])  # raises o/w
+            elif ((pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MEAN_CLASS])
+                  and not is_retract):
+                # mean prediction class is valid for these target types: continuous, discrete, and date. i.e., is NOT
+                # nominal or binary
+                if (target.type == Target.NOMINAL_TARGET_TYPE) or (target.type == Target.BINARY_TARGET_TYPE):
+                    raise RuntimeError(f"pred_class={pred_class} is not valid for target.type={target.type}. "
+                                       f"prediction_dict={prediction_dict}")
+                else:
+                    _validate_point_prediction_dict(prediction_dict, target, prediction_data['value'])  # raises o/w
+            elif ((pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MEDIAN_CLASS])
+                  and not is_retract):
+                # median prediction class is valid for these target types: continuous, discrete, binary, and date. i.e.,
+                # is NOT nominal
+                if target.type == Target.NOMINAL_TARGET_TYPE:
+                    raise RuntimeError(f"pred_class={pred_class} is not valid for target.type={target.type}. "
+                                       f"prediction_dict={prediction_dict}")
+                else:
+                    _validate_point_prediction_dict(prediction_dict, target, prediction_data['value'])  # raises o/w
             elif (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS]) \
                     and not is_retract:
                 _validate_sample_prediction_dict(prediction_dict, target)  # raises o/w
-            elif not is_retract:  # pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]:
+            elif (pred_class == PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]) \
+                    and not is_retract:
                 _validate_quantile_prediction_dict(prediction_dict, target)  # raises o/w
 
         # valid, so update data_hash_to_pred_data and append the row. we store '' if is_retract b/c there is no
@@ -464,8 +485,7 @@ def _validate_named_prediction_dict(family_abbrev, prediction_dict, target):
                            f"family_abbrev={family_abbrev!r}, family_abbrevs={family_abbrevs}, "
                            f"prediction_dict={prediction_dict}")
 
-    # validate: "The Prediction's class must be valid for its target's type". note that only named and quantile
-    # predictions are constrained; all other target_type/prediction_class combinations are valid
+    # validate: "The Prediction's class must be valid for its target's type"
     if not Target.is_valid_named_family_for_target_type(family_abbrev, target.type):
         raise RuntimeError(f"family {family_abbrev!r} is not valid for {target.type_as_str()!r} "
                            f"target types. prediction_dict={prediction_dict}")
@@ -696,15 +716,19 @@ def data_rows_from_forecast(forecast, unit, target):
     :param forecast: a Forecast to constrain to
     :param unit: a Unit ""
     :param target: a Target ""
-    :return: 5-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample) where
-        data_rows_bin:      unit_abbreviation, target_name,  cat, prob
-        data_rows_named:    unit_abbreviation, target_name,  family, param1, param2, param3
-        data_rows_point:    unit_abbreviation, target_name,  value
-        data_rows_quantile: unit_abbreviation, target_name,  quantile, value
-        data_rows_sample:   unit_abbreviation, target_name,  sample
+    :return: 8-tuple: (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample,
+        data_rows_mean, data_rows_median, data_rows_mode) where:
+        - data_rows_bin:       unit_abbreviation,  target_name,  cat, prob
+        - data_rows_named:     unit_abbreviation,  target_name,  family, param1, param2, param3
+        - data_rows_point:     unit_abbreviation,  target_name,  value
+        - data_rows_quantile:  unit_abbreviation,  target_name,  quantile, value
+        - data_rows_sample:    unit_abbreviation,  target_name,  sample
+        - data_rows_mean:      unit_abbreviation,  target_name,  value
+        - data_rows_median:    unit_abbreviation,  target_name,  value
+        - data_rows_mode:      unit_abbreviation,  target_name,  value
     """
-    data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample = \
-        [], [], [], [], []  # return value
+    (data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample, data_rows_mean,
+     data_rows_median, data_rows_mode) = [], [], [], [], [], [], [], []  # return value
 
     # fill rows by leveraging `query_forecasts_for_project()`'s `_query_forecasts_sql_for_pred_class()`,
     # which does the necessary work of merging versions and picking latest issued_at data.
@@ -731,9 +755,16 @@ def data_rows_from_forecast(forecast, unit, target):
             elif pred_class == PredictionElement.SAMPLE_CLASS:
                 for sample in pred_data['sample']:
                     data_rows_sample.append((unit.abbreviation, target.name, sample))
+            elif pred_class == PredictionElement.MEAN_CLASS:
+                data_rows_mean.append((unit.abbreviation, target.name, pred_data['value']))
+            elif pred_class == PredictionElement.MEDIAN_CLASS:
+                data_rows_median.append((unit.abbreviation, target.name, pred_data['value']))
+            elif pred_class == PredictionElement.MODE_CLASS:
+                data_rows_mode.append((unit.abbreviation, target.name, pred_data['value']))
 
     # done
-    return data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample
+    return data_rows_bin, data_rows_named, data_rows_point, data_rows_quantile, data_rows_sample, data_rows_mean, \
+        data_rows_median, data_rows_mode
 
 
 #
@@ -785,7 +816,10 @@ def _cache_forecast_metadata_predictions(forecast):
                                               named_count=pred_class_to_counts[PredictionElement.NAMED_CLASS],
                                               point_count=pred_class_to_counts[PredictionElement.POINT_CLASS],
                                               sample_count=pred_class_to_counts[PredictionElement.SAMPLE_CLASS],
-                                              quantile_count=pred_class_to_counts[PredictionElement.QUANTILE_CLASS])
+                                              quantile_count=pred_class_to_counts[PredictionElement.QUANTILE_CLASS],
+                                              mean_count=pred_class_to_counts[PredictionElement.MEAN_CLASS],
+                                              median_count=pred_class_to_counts[PredictionElement.MEDIAN_CLASS],
+                                              mode_count=pred_class_to_counts[PredictionElement.MODE_CLASS])
 
 
 def _cache_forecast_metadata_units(forecast):
@@ -904,8 +938,9 @@ def forecast_metadata_counts_for_f_ids(forecasts_qs):
 
     # query 1/3: get ForecastMetaPrediction counts
     for fmp in ForecastMetaPrediction.objects.filter(forecast__in=forecasts_qs):
-        forecast_id_to_counts[fmp.forecast_id][0] = (fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count,
-                                                     fmp.quantile_count)
+        forecast_id_to_counts[fmp.forecast_id][0] = (
+            fmp.point_count, fmp.named_count, fmp.bin_count, fmp.sample_count, fmp.quantile_count, fmp.mean_count,
+            fmp.median_count, fmp.mode_count)
 
     # query 2/3: get ForecastMetaUnit counts
     f_fmu_qs = forecasts_qs.annotate(num_targets=Count('forecastmetaunit')).values_list('id', 'num_targets')
