@@ -1,7 +1,6 @@
 import datetime
 from itertools import groupby
 
-from forecast_app.models.prediction_element import PRED_CLASS_INT_TO_NAME, PredictionElement
 from utils.project_queries import CSV_HEADER
 from utils.utilities import YYYY_MM_DD_DATE_FORMAT
 
@@ -10,92 +9,14 @@ RETRACT_VAL = 'NULL'  # value in CSV files that represents a retraction
 
 
 #
-# csv_rows_from_json_io_dict()
-#
-
-def csv_rows_from_json_io_dict(json_io_dict):
-    """
-    A utility that converts a "JSON IO dict" as returned by zoltar to a list rows in zoltar-specific CSV format. The
-    columns are: 'unit', 'target', 'class', 'value', 'cat', 'prob', 'sample', 'quantile', 'family', 'param1', 'param2',
-    'param3'. They are documented at https://docs.zoltardata.com/fileformats/#forecast-data-format-csv .
-
-    notes:
-    - retractions: represented in csv_rows by placing RETRACT_VAL in *all* pred_class-required column(s)
-
-    :param json_io_dict: a "JSON IO dict" to load from. see docs for details. the "meta" section is ignored
-    :return: a list of CSV rows including header - see CSV_HEADER
-    """
-    # do some initial validation
-    if 'predictions' not in json_io_dict:
-        raise RuntimeError("no predictions section found in json_io_dict")
-
-    rows = [CSV_HEADER]  # return value. filled next
-    for prediction_dict in json_io_dict['predictions']:
-        prediction_class = prediction_dict['class']
-        if prediction_class not in list(PRED_CLASS_INT_TO_NAME.values()):
-            raise RuntimeError(f"invalid prediction_dict class: {prediction_class}")
-
-        is_bin_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.BIN_CLASS]
-        is_named_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.NAMED_CLASS]
-        is_point_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.POINT_CLASS]
-        is_sample_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.SAMPLE_CLASS]
-        is_mean_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MEAN_CLASS]
-        is_median_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MEDIAN_CLASS]
-        is_mode_class = prediction_class == PRED_CLASS_INT_TO_NAME[PredictionElement.MODE_CLASS]
-        unit = prediction_dict['unit']
-        target = prediction_dict['target']
-        prediction_data = prediction_dict['prediction']
-        is_retraction = prediction_data is None
-
-        # prediction_class-specific columns all default to empty:
-        value, cat, prob, sample, quantile, family, param1, param2, param3 = '', '', '', '', '', '', '', '', ''
-        if is_retraction:
-            # retractions are prediction_class-specific. we put RETRACT_VAL in all required columns, and we only need to
-            # output one row in these cases
-            if is_bin_class:
-                cat, prob = RETRACT_VAL, RETRACT_VAL
-            elif is_named_class:
-                family, param1, param2, param3 = RETRACT_VAL, RETRACT_VAL, RETRACT_VAL, RETRACT_VAL
-            elif is_point_class or is_mean_class or is_median_class or is_mode_class:
-                value = RETRACT_VAL
-            elif is_sample_class:
-                sample = RETRACT_VAL
-            else:  # PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]
-                value, quantile = RETRACT_VAL, RETRACT_VAL
-            rows.append([unit, target, prediction_class, value, cat, prob, sample, quantile,
-                         family, param1, param2, param3])
-        elif is_bin_class:
-            for cat, prob in zip(prediction_data['cat'], prediction_data['prob']):
-                rows.append([unit, target, prediction_class, value, cat, prob, sample, quantile,
-                             family, param1, param2, param3])
-        elif is_named_class:
-            rows.append([unit, target, prediction_class, value, cat, prob, sample, quantile,
-                         prediction_data['family'],
-                         prediction_data['param1'] if 'param1' in prediction_data else '',
-                         prediction_data['param2'] if 'param2' in prediction_data else '',
-                         prediction_data['param3'] if 'param3' in prediction_data else ''])
-        elif is_point_class or is_mean_class or is_median_class or is_mode_class:
-            rows.append([unit, target, prediction_class, prediction_data['value'], cat, prob, sample, quantile,
-                         family, param1, param2, param3])
-        elif is_sample_class:
-            for sample in prediction_data['sample']:
-                rows.append([unit, target, prediction_class, value, cat, prob, sample, quantile,
-                             family, param1, param2, param3])
-        else:  # PRED_CLASS_INT_TO_NAME[PredictionElement.QUANTILE_CLASS]
-            for quantile, value in zip(prediction_data['quantile'], prediction_data['value']):
-                rows.append([unit, target, prediction_class, value, cat, prob, sample, quantile,
-                             family, param1, param2, param3])
-    return rows
-
-
-#
 # json_io_dict_from_csv_rows()
 #
 
 def json_io_dict_from_csv_rows(csv_rows):
     """
-    The opposite of `csv_rows_from_json_io_dict()`, this function converts a list rows in zoltar-specific CSV format to
-    a "JSON IO dict". See `csv_rows_from_json_io_dict()` for doc links.
+    Converts a list rows in zoltar-specific CSV format to a "JSON IO dict". The columns are: 'unit', 'target', 'class',
+    'value', 'cat', 'prob', 'sample', 'quantile', 'family', 'param1', 'param2', 'param3'. They are documented at
+    https://docs.zoltardata.com/fileformats/#forecast-data-format-csv .
 
     notes:
     - error handling: this function terminates on the first error
